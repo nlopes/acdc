@@ -1,0 +1,27 @@
+SPACE = _{ " " }
+TAB = _{ "\t" }
+WSPACE = _{ SPACE | TAB }
+NEWLINE = _{ "\n" | "\r\n" }
+EMPTY_LINE = _{ WSPACE* ~ NEWLINE }
+
+empty_header = { "" ~ NEWLINE }
+comment = { "//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
+
+id = @{ id_start_char ~ id_subsequent_char* }
+
+id_start_char = @{ ASCII_ALPHA | "_" | ":" }
+
+id_subsequent_char = @{
+    ASCII_ALPHANUMERIC |
+    "_" |
+    "-" |
+    "."
+}
+
+// https://docs.asciidoctor.org/asciidoc/latest/attributes/names-and-values/#user-defined
+//
+// Although uppercase characters are permitted in an attribute name, the name is converted
+// to lowercase before being stored. For example, URL and Url are treated as url. A best
+// practice is to only use lowercase letters in the name and avoid starting the name with
+// a number.
+attribute_name = !{ (ASCII_ALPHANUMERIC | "-" | "_")+ }

@@ -1,0 +1,16 @@
+document_header = {
+  document_attribute* ~
+  (document_title_token ~ author_revision)? ~
+  (document_attribute | comment)*
+}
+
+document_attribute = { document_attribute_entry }
+
+// TODO(nlopes): I'd love to capture subtitle here but it's a lot trickier to find the
+// last colon and capture everything up to it as the title and everything after it as the
+// subtitle. So I'm just going to ignore it for now and instead do it in the parser.
+document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ NEWLINE }
+document_title = !{ (!NEWLINE ~ ANY)+ }
+
+document_attribute_entry = _{ ":" ~ attribute_name ~ ":" ~ (SPACE ~ document_attribute_value)? ~ NEWLINE }
+document_attribute_value = !{ (!NEWLINE ~ ANY)* }

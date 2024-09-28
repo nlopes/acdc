@@ -1,0 +1,10 @@
+[package]
+name = "acdc-parser-pest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+acdc-parser = { path = "../acdc-parser" }
+pest = "2.7"
+pest_derive = "2.7"
+tracing = { workspace = true }

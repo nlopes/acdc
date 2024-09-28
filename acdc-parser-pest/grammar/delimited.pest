@@ -1,0 +1,70 @@
+delimited_block = {
+    (anchor ~ NEWLINE)? ~
+    (
+        delimited_comment |
+        delimited_example |
+        delimited_listing |
+        delimited_literal |
+        delimited_open |
+        delimited_sidebar |
+        delimited_table |
+        delimited_pass |
+        delimited_quote
+    )
+}
+
+delimited_comment = {
+    PUSH("/"{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_example = {
+    PUSH("="{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_listing = {
+    PUSH("-"{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_literal = {
+    PUSH("."{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_open = {
+    PUSH("--"{2,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_sidebar = {
+    PUSH("*"{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_table = {
+    PUSH(("|" | "," | ":" | "!") ~ "="{3,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_pass = {
+    PUSH("+"{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_quote = {
+    PUSH("_"{4,}) ~ NEWLINE ~
+    delimited_inner ~
+    NEWLINE ~ POP ~ &(NEWLINE | EOI)
+}
+
+delimited_inner = @{ (!(NEWLINE ~ PEEK) ~ ANY)* }

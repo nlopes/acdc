@@ -1,0 +1,19 @@
+[workspace]
+members = [
+  "acdc-parser",
+  "acdc-parser-pest"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Norberto Lopes <nlopesml@gmail.com>"]
+description = "A suite of tools for AsciiDoc documents"
+
+[workspace.dependencies]
+tracing = "0.1"
+thiserror = "1.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

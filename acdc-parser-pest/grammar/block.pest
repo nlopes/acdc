@@ -1,0 +1,41 @@
+block = {
+    section |
+    delimited_block |
+    //list |
+    paragraph |
+    (!EOI ~ ANY)+
+}
+
+anchor = { inline_anchor ~ NEWLINE }
+inline_anchor = {
+    ("[[" ~ id ~ "]]") |
+    ("[" ~ "#" ~ id ~ "]")
+}
+
+block_anchor = {
+    inline_anchor |
+    "[" ~ attribute_name ~ "=" ~ id ~ "]"
+}
+
+section = {
+    PUSH(section_level ~ SPACE) ~ section_title ~ NEWLINE ~ EMPTY_LINE ~
+    section_content ~
+    (
+        (NEWLINE ~ (NEWLINE | EOI)) |
+        EOI
+    )
+}
+
+section_content = {
+    !(POP ~ section_title ~ NEWLINE ~ EMPTY_LINE) ~ (!NEWLINE ~ ANY)+
+}
+
+section_level = { ("=" | "#"){2,6} }
+section_title = {
+    (!NEWLINE ~ ANY)+
+}
+
+// Paragraphs
+paragraph = {
+    (!EMPTY_LINE{2} ~ ANY)+ ~ WSPACE* ~ (NEWLINE+ | EOI)
+}
