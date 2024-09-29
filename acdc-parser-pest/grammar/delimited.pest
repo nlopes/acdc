@@ -1,5 +1,8 @@
 delimited_block = {
-    (anchor ~ NEWLINE)? ~
+    // TODO(nlopes): `attribute_list` doesn't conform to what's in the docs.
+    //
+    // Check what this should be at https://docs.asciidoctor.org/asciidoc/latest/attributes/positional-and-named-attributes/
+    (anchor | attribute_list | blocktitle)* ~
     (
         delimited_comment |
         delimited_example |
@@ -10,7 +13,7 @@ delimited_block = {
         delimited_table |
         delimited_pass |
         delimited_quote
-    )
+    ) ~ NEWLINE*
 }
 
 delimited_comment = {

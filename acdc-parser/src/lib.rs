@@ -34,9 +34,9 @@ pub struct Author {
     pub email: Option<String>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AttributeEntry {
-    pub name: String,
+    pub name: Option<String>,
     pub value: Option<String>,
 }
 
@@ -44,6 +44,21 @@ pub struct AttributeEntry {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Block {
     Section(Section),
+    DelimitedBlock(DelimitedBlock),
+    Paragraph(String),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DelimitedBlock {
+    pub inner: DelimitedBlockType,
+    pub anchor: Option<String>,
+    pub title: Option<String>,
+    pub attributes: Vec<AttributeEntry>,
+}
+
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq)]
+pub enum DelimitedBlockType {
     DelimitedComment(String),
     DelimitedExample(String),
     DelimitedListing(String),
@@ -53,7 +68,6 @@ pub enum Block {
     DelimitedTable(String),
     DelimitedPass(String),
     DelimitedQuote(String),
-    Paragraph(String),
 }
 
 type SectionLevel = u8;

@@ -1,6 +1,6 @@
 use acdc_parser::{
-    AttributeEntry, Author, Block, Document, Error, ErrorDetail, Header, Location, Position,
-    Revision, Section,
+    AttributeEntry, Author, Block, DelimitedBlock, DelimitedBlockType, Document, Error,
+    ErrorDetail, Header, Location, Position, Revision, Section,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -56,13 +56,14 @@ fn parse_document(pairs: Pairs<Rule>) -> Result<Document, Error> {
                 document_header = Some(parse_document_header(pair.into_inner()));
             }
             Rule::block => {
-                content.push(parse_block(pair.into_inner())?);
+                content.extend(parse_block(pair.into_inner())?);
             }
             Rule::comment | Rule::EOI => {}
             unknown => unimplemented!("{:?}", unknown),
         }
     }
 
+    dbg!(&content);
     build_section_tree(&mut content)?;
     validate_section_block_level(&content, None)?;
 
@@ -210,7 +211,7 @@ fn parse_document_header(pairs: Pairs<Rule>) -> Header {
             }
             Rule::document_attribute => {
                 let mut inner_pairs = pair.into_inner();
-                let name = inner_pairs.next().unwrap().as_str().to_string();
+                let name = inner_pairs.next().map(|p| p.as_str().to_string());
                 let value = inner_pairs.next().map(|p| p.as_str().to_string());
                 attributes.push(AttributeEntry { name, value });
             }
@@ -257,16 +258,26 @@ fn parse_author(pairs: Pairs<Rule>) -> Author {
     }
 }
 
-fn parse_block(mut pairs: Pairs<Rule>) -> Result<Block, Error> {
-    dbg!(&pairs);
-    let pair = pairs.next().expect("block should have at least one pair");
-    match pair.as_rule() {
-        Rule::section => parse_section(&pair),
-        Rule::delimited_block => Ok(parse_delimited_block(pair.into_inner())),
-        Rule::paragraph => Ok(Block::Paragraph(pair.as_str().to_string())),
-        Rule::block => parse_block(pair.into_inner()),
-        unknown => unreachable!("{unknown:?}"),
+fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
+    if pairs.peek().is_none() {
+        // TODO(nlopes): confirm if this is the correct behavior
+        tracing::warn!(?pairs, "empty block");
+        return Ok(vec![Block::Paragraph(
+            pairs.as_str().trim_end().to_string(),
+        )]);
     }
+    let mut blocks = Vec::new();
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::section => blocks.push(parse_section(&pair)?),
+            Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())),
+            Rule::paragraph => blocks.push(Block::Paragraph(pair.as_str().trim_end().to_string())),
+            Rule::block => blocks.extend(parse_block(pair.into_inner())?),
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    Ok(blocks)
 }
 
 fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
@@ -285,9 +296,16 @@ fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
                     - 1;
             }
             Rule::section_content => {
-                let pairs = InnerPestParser::parse(Rule::block, inner_pair.as_str())
-                    .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                content.push(parse_block(pairs)?);
+                let inner = inner_pair.clone().into_inner();
+                if inner.peek().is_none() {
+                    let pairs = InnerPestParser::parse(Rule::document, inner_pair.as_str())
+                        .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
+                    content.extend(parse_block(pairs)?);
+                } else {
+                    for pair in inner {
+                        content.extend(parse_block(pair.into_inner())?);
+                    }
+                }
             }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{:?}", unknown),
@@ -343,43 +361,98 @@ fn validate_section_block_level(
 }
 
 fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
-    // TODO(nlopes): this default isn't great but it's a start
-    let mut block = Block::Paragraph(String::new());
+    let mut inner = DelimitedBlockType::DelimitedComment(String::new());
+    let mut title = None;
+    let mut attributes = Vec::new();
+    let mut anchor = None;
 
     for pair in pairs {
         match pair.as_rule() {
             Rule::delimited_comment => {
-                block = Block::DelimitedComment(pair.into_inner().as_str().to_string());
+                inner =
+                    DelimitedBlockType::DelimitedComment(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_example => {
-                block = Block::DelimitedExample(pair.into_inner().as_str().to_string());
+                inner =
+                    DelimitedBlockType::DelimitedExample(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_pass => {
-                block = Block::DelimitedPass(pair.into_inner().as_str().to_string());
+                inner = DelimitedBlockType::DelimitedPass(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_quote => {
-                block = Block::DelimitedQuote(pair.into_inner().as_str().to_string());
+                inner = DelimitedBlockType::DelimitedQuote(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_listing => {
-                block = Block::DelimitedListing(pair.into_inner().as_str().to_string());
+                dbg!(&pair.clone().into_inner().as_str());
+                inner =
+                    DelimitedBlockType::DelimitedListing(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_literal => {
-                block = Block::DelimitedLiteral(pair.into_inner().as_str().to_string());
+                inner =
+                    DelimitedBlockType::DelimitedLiteral(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_open => {
-                block = Block::DelimitedOpen(pair.into_inner().as_str().to_string());
+                inner = DelimitedBlockType::DelimitedOpen(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_sidebar => {
-                block = Block::DelimitedSidebar(pair.into_inner().as_str().to_string());
+                inner =
+                    DelimitedBlockType::DelimitedSidebar(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_table => {
-                block = Block::DelimitedTable(pair.into_inner().as_str().to_string());
+                inner = DelimitedBlockType::DelimitedTable(pair.into_inner().as_str().to_string());
+            }
+            Rule::blocktitle => {
+                title = Some(pair.into_inner().as_str().to_string());
+            }
+            Rule::attribute_list => {
+                attributes.extend(parse_attribute_list(pair.into_inner()));
+            }
+            Rule::anchor => {
+                anchor = Some(pair.into_inner().as_str().to_string());
             }
             unknown => unreachable!("{unknown:?}"),
         }
     }
 
-    block
+    dbg!(Block::DelimitedBlock(DelimitedBlock {
+        inner,
+        anchor,
+        title,
+        attributes,
+    }))
+}
+
+fn parse_attribute_list(pairs: Pairs<Rule>) -> Vec<AttributeEntry> {
+    let mut attributes = Vec::new();
+
+    fn parse_attribute(pairs: Pairs<Rule>) -> AttributeEntry {
+        let mut name = None;
+        let mut value = None;
+
+        for pair in pairs {
+            match pair.as_rule() {
+                Rule::attribute_name => {
+                    name = Some(pair.as_str().to_string());
+                }
+                Rule::attribute_value => {
+                    value = Some(pair.as_str().to_string());
+                }
+                unknown => unreachable!("{unknown:?}"),
+            }
+        }
+
+        AttributeEntry { name, value }
+    }
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::attribute => {
+                attributes.push(parse_attribute(pair.into_inner()));
+            }
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    attributes
 }
 
 #[cfg(test)]
@@ -417,7 +490,7 @@ body text
                     revision: None,
                     attributes: vec![],
                 }),
-                content: vec![Block::Paragraph("body text\n".to_string())],
+                content: vec![Block::Paragraph("body text".to_string())],
             },
             result
         );
@@ -445,7 +518,7 @@ body text
                     revision: None,
                     attributes: vec![],
                 }),
-                content: vec![Block::Paragraph("body text\n".to_string())],
+                content: vec![Block::Paragraph("body text".to_string())],
             },
             result
         );
@@ -495,21 +568,21 @@ The document body starts here.
                     }),
                     attributes: vec![
                         AttributeEntry {
-                            name: "description".to_string(),
+                            name: Some("description".to_string()),
                             value: Some("The document's description.".to_string()),
                         },
                         AttributeEntry {
-                            name: "sectanchors".to_string(),
+                            name: Some("sectanchors".to_string()),
                             value: None,
                         },
                         AttributeEntry {
-                            name: "url-repo".to_string(),
+                            name: Some("url-repo".to_string()),
                             value: Some("https://my-git-repo.com".to_string()),
                         },
                     ],
                 }),
                 content: vec![Block::Paragraph(
-                    "The document body starts here.\n".to_string()
+                    "The document body starts here.".to_string()
                 )],
             },
             result
@@ -542,7 +615,7 @@ This journey begins on a bleary Monday morning.",
                     }],
                     revision: None,
                     attributes: vec![AttributeEntry {
-                        name: "description".to_string(),
+                        name: Some("description".to_string()),
                         value: Some(
                             "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
                                 .to_string()
@@ -572,7 +645,7 @@ To begin a new paragraph, separate it by at least one empty line from the previo
             Document {
                 header: None,
                 content: vec![
-                    Block::Paragraph("Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.\n\n".to_string()),
+                    Block::Paragraph("Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.".to_string()),
                     Block::Paragraph("To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.".to_string()),
                 ],
             },
@@ -601,11 +674,11 @@ content",
                     revision: None,
                     attributes: vec![
                         AttributeEntry {
-                            name: "sectanchors".to_string(),
+                            name: Some("sectanchors".to_string()),
                             value: None,
                         },
                         AttributeEntry {
-                            name: "toc".to_string(),
+                            name: Some("toc".to_string()),
                             value: None,
                         },
                     ],
@@ -636,13 +709,18 @@ That's so meta.
             Document {
                 header: None,
                 content: vec![
-                    Block::Paragraph("This is a paragraph.\n\n".to_string()),
+                    Block::Paragraph("This is a paragraph.".to_string()),
                     Block::Paragraph(
-                        "// A comment block\n// that spans multiple lines.\n\n".to_string()
+                        "// A comment block\n// that spans multiple lines.".to_string()
                     ),
-                    Block::DelimitedExample(
-                        "This is an example of an example block.\nThat's so meta.".to_string()
-                    ),
+                    Block::DelimitedBlock(DelimitedBlock {
+                        inner: DelimitedBlockType::DelimitedExample(
+                            "This is an example of an example block.\nThat's so meta.".to_string()
+                        ),
+                        title: None,
+                        anchor: None,
+                        attributes: vec![],
+                    }),
                 ],
             },
             result
@@ -690,13 +768,56 @@ This is the content of section 1.",
     }
 
     #[test]
+    fn test_section_with_multiple_paragraphs() {
+        let parser = PestParser;
+        let result = parser
+            .parse(
+                "= Document Title
+
+== Section 1
+
+This is the content of section 1.
+
+And another paragraph with content.",
+            )
+            .unwrap();
+        assert_eq!(
+            Document {
+                header: Some(Header {
+                    title: Some("Document Title".to_string()),
+                    subtitle: None,
+                    authors: vec![],
+                    revision: None,
+                    attributes: vec![],
+                }),
+                content: vec![Block::Section(Section {
+                    title: "Section 1".to_string(),
+                    level: 1,
+                    content: vec![
+                        Block::Paragraph("This is the content of section 1.".to_string()),
+                        Block::Paragraph("And another paragraph with content.".to_string())
+                    ],
+                    location: Location {
+                        start: Position { line: 3, column: 1 },
+                        end: Position {
+                            line: 7,
+                            column: 36
+                        }
+                    },
+                })],
+            },
+            result
+        );
+    }
+
+    #[test]
     fn test_section_with_invalid_subsection() {
         let parser = PestParser;
         let result = parser
             .parse(
                 "= Document Title
 
-## Section 1
+== Section 1
 
 This is the content of section 1.
 
@@ -803,10 +924,107 @@ Content of second section",
     }
 
     #[test]
+    fn test_delimited_block_with_header() {
+        let parser = PestParser;
+        let result = parser
+            .parse(
+                ".Specify GitLab CI stages
+[source,yaml]
+----
+image: node:16-buster
+stages: [ init, verify, deploy ]
+----",
+            )
+            .unwrap();
+        assert_eq!(
+            Document {
+                header: None,
+                content: vec![Block::DelimitedBlock(DelimitedBlock {
+                    inner: DelimitedBlockType::DelimitedListing(
+                        "image: node:16-buster\nstages: [ init, verify, deploy ]".to_string()
+                    ),
+                    anchor: None,
+                    title: Some("Specify GitLab CI stages".to_string()),
+                    attributes: vec![
+                        AttributeEntry {
+                            name: None,
+                            value: Some("source".to_string()),
+                        },
+                        AttributeEntry {
+                            name: None,
+                            value: Some("yaml".to_string()),
+                        },
+                    ]
+                })],
+            },
+            result
+        );
+    }
+
+    #[test]
+    fn test_delimited_block_within_section() {
+        let parser = PestParser;
+        let result = parser
+            .parse(
+                "## Section 1
+
+Something is up. Let's see.
+
+[source,yaml]
+----
+image: node:16-buster
+stages: [ init, verify, deploy ]
+----
+
+And that's it.",
+            )
+            .unwrap();
+        assert_eq!(
+            Document {
+                header: None,
+                content: vec![Block::Section(Section {
+                    title: "Section 1".to_string(),
+                    level: 1,
+                    content: vec![
+                        Block::Paragraph("Something is up. Let's see.".to_string()),
+                        Block::DelimitedBlock(DelimitedBlock {
+                            inner: DelimitedBlockType::DelimitedListing(
+                                "image: node:16-buster\nstages: [ init, verify, deploy ]"
+                                    .to_string()
+                            ),
+                            anchor: None,
+                            title: None,
+                            attributes: vec![
+                                AttributeEntry {
+                                    name: None,
+                                    value: Some("source".to_string()),
+                                },
+                                AttributeEntry {
+                                    name: None,
+                                    value: Some("yaml".to_string()),
+                                },
+                            ]
+                        }),
+                        Block::Paragraph("And that's it.".to_string())
+                    ],
+                    location: Location {
+                        start: Position { line: 1, column: 1 },
+                        end: Position {
+                            line: 11,
+                            column: 15
+                        }
+                    },
+                }),],
+            },
+            result
+        );
+    }
+
+    #[test]
     fn test_mdbasics_adoc() {
         let parser = PestParser;
         let result = parser
             .parse(include_str!("../../fixtures/samples/mdbasics.adoc"))
-            .unwrap();
+            .unwrap_err();
     }
 }

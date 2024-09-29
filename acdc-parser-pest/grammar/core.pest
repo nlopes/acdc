@@ -18,6 +18,21 @@ id_subsequent_char = @{
     "."
 }
 
+anchor = { inline_anchor ~ NEWLINE }
+inline_anchor = {
+    ("[[" ~ id ~ "]]") |
+    ("[" ~ "#" ~ id ~ "]")
+}
+
+blocktitle = { "." ~ !"." ~ line ~ NEWLINE }
+line = { (!NEWLINE ~ ANY)+ ~ ( &NEWLINE | &EOI) }
+
+attribute_list = { inline_attribute_list ~ NEWLINE }
+
+inline_attribute_list = _{
+  "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
+}
+
 // https://docs.asciidoctor.org/asciidoc/latest/attributes/names-and-values/#user-defined
 //
 // Although uppercase characters are permitted in an attribute name, the name is converted
@@ -25,3 +40,11 @@ id_subsequent_char = @{
 // practice is to only use lowercase letters in the name and avoid starting the name with
 // a number.
 attribute_name = !{ (ASCII_ALPHANUMERIC | "-" | "_")+ }
+
+attribute = { named_attribute | attribute_value }
+named_attribute = { attribute_name ~ "=" ~ attribute_value }
+attribute_value = {
+  ("\"" ~ inner_attribute_value ~ "\"") |
+  ( (!"," ~ !"]" ~ ANY)+ )
+}
+inner_attribute_value = { ( "\\\"" | (!"\"" ~ ANY))* }

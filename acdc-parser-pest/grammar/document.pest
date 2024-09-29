@@ -14,3 +14,46 @@ document_title = !{ (!NEWLINE ~ ANY)+ }
 
 document_attribute_entry = _{ ":" ~ attribute_name ~ ":" ~ (SPACE ~ document_attribute_value)? ~ NEWLINE }
 document_attribute_value = !{ (!NEWLINE ~ ANY)* }
+
+author_revision = _{
+  (author_line ~ revision_line?)?
+}
+
+author_line = _{ author ~ ("; " ~ author)* ~ NEWLINE }
+
+author = {
+    (author_first_name ~ optional_author_middle_name ~ author_last_name_token ~ optional_author_email) |
+    (author_first_name ~ author_last_name_token ~ optional_author_email) |
+    (author_first_name ~ optional_author_email) |
+    (author_first_name ~ author_last_name_token)
+ }
+
+author_first_name = { name_part }
+author_middle_name = { name_part }
+author_last_name = { name_part }
+
+optional_author_middle_name = _{ WSPACE+ ~ author_middle_name }
+author_last_name_token = _{ WSPACE+ ~ author_last_name }
+
+name_part = _{
+  (ASCII_ALPHANUMERIC | "." | "-")+ ~
+  ( "_" ~ (ASCII_ALPHANUMERIC | "." | "-")+ )*
+}
+
+optional_author_email = _{ WSPACE* ~ "<" ~ author_email ~ ">" }
+author_email = { (!">" ~ !NEWLINE ~ ANY)+ }
+
+revision_line = {
+  revision_number ~
+  optional_revision_date ~
+  optional_revision_remark ~
+  NEWLINE
+}
+
+revision_number = { "v"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+
+optional_revision_date = _{ ("," ~ WSPACE ~ revision_date )? }
+revision_date = { (!NEWLINE ~ !":" ~ ANY)+ }
+
+optional_revision_remark = _{ (":" ~ WSPACE ~ revision_remark)? }
+revision_remark = { (!NEWLINE ~ ANY)+ }
