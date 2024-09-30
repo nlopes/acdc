@@ -14,7 +14,7 @@ section = {
 
 section_header_start = _{ section_level ~ SPACE }
 
-section_content = !{ (!(section_level | EOI) ~ ANY)+ }
+section_content = !{ (!(&section_level | EOI | &delimited_block) ~ ANY)+ }
 
 section_level_symbol = _{ ("=" | "#") }
 

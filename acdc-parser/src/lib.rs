@@ -45,7 +45,13 @@ pub struct AttributeEntry {
 pub enum Block {
     Section(Section),
     DelimitedBlock(DelimitedBlock),
-    Paragraph(String),
+    Paragraph(Paragraph),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Paragraph {
+    pub content: String,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -54,6 +60,7 @@ pub struct DelimitedBlock {
     pub anchor: Option<String>,
     pub title: Option<String>,
     pub attributes: Vec<AttributeEntry>,
+    pub location: Location,
 }
 
 #[non_exhaustive]
