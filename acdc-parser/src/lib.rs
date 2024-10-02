@@ -55,7 +55,7 @@ impl crate::model::Parser for PestParser {
 fn normalize(input: &str) -> String {
     input
         .lines()
-        .map(|line| line.trim_end())
+        .map(str::trim_end)
         .collect::<Vec<&str>>()
         .join("\n")
 }
