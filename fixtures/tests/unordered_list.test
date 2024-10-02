@@ -1,0 +1,61 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Section": {
+        "title": "A list of sorts:",
+        "level": 1,
+        "content": [
+          {
+            "UnorderedList": {
+              "title": null,
+              "items": [
+                {
+                  "level": 1,
+                  "checked": null,
+                  "content": [
+                    "Item 1"
+                  ]
+                },
+                {
+                  "level": 1,
+                  "checked": null,
+                  "content": [
+                    "Item 2"
+                  ]
+                },
+                {
+                  "level": 1,
+                  "checked": null,
+                  "content": [
+                    "Item 3"
+                  ]
+                }
+              ],
+              "location": {
+                "start": {
+                  "line": 1,
+                  "column": 1
+                },
+                "end": {
+                  "line": 3,
+                  "column": 9
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 1,
+            "column": 1
+          },
+          "end": {
+            "line": 5,
+            "column": 9
+          }
+        }
+      }
+    }
+  ]
+}

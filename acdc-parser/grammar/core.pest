@@ -24,8 +24,8 @@ inline_anchor = {
     ("[" ~ "#" ~ id ~ "]")
 }
 
-blocktitle = { "." ~ !"." ~ line ~ NEWLINE }
-line = { (!NEWLINE ~ ANY)+ ~ ( &NEWLINE | &EOI) }
+blocktitle = _{ "." ~ !("." | SPACE) ~ title ~ NEWLINE }
+title = { (!NEWLINE ~ ANY)+ }
 
 attribute_list = { inline_attribute_list ~ NEWLINE }
 

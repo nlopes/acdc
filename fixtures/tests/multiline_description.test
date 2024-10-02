@@ -1,0 +1,38 @@
+{
+  "header": {
+    "title": "The Intrepid Chronicles",
+    "subtitle": null,
+    "authors": [
+      {
+        "first_name": "Kismet",
+        "middle_name": null,
+        "last_name": "Lee",
+        "email": "kismet@asciidoctor.org"
+      }
+    ],
+    "revision": null,
+    "attributes": [
+      {
+        "name": "description",
+        "value": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
+      }
+    ]
+  },
+  "content": [
+    {
+      "Paragraph": {
+        "content": "This journey begins on a bleary Monday morning.",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "header": {
+    "title": "Document Title",
+    "subtitle": null,
+    "authors": [],
+    "revision": null,
+    "attributes": []
+  },
+  "content": [
+    {
+      "Section": {
+        "title": "First Section",
+        "level": 1,
+        "content": [
+          {
+            "Paragraph": {
+              "content": "Content of first section",
+              "location": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              }
+            }
+          },
+          {
+            "Section": {
+              "title": "Nested Section",
+              "level": 2,
+              "content": [
+                {
+                  "Paragraph": {
+                    "content": "Content of nested section",
+                    "location": {
+                      "start": {
+                        "line": 0,
+                        "column": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "start": {
+                  "line": 7,
+                  "column": 1
+                },
+                "end": {
+                  "line": 11,
+                  "column": 1
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 3,
+            "column": 1
+          },
+          "end": {
+            "line": 11,
+            "column": 1
+          }
+        }
+      }
+    },
+    {
+      "Section": {
+        "title": "Second Section",
+        "level": 1,
+        "content": [
+          {
+            "Paragraph": {
+              "content": "Content of second section",
+              "location": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 11,
+            "column": 1
+          },
+          "end": {
+            "line": 13,
+            "column": 26
+          }
+        }
+      }
+    }
+  ]
+}

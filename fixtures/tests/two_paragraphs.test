@@ -1,0 +1,35 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Paragraph": {
+        "content": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    },
+    {
+      "Paragraph": {
+        "content": "To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    }
+  ]
+}

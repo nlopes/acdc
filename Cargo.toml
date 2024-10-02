@@ -1,7 +1,6 @@
 [workspace]
 members = [
   "acdc-parser",
-  "acdc-parser-pest"
 ]
 resolver = "2"
 

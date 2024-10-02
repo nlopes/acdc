@@ -1,0 +1,16 @@
+## A list of sorts:
+
+.Possible DefOps manual locations
+* West wood maze
+** Maze heart
+*** Reflection pool
+** Secret exit
+* Untracked file in git repository
+
+
+. [ ] Item 1
+.. Item 1.1
+... [*] Item 1.1.1
+. Item 2
+.. Item 2.1
+. [x] Item 3

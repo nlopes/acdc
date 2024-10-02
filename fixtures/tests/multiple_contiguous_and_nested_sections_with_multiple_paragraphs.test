@@ -1,0 +1,152 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Paragraph": {
+        "content": "Paragraph 1",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    },
+    {
+      "Section": {
+        "title": "Section 1",
+        "level": 1,
+        "content": [
+          {
+            "Section": {
+              "title": "Section 2",
+              "level": 2,
+              "content": [
+                {
+                  "Paragraph": {
+                    "content": "Paragraph 2",
+                    "location": {
+                      "start": {
+                        "line": 0,
+                        "column": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  }
+                },
+                {
+                  "Section": {
+                    "title": "Section 3",
+                    "level": 3,
+                    "content": [
+                      {
+                        "Paragraph": {
+                          "content": "Paragraph 3",
+                          "location": {
+                            "start": {
+                              "line": 0,
+                              "column": 0
+                            },
+                            "end": {
+                              "line": 0,
+                              "column": 0
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "Paragraph": {
+                          "content": "Paragraph 4",
+                          "location": {
+                            "start": {
+                              "line": 0,
+                              "column": 0
+                            },
+                            "end": {
+                              "line": 0,
+                              "column": 0
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "Section": {
+                          "title": "Section 4",
+                          "level": 4,
+                          "content": [
+                            {
+                              "Paragraph": {
+                                "content": "Something here",
+                                "location": {
+                                  "start": {
+                                    "line": 0,
+                                    "column": 0
+                                  },
+                                  "end": {
+                                    "line": 0,
+                                    "column": 0
+                                  }
+                                }
+                              }
+                            }
+                          ],
+                          "location": {
+                            "start": {
+                              "line": 15,
+                              "column": 1
+                            },
+                            "end": {
+                              "line": 17,
+                              "column": 15
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "location": {
+                      "start": {
+                        "line": 9,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 17,
+                        "column": 15
+                      }
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "start": {
+                  "line": 5,
+                  "column": 1
+                },
+                "end": {
+                  "line": 17,
+                  "column": 15
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 3,
+            "column": 1
+          },
+          "end": {
+            "line": 17,
+            "column": 15
+          }
+        }
+      }
+    }
+  ]
+}

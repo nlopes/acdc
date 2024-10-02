@@ -1,0 +1,26 @@
+{
+  "header": {
+    "title": "Document Title: this is not the subtitle",
+    "subtitle": "this is the subtitle",
+    "authors": [],
+    "revision": null,
+    "attributes": []
+  },
+  "content": [
+    {
+      "Paragraph": {
+        "content": "body text",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Location, Position, SectionLevel};
+use crate::model::{Location, Position, SectionLevel};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

@@ -1,0 +1,143 @@
+{
+  "header": {
+    "title": "Document Title",
+    "subtitle": null,
+    "authors": [],
+    "revision": null,
+    "attributes": []
+  },
+  "content": [
+    {
+      "Section": {
+        "title": "Section 1",
+        "level": 1,
+        "content": [
+          {
+            "Paragraph": {
+              "content": "This is the content of section 1.",
+              "location": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              }
+            }
+          },
+          {
+            "Section": {
+              "title": "Section 1.1",
+              "level": 2,
+              "content": [
+                {
+                  "Paragraph": {
+                    "content": "This is the content of section 1.1.",
+                    "location": {
+                      "start": {
+                        "line": 0,
+                        "column": 0
+                      },
+                      "end": {
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  }
+                },
+                {
+                  "Section": {
+                    "title": "Section 1.1.1",
+                    "level": 3,
+                    "content": [
+                      {
+                        "Paragraph": {
+                          "content": "This is the content of section 1.1.1.",
+                          "location": {
+                            "start": {
+                              "line": 0,
+                              "column": 0
+                            },
+                            "end": {
+                              "line": 0,
+                              "column": 0
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "location": {
+                      "start": {
+                        "line": 11,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 15,
+                        "column": 1
+                      }
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "start": {
+                  "line": 7,
+                  "column": 1
+                },
+                "end": {
+                  "line": 15,
+                  "column": 1
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 3,
+            "column": 1
+          },
+          "end": {
+            "line": 15,
+            "column": 1
+          }
+        }
+      }
+    },
+    {
+      "Section": {
+        "title": "Section 2",
+        "level": 1,
+        "content": [
+          {
+            "Paragraph": {
+              "content": "This is the content of section 2.",
+              "location": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 15,
+            "column": 1
+          },
+          "end": {
+            "line": 17,
+            "column": 34
+          }
+        }
+      }
+    }
+  ]
+}

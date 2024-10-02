@@ -1,0 +1,82 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Section": {
+        "title": "Section 1",
+        "level": 1,
+        "content": [
+          {
+            "Paragraph": {
+              "content": "Something is up. Let's see.",
+              "location": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              }
+            }
+          },
+          {
+            "DelimitedBlock": {
+              "inner": {
+                "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
+              },
+              "anchor": null,
+              "title": null,
+              "attributes": [
+                {
+                  "name": null,
+                  "value": "source"
+                },
+                {
+                  "name": null,
+                  "value": "yaml"
+                }
+              ],
+              "location": {
+                "start": {
+                  "line": 5,
+                  "column": 1
+                },
+                "end": {
+                  "line": 9,
+                  "column": 5
+                }
+              }
+            }
+          },
+          {
+            "Paragraph": {
+              "content": "And that's it.",
+              "location": {
+                "start": {
+                  "line": 0,
+                  "column": 0
+                },
+                "end": {
+                  "line": 0,
+                  "column": 0
+                }
+              }
+            }
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 1,
+            "column": 1
+          },
+          "end": {
+            "line": 9,
+            "column": 5
+          }
+        }
+      }
+    }
+  ]
+}
