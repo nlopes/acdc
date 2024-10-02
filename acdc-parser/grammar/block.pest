@@ -31,7 +31,21 @@ list = {
     ) ~ NEWLINE*
 }
 
+list_item = ${
+    (
+        list_multiline |
+        (continuation ~ delimited_block)
+    )+
+}
+
+empty_lines = _{ NEWLINE{2,}+ | (NEWLINE ~ EOI) }
+
 list_title = { "." ~ !("." | SPACE) ~ (!NEWLINE ~ ANY)+ ~ (NEWLINE | EOI) }
+
+list_multiline = ${ ((!(NEWLINE{2,} | EOI | NEWLINE ~ (unordered_level | ordered_level_token))  ~ ANY) | other_list_inline)+ }
+other_list_inline = @{ (!empty_lines ~ !EOI ~ !list_inline ~ !(NEWLINE ~ (unordered_level | ordered_level_token )) ~ !(continuation ~ delimited_block) ~ ANY)+ }
+
+continuation = { NEWLINE ~ "+" ~ NEWLINE }
 
 // TODO(nlopes): only support one line for now
 unordered_list = { unordered_list_item+ }
@@ -51,7 +65,8 @@ checklist_item_unchecked = !{ SPACE }
 description_term = { (!"::" ~ (!NEWLINE ~ ANY))+ ~ "::"}
 description_list = { (description_term ~ SPACE ~ list_item)+ }
 
-list_item = { (!NEWLINE ~ ANY)* }
+
+list_inline = { (!NEWLINE ~ ANY)* }
 
 // Paragraphs
 paragraph = {

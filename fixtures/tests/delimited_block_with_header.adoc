@@ -1,6 +1,0 @@
-.Specify GitLab CI stages
-[source,yaml]
-----
-image: node:16-buster
-stages: [ init, verify, deploy ]
-----

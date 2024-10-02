@@ -1,0 +1,77 @@
+{
+  "header": null,
+  "content": [
+    {
+      "UnorderedList": {
+        "title": null,
+        "items": [
+          {
+            "level": 1,
+            "checked": null,
+            "content": [
+              "The document header in AsciiDoc is optional.\nIf present, it must start with a document title."
+            ]
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 1,
+            "column": 1
+          },
+          "end": {
+            "line": 3,
+            "column": 1
+          }
+        }
+      }
+    },
+    {
+      "UnorderedList": {
+        "title": null,
+        "items": [
+          {
+            "level": 1,
+            "checked": null,
+            "content": [
+              "Optional author and revision information lines\nimmediately follow the document title."
+            ]
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 4,
+            "column": 1
+          },
+          "end": {
+            "line": 6,
+            "column": 1
+          }
+        }
+      }
+    },
+    {
+      "UnorderedList": {
+        "title": null,
+        "items": [
+          {
+            "level": 1,
+            "checked": null,
+            "content": [
+              "The document header must be separated from\n  the remainder of the document by one or more\n  empty lines and it cannot contain empty lines."
+            ]
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 7,
+            "column": 1
+          },
+          "end": {
+            "line": 9,
+            "column": 49
+          }
+        }
+      }
+    }
+  ]
+}

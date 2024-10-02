@@ -1,5 +1,0 @@
-= Document Title
-:sectanchors:
-:toc:
-
-content

@@ -1,7 +1,7 @@
 SPACE = _{ " " }
 TAB = _{ "\t" }
 WSPACE = _{ SPACE | TAB }
-NEWLINE = _{ "\n" | "\r\n" }
+NEWLINE = _{ "\n" }
 EMPTY_LINE = _{ WSPACE* ~ NEWLINE }
 
 empty_header = { "" ~ NEWLINE }

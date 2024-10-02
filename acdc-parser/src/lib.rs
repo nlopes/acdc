@@ -41,7 +41,8 @@ impl crate::model::Parser for PestParser {
     /// Returns an Error if the input string cannot be parsed.
     #[instrument]
     fn parse(&self, input: &str) -> Result<Document, Error> {
-        match InnerPestParser::parse(Rule::document, input) {
+        let input = normalize(input);
+        match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => parse_document(pairs),
             Err(e) => {
                 dbg!(&e);
@@ -49,6 +50,14 @@ impl crate::model::Parser for PestParser {
             }
         }
     }
+}
+
+fn normalize(input: &str) -> String {
+    input
+        .lines()
+        .map(|line| line.trim_end())
+        .collect::<Vec<&str>>()
+        .join("\n")
 }
 
 fn parse_document(pairs: Pairs<Rule>) -> Result<Document, Error> {
@@ -650,12 +659,8 @@ mod tests {
     use crate::model::Parser;
 
     #[rstest::rstest]
-    #[test]
-    fn for_each_file(
-        #[files("fixtures/tests/**/*.adoc")]
-        #[exclude("fixtures/tests/**/.test")]
-        path: std::path::PathBuf,
-    ) {
+    #[trace]
+    fn for_each_file(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
         let parser = PestParser;
         let test_file_path = path.with_extension("test");
 
@@ -668,6 +673,8 @@ mod tests {
             let test: Document =
                 serde_json::from_str(&std::fs::read_to_string(test_file_path).unwrap()).unwrap();
             assert_eq!(test, result);
+        } else {
+            tracing::warn!("no test file found for {:?}", path);
         }
     }
 
@@ -676,7 +683,7 @@ mod tests {
         let parser = PestParser;
         let result = parser
             .parse(include_str!(
-                "../../fixtures/tests/section_with_invalid_subsection.adoc"
+                "../fixtures/tests/section_with_invalid_subsection.adoc"
             ))
             .unwrap_err();
         if let Error::NestedSectionLevelMismatch(ref detail, 2, 3) = result {

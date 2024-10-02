@@ -1,5 +1,0 @@
-= The Intrepid Chronicles
-Kismet Lee <kismet@asciidoctor.org>
-:description: A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power.
-
-This journey begins on a bleary Monday morning.
