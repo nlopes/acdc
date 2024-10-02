@@ -10,10 +10,10 @@ document_attribute = { document_attribute_entry }
 // last colon and capture everything up to it as the title and everything after it as the
 // subtitle. So I'm just going to ignore it for now and instead do it in the parser.
 document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ NEWLINE }
-document_title = !{ (!NEWLINE ~ ANY)+ }
+document_title = !{ ONE_CHAR+ }
 
 document_attribute_entry = _{ ":" ~ attribute_name ~ ":" ~ (SPACE ~ document_attribute_value)? ~ NEWLINE }
-document_attribute_value = !{ (!NEWLINE ~ ANY)* }
+document_attribute_value = !{ ONE_CHAR* }
 
 author_revision = _{
   (author_line ~ revision_line?)?
@@ -41,7 +41,7 @@ name_part = _{
 }
 
 optional_author_email = _{ WSPACE* ~ "<" ~ author_email ~ ">" }
-author_email = { (!">" ~ !NEWLINE ~ ANY)+ }
+author_email = { (!">" ~ ONE_CHAR)+ }
 
 revision_line = {
   revision_number ~
@@ -56,4 +56,4 @@ optional_revision_date = _{ ("," ~ WSPACE ~ revision_date )? }
 revision_date = { (!NEWLINE ~ !":" ~ ANY)+ }
 
 optional_revision_remark = _{ (":" ~ WSPACE ~ revision_remark)? }
-revision_remark = { (!NEWLINE ~ ANY)+ }
+revision_remark = { ONE_CHAR+ }

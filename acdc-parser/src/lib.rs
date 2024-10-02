@@ -20,6 +20,7 @@ pub struct PestParser;
 #[derive(Parser, Debug)]
 #[grammar = "../grammar/block.pest"]
 #[grammar = "../grammar/core.pest"]
+#[grammar = "../grammar/list.pest"]
 #[grammar = "../grammar/delimited.pest"]
 #[grammar = "../grammar/document.pest"]
 #[grammar = "../grammar/asciidoc.pest"]
@@ -699,6 +700,26 @@ mod tests {
         } else {
             panic!("unexpected error: {result:?}");
         }
+    }
+
+    #[test]
+    fn test_blah() {
+        let result = PestParser
+            .parse(
+                "[.text-center]
+This text is centered, so it must be important.
+",
+                /*
+                "[[cpu,CPU]]Central Processing Unit (CPU)::
+                The brain of the computer.
+
+                [[hard-drive]]Hard drive::
+                Permanent storage for operating system and/or user files.",
+                */
+            )
+            .unwrap();
+        dbg!(&result);
+        panic!()
     }
 
     #[test]

@@ -8,7 +8,7 @@ block = {
 }
 
 section = {
-    section_header_start ~ section_title ~ NEWLINE ~ EMPTY_LINE ~
+    section_header_start ~ section_title ~ NEWLINE{2} ~
     section_content*
 }
 
@@ -19,56 +19,10 @@ section_content = !{ (!(&section_level | EOI | &delimited_block) ~ ANY)+ }
 section_level_symbol = _{ ("=" | "#") }
 
 section_level = { section_level_symbol{2,6} }
-section_title = { (!NEWLINE ~ ANY)* }
-
-// Lists
-list = {
-    (anchor | attribute_list | blocktitle)* ~
-    (
-        unordered_list |
-        ordered_list |
-        description_list
-    ) ~ NEWLINE*
-}
-
-list_item = ${
-    (
-        list_multiline |
-        (continuation ~ delimited_block)
-    )+
-}
-
-empty_lines = _{ NEWLINE{2,}+ | (NEWLINE ~ EOI) }
-
-list_title = { "." ~ !("." | SPACE) ~ (!NEWLINE ~ ANY)+ ~ (NEWLINE | EOI) }
-
-list_multiline = ${ ((!(NEWLINE{2,} | EOI | NEWLINE ~ (unordered_level | ordered_level_token))  ~ ANY) | other_list_inline)+ }
-other_list_inline = @{ (!empty_lines ~ !EOI ~ !list_inline ~ !(NEWLINE ~ (unordered_level | ordered_level_token )) ~ !(continuation ~ delimited_block) ~ ANY)+ }
-
-continuation = { NEWLINE ~ "+" ~ NEWLINE }
-
-// TODO(nlopes): only support one line for now
-unordered_list = { unordered_list_item+ }
-unordered_list_item = { unordered_level ~ SPACE ~ list_item ~ (NEWLINE | EOI) }
-unordered_level = { ("*"+ | "-"+) }
-
-ordered_list = { ordered_list_item+ }
-ordered_list_item = { ordered_level_token ~ SPACE ~ checklist_item? ~ list_item ~ (NEWLINE | EOI) }
-ordered_level_token = _{ ordered_level_number? ~ ordered_level }
-ordered_level_number = { ASCII_DIGIT+ }
-ordered_level = { "."+ }
-
-checklist_item = _{ "[" ~ (checklist_item_checked | checklist_item_unchecked) ~ "]" ~ SPACE }
-checklist_item_checked = !{ "X" | "x" | "*" }
-checklist_item_unchecked = !{ SPACE }
-
-description_term = { (!"::" ~ (!NEWLINE ~ ANY))+ ~ "::"}
-description_list = { (description_term ~ SPACE ~ list_item)+ }
-
-
-list_inline = { (!NEWLINE ~ ANY)* }
+section_title = { ONE_CHAR* }
 
 // Paragraphs
 paragraph = {
-    (!((EMPTY_LINE{2,}) | EOI) ~ ANY)+ ~ NEWLINE*
+    (anchor | attribute_list | blocktitle)* ~
+    (!((NEWLINE{2,}) | EOI) ~ ANY)+ ~ NEWLINE*
 }

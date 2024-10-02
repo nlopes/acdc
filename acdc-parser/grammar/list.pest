@@ -1,0 +1,42 @@
+// Lists
+list = {
+    (anchor | attribute_list | blocktitle)* ~
+    (
+        unordered_list |
+        ordered_list |
+        description_list
+    ) ~ NEWLINE*
+}
+
+list_item = ${
+    (
+        list_multiline |
+        (continuation ~ delimited_block)
+    )+
+}
+
+list_title = { "." ~ !("." | SPACE) ~ ONE_CHAR+ ~ (NEWLINE | EOI) }
+list_multiline = ${ ((!(NEWLINE{2,} | EOI | NEWLINE ~ (unordered_level | ordered_level_token))  ~ ANY) | other_list_inline)+ }
+other_list_inline = @{ (!EMPTY_LINES ~ !EOI ~ !list_inline ~ !(NEWLINE ~ (unordered_level | ordered_level_token )) ~ !(continuation ~ delimited_block) ~ ANY)+ }
+
+continuation = { NEWLINE ~ "+" ~ NEWLINE }
+
+// TODO(nlopes): only support one line for now
+unordered_list = { unordered_list_item+ }
+unordered_list_item = { unordered_level ~ SPACE ~ list_item ~ (NEWLINE | EOI) }
+unordered_level = { ("*"+ | "-"+) }
+
+ordered_list = { ordered_list_item+ }
+ordered_list_item = { ordered_level_token ~ SPACE ~ checklist_item? ~ list_item ~ (NEWLINE | EOI) }
+ordered_level_token = _{ ordered_level_number? ~ ordered_level }
+ordered_level_number = { ASCII_DIGIT+ }
+ordered_level = { "."+ }
+
+checklist_item = _{ "[" ~ (checklist_item_checked | checklist_item_unchecked) ~ "]" ~ SPACE }
+checklist_item_checked = !{ "X" | "x" | "*" }
+checklist_item_unchecked = !{ SPACE }
+
+description_term = { (!"::" ~ ONE_CHAR)+ ~ "::"}
+description_list = { (description_term ~ SPACE ~ list_item)+ }
+
+list_inline = { ONE_CHAR* }

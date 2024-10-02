@@ -1,8 +1,8 @@
 document = _{
   SOI ~
-  (EMPTY_LINE | comment)* ~
-  (document_header ~ EMPTY_LINE)? ~
+  (NEWLINE | comment)* ~
+  (document_header ~ NEWLINE)? ~
   block* ~
-  (EMPTY_LINE | comment)* ~
+  (NEWLINE | comment)* ~
   EOI
 }

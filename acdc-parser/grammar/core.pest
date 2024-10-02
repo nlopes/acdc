@@ -2,10 +2,10 @@ SPACE = _{ " " }
 TAB = _{ "\t" }
 WSPACE = _{ SPACE | TAB }
 NEWLINE = _{ "\n" }
-EMPTY_LINE = _{ WSPACE* ~ NEWLINE }
+EMPTY_LINES = _{ NEWLINE{2,}+ | (NEWLINE ~ EOI) }
+ONE_CHAR = _{ !NEWLINE ~ ANY }
 
-empty_header = { "" ~ NEWLINE }
-comment = { "//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
+comment = { "//" ~ ONE_CHAR* ~ NEWLINE }
 
 id = @{ id_start_char ~ id_subsequent_char* }
 
@@ -25,13 +25,16 @@ inline_anchor = {
 }
 
 blocktitle = _{ "." ~ !("." | SPACE) ~ title ~ NEWLINE }
-title = { (!NEWLINE ~ ANY)+ }
+title = { ONE_CHAR+ }
 
-attribute_list = { inline_attribute_list ~ NEWLINE }
+attribute_list = { (role_list | inline_attribute_list) ~ NEWLINE }
 
 inline_attribute_list = _{
-  "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
+    "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
 }
+
+role_list = { "[" ~ "." ~ role ~ ("." ~ role)* ~ "]" }
+role = { attribute_value }
 
 // https://docs.asciidoctor.org/asciidoc/latest/attributes/names-and-values/#user-defined
 //
