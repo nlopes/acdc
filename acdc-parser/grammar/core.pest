@@ -29,8 +29,9 @@ title = { ONE_CHAR+ }
 
 attribute_list = _{ (role_list | inline_attribute_list) ~ NEWLINE }
 
+// Comma at the beginning is optional to account for things like [,ruby]
 inline_attribute_list = _{
-    "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
+    "[" ~ (","? ~ attribute ~ ("," ~ attribute)* )? ~ "]"
 }
 
 role_list = { "[" ~ "." ~ role ~ ("." ~ role)* ~ "]" }

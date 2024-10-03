@@ -729,28 +729,27 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_blah() {
-        let result = PestParser
-            .parse(
-                "[[cpu,CPU]]Central Processing Unit (CPU)::
-                The brain of the computer.
+    //     #[test]
+    //     fn test_blah() {
+    //         let result = PestParser
+    //             .parse(
+    //                 "[[cpu,CPU]]Central Processing Unit (CPU)::
+    // The brain of the computer.
 
-                [[hard-drive]]Hard drive::
-                Permanent storage for operating system and/or user files.",
-            )
-            .unwrap();
-        dbg!(&result);
-        panic!()
-    }
+    // [[hard-drive]]Hard drive::
+    // Permanent storage for operating system and/or user files.",
+    //             )
+    //             .unwrap();
+    //         dbg!(&result);
+    //         panic!()
+    //     }
 
-    #[test]
-    fn test_mdbasics_adoc() {
-        // let parser = PestParser;
-        // let result = parser
-        //     .parse(include_str!("../fixtures/samples/mdbasics.adoc"))
-        //     .unwrap();
-        // dbg!(&result.content[3]);
-        // panic!()
-    }
+    // #[test]
+    // fn test_mdbasics_adoc() {
+    //     let result = PestParser
+    //         .parse(include_str!("../fixtures/samples/mdbasics.adoc"))
+    //         .unwrap();
+    //     dbg!(&result);
+    //     panic!()
+    // }
 }

@@ -1,0 +1,30 @@
+{
+  "header": null,
+  "content": [
+    {
+      "DelimitedBlock": {
+        "inner": {
+          "DelimitedListing": "include::app.rb[]"
+        },
+        "anchor": null,
+        "title": null,
+        "attributes": [
+          {
+            "name": null,
+            "value": "ruby"
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 1,
+            "column": 1
+          },
+          "end": {
+            "line": 4,
+            "column": 5
+          }
+        }
+      }
+    }
+  ]
+}
