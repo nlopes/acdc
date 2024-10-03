@@ -27,7 +27,7 @@ inline_anchor = {
 blocktitle = _{ "." ~ !("." | SPACE) ~ title ~ NEWLINE }
 title = { ONE_CHAR+ }
 
-attribute_list = { (role_list | inline_attribute_list) ~ NEWLINE }
+attribute_list = _{ (role_list | inline_attribute_list) ~ NEWLINE }
 
 inline_attribute_list = _{
     "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
@@ -48,6 +48,6 @@ attribute = { named_attribute | attribute_value }
 named_attribute = { attribute_name ~ "=" ~ attribute_value }
 attribute_value = {
   ("\"" ~ inner_attribute_value ~ "\"") |
-  ( (!"," ~ !"]" ~ ANY)+ )
+  ( (!"," ~ !"." ~ !"]" ~ ANY)+ )
 }
 inner_attribute_value = { ( "\\\"" | (!"\"" ~ ANY))* }

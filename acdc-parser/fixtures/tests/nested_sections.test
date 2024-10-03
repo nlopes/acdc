@@ -14,6 +14,8 @@
         "content": [
           {
             "Paragraph": {
+              "roles": [],
+              "attributes": [],
               "content": "This is the content of section 1.",
               "location": {
                 "start": {
@@ -34,6 +36,8 @@
               "content": [
                 {
                   "Paragraph": {
+                    "roles": [],
+                    "attributes": [],
                     "content": "This is the content of section 1.1.",
                     "location": {
                       "start": {
@@ -54,6 +58,8 @@
                     "content": [
                       {
                         "Paragraph": {
+                          "roles": [],
+                          "attributes": [],
                           "content": "This is the content of section 1.1.1.",
                           "location": {
                             "start": {
@@ -113,6 +119,8 @@
         "content": [
           {
             "Paragraph": {
+              "roles": [],
+              "attributes": [],
               "content": "This is the content of section 2.",
               "location": {
                 "start": {

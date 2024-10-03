@@ -293,26 +293,14 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     if pairs.peek().is_none() {
         // TODO(nlopes): confirm if this is the correct behavior
         tracing::warn!(?pairs, "empty block");
-        return Ok(vec![Block::Paragraph(Paragraph {
-            location: Location {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            },
-            content: pairs.as_str().trim_end().to_string(),
-        })]);
+        return Ok(vec![parse_paragraph(pairs)]);
     }
     let mut blocks = Vec::new();
     for pair in pairs {
         match pair.as_rule() {
             Rule::section => blocks.push(parse_section(&pair)?),
             Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())),
-            Rule::paragraph => blocks.push(Block::Paragraph(Paragraph {
-                location: Location {
-                    start: Position { line: 0, column: 0 },
-                    end: Position { line: 0, column: 0 },
-                },
-                content: pair.as_str().trim_end().to_string(),
-            })),
+            Rule::paragraph => blocks.push(parse_paragraph(pair.into_inner())),
             Rule::block => blocks.extend(parse_block(pair.into_inner())?),
             Rule::list => blocks.push(parse_list(pair.into_inner())?),
             Rule::EOI | Rule::comment => {}
@@ -320,6 +308,45 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
         }
     }
     Ok(blocks)
+}
+
+fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
+    let mut content = String::new();
+    let mut attributes = Vec::new();
+    let mut roles = Vec::new();
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::paragraph_inner => content = pair.as_str().trim_end().to_string(),
+            Rule::inline_attribute_list => {
+                attributes.extend(parse_attribute_list(pair.into_inner()))
+            }
+            Rule::role_list => roles.extend(parse_role_list(pair.into_inner())),
+            _ => todo!(),
+        }
+    }
+    Block::Paragraph(Paragraph {
+        location: Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        },
+        content,
+        roles,
+        attributes,
+    })
+}
+
+fn parse_role_list(pairs: Pairs<Rule>) -> Vec<String> {
+    let mut roles = Vec::new();
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::role => {
+                roles.push(pair.as_str().to_string());
+            }
+            unknown => tracing::warn!(?unknown, "found a non role in a role list"),
+        }
+    }
+    roles
 }
 
 fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
@@ -602,8 +629,8 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
             Rule::title => {
                 title = Some(pair.as_str().to_string());
             }
-            Rule::attribute_list => {
-                attributes.extend(parse_attribute_list(pair.into_inner()));
+            Rule::attribute => {
+                attributes.push(parse_attribute(pair.into_inner()));
             }
             Rule::anchor => {
                 anchor = Some(pair.into_inner().as_str().to_string());
@@ -706,16 +733,11 @@ mod tests {
     fn test_blah() {
         let result = PestParser
             .parse(
-                "[.text-center]
-This text is centered, so it must be important.
-",
-                /*
                 "[[cpu,CPU]]Central Processing Unit (CPU)::
                 The brain of the computer.
 
                 [[hard-drive]]Hard drive::
                 Permanent storage for operating system and/or user files.",
-                */
             )
             .unwrap();
         dbg!(&result);

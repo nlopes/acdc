@@ -3,6 +3,8 @@
   "content": [
     {
       "Paragraph": {
+        "roles": [],
+        "attributes": [],
         "content": "This is a paragraph.",
         "location": {
           "start": {
@@ -18,6 +20,8 @@
     },
     {
       "Paragraph": {
+        "roles": [],
+        "attributes": [],
         "content": "// A comment block\n// that spans multiple lines.",
         "location": {
           "start": {

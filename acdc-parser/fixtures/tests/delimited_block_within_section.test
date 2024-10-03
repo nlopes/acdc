@@ -8,6 +8,8 @@
         "content": [
           {
             "Paragraph": {
+              "roles": [],
+              "attributes": [],
               "content": "Something is up. Let's see.",
               "location": {
                 "start": {
@@ -52,6 +54,8 @@
           },
           {
             "Paragraph": {
+              "roles": [],
+              "attributes": [],
               "content": "And that's it.",
               "location": {
                 "start": {

@@ -9,6 +9,8 @@
   "content": [
     {
       "Paragraph": {
+        "roles": [],
+        "attributes": [],
         "content": "body text",
         "location": {
           "start": {

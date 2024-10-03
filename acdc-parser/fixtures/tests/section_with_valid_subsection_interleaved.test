@@ -14,6 +14,8 @@
         "content": [
           {
             "Paragraph": {
+              "roles": [],
+              "attributes": [],
               "content": "Content of first section",
               "location": {
                 "start": {
@@ -34,6 +36,8 @@
               "content": [
                 {
                   "Paragraph": {
+                    "roles": [],
+                    "attributes": [],
                     "content": "Content of nested section",
                     "location": {
                       "start": {
@@ -80,6 +84,8 @@
         "content": [
           {
             "Paragraph": {
+              "roles": [],
+              "attributes": [],
               "content": "Content of second section",
               "location": {
                 "start": {

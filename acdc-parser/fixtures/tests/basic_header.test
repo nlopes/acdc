@@ -39,6 +39,8 @@
   "content": [
     {
       "Paragraph": {
+        "roles": [],
+        "attributes": [],
         "content": "The document body starts here.",
         "location": {
           "start": {

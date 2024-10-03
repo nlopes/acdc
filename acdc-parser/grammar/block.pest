@@ -24,5 +24,7 @@ section_title = { ONE_CHAR* }
 // Paragraphs
 paragraph = {
     (anchor | attribute_list | blocktitle)* ~
-    (!((NEWLINE{2,}) | EOI) ~ ANY)+ ~ NEWLINE*
+    paragraph_inner ~ NEWLINE*
 }
+
+paragraph_inner = { (!((NEWLINE{2,}) | EOI) ~ ANY)+ }

@@ -70,6 +70,8 @@ pub struct ListItem {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
+    pub roles: Vec<String>,
+    pub attributes: Vec<AttributeEntry>,
     pub content: String,
     pub location: Location,
 }

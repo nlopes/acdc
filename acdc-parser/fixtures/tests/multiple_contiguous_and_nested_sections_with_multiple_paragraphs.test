@@ -3,6 +3,8 @@
   "content": [
     {
       "Paragraph": {
+        "roles": [],
+        "attributes": [],
         "content": "Paragraph 1",
         "location": {
           "start": {
@@ -28,6 +30,8 @@
               "content": [
                 {
                   "Paragraph": {
+                    "roles": [],
+                    "attributes": [],
                     "content": "Paragraph 2",
                     "location": {
                       "start": {
@@ -48,6 +52,8 @@
                     "content": [
                       {
                         "Paragraph": {
+                          "roles": [],
+                          "attributes": [],
                           "content": "Paragraph 3",
                           "location": {
                             "start": {
@@ -63,6 +69,8 @@
                       },
                       {
                         "Paragraph": {
+                          "roles": [],
+                          "attributes": [],
                           "content": "Paragraph 4",
                           "location": {
                             "start": {
@@ -83,6 +91,8 @@
                           "content": [
                             {
                               "Paragraph": {
+                                "roles": [],
+                                "attributes": [],
                                 "content": "Something here",
                                 "location": {
                                   "start": {

@@ -1,17 +1,15 @@
 {
-  "header": {
-    "title": "Document Title: this is not the subtitle",
-    "subtitle": "this is the subtitle",
-    "authors": [],
-    "revision": null,
-    "attributes": []
-  },
+  "header": null,
   "content": [
     {
       "Paragraph": {
-        "roles": [],
+        "roles": [
+          "text-center",
+          "superduper",
+          "naff"
+        ],
         "attributes": [],
-        "content": "body text",
+        "content": "This text is centered, so it must be important.",
         "location": {
           "start": {
             "line": 0,
