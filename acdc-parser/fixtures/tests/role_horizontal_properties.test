@@ -1,18 +1,18 @@
 {
-  "header": {
-    "title": "Document Title: this is not the subtitle",
-    "subtitle": "this is the subtitle",
-    "authors": [],
-    "revision": null,
-    "attributes": []
-  },
+  "header": null,
   "content": [
     {
       "Paragraph": {
-        "options": [],
-        "roles": [],
+        "roles": [
+          "properties"
+        ],
+        "options": [
+          "step"
+        ],
+        "style": "horizontal",
+        "id": null,
         "attributes": [],
-        "content": "body text",
+        "content": "A paragraph",
         "location": {
           "start": {
             "line": 0,

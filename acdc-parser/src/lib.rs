@@ -2,8 +2,9 @@ mod error;
 mod model;
 
 pub use model::{
-    AttributeEntry, Author, Block, DelimitedBlock, DelimitedBlockType, Document, Header, ListItem,
-    Location, OrderedList, Paragraph, Parser, Position, Revision, Section, UnorderedList,
+    AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
+    Header, ListItem, Location, OrderedList, Paragraph, Parser, Position, Revision, Section,
+    UnorderedList,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -46,7 +47,7 @@ impl crate::model::Parser for PestParser {
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => parse_document(pairs),
             Err(e) => {
-                dbg!(&e);
+                tracing::error!("error parsing document: {e}");
                 Err(Error::Parse(e.to_string()))
             }
         }
@@ -313,16 +314,37 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
 fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
     let mut content = String::new();
     let mut attributes = Vec::new();
-    let mut roles = Vec::new();
+    let mut metadata = AttributeMetadata::default();
+    let mut style_found = false;
 
     for pair in pairs {
         match pair.as_rule() {
             Rule::paragraph_inner => content = pair.as_str().trim_end().to_string(),
-            Rule::inline_attribute_list => {
-                attributes.extend(parse_attribute_list(pair.into_inner()))
+            Rule::role => metadata.roles.push(pair.as_str().to_string()),
+            Rule::option => metadata.options.push(pair.as_str().to_string()),
+            Rule::named_attribute => {
+                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
             }
-            Rule::role_list => roles.extend(parse_role_list(pair.into_inner())),
-            _ => todo!(),
+            Rule::style => {
+                style_found = true;
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                if !value.is_empty() {
+                    if metadata.style.is_none() && !style_found {
+                        metadata.style = Some(value);
+                    } else {
+                        attributes.push(AttributeEntry {
+                            name: None,
+                            value: Some(value),
+                        });
+                    }
+                }
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => {
+                unreachable!("{unknown:?}");
+            }
         }
     }
     Block::Paragraph(Paragraph {
@@ -331,26 +353,46 @@ fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
             end: Position { line: 0, column: 0 },
         },
         content,
-        roles,
+        metadata,
         attributes,
     })
 }
 
-fn parse_role_list(pairs: Pairs<Rule>) -> Vec<String> {
-    let mut roles = Vec::new();
+fn parse_named_attribute(
+    pairs: Pairs<Rule>,
+    attributes: &mut Vec<AttributeEntry>,
+    metadata: &mut AttributeMetadata,
+) {
+    let mut name = None;
+    let mut value = None;
+
     for pair in pairs {
         match pair.as_rule() {
-            Rule::role => {
-                roles.push(pair.as_str().to_string());
-            }
-            unknown => tracing::warn!(?unknown, "found a non role in a role list"),
+            Rule::id => metadata.id = Some(pair.as_str().to_string()),
+            Rule::role => metadata.roles.push(pair.as_str().to_string()),
+            Rule::option => metadata.options.push(pair.as_str().to_string()),
+            Rule::attribute_name => name = Some(pair.as_str().to_string()),
+            Rule::named_attribute_value => value = Some(pair.as_str().to_string()),
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
         }
     }
-    roles
+
+    if let Some(name) = name {
+        if name == "role" {
+            metadata.roles.push(value.unwrap());
+        } else {
+            attributes.push(AttributeEntry {
+                name: Some(name),
+                value,
+            });
+        }
+    }
 }
 
 fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut title = None;
+    let mut metadata = AttributeMetadata::default();
     let mut block = Block::UnorderedList(UnorderedList {
         title: None,
         items: Vec::new(),
@@ -367,6 +409,18 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
             }
             Rule::unordered_list | Rule::ordered_list => {
                 block = parse_simple_list(title.clone(), pair.into_inner())?;
+            }
+            Rule::style => {
+                let style = pair.as_str().to_string();
+                if !style.is_empty() {
+                    metadata.style = Some(style);
+                }
+            }
+            Rule::role => {
+                metadata.roles.push(pair.as_str().to_string());
+            }
+            Rule::option => {
+                metadata.options.push(pair.as_str().to_string());
             }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
@@ -563,13 +617,16 @@ fn validate_section_block_level(content: &[Block], prior_level: Option<u8>) -> R
 
 fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
     let mut inner = DelimitedBlockType::DelimitedComment(String::new());
+    let mut metadata = AttributeMetadata::default();
     let mut title = None;
     let mut attributes = Vec::new();
-    let mut anchor = None;
     let mut location = Location {
         start: Position { line: 0, column: 0 },
         end: Position { line: 0, column: 0 },
     };
+    let mut style_found = false;
+
+    dbg!(&pairs);
     for pair in pairs {
         if pair.as_rule() == Rule::EOI || pair.as_rule() == Rule::comment {
             continue;
@@ -629,56 +686,39 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
             Rule::title => {
                 title = Some(pair.as_str().to_string());
             }
-            Rule::attribute => {
-                attributes.push(parse_attribute(pair.into_inner()));
+            Rule::style => {
+                style_found = true;
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                if !value.is_empty() {
+                    if metadata.style.is_none() && !style_found {
+                        metadata.style = Some(value);
+                    } else {
+                        attributes.push(AttributeEntry {
+                            name: None,
+                            value: Some(value),
+                        });
+                    }
+                }
+            }
+            Rule::named_attribute => {
+                dbg!(("named_attribute", &pair));
             }
             Rule::anchor => {
-                anchor = Some(pair.into_inner().as_str().to_string());
+                metadata.id = Some(pair.into_inner().as_str().to_string());
             }
             unknown => unreachable!("{unknown:?}"),
         }
     }
 
     Block::DelimitedBlock(DelimitedBlock {
+        metadata,
         inner,
-        anchor,
         title,
         attributes,
         location,
     })
-}
-
-fn parse_attribute(pairs: Pairs<Rule>) -> AttributeEntry {
-    let mut name = None;
-    let mut value = None;
-
-    for pair in pairs {
-        match pair.as_rule() {
-            Rule::attribute_name => {
-                name = Some(pair.as_str().to_string());
-            }
-            Rule::attribute_value => {
-                value = Some(pair.as_str().to_string());
-            }
-            unknown => unreachable!("{unknown:?}"),
-        }
-    }
-
-    AttributeEntry { name, value }
-}
-
-fn parse_attribute_list(pairs: Pairs<Rule>) -> Vec<AttributeEntry> {
-    let mut attributes = Vec::new();
-
-    for pair in pairs {
-        match pair.as_rule() {
-            Rule::attribute => {
-                attributes.push(parse_attribute(pair.into_inner()));
-            }
-            unknown => unreachable!("{unknown:?}"),
-        }
-    }
-    attributes
 }
 
 #[cfg(test)]
@@ -727,6 +767,18 @@ mod tests {
         } else {
             panic!("unexpected error: {result:?}");
         }
+    }
+
+    #[test]
+    fn test_blah() {
+        let result = PestParser
+            .parse(
+                "[sdf,title=\"Helloworld\"]
+Something or other",
+            )
+            .unwrap();
+        dbg!(&result);
+        panic!()
     }
 
     //     #[test]

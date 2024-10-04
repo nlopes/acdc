@@ -3,6 +3,7 @@
   "content": [
     {
       "Paragraph": {
+        "options": [],
         "roles": [],
         "attributes": [],
         "content": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
@@ -20,6 +21,7 @@
     },
     {
       "Paragraph": {
+        "options": [],
         "roles": [],
         "attributes": [],
         "content": "To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.",

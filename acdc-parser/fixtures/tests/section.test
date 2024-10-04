@@ -14,6 +14,7 @@
         "content": [
           {
             "Paragraph": {
+              "options": [],
               "roles": [],
               "attributes": [],
               "content": "This is the content of section 1.",

@@ -14,6 +14,7 @@
         "content": [
           {
             "Paragraph": {
+              "options": [],
               "roles": [],
               "attributes": [],
               "content": "This is the content of section 1.",
@@ -31,9 +32,10 @@
           },
           {
             "Paragraph": {
-             "roles": [],
-             "attributes": [],
-             "content": "And another paragraph with content.",
+              "options": [],
+              "roles": [],
+              "attributes": [],
+              "content": "And another paragraph with content.",
               "location": {
                 "start": {
                   "line": 0,

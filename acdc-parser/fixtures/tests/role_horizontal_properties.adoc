@@ -1,0 +1,2 @@
+[horizontal.properties%step]
+A paragraph

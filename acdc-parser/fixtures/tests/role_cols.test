@@ -1,0 +1,34 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Paragraph": {
+        "roles": [],
+        "options": [
+          "header",
+          "footer",
+          "autowidth"
+        ],
+        "style": null,
+        "id": null,
+        "attributes": [
+          {
+            "name": "cols",
+            "value": "2*~"
+          }
+        ],
+        "content": "A paragraph.",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    }
+  ]
+}

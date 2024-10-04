@@ -1,0 +1,2 @@
+[role="formal",options="step,trick"]
+A paragraph.

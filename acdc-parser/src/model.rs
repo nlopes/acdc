@@ -41,6 +41,14 @@ pub struct AttributeEntry {
     pub value: Option<String>,
 }
 
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct AttributeMetadata {
+    pub roles: Vec<String>,
+    pub options: Vec<String>,
+    pub style: Option<String>,
+    pub id: Option<String>,
+}
+
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Block {
@@ -70,7 +78,8 @@ pub struct ListItem {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
-    pub roles: Vec<String>,
+    #[serde(flatten)]
+    pub metadata: AttributeMetadata,
     pub attributes: Vec<AttributeEntry>,
     pub content: String,
     pub location: Location,
@@ -78,8 +87,9 @@ pub struct Paragraph {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DelimitedBlock {
+    #[serde(flatten)]
+    pub metadata: AttributeMetadata,
     pub inner: DelimitedBlockType,
-    pub anchor: Option<String>,
     pub title: Option<String>,
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,

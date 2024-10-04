@@ -3,6 +3,7 @@
   "content": [
     {
       "Paragraph": {
+        "options": [],
         "roles": [
           "text-center",
           "superduper",

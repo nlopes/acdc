@@ -18,9 +18,10 @@
   "content": [
     {
       "Paragraph": {
-       "roles": [],
-       "attributes": [],
-       "content": "content",
+        "options": [],
+        "roles": [],
+        "attributes": [],
+        "content": "content",
         "location": {
           "start": {
             "line": 0,

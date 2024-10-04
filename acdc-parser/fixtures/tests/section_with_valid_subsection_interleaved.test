@@ -14,6 +14,7 @@
         "content": [
           {
             "Paragraph": {
+              "options": [],
               "roles": [],
               "attributes": [],
               "content": "Content of first section",
@@ -36,6 +37,7 @@
               "content": [
                 {
                   "Paragraph": {
+                    "options": [],
                     "roles": [],
                     "attributes": [],
                     "content": "Content of nested section",
@@ -84,6 +86,7 @@
         "content": [
           {
             "Paragraph": {
+              "options": [],
               "roles": [],
               "attributes": [],
               "content": "Content of second section",

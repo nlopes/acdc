@@ -1,0 +1,2 @@
+[cols=2*~,opts="header,footer,autowidth"]
+A paragraph.

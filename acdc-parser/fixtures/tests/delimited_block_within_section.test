@@ -8,6 +8,7 @@
         "content": [
           {
             "Paragraph": {
+              "options": [],
               "roles": [],
               "attributes": [],
               "content": "Something is up. Let's see.",
@@ -28,13 +29,12 @@
               "inner": {
                 "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
               },
+              "options": [],
+              "roles": [],
+              "style": "source",
               "anchor": null,
               "title": null,
               "attributes": [
-                {
-                  "name": null,
-                  "value": "source"
-                },
                 {
                   "name": null,
                   "value": "yaml"
@@ -54,6 +54,7 @@
           },
           {
             "Paragraph": {
+              "options": [],
               "roles": [],
               "attributes": [],
               "content": "And that's it.",

@@ -9,6 +9,7 @@
   "content": [
     {
       "Paragraph": {
+        "options": [],
         "roles": [],
         "attributes": [],
         "content": "body text",

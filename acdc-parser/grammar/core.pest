@@ -27,15 +27,22 @@ inline_anchor = {
 blocktitle = _{ "." ~ !("." | SPACE) ~ title ~ NEWLINE }
 title = { ONE_CHAR+ }
 
-attribute_list = _{ (role_list | inline_attribute_list) ~ NEWLINE }
+attribute_list = _{ attrlist ~ NEWLINE }
 
-// Comma at the beginning is optional to account for things like [,ruby]
-inline_attribute_list = _{
-    "[" ~ (","? ~ attribute ~ ("," ~ attribute)* )? ~ "]"
+attrlist = _{
+    // The case in which we keep the style empty
+    "[" ~ style ~ "," ~ (attribute ~ ("," ~ attribute)*)? ~ "]" |
+
+    // The case in which style will be captured by a positional attribute
+    "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
 }
 
-role_list = { "[" ~ "." ~ role ~ ("." ~ role)* ~ "]" }
-role = { attribute_value }
+id_token = { "#" ~ id }
+
+style = { "" }
+role = { (!"," ~ !"]" ~ !"#" ~ !"." ~ !"%" ~ ANY)+ }
+option = { "\\\"" | (!"\"" ~ !"," ~ !"]" ~ !"#" ~ !"." ~ !"%" ~ ANY)+ }
+
 
 // https://docs.asciidoctor.org/asciidoc/latest/attributes/names-and-values/#user-defined
 //
@@ -45,10 +52,22 @@ role = { attribute_value }
 // a number.
 attribute_name = !{ (ASCII_ALPHANUMERIC | "-" | "_")+ }
 
-attribute = { named_attribute | attribute_value }
-named_attribute = { attribute_name ~ "=" ~ attribute_value }
-attribute_value = {
-  ("\"" ~ inner_attribute_value ~ "\"") |
-  ( (!"," ~ !"." ~ !"]" ~ ANY)+ )
+attribute = _{ named_attribute | positional_attribute }
+named_attribute = {
+    ("id" ~ "=" ~ id) |
+    ("role" ~ "=" ~ role) |
+    (("options" | "opts") ~ "=" ~ (("\"" ~ option ~ ("," ~ option)* ~ "\"") | option)) |
+    (attribute_name ~ "=" ~ named_attribute_value)
 }
-inner_attribute_value = { ( "\\\"" | (!"\"" ~ ANY))* }
+
+positional_attribute = _{
+    positional_attribute_value ~ (("#" ~ id)? ~ (("." ~ role) | ("%" ~ option))*) |
+    ("#" ~ id) ~ (("." ~ role) | ("%" ~ option))* |
+    (("." ~ role) | ("%" ~ option))+
+ }
+named_attribute_value = {
+    ("\"" ~ inner_attribute_value ~ "\"") |
+    ( (!"," ~ !"]" ~ ANY)+ )
+}
+positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY)+ }
+inner_attribute_value = _{ ( "\\\"" | (!"\"" ~ ANY))* }

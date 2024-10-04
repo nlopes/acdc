@@ -6,13 +6,13 @@
         "inner": {
           "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
         },
+        "id": null,
+        "options": [],
+        "roles": [],
+        "style": "source",
         "anchor": null,
         "title": "Specify GitLab CI stages",
         "attributes": [
-          {
-            "name": null,
-            "value": "source"
-          },
           {
             "name": null,
             "value": "yaml"

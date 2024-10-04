@@ -21,6 +21,7 @@
   "content": [
     {
       "Paragraph": {
+        "options": [],
         "roles": [],
         "attributes": [],
         "content": "This journey begins on a bleary Monday morning.",

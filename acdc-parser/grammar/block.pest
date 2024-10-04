@@ -28,3 +28,6 @@ paragraph = {
 }
 
 paragraph_inner = { (!((NEWLINE{2,}) | EOI) ~ ANY)+ }
+
+// WIP
+//inline_element = {}

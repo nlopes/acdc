@@ -3,6 +3,7 @@
   "content": [
     {
       "Paragraph": {
+        "options": [],
         "roles": [],
         "attributes": [],
         "content": "This is a paragraph.",
@@ -20,6 +21,7 @@
     },
     {
       "Paragraph": {
+        "options": [],
         "roles": [],
         "attributes": [],
         "content": "// A comment block\n// that spans multiple lines.",
@@ -42,6 +44,8 @@
         },
         "anchor": null,
         "title": null,
+        "roles": [],
+        "options": [],
         "attributes": [],
         "location": {
           "start": {
