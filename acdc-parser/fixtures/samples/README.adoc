@@ -1,0 +1,10 @@
+# Samples
+
+This folder contains some sample `.adoc` files found online.
+
+If found in repositories, I'm leaving here their respective LICENSE and original source
+location as of the time I copied them.
+
+* mdbasics.adoc
+** https://github.com/asciidoctor/asciidoctor/blob/c519d346d9b5c714b9df25e934757dad840fd997/benchmark/sample-data/mdbasics.adoc[Location]
+** https://github.com/asciidoctor/asciidoctor/blob/c519d346d9b5c714b9df25e934757dad840fd997/LICENSE[License (MIT)]
