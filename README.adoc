@@ -1,4 +1,4 @@
-# AcDc
+# acdc
 
 This is a collection of tools to handle `AsciiDoc` documents.
 
