@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, string::ToString};
 
 use pest::{
     iterators::{Pair, Pairs},
@@ -415,8 +415,8 @@ fn parse_image_block(pairs: Pairs<Rule>) -> Block {
     }
     Block::Image(Image {
         source,
-        attributes,
         metadata,
+        attributes,
     })
 }
 
@@ -442,7 +442,9 @@ fn parse_image(
             Rule::positional_attribute_value => {
                 let value = pair.as_str().to_string();
                 attributes.push(AttributeEntry {
-                    name: attribute_mapping.get(&attribute_idx).map(|s| s.to_string()),
+                    name: attribute_mapping
+                        .get(&attribute_idx)
+                        .map(ToString::to_string),
                     value: Some(value),
                 });
                 attribute_idx += 1;

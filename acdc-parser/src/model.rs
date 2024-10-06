@@ -63,6 +63,7 @@ pub enum Block {
 }
 
 impl Block {
+    #[must_use]
     pub fn is_paragraph(&self) -> bool {
         matches!(self, Block::Paragraph(_))
     }
