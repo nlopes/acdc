@@ -9,3 +9,5 @@ I'll try to keep as close as possible to:
 
 * the nomenclature of elements in the grammar by following the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/lexicon.adoc[Lexicon]
 * the behaviour/layout as described in the https://docs.asciidoctor.org/asciidoc/latest[AsciiDoc Language Documentation]
+
+WARNING: I don't yet follow the format of the ASG as described https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/tree/main/asg?ref_type=heads[here].
