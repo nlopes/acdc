@@ -31,7 +31,7 @@ attribute_list = _{ attrlist ~ NEWLINE }
 
 attrlist = _{
     // The case in which we keep the style empty
-    "[" ~ style ~ "," ~ (attribute ~ ("," ~ attribute)*)? ~ "]" |
+    "[" ~ empty_style ~ "," ~ (attribute ~ ("," ~ attribute)*)? ~ "]" |
 
     // The case in which style will be captured by a positional attribute
     "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
@@ -39,10 +39,9 @@ attrlist = _{
 
 id_token = { "#" ~ id }
 
-style = { "" }
+empty_style = { "" }
 role = { (!"," ~ !"]" ~ !"#" ~ !"." ~ !"%" ~ ANY)+ }
 option = { "\\\"" | (!"\"" ~ !"," ~ !"]" ~ !"#" ~ !"." ~ !"%" ~ ANY)+ }
-
 
 // https://docs.asciidoctor.org/asciidoc/latest/attributes/names-and-values/#user-defined
 //

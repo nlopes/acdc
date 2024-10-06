@@ -325,7 +325,7 @@ fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
             Rule::named_attribute => {
                 parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
             }
-            Rule::style => {
+            Rule::empty_style => {
                 style_found = true;
             }
             Rule::positional_attribute_value => {
@@ -393,6 +393,8 @@ fn parse_named_attribute(
 fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut title = None;
     let mut metadata = AttributeMetadata::default();
+    let mut attributes = Vec::new();
+    let mut style_found = false;
     let mut block = Block::UnorderedList(UnorderedList {
         title: None,
         items: Vec::new(),
@@ -410,18 +412,27 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
             Rule::unordered_list | Rule::ordered_list => {
                 block = parse_simple_list(title.clone(), pair.into_inner())?;
             }
-            Rule::style => {
-                let style = pair.as_str().to_string();
-                if !style.is_empty() {
-                    metadata.style = Some(style);
+            Rule::named_attribute => {
+                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
+            }
+            Rule::empty_style => {
+                style_found = true;
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                if !value.is_empty() {
+                    if metadata.style.is_none() && !style_found {
+                        metadata.style = Some(value);
+                    } else {
+                        attributes.push(AttributeEntry {
+                            name: None,
+                            value: Some(value),
+                        });
+                    }
                 }
             }
-            Rule::role => {
-                metadata.roles.push(pair.as_str().to_string());
-            }
-            Rule::option => {
-                metadata.options.push(pair.as_str().to_string());
-            }
+            Rule::role => metadata.roles.push(pair.as_str().to_string()),
+            Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
         }
@@ -686,7 +697,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
             Rule::title => {
                 title = Some(pair.as_str().to_string());
             }
-            Rule::style => {
+            Rule::empty_style => {
                 style_found = true;
             }
             Rule::positional_attribute_value => {
@@ -703,7 +714,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
                 }
             }
             Rule::named_attribute => {
-                dbg!(("named_attribute", &pair));
+                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
             }
             Rule::anchor => {
                 metadata.id = Some(pair.into_inner().as_str().to_string());
@@ -767,18 +778,6 @@ mod tests {
         } else {
             panic!("unexpected error: {result:?}");
         }
-    }
-
-    #[test]
-    fn test_blah() {
-        let result = PestParser
-            .parse(
-                "[sdf,title=\"Helloworld\"]
-Something or other",
-            )
-            .unwrap();
-        dbg!(&result);
-        panic!()
     }
 
     //     #[test]
