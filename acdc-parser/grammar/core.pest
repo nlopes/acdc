@@ -70,3 +70,13 @@ named_attribute_value = {
 }
 positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY)+ }
 inner_attribute_value = _{ ( "\\\"" | (!"\"" ~ ANY))* }
+
+url = ${proto ~ "://" ~ path}
+proto = ${
+    "https" |
+    "http" |
+    "ftp" |
+    "irc" |
+    "mailto"
+}
+path = @{ (ASCII_ALPHANUMERIC | "_" | "-" | "." | "/" | "~" )+ }

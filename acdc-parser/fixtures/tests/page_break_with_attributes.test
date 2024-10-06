@@ -1,0 +1,71 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Paragraph": {
+        "roles": [],
+        "options": [],
+        "style": null,
+        "id": null,
+        "attributes": [],
+        "content": "A paragraph",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    },
+    {
+      "PageBreak": {
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [
+          {
+            "name": "page-layout",
+            "value": "landscape"
+          }
+        ],
+        "location": {
+          "start": {
+            "line": 3,
+            "column": 1
+          },
+          "end": {
+            "line": 6,
+            "column": 1
+          }
+        }
+      }
+    },
+    {
+      "Paragraph": {
+        "roles": [],
+        "options": [],
+        "style": null,
+        "id": null,
+        "attributes": [],
+        "content": "Another paragraph",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    }
+  ]
+}

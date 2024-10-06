@@ -2,7 +2,7 @@ document = _{
   SOI ~
   (NEWLINE | comment)* ~
   (document_header ~ NEWLINE)? ~
-  block* ~
+  blocks ~
   (NEWLINE | comment)* ~
   EOI
 }

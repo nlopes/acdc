@@ -1,10 +1,13 @@
-block = {
+blocks = {
     (
         section |
         delimited_block |
+        image_block |
+        horizontal_rule |
+        page_break_block |
         list |
         paragraph
-    )
+    )*
 }
 
 section = {
@@ -21,13 +24,37 @@ section_level_symbol = _{ ("=" | "#") }
 section_level = { section_level_symbol{2,6} }
 section_title = { ONE_CHAR* }
 
+// TODO(nlopes): can we have multiple anchor statements? What does that mean? Multiple IDs
+// or should I have an ID with multiple aliases/anchors?
+//
+// When working on anchors, check https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#add-additional-anchors-to-a-section
+image_block = { anchor* ~ image ~ (NEWLINE{2,} | EOI) }
+image = { "image::" ~ (url | path) ~ attrlist }
+
+horizontal_rule = @{
+    (
+        "'''\n\n" |
+        // Below are the markdown-style ones
+        "---\n\n" |
+        "- - -\n\n" |
+        "***\n\n" |
+        "* * *\n\n"
+    ) ~ NEWLINE*
+}
+
+page_break_block = {
+    attribute_list ~ page_break ~ NEWLINE*
+}
+
+page_break = _{ "<<<\n\n" }
+
 // Paragraphs
 paragraph = {
     (anchor | attribute_list | blocktitle)* ~
     paragraph_inner ~ NEWLINE*
 }
 
-paragraph_inner = { (!((NEWLINE{2,}) | EOI) ~ ANY)+ }
+paragraph_inner = { (&(!((NEWLINE{2,}) | EOI)) ~ ANY)+ }
 
 // WIP
 //inline_element = {}

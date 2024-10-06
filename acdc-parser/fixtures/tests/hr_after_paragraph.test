@@ -1,0 +1,59 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Paragraph": {
+        "roles": [],
+        "options": [],
+        "style": null,
+        "id": null,
+        "attributes": [],
+        "content": "A paragraph",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    },
+    {
+      "HorizontalRule": {
+        "location": {
+          "start": {
+            "line": 3,
+            "column": 1
+          },
+          "end": {
+            "line": 5,
+            "column": 1
+          }
+        }
+      }
+    },
+    {
+      "Paragraph": {
+        "roles": [],
+        "options": [],
+        "style": null,
+        "id": null,
+        "attributes": [],
+        "content": "Another paragraph",
+        "location": {
+          "start": {
+            "line": 0,
+            "column": 0
+          },
+          "end": {
+            "line": 0,
+            "column": 0
+          }
+        }
+      }
+    }
+  ]
+}

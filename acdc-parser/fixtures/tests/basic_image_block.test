@@ -1,0 +1,59 @@
+{
+  "header": null,
+  "content": [
+    {
+      "Image": {
+        "source": {
+          "Path": "sunset.jpg"
+        },
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [
+          {
+            "name": "alt",
+            "value": "Sunset"
+          },
+          {
+            "name": "width",
+            "value": "300"
+          },
+          {
+            "name": "height",
+            "value": "400"
+          }
+        ]
+      }
+    },
+    {
+      "Image": {
+        "source": {
+          "Path": "sunset2.jpg"
+        },
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [
+          {
+            "name": "alt",
+            "value": "Sunset"
+          },
+          {
+            "name": "width",
+            "value": "300"
+          },
+          {
+            "name": "height",
+            "value": "400"
+          }
+        ]
+      }
+    }
+  ]
+}

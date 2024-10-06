@@ -52,11 +52,50 @@ pub struct AttributeMetadata {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Block {
+    HorizontalRule(HorizontalRule),
+    PageBreak(PageBreak),
     UnorderedList(UnorderedList),
     OrderedList(OrderedList),
     Section(Section),
     DelimitedBlock(DelimitedBlock),
     Paragraph(Paragraph),
+    Image(Image),
+}
+
+impl Block {
+    pub fn is_paragraph(&self) -> bool {
+        matches!(self, Block::Paragraph(_))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct HorizontalRule {
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PageBreak {
+    pub metadata: AttributeMetadata,
+    pub attributes: Vec<AttributeEntry>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Image {
+    pub source: ImageSource,
+    pub metadata: AttributeMetadata,
+    pub attributes: Vec<AttributeEntry>,
+}
+
+// TODO(nlopes): this should use instead
+//
+// - Path(std::path::PathBuf)
+// - Url(url::Url)
+//
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ImageSource {
+    Path(String),
+    Url(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

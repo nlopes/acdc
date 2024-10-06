@@ -1,11 +1,5 @@
-mod error;
-mod model;
+use std::collections::HashMap;
 
-pub use model::{
-    AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
-    Header, ListItem, Location, OrderedList, Paragraph, Parser, Position, Revision, Section,
-    UnorderedList,
-};
 use pest::{
     iterators::{Pair, Pairs},
     Parser as _,
@@ -13,7 +7,15 @@ use pest::{
 use pest_derive::Parser;
 use tracing::instrument;
 
+mod error;
+mod model;
+
 pub use error::{Detail as ErrorDetail, Error};
+pub use model::{
+    AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
+    Header, HorizontalRule, Image, ImageSource, ListItem, Location, OrderedList, PageBreak,
+    Paragraph, Parser, Position, Revision, Section, UnorderedList,
+};
 
 #[derive(Debug)]
 pub struct PestParser;
@@ -71,7 +73,7 @@ fn parse_document(pairs: Pairs<Rule>) -> Result<Document, Error> {
             Rule::document_header => {
                 document_header = Some(parse_document_header(pair.into_inner()));
             }
-            Rule::block => {
+            Rule::blocks => {
                 content.extend(parse_block(pair.into_inner())?);
             }
             Rule::comment | Rule::EOI => {}
@@ -291,6 +293,9 @@ fn parse_author(pairs: Pairs<Rule>) -> Author {
 }
 
 fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
+    if pairs.len() == 0 {
+        return Ok(Vec::new());
+    }
     if pairs.peek().is_none() {
         // TODO(nlopes): confirm if this is the correct behavior
         tracing::warn!(?pairs, "empty block");
@@ -302,13 +307,149 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
             Rule::section => blocks.push(parse_section(&pair)?),
             Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())),
             Rule::paragraph => blocks.push(parse_paragraph(pair.into_inner())),
-            Rule::block => blocks.extend(parse_block(pair.into_inner())?),
+            Rule::blocks => blocks.extend(parse_block(pair.into_inner())?),
             Rule::list => blocks.push(parse_list(pair.into_inner())?),
+            Rule::image_block => blocks.push(parse_image_block(pair.into_inner())),
+            Rule::horizontal_rule => {
+                if blocks.is_empty() || !blocks.last().map_or(false, Block::is_paragraph) {
+                    return Err(Error::Parse(
+                        "horizontal rule must follow a paragraph".to_string(),
+                    ));
+                }
+                blocks.push(Block::HorizontalRule(HorizontalRule {
+                    location: Location {
+                        start: Position {
+                            line: pair.as_span().start_pos().line_col().0,
+                            column: pair.as_span().start_pos().line_col().1,
+                        },
+                        end: Position {
+                            line: pair.as_span().end_pos().line_col().0,
+                            column: pair.as_span().end_pos().line_col().1,
+                        },
+                    },
+                }));
+            }
+            Rule::page_break_block => {
+                if blocks.is_empty() || !blocks.last().map_or(false, Block::is_paragraph) {
+                    return Err(Error::Parse(
+                        "page break must follow a paragraph".to_string(),
+                    ));
+                }
+                blocks.push(parse_page_break(pair));
+            }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
         }
     }
     Ok(blocks)
+}
+
+fn parse_page_break(pair: Pair<Rule>) -> Block {
+    let start = pair.as_span().start_pos();
+    let end = pair.as_span().end_pos();
+
+    let pairs = pair.into_inner();
+    let mut metadata = AttributeMetadata::default();
+    let mut attributes = Vec::new();
+    let mut style_found = false;
+    let location = Location {
+        start: Position {
+            line: start.line_col().0,
+            column: start.line_col().1,
+        },
+        end: Position {
+            line: end.line_col().0,
+            column: end.line_col().1,
+        },
+    };
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::named_attribute => {
+                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
+            }
+            Rule::empty_style => {
+                style_found = true;
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                if !value.is_empty() {
+                    if metadata.style.is_none() && !style_found {
+                        metadata.style = Some(value);
+                    } else {
+                        attributes.push(AttributeEntry {
+                            name: None,
+                            value: Some(value),
+                        });
+                    }
+                }
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+
+    Block::PageBreak(PageBreak {
+        metadata,
+        attributes,
+        location,
+    })
+}
+
+fn parse_image_block(pairs: Pairs<Rule>) -> Block {
+    let mut metadata = AttributeMetadata::default();
+    let mut attributes: Vec<AttributeEntry> = Vec::new();
+    let mut source = ImageSource::Path(String::new());
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::anchor => metadata.id = Some(pair.into_inner().as_str().to_string()),
+            Rule::image => parse_image(
+                pair.into_inner(),
+                &mut attributes,
+                &mut source,
+                &mut metadata,
+            ),
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    Block::Image(Image {
+        source,
+        attributes,
+        metadata,
+    })
+}
+
+fn parse_image(
+    pairs: Pairs<Rule>,
+    attributes: &mut Vec<AttributeEntry>,
+    source: &mut ImageSource,
+    metadata: &mut AttributeMetadata,
+) {
+    let mut attribute_idx = 0;
+    let mut attribute_mapping = HashMap::new();
+    attribute_mapping.insert(0, "alt");
+    attribute_mapping.insert(1, "width");
+    attribute_mapping.insert(2, "height");
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::path => *source = ImageSource::Path(pair.as_str().to_string()),
+            Rule::url => *source = ImageSource::Url(pair.as_str().to_string()),
+            Rule::named_attribute => {
+                parse_named_attribute(pair.into_inner(), attributes, metadata);
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                attributes.push(AttributeEntry {
+                    name: attribute_mapping.get(&attribute_idx).map(|s| s.to_string()),
+                    value: Some(value),
+                });
+                attribute_idx += 1;
+            }
+            unknown => unreachable!("{unknown:?}"),
+        };
+    }
 }
 
 fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
@@ -637,7 +778,6 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
     };
     let mut style_found = false;
 
-    dbg!(&pairs);
     for pair in pairs {
         if pair.as_rule() == Rule::EOI || pair.as_rule() == Rule::comment {
             continue;
@@ -775,6 +915,25 @@ mod tests {
                 },
                 detail
             );
+        } else {
+            panic!("unexpected error: {result:?}");
+        }
+    }
+
+    #[test]
+    fn test_hr_without_paragraph() {
+        let result = PestParser
+            .parse(
+                "
+
+'''
+
+
+",
+            )
+            .unwrap_err();
+        if let Error::Parse(ref message) = result {
+            assert_eq!("horizontal rule must follow a paragraph", message);
         } else {
             panic!("unexpected error: {result:?}");
         }

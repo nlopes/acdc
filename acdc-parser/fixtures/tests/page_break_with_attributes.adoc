@@ -1,0 +1,6 @@
+A paragraph
+
+[page-layout=landscape]
+<<<
+
+Another paragraph

@@ -1,7 +1,4 @@
 delimited_block = {
-    // TODO(nlopes): `attribute_list` doesn't conform to what's in the docs.
-    //
-    // Check what this should be at https://docs.asciidoctor.org/asciidoc/latest/attributes/positional-and-named-attributes/
     (anchor | attribute_list | blocktitle)* ~
     (
         delimited_comment |
