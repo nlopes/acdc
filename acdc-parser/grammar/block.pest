@@ -3,7 +3,7 @@ blocks = {
         section |
         delimited_block |
         image_block |
-        horizontal_rule |
+        thematic_break_block |
         page_break_block |
         list |
         paragraph
@@ -31,7 +31,7 @@ section_title = { ONE_CHAR* }
 image_block = { anchor* ~ image ~ (NEWLINE{2,} | EOI) }
 image = { "image::" ~ (url | path) ~ attrlist }
 
-horizontal_rule = @{
+thematic_break_block = @{
     (
         "'''\n\n" |
         // Below are the markdown-style ones

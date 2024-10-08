@@ -22,7 +22,7 @@
       }
     },
     {
-      "HorizontalRule": {
+      "ThematicBreak": {
         "location": {
           "start": {
             "line": 3,

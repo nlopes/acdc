@@ -52,7 +52,7 @@ pub struct AttributeMetadata {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Block {
-    HorizontalRule(HorizontalRule),
+    ThematicBreak(ThematicBreak),
     PageBreak(PageBreak),
     UnorderedList(UnorderedList),
     OrderedList(OrderedList),
@@ -70,7 +70,7 @@ impl Block {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct HorizontalRule {
+pub struct ThematicBreak {
     pub location: Location,
 }
 

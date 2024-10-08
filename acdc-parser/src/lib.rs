@@ -13,8 +13,8 @@ mod model;
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
     AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
-    Header, HorizontalRule, Image, ImageSource, ListItem, Location, OrderedList, PageBreak,
-    Paragraph, Parser, Position, Revision, Section, UnorderedList,
+    Header, Image, ImageSource, ListItem, Location, OrderedList, PageBreak, Paragraph, Parser,
+    Position, Revision, Section, ThematicBreak, UnorderedList,
 };
 
 #[derive(Debug)]
@@ -310,13 +310,13 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
             Rule::blocks => blocks.extend(parse_block(pair.into_inner())?),
             Rule::list => blocks.push(parse_list(pair.into_inner())?),
             Rule::image_block => blocks.push(parse_image_block(pair.into_inner())),
-            Rule::horizontal_rule => {
+            Rule::thematic_break_block => {
                 if blocks.is_empty() || !blocks.last().map_or(false, Block::is_paragraph) {
                     return Err(Error::Parse(
-                        "horizontal rule must follow a paragraph".to_string(),
+                        "thematic break must follow a paragraph".to_string(),
                     ));
                 }
-                blocks.push(Block::HorizontalRule(HorizontalRule {
+                blocks.push(Block::ThematicBreak(ThematicBreak {
                     location: Location {
                         start: Position {
                             line: pair.as_span().start_pos().line_col().0,
@@ -935,7 +935,7 @@ mod tests {
             )
             .unwrap_err();
         if let Error::Parse(ref message) = result {
-            assert_eq!("horizontal rule must follow a paragraph", message);
+            assert_eq!("thematic break must follow a paragraph", message);
         } else {
             panic!("unexpected error: {result:?}");
         }
