@@ -477,7 +477,7 @@ fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut AttributeMetadata) -> 
 
         if first {
             let value = pair.as_str().trim_end().to_string();
-            if value.starts_with(" ") {
+            if value.starts_with(' ') {
                 metadata.style = Some("literal".to_string());
             }
             first = false;
@@ -554,10 +554,10 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
         }
     }
     Block::Paragraph(Paragraph {
-        location,
-        content,
         metadata,
         attributes,
+        content,
+        location,
         admonition,
     })
 }
