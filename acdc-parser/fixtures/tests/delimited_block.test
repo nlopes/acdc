@@ -6,15 +6,31 @@
         "options": [],
         "roles": [],
         "attributes": [],
-        "content": "This is a paragraph.",
+        "content": [
+          {
+            "PlainText": {
+              "content": "This is a paragraph.",
+                "location": {
+                    "start": {
+                    "line": 1,
+                    "column": 1
+                    },
+                    "end": {
+                    "line": 1,
+                    "column": 21
+                    }
+                }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 1,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 3,
+            "column": 1
           }
         }
       }
@@ -24,15 +40,31 @@
         "options": [],
         "roles": [],
         "attributes": [],
-        "content": "// A comment block\n// that spans multiple lines.",
+        "content": [
+          {
+            "PlainText": {
+              "content": "// A comment block\n// that spans multiple lines.",
+                "location": {
+                    "start": {
+                    "line": 3,
+                    "column": 1
+                    },
+                    "end": {
+                    "line": 4,
+                    "column": 30
+                    }
+                }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 3,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 6,
+            "column": 1
           }
         }
       }

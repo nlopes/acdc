@@ -11,6 +11,7 @@ authors = ["Norberto Lopes <nlopesml@gmail.com>"]
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
+pretty_assertions = "1.4.1"
 tracing = "0.1"
 thiserror = "1.0"
 

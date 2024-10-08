@@ -4,31 +4,22 @@
     {
       "Paragraph": {
         "roles": [],
-        "options": [
-          "header",
-          "footer",
-          "autowidth"
-        ],
-        "style": null,
+        "options": [],
+        "style": "literal",
         "id": null,
-        "attributes": [
-          {
-            "name": "cols",
-            "value": "2*~"
-          }
-        ],
+        "attributes": [],
         "content": [
           {
             "PlainText": {
-              "content": "A paragraph.",
+              "content": "error: 1954 Forbidden search\nabsolutely fatal: operation lost in the dodecahedron of doom\nWould you like to try again? y/n",
               "location": {
                 "start": {
-                  "line": 2,
+                  "line": 1,
                   "column": 1
                 },
                 "end": {
-                  "line": 2,
-                  "column": 13
+                  "line": 3,
+                  "column": 33
                 }
               }
             }
@@ -40,8 +31,8 @@
             "column": 1
           },
           "end": {
-            "line": 2,
-            "column": 13
+            "line": 3,
+            "column": 33
           }
         }
       }

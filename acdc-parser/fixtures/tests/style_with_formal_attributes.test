@@ -15,15 +15,31 @@
             "value": "\"Hello,world\""
           }
         ],
-        "content": "Something or other",
+        "content": [
+          {
+            "PlainText": {
+              "content": "Something or other",
+              "location": {
+                "start": {
+                  "line": 2,
+                  "column": 1
+                },
+                "end": {
+                  "line": 2,
+                  "column": 19
+                }
+              }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 1,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 2,
+            "column": 19
           }
         }
       }

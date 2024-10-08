@@ -31,6 +31,8 @@ section_title = { ONE_CHAR* }
 image_block = { anchor* ~ image ~ (NEWLINE{2,} | EOI) }
 image = { "image::" ~ (url | path) ~ attrlist }
 
+//block_macro = { <name>"::" ~ target? ~ attrlist? }
+
 thematic_break_block = @{
     (
         "'''\n\n" |
@@ -51,10 +53,35 @@ page_break = _{ "<<<\n\n" }
 // Paragraphs
 paragraph = {
     (anchor | attribute_list | blocktitle)* ~
-    paragraph_inner ~ NEWLINE*
+    admonition_node? ~ paragraph_inner ~ NEWLINE*
 }
 
-paragraph_inner = { (&(!((NEWLINE{2,}) | EOI)) ~ ANY)+ }
+paragraph_inner = {
+    (
+        non_plain_text ~ plain_text |
+        plain_text
+    )+
+}
 
+admonition_node = _{
+    admonition ~ ": "
+}
+
+bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ POP }
+
+non_plain_text = _{
+    bold_text
+}
+
+admonition = !{
+    (
+        "NOTE" |
+        "TIP" |
+        "IMPORTANT" |
+        "WARNING" |
+        "CAUTION"
+    )
+}
+plain_text = { (&(!(NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+ }
 // WIP
 //inline_element = {}

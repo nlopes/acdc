@@ -69,6 +69,18 @@ impl Block {
     }
 }
 
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum InlineNode {
+    PlainText(PlainText),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PlainText {
+    pub content: String,
+    pub location: Location,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ThematicBreak {
     pub location: Location,
@@ -121,8 +133,9 @@ pub struct Paragraph {
     #[serde(flatten)]
     pub metadata: AttributeMetadata,
     pub attributes: Vec<AttributeEntry>,
-    pub content: String,
+    pub content: Vec<InlineNode>,
     pub location: Location,
+    pub admonition: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

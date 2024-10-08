@@ -42,15 +42,30 @@
         "options": [],
         "roles": [],
         "attributes": [],
-        "content": "The document body starts here.",
+        "content": [
+          {
+            "PlainText": {
+              "content": "The document body starts here.",
+                "location": {
+                    "start": {
+                    "line": 10,
+                    "column": 1
+                    },
+                    "end": {
+                    "line": 10,
+                    "column": 31
+                    }
+                }
+            }
+          }],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 10,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 10,
+            "column": 31
           }
         }
       }

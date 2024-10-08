@@ -11,15 +11,31 @@
               "options": [],
               "roles": [],
               "attributes": [],
-              "content": "Something is up. Let's see.",
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "Something is up. Let's see.",
+                    "location": {
+                      "start": {
+                        "line": 1,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 28
+                      }
+                    }
+                  }
+                }
+              ],
               "location": {
                 "start": {
-                  "line": 0,
-                  "column": 0
+                  "line": 1,
+                  "column": 1
                 },
                 "end": {
-                  "line": 0,
-                  "column": 0
+                  "line": 3,
+                  "column": 1
                 }
               }
             }
@@ -57,15 +73,31 @@
               "options": [],
               "roles": [],
               "attributes": [],
-              "content": "And that's it.",
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "And that's it.",
+                    "location": {
+                      "start": {
+                        "line": 11,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 11,
+                        "column": 15
+                      }
+                    }
+                  }
+                }
+              ],
               "location": {
                 "start": {
-                  "line": 0,
-                  "column": 0
+                  "line": 11,
+                  "column": 1
                 },
                 "end": {
-                  "line": 0,
-                  "column": 0
+                  "line": 11,
+                  "column": 15
                 }
               }
             }

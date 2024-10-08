@@ -8,15 +8,31 @@
         "style": null,
         "id": null,
         "attributes": [],
-        "content": "A paragraph",
+        "content": [
+          {
+            "PlainText": {
+              "content": "A paragraph",
+              "location": {
+                "start": {
+                  "line": 1,
+                  "column": 1
+                },
+                "end": {
+                  "line": 1,
+                  "column": 12
+                }
+              }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 1,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 3,
+            "column": 1
           }
         }
       }
@@ -42,15 +58,31 @@
         "style": null,
         "id": null,
         "attributes": [],
-        "content": "Another paragraph",
+        "content": [
+          {
+            "PlainText": {
+              "content": "Another paragraph",
+                "location": {
+                    "start": {
+                    "line": 5,
+                    "column": 1
+                    },
+                    "end": {
+                    "line": 5,
+                    "column": 18
+                    }
+                }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 5,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 5,
+            "column": 18
           }
         }
       }

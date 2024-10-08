@@ -13,15 +13,31 @@
         "style": null,
         "id": null,
         "attributes": [],
-        "content": "A paragraph.",
+        "content": [
+          {
+            "PlainText": {
+              "content": "A paragraph.",
+                "location": {
+                    "start": {
+                    "line": 2,
+                    "column": 1
+                    },
+                    "end": {
+                    "line": 2,
+                    "column": 13
+                    }
+                }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 1,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 2,
+            "column": 13
           }
         }
       }

@@ -6,15 +6,31 @@
         "options": [],
         "roles": [],
         "attributes": [],
-        "content": "Paragraph 1",
+        "content": [
+          {
+            "PlainText": {
+              "content": "Paragraph 1",
+              "location": {
+                "start": {
+                  "line": 1,
+                  "column": 1
+                },
+                "end": {
+                  "line": 1,
+                  "column": 12
+                }
+              }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 1,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 3,
+            "column": 1
           }
         }
       }
@@ -34,15 +50,31 @@
                     "options": [],
                     "roles": [],
                     "attributes": [],
-                    "content": "Paragraph 2",
+                    "content": [
+                      {
+                        "PlainText": {
+                          "content": "Paragraph 2",
+                          "location": {
+                            "start": {
+                              "line": 1,
+                              "column": 1
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 12
+                            }
+                          }
+                        }
+                      }
+                    ],
                     "location": {
                       "start": {
-                        "line": 0,
-                        "column": 0
+                        "line": 1,
+                        "column": 1
                       },
                       "end": {
-                        "line": 0,
-                        "column": 0
+                        "line": 3,
+                        "column": 1
                       }
                     }
                   }
@@ -57,15 +89,31 @@
                           "options": [],
                           "roles": [],
                           "attributes": [],
-                          "content": "Paragraph 3",
+                          "content": [
+                            {
+                              "PlainText": {
+                                "content": "Paragraph 3",
+                                "location": {
+                                  "start": {
+                                    "line": 1,
+                                    "column": 1
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 12
+                                  }
+                                }
+                              }
+                            }
+                          ],
                           "location": {
                             "start": {
-                              "line": 0,
-                              "column": 0
+                              "line": 1,
+                              "column": 1
                             },
                             "end": {
-                              "line": 0,
-                              "column": 0
+                              "line": 3,
+                              "column": 1
                             }
                           }
                         }
@@ -75,15 +123,31 @@
                           "options": [],
                           "roles": [],
                           "attributes": [],
-                          "content": "Paragraph 4",
+                          "content": [
+                            {
+                              "PlainText": {
+                                "content": "Paragraph 4",
+                                "location": {
+                                  "start": {
+                                    "line": 3,
+                                    "column": 1
+                                  },
+                                  "end": {
+                                    "line": 3,
+                                    "column": 12
+                                  }
+                                }
+                              }
+                            }
+                          ],
                           "location": {
                             "start": {
-                              "line": 0,
-                              "column": 0
+                              "line": 3,
+                              "column": 1
                             },
                             "end": {
-                              "line": 0,
-                              "column": 0
+                              "line": 5,
+                              "column": 1
                             }
                           }
                         }
@@ -98,15 +162,31 @@
                                 "options": [],
                                 "roles": [],
                                 "attributes": [],
-                                "content": "Something here",
+                                "content": [
+                                  {
+                                    "PlainText": {
+                                      "content": "Something here",
+                                      "location": {
+                                        "start": {
+                                          "line": 1,
+                                          "column": 1
+                                        },
+                                        "end": {
+                                          "line": 1,
+                                          "column": 15
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
                                 "location": {
                                   "start": {
-                                    "line": 0,
-                                    "column": 0
+                                    "line": 1,
+                                    "column": 1
                                   },
                                   "end": {
-                                    "line": 0,
-                                    "column": 0
+                                    "line": 1,
+                                    "column": 15
                                   }
                                 }
                               }

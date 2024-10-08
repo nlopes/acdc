@@ -17,15 +17,31 @@
               "options": [],
               "roles": [],
               "attributes": [],
-              "content": "Content of first section",
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "Content of first section",
+                    "location": {
+                      "start": {
+                        "line": 1,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 25
+                      }
+                    }
+                  }
+                }
+              ],
               "location": {
                 "start": {
-                  "line": 0,
-                  "column": 0
+                  "line": 1,
+                  "column": 1
                 },
                 "end": {
-                  "line": 0,
-                  "column": 0
+                  "line": 3,
+                  "column": 1
                 }
               }
             }
@@ -40,15 +56,31 @@
                     "options": [],
                     "roles": [],
                     "attributes": [],
-                    "content": "Content of nested section",
+                    "content": [
+                      {
+                        "PlainText": {
+                          "content": "Content of nested section",
+                          "location": {
+                            "start": {
+                              "line": 1,
+                              "column": 1
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 26
+                            }
+                          }
+                        }
+                      }
+                    ],
                     "location": {
                       "start": {
-                        "line": 0,
-                        "column": 0
+                        "line": 1,
+                        "column": 1
                       },
                       "end": {
-                        "line": 0,
-                        "column": 0
+                        "line": 3,
+                        "column": 1
                       }
                     }
                   }
@@ -89,15 +121,31 @@
               "options": [],
               "roles": [],
               "attributes": [],
-              "content": "Content of second section",
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "Content of second section",
+                    "location": {
+                      "start": {
+                        "line": 1,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 26
+                      }
+                    }
+                  }
+                }
+              ],
               "location": {
                 "start": {
-                  "line": 0,
-                  "column": 0
+                  "line": 1,
+                  "column": 1
                 },
                 "end": {
-                  "line": 0,
-                  "column": 0
+                  "line": 1,
+                  "column": 26
                 }
               }
             }

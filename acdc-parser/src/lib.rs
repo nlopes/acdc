@@ -13,8 +13,8 @@ mod model;
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
     AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
-    Header, Image, ImageSource, ListItem, Location, OrderedList, PageBreak, Paragraph, Parser,
-    Position, Revision, Section, ThematicBreak, UnorderedList,
+    Header, Image, ImageSource, InlineNode, ListItem, Location, OrderedList, PageBreak, Paragraph,
+    Parser, PlainText, Position, Revision, Section, ThematicBreak, UnorderedList,
 };
 
 #[derive(Debug)]
@@ -299,14 +299,14 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     if pairs.peek().is_none() {
         // TODO(nlopes): confirm if this is the correct behavior
         tracing::warn!(?pairs, "empty block");
-        return Ok(vec![parse_paragraph(pairs)]);
+        return Ok(vec![]);
     }
     let mut blocks = Vec::new();
     for pair in pairs {
         match pair.as_rule() {
             Rule::section => blocks.push(parse_section(&pair)?),
             Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())),
-            Rule::paragraph => blocks.push(parse_paragraph(pair.into_inner())),
+            Rule::paragraph => blocks.push(parse_paragraph(pair)),
             Rule::blocks => blocks.extend(parse_block(pair.into_inner())?),
             Rule::list => blocks.push(parse_list(pair.into_inner())?),
             Rule::image_block => blocks.push(parse_image_block(pair.into_inner())),
@@ -454,15 +454,78 @@ fn parse_image(
     }
 }
 
-fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
-    let mut content = String::new();
+fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut AttributeMetadata) -> Vec<InlineNode> {
+    let pairs = pair.into_inner();
+
+    let mut content = Vec::new();
+    let mut first = true;
+
+    for pair in pairs {
+        let start = pair.as_span().start_pos();
+        let end = pair.as_span().end_pos();
+
+        let location = Location {
+            start: Position {
+                line: start.line_col().0,
+                column: start.line_col().1,
+            },
+            end: Position {
+                line: end.line_col().0,
+                column: end.line_col().1,
+            },
+        };
+
+        if first {
+            let value = pair.as_str().trim_end().to_string();
+            if value.starts_with(" ") {
+                metadata.style = Some("literal".to_string());
+            }
+            first = false;
+        }
+
+        match pair.as_rule() {
+            Rule::plain_text => content.push(InlineNode::PlainText(PlainText {
+                content: pair.as_str().to_string().trim_start().to_string(),
+                location,
+            })),
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    content
+}
+
+fn parse_paragraph(pair: Pair<Rule>) -> Block {
+    let start = pair.as_span().start_pos();
+    let end = pair.as_span().end_pos();
+    let pairs = pair.into_inner();
+
+    let mut content = Vec::new();
     let mut attributes = Vec::new();
     let mut metadata = AttributeMetadata::default();
     let mut style_found = false;
 
+    let mut admonition = None;
+
+    let location = Location {
+        start: Position {
+            line: start.line_col().0,
+            column: start.line_col().1,
+        },
+        end: Position {
+            line: end.line_col().0,
+            column: end.line_col().1,
+        },
+    };
+
     for pair in pairs {
         match pair.as_rule() {
-            Rule::paragraph_inner => content = pair.as_str().trim_end().to_string(),
+            Rule::admonition => {
+                admonition = Some(pair.as_str().to_string());
+            }
+            Rule::paragraph_inner => {
+                content.extend(parse_paragraph_inner(pair, &mut metadata));
+            }
             Rule::role => metadata.roles.push(pair.as_str().to_string()),
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::named_attribute => {
@@ -491,13 +554,11 @@ fn parse_paragraph(pairs: Pairs<Rule>) -> Block {
         }
     }
     Block::Paragraph(Paragraph {
-        location: Location {
-            start: Position { line: 0, column: 0 },
-            end: Position { line: 0, column: 0 },
-        },
+        location,
         content,
         metadata,
         attributes,
+        admonition,
     })
 }
 
@@ -878,6 +939,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
 mod tests {
     use super::*;
     use crate::model::Parser;
+    use pretty_assertions::assert_eq;
 
     #[rstest::rstest]
     #[trace]
@@ -941,11 +1003,18 @@ mod tests {
         }
     }
 
-    //     #[test]
-    //     fn test_blah() {
-    //         let result = PestParser
-    //             .parse(
-    //                 "[[cpu,CPU]]Central Processing Unit (CPU)::
+    // #[test]
+    // fn test_stuff() {
+    //     let result = PestParser.parse("NOTE: This is a note.").unwrap();
+    //     dbg!(&result);
+    //     panic!()
+    // }
+
+    // #[test]
+    // fn test_blah() {
+    //     let result = PestParser
+    //         .parse(
+    //             "[[cpu,CPU]]Central Processing Unit (CPU)::
     // The brain of the computer.
 
     // [[hard-drive]]Hard drive::

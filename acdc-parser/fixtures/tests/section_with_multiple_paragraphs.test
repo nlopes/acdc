@@ -17,15 +17,31 @@
               "options": [],
               "roles": [],
               "attributes": [],
-              "content": "This is the content of section 1.",
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "This is the content of section 1.",
+                    "location": {
+                      "start": {
+                        "line": 1,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 34
+                      }
+                    }
+                  }
+                }
+              ],
               "location": {
                 "start": {
-                  "line": 0,
-                  "column": 0
+                  "line": 1,
+                  "column": 1
                 },
                 "end": {
-                  "line": 0,
-                  "column": 0
+                  "line": 3,
+                  "column": 1
                 }
               }
             }
@@ -35,15 +51,31 @@
               "options": [],
               "roles": [],
               "attributes": [],
-              "content": "And another paragraph with content.",
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "And another paragraph with content.",
+                    "location": {
+                      "start": {
+                        "line": 3,
+                        "column": 1
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 36
+                      }
+                    }
+                  }
+                }
+              ],
               "location": {
                 "start": {
-                  "line": 0,
-                  "column": 0
+                  "line": 3,
+                  "column": 1
                 },
                 "end": {
-                  "line": 0,
-                  "column": 0
+                  "line": 3,
+                  "column": 36
                 }
               }
             }

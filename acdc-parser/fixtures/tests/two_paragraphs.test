@@ -6,15 +6,31 @@
         "options": [],
         "roles": [],
         "attributes": [],
-        "content": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
+        "content": [
+          {
+            "PlainText": {
+              "content": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
+              "location": {
+                "start": {
+                  "line": 1,
+                  "column": 1
+                },
+                "end": {
+                  "line": 2,
+                  "column": 59
+                }
+              }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 1,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 4,
+            "column": 1
           }
         }
       }
@@ -24,15 +40,31 @@
         "options": [],
         "roles": [],
         "attributes": [],
-        "content": "To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.",
+        "content": [
+          {
+            "PlainText": {
+              "content": "To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.",
+              "location": {
+                "start": {
+                  "line": 4,
+                  "column": 1
+                },
+                "end": {
+                  "line": 4,
+                  "column": 103
+                }
+              }
+            }
+          }
+        ],
         "location": {
           "start": {
-            "line": 0,
-            "column": 0
+            "line": 4,
+            "column": 1
           },
           "end": {
-            "line": 0,
-            "column": 0
+            "line": 4,
+            "column": 103
           }
         }
       }
