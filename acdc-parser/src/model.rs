@@ -156,14 +156,14 @@ pub struct DelimitedBlock {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DelimitedBlockType {
     DelimitedComment(String),
-    DelimitedExample(String),
+    DelimitedExample(Vec<Block>),
     DelimitedListing(String),
     DelimitedLiteral(String),
-    DelimitedOpen(String),
-    DelimitedSidebar(String),
+    DelimitedOpen(Vec<Block>),
+    DelimitedSidebar(Vec<Block>),
     DelimitedTable(String),
     DelimitedPass(String),
-    DelimitedQuote(String),
+    DelimitedQuote(Vec<Block>),
 }
 
 pub type SectionLevel = u8;

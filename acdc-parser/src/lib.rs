@@ -306,7 +306,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     for pair in pairs {
         match pair.as_rule() {
             Rule::section => blocks.push(parse_section(&pair)?),
-            Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())),
+            Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())?),
             Rule::paragraph => blocks.push(parse_paragraph(pair)),
             Rule::blocks => blocks.extend(parse_block(pair.into_inner())?),
             Rule::list => blocks.push(parse_list(pair.into_inner())?),
@@ -848,7 +848,8 @@ fn validate_section_block_level(content: &[Block], prior_level: Option<u8>) -> R
     Ok(())
 }
 
-fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
+#[allow(clippy::too_many_lines)]
+fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut inner = DelimitedBlockType::DelimitedComment(String::new());
     let mut metadata = AttributeMetadata::default();
     let mut title = None;
@@ -888,14 +889,17 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
                     DelimitedBlockType::DelimitedComment(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_example => {
-                inner =
-                    DelimitedBlockType::DelimitedExample(pair.into_inner().as_str().to_string());
+                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                    .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
+                inner = DelimitedBlockType::DelimitedExample(parse_block(pairs)?);
             }
             Rule::delimited_pass => {
                 inner = DelimitedBlockType::DelimitedPass(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_quote => {
-                inner = DelimitedBlockType::DelimitedQuote(pair.into_inner().as_str().to_string());
+                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                    .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
+                inner = DelimitedBlockType::DelimitedQuote(parse_block(pairs)?);
             }
             Rule::delimited_listing => {
                 inner =
@@ -906,11 +910,14 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
                     DelimitedBlockType::DelimitedLiteral(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_open => {
-                inner = DelimitedBlockType::DelimitedOpen(pair.into_inner().as_str().to_string());
+                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                    .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
+                inner = DelimitedBlockType::DelimitedOpen(parse_block(pairs)?);
             }
             Rule::delimited_sidebar => {
-                inner =
-                    DelimitedBlockType::DelimitedSidebar(pair.into_inner().as_str().to_string());
+                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                    .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
+                inner = DelimitedBlockType::DelimitedSidebar(parse_block(pairs)?);
             }
             Rule::delimited_table => {
                 inner = DelimitedBlockType::DelimitedTable(pair.into_inner().as_str().to_string());
@@ -937,6 +944,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
             Rule::named_attribute => {
                 parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
             }
+            Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::anchor => {
                 metadata.id = Some(pair.into_inner().as_str().to_string());
             }
@@ -944,13 +952,13 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Block {
         }
     }
 
-    Block::DelimitedBlock(DelimitedBlock {
+    Ok(Block::DelimitedBlock(DelimitedBlock {
         metadata,
         inner,
         title,
         attributes,
         location,
-    })
+    }))
 }
 
 #[cfg(test)]
@@ -1020,6 +1028,32 @@ mod tests {
             panic!("unexpected error: {result:?}");
         }
     }
+
+    //     #[test]
+    //     fn test_stuffy() {
+    //         let result = PestParser
+    //             .parse(
+    //                 "
+    // ====
+    // Here are your options:
+
+    // .Red Pill
+    // [%collapsible]
+    // ======
+    // Escape into the real world.
+    // ======
+
+    // .Blue Pill
+    // [%collapsible]
+    // ======
+    // Live within the simulated reality without want or fear.
+    // ======
+    // ====",
+    //             )
+    //             .unwrap();
+    //         dbg!(&result);
+    //         panic!()
+    //     }
 
     // #[test]
     // fn test_stuff() {

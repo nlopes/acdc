@@ -72,7 +72,40 @@
     {
       "DelimitedBlock": {
         "inner": {
-          "DelimitedExample": "This is an example of an example block.\nThat's so meta."
+          "DelimitedExample": [{
+            "Paragraph": {
+              "options": [],
+              "roles": [],
+              "attributes": [],
+              "content": [
+                {
+                  "PlainText": {
+                    "content": "This is an example of an example block.\nThat's so meta.",
+                    "location": {
+                        "start": {
+                        "line": 1,
+                        "column": 1
+                        },
+                        "end": {
+                        "line": 2,
+                        "column": 16
+                        }
+                    }
+                  }
+                }
+              ],
+              "location": {
+                "start": {
+                  "line": 1,
+                  "column": 1
+                },
+                "end": {
+                  "line": 2,
+                  "column": 16
+                }
+              }
+            }
+          }]
         },
         "anchor": null,
         "title": null,
