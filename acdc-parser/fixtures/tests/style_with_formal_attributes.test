@@ -25,8 +25,8 @@
                   "column": 1
                 },
                 "end": {
-                  "line": 2,
-                  "column": 19
+                  "line": 3,
+                  "column": 1
                 }
               }
             }
@@ -38,8 +38,8 @@
             "column": 1
           },
           "end": {
-            "line": 2,
-            "column": 19
+            "line": 3,
+            "column": 1
           }
         }
       }

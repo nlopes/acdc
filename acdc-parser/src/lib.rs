@@ -45,7 +45,9 @@ impl crate::model::Parser for PestParser {
     /// Returns an Error if the input string cannot be parsed.
     #[instrument]
     fn parse(&self, input: &str) -> Result<Document, Error> {
-        let input = normalize(input);
+        let mut input = normalize(input);
+        // Always end with a newline to ensure the last block is parsed correctly
+        input.push('\n');
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => parse_document(pairs),
             Err(e) => {
@@ -498,7 +500,7 @@ fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut AttributeMetadata) -> 
 
         match pair.as_rule() {
             Rule::plain_text => content.push(InlineNode::PlainText(PlainText {
-                content: pair.as_str().to_string().trim_start().to_string(),
+                content: pair.as_str().to_string().trim().to_string(),
                 location,
             })),
             Rule::EOI | Rule::comment => {}
@@ -728,7 +730,7 @@ fn parse_list_item(pairs: Pairs<Rule>) -> Result<ListItem, Error> {
     for pair in pairs {
         match pair.as_rule() {
             Rule::list_item => {
-                content.push(pair.as_str().to_string());
+                content.push(pair.as_str().trim().to_string());
             }
             Rule::unordered_level | Rule::ordered_level => {
                 level = u8::try_from(pair.as_str().chars().count())
@@ -889,7 +891,9 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                     DelimitedBlockType::DelimitedComment(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_example => {
-                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                let mut text = pair.into_inner().as_str().to_string();
+                text.push('\n');
+                let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                 inner = DelimitedBlockType::DelimitedExample(parse_block(pairs)?);
             }
@@ -897,7 +901,9 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                 inner = DelimitedBlockType::DelimitedPass(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_quote => {
-                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                let mut text = pair.into_inner().as_str().to_string();
+                text.push('\n');
+                let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                 inner = DelimitedBlockType::DelimitedQuote(parse_block(pairs)?);
             }
@@ -910,12 +916,16 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                     DelimitedBlockType::DelimitedLiteral(pair.into_inner().as_str().to_string());
             }
             Rule::delimited_open => {
-                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                let mut text = pair.into_inner().as_str().to_string();
+                text.push('\n');
+                let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                 inner = DelimitedBlockType::DelimitedOpen(parse_block(pairs)?);
             }
             Rule::delimited_sidebar => {
-                let pairs = InnerPestParser::parse(Rule::document, pair.into_inner().as_str())
+                let mut text = pair.into_inner().as_str().to_string();
+                text.push('\n');
+                let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                 inner = DelimitedBlockType::DelimitedSidebar(parse_block(pairs)?);
             }
@@ -1028,32 +1038,6 @@ mod tests {
             panic!("unexpected error: {result:?}");
         }
     }
-
-    //     #[test]
-    //     fn test_stuffy() {
-    //         let result = PestParser
-    //             .parse(
-    //                 "
-    // ====
-    // Here are your options:
-
-    // .Red Pill
-    // [%collapsible]
-    // ======
-    // Escape into the real world.
-    // ======
-
-    // .Blue Pill
-    // [%collapsible]
-    // ======
-    // Live within the simulated reality without want or fear.
-    // ======
-    // ====",
-    //             )
-    //             .unwrap();
-    //         dbg!(&result);
-    //         panic!()
-    //     }
 
     // #[test]
     // fn test_stuff() {

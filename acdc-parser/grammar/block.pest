@@ -28,7 +28,7 @@ section_title = { ONE_CHAR* }
 // or should I have an ID with multiple aliases/anchors?
 //
 // When working on anchors, check https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#add-additional-anchors-to-a-section
-image_block = { anchor* ~ image ~ (NEWLINE{2,} | EOI) }
+image_block = { anchor* ~ image ~ NEWLINE ~ (NEWLINE+ | EOI) }
 image = { "image::" ~ (url | path) ~ attrlist }
 
 //block_macro = { <name>"::" ~ target? ~ attrlist? }
