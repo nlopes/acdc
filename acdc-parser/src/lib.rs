@@ -301,6 +301,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
         tracing::warn!(?pairs, "empty block");
         return Ok(vec![]);
     }
+    let mut title = None;
     let mut blocks = Vec::new();
     for pair in pairs {
         match pair.as_rule() {
@@ -310,6 +311,9 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
             Rule::blocks => blocks.extend(parse_block(pair.into_inner())?),
             Rule::list => blocks.push(parse_list(pair.into_inner())?),
             Rule::image_block => blocks.push(parse_image_block(pair.into_inner())),
+            Rule::title => {
+                title = Some(pair.as_str().to_string());
+            }
             Rule::thematic_break_block => {
                 if blocks.is_empty() || !blocks.last().map_or(false, Block::is_paragraph) {
                     return Err(Error::Parse(
@@ -317,6 +321,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
                     ));
                 }
                 blocks.push(Block::ThematicBreak(ThematicBreak {
+                    title: title.clone(),
                     location: Location {
                         start: Position {
                             line: pair.as_span().start_pos().line_col().0,
@@ -349,6 +354,7 @@ fn parse_page_break(pair: Pair<Rule>) -> Block {
     let end = pair.as_span().end_pos();
 
     let pairs = pair.into_inner();
+    let mut title = None;
     let mut metadata = AttributeMetadata::default();
     let mut attributes = Vec::new();
     let mut style_found = false;
@@ -370,6 +376,9 @@ fn parse_page_break(pair: Pair<Rule>) -> Block {
             Rule::empty_style => {
                 style_found = true;
             }
+            Rule::title => {
+                title = Some(pair.as_str().to_string());
+            }
             Rule::positional_attribute_value => {
                 let value = pair.as_str().to_string();
                 if !value.is_empty() {
@@ -389,6 +398,7 @@ fn parse_page_break(pair: Pair<Rule>) -> Block {
     }
 
     Block::PageBreak(PageBreak {
+        title,
         metadata,
         attributes,
         location,
@@ -399,10 +409,12 @@ fn parse_image_block(pairs: Pairs<Rule>) -> Block {
     let mut metadata = AttributeMetadata::default();
     let mut attributes: Vec<AttributeEntry> = Vec::new();
     let mut source = ImageSource::Path(String::new());
+    let mut title = None;
 
     for pair in pairs {
         match pair.as_rule() {
             Rule::anchor => metadata.id = Some(pair.into_inner().as_str().to_string()),
+            Rule::title => title = Some(pair.as_str().to_string()),
             Rule::image => parse_image(
                 pair.into_inner(),
                 &mut attributes,
@@ -414,6 +426,7 @@ fn parse_image_block(pairs: Pairs<Rule>) -> Block {
         }
     }
     Block::Image(Image {
+        title,
         source,
         metadata,
         attributes,
@@ -504,6 +517,7 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
     let mut attributes = Vec::new();
     let mut metadata = AttributeMetadata::default();
     let mut style_found = false;
+    let mut title = None;
 
     let mut admonition = None;
 
@@ -547,6 +561,9 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
                     }
                 }
             }
+            Rule::title => {
+                title = Some(pair.as_str().to_string());
+            }
             Rule::EOI | Rule::comment => {}
             unknown => {
                 unreachable!("{unknown:?}");
@@ -556,6 +573,7 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
     Block::Paragraph(Paragraph {
         metadata,
         attributes,
+        title,
         content,
         location,
         admonition,

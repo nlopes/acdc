@@ -83,11 +83,13 @@ pub struct PlainText {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ThematicBreak {
+    pub title: Option<String>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageBreak {
+    pub title: Option<String>,
     pub metadata: AttributeMetadata,
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
@@ -95,6 +97,7 @@ pub struct PageBreak {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Image {
+    pub title: Option<String>,
     pub source: ImageSource,
     pub metadata: AttributeMetadata,
     pub attributes: Vec<AttributeEntry>,
@@ -133,6 +136,7 @@ pub struct Paragraph {
     #[serde(flatten)]
     pub metadata: AttributeMetadata,
     pub attributes: Vec<AttributeEntry>,
+    pub title: Option<String>,
     pub content: Vec<InlineNode>,
     pub location: Location,
     pub admonition: Option<String>,
