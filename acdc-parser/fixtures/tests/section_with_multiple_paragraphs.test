@@ -23,11 +23,11 @@
                     "content": "This is the content of section 1.",
                     "location": {
                       "start": {
-                        "line": 1,
+                        "line": 5,
                         "column": 1
                       },
                       "end": {
-                        "line": 1,
+                        "line": 5,
                         "column": 34
                       }
                     }
@@ -36,11 +36,11 @@
               ],
               "location": {
                 "start": {
-                  "line": 1,
+                  "line": 5,
                   "column": 1
                 },
                 "end": {
-                  "line": 3,
+                  "line": 7,
                   "column": 1
                 }
               }
@@ -57,11 +57,11 @@
                     "content": "And another paragraph with content.",
                     "location": {
                       "start": {
-                        "line": 3,
+                        "line": 7,
                         "column": 1
                       },
                       "end": {
-                        "line": 4,
+                        "line": 8,
                         "column": 1
                       }
                     }
@@ -70,11 +70,11 @@
               ],
               "location": {
                 "start": {
-                  "line": 3,
+                  "line": 7,
                   "column": 1
                 },
                 "end": {
-                  "line": 4,
+                  "line": 8,
                   "column": 1
                 }
               }
@@ -87,7 +87,7 @@
             "column": 1
           },
           "end": {
-            "line": 8,
+            "line": 5,
             "column": 1
           }
         }

@@ -17,11 +17,11 @@
                     "content": "Something is up. Let's see.",
                     "location": {
                       "start": {
-                        "line": 1,
+                        "line": 3,
                         "column": 1
                       },
                       "end": {
-                        "line": 1,
+                        "line": 3,
                         "column": 28
                       }
                     }
@@ -30,11 +30,11 @@
               ],
               "location": {
                 "start": {
-                  "line": 1,
+                  "line": 3,
                   "column": 1
                 },
                 "end": {
-                  "line": 3,
+                  "line": 5,
                   "column": 1
                 }
               }

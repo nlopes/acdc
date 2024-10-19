@@ -10,8 +10,14 @@ pub enum Error {
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
     NestedSectionLevelMismatch(Detail, SectionLevel, SectionLevel),
 
+    #[error("Invalid include directive")]
+    InvalidIncludeDirective,
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("URL error: {0}")]
+    Url(#[from] url::ParseError),
 }
 
 #[derive(Debug, PartialEq)]

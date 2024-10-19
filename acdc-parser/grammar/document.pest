@@ -12,9 +12,20 @@ document_attribute = { document_attribute_entry }
 document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ NEWLINE }
 document_title = !{ ONE_CHAR+ }
 
-document_attribute_entry = _{ ":" ~ attribute_name ~ ":" ~ (SPACE ~ document_attribute_value)? ~ NEWLINE }
+document_attribute_entry = _{
+    ":" ~
+    (
+        (unset ~ attribute_name) |
+        (attribute_name ~ unset) |
+        attribute_name
+    ) ~
+    ":" ~
+    (SPACE ~ document_attribute_value)? ~
+    NEWLINE
+}
 document_attribute_value = !{ ONE_CHAR* }
 
+unset = { "!" }
 author_revision = _{
   (author_line ~ revision_line?)?
 }

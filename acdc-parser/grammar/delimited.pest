@@ -38,7 +38,7 @@ delimited_literal = {
 }
 
 delimited_open = {
-    PUSH("-"{2,} ~ NEWLINE) ~
+    PUSH(("-"{2,} | "~"{4,}) ~ NEWLINE) ~
     delimited_inner ~
     NEWLINE ~ POP
 }

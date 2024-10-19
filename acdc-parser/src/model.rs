@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 
 use crate::Error;
@@ -205,4 +207,20 @@ pub trait Parser {
     ///
     /// Returns an `Error` if the input string cannot be parsed.
     fn parse(&self, input: &str) -> Result<Document, Error>;
+
+    /// Parse the file in `file_path` and return a Document.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_path` - A file path that holds the input to be parsed.
+    ///
+    /// # Returns
+    ///
+    /// A `Document` if the `file_path` was successfully parsed, or an `Error` if the
+    /// input could not be parsed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Error` if the input from `file_path` cannot be parsed.
+    fn parse_file<P: AsRef<Path>>(&self, file_path: P) -> Result<Document, Error>;
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, string::ToString};
+use std::{collections::HashMap, path::Path, string::ToString};
 
 use pest::{
     iterators::{Pair, Pairs},
@@ -9,6 +9,9 @@ use tracing::instrument;
 
 mod error;
 mod model;
+mod preprocessor;
+
+use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
@@ -30,40 +33,30 @@ pub struct PestParser;
 struct InnerPestParser;
 
 impl crate::model::Parser for PestParser {
-    /// Parse the input string into a Document.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - A string slice that holds the input to be parsed.
-    ///
-    /// # Returns
-    ///
-    /// A Result containing the parsed Document or an Error.
-    ///
-    /// # Errors
-    ///
-    /// Returns an Error if the input string cannot be parsed.
     #[instrument]
     fn parse(&self, input: &str) -> Result<Document, Error> {
-        let mut input = normalize(input);
-        // Always end with a newline to ensure the last block is parsed correctly
-        input.push('\n');
+        let input = Preprocessor::new().process(input);
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => parse_document(pairs),
             Err(e) => {
-                tracing::error!("error parsing document: {e}");
+                tracing::error!("error preprocessing document: {e}");
                 Err(Error::Parse(e.to_string()))
             }
         }
     }
-}
 
-fn normalize(input: &str) -> String {
-    input
-        .lines()
-        .map(str::trim_end)
-        .collect::<Vec<&str>>()
-        .join("\n")
+    #[instrument(skip(file_path))]
+    fn parse_file<P: AsRef<Path>>(&self, file_path: P) -> Result<Document, Error> {
+        let input = Preprocessor::new().process_file(file_path)?;
+        dbg!(&input);
+        match InnerPestParser::parse(Rule::document, &input) {
+            Ok(pairs) => parse_document(pairs),
+            Err(e) => {
+                tracing::error!("error preprocessing document: {e}");
+                Err(Error::Parse(e.to_string()))
+            }
+        }
+    }
 }
 
 fn parse_document(pairs: Pairs<Rule>) -> Result<Document, Error> {
@@ -114,7 +107,9 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
                     Block::DelimitedBlock(delimited_block) => delimited_block.location.end.clone(),
                     // We don't use paragraph because we don't calculate positions for paragraphs yet
                     Block::Paragraph(_) => section.location.end.clone(),
-                    _ => todo!(),
+                    Block::OrderedList(ordered_list) => ordered_list.location.end.clone(),
+                    Block::UnorderedList(unordered_list) => unordered_list.location.end.clone(),
+                    unknown => unimplemented!("{:?}", unknown),
                 };
                 section.content.push(block_from_stack);
             }
@@ -137,18 +132,24 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
                 if let (Some(Block::Section(section)), Some(Block::Section(next_section))) =
                     (kept_layers.get(i), kept_layers.get(i + 1))
                 {
-                    match next_section.level.cmp(&(section.level - 1)) {
-                        std::cmp::Ordering::Greater => false,
-                        std::cmp::Ordering::Equal => true,
-                        std::cmp::Ordering::Less => {
-                            let error_detail = ErrorDetail {
-                                location: next_section.location.clone(),
-                            };
-                            return Err(Error::NestedSectionLevelMismatch(
-                                error_detail,
-                                section.level - 1,
-                                section.level,
-                            ));
+                    // TODO(nlopes): this if here is probably wrong - I added it because I
+                    // was tired of debugging but this smells like a bug.
+                    if section.level == 0 {
+                        false
+                    } else {
+                        match next_section.level.cmp(&(section.level - 1)) {
+                            std::cmp::Ordering::Greater => false,
+                            std::cmp::Ordering::Equal => true,
+                            std::cmp::Ordering::Less => {
+                                let error_detail = ErrorDetail {
+                                    location: next_section.location.clone(),
+                                };
+                                return Err(Error::NestedSectionLevelMismatch(
+                                    error_detail,
+                                    section.level - 1,
+                                    section.level,
+                                ));
+                            }
                         }
                     }
                 } else {
@@ -164,8 +165,7 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
                             Some(Block::DelimitedBlock(delimited_block)) => {
                                 delimited_block.location.end.clone()
                             }
-                            // We don't use paragraph because we don't calculate positions for paragraphs yet
-                            Some(Block::Paragraph(_)) => current_section.location.end.clone(),
+                            Some(Block::Paragraph(paragraph)) => paragraph.location.end.clone(),
                             _ => todo!(),
                         };
                         parent_section.content.push(Block::Section(current_section));
@@ -762,9 +762,12 @@ fn parse_list_item(pairs: Pairs<Rule>) -> Result<ListItem, Error> {
 }
 
 fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
+    let mut metadata = AttributeMetadata::default();
+    let mut attributes = Vec::new();
     let mut title = String::new();
     let mut level = 0;
     let mut content = Vec::new();
+    let mut style_found = false;
 
     for inner_pair in pair.clone().into_inner() {
         match inner_pair.as_rule() {
@@ -785,6 +788,22 @@ fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
                 } else {
                     for pair in inner {
                         content.extend(parse_block(pair.into_inner())?);
+                    }
+                }
+            }
+            Rule::empty_style => {
+                style_found = true;
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                if !value.is_empty() {
+                    if metadata.style.is_none() && !style_found {
+                        metadata.style = Some(value);
+                    } else {
+                        attributes.push(AttributeEntry {
+                            name: None,
+                            value: Some(value),
+                        });
                     }
                 }
             }
@@ -1010,7 +1029,7 @@ mod tests {
                 &ErrorDetail {
                     location: Location {
                         start: Position { line: 3, column: 1 },
-                        end: Position { line: 7, column: 1 }
+                        end: Position { line: 5, column: 1 }
                     }
                 },
                 detail
@@ -1039,6 +1058,14 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_book() {
+        let result = PestParser
+            .parse_file("fixtures/samples/book-starter/index.adoc")
+            .unwrap();
+        //dbg!(&result);
+        //panic!()
+    }
     // #[test]
     // fn test_stuff() {
     //     let result = PestParser.parse("NOTE: This is a note.").unwrap();
@@ -1064,7 +1091,7 @@ mod tests {
     // #[test]
     // fn test_mdbasics_adoc() {
     //     let result = PestParser
-    //         .parse(include_str!("../fixtures/samples/mdbasics.adoc"))
+    //         .parse(include_str!("../fixtures/samples/mdbasics/mdbasics.adoc"))
     //         .unwrap();
     //     dbg!(&result);
     //     panic!()

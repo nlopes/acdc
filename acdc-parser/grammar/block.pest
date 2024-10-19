@@ -11,17 +11,18 @@ blocks = {
 }
 
 section = {
+    (anchor | attribute_list | blocktitle)* ~
     section_header_start ~ section_title ~ NEWLINE{2} ~
     section_content*
 }
 
 section_header_start = _{ section_level ~ SPACE }
 
-section_content = !{ (!(&section_level | EOI | &delimited_block) ~ ANY)+ }
+section_content = !{ (!(EOI | &blocks) ~ ANY)+ }
 
 section_level_symbol = _{ ("=" | "#") }
 
-section_level = { section_level_symbol{2,6} }
+section_level = { section_level_symbol{1,6} }
 section_title = { ONE_CHAR* }
 
 // TODO(nlopes): can we have multiple anchor statements? What does that mean? Multiple IDs

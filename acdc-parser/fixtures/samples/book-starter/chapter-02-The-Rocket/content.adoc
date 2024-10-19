@@ -1,0 +1,86 @@
+= The Rocket
+
+****
+
+[discrete]
+== Chapter Summary
+To float in Space what you really need is a rocket.
+A rocket is a device that can take you from the ground to space.
+
+[discrete]
+== Sections
+
+1. Rockets
+2. Spaceships
+3. Space
+
+****
+
+More text comes here...
+
+[source,javascript,linenums,highlight=2;12-13]
+:snippetFilename: ./index.js
+.{snippetFilename}
+----
+// Require the framework and instantiate it
+const fastify = require('fastify')({ logger: true })
+
+fastify.get('/', async (request, reply) => { // <.>
+  return { hello: 'world' }
+})
+
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3000 }) // <.>
+  } catch (err) {
+    fastify.log.error(err)
+    process.exit(1)
+  }
+}
+start()
+----
+
+== Which section is this...
+
+Here are the other built-in admonition types:
+
+====
+*General section*
+
+This is something you should definitely consider doing every time
+that you write a paragraph. The reason is that it makes it easier
+to read and understand.
+====
+
+NOTE: Some additional info...
+
+.My header for the tip
+[TIP]
+====
+*WARNING*
+
+This is something you should definitely consider doing every time
+that you write a paragraph. The reason is that it makes it easier
+to read and understand.
+====
+
+IMPORTANT: Don't forget...
+
+[WARNING]
+====
+icon:warning[] *WARNING*
+
+This warning admonition type is styled in a way that uses 0 font size
+so that it is not visible in the PDF output.
+====
+
+CAUTION: Ensure that...
+
+Now print a block quote:
+
+[quote, Ben Parker, Spiderman Movie]
+____
+With great power comes great responsibility.
+____
+
+The text after a prose block quote

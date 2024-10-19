@@ -1,0 +1,92 @@
+:imagesdir: images
+ifeval::["{docname}" == "index"]
+:imagesdir: chapter-03-How-Planet-Systems-Work/images
+endif::[]
+
+= How planet systems work?
+
+The following are planets:
+
+. Earth
+.. Earth more
+.. Earth more more
+. Mars
++
+.An image of outer space
+image::space.jpeg["Outer space"]
+. Jupiter
+. Saturn
+
+== Icons in Space
+
+All of the https://fontawesome.com/v4/icons[Font Awesome]footnote:[https://fontawesome.com/v4/icons] icons can be used:
+
+icon:comment[] This is a comment icon
+
+icon:file[] And a file icon
+
+icon:battery-full[] And a battery icon
+
+icon:github[] GitHub icon
+
+icon:code-fork[] Code forking icon
+
+Here is an example of a footnote:
+
+A bold statement!footnote:disclaimer[Opinions are my own.]
+
+=== Tables in Space
+
+.This is the optional title of the table
+|===
+|Name of Column 1 |Name of Column 2
+
+|Cell in column 1, row 1
+|Cell in column 2, row 1
+
+|Cell in column 1, row 2
+|Cell in column 2, row 2
+|===
+
+== Source code snippets in Space
+
+A source code snippet for the Fastify application:
+
+[source,javascript,linenums,highlight=2;12-13]
+:snippetFilename: ./index.js
+.{snippetFilename}
+----
+// Require the framework and instantiate it
+const fastify = require('fastify')({ logger: true })
+
+fastify.get('/', async (request, reply) => { // <.>
+  return { hello: 'world' }
+})
+
+const start = async () => {
+  try {
+    await fastify.listen({ port: 3000 }) // <.>
+  } catch (err) {
+    fastify.log.error(err)
+    process.exit(1)
+  }
+}
+start()
+----
+<.> Declare a GET route at /
+<.> Run the server!
+
+Also considering styling the book's source code highlight
+using:
+
+----
+:source-highlighter: rouge
+:rouge-style: base16.monokai
+----
+
+And also we can show you how a Sidebar looks like:
+
+.Mint
+[sidebar]
+Mint has visions of global conquest.
+If you don't plant it in a container, it will take over your garden.

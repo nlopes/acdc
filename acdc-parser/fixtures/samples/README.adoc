@@ -1,8 +1,10 @@
 # Samples
 
-This folder contains some sample `.adoc` files found online.
+This folder contains some sample `AsciiDoc`s found online.
 
 If found in repositories, I'm leaving here their respective LICENSE and original source
 location as of the time I copied them.
 
-* link:./mdbasics.adoc[mdbasics.adoc] (https://github.com/asciidoctor/asciidoctor/blob/c519d346d9b5c714b9df25e934757dad840fd997/benchmark/sample-data/mdbasics.adoc[Original], https://github.com/asciidoctor/asciidoctor/blob/c519d346d9b5c714b9df25e934757dad840fd997/LICENSE[License] MIT)
+* link:./mdbasics/mdbasics.adoc[mdbasics.adoc] (https://github.com/asciidoctor/asciidoctor/blob/c519d346d9b5c714b9df25e934757dad840fd997/benchmark/sample-data/mdbasics.adoc[Original], https://github.com/asciidoctor/asciidoctor/blob/c519d346d9b5c714b9df25e934757dad840fd997/LICENSE[License] MIT)
+
+* link:./book-starter[book-starter] (https://github.com/lirantal/asciidoc-book-starter/tree/main[repo], no license specified)

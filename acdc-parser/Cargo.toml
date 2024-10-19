@@ -9,6 +9,7 @@ pest_derive = "2.7"
 serde = { version = "1", features = ["derive"] }
 tracing.workspace = true
 thiserror.workspace = true
+url = "2.5.2"
 
 [dev-dependencies]
 pretty_assertions.workspace = true

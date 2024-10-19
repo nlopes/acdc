@@ -1,0 +1,57 @@
+//[separator=::]
+= Pancakes in Space
+:author: Mike Willson
+:creator: {author}
+:copyright: 2023 Mike Willson
+:email: mike@lirantal.com
+:revnumber: v1.0
+:revdate: 01.01.2022
+:revremark: First draft
+:doctype: book
+:leveloffset: +1
+:front-cover-image: image:cover.jpeg[width=1700,height=2800]
+:sectnums!:
+:sectlinks:
+:toc: left
+:toclevels: 4
+:toc-title: Table of Contents
+:description: HTML meta tag content for description
+:keywords: HTML meta tag content for keywords
+:icons: font
+:pdf-themesdir: {docdir}/themes
+:pdf-fontsdir: {docdir}/fonts
+:pdf-theme: basic
+:pdfmark: true
+:imagesdir: ./images
+:xrefstyle: short
+:source-highlighter: pygments
+:pygments-style: vs
+:pygments-linenums-mode: table
+:source-language: javascript
+
+The following is a bunch of text:
+
+`pygments-style` options for source code highlighting:
+
+* friendly
+* colorful
+* fruity (dark background)
+* monokai (dark background)
+* stata-dark (dark background)
+* stata-light
+* tango
+* zenburn (dark background)
+* vs
+
+This is the optional preamble (an untitled section body). Useful for
+writing simple sectionless documents consisting only of a preamble.
+
+include::preface.adoc[]
+
+include::foreword.adoc[]
+
+include::chapter-01-The-Beginning/content.adoc[]
+
+//include::chapter-02-The-Rocket/content.adoc[]
+
+//include::chapter-03-How-Planet-Systems-Work/content.adoc[]

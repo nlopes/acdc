@@ -56,11 +56,11 @@
                           "content": "Paragraph 2",
                           "location": {
                             "start": {
-                              "line": 1,
+                              "line": 7,
                               "column": 1
                             },
                             "end": {
-                              "line": 1,
+                              "line": 7,
                               "column": 12
                             }
                           }
@@ -69,11 +69,11 @@
                     ],
                     "location": {
                       "start": {
-                        "line": 1,
+                        "line": 7,
                         "column": 1
                       },
                       "end": {
-                        "line": 3,
+                        "line": 9,
                         "column": 1
                       }
                     }
@@ -95,11 +95,11 @@
                                 "content": "Paragraph 3",
                                 "location": {
                                   "start": {
-                                    "line": 1,
+                                    "line": 11,
                                     "column": 1
                                   },
                                   "end": {
-                                    "line": 1,
+                                    "line": 11,
                                     "column": 12
                                   }
                                 }
@@ -108,11 +108,11 @@
                           ],
                           "location": {
                             "start": {
-                              "line": 1,
+                              "line": 11,
                               "column": 1
                             },
                             "end": {
-                              "line": 3,
+                              "line": 13,
                               "column": 1
                             }
                           }
@@ -129,11 +129,11 @@
                                 "content": "Paragraph 4",
                                 "location": {
                                   "start": {
-                                    "line": 3,
+                                    "line": 13,
                                     "column": 1
                                   },
                                   "end": {
-                                    "line": 3,
+                                    "line": 13,
                                     "column": 12
                                   }
                                 }
@@ -142,11 +142,11 @@
                           ],
                           "location": {
                             "start": {
-                              "line": 3,
+                              "line": 13,
                               "column": 1
                             },
                             "end": {
-                              "line": 5,
+                              "line": 15,
                               "column": 1
                             }
                           }
@@ -168,11 +168,11 @@
                                       "content": "Something here",
                                       "location": {
                                         "start": {
-                                          "line": 1,
+                                          "line": 17,
                                           "column": 1
                                         },
                                         "end": {
-                                          "line": 2,
+                                          "line": 18,
                                           "column": 1
                                         }
                                       }
@@ -181,11 +181,11 @@
                                 ],
                                 "location": {
                                   "start": {
-                                    "line": 1,
+                                    "line": 17,
                                     "column": 1
                                   },
                                   "end": {
-                                    "line": 2,
+                                    "line": 18,
                                     "column": 1
                                   }
                                 }
@@ -198,7 +198,7 @@
                               "column": 1
                             },
                             "end": {
-                              "line": 18,
+                              "line": 17,
                               "column": 1
                             }
                           }
@@ -224,7 +224,7 @@
                   "column": 1
                 },
                 "end": {
-                  "line": 18,
+                  "line": 17,
                   "column": 1
                 }
               }
