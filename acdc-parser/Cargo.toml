@@ -15,3 +15,4 @@ url = "2.5.2"
 pretty_assertions.workspace = true
 rstest = "0.23"
 serde_json = "1"
+tracing-test = "0.2"

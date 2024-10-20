@@ -1,11 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
-
-use url::Url;
+use std::{collections::HashMap, path::Path};
 
 use crate::error::Error;
+
+use include::Include;
 
 #[derive(Debug)]
 pub(crate) enum Directive {
@@ -19,134 +16,317 @@ pub(crate) struct Preprocessor {
     conditional_stack: Vec<Conditional>,
 }
 
-// TODO(nlopes): use pest inline grammar to parse the input. (Like the attribute module)
-//
-// The format of an include directive is the following:
-//
-// include::target[leveloffset=offset,lines=ranges,tag(s)=name(s),indent=depth,encoding=encoding,opts=optional]
-//
-// The target is required. The target may be an absolute path, a path relative to the
-// current document, or a URL.
-//
-// The include directive can be escaped.
-//
-// If you don’t want the include directive to be processed, you must escape it using a
-// backslash.
-//
-// \include::just-an-example.ext[]
-//
-// Escaping the directive is necessary even if it appears in a verbatim block since it’s
-// not aware of the surrounding document structure.
+mod include {
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
 
-#[derive(Debug)]
-pub(crate) struct Include {
-    file_parent: PathBuf,
-    target: Target,
-    level_offset: Option<isize>,
-    lines: Vec<String>,
-    tags: Vec<String>,
-    indent: Option<usize>,
-    encoding: Option<String>,
-    opts: Vec<String>,
-}
+    use pest::Parser as _;
+    use pest_derive::Parser;
+    use url::Url;
 
-impl Include {
-    fn parse(
-        file_parent: &Path,
-        input: &str,
-        attributes: &HashMap<String, String>,
-    ) -> Result<Include, Error> {
-        let file_parent = file_parent.to_path_buf();
-        let mut level_offset = None;
-        let mut lines = Vec::new();
-        let mut tags = Vec::new();
-        let mut indent = None;
-        let mut encoding = None;
-        let mut opts = Vec::new();
+    use crate::error::Error;
 
-        let mut parts = input.split("::");
-        let _ = parts.next();
-        let parts = parts.next().expect("no parts");
+    // The format of an include directive is the following:
+    //
+    // include::target[leveloffset=offset,lines=ranges,tag(s)=name(s),indent=depth,encoding=encoding,opts=optional]
+    //
+    // The target is required. The target may be an absolute path, a path relative to the
+    // current document, or a URL.
+    //
+    // The include directive can be escaped.
+    //
+    // If you don’t want the include directive to be processed, you must escape it using a
+    // backslash.
+    //
+    // \include::just-an-example.ext[]
+    //
+    // Escaping the directive is necessary even if it appears in a verbatim block since it’s
+    // not aware of the surrounding document structure.
 
-        let mut parts = parts.split('[');
-        let target = parts.next().expect("no target");
-        let target = target.trim();
-        let target = resolve_attribute_references(attributes, target);
-        let target = if target.starts_with("http://") || target.starts_with("https://") {
-            Target::Url(Url::parse(&target)?)
-        } else {
-            Target::Path(PathBuf::from(target))
-        };
-
-        let options = parts.next().expect("no opts");
-        let options = options.trim().trim_end_matches(']');
-        let options = options.split(',');
-        for opt in options {
-            if opt.is_empty() {
-                continue;
-            }
-            let mut parts = opt.split('=');
-            let key = parts.next().expect("no key");
-            let value = parts.next().expect("no value");
-            match key {
-                "leveloffset" => {
-                    level_offset = Some(
-                        value
-                            .parse()
-                            .expect("invalid level offset, cannot parse as integer"),
-                    );
-                }
-                "lines" => {
-                    todo!("need to parse ranges, a list of them");
-                }
-                "tag" => {
-                    tags.push(value.to_string());
-                }
-                "indent" => {
-                    indent = Some(
-                        value
-                            .parse()
-                            .expect("invalid indent, cannot parse as unsigned integer"),
-                    );
-                }
-                "encoding" => {
-                    encoding = Some(value.to_string());
-                }
-                "opts" => {
-                    todo!("need to parse optional arguments");
-                }
-                _ => {
-                    return Err(Error::InvalidIncludeDirective);
-                }
-            }
-        }
-
-        Ok(Include {
-            file_parent,
-            target,
-            level_offset,
-            lines,
-            tags,
-            indent,
-            encoding,
-            opts,
-        })
+    #[derive(Debug)]
+    pub(crate) struct Include {
+        file_parent: PathBuf,
+        target: Target,
+        level_offset: Option<isize>,
+        lines: Vec<LinesRange>,
+        tags: Vec<String>,
+        indent: Option<usize>,
+        encoding: Option<String>,
+        opts: Vec<String>,
     }
 
-    fn lines(&self) -> Vec<String> {
-        // TODO(nlopes): need to read the file named by the target and living in the file parent directory according to the provided properties.
-        let mut lines = Vec::new();
-        match &self.target {
-            Target::Path(path) => {
-                let path = self.file_parent.join(path);
-                let content = std::fs::read_to_string(&path).expect("could not read file");
-                lines.extend(content.lines().map(str::to_string));
-            }
-            Target::Url(_url) => {
-                todo!("need to fetch the URL and read its content");
+    #[derive(Debug)]
+    enum LinesRange {
+        Single(usize),
+        Range(usize, isize),
+    }
+
+    #[derive(Debug)]
+    pub(crate) enum Target {
+        Path(PathBuf),
+        Url(Url),
+    }
+
+    impl FromStr for LinesRange {
+        type Err = Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            if s.contains("..") {
+                let mut parts = s.split("..");
+                let start = parts.next().expect("no start").parse()?;
+                let end = parts.next().expect("no end").parse()?;
+                Ok(LinesRange::Range(start, end))
+            } else {
+                Ok(LinesRange::Single(s.parse().expect("invalid line number")))
             }
         }
-        lines
+    }
+
+    impl LinesRange {
+        fn parse(value: &str) -> Result<Vec<Self>, Error> {
+            let mut lines = Vec::new();
+            if value.contains(';') {
+                lines.extend(
+                    value
+                        .split(';')
+                        .map(LinesRange::from_str)
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+            } else if value.contains(',') {
+                lines.extend(
+                    value
+                        .split(',')
+                        .map(LinesRange::from_str)
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+            } else {
+                lines.push(LinesRange::from_str(value)?);
+            }
+            Ok(lines)
+        }
+    }
+    #[derive(Parser, Debug)]
+    #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
+include = _{ SOI ~ "include::" ~ target ~ "[" ~ attributes? ~ "]" }
+
+target = { !WHITESPACE ~ (path_char | url_char)+ }
+
+path_char = _{ ASCII_ALPHANUMERIC | "_" | "/" | "-" | "." | "~" | ":" | "{" | "}" }
+url_char = _{ path_char | "?" | "&" | "=" | "%" }
+
+attributes = _{ attribute_pair ~ ("," ~ attribute_pair)* }
+attribute_pair = _{ attribute_key ~ "=" ~ attribute_value }
+
+attribute_key = { "leveloffset" | "lines" | "tag" | "tags" | "indent" | "encoding" | "opts" }
+attribute_value = {
+  ("\"" ~ (!("\"") ~ ANY)+ ~ "\"") |
+  (!("," | "]") ~ ANY)+
+}"#]
+    pub(crate) struct Parser;
+
+    impl Include {
+        pub(crate) fn parse(
+            file_parent: &Path,
+            line: &str,
+            attributes: &HashMap<String, String>,
+        ) -> Result<Self, Error> {
+            let file_parent = file_parent.to_path_buf();
+            let mut target = Target::Path(PathBuf::new());
+            let mut level_offset = None;
+            let mut lines = Vec::new();
+            let mut tags = Vec::new();
+            let mut indent = None;
+            let mut encoding = None;
+            let mut opts = Vec::new();
+
+            if let Ok(pairs) = Parser::parse(Rule::include, line) {
+                let mut key = "";
+                for pair in pairs {
+                    match pair.as_rule() {
+                        Rule::attribute_key => {
+                            key = pair.as_str();
+                        }
+                        Rule::attribute_value => {
+                            let mut value = pair.as_str();
+                            if value.starts_with('"') {
+                                value = &value[1..value.len() - 1];
+                            }
+                            match key {
+                                "leveloffset" => {
+                                    level_offset =
+                                        Some(value.parse().expect(
+                                            "invalid level offset, cannot parse as integer",
+                                        ));
+                                }
+                                "lines" => {
+                                    lines.extend(LinesRange::parse(value).map_err(|e| {
+                                        tracing::error!(
+                                            ?value,
+                                            "failed to parse lines attribute: {:?}",
+                                            e
+                                        );
+                                        e
+                                    })?);
+                                }
+                                "tag" => {
+                                    tags.push(value.to_string());
+                                }
+                                "tags" => {
+                                    tags.extend(value.split(';').map(str::to_string));
+                                }
+                                "indent" => {
+                                    indent = Some(value.parse().expect(
+                                        "invalid indent, cannot parse as unsigned integer",
+                                    ));
+                                }
+                                "encoding" => {
+                                    encoding = Some(value.to_string());
+                                }
+                                "opts" => {
+                                    opts.extend(value.split(',').map(str::to_string));
+                                }
+                                unknown => {
+                                    tracing::error!(
+                                        ?unknown,
+                                        "unknown attribute key in include directive"
+                                    );
+                                    return Err(Error::InvalidIncludeDirective);
+                                }
+                            }
+                        }
+                        Rule::target => {
+                            let target_raw = pair.as_str().trim();
+                            let target_raw =
+                                super::resolve_attribute_references(attributes, target_raw);
+                            target = if target_raw.starts_with("http://")
+                                || target_raw.starts_with("https://")
+                            {
+                                Target::Url(Url::parse(&target_raw)?)
+                            } else {
+                                Target::Path(PathBuf::from(target_raw))
+                            };
+                        }
+                        unknown => {
+                            tracing::warn!(?unknown, "unknown rule in include directive");
+                        }
+                    }
+                }
+            } else {
+                tracing::error!("failed to parse include directive");
+                return Err(Error::InvalidIncludeDirective);
+            }
+            Ok(Self {
+                file_parent,
+                target,
+                level_offset,
+                lines,
+                tags,
+                indent,
+                encoding,
+                opts,
+            })
+        }
+
+        pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
+            // TODO(nlopes): need to read the file according to the properties of the include directive.
+            //
+            // Right now, this is a simplified version that reads the file as is.
+            let mut lines = Vec::new();
+            match &self.target {
+                Target::Path(path) => {
+                    let path = self.file_parent.join(path);
+                    let content = super::Preprocessor::new()
+                        .process_file(&path)
+                        .map_err(|e| {
+                            tracing::error!(?path, "failed to process file: {:?}", e);
+                            e
+                        })?;
+                    let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
+                    if let Some(level_offset) = self.level_offset {
+                        tracing::warn!(level_offset, "level offset is not supported yet");
+                    }
+                    if !self.tags.is_empty() {
+                        tracing::warn!(tags = ?self.tags, "tags are not supported yet");
+                    }
+                    if let Some(indent) = self.indent {
+                        tracing::warn!(indent, "indent is not supported yet");
+                    }
+                    if let Some(encoding) = &self.encoding {
+                        tracing::warn!(encoding, "encoding is not supported yet");
+                    }
+                    if !self.opts.is_empty() {
+                        tracing::warn!(opts = ?self.opts, "opts are not supported yet");
+                    }
+                    // TODO(nlopes): this is so unoptimized, it isn't even funny but I'm
+                    // trying to just get to a place of compatibility, then I can
+                    // optimize.
+                    for line in &self.lines {
+                        match line {
+                            LinesRange::Single(line_number) => {
+                                if *line_number < 1 {
+                                    // TODO(nlopes): Skip invalid line numbers or should we return an error?
+                                    tracing::warn!(
+                                        ?line_number,
+                                        "invalid line number in include directive"
+                                    );
+                                    continue;
+                                }
+                                let line_number = line_number - 1;
+                                if line_number < content_lines.clone().len() {
+                                    lines.push(content_lines[line_number].clone());
+                                }
+                            }
+                            LinesRange::Range(start, end) => {
+                                let raw_size = content_lines.len();
+                                if *start < 1 {
+                                    // Skip invalid line numbers
+                                    tracing::warn!(
+                                        ?start,
+                                        "invalid start line number in include directive"
+                                    );
+                                    continue;
+                                }
+                                let start = *start - 1;
+                                let end = if *end == -1 {
+                                    raw_size
+                                } else if *end > 0 {
+                                    match (*end - 1).try_into() {
+                                        Ok(end) => end,
+                                        Err(e) => {
+                                            tracing::error!(
+                                                ?end,
+                                                "failed to cast end line number to usize: {:?}",
+                                                e
+                                            );
+                                            continue;
+                                        }
+                                    }
+                                } else {
+                                    // Skip invalid line numbers
+                                    tracing::error!(
+                                        ?end,
+                                        "invalid end line number in include directive"
+                                    );
+                                    continue;
+                                };
+                                if start < raw_size && end < raw_size {
+                                    for line in &content_lines[start..=end] {
+                                        lines.push(line.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Target::Url(_url) => {
+                    todo!("need to fetch the URL and read its content");
+                }
+            }
+            Ok(lines)
+        }
     }
 }
 
@@ -155,12 +335,6 @@ pub(crate) enum Conditional {
     Ifdef,
     Ifndef,
     Ifeval,
-}
-
-#[derive(Debug)]
-pub(crate) enum Target {
-    Path(PathBuf),
-    Url(Url),
 }
 
 mod attribute {
@@ -282,11 +456,19 @@ impl Preprocessor {
             .parent()
             .expect("file path has no parent");
 
-        let input = std::fs::read_to_string(&file_path)?;
+        let input = std::fs::read_to_string(&file_path).map_err(|e| {
+            tracing::error!(
+                path = ?file_path.as_ref().display(),
+                "failed to read file: {:?}",
+                e
+            );
+            e
+        })?;
         let input = Preprocessor::normalize(&input);
         let mut attributes = HashMap::new();
 
         let mut output = Vec::new();
+
         for line in input.lines() {
             if line.starts_with(':') {
                 attribute::parse_line(&mut attributes, line);
@@ -301,11 +483,19 @@ impl Preprocessor {
                     // Return the directive as is
                     output.push(line[1..].to_string());
                 } else if line.starts_with("ifdef") {
+                    tracing::warn!("ifdef is not supported yet");
+                    output.push(line.to_string());
+                } else if line.starts_with("ifndef") {
+                    tracing::warn!("ifndef is not supported yet");
+                    output.push(line.to_string());
+                } else if line.starts_with("ifeval") {
+                    tracing::warn!("ifeval is not supported yet");
+                    output.push(line.to_string());
                 } else if line.starts_with("include") {
                     // Parse the include directive
                     let include = Include::parse(file_parent, line, &attributes)?;
                     // Process the include directive
-                    output.extend(include.lines());
+                    output.extend(include.lines()?);
                 } else {
                     // Return the directive as is
                     output.push(line.to_string());
@@ -315,7 +505,6 @@ impl Preprocessor {
                 output.push(line.to_string());
             }
         }
-        dbg!(&attributes);
 
         Ok(format!("{}\n", output.join("\n")))
     }

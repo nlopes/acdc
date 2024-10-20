@@ -46,11 +46,13 @@ The following is a bunch of text:
 This is the optional preamble (an untitled section body). Useful for
 writing simple sectionless documents consisting only of a preamble.
 
-include::preface.adoc[]
+include::preface.adoc[encoding="utf-8",lines=1..4]
 
-include::foreword.adoc[]
+ifdef::revnumber[]
+This document has a version number of {revnumber}.
+endif::[]
 
-include::chapter-01-The-Beginning/content.adoc[]
+// include::chapter-01-The-Beginning/content.adoc[]
 
 //include::chapter-02-The-Rocket/content.adoc[]
 

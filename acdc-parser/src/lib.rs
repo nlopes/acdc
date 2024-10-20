@@ -37,7 +37,7 @@ impl crate::model::Parser for PestParser {
     fn parse(&self, input: &str) -> Result<Document, Error> {
         let input = Preprocessor::new().process(input);
         match InnerPestParser::parse(Rule::document, &input) {
-            Ok(pairs) => parse_document(pairs),
+            Ok(pairs) => Document::parse(pairs),
             Err(e) => {
                 tracing::error!("error preprocessing document: {e}");
                 Err(Error::Parse(e.to_string()))
@@ -48,9 +48,9 @@ impl crate::model::Parser for PestParser {
     #[instrument(skip(file_path))]
     fn parse_file<P: AsRef<Path>>(&self, file_path: P) -> Result<Document, Error> {
         let input = Preprocessor::new().process_file(file_path)?;
-        dbg!(&input);
+        tracing::trace!(?input, "post preprocessor");
         match InnerPestParser::parse(Rule::document, &input) {
-            Ok(pairs) => parse_document(pairs),
+            Ok(pairs) => Document::parse(pairs),
             Err(e) => {
                 tracing::error!("error preprocessing document: {e}");
                 Err(Error::Parse(e.to_string()))
@@ -59,30 +59,32 @@ impl crate::model::Parser for PestParser {
     }
 }
 
-fn parse_document(pairs: Pairs<Rule>) -> Result<Document, Error> {
-    let mut document_header = None;
-    let mut content = Vec::new();
+impl Document {
+    fn parse(pairs: Pairs<Rule>) -> Result<Self, Error> {
+        let mut document_header = None;
+        let mut content = Vec::new();
 
-    for pair in pairs {
-        match pair.as_rule() {
-            Rule::document_header => {
-                document_header = Some(parse_document_header(pair.into_inner()));
+        for pair in pairs {
+            match pair.as_rule() {
+                Rule::document_header => {
+                    document_header = Some(parse_document_header(pair.into_inner()));
+                }
+                Rule::blocks => {
+                    content.extend(parse_block(pair.into_inner())?);
+                }
+                Rule::comment | Rule::EOI => {}
+                unknown => unimplemented!("{:?}", unknown),
             }
-            Rule::blocks => {
-                content.extend(parse_block(pair.into_inner())?);
-            }
-            Rule::comment | Rule::EOI => {}
-            unknown => unimplemented!("{:?}", unknown),
         }
+
+        build_section_tree(&mut content)?;
+        validate_section_block_level(&content, None)?;
+
+        Ok(Self {
+            header: document_header,
+            content,
+        })
     }
-
-    build_section_tree(&mut content)?;
-    validate_section_block_level(&content, None)?;
-
-    Ok(Document {
-        header: document_header,
-        content,
-    })
 }
 
 // Build a tree of sections from the content blocks.
@@ -1017,6 +1019,7 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_section_with_invalid_subsection() {
         let parser = PestParser;
         let result = parser
@@ -1040,17 +1043,9 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_hr_without_paragraph() {
-        let result = PestParser
-            .parse(
-                "
-
-'''
-
-
-",
-            )
-            .unwrap_err();
+        let result = PestParser.parse("\n'''\n\n").unwrap_err();
         if let Error::Parse(ref message) = result {
             assert_eq!("thematic break must follow a paragraph", message);
         } else {
@@ -1059,12 +1054,12 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_book() {
         let result = PestParser
             .parse_file("fixtures/samples/book-starter/index.adoc")
             .unwrap();
-        //dbg!(&result);
-        //panic!()
+        tracing::trace!(?result);
     }
     // #[test]
     // fn test_stuff() {

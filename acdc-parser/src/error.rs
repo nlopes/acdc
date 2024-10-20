@@ -18,6 +18,9 @@ pub enum Error {
 
     #[error("URL error: {0}")]
     Url(#[from] url::ParseError),
+
+    #[error("ParseInt error: {0}")]
+    ParseInt(#[from] std::num::ParseIntError),
 }
 
 #[derive(Debug, PartialEq)]
