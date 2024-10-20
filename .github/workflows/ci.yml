@@ -32,13 +32,13 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
 
-    - name: Cache
+    - name: Setup Cache
       uses: Swatinem/rust-cache@v2
 
     - name: Run cargo fmt
       run: cargo fmt --all -- --check
 
-    - name:: Install nextest
+    - name: Install nextest
       uses: taiki-e/install-action@nextest
 
     - name: Run tests
