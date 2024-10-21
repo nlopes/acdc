@@ -35,7 +35,7 @@ struct InnerPestParser;
 impl crate::model::Parser for PestParser {
     #[instrument]
     fn parse(&self, input: &str) -> Result<Document, Error> {
-        let input = Preprocessor::new().process(input);
+        let input = Preprocessor.process(input);
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => Document::parse(pairs),
             Err(e) => {
@@ -47,7 +47,7 @@ impl crate::model::Parser for PestParser {
 
     #[instrument(skip(file_path))]
     fn parse_file<P: AsRef<Path>>(&self, file_path: P) -> Result<Document, Error> {
-        let input = Preprocessor::new().process_file(file_path)?;
+        let input = Preprocessor.process_file(file_path)?;
         tracing::trace!(?input, "post preprocessor");
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => Document::parse(pairs),
@@ -1059,7 +1059,6 @@ mod tests {
         let result = PestParser
             .parse_file("fixtures/samples/book-starter/index.adoc")
             .unwrap();
-        tracing::trace!(?result);
     }
     // #[test]
     // fn test_stuff() {

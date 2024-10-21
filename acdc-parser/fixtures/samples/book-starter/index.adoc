@@ -52,7 +52,11 @@ ifdef::revnumber[]
 This document has a version number of {revnumber}.
 endif::[]
 
-// include::chapter-01-The-Beginning/content.adoc[]
+ifdef::backend-html5,backend-docbook5[Only shown if converting to HTML (backend-html5 is set) or DocBook (backend-docbook5 is set).]
+
+ifdef::revnumber[This document has a version number of {revnumber}.]
+
+include::chapter-01-The-Beginning/content.adoc[]
 
 //include::chapter-02-The-Rocket/content.adoc[]
 

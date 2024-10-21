@@ -4,17 +4,8 @@ use crate::error::Error;
 
 use include::Include;
 
-#[derive(Debug)]
-pub(crate) enum Directive {
-    Include(Box<Include>),
-    Conditional(Conditional),
-}
-
 #[derive(Debug, Default)]
-pub(crate) struct Preprocessor {
-    include_stack: Vec<Include>,
-    conditional_stack: Vec<Conditional>,
-}
+pub(crate) struct Preprocessor;
 
 mod include {
     use std::{
@@ -108,6 +99,7 @@ mod include {
             Ok(lines)
         }
     }
+
     #[derive(Parser, Debug)]
     #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
 include = _{ SOI ~ "include::" ~ target ~ "[" ~ attributes? ~ "]" }
@@ -238,12 +230,10 @@ attribute_value = {
             match &self.target {
                 Target::Path(path) => {
                     let path = self.file_parent.join(path);
-                    let content = super::Preprocessor::new()
-                        .process_file(&path)
-                        .map_err(|e| {
-                            tracing::error!(?path, "failed to process file: {:?}", e);
-                            e
-                        })?;
+                    let content = super::Preprocessor.process_file(&path).map_err(|e| {
+                        tracing::error!(?path, "failed to process file: {:?}", e);
+                        e
+                    })?;
                     let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
                     if let Some(level_offset) = self.level_offset {
                         tracing::warn!(level_offset, "level offset is not supported yet");
@@ -263,58 +253,62 @@ attribute_value = {
                     // TODO(nlopes): this is so unoptimized, it isn't even funny but I'm
                     // trying to just get to a place of compatibility, then I can
                     // optimize.
-                    for line in &self.lines {
-                        match line {
-                            LinesRange::Single(line_number) => {
-                                if *line_number < 1 {
-                                    // TODO(nlopes): Skip invalid line numbers or should we return an error?
-                                    tracing::warn!(
-                                        ?line_number,
-                                        "invalid line number in include directive"
-                                    );
-                                    continue;
-                                }
-                                let line_number = line_number - 1;
-                                if line_number < content_lines.clone().len() {
-                                    lines.push(content_lines[line_number].clone());
-                                }
-                            }
-                            LinesRange::Range(start, end) => {
-                                let raw_size = content_lines.len();
-                                if *start < 1 {
-                                    // Skip invalid line numbers
-                                    tracing::warn!(
-                                        ?start,
-                                        "invalid start line number in include directive"
-                                    );
-                                    continue;
-                                }
-                                let start = *start - 1;
-                                let end = if *end == -1 {
-                                    raw_size
-                                } else if *end > 0 {
-                                    match (*end - 1).try_into() {
-                                        Ok(end) => end,
-                                        Err(e) => {
-                                            tracing::error!(
-                                                ?end,
-                                                "failed to cast end line number to usize: {:?}",
-                                                e
-                                            );
-                                            continue;
-                                        }
+                    if self.lines.is_empty() {
+                        lines.extend(content_lines.clone());
+                    } else {
+                        for line in &self.lines {
+                            match line {
+                                LinesRange::Single(line_number) => {
+                                    if *line_number < 1 {
+                                        // TODO(nlopes): Skip invalid line numbers or should we return an error?
+                                        tracing::warn!(
+                                            ?line_number,
+                                            "invalid line number in include directive"
+                                        );
+                                        continue;
                                     }
-                                } else {
-                                    // Skip invalid line numbers
-                                    tracing::error!(
-                                        ?end,
-                                        "invalid end line number in include directive"
-                                    );
-                                    continue;
-                                };
-                                if start < raw_size && end < raw_size {
-                                    for line in &content_lines[start..=end] {
-                                        lines.push(line.clone());
+                                    let line_number = line_number - 1;
+                                    if line_number < content_lines.clone().len() {
+                                        lines.push(content_lines[line_number].clone());
+                                    }
+                                }
+                                LinesRange::Range(start, end) => {
+                                    let raw_size = content_lines.len();
+                                    if *start < 1 {
+                                        // Skip invalid line numbers
+                                        tracing::warn!(
+                                            ?start,
+                                            "invalid start line number in include directive"
+                                        );
+                                        continue;
+                                    }
+                                    let start = *start - 1;
+                                    let end = if *end == -1 {
+                                        raw_size
+                                    } else if *end > 0 {
+                                        match (*end - 1).try_into() {
+                                            Ok(end) => end,
+                                            Err(e) => {
+                                                tracing::error!(
+                                                    ?end,
+                                                    "failed to cast end line number to usize: {:?}",
+                                                    e
+                                                );
+                                                continue;
+                                            }
+                                        }
+                                    } else {
+                                        // Skip invalid line numbers
+                                        tracing::error!(
+                                            ?end,
+                                            "invalid end line number in include directive"
+                                        );
+                                        continue;
+                                    };
+                                    if start < raw_size && end < raw_size {
+                                        for line in &content_lines[start..=end] {
+                                            lines.push(line.clone());
+                                        }
                                     }
                                 }
                             }
@@ -330,16 +324,263 @@ attribute_value = {
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum Conditional {
-    Ifdef,
-    Ifndef,
-    Ifeval,
+mod conditional {
+    use std::collections::HashMap;
+
+    use pest::Parser as _;
+    use pest_derive::Parser;
+
+    use crate::error::Error;
+
+    #[derive(Debug)]
+    pub(crate) enum Conditional {
+        Ifdef(Ifdef),
+        Ifndef(Ifndef),
+        Ifeval(Ifeval),
+    }
+
+    #[derive(Debug)]
+    pub(crate) enum Operation {
+        Or,
+        And,
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct Ifdef {
+        attributes: Vec<String>,
+        content: Option<String>,
+        operation: Option<Operation>,
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct Ifndef {
+        attributes: Vec<String>,
+        content: Option<String>,
+        operation: Option<Operation>,
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct Ifeval {
+        #[allow(dead_code)]
+        expression: String,
+    }
+
+    impl Conditional {
+        pub(crate) fn is_true(
+            &self,
+            attributes: &HashMap<String, String>,
+            content: &mut String,
+        ) -> bool {
+            match self {
+                Conditional::Ifdef(ifdef) => {
+                    let mut is_true = false;
+                    if ifdef.attributes.is_empty() {
+                        tracing::warn!(
+                            "no attributes in ifdef directive but expecting at least one"
+                        );
+                    } else if let Some(Operation::Or) = &ifdef.operation {
+                        is_true = ifdef
+                            .attributes
+                            .iter()
+                            .any(|attr| attributes.contains_key(attr));
+                    } else {
+                        // Operation::And (or just one attribute)
+                        is_true = ifdef
+                            .attributes
+                            .iter()
+                            .all(|attr| attributes.contains_key(attr));
+                    }
+                    if is_true {
+                        if let Some(if_content) = &ifdef.content {
+                            content.clone_from(if_content);
+                        }
+                    }
+                    is_true
+                }
+                Conditional::Ifndef(ifndef) => {
+                    let mut is_true = true;
+                    if ifndef.attributes.is_empty() {
+                        tracing::warn!(
+                            "no attributes in ifndef directive but expecting at least one"
+                        );
+                    } else if let Some(Operation::Or) = &ifndef.operation {
+                        is_true = !ifndef
+                            .attributes
+                            .iter()
+                            .any(|attr| attributes.contains_key(attr));
+                    } else {
+                        // Operation::And (or just one attribute)
+                        is_true = !ifndef
+                            .attributes
+                            .iter()
+                            .all(|attr| attributes.contains_key(attr));
+                    }
+                    if is_true {
+                        if let Some(if_content) = &ifndef.content {
+                            content.clone_from(if_content);
+                        }
+                    }
+                    is_true
+                }
+                Conditional::Ifeval(_ifeval) => todo!("ifeval conditional check"),
+            }
+        }
+    }
+
+    #[derive(Parser, Debug)]
+    #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
+conditional = _{ ifdef | ifndef | ifeval }
+
+ifdef = { SOI ~ "ifdef::" ~ attributes ~ "[" ~ content? ~ "]" }
+ifndef = { SOI ~ "ifndef::" ~ attributes ~ "[" ~ content? ~ "]" }
+ifeval = { SOI ~ "ifeval::[" ~ expression ~ "]" }
+
+attributes = _{ name ~ ((or ~ name)+ | (and ~ name)+)? }
+
+name = { (!("[" | or | and) ~ ANY)+ }
+or = { "," }
+and = { "+" }
+
+content = { (!"]" ~ ANY)+ }
+expression = { (!"]" ~ ANY)+ }
+"#]
+    pub(crate) struct Parser;
+
+    #[tracing::instrument(level = "trace")]
+    pub(crate) fn parse_line(
+        attributes: &mut std::collections::HashMap<String, String>,
+        line: &str,
+    ) -> Result<Conditional, Error> {
+        match Parser::parse(Rule::conditional, line) {
+            Ok(pairs) => {
+                let mut conditional = Conditional::Ifdef(Ifdef {
+                    attributes: Vec::new(),
+                    content: None,
+                    operation: None,
+                });
+                for pair in pairs {
+                    match pair.as_rule() {
+                        Rule::ifdef => {
+                            conditional = parse_ifdef(attributes, pair)?;
+                        }
+                        Rule::ifndef => {
+                            conditional = parse_ifndef(attributes, pair)?;
+                        }
+                        Rule::ifeval => {
+                            conditional = parse_ifeval(attributes, pair)?;
+                        }
+                        unknown => {
+                            tracing::warn!(?unknown, "unknown rule in conditional directive");
+                        }
+                    }
+                }
+                Ok(conditional)
+            }
+            Err(e) => {
+                tracing::error!(?e, "failed to parse conditional directive");
+                Err(Error::InvalidConditionalDirective)
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "trace")]
+    fn parse_ifdef(
+        attributes: &mut std::collections::HashMap<String, String>,
+        pair: pest::iterators::Pair<Rule>,
+    ) -> Result<Conditional, Error> {
+        let mut attributes = Vec::new();
+        let mut content = None;
+        let mut operation = None;
+
+        for pair in pair.into_inner() {
+            match pair.as_rule() {
+                Rule::name => {
+                    attributes.push(pair.as_str().to_string());
+                }
+                Rule::and => {
+                    operation = Some(Operation::And);
+                }
+                Rule::or => {
+                    operation = Some(Operation::Or);
+                }
+                Rule::content => {
+                    content = Some(pair.as_str().to_string());
+                }
+                unknown => {
+                    tracing::warn!(?unknown, "unknown rule in ifdef directive");
+                }
+            }
+        }
+
+        Ok(Conditional::Ifdef(Ifdef {
+            attributes,
+            content,
+            operation,
+        }))
+    }
+
+    #[tracing::instrument(level = "trace")]
+    fn parse_ifndef(
+        attributes: &mut std::collections::HashMap<String, String>,
+        pair: pest::iterators::Pair<Rule>,
+    ) -> Result<Conditional, Error> {
+        let mut attributes = Vec::new();
+        let mut content = None;
+        let mut operation = None;
+
+        for pair in pair.into_inner() {
+            match pair.as_rule() {
+                Rule::name => {
+                    attributes.push(pair.as_str().to_string());
+                }
+                Rule::and => {
+                    operation = Some(Operation::And);
+                }
+                Rule::or => {
+                    operation = Some(Operation::Or);
+                }
+                Rule::content => {
+                    content = Some(pair.as_str().to_string());
+                }
+                unknown => {
+                    tracing::warn!(?unknown, "unknown rule in ifndef directive");
+                }
+            }
+        }
+
+        Ok(Conditional::Ifndef(Ifndef {
+            attributes,
+            content,
+            operation,
+        }))
+    }
+
+    #[tracing::instrument(level = "trace")]
+    fn parse_ifeval(
+        attributes: &mut std::collections::HashMap<String, String>,
+        pair: pest::iterators::Pair<Rule>,
+    ) -> Result<Conditional, Error> {
+        let mut expression = String::new();
+
+        for pair in pair.into_inner() {
+            match pair.as_rule() {
+                Rule::expression => {
+                    expression = pair.as_str().to_string();
+                }
+                unknown => {
+                    tracing::warn!(?unknown, "unknown rule in ifeval directive");
+                }
+            }
+        }
+
+        Ok(Conditional::Ifeval(Ifeval { expression }))
+    }
 }
 
 mod attribute {
     use pest::Parser as _;
     use pest_derive::Parser;
+
     #[derive(Parser, Debug)]
     #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
 document_attribute = _{
@@ -430,10 +671,6 @@ pub fn resolve_attribute_references(attributes: &HashMap<String, String>, value:
 }
 
 impl Preprocessor {
-    pub fn new() -> Preprocessor {
-        Preprocessor::default()
-    }
-
     fn normalize(input: &str) -> String {
         input
             .lines()
@@ -464,12 +701,13 @@ impl Preprocessor {
             );
             e
         })?;
+
         let input = Preprocessor::normalize(&input);
         let mut attributes = HashMap::new();
 
         let mut output = Vec::new();
-
-        for line in input.lines() {
+        let mut lines = input.lines().peekable();
+        while let Some(line) = lines.next() {
             if line.starts_with(':') {
                 attribute::parse_line(&mut attributes, line);
             }
@@ -482,15 +720,28 @@ impl Preprocessor {
                 {
                     // Return the directive as is
                     output.push(line[1..].to_string());
-                } else if line.starts_with("ifdef") {
-                    tracing::warn!("ifdef is not supported yet");
-                    output.push(line.to_string());
-                } else if line.starts_with("ifndef") {
-                    tracing::warn!("ifndef is not supported yet");
-                    output.push(line.to_string());
-                } else if line.starts_with("ifeval") {
-                    tracing::warn!("ifeval is not supported yet");
-                    output.push(line.to_string());
+                } else if line.starts_with("ifdef")
+                    || line.starts_with("ifndef")
+                    || line.starts_with("ifeval")
+                {
+                    let mut content = String::new();
+                    let condition = conditional::parse_line(&mut attributes, line)?;
+                    while let Some(next_line) = lines.peek() {
+                        if next_line.is_empty() {
+                            tracing::trace!(?line, "single line if directive");
+                            break;
+                        } else if next_line.starts_with("endif") {
+                            tracing::trace!(?content, "multiline if directive");
+                            // Skip the if/endif block
+                            lines.next();
+                            break;
+                        }
+                        content.push_str(&format!("{next_line}\n"));
+                        lines.next();
+                    }
+                    if condition.is_true(&attributes, &mut content) {
+                        output.push(content);
+                    }
                 } else if line.starts_with("include") {
                     // Parse the include directive
                     let include = Include::parse(file_parent, line, &attributes)?;
@@ -506,6 +757,9 @@ impl Preprocessor {
             }
         }
 
-        Ok(format!("{}\n", output.join("\n")))
+        Ok(format!(
+            "{}\n",
+            resolve_attribute_references(&attributes, &output.join("\n"))
+        ))
     }
 }

@@ -10,6 +10,9 @@ pub enum Error {
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
     NestedSectionLevelMismatch(Detail, SectionLevel, SectionLevel),
 
+    #[error("Invalid conditional directive")]
+    InvalidConditionalDirective,
+
     #[error("Invalid include directive")]
     InvalidIncludeDirective,
 
