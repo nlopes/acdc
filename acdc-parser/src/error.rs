@@ -16,6 +16,15 @@ pub enum Error {
     #[error("Invalid include directive")]
     InvalidIncludeDirective,
 
+    #[error("Invalid attribute directive")]
+    InvalidAttributeDirective,
+
+    #[error("Invalid indent: {0}")]
+    InvalidIndent(String),
+
+    #[error("Invalid level offset: {0}")]
+    InvalidLevelOffset(String),
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 

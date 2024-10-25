@@ -16,8 +16,9 @@ use preprocessor::Preprocessor;
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
     AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
-    Header, Image, ImageSource, InlineNode, ListItem, Location, OrderedList, PageBreak, Paragraph,
-    Parser, PlainText, Position, Revision, Section, ThematicBreak, UnorderedList,
+    DocumentAttribute, Header, Image, ImageSource, InlineNode, ListItem, Location, OrderedList,
+    PageBreak, Paragraph, Parser, PlainText, Position, Revision, Section, ThematicBreak,
+    UnorderedList,
 };
 
 #[derive(Debug)]
@@ -35,7 +36,7 @@ struct InnerPestParser;
 impl crate::model::Parser for PestParser {
     #[instrument]
     fn parse(&self, input: &str) -> Result<Document, Error> {
-        let input = Preprocessor.process(input);
+        let input = Preprocessor.process(input)?;
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => Document::parse(pairs),
             Err(e) => {
@@ -96,28 +97,32 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
 
     let mut kept_layers = Vec::new();
     for block in current_layers.drain(..) {
-        if let Block::Section(section) = block {
-            if stack.is_empty() {
+        match (block, stack.is_empty()) {
+            (Block::Section(section), true) => {
                 kept_layers.push(Block::Section(section));
-                continue;
             }
-
-            let mut section = section;
-            while let Some(block_from_stack) = stack.pop() {
-                section.location.end = match &block_from_stack {
-                    Block::Section(section) => section.location.end.clone(),
-                    Block::DelimitedBlock(delimited_block) => delimited_block.location.end.clone(),
-                    // We don't use paragraph because we don't calculate positions for paragraphs yet
-                    Block::Paragraph(_) => section.location.end.clone(),
-                    Block::OrderedList(ordered_list) => ordered_list.location.end.clone(),
-                    Block::UnorderedList(unordered_list) => unordered_list.location.end.clone(),
-                    unknown => unimplemented!("{:?}", unknown),
-                };
-                section.content.push(block_from_stack);
+            (Block::Section(section), false) => {
+                let mut section = section;
+                while let Some(block_from_stack) = stack.pop() {
+                    section.location.end = match &block_from_stack {
+                        Block::Section(section) => section.location.end.clone(),
+                        Block::DelimitedBlock(delimited_block) => {
+                            delimited_block.location.end.clone()
+                        }
+                        // We don't use paragraph because we don't calculate positions for paragraphs yet
+                        Block::Paragraph(_) => section.location.end.clone(),
+                        Block::OrderedList(ordered_list) => ordered_list.location.end.clone(),
+                        Block::UnorderedList(unordered_list) => unordered_list.location.end.clone(),
+                        Block::DocumentAttribute(attribute) => attribute.location.end.clone(),
+                        unknown => unimplemented!("{:?}", unknown),
+                    };
+                    section.content.push(block_from_stack);
+                }
+                kept_layers.push(Block::Section(section));
             }
-            kept_layers.push(Block::Section(section));
-        } else {
-            stack.push(block);
+            (block, _) => {
+                stack.push(block);
+            }
         }
     }
 
@@ -345,6 +350,30 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
                     ));
                 }
                 blocks.push(parse_page_break(pair));
+            }
+            Rule::document_attribute => {
+                let mut inner_pairs = pair.clone().into_inner();
+                let name = inner_pairs
+                    .next()
+                    .map(|p| p.as_str().to_string())
+                    .unwrap_or_default(); // TODO(nlopes): this will probably end up
+                                          // causing a bug
+                let value = inner_pairs.next().map(|p| p.as_str().to_string());
+                let attribute = DocumentAttribute {
+                    name,
+                    value,
+                    location: Location {
+                        start: Position {
+                            line: pair.as_span().start_pos().line_col().0,
+                            column: pair.as_span().start_pos().line_col().1,
+                        },
+                        end: Position {
+                            line: pair.as_span().end_pos().line_col().0,
+                            column: pair.as_span().end_pos().line_col().1,
+                        },
+                    },
+                };
+                blocks.push(Block::DocumentAttribute(attribute));
             }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
@@ -1045,7 +1074,7 @@ mod tests {
     #[test]
     #[tracing_test::traced_test]
     fn test_hr_without_paragraph() {
-        let result = PestParser.parse("\n'''\n\n").unwrap_err();
+        let result = PestParser.parse("'''").unwrap_err();
         if let Error::Parse(ref message) = result {
             assert_eq!("thematic break must follow a paragraph", message);
         } else {
@@ -1060,6 +1089,17 @@ mod tests {
             .parse_file("fixtures/samples/book-starter/index.adoc")
             .unwrap();
     }
+
+    // #[test]
+    // #[tracing_test::traced_test]
+    // fn test_sample1() {
+    //     let result = PestParser
+    //         .parse_file("fixtures/samples/sample1/index.adoc")
+    //         .unwrap();
+    //     dbg!(&result);
+    //     panic!()
+    // }
+
     // #[test]
     // fn test_stuff() {
     //     let result = PestParser.parse("NOTE: This is a note.").unwrap();

@@ -54,6 +54,7 @@ pub struct AttributeMetadata {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Block {
+    DocumentAttribute(DocumentAttribute),
     ThematicBreak(ThematicBreak),
     PageBreak(PageBreak),
     UnorderedList(UnorderedList),
@@ -69,6 +70,13 @@ impl Block {
     pub fn is_paragraph(&self) -> bool {
         matches!(self, Block::Paragraph(_))
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DocumentAttribute {
+    pub name: String,
+    pub value: Option<String>,
+    pub location: Location,
 }
 
 #[non_exhaustive]

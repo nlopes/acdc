@@ -1,5 +1,6 @@
 blocks = {
     (
+        document_attribute |
         section |
         delimited_block |
         image_block |
@@ -36,13 +37,13 @@ image = { "image::" ~ (url | path) ~ attrlist }
 
 thematic_break_block = @{
     (
-        "'''\n\n" |
+        "'''" |
         // Below are the markdown-style ones
-        "---\n\n" |
-        "- - -\n\n" |
-        "***\n\n" |
-        "* * *\n\n"
-    ) ~ NEWLINE*
+        "---" |
+        "- - -" |
+        "***" |
+        "* * *"
+    ) ~ (NEWLINE+ | EOI)
 }
 
 page_break_block = {

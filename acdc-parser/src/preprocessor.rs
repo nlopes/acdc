@@ -71,7 +71,10 @@ mod include {
                 let end = parts.next().expect("no end").parse()?;
                 Ok(LinesRange::Range(start, end))
             } else {
-                Ok(LinesRange::Single(s.parse().expect("invalid line number")))
+                Ok(LinesRange::Single(s.parse().map_err(|e| {
+                    tracing::error!(?s, "failed to parse line number: {:?}", e);
+                    e
+                })?))
             }
         }
     }
@@ -148,10 +151,9 @@ attribute_value = {
                             }
                             match key {
                                 "leveloffset" => {
-                                    level_offset =
-                                        Some(value.parse().expect(
-                                            "invalid level offset, cannot parse as integer",
-                                        ));
+                                    level_offset = Some(value.parse().map_err(|_| {
+                                        Error::InvalidLevelOffset(value.to_string())
+                                    })?);
                                 }
                                 "lines" => {
                                     lines.extend(LinesRange::parse(value).map_err(|e| {
@@ -170,9 +172,10 @@ attribute_value = {
                                     tags.extend(value.split(';').map(str::to_string));
                                 }
                                 "indent" => {
-                                    indent = Some(value.parse().expect(
-                                        "invalid indent, cannot parse as unsigned integer",
-                                    ));
+                                    indent =
+                                        Some(value.parse().map_err(|_| {
+                                            Error::InvalidIndent(value.to_string())
+                                        })?);
                                 }
                                 "encoding" => {
                                     encoding = Some(value.to_string());
@@ -254,7 +257,7 @@ attribute_value = {
                     // trying to just get to a place of compatibility, then I can
                     // optimize.
                     if self.lines.is_empty() {
-                        lines.extend(content_lines.clone());
+                        lines.extend(content_lines);
                     } else {
                         for line in &self.lines {
                             match line {
@@ -268,7 +271,7 @@ attribute_value = {
                                         continue;
                                     }
                                     let line_number = line_number - 1;
-                                    if line_number < content_lines.clone().len() {
+                                    if line_number < content_lines.len() {
                                         lines.push(content_lines[line_number].clone());
                                     }
                                 }
@@ -680,10 +683,8 @@ impl Preprocessor {
     }
 
     #[tracing::instrument]
-    pub fn process(&self, input: &str) -> String {
-        let mut input = Preprocessor::normalize(input);
-        input.push('\n');
-        input
+    pub fn process(&self, input: &str) -> Result<String, Error> {
+        self.process_either(input, None)
     }
 
     #[tracing::instrument(skip(file_path))]
@@ -701,8 +702,12 @@ impl Preprocessor {
             );
             e
         })?;
+        self.process_either(&input, Some(file_parent))
+    }
 
-        let input = Preprocessor::normalize(&input);
+    #[tracing::instrument]
+    fn process_either(&self, input: &str, file_parent: Option<&Path>) -> Result<String, Error> {
+        let input = Preprocessor::normalize(input);
         let mut attributes = HashMap::new();
 
         let mut output = Vec::new();
@@ -711,7 +716,28 @@ impl Preprocessor {
             if line.starts_with(':') {
                 attribute::parse_line(&mut attributes, line);
             }
-            // Taken from https://github.com/asciidoctor/asciidoctor/blob/306111f480e2853ba59107336408de15253ca165/lib/asciidoctor/reader.rb#L604
+            if line.starts_with("----") {
+                let mut keep_lines = vec![line.to_string()];
+                let mut terminated = false;
+                // Skip the block
+                while let Some(next_line) = lines.peek() {
+                    if next_line.starts_with("----") {
+                        terminated = true;
+                        lines.next();
+                        break;
+                    } else {
+                        keep_lines.push(next_line.to_string());
+                    }
+                    lines.next();
+                }
+                if terminated {
+                    output.extend(keep_lines);
+                }
+            }
+            // Taken from
+            // https://github.com/asciidoctor/asciidoctor/blob/306111f480e2853ba59107336408de15253ca165/lib/asciidoctor/reader.rb#L604
+            // while following the specs at
+            // https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads#user-content-preprocessor
             if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 if line.starts_with("\\include")
                     || line.starts_with("\\ifdef")
@@ -743,10 +769,16 @@ impl Preprocessor {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
-                    // Parse the include directive
-                    let include = Include::parse(file_parent, line, &attributes)?;
-                    // Process the include directive
-                    output.extend(include.lines()?);
+                    if let Some(file_parent) = file_parent {
+                        // Parse the include directive
+                        let include = Include::parse(file_parent, line, &attributes)?;
+                        // Process the include directive
+                        output.extend(include.lines()?);
+                    } else {
+                        tracing::error!(
+                            "file parent is missing - include directive cannot be processed"
+                        );
+                    }
                 } else {
                     // Return the directive as is
                     output.push(line.to_string());
@@ -757,9 +789,54 @@ impl Preprocessor {
             }
         }
 
-        Ok(format!(
-            "{}\n",
-            resolve_attribute_references(&attributes, &output.join("\n"))
-        ))
+        Ok(format!("{}\n", output.join("\n")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_attribute_references() {
+        let mut attributes = HashMap::new();
+        attributes.insert("name".to_string(), "value".to_string());
+        attributes.insert("name2".to_string(), "value2".to_string());
+
+        let value = "{name}";
+        let resolved = resolve_attribute_references(&attributes, value);
+        assert_eq!(resolved, "value");
+
+        let value = "{name} {name2}";
+        let resolved = resolve_attribute_references(&attributes, value);
+        assert_eq!(resolved, "value value2");
+
+        let value = "{name} {name3}";
+        let resolved = resolve_attribute_references(&attributes, value);
+        assert_eq!(resolved, "value {name3}");
+
+        let value = "{name3}";
+        let resolved = resolve_attribute_references(&attributes, value);
+        assert_eq!(resolved, "{name3}");
+    }
+
+    #[test]
+    fn test_process() {
+        let preprocessor = Preprocessor::default();
+        let input = r#":attribute: value
+
+ifdef::attribute[]
+content
+endif::[]
+"#;
+        let output = preprocessor.process(input).unwrap();
+        assert_eq!(
+            output,
+            r#":attribute: value
+
+content
+
+"#
+        );
     }
 }
