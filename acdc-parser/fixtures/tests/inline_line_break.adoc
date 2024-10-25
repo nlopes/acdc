@@ -1,0 +1,2 @@
+Rubies are red, +
+Topazes are blue.

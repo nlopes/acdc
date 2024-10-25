@@ -725,9 +725,8 @@ impl Preprocessor {
                         terminated = true;
                         lines.next();
                         break;
-                    } else {
-                        keep_lines.push(next_line.to_string());
                     }
+                    keep_lines.push((*next_line).to_string());
                     lines.next();
                 }
                 if terminated {
@@ -822,21 +821,13 @@ mod tests {
 
     #[test]
     fn test_process() {
-        let preprocessor = Preprocessor::default();
-        let input = r#":attribute: value
+        let input = ":attribute: value
 
 ifdef::attribute[]
 content
 endif::[]
-"#;
-        let output = preprocessor.process(input).unwrap();
-        assert_eq!(
-            output,
-            r#":attribute: value
-
-content
-
-"#
-        );
+";
+        let output = Preprocessor.process(input).unwrap();
+        assert_eq!(output, ":attribute: value\n\ncontent\n\n");
     }
 }

@@ -33,6 +33,9 @@ pub enum Error {
 
     #[error("ParseInt error: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
+
+    #[error("Unexpected block: {0}")]
+    UnexpectedBlock(String),
 }
 
 #[derive(Debug, PartialEq)]

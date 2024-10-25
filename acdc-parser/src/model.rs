@@ -72,6 +72,22 @@ impl Block {
     }
 }
 
+impl std::fmt::Display for Block {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Block::DocumentAttribute(_) => write!(f, "DocumentAttribute"),
+            Block::ThematicBreak(_) => write!(f, "ThematicBreak"),
+            Block::PageBreak(_) => write!(f, "PageBreak"),
+            Block::UnorderedList(_) => write!(f, "UnorderedList"),
+            Block::OrderedList(_) => write!(f, "OrderedList"),
+            Block::Section(_) => write!(f, "Section"),
+            Block::DelimitedBlock(_) => write!(f, "DelimitedBlock"),
+            Block::Paragraph(_) => write!(f, "Paragraph"),
+            Block::Image(_) => write!(f, "Image"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DocumentAttribute {
     pub name: String,
@@ -83,6 +99,7 @@ pub struct DocumentAttribute {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum InlineNode {
     PlainText(PlainText),
+    InlineLineBreak(Location),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

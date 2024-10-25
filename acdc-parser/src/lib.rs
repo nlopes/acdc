@@ -88,6 +88,64 @@ impl Document {
     }
 }
 
+fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> Result<(), Error> {
+    if let Block::DelimitedBlock(delimited_block) = block {
+        match &delimited_block.inner {
+            DelimitedBlockType::DelimitedExample(blocks) => {
+                let mut blocks = blocks.clone();
+                build_section_tree(&mut blocks)?;
+                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+                    metadata: delimited_block.metadata,
+                    inner: DelimitedBlockType::DelimitedExample(blocks),
+                    title: delimited_block.title,
+                    attributes: delimited_block.attributes,
+                    location: delimited_block.location,
+                }));
+            }
+            DelimitedBlockType::DelimitedQuote(blocks) => {
+                let mut blocks = blocks.clone();
+                build_section_tree(&mut blocks)?;
+                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+                    metadata: delimited_block.metadata,
+                    inner: DelimitedBlockType::DelimitedQuote(blocks),
+                    title: delimited_block.title,
+                    attributes: delimited_block.attributes,
+                    location: delimited_block.location,
+                }));
+            }
+            DelimitedBlockType::DelimitedOpen(blocks) => {
+                let mut blocks = blocks.clone();
+                build_section_tree(&mut blocks)?;
+                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+                    metadata: delimited_block.metadata,
+                    inner: DelimitedBlockType::DelimitedOpen(blocks),
+                    title: delimited_block.title,
+                    attributes: delimited_block.attributes,
+                    location: delimited_block.location,
+                }));
+            }
+            DelimitedBlockType::DelimitedSidebar(blocks) => {
+                let mut blocks = blocks.clone();
+                build_section_tree(&mut blocks)?;
+                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+                    metadata: delimited_block.metadata,
+                    inner: DelimitedBlockType::DelimitedSidebar(blocks),
+                    title: delimited_block.title,
+                    attributes: delimited_block.attributes,
+                    location: delimited_block.location,
+                }));
+            }
+            _ => {
+                kept_layers.push(Block::DelimitedBlock(delimited_block));
+            }
+        }
+    } else {
+        tracing::error!("expected a delimited block");
+        return Err(Error::UnexpectedBlock(block.to_string()));
+    }
+    Ok(())
+}
+
 // Build a tree of sections from the content blocks.
 fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
     let mut current_layers = document.clone();
@@ -98,6 +156,9 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
     let mut kept_layers = Vec::new();
     for block in current_layers.drain(..) {
         match (block, stack.is_empty()) {
+            (delimited_block @ Block::DelimitedBlock(_), true) => {
+                build_section_tree_delimited(delimited_block, &mut kept_layers)?;
+            }
             (Block::Section(section), true) => {
                 kept_layers.push(Block::Section(section));
             }
@@ -534,6 +595,7 @@ fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut AttributeMetadata) -> 
                 content: pair.as_str().to_string().trim().to_string(),
                 location,
             })),
+            Rule::inline_line_break => content.push(InlineNode::InlineLineBreak(location)),
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
         }
@@ -1088,6 +1150,25 @@ mod tests {
         let result = PestParser
             .parse_file("fixtures/samples/book-starter/index.adoc")
             .unwrap();
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_hardbreaks_option() {
+        let result = PestParser
+            .parse(
+                "****
+Discrete headings are useful for making headings inside of other blocks, like this sidebar.
+
+[discrete]
+== Discrete Heading
+
+Discrete headings can be used where sections are not permitted.
+****",
+            )
+            .unwrap();
+        dbg!(&result);
+        panic!()
     }
 
     // #[test]

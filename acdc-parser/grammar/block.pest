@@ -71,7 +71,10 @@ admonition_node = _{
 
 bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ POP }
 
+inline_line_break = { " +" ~ NEWLINE }
+
 non_plain_text = _{
+    inline_line_break |
     bold_text
 }
 
