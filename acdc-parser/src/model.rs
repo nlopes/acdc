@@ -197,6 +197,8 @@ pub type SectionLevel = u8;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Section {
+    pub metadata: AttributeMetadata,
+    pub attributes: Vec<AttributeEntry>,
     pub title: String,
     pub level: SectionLevel,
     pub content: Vec<Block>,

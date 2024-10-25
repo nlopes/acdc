@@ -3,6 +3,13 @@
   "content": [
     {
       "Section": {
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [],
         "title": "A list of sorts:",
         "level": 1,
         "content": [

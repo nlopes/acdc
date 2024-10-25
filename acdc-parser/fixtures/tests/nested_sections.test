@@ -9,6 +9,13 @@
   "content": [
     {
       "Section": {
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [],
         "title": "Section 1",
         "level": 1,
         "content": [
@@ -48,6 +55,13 @@
           },
           {
             "Section": {
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "id": null
+              },
+              "attributes": [],
               "title": "Section 1.1",
               "level": 2,
               "content": [
@@ -87,6 +101,13 @@
                 },
                 {
                   "Section": {
+                    "metadata": {
+                      "roles": [],
+                      "options": [],
+                      "style": null,
+                      "id": null
+                    },
+                    "attributes": [],
                     "title": "Section 1.1.1",
                     "level": 3,
                     "content": [
@@ -165,6 +186,13 @@
     },
     {
       "Section": {
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [],
         "title": "Section 2",
         "level": 1,
         "content": [

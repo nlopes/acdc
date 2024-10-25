@@ -888,7 +888,7 @@ fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
                 style_found = true;
             }
             Rule::positional_attribute_value => {
-                let value = pair.as_str().to_string();
+                let value = inner_pair.as_str().to_string();
                 if !value.is_empty() {
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
@@ -906,6 +906,8 @@ fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
     }
 
     Ok(Block::Section(Section {
+        metadata,
+        attributes,
         title,
         level,
         content,

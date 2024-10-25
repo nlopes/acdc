@@ -9,6 +9,13 @@
   "content": [
     {
       "Section": {
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "id": null
+        },
+        "attributes": [],
         "title": "Section 1",
         "level": 1,
         "content": [
