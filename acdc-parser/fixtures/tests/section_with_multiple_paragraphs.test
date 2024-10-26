@@ -13,6 +13,7 @@
           "roles": [],
           "options": [],
           "style": null,
+          "anchors": [],
           "id": null
         },
         "attributes": [],
@@ -21,8 +22,13 @@
         "content": [
           {
             "Paragraph": {
-              "options": [],
-              "roles": [],
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
               "attributes": [],
               "content": [
                 {
@@ -47,16 +53,21 @@
                   "column": 1
                 },
                 "end": {
-                  "line": 7,
-                  "column": 1
+                  "line": 5,
+                  "column": 34
                 }
               }
             }
           },
           {
             "Paragraph": {
-              "options": [],
-              "roles": [],
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
               "attributes": [],
               "content": [
                 {

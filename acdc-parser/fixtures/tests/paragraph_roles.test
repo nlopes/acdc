@@ -3,12 +3,17 @@
   "content": [
     {
       "Paragraph": {
-        "options": [],
-        "roles": [
-          "text-center",
-          "superduper",
-          "naff"
-        ],
+        "metadata": {
+          "options": [],
+          "roles": [
+            "text-center",
+            "superduper",
+            "naff"
+          ],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -30,7 +35,7 @@
         "location": {
           "start": {
             "line": 1,
-            "column": 1
+            "column": 3
           },
           "end": {
             "line": 3,

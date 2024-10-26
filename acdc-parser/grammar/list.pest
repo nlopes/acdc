@@ -1,11 +1,10 @@
 // Lists
 list = {
-    (anchor | attribute_list | blocktitle)* ~
     (
-        unordered_list |
-        ordered_list |
-        description_list
-    ) ~ NEWLINE*
+        unordered_list
+        | ordered_list
+        // | description_list
+    ) ~ &(NEWLINE+ | EOI)
 }
 
 list_item = ${
@@ -36,7 +35,21 @@ checklist_item = _{ "[" ~ (checklist_item_checked | checklist_item_unchecked) ~ 
 checklist_item_checked = !{ "X" | "x" | "*" }
 checklist_item_unchecked = !{ SPACE }
 
-description_term = { (!"::" ~ ONE_CHAR)+ ~ "::"}
-description_list = { (description_term ~ SPACE ~ list_item)+ }
+description_list = { description_list_item+ }
+description_list_item = {
+    description_list_term_maybe_anchor ~
+    description_list_delimiter ~
+    (
+        (SPACE ~ description_list_inline) |
+        (NEWLINE ~ (!description_list ~ block)*)
+    ) ~
+    (NEWLINE | EOI)
+}
+description_list_term_maybe_anchor = _{ description_list_term_anchor ~ description_list_term }
+description_list_term_anchor = { inline_anchor? }
+description_list_term = { (!description_list_delimiter ~ ONE_CHAR)+ }
+description_list_delimiter = { ":"{2,4} | ";;" }
+// TODO(nlopes): this needs to be improved - still need to support text formatting etc
+description_list_inline = { (!(NEWLINE | EOI) ~ ANY)+ }
 
 list_inline = { ONE_CHAR* }

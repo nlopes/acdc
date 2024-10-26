@@ -3,12 +3,15 @@
   "content": [
     {
       "Paragraph": {
-        "roles": [
-          "\"formal\""
-        ],
-        "options": [],
-        "style": null,
-        "id": null,
+        "metadata": {
+          "roles": [
+            "\"formal\""
+          ],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -30,7 +33,7 @@
         "location": {
           "start": {
             "line": 1,
-            "column": 1
+            "column": 2
           },
           "end": {
             "line": 3,

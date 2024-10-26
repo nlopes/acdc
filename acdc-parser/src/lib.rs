@@ -11,11 +11,13 @@ mod error;
 mod model;
 mod preprocessor;
 
+use model::BlockExt;
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    AttributeEntry, AttributeMetadata, Author, Block, DelimitedBlock, DelimitedBlockType, Document,
+    Anchor, AttributeEntry, Author, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
     DocumentAttribute, Header, Image, ImageSource, InlineNode, ListItem, Location, OrderedList,
     PageBreak, Paragraph, Parser, PlainText, Position, Revision, Section, ThematicBreak,
     UnorderedList,
@@ -71,7 +73,7 @@ impl Document {
                     document_header = Some(parse_document_header(pair.into_inner()));
                 }
                 Rule::blocks => {
-                    content.extend(parse_block(pair.into_inner())?);
+                    content.extend(parse_blocks(pair.into_inner())?);
                 }
                 Rule::comment | Rule::EOI => {}
                 unknown => unimplemented!("{:?}", unknown),
@@ -163,6 +165,17 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
                 kept_layers.push(Block::Section(section));
             }
             (Block::Section(section), false) => {
+                if let Some(style) = &section.metadata.style {
+                    if style == "discrete" {
+                        stack.push(Block::DiscreteHeader(DiscreteHeader {
+                            anchors: section.metadata.anchors.clone(),
+                            title: section.title.clone(),
+                            level: section.level,
+                            location: section.location.clone(),
+                        }));
+                        continue;
+                    }
+                }
                 let mut section = section;
                 while let Some(block_from_stack) = stack.pop() {
                     section.location.end = match &block_from_stack {
@@ -188,6 +201,7 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
     }
 
     stack.reverse();
+
     // Add the remaining blocks to the kept_layers
     while let Some(block_from_stack) = stack.pop() {
         kept_layers.push(block_from_stack);
@@ -226,22 +240,7 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
             };
 
             if should_move {
-                if let Some(Block::Section(current_section)) = kept_layers.get(i).cloned() {
-                    if let Some(Block::Section(parent_section)) = kept_layers.get_mut(i + 1) {
-                        parent_section.location.end = match &current_section.content.last() {
-                            Some(Block::Section(section)) => section.location.end.clone(),
-                            Some(Block::DelimitedBlock(delimited_block)) => {
-                                delimited_block.location.end.clone()
-                            }
-                            Some(Block::Paragraph(paragraph)) => paragraph.location.end.clone(),
-                            _ => todo!(),
-                        };
-                        parent_section.content.push(Block::Section(current_section));
-                        kept_layers.remove(i);
-                    } else {
-                        return Err(Error::Parse("expected a section".to_string()));
-                    }
-                }
+                section_tree_move(&mut kept_layers, i)?;
             } else {
                 i += 1;
             }
@@ -252,6 +251,25 @@ fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
     Ok(())
 }
 
+fn section_tree_move(kept_layers: &mut Vec<Block>, i: usize) -> Result<(), Error> {
+    if let Some(Block::Section(current_section)) = kept_layers.get(i).cloned() {
+        if let Some(Block::Section(parent_section)) = kept_layers.get_mut(i + 1) {
+            parent_section.location.end = match &current_section.content.last() {
+                Some(Block::Section(section)) => section.location.end.clone(),
+                Some(Block::DelimitedBlock(delimited_block)) => {
+                    delimited_block.location.end.clone()
+                }
+                Some(Block::Paragraph(paragraph)) => paragraph.location.end.clone(),
+                _ => todo!(),
+            };
+            parent_section.content.push(Block::Section(current_section));
+            kept_layers.remove(i);
+        } else {
+            return Err(Error::Parse("expected a section".to_string()));
+        }
+    }
+    Ok(())
+}
 fn parse_document_header(pairs: Pairs<Rule>) -> Header {
     let mut title = None;
     let mut subtitle = None;
@@ -362,7 +380,105 @@ fn parse_author(pairs: Pairs<Rule>) -> Author {
     }
 }
 
-fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
+#[instrument(level = "trace")]
+fn parse_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
+    let mut title = None;
+    let mut anchors = Vec::new();
+    let mut metadata = BlockMetadata::default();
+    let mut attributes = Vec::new();
+    let mut style_found = false;
+    let mut location = Location {
+        start: Position { line: 0, column: 0 },
+        end: Position { line: 0, column: 0 },
+    };
+    let mut block = Block::Paragraph(Paragraph {
+        metadata: BlockMetadata::default(),
+        attributes: Vec::new(),
+        title: None,
+        content: Vec::new(),
+        location: location.clone(),
+        admonition: None,
+    });
+
+    let len = pairs.clone().count();
+    for (i, pair) in pairs.enumerate() {
+        if i == 0 {
+            location.start = Position {
+                line: pair.as_span().start_pos().line_col().0,
+                column: pair.as_span().start_pos().line_col().1,
+            };
+        }
+        if i == len - 1 {
+            location.end = Position {
+                line: pair.as_span().end_pos().line_col().0,
+                column: pair.as_span().end_pos().line_col().1,
+            };
+        }
+        match pair.as_rule() {
+            Rule::anchor => anchors.push(parse_anchor(pair.into_inner())),
+            Rule::section => block = parse_section(&pair)?,
+            Rule::delimited_block => block = parse_delimited_block(pair.into_inner())?,
+            Rule::paragraph => block = parse_paragraph(pair, &mut metadata, &mut attributes),
+            Rule::list => block = parse_list(pair.into_inner())?,
+            Rule::image_block => {
+                block = parse_image_block(pair.into_inner(), &mut metadata, &mut attributes);
+            }
+            Rule::option => metadata.options.push(pair.as_str().to_string()),
+            Rule::role => metadata.roles.push(pair.as_str().to_string()),
+            Rule::empty_style => {
+                style_found = true;
+            }
+            Rule::title => {
+                title = Some(pair.as_str().to_string());
+            }
+            Rule::thematic_break_block => {
+                let thematic_break = ThematicBreak {
+                    anchors: anchors.clone(),
+                    title: title.clone(),
+                    location: location.clone(),
+                };
+                block = Block::ThematicBreak(thematic_break);
+            }
+            Rule::page_break_block => {
+                block = Block::PageBreak(PageBreak {
+                    title: title.clone(),
+                    metadata: metadata.clone(),
+                    attributes: attributes.clone(),
+                    location: location.clone(),
+                });
+            }
+            Rule::positional_attribute_value => {
+                let value = pair.as_str().to_string();
+                if !value.is_empty() {
+                    if metadata.style.is_none() && !style_found {
+                        metadata.style = Some(value);
+                    } else {
+                        attributes.push(AttributeEntry {
+                            name: None,
+                            value: Some(value),
+                        });
+                    }
+                }
+            }
+            Rule::named_attribute => {
+                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
+            }
+
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    block.set_location(location);
+    block.set_anchors(anchors);
+    block.set_attributes(attributes);
+    block.set_metadata(metadata);
+    if let Some(title) = title {
+        block.set_title(title);
+    }
+    Ok(block)
+}
+
+fn parse_blocks(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     if pairs.len() == 0 {
         return Ok(Vec::new());
     }
@@ -371,46 +487,14 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
         tracing::warn!(?pairs, "empty block");
         return Ok(vec![]);
     }
-    let mut title = None;
     let mut blocks = Vec::new();
     for pair in pairs {
         match pair.as_rule() {
-            Rule::section => blocks.push(parse_section(&pair)?),
-            Rule::delimited_block => blocks.push(parse_delimited_block(pair.into_inner())?),
-            Rule::paragraph => blocks.push(parse_paragraph(pair)),
-            Rule::blocks => blocks.extend(parse_block(pair.into_inner())?),
-            Rule::list => blocks.push(parse_list(pair.into_inner())?),
-            Rule::image_block => blocks.push(parse_image_block(pair.into_inner())),
-            Rule::title => {
-                title = Some(pair.as_str().to_string());
+            Rule::blocks => {
+                blocks.extend(parse_blocks(pair.into_inner())?);
             }
-            Rule::thematic_break_block => {
-                if blocks.is_empty() || !blocks.last().map_or(false, Block::is_paragraph) {
-                    return Err(Error::Parse(
-                        "thematic break must follow a paragraph".to_string(),
-                    ));
-                }
-                blocks.push(Block::ThematicBreak(ThematicBreak {
-                    title: title.clone(),
-                    location: Location {
-                        start: Position {
-                            line: pair.as_span().start_pos().line_col().0,
-                            column: pair.as_span().start_pos().line_col().1,
-                        },
-                        end: Position {
-                            line: pair.as_span().end_pos().line_col().0,
-                            column: pair.as_span().end_pos().line_col().1,
-                        },
-                    },
-                }));
-            }
-            Rule::page_break_block => {
-                if blocks.is_empty() || !blocks.last().map_or(false, Block::is_paragraph) {
-                    return Err(Error::Parse(
-                        "page break must follow a paragraph".to_string(),
-                    ));
-                }
-                blocks.push(parse_page_break(pair));
+            Rule::block => {
+                blocks.push(parse_block(pair.into_inner())?);
             }
             Rule::document_attribute => {
                 let mut inner_pairs = pair.clone().into_inner();
@@ -443,87 +527,40 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     Ok(blocks)
 }
 
-fn parse_page_break(pair: Pair<Rule>) -> Block {
-    let start = pair.as_span().start_pos();
-    let end = pair.as_span().end_pos();
-
-    let pairs = pair.into_inner();
-    let mut title = None;
-    let mut metadata = AttributeMetadata::default();
-    let mut attributes = Vec::new();
-    let mut style_found = false;
-    let location = Location {
-        start: Position {
-            line: start.line_col().0,
-            column: start.line_col().1,
-        },
-        end: Position {
-            line: end.line_col().0,
-            column: end.line_col().1,
-        },
-    };
-    for pair in pairs {
-        match pair.as_rule() {
-            Rule::named_attribute => {
-                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
-            }
-            Rule::empty_style => {
-                style_found = true;
-            }
-            Rule::title => {
-                title = Some(pair.as_str().to_string());
-            }
-            Rule::positional_attribute_value => {
-                let value = pair.as_str().to_string();
-                if !value.is_empty() {
-                    if metadata.style.is_none() && !style_found {
-                        metadata.style = Some(value);
-                    } else {
-                        attributes.push(AttributeEntry {
-                            name: None,
-                            value: Some(value),
-                        });
-                    }
-                }
-            }
-            Rule::EOI | Rule::comment => {}
-            unknown => unreachable!("{unknown:?}"),
-        }
-    }
-
-    Block::PageBreak(PageBreak {
-        title,
-        metadata,
-        attributes,
-        location,
-    })
-}
-
-fn parse_image_block(pairs: Pairs<Rule>) -> Block {
-    let mut metadata = AttributeMetadata::default();
-    let mut attributes: Vec<AttributeEntry> = Vec::new();
+fn parse_image_block(
+    pairs: Pairs<Rule>,
+    metadata: &mut BlockMetadata,
+    attributes: &mut Vec<AttributeEntry>,
+) -> Block {
     let mut source = ImageSource::Path(String::new());
     let mut title = None;
 
     for pair in pairs {
         match pair.as_rule() {
-            Rule::anchor => metadata.id = Some(pair.into_inner().as_str().to_string()),
+            Rule::anchor => {
+                tracing::error!("unexpected anchor in image block");
+                //parse_metadata_anchor(pair.into_inner(), &mut metadata)
+                let anchor = parse_anchor(pair.into_inner());
+                metadata.anchors.push(anchor);
+            }
             Rule::title => title = Some(pair.as_str().to_string()),
-            Rule::image => parse_image(
-                pair.into_inner(),
-                &mut attributes,
-                &mut source,
-                &mut metadata,
-            ),
+            Rule::image => parse_image(pair.into_inner(), attributes, &mut source, metadata),
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
         }
     }
+    if let Some(anchor) = metadata.anchors.last() {
+        metadata.id = Some(anchor.clone());
+    }
     Block::Image(Image {
+        location: Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        },
         title,
         source,
-        metadata,
-        attributes,
+        metadata: metadata.clone(),
+        attributes: attributes.clone(),
     })
 }
 
@@ -531,7 +568,7 @@ fn parse_image(
     pairs: Pairs<Rule>,
     attributes: &mut Vec<AttributeEntry>,
     source: &mut ImageSource,
-    metadata: &mut AttributeMetadata,
+    metadata: &mut BlockMetadata,
 ) {
     let mut attribute_idx = 0;
     let mut attribute_mapping = HashMap::new();
@@ -561,7 +598,7 @@ fn parse_image(
     }
 }
 
-fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut AttributeMetadata) -> Vec<InlineNode> {
+fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut BlockMetadata) -> Vec<InlineNode> {
     let pairs = pair.into_inner();
 
     let mut content = Vec::new();
@@ -603,14 +640,16 @@ fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut AttributeMetadata) -> 
     content
 }
 
-fn parse_paragraph(pair: Pair<Rule>) -> Block {
+fn parse_paragraph(
+    pair: Pair<Rule>,
+    metadata: &mut BlockMetadata,
+    attributes: &mut Vec<AttributeEntry>,
+) -> Block {
     let start = pair.as_span().start_pos();
     let end = pair.as_span().end_pos();
     let pairs = pair.into_inner();
 
     let mut content = Vec::new();
-    let mut attributes = Vec::new();
-    let mut metadata = AttributeMetadata::default();
     let mut style_found = false;
     let mut title = None;
 
@@ -633,12 +672,12 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
                 admonition = Some(pair.as_str().to_string());
             }
             Rule::paragraph_inner => {
-                content.extend(parse_paragraph_inner(pair, &mut metadata));
+                content.extend(parse_paragraph_inner(pair, metadata));
             }
             Rule::role => metadata.roles.push(pair.as_str().to_string()),
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::named_attribute => {
-                parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
+                parse_named_attribute(pair.into_inner(), attributes, metadata);
             }
             Rule::empty_style => {
                 style_found = true;
@@ -666,8 +705,8 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
         }
     }
     Block::Paragraph(Paragraph {
-        metadata,
-        attributes,
+        metadata: metadata.clone(),
+        attributes: attributes.clone(),
         title,
         content,
         location,
@@ -678,14 +717,21 @@ fn parse_paragraph(pair: Pair<Rule>) -> Block {
 fn parse_named_attribute(
     pairs: Pairs<Rule>,
     attributes: &mut Vec<AttributeEntry>,
-    metadata: &mut AttributeMetadata,
+    metadata: &mut BlockMetadata,
 ) {
     let mut name = None;
     let mut value = None;
 
     for pair in pairs {
         match pair.as_rule() {
-            Rule::id => metadata.id = Some(pair.as_str().to_string()),
+            Rule::id => {
+                let anchor = Anchor {
+                    id: pair.as_str().to_string(),
+                    ..Default::default()
+                };
+                metadata.anchors.push(anchor.clone());
+                metadata.id = Some(anchor);
+            }
             Rule::role => metadata.roles.push(pair.as_str().to_string()),
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::attribute_name => name = Some(pair.as_str().to_string()),
@@ -709,11 +755,13 @@ fn parse_named_attribute(
 
 fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut title = None;
-    let mut metadata = AttributeMetadata::default();
+    let mut metadata = BlockMetadata::default();
     let mut attributes = Vec::new();
     let mut style_found = false;
     let mut block = Block::UnorderedList(UnorderedList {
         title: None,
+        metadata: metadata.clone(),
+        attributes: attributes.clone(),
         items: Vec::new(),
         location: Location {
             start: Position { line: 0, column: 0 },
@@ -727,7 +775,12 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
                 title = Some(pair.as_str().to_string());
             }
             Rule::unordered_list | Rule::ordered_list => {
-                block = parse_simple_list(title.clone(), pair.into_inner())?;
+                block = parse_simple_list(
+                    title.clone(),
+                    metadata.clone(),
+                    attributes.clone(),
+                    pair.into_inner(),
+                )?;
             }
             Rule::named_attribute => {
                 parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
@@ -750,6 +803,14 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
             }
             Rule::role => metadata.roles.push(pair.as_str().to_string()),
             Rule::option => metadata.options.push(pair.as_str().to_string()),
+            Rule::description_list => {
+                block = parse_description_list(
+                    title.clone(),
+                    metadata.clone(),
+                    attributes.clone(),
+                    pair.into_inner(),
+                )?;
+            }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
         }
@@ -757,7 +818,145 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
     Ok(block)
 }
 
-fn parse_simple_list(title: Option<String>, pairs: Pairs<Rule>) -> Result<Block, Error> {
+fn parse_description_list(
+    title: Option<String>,
+    metadata: BlockMetadata,
+    attributes: Vec<AttributeEntry>,
+    pairs: Pairs<Rule>,
+) -> Result<Block, Error> {
+    let mut location = Location {
+        start: Position { line: 0, column: 0 },
+        end: Position { line: 0, column: 0 },
+    };
+
+    let mut items = Vec::new();
+
+    for pair in pairs {
+        let location = Location {
+            start: Position {
+                line: pair.as_span().start_pos().line_col().0,
+                column: pair.as_span().start_pos().line_col().1,
+            },
+            end: Position {
+                line: pair.as_span().end_pos().line_col().0,
+                column: pair.as_span().end_pos().line_col().1,
+            },
+        };
+        let mut blocks = Vec::new();
+        match pair.as_rule() {
+            Rule::description_list_item => {
+                let mut anchors = Vec::new();
+                let mut term = String::new();
+                let mut delimiter = "";
+                for inner_pair in pair.clone().into_inner() {
+                    let location = location.clone();
+                    match inner_pair.as_rule() {
+                        Rule::description_list_term => {
+                            term = inner_pair.as_str().to_string();
+                        }
+                        Rule::description_list_term_anchor => {
+                            anchors.push(parse_anchor(inner_pair.into_inner()));
+                        }
+                        Rule::description_list_delimiter => {
+                            delimiter = inner_pair.as_str();
+                        }
+                        Rule::blocks => {
+                            let description = parse_blocks(inner_pair.into_inner())?;
+                            items.push(DescriptionListItem {
+                                anchors: anchors.clone(),
+                                term: term.to_string(),
+                                delimiter: delimiter.to_string(),
+                                description: DescriptionListDescription::Blocks(description),
+                                location,
+                            });
+                        }
+                        Rule::description_list_inline => {
+                            let description = inner_pair.as_str();
+                            items.push(DescriptionListItem {
+                                anchors: anchors.clone(),
+                                term: term.to_string(),
+                                delimiter: delimiter.to_string(),
+                                description: DescriptionListDescription::Inline(
+                                    description.to_string(),
+                                ),
+                                location,
+                            });
+                        }
+                        Rule::EOI | Rule::comment => {}
+                        _ => {
+                            // If we get here, it means we have a block that is not a
+                            // description list
+                            blocks.push(parse_block(inner_pair.into_inner())?);
+                        } //unknown => unreachable!("{unknown:?}"),
+                    }
+                }
+                if !blocks.is_empty() {
+                    items.push(DescriptionListItem {
+                        anchors,
+                        term: term.to_string(),
+                        delimiter: delimiter.to_string(),
+                        description: DescriptionListDescription::Blocks(blocks),
+                        location,
+                    });
+                }
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+
+    location.start = items
+        .first()
+        .map_or(location.start, |item| item.location.start.clone());
+    location.end = items
+        .last()
+        .map_or(location.end, |item| item.location.end.clone());
+
+    Ok(Block::DescriptionList(DescriptionList {
+        title,
+        metadata,
+        attributes,
+        items,
+        location,
+    }))
+}
+
+fn parse_anchor(pairs: Pairs<Rule>) -> Anchor {
+    let mut anchor = Anchor::default();
+    let len = pairs.clone().count();
+    for (i, pair) in pairs.enumerate() {
+        if i == 0 {
+            anchor.location.start = Position {
+                line: pair.as_span().start_pos().line_col().0,
+                column: pair.as_span().start_pos().line_col().1,
+            };
+        }
+        if i == len - 1 {
+            anchor.location.end = Position {
+                line: pair.as_span().end_pos().line_col().0,
+                column: pair.as_span().end_pos().line_col().1,
+            };
+        }
+        match pair.as_rule() {
+            Rule::id => {
+                anchor.id = pair.as_str().to_string();
+            }
+            Rule::xreflabel => {
+                anchor.xreflabel = Some(pair.as_str().to_string());
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    anchor
+}
+
+fn parse_simple_list(
+    title: Option<String>,
+    metadata: BlockMetadata,
+    attributes: Vec<AttributeEntry>,
+    pairs: Pairs<Rule>,
+) -> Result<Block, Error> {
     let mut location = Location {
         start: Position { line: 0, column: 0 },
         end: Position { line: 0, column: 0 },
@@ -804,11 +1003,15 @@ fn parse_simple_list(title: Option<String>, pairs: Pairs<Rule>) -> Result<Block,
     Ok(match kind {
         "ordered" => Block::OrderedList(OrderedList {
             title,
+            metadata,
+            attributes,
             items,
             location,
         }),
         _ => Block::UnorderedList(UnorderedList {
             title,
+            metadata,
+            attributes,
             items,
             location,
         }),
@@ -855,12 +1058,11 @@ fn parse_list_item(pairs: Pairs<Rule>) -> Result<ListItem, Error> {
 }
 
 fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
-    let mut metadata = AttributeMetadata::default();
-    let mut attributes = Vec::new();
+    let metadata = BlockMetadata::default();
+    let attributes = Vec::new();
     let mut title = String::new();
     let mut level = 0;
     let mut content = Vec::new();
-    let mut style_found = false;
 
     for inner_pair in pair.clone().into_inner() {
         match inner_pair.as_rule() {
@@ -877,26 +1079,10 @@ fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
                 if inner.peek().is_none() {
                     let pairs = InnerPestParser::parse(Rule::document, inner_pair.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                    content.extend(parse_block(pairs)?);
+                    content.extend(parse_blocks(pairs)?);
                 } else {
                     for pair in inner {
-                        content.extend(parse_block(pair.into_inner())?);
-                    }
-                }
-            }
-            Rule::empty_style => {
-                style_found = true;
-            }
-            Rule::positional_attribute_value => {
-                let value = inner_pair.as_str().to_string();
-                if !value.is_empty() {
-                    if metadata.style.is_none() && !style_found {
-                        metadata.style = Some(value);
-                    } else {
-                        attributes.push(AttributeEntry {
-                            name: None,
-                            value: Some(value),
-                        });
+                        content.extend(parse_blocks(pair.into_inner())?);
                     }
                 }
             }
@@ -967,7 +1153,7 @@ fn validate_section_block_level(content: &[Block], prior_level: Option<u8>) -> R
 #[allow(clippy::too_many_lines)]
 fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut inner = DelimitedBlockType::DelimitedComment(String::new());
-    let mut metadata = AttributeMetadata::default();
+    let mut metadata = BlockMetadata::default();
     let mut title = None;
     let mut attributes = Vec::new();
     let mut location = Location {
@@ -1009,7 +1195,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                 text.push('\n');
                 let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                inner = DelimitedBlockType::DelimitedExample(parse_block(pairs)?);
+                inner = DelimitedBlockType::DelimitedExample(parse_blocks(pairs)?);
             }
             Rule::delimited_pass => {
                 inner = DelimitedBlockType::DelimitedPass(pair.into_inner().as_str().to_string());
@@ -1019,7 +1205,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                 text.push('\n');
                 let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                inner = DelimitedBlockType::DelimitedQuote(parse_block(pairs)?);
+                inner = DelimitedBlockType::DelimitedQuote(parse_blocks(pairs)?);
             }
             Rule::delimited_listing => {
                 inner =
@@ -1034,14 +1220,14 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                 text.push('\n');
                 let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                inner = DelimitedBlockType::DelimitedOpen(parse_block(pairs)?);
+                inner = DelimitedBlockType::DelimitedOpen(parse_blocks(pairs)?);
             }
             Rule::delimited_sidebar => {
                 let mut text = pair.into_inner().as_str().to_string();
                 text.push('\n');
                 let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                     .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                inner = DelimitedBlockType::DelimitedSidebar(parse_block(pairs)?);
+                inner = DelimitedBlockType::DelimitedSidebar(parse_blocks(pairs)?);
             }
             Rule::delimited_table => {
                 inner = DelimitedBlockType::DelimitedTable(pair.into_inner().as_str().to_string());
@@ -1070,7 +1256,9 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
             }
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::anchor => {
-                metadata.id = Some(pair.into_inner().as_str().to_string());
+                let anchor = parse_anchor(pair.into_inner());
+                metadata.id = Some(anchor.clone());
+                metadata.anchors.push(anchor);
             }
             unknown => unreachable!("{unknown:?}"),
         }
@@ -1137,40 +1325,10 @@ mod tests {
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_hr_without_paragraph() {
-        let result = PestParser.parse("'''").unwrap_err();
-        if let Error::Parse(ref message) = result {
-            assert_eq!("thematic break must follow a paragraph", message);
-        } else {
-            panic!("unexpected error: {result:?}");
-        }
-    }
-
-    #[test]
-    #[tracing_test::traced_test]
     fn test_book() {
         let result = PestParser
             .parse_file("fixtures/samples/book-starter/index.adoc")
             .unwrap();
-    }
-
-    #[test]
-    #[tracing_test::traced_test]
-    fn test_hardbreaks_option() {
-        let result = PestParser
-            .parse(
-                "****
-Discrete headings are useful for making headings inside of other blocks, like this sidebar.
-
-[discrete]
-== Discrete Heading
-
-Discrete headings can be used where sections are not permitted.
-****",
-            )
-            .unwrap();
-        dbg!(&result);
-        panic!()
     }
 
     // #[test]
@@ -1190,18 +1348,17 @@ Discrete headings can be used where sections are not permitted.
     //     panic!()
     // }
 
-    // #[test]
-    // fn test_blah() {
-    //     let result = PestParser
-    //         .parse(
-    //             "[[cpu,CPU]]Central Processing Unit (CPU)::
+    //     #[test]
+    //     fn test_blah() {
+    //         let result = PestParser
+    //             .parse(
+    //                 "[[cpu,CPU]]Central Processing Unit (CPU)::
     // The brain of the computer.
 
     // [[hard-drive]]Hard drive::
     // Permanent storage for operating system and/or user files.",
     //             )
     //             .unwrap();
-    //         dbg!(&result);
     //         panic!()
     //     }
 

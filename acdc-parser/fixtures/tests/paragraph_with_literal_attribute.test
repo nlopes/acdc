@@ -3,10 +3,13 @@
   "content": [
     {
       "Paragraph": {
-        "roles": [],
-        "options": [],
-        "style": "literal",
-        "id": null,
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": "literal",
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {

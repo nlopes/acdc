@@ -3,14 +3,17 @@
   "content": [
     {
       "Paragraph": {
-        "roles": [],
-        "options": [
-          "header",
-          "footer",
-          "autowidth"
-        ],
-        "style": null,
-        "id": null,
+        "metadata": {
+          "roles": [],
+          "options": [
+            "header",
+            "footer",
+            "autowidth"
+          ],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [
           {
             "name": "cols",
@@ -37,7 +40,7 @@
         "location": {
           "start": {
             "line": 1,
-            "column": 1
+            "column": 2
           },
           "end": {
             "line": 3,

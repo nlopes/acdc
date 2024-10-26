@@ -3,14 +3,17 @@
   "content": [
     {
       "Paragraph": {
-        "roles": [
-          "properties"
-        ],
-        "options": [
-          "step"
-        ],
-        "style": "horizontal",
-        "id": null,
+        "metadata": {
+          "roles": [
+            "properties"
+          ],
+          "options": [
+            "step"
+          ],
+          "style": "horizontal",
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -32,7 +35,7 @@
         "location": {
           "start": {
             "line": 1,
-            "column": 1
+            "column": 2
           },
           "end": {
             "line": 3,

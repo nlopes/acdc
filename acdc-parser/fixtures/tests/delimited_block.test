@@ -3,8 +3,13 @@
   "content": [
     {
       "Paragraph": {
-        "options": [],
-        "roles": [],
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -29,16 +34,21 @@
             "column": 1
           },
           "end": {
-            "line": 3,
-            "column": 1
+            "line": 1,
+            "column": 21
           }
         }
       }
     },
     {
       "Paragraph": {
-        "options": [],
-        "roles": [],
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -63,8 +73,8 @@
             "column": 1
           },
           "end": {
-            "line": 6,
-            "column": 1
+            "line": 4,
+            "column": 30
           }
         }
       }
@@ -74,8 +84,13 @@
         "inner": {
           "DelimitedExample": [{
             "Paragraph": {
-              "options": [],
-              "roles": [],
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
               "attributes": [],
               "content": [
                 {
@@ -107,10 +122,14 @@
             }
           }]
         },
-        "anchor": null,
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "title": null,
-        "roles": [],
-        "options": [],
         "attributes": [],
         "location": {
           "start": {

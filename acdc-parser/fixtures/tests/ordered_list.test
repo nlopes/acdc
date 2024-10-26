@@ -7,6 +7,7 @@
           "roles": [],
           "options": [],
           "style": null,
+          "anchors": [],
           "id": null
         },
         "attributes": [],
@@ -15,6 +16,14 @@
         "content": [
           {
             "OrderedList": {
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
+              "attributes": [],
               "title": null,
               "items": [
                 {

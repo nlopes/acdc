@@ -13,6 +13,7 @@
           "roles": [],
           "options": [],
           "style": null,
+          "anchors": [],
           "id": null
         },
         "attributes": [],
@@ -21,8 +22,13 @@
         "content": [
           {
             "Paragraph": {
-              "options": [],
-              "roles": [],
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
               "attributes": [],
               "content": [
                 {

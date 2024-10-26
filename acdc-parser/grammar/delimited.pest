@@ -1,5 +1,4 @@
 delimited_block = {
-    (anchor | attribute_list | blocktitle)* ~
     (
         delimited_comment |
         delimited_example |
@@ -10,7 +9,7 @@ delimited_block = {
         delimited_table |
         delimited_pass |
         delimited_quote
-    ) ~ NEWLINE*
+    )
 }
 
 delimited_comment = {

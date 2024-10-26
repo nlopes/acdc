@@ -3,10 +3,13 @@
   "content": [
     {
       "Paragraph": {
-        "roles": [],
-        "options": [],
-        "style": null,
-        "id": null,
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -31,32 +34,36 @@
             "column": 1
           },
           "end": {
-            "line": 3,
-            "column": 1
+            "line": 1,
+            "column": 12
           }
         }
       }
     },
     {
       "ThematicBreak": {
+        "anchors": [],
         "location": {
           "start": {
             "line": 3,
             "column": 1
           },
           "end": {
-            "line": 5,
-            "column": 1
+            "line": 3,
+            "column": 4
           }
         }
       }
     },
     {
       "Paragraph": {
-        "roles": [],
-        "options": [],
-        "style": null,
-        "id": null,
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {

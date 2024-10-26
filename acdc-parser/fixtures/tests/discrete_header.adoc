@@ -1,0 +1,8 @@
+****
+Discrete headings are useful for making headings inside of other blocks, like this sidebar.
+
+[discrete]
+== Discrete Heading
+
+Discrete headings can be used where sections are not permitted.
+****

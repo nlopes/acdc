@@ -19,10 +19,12 @@ id_subsequent_char = @{
 }
 
 anchor = { inline_anchor ~ NEWLINE }
-inline_anchor = {
-    ("[[" ~ id ~ "]]") |
-    ("[" ~ "#" ~ id ~ "]")
+inline_anchor = _{
+    ("[[" ~ id ~ ("," ~ xreflabel)? ~ "]]") |
+    ("[" ~ "#" ~ id ~ ("," ~ xreflabel)? ~ "]")
 }
+
+xreflabel = { (!"]" ~ ANY)+ }
 
 blocktitle = _{ "." ~ !("." | SPACE) ~ title ~ NEWLINE }
 title = { ONE_CHAR+ }

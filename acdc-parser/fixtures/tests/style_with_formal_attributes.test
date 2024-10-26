@@ -3,12 +3,15 @@
   "content": [
     {
       "Paragraph": {
-        "roles": [],
-        "options": [
-          "nolines"
-        ],
-        "style": "source",
-        "id": null,
+        "metadata": {
+          "roles": [],
+          "options": [
+            "nolines"
+          ],
+          "style": "source",
+          "anchors": [],
+          "id": null
+        },
         "attributes": [
           {
             "name": "title",
@@ -35,7 +38,7 @@
         "location": {
           "start": {
             "line": 1,
-            "column": 1
+            "column": 2
           },
           "end": {
             "line": 3,

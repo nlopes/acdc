@@ -39,9 +39,14 @@
   "content": [
     {
       "Paragraph": {
-        "options": [],
-        "roles": [],
         "attributes": [],
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "content": [
           {
             "PlainText": {

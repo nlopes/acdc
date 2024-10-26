@@ -43,43 +43,139 @@ pub struct AttributeEntry {
     pub value: Option<String>,
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AttributeMetadata {
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Anchor {
+    pub id: String,
+    pub xreflabel: Option<String>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct BlockMetadata {
     pub roles: Vec<String>,
     pub options: Vec<String>,
     pub style: Option<String>,
-    pub id: Option<String>,
+    pub id: Option<Anchor>,
+    pub anchors: Vec<Anchor>,
 }
 
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Block {
+    DiscreteHeader(DiscreteHeader),
     DocumentAttribute(DocumentAttribute),
     ThematicBreak(ThematicBreak),
     PageBreak(PageBreak),
     UnorderedList(UnorderedList),
     OrderedList(OrderedList),
+    DescriptionList(DescriptionList),
     Section(Section),
     DelimitedBlock(DelimitedBlock),
     Paragraph(Paragraph),
     Image(Image),
 }
 
-impl Block {
-    #[must_use]
-    pub fn is_paragraph(&self) -> bool {
-        matches!(self, Block::Paragraph(_))
+impl BlockExt for Block {
+    fn set_metadata(&mut self, metadata: BlockMetadata) {
+        match self {
+            Block::DiscreteHeader(_header) => {}
+            Block::DocumentAttribute(_attr) => {}
+            Block::ThematicBreak(_thematic_break) => {}
+            Block::PageBreak(page_break) => page_break.metadata = metadata,
+            Block::UnorderedList(unordered_list) => unordered_list.metadata = metadata,
+            Block::OrderedList(ordered_list) => ordered_list.metadata = metadata,
+            Block::DescriptionList(description_list) => description_list.metadata = metadata,
+            Block::Section(section) => section.metadata = metadata,
+            Block::DelimitedBlock(delimited_block) => delimited_block.metadata = metadata,
+            Block::Paragraph(paragraph) => paragraph.metadata = metadata,
+            Block::Image(image) => image.metadata = metadata,
+        }
     }
+
+    fn set_attributes(&mut self, attributes: Vec<AttributeEntry>) {
+        match self {
+            Block::DiscreteHeader(_header) => {}
+            Block::DocumentAttribute(_attr) => {}
+            Block::ThematicBreak(_thematic_break) => {}
+            Block::PageBreak(page_break) => page_break.attributes = attributes,
+            Block::UnorderedList(unordered_list) => unordered_list.attributes = attributes,
+            Block::OrderedList(ordered_list) => ordered_list.attributes = attributes,
+            Block::DescriptionList(description_list) => description_list.attributes = attributes,
+            Block::Section(section) => section.attributes = attributes,
+            Block::DelimitedBlock(delimited_block) => delimited_block.attributes = attributes,
+            Block::Paragraph(paragraph) => paragraph.attributes = attributes,
+            Block::Image(image) => image.attributes = attributes,
+        }
+    }
+
+    fn set_anchors(&mut self, anchors: Vec<Anchor>) {
+        match self {
+            Block::DiscreteHeader(header) => header.anchors = anchors,
+            Block::DocumentAttribute(_attr) => {}
+            Block::ThematicBreak(thematic_break) => thematic_break.anchors = anchors,
+            Block::PageBreak(page_break) => page_break.metadata.anchors = anchors,
+            Block::UnorderedList(unordered_list) => unordered_list.metadata.anchors = anchors,
+            Block::OrderedList(ordered_list) => ordered_list.metadata.anchors = anchors,
+            Block::DescriptionList(description_list) => description_list.metadata.anchors = anchors,
+            Block::Section(section) => section.metadata.anchors = anchors,
+            Block::DelimitedBlock(delimited_block) => delimited_block.metadata.anchors = anchors,
+            Block::Paragraph(paragraph) => paragraph.metadata.anchors = anchors,
+            Block::Image(image) => image.metadata.anchors = anchors,
+        }
+    }
+
+    fn set_title(&mut self, title: String) {
+        match self {
+            Block::DiscreteHeader(header) => header.title = title,
+            Block::DocumentAttribute(_attr) => {}
+            Block::ThematicBreak(thematic_break) => thematic_break.title = Some(title),
+            Block::PageBreak(page_break) => page_break.title = Some(title),
+            Block::UnorderedList(unordered_list) => unordered_list.title = Some(title),
+            Block::OrderedList(ordered_list) => ordered_list.title = Some(title),
+            Block::DescriptionList(description_list) => description_list.title = Some(title),
+            Block::Section(section) => section.title = title,
+            Block::DelimitedBlock(delimited_block) => delimited_block.title = Some(title),
+            Block::Paragraph(paragraph) => paragraph.title = Some(title),
+            Block::Image(image) => image.title = Some(title),
+        }
+    }
+
+    #[must_use]
+    fn set_location(&mut self, location: Location) {
+        match self {
+            Block::DiscreteHeader(header) => header.location = location,
+            Block::DocumentAttribute(attr) => attr.location = location,
+            Block::ThematicBreak(thematic_break) => thematic_break.location = location,
+            Block::PageBreak(page_break) => page_break.location = location,
+            Block::UnorderedList(unordered_list) => unordered_list.location = location,
+            Block::OrderedList(ordered_list) => ordered_list.location = location,
+            Block::DescriptionList(description_list) => description_list.location = location,
+            Block::Section(section) => section.location = location,
+            Block::DelimitedBlock(delimited_block) => delimited_block.location = location,
+            Block::Paragraph(paragraph) => paragraph.location = location,
+            Block::Image(image) => image.location = location,
+        }
+    }
+}
+
+pub(crate) trait BlockExt {
+    fn set_location(&mut self, location: Location);
+    fn set_anchors(&mut self, anchor: Vec<Anchor>);
+    fn set_title(&mut self, title: String);
+    fn set_attributes(&mut self, attributes: Vec<AttributeEntry>);
+    fn set_metadata(&mut self, metadata: BlockMetadata);
 }
 
 impl std::fmt::Display for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Block::DiscreteHeader(_) => write!(f, "DiscreteHeader"),
             Block::DocumentAttribute(_) => write!(f, "DocumentAttribute"),
             Block::ThematicBreak(_) => write!(f, "ThematicBreak"),
             Block::PageBreak(_) => write!(f, "PageBreak"),
             Block::UnorderedList(_) => write!(f, "UnorderedList"),
             Block::OrderedList(_) => write!(f, "OrderedList"),
+            Block::DescriptionList(_) => write!(f, "DescriptionList"),
             Block::Section(_) => write!(f, "Section"),
             Block::DelimitedBlock(_) => write!(f, "DelimitedBlock"),
             Block::Paragraph(_) => write!(f, "Paragraph"),
@@ -103,13 +199,22 @@ pub enum InlineNode {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DiscreteHeader {
+    pub anchors: Vec<Anchor>,
+    pub title: String,
+    pub level: u8,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PlainText {
     pub content: String,
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ThematicBreak {
+    pub anchors: Vec<Anchor>,
     pub title: Option<String>,
     pub location: Location,
 }
@@ -117,7 +222,7 @@ pub struct ThematicBreak {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageBreak {
     pub title: Option<String>,
-    pub metadata: AttributeMetadata,
+    pub metadata: BlockMetadata,
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
@@ -126,8 +231,9 @@ pub struct PageBreak {
 pub struct Image {
     pub title: Option<String>,
     pub source: ImageSource,
-    pub metadata: AttributeMetadata,
+    pub metadata: BlockMetadata,
     pub attributes: Vec<AttributeEntry>,
+    pub location: Location,
 }
 
 // TODO(nlopes): this should use instead
@@ -142,8 +248,34 @@ pub enum ImageSource {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DescriptionList {
+    pub title: Option<String>,
+    pub metadata: BlockMetadata,
+    pub attributes: Vec<AttributeEntry>,
+    pub items: Vec<DescriptionListItem>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DescriptionListItem {
+    pub anchors: Vec<Anchor>,
+    pub term: String,
+    pub delimiter: String,
+    pub description: DescriptionListDescription,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum DescriptionListDescription {
+    Inline(String),
+    Blocks(Vec<Block>),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnorderedList {
     pub title: Option<String>,
+    pub metadata: BlockMetadata,
+    pub attributes: Vec<AttributeEntry>,
     pub items: Vec<ListItem>,
     pub location: Location,
 }
@@ -153,6 +285,7 @@ pub type ListLevel = u8;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ListItem {
+    // TODO(nlopes): missing anchors
     pub level: ListLevel,
     pub checked: Option<bool>,
     pub content: Vec<String>,
@@ -160,8 +293,7 @@ pub struct ListItem {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
-    #[serde(flatten)]
-    pub metadata: AttributeMetadata,
+    pub metadata: BlockMetadata,
     pub attributes: Vec<AttributeEntry>,
     pub title: Option<String>,
     pub content: Vec<InlineNode>,
@@ -171,8 +303,7 @@ pub struct Paragraph {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DelimitedBlock {
-    #[serde(flatten)]
-    pub metadata: AttributeMetadata,
+    pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
     pub title: Option<String>,
     pub attributes: Vec<AttributeEntry>,
@@ -197,7 +328,7 @@ pub type SectionLevel = u8;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Section {
-    pub metadata: AttributeMetadata,
+    pub metadata: BlockMetadata,
     pub attributes: Vec<AttributeEntry>,
     pub title: String,
     pub level: SectionLevel,
@@ -205,13 +336,13 @@ pub struct Section {
     pub location: Location,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Location {
     pub start: Position,
     pub end: Position,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     pub line: usize,
     pub column: usize,

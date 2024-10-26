@@ -1,6 +1,16 @@
-blocks = {
+blocks = { meta_block* }
+
+meta_block = _{
+    NEWLINE* ~
     (
         document_attribute |
+        block
+    )
+}
+
+block = {
+    (anchor | attribute_list | blocktitle)* ~
+    (
         section |
         delimited_block |
         image_block |
@@ -8,11 +18,10 @@ blocks = {
         page_break_block |
         list |
         paragraph
-    )*
+    )
 }
 
 section = {
-    (anchor | attribute_list | blocktitle)* ~
     section_header_start ~ section_title ~ NEWLINE{2} ~
     section_content*
 }
@@ -26,11 +35,7 @@ section_level_symbol = _{ ("=" | "#") }
 section_level = { section_level_symbol{1,6} }
 section_title = { ONE_CHAR* }
 
-// TODO(nlopes): can we have multiple anchor statements? What does that mean? Multiple IDs
-// or should I have an ID with multiple aliases/anchors?
-//
-// When working on anchors, check https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#add-additional-anchors-to-a-section
-image_block = { anchor* ~ image ~ NEWLINE ~ (NEWLINE+ | EOI) }
+image_block = { image ~ &NEWLINE }
 image = { "image::" ~ (url | path) ~ attrlist }
 
 //block_macro = { <name>"::" ~ target? ~ attrlist? }
@@ -43,19 +48,18 @@ thematic_break_block = @{
         "- - -" |
         "***" |
         "* * *"
-    ) ~ (NEWLINE+ | EOI)
+    ) ~ &NEWLINE+
 }
 
 page_break_block = {
-    attribute_list ~ page_break ~ NEWLINE*
+    page_break
 }
 
 page_break = _{ "<<<\n\n" }
 
 // Paragraphs
 paragraph = {
-    (anchor | attribute_list | blocktitle)* ~
-    admonition_node? ~ paragraph_inner ~ NEWLINE*
+    admonition_node? ~ paragraph_inner ~ &(NEWLINE+ | EOI)
 }
 
 paragraph_inner = {

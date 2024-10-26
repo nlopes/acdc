@@ -7,6 +7,7 @@
           "roles": [],
           "options": [],
           "style": null,
+          "anchors": [],
           "id": null
         },
         "attributes": [],
@@ -16,6 +17,14 @@
           {
             "UnorderedList": {
               "title": "Possible DefOps manual locations",
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
+              "attributes": [],
               "items": [
                 {
                   "level": 1,
@@ -55,8 +64,8 @@
               ],
               "location": {
                 "start": {
-                  "line": 4,
-                  "column": 1
+                  "line": 3,
+                  "column": 2
                 },
                 "end": {
                   "line": 9,
@@ -68,6 +77,14 @@
           {
             "OrderedList": {
               "title": null,
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
+              "attributes": [],
               "items": [
                 {
                   "level": 1,

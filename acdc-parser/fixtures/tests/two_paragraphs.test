@@ -3,8 +3,13 @@
   "content": [
     {
       "Paragraph": {
-        "options": [],
-        "roles": [],
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {
@@ -29,16 +34,21 @@
             "column": 1
           },
           "end": {
-            "line": 4,
-            "column": 1
+            "line": 2,
+            "column": 59
           }
         }
       }
     },
     {
       "Paragraph": {
-        "options": [],
-        "roles": [],
+        "metadata": {
+          "roles": [],
+          "options": [],
+          "style": null,
+          "anchors": [],
+          "id": null
+        },
         "attributes": [],
         "content": [
           {

@@ -7,6 +7,7 @@
           "roles": [],
           "options": [],
           "style": null,
+          "anchors": [],
           "id": null
         },
         "attributes": [],
@@ -15,8 +16,13 @@
         "content": [
           {
             "Paragraph": {
-              "options": [],
-              "roles": [],
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
               "attributes": [],
               "content": [
                 {
@@ -41,8 +47,8 @@
                   "column": 1
                 },
                 "end": {
-                  "line": 5,
-                  "column": 1
+                  "line": 3,
+                  "column": 28
                 }
               }
             }
@@ -52,10 +58,13 @@
               "inner": {
                 "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
               },
-              "options": [],
-              "roles": [],
-              "style": "source",
-              "anchor": null,
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": "source",
+                "anchors": [],
+                "id": null
+              },
               "title": null,
               "attributes": [
                 {
@@ -66,7 +75,7 @@
               "location": {
                 "start": {
                   "line": 5,
-                  "column": 1
+                  "column": 2
                 },
                 "end": {
                   "line": 10,
@@ -77,8 +86,13 @@
           },
           {
             "Paragraph": {
-              "options": [],
-              "roles": [],
+              "metadata": {
+                "roles": [],
+                "options": [],
+                "style": null,
+                "anchors": [],
+                "id": null
+              },
               "attributes": [],
               "content": [
                 {
