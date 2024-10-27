@@ -24,29 +24,29 @@
           {
             "PlainText": {
               "content": "A paragraph.",
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 2,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 3,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 2
+            "col": 2
           },
-          "end": {
+          {
             "line": 3,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

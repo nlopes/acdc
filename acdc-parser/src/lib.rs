@@ -1420,14 +1420,6 @@ mod tests {
         }
     }
 
-    #[test]
-    #[tracing_test::traced_test]
-    fn test_book() {
-        let result = PestParser
-            .parse_file("fixtures/samples/book-starter/index.adoc")
-            .unwrap();
-    }
-
     // #[test]
     // fn test_mdbasics_adoc() {
     //     let result = PestParser

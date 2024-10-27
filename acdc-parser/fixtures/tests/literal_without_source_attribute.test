@@ -20,16 +20,16 @@
             "value": "ruby"
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 2
+            "col": 2
           },
-          "end": {
+          {
             "line": 5,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

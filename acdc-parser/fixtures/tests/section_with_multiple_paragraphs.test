@@ -34,29 +34,29 @@
                 {
                   "PlainText": {
                     "content": "This is the content of section 1.",
-                    "location": {
-                      "start": {
+                    "location": [
+                      {
                         "line": 5,
-                        "column": 1
+                        "col": 1
                       },
-                      "end": {
+                      {
                         "line": 5,
-                        "column": 34
+                        "col": 34
                       }
-                    }
+                    ]
                   }
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 5,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 5,
-                  "column": 34
+                  "col": 34
                 }
-              }
+              ]
             }
           },
           {
@@ -73,42 +73,42 @@
                 {
                   "PlainText": {
                     "content": "And another paragraph with content.",
-                    "location": {
-                      "start": {
+                    "location": [
+                      {
                         "line": 7,
-                        "column": 1
+                        "col": 1
                       },
-                      "end": {
+                      {
                         "line": 8,
-                        "column": 1
+                        "col": 1
                       }
-                    }
+                    ]
                   }
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 7,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 8,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 3,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 5,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

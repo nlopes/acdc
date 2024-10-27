@@ -33,29 +33,29 @@
           {
             "PlainText": {
               "content": "This journey begins on a bleary Monday morning.",
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 5,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 6,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 5,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 6,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

@@ -62,16 +62,16 @@
                   ]
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 3,
-                  "column": 2
+                  "col": 2
                 },
-                "end": {
+                {
                   "line": 9,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           },
           {
@@ -129,29 +129,29 @@
                   ]
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 11,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 17,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 17,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

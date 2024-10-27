@@ -19,29 +19,29 @@
           {
             "PlainText": {
               "content": "This text is centered, so it must be important.",
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 2,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 3,
-                  "column": 1
+                  "col": 1
                 }
-                }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 3
+            "col": 3
           },
-          "end": {
+          {
             "line": 3,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

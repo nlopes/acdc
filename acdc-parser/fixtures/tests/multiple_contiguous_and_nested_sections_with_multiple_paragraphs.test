@@ -15,29 +15,29 @@
           {
             "PlainText": {
               "content": "Paragraph 1",
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 1,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 1,
-                  "column": 12
+                  "col": 12
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 1,
-            "column": 12
+            "col": 12
           }
-        }
+        ]
       }
     },
     {
@@ -80,29 +80,29 @@
                       {
                         "PlainText": {
                           "content": "Paragraph 2",
-                          "location": {
-                            "start": {
+                          "location": [
+                            {
                               "line": 7,
-                              "column": 1
+                              "col": 1
                             },
-                            "end": {
+                            {
                               "line": 7,
-                              "column": 12
+                              "col": 12
                             }
-                          }
+                          ]
                         }
                       }
                     ],
-                    "location": {
-                      "start": {
+                    "location": [
+                      {
                         "line": 7,
-                        "column": 1
+                        "col": 1
                       },
-                      "end": {
+                      {
                         "line": 7,
-                        "column": 12
+                        "col": 12
                       }
-                    }
+                    ]
                   }
                 },
                 {
@@ -132,29 +132,29 @@
                             {
                               "PlainText": {
                                 "content": "Paragraph 3",
-                                "location": {
-                                  "start": {
+                                "location": [
+                                  {
                                     "line": 11,
-                                    "column": 1
+                                    "col": 1
                                   },
-                                  "end": {
+                                  {
                                     "line": 11,
-                                    "column": 12
+                                    "col": 12
                                   }
-                                }
+                                ]
                               }
                             }
                           ],
-                          "location": {
-                            "start": {
+                          "location": [
+                            {
                               "line": 11,
-                              "column": 1
+                              "col": 1
                             },
-                            "end": {
+                            {
                               "line": 11,
-                              "column": 12
+                              "col": 12
                             }
-                          }
+                          ]
                         }
                       },
                       {
@@ -171,29 +171,29 @@
                             {
                               "PlainText": {
                                 "content": "Paragraph 4",
-                                "location": {
-                                  "start": {
+                                "location": [
+                                  {
                                     "line": 13,
-                                    "column": 1
+                                    "col": 1
                                   },
-                                  "end": {
+                                  {
                                     "line": 13,
-                                    "column": 12
+                                    "col": 12
                                   }
-                                }
+                                ]
                               }
                             }
                           ],
-                          "location": {
-                            "start": {
+                          "location": [
+                            {
                               "line": 13,
-                              "column": 1
+                              "col": 1
                             },
-                            "end": {
+                            {
                               "line": 13,
-                              "column": 12
+                              "col": 12
                             }
-                          }
+                          ]
                         }
                       },
                       {
@@ -223,81 +223,81 @@
                                   {
                                     "PlainText": {
                                       "content": "Something here",
-                                      "location": {
-                                        "start": {
+                                      "location": [
+                                        {
                                           "line": 17,
-                                          "column": 1
+                                          "col": 1
                                         },
-                                        "end": {
+                                        {
                                           "line": 18,
-                                          "column": 1
+                                          "col": 1
                                         }
-                                      }
+                                      ]
                                     }
                                   }
                                 ],
-                                "location": {
-                                  "start": {
+                                "location": [
+                                  {
                                     "line": 17,
-                                    "column": 1
+                                    "col": 1
                                   },
-                                  "end": {
+                                  {
                                     "line": 18,
-                                    "column": 1
+                                    "col": 1
                                   }
-                                }
+                                ]
                               }
                             }
                           ],
-                          "location": {
-                            "start": {
+                          "location": [
+                            {
                               "line": 15,
-                              "column": 1
+                              "col": 1
                             },
-                            "end": {
+                            {
                               "line": 17,
-                              "column": 1
+                              "col": 1
                             }
-                          }
+                          ]
                         }
                       }
                     ],
-                    "location": {
-                      "start": {
+                    "location": [
+                      {
                         "line": 9,
-                        "column": 1
+                        "col": 1
                       },
-                      "end": {
+                      {
                         "line": 18,
-                        "column": 1
+                        "col": 1
                       }
-                    }
+                    ]
                   }
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 5,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 17,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 3,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 18,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

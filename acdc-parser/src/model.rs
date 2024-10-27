@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use serde::{Deserialize, Serialize};
+use serde::{
+    ser::{SerializeSeq, Serializer},
+    Deserialize, Serialize,
+};
 
 use crate::Error;
 
@@ -380,15 +383,33 @@ pub struct Section {
     pub location: Location,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize)]
 pub struct Location {
     pub start: Position,
     pub end: Position,
 }
 
+// We need to implement `Serialize` because I prefer our current `Location` struct to the
+// `asciidoc` `ASG` definition.
+//
+// We serialize `Location` into the ASG format, which is a sequence of two elements: the
+// start and end positions as an array.
+impl Serialize for Location {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_seq(Some(2))?;
+        state.serialize_element(&self.start)?;
+        state.serialize_element(&self.end)?;
+        state.end()
+    }
+}
+
 #[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     pub line: usize,
+    #[serde(rename = "col")]
     pub column: usize,
 }
 

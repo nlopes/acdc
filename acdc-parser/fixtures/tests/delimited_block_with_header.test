@@ -20,16 +20,16 @@
             "value": "yaml"
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 2
+            "col": 2
           },
-          "end": {
+          {
             "line": 7,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

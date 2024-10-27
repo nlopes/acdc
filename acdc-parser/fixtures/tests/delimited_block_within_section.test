@@ -28,29 +28,29 @@
                 {
                   "PlainText": {
                     "content": "Something is up. Let's see.",
-                    "location": {
-                      "start": {
+                    "location": [
+                      {
                         "line": 3,
-                        "column": 1
+                        "col": 1
                       },
-                      "end": {
+                      {
                         "line": 3,
-                        "column": 28
+                        "col": 28
                       }
-                    }
+                    ]
                   }
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 3,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 3,
-                  "column": 28
+                  "col": 28
                 }
-              }
+              ]
             }
           },
           {
@@ -72,16 +72,16 @@
                   "value": "yaml"
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 5,
-                  "column": 2
+                  "col": 2
                 },
-                "end": {
+                {
                   "line": 10,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           },
           {
@@ -98,42 +98,42 @@
                 {
                   "PlainText": {
                     "content": "And that's it.",
-                    "location": {
-                      "start": {
+                    "location": [
+                      {
                         "line": 11,
-                        "column": 1
+                        "col": 1
                       },
-                      "end": {
+                      {
                         "line": 12,
-                        "column": 1
+                        "col": 1
                       }
-                    }
+                    ]
                   }
                 }
               ],
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 11,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 12,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 10,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

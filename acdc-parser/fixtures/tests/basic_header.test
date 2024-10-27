@@ -51,28 +51,28 @@
           {
             "PlainText": {
               "content": "The document body starts here.",
-                "location": {
-                    "start": {
+                "location": [
+                    {
                     "line": 10,
-                    "column": 1
+                    "col": 1
                     },
-                    "end": {
+                    {
                     "line": 11,
-                    "column": 1
+                    "col": 1
                     }
-                }
+                ]
             }
           }],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 10,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 11,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

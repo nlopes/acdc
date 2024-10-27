@@ -15,44 +15,44 @@
           {
             "PlainText": {
               "content": "A paragraph",
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 1,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 1,
-                  "column": 12
+                  "col": 12
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 1,
-            "column": 12
+            "col": 12
           }
-        }
+        ]
       }
     },
     {
       "ThematicBreak": {
         "anchors": [],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 3,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 3,
-            "column": 4
+            "col": 4
           }
-        }
+        ]
       }
     },
     {
@@ -69,29 +69,29 @@
           {
             "PlainText": {
               "content": "Another paragraph",
-                "location": {
-                    "start": {
+                "location": [
+                    {
                     "line": 5,
-                    "column": 1
+                    "col": 1
                     },
-                    "end": {
+                    {
                     "line": 6,
-                    "column": 1
+                    "col": 1
                     }
-                }
+                ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 5,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 6,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]

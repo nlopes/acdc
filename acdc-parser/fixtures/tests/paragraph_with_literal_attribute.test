@@ -15,29 +15,29 @@
           {
             "PlainText": {
               "content": "error: 1954 Forbidden search\nabsolutely fatal: operation lost in the dodecahedron of doom\nWould you like to try again? y/n",
-              "location": {
-                "start": {
+              "location": [
+                {
                   "line": 1,
-                  "column": 1
+                  "col": 1
                 },
-                "end": {
+                {
                   "line": 4,
-                  "column": 1
+                  "col": 1
                 }
-              }
+              ]
             }
           }
         ],
-        "location": {
-          "start": {
+        "location": [
+          {
             "line": 1,
-            "column": 1
+            "col": 1
           },
-          "end": {
+          {
             "line": 4,
-            "column": 1
+            "col": 1
           }
-        }
+        ]
       }
     }
   ]
