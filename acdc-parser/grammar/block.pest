@@ -76,9 +76,14 @@ bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ POP }
 inline_line_break = { " +" ~ NEWLINE }
 
 non_plain_text = _{
+    footnote |
     inline_line_break |
     bold_text
 }
+
+footnote = { "footnote:" ~ footnote_id? ~ "[" ~ footnote_text? ~ "]" }
+footnote_id = { (!"[" ~ ANY)+ }
+footnote_text = { (!"]" ~ ANY)+ }
 
 admonition = !{
     (
