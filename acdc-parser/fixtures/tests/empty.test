@@ -1,4 +1,6 @@
 {
+  "name": "document",
+  "type": "block",
   "header": null,
-  "content": []
+  "blocks": []
 }

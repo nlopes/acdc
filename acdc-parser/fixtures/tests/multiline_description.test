@@ -1,4 +1,6 @@
 {
+  "name": "document",
+  "type": "block",
   "header": {
     "title": {
       "name": "text",
@@ -24,7 +26,7 @@
     ],
     "location": [{ "line": 1, "col": 1 }, { "line": 3, "col": 167 }]
   },
-  "content": [
+  "blocks": [
     {
       "Paragraph": {
         "metadata": {

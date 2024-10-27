@@ -1,4 +1,6 @@
 {
+  "name": "document",
+  "type": "block",
   "header": {
     "title": {
       "name": "text",
@@ -12,7 +14,7 @@
     "attributes": [],
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
   },
-  "content": [
+  "blocks": [
     {
       "Section": {
         "metadata": {

@@ -9,8 +9,10 @@ use crate::Error;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Document {
+    pub name: String,
+    pub r#type: String,
     pub header: Option<Header>,
-    pub content: Vec<Block>,
+    pub blocks: Vec<Block>,
 }
 
 type Subtitle = String;

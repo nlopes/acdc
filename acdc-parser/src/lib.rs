@@ -65,7 +65,7 @@ impl crate::model::Parser for PestParser {
 impl Document {
     fn parse(pairs: Pairs<Rule>) -> Result<Self, Error> {
         let mut document_header = None;
-        let mut content = Vec::new();
+        let mut blocks = Vec::new();
 
         for pair in pairs {
             match pair.as_rule() {
@@ -73,19 +73,21 @@ impl Document {
                     document_header = Some(parse_document_header(pair.into_inner()));
                 }
                 Rule::blocks => {
-                    content.extend(parse_blocks(pair.into_inner())?);
+                    blocks.extend(parse_blocks(pair.into_inner())?);
                 }
                 Rule::comment | Rule::EOI => {}
                 unknown => unimplemented!("{:?}", unknown),
             }
         }
 
-        build_section_tree(&mut content)?;
-        validate_section_block_level(&content, None)?;
+        build_section_tree(&mut blocks)?;
+        validate_section_block_level(&blocks, None)?;
 
         Ok(Self {
+            name: "document".to_string(),
+            r#type: "block".to_string(),
             header: document_header,
-            content,
+            blocks,
         })
     }
 }
@@ -289,17 +291,11 @@ fn parse_document_header(pairs: Pairs<Rule>) -> Header {
                 column: pair.as_span().start_pos().line_col().1,
             };
         }
-        let rule = pair.as_rule();
-        if rule != Rule::EOI {
-            dbg!(rule);
-
-            location.end = Position {
-                line: pair.as_span().end_pos().line_col().0,
-                column: pair.as_span().end_pos().line_col().1,
-            };
-            dbg!(&location.end);
-        }
-        match rule {
+        location.end = Position {
+            line: pair.as_span().end_pos().line_col().0,
+            column: pair.as_span().end_pos().line_col().1,
+        };
+        match pair.as_rule() {
             Rule::document_title_token => {
                 for inner_pair in pair.into_inner() {
                     match inner_pair.as_rule() {
