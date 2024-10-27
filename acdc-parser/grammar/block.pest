@@ -38,8 +38,6 @@ section_title = { ONE_CHAR* }
 image_block = { image ~ &NEWLINE }
 image = { "image::" ~ (url | path) ~ attrlist }
 
-//block_macro = { <name>"::" ~ target? ~ attrlist? }
-
 thematic_break_block = @{
     (
         "'''" |
