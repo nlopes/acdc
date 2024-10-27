@@ -48,6 +48,9 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 * [*] Titles
 * [*] Footnotes
 * [*] Includes
+** *Advanced*
+** [*] Offsets
+** [ ] Tagged regions
 * [ ] Conditionals
 ** [*] ifdef
 ** [*] ifndef
