@@ -14,6 +14,8 @@ block = {
         section |
         delimited_block |
         image_block |
+        audio_block |
+        video_block |
         thematic_break_block |
         page_break_block |
         list |
@@ -37,6 +39,12 @@ section_title = { ONE_CHAR* }
 
 image_block = { image ~ &NEWLINE }
 image = { "image::" ~ (url | path) ~ attrlist }
+
+audio_block = { audio ~ &NEWLINE }
+audio = { "audio::" ~ (url | path) ~ attrlist }
+
+video_block = { video ~ &NEWLINE }
+video = { "video::" ~ (url | path) ~ ("," ~ (url | path))* ~ attrlist }
 
 thematic_break_block = @{
     (

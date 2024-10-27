@@ -16,11 +16,11 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Anchor, AttributeEntry, Author, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, Header, Image, ImageSource, InlineNode, ListItem, Location, OrderedList,
-    PageBreak, Paragraph, Parser, PlainText, Position, Revision, Section, ThematicBreak,
-    UnorderedList,
+    Anchor, AttributeEntry, AudioSource, Author, Block, BlockMetadata, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DescriptionListDescription, DescriptionListItem,
+    DiscreteHeader, Document, DocumentAttribute, Header, Image, ImageSource, InlineNode, ListItem,
+    Location, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position, Revision, Section,
+    ThematicBreak, UnorderedList, VideoSource,
 };
 
 #[derive(Debug)]
@@ -423,6 +423,12 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
             Rule::image_block => {
                 block = parse_image_block(pair.into_inner(), &mut metadata, &mut attributes);
             }
+            Rule::audio_block => {
+                block = parse_audio_block(pair.into_inner(), &mut metadata, &mut attributes);
+            }
+            Rule::video_block => {
+                block = parse_video_block(pair.into_inner(), &mut metadata, &mut attributes);
+            }
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::role => metadata.roles.push(pair.as_str().to_string()),
             Rule::empty_style => {
@@ -527,6 +533,98 @@ fn parse_blocks(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     Ok(blocks)
 }
 
+fn parse_video_block(
+    pairs: Pairs<Rule>,
+    metadata: &mut BlockMetadata,
+    attributes: &mut Vec<AttributeEntry>,
+) -> Block {
+    let mut sources = vec![];
+    let mut attribute_idx = 0;
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::video => {
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::path => sources.push(VideoSource::Path(pair.as_str().to_string())),
+                        Rule::url => sources.push(VideoSource::Url(pair.as_str().to_string())),
+                        Rule::named_attribute => {
+                            parse_named_attribute(pair.into_inner(), attributes, metadata);
+                        }
+                        Rule::positional_attribute_value => {
+                            let name = pair.as_str().to_string();
+                            if attribute_idx == 0 {
+                                attributes.push(AttributeEntry {
+                                    name: Some(name),
+                                    value: None,
+                                });
+                            } else {
+                                tracing::warn!(
+                                    ?name,
+                                    "unexpected positional attribute in video block"
+                                );
+                            }
+                            attribute_idx += 1;
+                        }
+                        Rule::EOI | Rule::comment => {}
+                        unknown => unreachable!("{unknown:?}"),
+                    }
+                }
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    Block::Video(model::Video {
+        location: Location::default(),
+        title: None,
+        sources,
+        metadata: metadata.clone(),
+        attributes: attributes.clone(),
+    })
+}
+
+fn parse_audio_block(
+    pairs: Pairs<Rule>,
+    metadata: &mut BlockMetadata,
+    attributes: &mut Vec<AttributeEntry>,
+) -> Block {
+    let mut source = AudioSource::Path(String::new());
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::audio => {
+                for pair in pair.into_inner() {
+                    match pair.as_rule() {
+                        Rule::path => source = AudioSource::Path(pair.as_str().to_string()),
+                        Rule::url => source = AudioSource::Url(pair.as_str().to_string()),
+                        Rule::named_attribute => {
+                            parse_named_attribute(pair.into_inner(), attributes, metadata);
+                        }
+                        Rule::positional_attribute_value => {
+                            tracing::warn!(
+                                name = pair.as_str(),
+                                "unexpected positional attribute in audio block"
+                            );
+                        }
+                        Rule::EOI | Rule::comment => {}
+                        unknown => unreachable!("{unknown:?}"),
+                    }
+                }
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    Block::Audio(model::Audio {
+        location: Location::default(),
+        title: None,
+        source,
+        metadata: metadata.clone(),
+        attributes: attributes.clone(),
+    })
+}
+
 fn parse_image_block(
     pairs: Pairs<Rule>,
     metadata: &mut BlockMetadata,
@@ -539,7 +637,6 @@ fn parse_image_block(
         match pair.as_rule() {
             Rule::anchor => {
                 tracing::error!("unexpected anchor in image block");
-                //parse_metadata_anchor(pair.into_inner(), &mut metadata)
                 let anchor = parse_anchor(pair.into_inner());
                 metadata.anchors.push(anchor);
             }
@@ -1330,37 +1427,6 @@ mod tests {
             .parse_file("fixtures/samples/book-starter/index.adoc")
             .unwrap();
     }
-
-    // #[test]
-    // #[tracing_test::traced_test]
-    // fn test_sample1() {
-    //     let result = PestParser
-    //         .parse_file("fixtures/samples/sample1/index.adoc")
-    //         .unwrap();
-    //     dbg!(&result);
-    //     panic!()
-    // }
-
-    // #[test]
-    // fn test_stuff() {
-    //     let result = PestParser.parse("NOTE: This is a note.").unwrap();
-    //     dbg!(&result);
-    //     panic!()
-    // }
-
-    //     #[test]
-    //     fn test_blah() {
-    //         let result = PestParser
-    //             .parse(
-    //                 "[[cpu,CPU]]Central Processing Unit (CPU)::
-    // The brain of the computer.
-
-    // [[hard-drive]]Hard drive::
-    // Permanent storage for operating system and/or user files.",
-    //             )
-    //             .unwrap();
-    //         panic!()
-    //     }
 
     // #[test]
     // fn test_mdbasics_adoc() {

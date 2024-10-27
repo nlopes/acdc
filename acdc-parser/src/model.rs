@@ -73,6 +73,8 @@ pub enum Block {
     DelimitedBlock(DelimitedBlock),
     Paragraph(Paragraph),
     Image(Image),
+    Audio(Audio),
+    Video(Video),
 }
 
 impl BlockExt for Block {
@@ -89,6 +91,8 @@ impl BlockExt for Block {
             Block::DelimitedBlock(delimited_block) => delimited_block.metadata = metadata,
             Block::Paragraph(paragraph) => paragraph.metadata = metadata,
             Block::Image(image) => image.metadata = metadata,
+            Block::Audio(audio) => audio.metadata = metadata,
+            Block::Video(video) => video.metadata = metadata,
         }
     }
 
@@ -105,6 +109,8 @@ impl BlockExt for Block {
             Block::DelimitedBlock(delimited_block) => delimited_block.attributes = attributes,
             Block::Paragraph(paragraph) => paragraph.attributes = attributes,
             Block::Image(image) => image.attributes = attributes,
+            Block::Audio(audio) => audio.attributes = attributes,
+            Block::Video(video) => video.attributes = attributes,
         }
     }
 
@@ -121,6 +127,8 @@ impl BlockExt for Block {
             Block::DelimitedBlock(delimited_block) => delimited_block.metadata.anchors = anchors,
             Block::Paragraph(paragraph) => paragraph.metadata.anchors = anchors,
             Block::Image(image) => image.metadata.anchors = anchors,
+            Block::Audio(audio) => audio.metadata.anchors = anchors,
+            Block::Video(video) => video.metadata.anchors = anchors,
         }
     }
 
@@ -137,6 +145,8 @@ impl BlockExt for Block {
             Block::DelimitedBlock(delimited_block) => delimited_block.title = Some(title),
             Block::Paragraph(paragraph) => paragraph.title = Some(title),
             Block::Image(image) => image.title = Some(title),
+            Block::Audio(audio) => audio.title = Some(title),
+            Block::Video(video) => video.title = Some(title),
         }
     }
 
@@ -154,6 +164,8 @@ impl BlockExt for Block {
             Block::DelimitedBlock(delimited_block) => delimited_block.location = location,
             Block::Paragraph(paragraph) => paragraph.location = location,
             Block::Image(image) => image.location = location,
+            Block::Audio(audio) => audio.location = location,
+            Block::Video(video) => video.location = location,
         }
     }
 }
@@ -180,6 +192,8 @@ impl std::fmt::Display for Block {
             Block::DelimitedBlock(_) => write!(f, "DelimitedBlock"),
             Block::Paragraph(_) => write!(f, "Paragraph"),
             Block::Image(_) => write!(f, "Image"),
+            Block::Audio(_) => write!(f, "Audio"),
+            Block::Video(_) => write!(f, "Video"),
         }
     }
 }
@@ -228,12 +242,42 @@ pub struct PageBreak {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Audio {
+    pub title: Option<String>,
+    pub source: AudioSource,
+    pub metadata: BlockMetadata,
+    pub attributes: Vec<AttributeEntry>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Video {
+    pub title: Option<String>,
+    pub sources: Vec<VideoSource>,
+    pub metadata: BlockMetadata,
+    pub attributes: Vec<AttributeEntry>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Image {
     pub title: Option<String>,
     pub source: ImageSource,
     pub metadata: BlockMetadata,
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum AudioSource {
+    Path(String),
+    Url(String),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum VideoSource {
+    Path(String),
+    Url(String),
 }
 
 // TODO(nlopes): this should use instead
