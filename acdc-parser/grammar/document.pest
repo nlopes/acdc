@@ -1,15 +1,15 @@
 document_header = {
-  document_attribute* ~
-  (document_title_token ~ author_revision)? ~
-  (document_attribute | comment)*
+  (document_attribute ~ NEWLINE)* ~
+  (document_title_token ~ NEWLINE ~ author_revision)? ~
+  ((document_attribute ~ NEWLINE) | comment)*
 }
 
-document_attribute = { document_attribute_entry }
+document_attribute = { document_attribute_entry ~ &NEWLINE }
 
 // TODO(nlopes): I'd love to capture subtitle here but it's a lot trickier to find the
 // last colon and capture everything up to it as the title and everything after it as the
 // subtitle. So I'm just going to ignore it for now and instead do it in the parser.
-document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ NEWLINE }
+document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ &NEWLINE }
 document_title = !{ ONE_CHAR+ }
 
 document_attribute_entry = _{
@@ -21,16 +21,16 @@ document_attribute_entry = _{
     ) ~
     ":" ~
     (SPACE ~ document_attribute_value)? ~
-    NEWLINE
+    &NEWLINE
 }
 document_attribute_value = !{ ONE_CHAR* }
 
 unset = { "!" }
 author_revision = _{
-  (author_line ~ revision_line?)?
+  (author_line ~ NEWLINE ~ (revision_line ~ NEWLINE)?)?
 }
 
-author_line = _{ author ~ ("; " ~ author)* ~ NEWLINE }
+author_line = _{ author ~ ("; " ~ author)* ~ &NEWLINE }
 
 author = {
     (author_first_name ~ optional_author_middle_name ~ author_last_name_token ~ optional_author_email) |
@@ -58,7 +58,7 @@ revision_line = {
   revision_number ~
   optional_revision_date ~
   optional_revision_remark ~
-  NEWLINE
+  &NEWLINE
 }
 
 revision_number = { "v"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }

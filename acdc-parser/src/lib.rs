@@ -20,7 +20,7 @@ pub use model::{
     DelimitedBlockType, DescriptionList, DescriptionListDescription, DescriptionListItem,
     DiscreteHeader, Document, DocumentAttribute, Header, Image, ImageSource, InlineNode, ListItem,
     Location, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position, Revision, Section,
-    ThematicBreak, UnorderedList, VideoSource,
+    ThematicBreak, Title, UnorderedList, VideoSource,
 };
 
 #[derive(Debug)]
@@ -277,25 +277,57 @@ fn parse_document_header(pairs: Pairs<Rule>) -> Header {
     let mut revision = None;
     let mut attributes = Vec::new();
 
-    for pair in pairs {
-        match pair.as_rule() {
+    let mut location = Location {
+        start: Position { line: 0, column: 0 },
+        end: Position { line: 0, column: 0 },
+    };
+
+    for (i, pair) in pairs.enumerate() {
+        if i == 0 {
+            location.start = Position {
+                line: pair.as_span().start_pos().line_col().0,
+                column: pair.as_span().start_pos().line_col().1,
+            };
+        }
+        let rule = pair.as_rule();
+        if rule != Rule::EOI {
+            dbg!(rule);
+
+            location.end = Position {
+                line: pair.as_span().end_pos().line_col().0,
+                column: pair.as_span().end_pos().line_col().1,
+            };
+            dbg!(&location.end);
+        }
+        match rule {
             Rule::document_title_token => {
                 for inner_pair in pair.into_inner() {
                     match inner_pair.as_rule() {
                         Rule::document_title => {
-                            title = Some(inner_pair.as_str().to_string());
+                            let mut title_content = inner_pair.as_str().to_string();
                             // find the subtitle by looking for the last colon in title
                             // andsetting title to everything before the last colon and
                             // subtitle to everything after the last colon
-                            if let Some(colon_index) = title.as_ref().unwrap().rfind(':') {
-                                subtitle = Some(
-                                    title.as_ref().unwrap()[colon_index + 1..]
-                                        .trim()
-                                        .to_string(),
-                                );
-                                title =
-                                    Some(title.as_ref().unwrap()[..colon_index].trim().to_string());
+                            if let Some(colon_index) = title_content.rfind(':') {
+                                subtitle =
+                                    Some(title_content[colon_index + 1..].trim().to_string());
+                                title_content = title_content[..colon_index].trim().to_string();
                             }
+                            title = Some(Title {
+                                name: "text".to_string(),
+                                r#type: "string".to_string(),
+                                title: title_content.clone(),
+                                location: Location {
+                                    start: Position {
+                                        line: inner_pair.as_span().start_pos().line_col().0,
+                                        column: inner_pair.as_span().start_pos().line_col().1,
+                                    },
+                                    end: Position {
+                                        line: inner_pair.as_span().end_pos().line_col().0,
+                                        column: inner_pair.as_span().end_pos().line_col().1,
+                                    },
+                                },
+                            });
                         }
                         unknown => unreachable!("{:?}", unknown),
                     }
@@ -347,6 +379,7 @@ fn parse_document_header(pairs: Pairs<Rule>) -> Header {
         authors,
         revision,
         attributes,
+        location,
     }
 }
 

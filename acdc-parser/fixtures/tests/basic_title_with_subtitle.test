@@ -1,10 +1,16 @@
 {
   "header": {
-    "title": "Document Title",
+    "title": {
+      "name": "text",
+      "type": "string",
+      "value": "Document Title",
+      "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 39 }]
+    },
     "subtitle": "this is the subtitle",
     "authors": [],
     "revision": null,
-    "attributes": []
+    "attributes": [],
+    "location": [{ "line": 3, "col": 1 }, { "line": 3, "col": 39 }]
   },
   "content": [
     {

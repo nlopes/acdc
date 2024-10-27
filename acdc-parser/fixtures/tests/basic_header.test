@@ -1,6 +1,11 @@
 {
   "header": {
-    "title": "Document Title",
+    "title": {
+      "name": "text",
+      "type": "string",
+      "value": "Document Title",
+      "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 17 }]
+    },
     "subtitle": null,
     "authors": [
       {
@@ -34,7 +39,8 @@
         "name": "url-repo",
         "value": "https://my-git-repo.com"
       }
-    ]
+    ],
+    "location": [{ "line": 3, "col": 1 }, { "line": 8, "col": 35 }]
   },
   "content": [
     {

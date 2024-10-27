@@ -13,8 +13,16 @@ pub struct Document {
     pub content: Vec<Block>,
 }
 
-type Title = String;
 type Subtitle = String;
+
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Title {
+    pub name: String,
+    pub r#type: String,
+    #[serde(rename = "value")]
+    pub title: String,
+    pub location: Location,
+}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Header {
@@ -23,6 +31,7 @@ pub struct Header {
     pub authors: Vec<Author>,
     pub revision: Option<Revision>,
     pub attributes: Vec<AttributeEntry>,
+    pub location: Location,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

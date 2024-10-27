@@ -1,6 +1,11 @@
 {
   "header": {
-    "title": "The Intrepid Chronicles",
+    "title": {
+      "name": "text",
+      "type": "string",
+      "value": "The Intrepid Chronicles",
+      "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 26 }]
+    },
     "subtitle": null,
     "authors": [
       {
@@ -16,7 +21,8 @@
         "name": "description",
         "value": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
       }
-    ]
+    ],
+    "location": [{ "line": 1, "col": 1 }, { "line": 3, "col": 167 }]
   },
   "content": [
     {
