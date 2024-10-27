@@ -67,7 +67,22 @@ impl Document {
         let mut document_header = None;
         let mut blocks = Vec::new();
 
-        for pair in pairs {
+        let mut location = Location {
+            start: Position { line: 0, column: 0 },
+            end: Position { line: 0, column: 0 },
+        };
+
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.start = Position {
+                    line: pair.as_span().start_pos().line_col().0,
+                    column: pair.as_span().start_pos().line_col().1,
+                };
+            }
+            location.end = Position {
+                line: pair.as_span().end_pos().line_col().0,
+                column: pair.as_span().end_pos().line_col().1,
+            };
             match pair.as_rule() {
                 Rule::document_header => {
                     document_header = Some(parse_document_header(pair.into_inner()));
@@ -88,6 +103,7 @@ impl Document {
             r#type: "block".to_string(),
             header: document_header,
             blocks,
+            location,
         })
     }
 }

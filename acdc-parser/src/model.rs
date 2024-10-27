@@ -13,6 +13,7 @@ pub struct Document {
     pub r#type: String,
     pub header: Option<Header>,
     pub blocks: Vec<Block>,
+    pub location: Location,
 }
 
 type Subtitle = String;
