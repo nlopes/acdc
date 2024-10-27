@@ -19,36 +19,36 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 - [*] Document Headers
 - [*] Section
 - [*] Delimited Block
-  - [*] Comment
-  - [*] Example
-  - [*] Listing
-  - [*] Literal
-  - [*] Open
-  - [*] Sidebar
-  - [*] Table
-  - [*] Pass
-  - [*] Quote
+-- [*] Comment
+-- [*] Example
+-- [*] Listing
+-- [*] Literal
+-- [*] Open
+-- [*] Sidebar
+-- [*] Table
+-- [*] Pass
+-- [*] Quote
 - [*] Paragraph
-  - [*] Bold
-  - [] Italic
-  - [] Monospace
-  - [] Literal Monospacae
-  - [] Highlight
-  - [] Subscript / Superscript
+-- [*] Bold
+-- [ ] Italic
+-- [ ] Monospace
+-- [ ] Literal Monospacae
+-- [ ] Highlight
+-- [ ] Subscript / Superscript
 - [*] Image
 - [*] Lists
-  - [*] Ordered
-  - [*] Unordered
+-- [*] Ordered
+-- [*] Unordered
 - [*] Thematic Break
 - [*] Page Break
-- [] Tables
+- [ ] Tables
 - [*] Admonition
 - [*] Anchors
 - [*] Attributes
 - [*] Titles
 - [*] Footnotes
 - [*] Includes
-- [] Conditionals
-  - [*] ifdef
-  - [*] ifndef
-  - [] ifeval
+- [ ] Conditionals
+-- [*] ifdef
+-- [*] ifndef
+-- [ ] ifeval
