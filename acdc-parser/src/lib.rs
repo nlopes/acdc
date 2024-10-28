@@ -16,11 +16,11 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Anchor, AttributeEntry, AudioSource, Author, Block, BlockMetadata, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DescriptionListDescription, DescriptionListItem,
-    DiscreteHeader, Document, DocumentAttribute, Header, Image, ImageSource, InlineNode, ListItem,
-    Location, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position, Revision, Section,
-    ThematicBreak, Title, UnorderedList, VideoSource,
+    Anchor, AttributeEntry, AttributeName, AttributeValue, AudioSource, Author, Block,
+    BlockMetadata, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
+    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Image, ImageSource,
+    InlineNode, ListItem, Location, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position,
+    Revision, Section, ThematicBreak, Title, UnorderedList, VideoSource,
 };
 
 #[derive(Debug)]
@@ -65,6 +65,7 @@ impl crate::model::Parser for PestParser {
 impl Document {
     fn parse(pairs: Pairs<Rule>) -> Result<Self, Error> {
         let mut document_header = None;
+        let mut attributes = HashMap::new();
         let mut blocks = Vec::new();
 
         let mut location = Location {
@@ -85,7 +86,8 @@ impl Document {
             };
             match pair.as_rule() {
                 Rule::document_header => {
-                    document_header = Some(parse_document_header(pair.into_inner()));
+                    document_header =
+                        Some(parse_document_header(pair.into_inner(), &mut attributes));
                 }
                 Rule::blocks => {
                     blocks.extend(parse_blocks(pair.into_inner())?);
@@ -102,6 +104,7 @@ impl Document {
             name: "document".to_string(),
             r#type: "block".to_string(),
             header: document_header,
+            attributes,
             blocks,
             location,
         })
@@ -288,12 +291,15 @@ fn section_tree_move(kept_layers: &mut Vec<Block>, i: usize) -> Result<(), Error
     }
     Ok(())
 }
-fn parse_document_header(pairs: Pairs<Rule>) -> Header {
+
+fn parse_document_header(
+    pairs: Pairs<Rule>,
+    attributes: &mut HashMap<AttributeName, AttributeValue>,
+) -> Header {
     let mut title = None;
     let mut subtitle = None;
     let mut authors = Vec::new();
     let mut revision = None;
-    let mut attributes = Vec::new();
 
     let mut location = Location {
         start: Position { line: 0, column: 0 },
@@ -376,10 +382,8 @@ fn parse_document_header(pairs: Pairs<Rule>) -> Header {
                 });
             }
             Rule::document_attribute => {
-                let mut inner_pairs = pair.into_inner();
-                let name = inner_pairs.next().map(|p| p.as_str().to_string());
-                let value = inner_pairs.next().map(|p| p.as_str().to_string());
-                attributes.push(AttributeEntry { name, value });
+                let (name, value) = parse_document_attribute(pair.into_inner());
+                attributes.insert(name, value);
             }
             unknown => unreachable!("{:?}", unknown),
         }
@@ -390,8 +394,43 @@ fn parse_document_header(pairs: Pairs<Rule>) -> Header {
         subtitle,
         authors,
         revision,
-        attributes,
         location,
+    }
+}
+
+fn parse_document_attribute(
+    pairs: Pairs<Rule>,
+    //attributes: &mut HashMap<AttributeName, AttributeValue>,
+) -> (AttributeName, AttributeValue) {
+    let mut unset = false;
+    let mut name = "";
+    let mut value = None;
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::attribute_name => {
+                name = pair.as_str();
+            }
+            Rule::unset => {
+                unset = true;
+            }
+            Rule::document_attribute_value => {
+                value = Some(pair.as_str().to_string());
+            }
+            unknown => {
+                tracing::warn!(?unknown, "unknown rule in header attribute");
+            }
+        }
+    }
+    if unset {
+        (name.to_string(), AttributeValue::Bool(false))
+        //attributes.insert(name.to_string(), AttributeValue::Bool(false));
+    } else if let Some(value) = value {
+        (name.to_string(), AttributeValue::String(value))
+        //attributes.insert(name.to_string(), AttributeValue::String(value));
+    } else {
+        (name.to_string(), AttributeValue::Bool(true))
+        //attributes.insert(name.to_string(), AttributeValue::Bool(true));
     }
 }
 
@@ -548,13 +587,7 @@ fn parse_blocks(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
                 blocks.push(parse_block(pair.into_inner())?);
             }
             Rule::document_attribute => {
-                let mut inner_pairs = pair.clone().into_inner();
-                let name = inner_pairs
-                    .next()
-                    .map(|p| p.as_str().to_string())
-                    .unwrap_or_default(); // TODO(nlopes): this will probably end up
-                                          // causing a bug
-                let value = inner_pairs.next().map(|p| p.as_str().to_string());
+                let (name, value) = parse_document_attribute(pair.clone().into_inner());
                 let attribute = DocumentAttribute {
                     name,
                     value,
@@ -569,6 +602,27 @@ fn parse_blocks(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
                         },
                     },
                 };
+                // let mut inner_pairs = pair.clone().into_inner();
+                // let name = inner_pairs
+                //     .next()
+                //     .map(|p| p.as_str().to_string())
+                //     .unwrap_or_default(); // TODO(nlopes): this will probably end up
+                //                           // causing a bug
+                // let value = inner_pairs.next().map(|p| p.as_str().to_string());
+                // let attribute = DocumentAttribute {
+                //     name,
+                //     value,
+                //     location: Location {
+                //         start: Position {
+                //             line: pair.as_span().start_pos().line_col().0,
+                //             column: pair.as_span().start_pos().line_col().1,
+                //         },
+                //         end: Position {
+                //             line: pair.as_span().end_pos().line_col().0,
+                //             column: pair.as_span().end_pos().line_col().1,
+                //         },
+                //     },
+                // };
                 blocks.push(Block::DocumentAttribute(attribute));
             }
             Rule::EOI | Rule::comment => {}

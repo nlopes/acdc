@@ -1,7 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "DelimitedBlock": {
@@ -9,11 +8,7 @@
           "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
         },
         "metadata": {
-          "roles": [],
-          "options": [],
-          "style": "source",
-          "anchors": [],
-          "id": null
+          "style": "source"
         },
         "title": "Specify GitLab CI stages",
         "attributes": [

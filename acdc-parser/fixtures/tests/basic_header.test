@@ -1,6 +1,11 @@
 {
   "name": "document",
   "type": "block",
+  "attributes": {
+    "description": "The document's description.",
+    "sectanchors": true,
+    "url-repo": "https://my-git-repo.com"
+  },
   "header": {
     "title": {
       "name": "text",
@@ -8,7 +13,6 @@
       "value": "Document Title",
       "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 17 }]
     },
-    "subtitle": null,
     "authors": [
       {
         "first_name": "Lorn_Kismet",
@@ -28,33 +32,11 @@
       "date": "01-09-2024",
       "remark": "Fall incarnation"
     },
-    "attributes": [
-      {
-        "name": "description",
-        "value": "The document's description."
-      },
-      {
-        "name": "sectanchors",
-        "value": null
-      },
-      {
-        "name": "url-repo",
-        "value": "https://my-git-repo.com"
-      }
-    ],
     "location": [{ "line": 3, "col": 1 }, { "line": 8, "col": 35 }]
   },
   "blocks": [
     {
       "Paragraph": {
-        "attributes": [],
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
         "content": [
           {
             "PlainText": {

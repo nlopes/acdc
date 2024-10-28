@@ -1,18 +1,14 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
         "metadata": {
-          "roles": [],
           "options": [
             "nolines"
           ],
-          "style": "source",
-          "anchors": [],
-          "id": null
+          "style": "source"
         },
         "attributes": [
           {

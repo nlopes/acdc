@@ -1,6 +1,9 @@
 {
   "name": "document",
   "type": "block",
+  "attributes": {
+    "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
+  },
   "header": {
     "title": {
       "name": "text",
@@ -8,7 +11,6 @@
       "value": "The Intrepid Chronicles",
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 26 }]
     },
-    "subtitle": null,
     "authors": [
       {
         "first_name": "Kismet",
@@ -17,26 +19,11 @@
         "email": "kismet@asciidoctor.org"
       }
     ],
-    "revision": null,
-    "attributes": [
-      {
-        "name": "description",
-        "value": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
-      }
-    ],
     "location": [{ "line": 1, "col": 1 }, { "line": 3, "col": 167 }]
   },
   "blocks": [
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {

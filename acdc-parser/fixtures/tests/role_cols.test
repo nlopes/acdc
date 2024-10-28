@@ -1,20 +1,15 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
         "metadata": {
-          "roles": [],
           "options": [
             "header",
             "footer",
             "autowidth"
-          ],
-          "style": null,
-          "anchors": [],
-          "id": null
+          ]
         },
         "attributes": [
           {

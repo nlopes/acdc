@@ -1,18 +1,13 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
         "metadata": {
-          "roles": [],
           "options": [],
-          "style": "literal",
-          "anchors": [],
-          "id": null
+          "style": "literal"
         },
-        "attributes": [],
         "content": [
           {
             "PlainText": {

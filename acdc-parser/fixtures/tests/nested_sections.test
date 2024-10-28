@@ -8,36 +8,16 @@
       "value": "Document Title",
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
     },
-    "subtitle": null,
-    "authors": [],
-    "revision": null,
-    "attributes": [],
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
   },
   "blocks": [
     {
       "Section": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "title": "Section 1",
         "level": 1,
         "content": [
           {
             "Paragraph": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "content": [
                 {
                   "PlainText": {
@@ -69,27 +49,11 @@
           },
           {
             "Section": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "title": "Section 1.1",
               "level": 2,
               "content": [
                 {
                   "Paragraph": {
-                    "metadata": {
-                      "roles": [],
-                      "options": [],
-                      "style": null,
-                      "anchors": [],
-                      "id": null
-                    },
-                    "attributes": [],
                     "content": [
                       {
                         "PlainText": {
@@ -121,27 +85,11 @@
                 },
                 {
                   "Section": {
-                    "metadata": {
-                      "roles": [],
-                      "options": [],
-                      "style": null,
-                      "anchors": [],
-                      "id": null
-                    },
-                    "attributes": [],
                     "title": "Section 1.1.1",
                     "level": 3,
                     "content": [
                       {
                         "Paragraph": {
-                          "metadata": {
-                            "roles": [],
-                            "options": [],
-                            "style": null,
-                            "anchors": [],
-                            "id": null
-                          },
-                          "attributes": [],
                           "content": [
                             {
                               "PlainText": {
@@ -212,27 +160,11 @@
     },
     {
       "Section": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "title": "Section 2",
         "level": 1,
         "content": [
           {
             "Paragraph": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "content": [
                 {
                   "PlainText": {

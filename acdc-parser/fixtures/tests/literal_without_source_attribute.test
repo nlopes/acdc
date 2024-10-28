@@ -1,21 +1,12 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "DelimitedBlock": {
         "inner": {
           "DelimitedListing": "include::app.rb[]"
         },
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "title": null,
         "attributes": [
           {
             "name": null,

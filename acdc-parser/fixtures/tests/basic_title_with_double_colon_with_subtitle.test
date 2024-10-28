@@ -9,22 +9,11 @@
       "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 65 }]
     },
     "subtitle": "this is the subtitle",
-    "authors": [],
-    "revision": null,
-    "attributes": [],
     "location": [{ "line": 3, "col": 1 }, { "line": 3, "col": 65}]
   },
   "blocks": [
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {

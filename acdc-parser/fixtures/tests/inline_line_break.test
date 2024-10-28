@@ -1,19 +1,9 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
-        "title": null,
         "content": [
           {
             "PlainText": {
@@ -71,8 +61,7 @@
             "line": 3,
             "col": 1
           }
-        ],
-        "admonition": null
+        ]
       }
     }
   ],

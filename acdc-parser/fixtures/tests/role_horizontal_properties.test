@@ -1,7 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
@@ -12,11 +11,8 @@
           "options": [
             "step"
           ],
-          "style": "horizontal",
-          "anchors": [],
-          "id": null
+          "style": "horizontal"
         },
-        "attributes": [],
         "content": [
           {
             "PlainText": {

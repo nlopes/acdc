@@ -1,32 +1,14 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Section": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "title": "A list of sorts:",
         "level": 1,
         "content": [
           {
             "OrderedList": {
-              "title": null,
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "items": [
                 {
                   "level": 1,

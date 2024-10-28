@@ -1,6 +1,10 @@
+//! The preprocessor module is responsible for processing the input document and expanding include directives.
 use std::{collections::HashMap, path::Path};
 
-use crate::error::Error;
+use crate::{
+    error::Error,
+    model::{AttributeName, AttributeValue},
+};
 
 use include::Include;
 
@@ -18,25 +22,29 @@ mod include {
     use pest_derive::Parser;
     use url::Url;
 
-    use crate::error::Error;
+    use crate::{
+        error::Error,
+        model::{AttributeName, AttributeValue},
+    };
 
-    // The format of an include directive is the following:
-    //
-    // include::target[leveloffset=offset,lines=ranges,tag(s)=name(s),indent=depth,encoding=encoding,opts=optional]
-    //
-    // The target is required. The target may be an absolute path, a path relative to the
-    // current document, or a URL.
-    //
-    // The include directive can be escaped.
-    //
-    // If you don’t want the include directive to be processed, you must escape it using a
-    // backslash.
-    //
-    // \include::just-an-example.ext[]
-    //
-    // Escaping the directive is necessary even if it appears in a verbatim block since it’s
-    // not aware of the surrounding document structure.
+    /**
+    The format of an include directive is the following:
 
+    include::target[leveloffset=offset,lines=ranges,tag(s)=name(s),indent=depth,encoding=encoding,opts=optional]
+
+    The target is required. The target may be an absolute path, a path relative to the
+    current document, or a URL.
+
+    The include directive can be escaped.
+
+    If you don’t want the include directive to be processed, you must escape it using a
+    backslash.
+
+    \include::just-an-example.ext[]
+
+    Escaping the directive is necessary even if it appears in a verbatim block since it’s
+    not aware of the surrounding document structure.
+     */
     #[derive(Debug)]
     pub(crate) struct Include {
         file_parent: PathBuf,
@@ -126,7 +134,7 @@ attribute_value = {
         pub(crate) fn parse(
             file_parent: &Path,
             line: &str,
-            attributes: &HashMap<String, String>,
+            attributes: &HashMap<AttributeName, AttributeValue>,
         ) -> Result<Self, Error> {
             let file_parent = file_parent.to_path_buf();
             let mut target = Target::Path(PathBuf::new());
@@ -196,12 +204,20 @@ attribute_value = {
                             let target_raw = pair.as_str().trim();
                             let target_raw =
                                 super::resolve_attribute_references(attributes, target_raw);
-                            target = if target_raw.starts_with("http://")
-                                || target_raw.starts_with("https://")
-                            {
-                                Target::Url(Url::parse(&target_raw)?)
+                            target = if let AttributeValue::String(target_raw) = target_raw {
+                                if target_raw.starts_with("http://")
+                                    || target_raw.starts_with("https://")
+                                {
+                                    Target::Url(Url::parse(&target_raw)?)
+                                } else {
+                                    Target::Path(PathBuf::from(target_raw))
+                                }
                             } else {
-                                Target::Path(PathBuf::from(target_raw))
+                                tracing::error!(
+                                    ?target_raw,
+                                    "target attribute value is not a string"
+                                );
+                                return Err(Error::InvalidIncludeDirective);
                             };
                         }
                         unknown => {
@@ -333,7 +349,10 @@ mod conditional {
     use pest::Parser as _;
     use pest_derive::Parser;
 
-    use crate::error::Error;
+    use crate::{
+        error::Error,
+        model::{AttributeName, AttributeValue},
+    };
 
     #[derive(Debug)]
     pub(crate) enum Conditional {
@@ -371,7 +390,7 @@ mod conditional {
     impl Conditional {
         pub(crate) fn is_true(
             &self,
-            attributes: &HashMap<String, String>,
+            attributes: &HashMap<AttributeName, AttributeValue>,
             content: &mut String,
         ) -> bool {
             match self {
@@ -451,7 +470,7 @@ expression = { (!"]" ~ ANY)+ }
 
     #[tracing::instrument(level = "trace")]
     pub(crate) fn parse_line(
-        attributes: &mut std::collections::HashMap<String, String>,
+        attributes: &mut HashMap<AttributeName, AttributeValue>,
         line: &str,
     ) -> Result<Conditional, Error> {
         match Parser::parse(Rule::conditional, line) {
@@ -488,7 +507,7 @@ expression = { (!"]" ~ ANY)+ }
 
     #[tracing::instrument(level = "trace")]
     fn parse_ifdef(
-        attributes: &mut std::collections::HashMap<String, String>,
+        attributes: &mut HashMap<AttributeName, AttributeValue>,
         pair: pest::iterators::Pair<Rule>,
     ) -> Result<Conditional, Error> {
         let mut attributes = Vec::new();
@@ -524,7 +543,7 @@ expression = { (!"]" ~ ANY)+ }
 
     #[tracing::instrument(level = "trace")]
     fn parse_ifndef(
-        attributes: &mut std::collections::HashMap<String, String>,
+        attributes: &mut HashMap<AttributeName, AttributeValue>,
         pair: pest::iterators::Pair<Rule>,
     ) -> Result<Conditional, Error> {
         let mut attributes = Vec::new();
@@ -560,7 +579,7 @@ expression = { (!"]" ~ ANY)+ }
 
     #[tracing::instrument(level = "trace")]
     fn parse_ifeval(
-        attributes: &mut std::collections::HashMap<String, String>,
+        _attributes: &mut HashMap<AttributeName, AttributeValue>,
         pair: pest::iterators::Pair<Rule>,
     ) -> Result<Conditional, Error> {
         let mut expression = String::new();
@@ -581,8 +600,12 @@ expression = { (!"]" ~ ANY)+ }
 }
 
 mod attribute {
+    use std::collections::HashMap;
+
     use pest::Parser as _;
     use pest_derive::Parser;
+
+    use crate::model::{AttributeName, AttributeValue};
 
     #[derive(Parser, Debug)]
     #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
@@ -597,10 +620,7 @@ name = { (ASCII_ALPHANUMERIC | "-" | "_")+ }
 value = { (!EOI ~ ANY)+ }"#]
     pub(crate) struct Parser;
 
-    pub(crate) fn parse_line(
-        attributes: &mut std::collections::HashMap<String, String>,
-        line: &str,
-    ) {
+    pub(crate) fn parse_line(attributes: &mut HashMap<AttributeName, AttributeValue>, line: &str) {
         if let Ok(pairs) = Parser::parse(Rule::document_attribute, line) {
             let mut unset = false;
             let mut name = "";
@@ -623,12 +643,12 @@ value = { (!EOI ~ ANY)+ }"#]
                 }
             }
             if unset {
-                attributes.remove(name);
+                attributes.insert(name.to_string(), AttributeValue::Bool(false));
             } else {
                 let value = if value.contains('{') && value.contains('}') {
                     super::resolve_attribute_references(attributes, value)
                 } else {
-                    value.to_string()
+                    AttributeValue::String(value.to_string())
                 };
                 attributes.insert(name.to_string(), value);
             }
@@ -636,10 +656,15 @@ value = { (!EOI ~ ANY)+ }"#]
     }
 }
 
-// Given a text and a set of attributes, resolve the attribute references in the text.
-//
-// The attribute references are in the form of {name}.
-pub fn resolve_attribute_references(attributes: &HashMap<String, String>, value: &str) -> String {
+/**
+Given a text and a set of attributes, resolve the attribute references in the text.
+
+The attribute references are in the form of {name}.
+*/
+pub fn resolve_attribute_references(
+    attributes: &HashMap<AttributeName, AttributeValue>,
+    value: &str,
+) -> AttributeValue {
     let mut result = String::with_capacity(value.len());
     let mut i: usize = 0;
 
@@ -647,17 +672,19 @@ pub fn resolve_attribute_references(attributes: &HashMap<String, String>, value:
         if value[i..].starts_with('{') {
             if let Some(end_brace) = value[i + 1..].find('}') {
                 let attr_name = &value[i + 1..i + 1 + end_brace];
-                if let Some(attr_value) = attributes.get(attr_name) {
-                    result.push_str(attr_value);
-                } else {
-                    // TODO(nlopes): this behaves differently depending on the
-                    // `attribute-missing` and `attribute-undefined` options.
-                    //
-                    // Details can be found at:
-                    // https://docs.asciidoctor.org/asciidoc/latest/attributes/unresolved-references/
-                    result.push('{');
-                    result.push_str(attr_name);
-                    result.push('}');
+                match attributes.get(attr_name) {
+                    Some(AttributeValue::Bool(true)) => {
+                        result.push_str("");
+                    }
+                    Some(AttributeValue::String(attr_value)) => {
+                        result.push_str(attr_value);
+                    }
+                    _ => {
+                        // If the attribute is not found, we return the attribute reference as is.
+                        result.push('{');
+                        result.push_str(attr_name);
+                        result.push('}');
+                    }
                 }
                 i += end_brace + 2;
             } else {
@@ -670,7 +697,7 @@ pub fn resolve_attribute_references(attributes: &HashMap<String, String>, value:
         }
     }
 
-    result
+    AttributeValue::String(result)
 }
 
 impl Preprocessor {
@@ -799,24 +826,33 @@ mod tests {
     #[test]
     fn test_resolve_attribute_references() {
         let mut attributes = HashMap::new();
-        attributes.insert("name".to_string(), "value".to_string());
-        attributes.insert("name2".to_string(), "value2".to_string());
+        attributes.insert(
+            "name".to_string(),
+            AttributeValue::String("value".to_string()),
+        );
+        attributes.insert(
+            "name2".to_string(),
+            AttributeValue::String("value2".to_string()),
+        );
 
         let value = "{name}";
         let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, "value");
+        assert_eq!(resolved, AttributeValue::String("value".to_string()));
 
         let value = "{name} {name2}";
         let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, "value value2");
+        assert_eq!(resolved, AttributeValue::String("value value2".to_string()));
 
         let value = "{name} {name3}";
         let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, "value {name3}");
+        assert_eq!(
+            resolved,
+            AttributeValue::String("value {name3}".to_string())
+        );
 
         let value = "{name3}";
         let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, "{name3}");
+        assert_eq!(resolved, AttributeValue::String("{name3}".to_string()));
     }
 
     #[test]

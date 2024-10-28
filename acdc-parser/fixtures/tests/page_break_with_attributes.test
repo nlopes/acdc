@@ -1,18 +1,9 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {
@@ -44,13 +35,6 @@
     },
     {
       "PageBreak": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
         "attributes": [
           {
             "name": "page-layout",
@@ -71,14 +55,6 @@
     },
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {

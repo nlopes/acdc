@@ -1,19 +1,11 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Image": {
         "source": {
           "Path": "sunset.jpg"
-        },
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
         },
         "attributes": [
           {
@@ -45,13 +37,6 @@
       "Image": {
         "source": {
           "Path": "sunset2.jpg"
-        },
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
         },
         "attributes": [
           {

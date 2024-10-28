@@ -1,18 +1,9 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
-        "attributes": [],
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
         "content": [
           {
             "PlainText": {
@@ -44,40 +35,16 @@
     },
     {
       "Section": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "title": "Section 1",
         "level": 1,
         "content": [
           {
             "Section": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "title": "Section 2",
               "level": 2,
               "content": [
                 {
                   "Paragraph": {
-                    "attributes": [],
-                    "metadata": {
-                      "roles": [],
-                      "options": [],
-                      "style": null,
-                      "anchors": [],
-                      "id": null
-                    },
                     "content": [
                       {
                         "PlainText": {
@@ -109,27 +76,11 @@
                 },
                 {
                   "Section": {
-                    "metadata": {
-                      "roles": [],
-                      "options": [],
-                      "style": null,
-                      "anchors": [],
-                      "id": null
-                    },
-                    "attributes": [],
                     "title": "Section 3",
                     "level": 3,
                     "content": [
                       {
                         "Paragraph": {
-                          "metadata": {
-                            "roles": [],
-                            "options": [],
-                            "style": null,
-                            "anchors": [],
-                            "id": null
-                          },
-                          "attributes": [],
                           "content": [
                             {
                               "PlainText": {
@@ -161,14 +112,6 @@
                       },
                       {
                         "Paragraph": {
-                          "attributes": [],
-                          "metadata": {
-                            "roles": [],
-                            "options": [],
-                            "style": null,
-                            "anchors": [],
-                            "id": null
-                          },
                           "content": [
                             {
                               "PlainText": {
@@ -200,27 +143,11 @@
                       },
                       {
                         "Section": {
-                          "metadata": {
-                            "roles": [],
-                            "options": [],
-                            "style": null,
-                            "anchors": [],
-                            "id": null
-                          },
-                          "attributes": [],
                           "title": "Section 4",
                           "level": 4,
                           "content": [
                             {
                               "Paragraph": {
-                                "metadata": {
-                                  "roles": [],
-                                  "options": [],
-                                  "style": null,
-                                  "anchors": [],
-                                  "id": null
-                                },
-                                "attributes": [],
                                 "content": [
                                   {
                                     "PlainText": {

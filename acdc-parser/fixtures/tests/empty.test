@@ -1,7 +1,5 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
-  "blocks": [],
   "location": [{"line": 2, "col": 1},{"line": 2,"col": 1}]
 }

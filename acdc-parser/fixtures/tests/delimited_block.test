@@ -1,18 +1,9 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {
@@ -44,14 +35,6 @@
     },
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {
@@ -86,14 +69,6 @@
         "inner": {
           "DelimitedExample": [{
             "Paragraph": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "content": [
                 {
                   "PlainText": {
@@ -124,15 +99,6 @@
             }
           }]
         },
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "title": null,
-        "attributes": [],
         "location": [
           {
             "line": 6,

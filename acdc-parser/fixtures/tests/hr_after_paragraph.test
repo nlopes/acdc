@@ -1,18 +1,9 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {
@@ -44,7 +35,6 @@
     },
     {
       "ThematicBreak": {
-        "anchors": [],
         "location": [
           {
             "line": 3,
@@ -59,14 +49,6 @@
     },
     {
       "Paragraph": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "content": [
           {
             "PlainText": {

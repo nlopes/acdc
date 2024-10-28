@@ -1,23 +1,12 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "UnorderedList": {
-        "title": null,
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "items": [
           {
             "level": 1,
-            "checked": null,
             "content": [
               "The document header in AsciiDoc is optional.\nIf present, it must start with a document title."
             ]
@@ -37,19 +26,9 @@
     },
     {
       "UnorderedList": {
-        "title": null,
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "items": [
           {
             "level": 1,
-            "checked": null,
             "content": [
               "Optional author and revision information lines\nimmediately follow the document title."
             ]
@@ -69,19 +48,9 @@
     },
     {
       "UnorderedList": {
-        "title": null,
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "items": [
           {
             "level": 1,
-            "checked": null,
             "content": [
               "The document header must be separated from\n  the remainder of the document by one or more\n  empty lines and it cannot contain empty lines."
             ]

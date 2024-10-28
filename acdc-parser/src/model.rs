@@ -1,4 +1,5 @@
-use std::path::Path;
+//! The data models for the `AsciiDoc` document.
+use std::{collections::HashMap, path::Path};
 
 use serde::{
     ser::{SerializeSeq, Serializer},
@@ -7,11 +8,15 @@ use serde::{
 
 use crate::Error;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Document {
-    pub name: String,
-    pub r#type: String,
+    pub(crate) name: String,
+    pub(crate) r#type: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<Header>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, AttributeValue>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<Block>,
     pub location: Location,
 }
@@ -20,8 +25,8 @@ type Subtitle = String;
 
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Title {
-    pub name: String,
-    pub r#type: String,
+    pub(crate) name: String,
+    pub(crate) r#type: String,
     #[serde(rename = "value")]
     pub title: String,
     pub location: Location,
@@ -29,48 +34,61 @@ pub struct Title {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Header {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<Title>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<Subtitle>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub authors: Vec<Author>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revision: Option<Revision>,
-    pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Revision {
     pub number: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remark: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Author {
     pub first_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub middle_name: Option<String>,
     pub last_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AttributeEntry {
-    pub name: Option<String>,
+    pub name: Option<AttributeName>,
     pub value: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Anchor {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub xreflabel: Option<String>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<Anchor>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
 }
 
@@ -213,10 +231,19 @@ impl std::fmt::Display for Block {
     }
 }
 
+pub type AttributeName = String;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum AttributeValue {
+    String(String),
+    Bool(bool),
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DocumentAttribute {
-    pub name: String,
-    pub value: Option<String>,
+    pub name: AttributeName,
+    pub value: AttributeValue,
     pub location: Location,
 }
 
@@ -229,6 +256,7 @@ pub enum InlineNode {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DiscreteHeader {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
     pub title: String,
     pub level: u8,
@@ -243,42 +271,57 @@ pub struct PlainText {
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ThematicBreak {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageBreak {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Audio {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub source: AudioSource,
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Video {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<VideoSource>,
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Image {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub source: ImageSource,
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
@@ -308,15 +351,20 @@ pub enum ImageSource {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionList {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<DescriptionListItem>,
     pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionListItem {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
     pub term: String,
     pub delimiter: String,
@@ -332,9 +380,13 @@ pub enum DescriptionListDescription {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnorderedList {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ListItem>,
     pub location: Location,
 }
@@ -346,25 +398,43 @@ pub type ListLevel = u8;
 pub struct ListItem {
     // TODO(nlopes): missing anchors
     pub level: ListLevel,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checked: Option<bool>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<InlineNode>,
     pub location: Location,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub admonition: Option<String>,
+}
+
+fn is_default_metadata(metadata: &BlockMetadata) -> bool {
+    metadata.roles.is_empty()
+        && metadata.options.is_empty()
+        && metadata.style.is_none()
+        && metadata.id.is_none()
+        && metadata.anchors.is_empty()
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DelimitedBlock {
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
     pub location: Location,
 }
@@ -387,10 +457,13 @@ pub type SectionLevel = u8;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Section {
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attributes: Vec<AttributeEntry>,
     pub title: String,
     pub level: SectionLevel,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<Block>,
     pub location: Location,
 }

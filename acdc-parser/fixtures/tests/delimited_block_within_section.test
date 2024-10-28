@@ -1,31 +1,14 @@
 {
   "name": "document",
   "type": "block",
-  "header": null,
   "blocks": [
     {
       "Section": {
-        "metadata": {
-          "roles": [],
-          "options": [],
-          "style": null,
-          "anchors": [],
-          "id": null
-        },
-        "attributes": [],
         "title": "Section 1",
         "level": 1,
         "content": [
           {
             "Paragraph": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "content": [
                 {
                   "PlainText": {
@@ -61,13 +44,8 @@
                 "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
               },
               "metadata": {
-                "roles": [],
-                "options": [],
-                "style": "source",
-                "anchors": [],
-                "id": null
+                "style": "source"
               },
-              "title": null,
               "attributes": [
                 {
                   "name": null,
@@ -88,14 +66,6 @@
           },
           {
             "Paragraph": {
-              "metadata": {
-                "roles": [],
-                "options": [],
-                "style": null,
-                "anchors": [],
-                "id": null
-              },
-              "attributes": [],
               "content": [
                 {
                   "PlainText": {
