@@ -30,7 +30,7 @@ mod include {
     /**
     The format of an include directive is the following:
 
-    include::target[leveloffset=offset,lines=ranges,tag(s)=name(s),indent=depth,encoding=encoding,opts=optional]
+    `include::target[leveloffset=offset,lines=ranges,tag(s)=name(s),indent=depth,encoding=encoding,opts=optional]`
 
     The target is required. The target may be an absolute path, a path relative to the
     current document, or a URL.
@@ -40,7 +40,7 @@ mod include {
     If you don’t want the include directive to be processed, you must escape it using a
     backslash.
 
-    \include::just-an-example.ext[]
+    `\include::just-an-example.ext[]`
 
     Escaping the directive is necessary even if it appears in a verbatim block since it’s
     not aware of the surrounding document structure.
@@ -131,19 +131,71 @@ attribute_value = {
     pub(crate) struct Parser;
 
     impl Include {
+        fn parse_attribute(
+            &mut self,
+            key: &str,
+            pair: &pest::iterators::Pair<Rule>,
+        ) -> Result<(), Error> {
+            let mut value = pair.as_str();
+            if value.starts_with('"') {
+                value = &value[1..value.len() - 1];
+            }
+            match key {
+                "leveloffset" => {
+                    self.level_offset = Some(
+                        value
+                            .parse()
+                            .map_err(|_| Error::InvalidLevelOffset(value.to_string()))?,
+                    );
+                }
+                "lines" => {
+                    self.lines.extend(LinesRange::parse(value).map_err(|e| {
+                        tracing::error!(?value, "failed to parse lines attribute: {:?}", e);
+                        e
+                    })?);
+                }
+                "tag" => {
+                    self.tags.push(value.to_string());
+                }
+                "tags" => {
+                    self.tags.extend(value.split(';').map(str::to_string));
+                }
+                "indent" => {
+                    self.indent = Some(
+                        value
+                            .parse()
+                            .map_err(|_| Error::InvalidIndent(value.to_string()))?,
+                    );
+                }
+                "encoding" => {
+                    self.encoding = Some(value.to_string());
+                }
+                "opts" => {
+                    self.opts.extend(value.split(',').map(str::to_string));
+                }
+                unknown => {
+                    tracing::error!(?unknown, "unknown attribute key in include directive");
+                    return Err(Error::InvalidIncludeDirective);
+                }
+            }
+            Ok(())
+        }
+
         pub(crate) fn parse(
             file_parent: &Path,
             line: &str,
             attributes: &HashMap<AttributeName, AttributeValue>,
         ) -> Result<Self, Error> {
-            let file_parent = file_parent.to_path_buf();
-            let mut target = Target::Path(PathBuf::new());
-            let mut level_offset = None;
-            let mut lines = Vec::new();
-            let mut tags = Vec::new();
-            let mut indent = None;
-            let mut encoding = None;
-            let mut opts = Vec::new();
+            let mut include = Include {
+                file_parent: file_parent.to_path_buf(),
+                target: Target::Path(PathBuf::new()),
+                level_offset: None,
+                lines: Vec::new(),
+                tags: Vec::new(),
+                indent: None,
+                encoding: None,
+                opts: Vec::new(),
+            };
 
             if let Ok(pairs) = Parser::parse(Rule::include, line) {
                 let mut key = "";
@@ -153,58 +205,14 @@ attribute_value = {
                             key = pair.as_str();
                         }
                         Rule::attribute_value => {
-                            let mut value = pair.as_str();
-                            if value.starts_with('"') {
-                                value = &value[1..value.len() - 1];
-                            }
-                            match key {
-                                "leveloffset" => {
-                                    level_offset = Some(value.parse().map_err(|_| {
-                                        Error::InvalidLevelOffset(value.to_string())
-                                    })?);
-                                }
-                                "lines" => {
-                                    lines.extend(LinesRange::parse(value).map_err(|e| {
-                                        tracing::error!(
-                                            ?value,
-                                            "failed to parse lines attribute: {:?}",
-                                            e
-                                        );
-                                        e
-                                    })?);
-                                }
-                                "tag" => {
-                                    tags.push(value.to_string());
-                                }
-                                "tags" => {
-                                    tags.extend(value.split(';').map(str::to_string));
-                                }
-                                "indent" => {
-                                    indent =
-                                        Some(value.parse().map_err(|_| {
-                                            Error::InvalidIndent(value.to_string())
-                                        })?);
-                                }
-                                "encoding" => {
-                                    encoding = Some(value.to_string());
-                                }
-                                "opts" => {
-                                    opts.extend(value.split(',').map(str::to_string));
-                                }
-                                unknown => {
-                                    tracing::error!(
-                                        ?unknown,
-                                        "unknown attribute key in include directive"
-                                    );
-                                    return Err(Error::InvalidIncludeDirective);
-                                }
-                            }
+                            include.parse_attribute(key, &pair)?;
                         }
                         Rule::target => {
                             let target_raw = pair.as_str().trim();
                             let target_raw =
                                 super::resolve_attribute_references(attributes, target_raw);
-                            target = if let AttributeValue::String(target_raw) = target_raw {
+                            include.target = if let AttributeValue::String(target_raw) = target_raw
+                            {
                                 if target_raw.starts_with("http://")
                                     || target_raw.starts_with("https://")
                                 {
@@ -229,16 +237,7 @@ attribute_value = {
                 tracing::error!("failed to parse include directive");
                 return Err(Error::InvalidIncludeDirective);
             }
-            Ok(Self {
-                file_parent,
-                target,
-                level_offset,
-                lines,
-                tags,
-                indent,
-                encoding,
-                opts,
-            })
+            Ok(include)
         }
 
         pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
@@ -579,7 +578,7 @@ expression = { (!"]" ~ ANY)+ }
 
     #[tracing::instrument(level = "trace")]
     fn parse_ifeval(
-        _attributes: &mut HashMap<AttributeName, AttributeValue>,
+        attributes: &mut HashMap<AttributeName, AttributeValue>,
         pair: pest::iterators::Pair<Rule>,
     ) -> Result<Conditional, Error> {
         let mut expression = String::new();
