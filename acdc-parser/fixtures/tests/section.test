@@ -28,8 +28,8 @@
                         "col": 1
                       },
                       {
-                        "line": 6,
-                        "col": 1
+                        "line": 5,
+                        "col": 34
                       }
                     ]
                   }
@@ -41,8 +41,8 @@
                   "col": 1
                 },
                 {
-                  "line": 6,
-                  "col": 1
+                  "line": 5,
+                  "col": 34
                 }
               ]
             }
@@ -61,5 +61,5 @@
       }
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 6,"col": 1}]
+  "location": [{"line": 1, "col": 1},{"line": 5,"col": 34}]
 }

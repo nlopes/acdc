@@ -20,7 +20,7 @@ pub use model::{
     BlockMetadata, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
     DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Image, ImageSource,
     InlineNode, ListItem, Location, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position,
-    Revision, Section, ThematicBreak, Title, UnorderedList, VideoSource,
+    Section, ThematicBreak, Title, UnorderedList, VideoSource,
 };
 
 #[derive(Debug)]
@@ -39,6 +39,7 @@ impl crate::model::Parser for PestParser {
     #[instrument]
     fn parse(&self, input: &str) -> Result<Document, Error> {
         let input = Preprocessor.process(input)?;
+        tracing::trace!(?input, "post preprocessor");
         match InnerPestParser::parse(Rule::document, &input) {
             Ok(pairs) => Document::parse(pairs),
             Err(e) => {
@@ -63,6 +64,7 @@ impl crate::model::Parser for PestParser {
 }
 
 impl Document {
+    #[instrument(level = "trace")]
     fn parse(pairs: Pairs<Rule>) -> Result<Self, Error> {
         let mut document_header = None;
         let mut attributes = HashMap::new();
@@ -111,6 +113,7 @@ impl Document {
     }
 }
 
+#[instrument(level = "trace")]
 fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> Result<(), Error> {
     if let Block::DelimitedBlock(delimited_block) = block {
         match &delimited_block.inner {
@@ -170,6 +173,7 @@ fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> R
 }
 
 // Build a tree of sections from the content blocks.
+#[instrument(level = "trace")]
 fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error> {
     let mut current_layers = document.clone();
     let mut stack: Vec<Block> = Vec::new();
@@ -299,7 +303,6 @@ fn parse_document_header(
     let mut title = None;
     let mut subtitle = None;
     let mut authors = Vec::new();
-    let mut revision = None;
 
     let mut location = Location {
         start: Position { line: 0, column: 0 },
@@ -357,29 +360,29 @@ fn parse_document_header(
             }
             Rule::revision_line => {
                 let inner_pairs = pair.into_inner();
-                let mut revision_number = String::new();
-                let mut revision_date = None;
-                let mut revision_remark = None;
-
                 for pair in inner_pairs {
                     match pair.as_rule() {
                         Rule::revision_number => {
-                            revision_number = pair.as_str().to_string();
+                            attributes.insert(
+                                "revnumber".to_string(),
+                                AttributeValue::String(pair.as_str().to_string()),
+                            );
                         }
                         Rule::revision_date => {
-                            revision_date = Some(pair.as_str().to_string());
+                            attributes.insert(
+                                "revdate".to_string(),
+                                AttributeValue::String(pair.as_str().to_string()),
+                            );
                         }
                         Rule::revision_remark => {
-                            revision_remark = Some(pair.as_str().to_string());
+                            attributes.insert(
+                                "revremark".to_string(),
+                                AttributeValue::String(pair.as_str().to_string()),
+                            );
                         }
                         unknown => unreachable!("{:?}", unknown),
                     }
                 }
-                revision = Some(Revision {
-                    number: revision_number,
-                    date: revision_date,
-                    remark: revision_remark,
-                });
             }
             Rule::document_attribute => {
                 let (name, value) = parse_document_attribute(pair.into_inner());
@@ -393,15 +396,11 @@ fn parse_document_header(
         title,
         subtitle,
         authors,
-        revision,
         location,
     }
 }
 
-fn parse_document_attribute(
-    pairs: Pairs<Rule>,
-    //attributes: &mut HashMap<AttributeName, AttributeValue>,
-) -> (AttributeName, AttributeValue) {
+fn parse_document_attribute(pairs: Pairs<Rule>) -> (AttributeName, AttributeValue) {
     let mut unset = false;
     let mut name = "";
     let mut value = None;
@@ -424,13 +423,10 @@ fn parse_document_attribute(
     }
     if unset {
         (name.to_string(), AttributeValue::Bool(false))
-        //attributes.insert(name.to_string(), AttributeValue::Bool(false));
     } else if let Some(value) = value {
         (name.to_string(), AttributeValue::String(value))
-        //attributes.insert(name.to_string(), AttributeValue::String(value));
     } else {
         (name.to_string(), AttributeValue::Bool(true))
-        //attributes.insert(name.to_string(), AttributeValue::Bool(true));
     }
 }
 
@@ -602,27 +598,6 @@ fn parse_blocks(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
                         },
                     },
                 };
-                // let mut inner_pairs = pair.clone().into_inner();
-                // let name = inner_pairs
-                //     .next()
-                //     .map(|p| p.as_str().to_string())
-                //     .unwrap_or_default(); // TODO(nlopes): this will probably end up
-                //                           // causing a bug
-                // let value = inner_pairs.next().map(|p| p.as_str().to_string());
-                // let attribute = DocumentAttribute {
-                //     name,
-                //     value,
-                //     location: Location {
-                //         start: Position {
-                //             line: pair.as_span().start_pos().line_col().0,
-                //             column: pair.as_span().start_pos().line_col().1,
-                //         },
-                //         end: Position {
-                //             line: pair.as_span().end_pos().line_col().0,
-                //             column: pair.as_span().end_pos().line_col().1,
-                //         },
-                //     },
-                // };
                 blocks.push(Block::DocumentAttribute(attribute));
             }
             Rule::EOI | Rule::comment => {}
@@ -1517,6 +1492,15 @@ mod tests {
         } else {
             panic!("unexpected error: {result:?}");
         }
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_empty_block() {
+        let parser = PestParser;
+        let result = parser.parse("").unwrap();
+        //dbg!(&result);
+        //panic!()
     }
 
     // #[test]

@@ -105,12 +105,12 @@
             "col": 1
           },
           {
-            "line": 10,
-            "col": 1
+            "line": 9,
+            "col": 5
           }
         ]
       }
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 10,"col": 1}]
+  "location": [{"line": 1, "col": 1},{"line": 9,"col": 5}]
 }

@@ -59,8 +59,8 @@
                         "col": 1
                       },
                       {
-                        "line": 8,
-                        "col": 1
+                        "line": 7,
+                        "col": 36
                       }
                     ]
                   }
@@ -72,8 +72,8 @@
                   "col": 1
                 },
                 {
-                  "line": 8,
-                  "col": 1
+                  "line": 7,
+                  "col": 36
                 }
               ]
             }
@@ -92,5 +92,5 @@
       }
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 8,"col": 1}]
+  "location": [{"line": 1, "col": 1},{"line": 7,"col": 36}]
 }

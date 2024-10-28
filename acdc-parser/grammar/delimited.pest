@@ -13,55 +13,55 @@ delimited_block = {
 }
 
 delimited_comment = {
-    PUSH("/"{4,} ~ NEWLINE) ~
+    PUSH("/"{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_example = {
-    PUSH("="{4,} ~ NEWLINE) ~
+    PUSH("="{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_listing = {
-    PUSH("-"{4,} ~ NEWLINE) ~
+    PUSH("-"{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_literal = {
-    PUSH("."{4,} ~ NEWLINE) ~
+    PUSH("."{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_open = {
-    PUSH(("-"{2,} | "~"{4,}) ~ NEWLINE) ~
+    PUSH(("-"{2,} | "~"{4,})) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_sidebar = {
-    PUSH("*"{4,} ~ NEWLINE) ~
+    PUSH("*"{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_table = {
-    PUSH(("|" | "," | ":" | "!") ~ "="{3,} ~ NEWLINE) ~
+    PUSH(("|" | "," | ":" | "!") ~ "="{3,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_pass = {
-    PUSH("+"{4,} ~ NEWLINE) ~
+    PUSH("+"{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }
 
 delimited_quote = {
-    PUSH("_"{4,} ~ NEWLINE) ~
+    PUSH("_"{4,}) ~ NEWLINE ~
     delimited_inner ~
     NEWLINE ~ POP
 }

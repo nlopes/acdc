@@ -40,18 +40,7 @@ pub struct Header {
     pub subtitle: Option<Subtitle>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub authors: Vec<Author>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub revision: Option<Revision>,
     pub location: Location,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Revision {
-    pub number: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub date: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub remark: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

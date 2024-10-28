@@ -4,7 +4,10 @@
   "attributes": {
     "description": "The document's description.",
     "sectanchors": true,
-    "url-repo": "https://my-git-repo.com"
+    "url-repo": "https://my-git-repo.com",
+    "revnumber": "v2.9",
+    "revdate": "01-09-2024",
+    "revremark": "Fall incarnation"
   },
   "header": {
     "title": {
@@ -27,11 +30,6 @@
         "email": "nlopesml@gmail.com"
       }
     ],
-    "revision": {
-      "number": "v2.9",
-      "date": "01-09-2024",
-      "remark": "Fall incarnation"
-    },
     "location": [{ "line": 3, "col": 1 }, { "line": 8, "col": 35 }]
   },
   "blocks": [
@@ -47,8 +45,8 @@
                     "col": 1
                     },
                     {
-                    "line": 11,
-                    "col": 1
+                    "line": 10,
+                    "col": 31
                     }
                 ]
             }
@@ -59,12 +57,12 @@
             "col": 1
           },
           {
-            "line": 11,
-            "col": 1
+            "line": 10,
+            "col": 31
           }
         ]
       }
     }
   ],
-  "location": [{"line": 2, "col": 1},{"line": 11,"col": 1}]
+  "location": [{"line": 2, "col": 1},{"line": 10,"col": 31}]
 }

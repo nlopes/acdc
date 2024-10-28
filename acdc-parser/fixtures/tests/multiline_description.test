@@ -34,8 +34,8 @@
                   "col": 1
                 },
                 {
-                  "line": 6,
-                  "col": 1
+                  "line": 5,
+                  "col": 48
                 }
               ]
             }
@@ -47,12 +47,12 @@
             "col": 1
           },
           {
-            "line": 6,
-            "col": 1
+            "line": 5,
+            "col": 48
           }
         ]
       }
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 6,"col": 1}]
+  "location": [{"line": 1, "col": 1},{"line": 5,"col": 48}]
 }

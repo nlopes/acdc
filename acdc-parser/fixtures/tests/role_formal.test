@@ -19,8 +19,8 @@
                   "col": 1
                 },
                 {
-                  "line": 3,
-                  "col": 1
+                  "line": 2,
+                  "col": 13
                 }
               ]
             }
@@ -32,12 +32,12 @@
             "col": 2
           },
           {
-            "line": 3,
-            "col": 1
+            "line": 2,
+            "col": 13
           }
         ]
       }
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 3,"col": 1}]
+  "location": [{"line": 1, "col": 1},{"line": 2,"col": 13}]
 }

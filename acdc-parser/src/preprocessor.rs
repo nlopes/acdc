@@ -815,7 +815,7 @@ impl Preprocessor {
             }
         }
 
-        Ok(format!("{}\n", output.join("\n")))
+        Ok(output.join("\n"))
     }
 }
 
@@ -864,6 +864,6 @@ content
 endif::[]
 ";
         let output = Preprocessor.process(input).unwrap();
-        assert_eq!(output, ":attribute: value\n\ncontent\n\n");
+        assert_eq!(output, ":attribute: value\n\ncontent\n");
     }
 }
