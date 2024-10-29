@@ -67,10 +67,12 @@ pub struct Anchor {
     pub location: Location,
 }
 
+pub type Role = String;
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub roles: Vec<String>,
+    pub roles: Vec<Role>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -240,6 +242,10 @@ pub struct DocumentAttribute {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum InlineNode {
     PlainText(PlainText),
+    BoldText(BoldText),
+    ItalicText(ItalicText),
+    MonospaceText(MonospaceText),
+    HighlightText(HighlightText),
     InlineLineBreak(Location),
 }
 
@@ -249,6 +255,35 @@ pub struct DiscreteHeader {
     pub anchors: Vec<Anchor>,
     pub title: String,
     pub level: u8,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MonospaceText {
+    pub role: Option<Role>,
+    pub content: Vec<InlineNode>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct HighlightText {
+    pub role: Option<Role>,
+    pub content: Vec<InlineNode>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BoldText {
+    pub role: Option<Role>,
+    pub content: Vec<InlineNode>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ItalicText {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<Role>,
+    pub content: Vec<InlineNode>,
     pub location: Location,
 }
 

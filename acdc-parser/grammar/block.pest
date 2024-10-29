@@ -70,7 +70,7 @@ paragraph = {
 
 paragraph_inner = {
     (
-        non_plain_text ~ plain_text |
+        non_plain_text |
         plain_text
     )+
 }
@@ -80,13 +80,29 @@ admonition_node = _{
 }
 
 bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ POP }
+italic_text = { PUSH("_") ~ (!"_" ~ ANY)+ ~ POP }
+monospace_text = { PUSH("`") ~ (!"`" ~ ANY)+ ~ POP }
+highlight_text = { PUSH("#") ~ (!"#" ~ ANY)+ ~ POP }
+subscript_text = { PUSH("~") ~ (!"~" ~ ANY)+ ~ POP }
+superscript_text = { PUSH("^") ~ (!"^" ~ ANY)+ ~ POP }
+curved_quotation_text = { PUSH("\"`") ~ (!"`\"" ~ ANY)+ ~ POP }
+curved_apostrophe_text = { PUSH("'`") ~ (!"`'" ~ ANY)+ ~ POP }
 
 inline_line_break = { " +" ~ NEWLINE }
 
-non_plain_text = _{
-    footnote |
-    inline_line_break |
-    bold_text
+non_plain_text = {
+    attrlist? ~ (
+        footnote |
+        inline_line_break |
+        bold_text |
+        italic_text |
+        monospace_text |
+        highlight_text |
+        subscript_text |
+        superscript_text |
+        curved_quotation_text |
+        curved_apostrophe_text
+    )
 }
 
 footnote = { "footnote:" ~ footnote_id? ~ "[" ~ footnote_text? ~ "]" }
@@ -102,6 +118,6 @@ admonition = !{
         "CAUTION"
     )
 }
-plain_text = { (&(!(NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+ }
-// WIP
-//inline_element = {}
+plain_text = {
+    (&(!(NEWLINE{2,} | EOI | non_plain_text | attrlist)) ~ ANY)+
+}

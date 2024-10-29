@@ -17,10 +17,11 @@ use preprocessor::Preprocessor;
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
     Anchor, AttributeEntry, AttributeName, AttributeValue, AudioSource, Author, Block,
-    BlockMetadata, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
-    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Image, ImageSource,
-    InlineNode, ListItem, Location, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position,
-    Section, ThematicBreak, Title, UnorderedList, VideoSource,
+    BlockMetadata, BoldText, DelimitedBlock, DelimitedBlockType, DescriptionList,
+    DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
+    Header, HighlightText, Image, ImageSource, InlineNode, ItalicText, ListItem, Location,
+    MonospaceText, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position, Section,
+    ThematicBreak, Title, UnorderedList, VideoSource,
 };
 
 #[derive(Debug)]
@@ -498,7 +499,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
             Rule::anchor => anchors.push(parse_anchor(pair.into_inner())),
             Rule::section => block = parse_section(&pair)?,
             Rule::delimited_block => block = parse_delimited_block(pair.into_inner())?,
-            Rule::paragraph => block = parse_paragraph(pair, &mut metadata, &mut attributes),
+            Rule::paragraph => block = parse_paragraph(pair, &mut metadata, &mut attributes)?,
             Rule::list => block = parse_list(pair.into_inner())?,
             Rule::image_block => {
                 block = parse_image_block(pair.into_inner(), &mut metadata, &mut attributes);
@@ -658,6 +659,7 @@ fn parse_video_block(
     })
 }
 
+#[instrument(level = "trace")]
 fn parse_audio_block(
     pairs: Pairs<Rule>,
     metadata: &mut BlockMetadata,
@@ -699,6 +701,7 @@ fn parse_audio_block(
     })
 }
 
+#[instrument(level = "trace")]
 fn parse_image_block(
     pairs: Pairs<Rule>,
     metadata: &mut BlockMetadata,
@@ -735,6 +738,7 @@ fn parse_image_block(
     })
 }
 
+#[instrument(level = "trace")]
 fn parse_image(
     pairs: Pairs<Rule>,
     attributes: &mut Vec<AttributeEntry>,
@@ -769,12 +773,47 @@ fn parse_image(
     }
 }
 
-fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut BlockMetadata) -> Vec<InlineNode> {
+// TODO(nlopes): we probably need to offset the location so that it starts at whatever
+// offset we provide - that's because we call this recursively
+#[instrument(level = "trace")]
+fn parse_paragraph_inner(
+    pair: Pair<Rule>,
+    metadata: &mut BlockMetadata,
+) -> Result<Vec<InlineNode>, Error> {
     let pairs = pair.into_inner();
 
     let mut content = Vec::new();
     let mut first = true;
 
+    for pair in pairs {
+        if first {
+            let value = pair.as_str().trim_end().to_string();
+            if value.starts_with(' ') {
+                metadata.style = Some("literal".to_string());
+            }
+            first = false;
+        }
+
+        match pair.as_rule() {
+            Rule::non_plain_text => {
+                content.push(parse_inline_text(pair.into_inner(), metadata)?);
+            }
+            Rule::plain_text => {
+                content.push(parse_inline_text(Pairs::single(pair), metadata)?);
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    Ok(content)
+}
+
+#[instrument(level = "trace")]
+fn parse_inline_text(
+    pairs: Pairs<Rule>,
+    metadata: &mut BlockMetadata,
+) -> Result<InlineNode, Error> {
+    let mut role = None;
     for pair in pairs {
         let start = pair.as_span().start_pos();
         let end = pair.as_span().end_pos();
@@ -790,32 +829,85 @@ fn parse_paragraph_inner(pair: Pair<Rule>, metadata: &mut BlockMetadata) -> Vec<
             },
         };
 
-        if first {
-            let value = pair.as_str().trim_end().to_string();
-            if value.starts_with(' ') {
-                metadata.style = Some("literal".to_string());
-            }
-            first = false;
-        }
-
         match pair.as_rule() {
-            Rule::plain_text => content.push(InlineNode::PlainText(PlainText {
-                content: pair.as_str().to_string().trim().to_string(),
-                location,
-            })),
-            Rule::inline_line_break => content.push(InlineNode::InlineLineBreak(location)),
+            Rule::plain_text => {
+                return Ok(InlineNode::PlainText(PlainText {
+                    content: pair.as_str().to_string().trim().to_string(),
+                    location,
+                }));
+            }
+            Rule::highlight_text => {
+                let content = get_paragraph_content("highlight", &pair, metadata)?;
+                return Ok(InlineNode::HighlightText(HighlightText {
+                    role,
+                    content,
+                    location,
+                }));
+            }
+            Rule::italic_text => {
+                let content = get_paragraph_content("bold", &pair, metadata)?;
+                return Ok(InlineNode::ItalicText(ItalicText {
+                    role,
+                    content,
+                    location,
+                }));
+            }
+            Rule::bold_text => {
+                let content = get_paragraph_content("bold", &pair, metadata)?;
+                return Ok(InlineNode::BoldText(BoldText {
+                    role,
+                    content,
+                    location,
+                }));
+            }
+            Rule::monospace_text => {
+                let content = get_paragraph_content("monospace", &pair, metadata)?;
+                return Ok(InlineNode::MonospaceText(MonospaceText {
+                    role,
+                    content,
+                    location,
+                }));
+            }
+            Rule::role => role = Some(pair.as_str().to_string()),
+            Rule::inline_line_break => {
+                return Ok(InlineNode::InlineLineBreak(location));
+            }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
         }
     }
-    content
+    // TODO: this should be unreachable instead!
+    Err(Error::Parse("no valid inline text found".to_string()))
 }
 
+#[instrument(level = "trace")]
+fn get_paragraph_content(
+    text_style: &str,
+    pair: &Pair<Rule>,
+    metadata: &mut BlockMetadata,
+) -> Result<Vec<InlineNode>, Error> {
+    let mut content = Vec::new();
+    let len = pair.as_str().len();
+    match InnerPestParser::parse(Rule::paragraph_inner, &pair.as_str()[1..len - 1]) {
+        Ok(pairs) => {
+            for pair in pairs {
+                content.extend(parse_paragraph_inner(pair, metadata)?);
+            }
+        }
+        Err(e) => {
+            tracing::error!(text_style, "error parsing text: {e}");
+            return Err(Error::Parse(e.to_string()));
+        }
+    }
+    Ok(content)
+}
+
+#[instrument(level = "trace")]
 fn parse_paragraph(
     pair: Pair<Rule>,
     metadata: &mut BlockMetadata,
     attributes: &mut Vec<AttributeEntry>,
-) -> Block {
+) -> Result<Block, Error> {
     let start = pair.as_span().start_pos();
     let end = pair.as_span().end_pos();
     let pairs = pair.into_inner();
@@ -843,7 +935,7 @@ fn parse_paragraph(
                 admonition = Some(pair.as_str().to_string());
             }
             Rule::paragraph_inner => {
-                content.extend(parse_paragraph_inner(pair, metadata));
+                content.extend(parse_paragraph_inner(pair, metadata)?);
             }
             Rule::role => metadata.roles.push(pair.as_str().to_string()),
             Rule::option => metadata.options.push(pair.as_str().to_string()),
@@ -875,14 +967,14 @@ fn parse_paragraph(
             }
         }
     }
-    Block::Paragraph(Paragraph {
+    Ok(Block::Paragraph(Paragraph {
         metadata: metadata.clone(),
         attributes: attributes.clone(),
         title,
         content,
         location,
         admonition,
-    })
+    }))
 }
 
 fn parse_named_attribute(
@@ -1498,9 +1590,11 @@ mod tests {
     #[tracing_test::traced_test]
     fn test_empty_block() {
         let parser = PestParser;
-        let result = parser.parse("").unwrap();
-        //dbg!(&result);
-        //panic!()
+        let result = parser
+            .parse("The text [.underline]#underline me# is underlined.")
+            .unwrap();
+        dbg!(&result);
+        panic!()
     }
 
     // #[test]
