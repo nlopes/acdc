@@ -1,22 +1,23 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Link, LinkTarget, Location},
+    model::{BlockMetadata, Image, ImageSource, Location},
     Rule,
 };
 
-impl Link {
+impl Image {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
-        let mut target = LinkTarget::Url(String::new());
+        let metadata = BlockMetadata::default();
+        let mut source = ImageSource::Path(String::new());
         let mut attributes = HashMap::new();
         for pair in pairs {
             match pair.as_rule() {
-                Rule::url => target = LinkTarget::Url(pair.as_str().to_string()),
-                Rule::path => target = LinkTarget::Path(Path::new(pair.as_str()).to_path_buf()),
+                Rule::path => source = ImageSource::Path(pair.as_str().to_string()),
+                Rule::url => source = ImageSource::Url(pair.as_str().to_string()),
                 Rule::named_attribute => {
-                    crate::parse_named_attribute_inline(pair.into_inner(), &mut attributes);
+                    super::parse_named_attribute(pair.into_inner(), &mut attributes);
                 }
                 Rule::positional_attribute_value => {
                     attributes.insert(pair.as_str().to_string(), None);
@@ -26,7 +27,9 @@ impl Link {
             }
         }
         Self {
-            target,
+            metadata,
+            title: attributes.remove("title").map(Option::unwrap_or_default),
+            source,
             attributes,
             location,
         }

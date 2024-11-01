@@ -117,7 +117,6 @@ curved_apostrophe_text = { PUSH("'`") ~ (!"`'" ~ ANY)+ ~ POP }
 
 inline_line_break = { " +" ~ NEWLINE }
 
-//name:<target>?[<attrlist>?]
 image_inline = { "image:" ~ (url | path) ~ attrlist }
 icon_inline = { "icon:" ~ path ~ attrlist }
 keyboard_inline = { "kbd:[" ~ key ~ (("," ~ key)+ | ("+" ~ key)+)? ~ "]" }

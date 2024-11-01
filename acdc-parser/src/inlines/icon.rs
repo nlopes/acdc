@@ -3,19 +3,19 @@ use std::collections::HashMap;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Location, Url},
+    model::{Icon, Location},
     Rule,
 };
 
-impl Url {
+impl Icon {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
-        let mut target = String::new();
+        let mut path = String::new();
         let mut attributes = HashMap::new();
         for pair in pairs {
             match pair.as_rule() {
-                Rule::url => target = pair.as_str().to_string(),
+                Rule::path => path = pair.as_str().to_string(),
                 Rule::named_attribute => {
-                    crate::parse_named_attribute_inline(pair.into_inner(), &mut attributes);
+                    super::parse_named_attribute(pair.into_inner(), &mut attributes);
                 }
                 Rule::positional_attribute_value => {
                     attributes.insert(pair.as_str().to_string(), None);
@@ -25,7 +25,7 @@ impl Url {
             }
         }
         Self {
-            target,
+            target: path,
             attributes,
             location,
         }
