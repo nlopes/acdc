@@ -11,12 +11,9 @@
             "autowidth"
           ]
         },
-        "attributes": [
-          {
-            "name": "cols",
-            "value": "2*~"
-          }
-        ],
+        "attributes": {
+          "cols": "2*~"
+        },
         "content": [
           {
             "PlainText": {

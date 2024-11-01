@@ -35,12 +35,9 @@
     },
     {
       "PageBreak": {
-        "attributes": [
-          {
-            "name": "page-layout",
-            "value": "landscape"
-          }
-        ],
+        "attributes": {
+          "page-layout": "landscape"
+        },
         "location": [
           {
             "line": 3,

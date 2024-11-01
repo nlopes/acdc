@@ -1,5 +1,8 @@
 //! The data models for the `AsciiDoc` document.
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+};
 
 use serde::{
     ser::{SerializeSeq, Serializer},
@@ -120,7 +123,7 @@ impl BlockExt for Block {
         }
     }
 
-    fn set_attributes(&mut self, attributes: Vec<AttributeEntry>) {
+    fn set_attributes(&mut self, attributes: HashMap<AttributeName, Option<String>>) {
         match self {
             Block::DiscreteHeader(_header) => {}
             Block::DocumentAttribute(_attr) => {}
@@ -174,7 +177,6 @@ impl BlockExt for Block {
         }
     }
 
-    #[must_use]
     fn set_location(&mut self, location: Location) {
         match self {
             Block::DiscreteHeader(header) => header.location = location,
@@ -198,7 +200,7 @@ pub(crate) trait BlockExt {
     fn set_location(&mut self, location: Location);
     fn set_anchors(&mut self, anchor: Vec<Anchor>);
     fn set_title(&mut self, title: String);
-    fn set_attributes(&mut self, attributes: Vec<AttributeEntry>);
+    fn set_attributes(&mut self, attributes: HashMap<AttributeName, Option<String>>);
     fn set_metadata(&mut self, metadata: BlockMetadata);
 }
 
@@ -246,7 +248,120 @@ pub enum InlineNode {
     ItalicText(ItalicText),
     MonospaceText(MonospaceText),
     HighlightText(HighlightText),
+    SubscriptText(SubscriptText),
+    SuperscriptText(SuperscriptText),
     InlineLineBreak(Location),
+    Macro(InlineMacro),
+}
+
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum InlineMacro {
+    Icon(Icon),
+    Image(Box<Image>),
+    Keyboard(Keyboard),
+    Button(Button),
+    Menu(Menu),
+    Url(Url),
+    Link(Link),
+    Autolink(Autolink),
+    Pass(Pass),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Pass {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
+    pub substitutions: HashSet<Substitution>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Substitution {
+    SpecialChars,
+    Attributes,
+    Replacements,
+    Macros,
+    PostReplacements,
+    Normal,
+    Verbatim,
+    Quotes,
+}
+
+impl From<&str> for Substitution {
+    fn from(value: &str) -> Self {
+        match value {
+            "specialchars" | "c" => Substitution::SpecialChars,
+            "attributes" | "a" => Substitution::Attributes,
+            "replacements" | "r" => Substitution::Replacements,
+            "macros" | "m" => Substitution::Macros,
+            "post_replacements" | "p" => Substitution::PostReplacements,
+            "normal" | "n" => Substitution::Normal,
+            "verbatim" | "v" => Substitution::Verbatim,
+            "quotes" | "q" => Substitution::Quotes,
+            unknown => unimplemented!("{unknown:?}"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Icon {
+    pub target: String,
+    pub attributes: HashMap<AttributeName, Option<String>>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Link {
+    pub target: LinkTarget,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum LinkTarget {
+    Url(String),
+    Path(PathBuf),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Url {
+    pub target: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Button {
+    pub label: String,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Menu {
+    pub target: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<String>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Keyboard {
+    pub keys: Vec<Key>,
+    pub location: Location,
+}
+
+// TODO(nlopes): this could perhaps be an enum instead with the allowed keys
+pub type Key = String;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Autolink {
+    pub url: String,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -255,6 +370,20 @@ pub struct DiscreteHeader {
     pub anchors: Vec<Anchor>,
     pub title: String,
     pub level: u8,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SubscriptText {
+    pub role: Option<Role>,
+    pub content: Vec<InlineNode>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SuperscriptText {
+    pub role: Option<Role>,
+    pub content: Vec<InlineNode>,
     pub location: Location,
 }
 
@@ -308,8 +437,8 @@ pub struct PageBreak {
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -320,8 +449,8 @@ pub struct Audio {
     pub source: AudioSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -333,8 +462,8 @@ pub struct Video {
     pub sources: Vec<VideoSource>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -345,8 +474,8 @@ pub struct Image {
     pub source: ImageSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -379,8 +508,8 @@ pub struct DescriptionList {
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<DescriptionListItem>,
     pub location: Location,
@@ -408,8 +537,8 @@ pub struct UnorderedList {
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ListItem>,
     pub location: Location,
@@ -432,8 +561,8 @@ pub struct ListItem {
 pub struct Paragraph {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -458,8 +587,8 @@ pub struct DelimitedBlock {
     pub inner: DelimitedBlockType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -483,8 +612,8 @@ pub type SectionLevel = u8;
 pub struct Section {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub attributes: Vec<AttributeEntry>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, Option<String>>,
     pub title: String,
     pub level: SectionLevel,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -492,7 +621,7 @@ pub struct Section {
     pub location: Location,
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Deserialize)]
 pub struct Location {
     pub start: Position,
     pub end: Position,
@@ -515,7 +644,7 @@ impl Serialize for Location {
     }
 }
 
-#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     pub line: usize,
     #[serde(rename = "col")]

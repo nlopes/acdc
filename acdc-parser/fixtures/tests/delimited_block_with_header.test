@@ -11,12 +11,9 @@
           "style": "source"
         },
         "title": "Specify GitLab CI stages",
-        "attributes": [
-          {
-            "name": null,
-            "value": "yaml"
-          }
-        ],
+        "attributes": {
+          "yaml": null
+        },
         "location": [
           {
             "line": 1,

@@ -8,6 +8,7 @@ use pest_derive::Parser;
 use tracing::instrument;
 
 mod error;
+mod inline;
 mod model;
 mod preprocessor;
 
@@ -16,12 +17,13 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Anchor, AttributeEntry, AttributeName, AttributeValue, AudioSource, Author, Block,
-    BlockMetadata, BoldText, DelimitedBlock, DelimitedBlockType, DescriptionList,
+    Anchor, AttributeEntry, AttributeName, AttributeValue, AudioSource, Author, Autolink, Block,
+    BlockMetadata, BoldText, Button, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
-    Header, HighlightText, Image, ImageSource, InlineNode, ItalicText, ListItem, Location,
-    MonospaceText, OrderedList, PageBreak, Paragraph, Parser, PlainText, Position, Section,
-    ThematicBreak, Title, UnorderedList, VideoSource,
+    Header, HighlightText, Icon, Image, ImageSource, InlineMacro, InlineNode, ItalicText, Keyboard,
+    Link, ListItem, Location, Menu, MonospaceText, OrderedList, PageBreak, Paragraph, Parser, Pass,
+    PlainText, Position, Section, SubscriptText, SuperscriptText, ThematicBreak, Title,
+    UnorderedList, Url, VideoSource,
 };
 
 #[derive(Debug)]
@@ -401,6 +403,30 @@ fn parse_document_header(
     }
 }
 
+fn parse_positional_attribute_inline(
+    pairs: Pairs<Rule>,
+    attributes: &mut HashMap<AttributeName, String>,
+) {
+    let mut name = "";
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::attribute_name => {
+                name = pair.as_str();
+            }
+            Rule::unset => {
+                tracing::warn!("unexpected unset in inline attribute");
+            }
+            Rule::document_attribute_value => {
+                attributes.insert(name.to_string(), pair.as_str().to_string());
+            }
+            unknown => {
+                tracing::warn!(?unknown, "unknown rule in inline attribute");
+            }
+        }
+    }
+}
+
 fn parse_document_attribute(pairs: Pairs<Rule>) -> (AttributeName, AttributeValue) {
     let mut unset = false;
     let mut name = "";
@@ -466,7 +492,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut title = None;
     let mut anchors = Vec::new();
     let mut metadata = BlockMetadata::default();
-    let mut attributes = Vec::new();
+    let mut attributes = HashMap::new();
     let mut style_found = false;
     let mut location = Location {
         start: Position { line: 0, column: 0 },
@@ -474,7 +500,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
     };
     let mut block = Block::Paragraph(Paragraph {
         metadata: BlockMetadata::default(),
-        attributes: Vec::new(),
+        attributes: HashMap::new(),
         title: None,
         content: Vec::new(),
         location: location.clone(),
@@ -540,10 +566,7 @@ fn parse_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
                     } else {
-                        attributes.push(AttributeEntry {
-                            name: None,
-                            value: Some(value),
-                        });
+                        attributes.insert(value, None);
                     }
                 }
             }
@@ -611,7 +634,7 @@ fn parse_blocks(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
 fn parse_video_block(
     pairs: Pairs<Rule>,
     metadata: &mut BlockMetadata,
-    attributes: &mut Vec<AttributeEntry>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
 ) -> Block {
     let mut sources = vec![];
     let mut attribute_idx = 0;
@@ -629,10 +652,7 @@ fn parse_video_block(
                         Rule::positional_attribute_value => {
                             let name = pair.as_str().to_string();
                             if attribute_idx == 0 {
-                                attributes.push(AttributeEntry {
-                                    name: Some(name),
-                                    value: None,
-                                });
+                                attributes.insert(name, None);
                             } else {
                                 tracing::warn!(
                                     ?name,
@@ -663,7 +683,7 @@ fn parse_video_block(
 fn parse_audio_block(
     pairs: Pairs<Rule>,
     metadata: &mut BlockMetadata,
-    attributes: &mut Vec<AttributeEntry>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
 ) -> Block {
     let mut source = AudioSource::Path(String::new());
 
@@ -705,7 +725,7 @@ fn parse_audio_block(
 fn parse_image_block(
     pairs: Pairs<Rule>,
     metadata: &mut BlockMetadata,
-    attributes: &mut Vec<AttributeEntry>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
 ) -> Block {
     let mut source = ImageSource::Path(String::new());
     let mut title = None;
@@ -741,7 +761,7 @@ fn parse_image_block(
 #[instrument(level = "trace")]
 fn parse_image(
     pairs: Pairs<Rule>,
-    attributes: &mut Vec<AttributeEntry>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
     source: &mut ImageSource,
     metadata: &mut BlockMetadata,
 ) {
@@ -760,12 +780,14 @@ fn parse_image(
             }
             Rule::positional_attribute_value => {
                 let value = pair.as_str().to_string();
-                attributes.push(AttributeEntry {
-                    name: attribute_mapping
-                        .get(&attribute_idx)
-                        .map(ToString::to_string),
-                    value: Some(value),
-                });
+                if let Some(name) = attribute_mapping
+                    .get(&attribute_idx)
+                    .map(ToString::to_string)
+                {
+                    attributes.insert(name, Some(value));
+                } else {
+                    tracing::warn!(?value, "unexpected positional attribute in image block");
+                }
                 attribute_idx += 1;
             }
             unknown => unreachable!("{unknown:?}"),
@@ -836,38 +858,69 @@ fn parse_inline_text(
                     location,
                 }));
             }
-            Rule::highlight_text => {
-                let content = get_paragraph_content("highlight", &pair, metadata)?;
+            Rule::highlight_text | Rule::highlight_text_unconstrained => {
+                let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;
+                let content = get_paragraph_content("highlight", unconstrained, &pair, metadata)?;
                 return Ok(InlineNode::HighlightText(HighlightText {
                     role,
                     content,
                     location,
                 }));
             }
-            Rule::italic_text => {
-                let content = get_paragraph_content("bold", &pair, metadata)?;
+            Rule::italic_text | Rule::italic_text_unconstrained => {
+                let unconstrained = pair.as_rule() == Rule::italic_text_unconstrained;
+                let content = get_paragraph_content("italic", unconstrained, &pair, metadata)?;
                 return Ok(InlineNode::ItalicText(ItalicText {
                     role,
                     content,
                     location,
                 }));
             }
-            Rule::bold_text => {
-                let content = get_paragraph_content("bold", &pair, metadata)?;
+            Rule::bold_text | Rule::bold_text_unconstrained => {
+                let unconstrained = pair.as_rule() == Rule::bold_text_unconstrained;
+                let content = get_paragraph_content("bold", unconstrained, &pair, metadata)?;
                 return Ok(InlineNode::BoldText(BoldText {
                     role,
                     content,
                     location,
                 }));
             }
-            Rule::monospace_text => {
-                let content = get_paragraph_content("monospace", &pair, metadata)?;
+            Rule::monospace_text | Rule::monospace_text_unconstrained => {
+                let unconstrained = pair.as_rule() == Rule::monospace_text_unconstrained;
+                let content = get_paragraph_content("monospace", unconstrained, &pair, metadata)?;
                 return Ok(InlineNode::MonospaceText(MonospaceText {
                     role,
                     content,
                     location,
                 }));
             }
+            Rule::subscript_text => {
+                let content = get_paragraph_content("subscript", false, &pair, metadata)?;
+                return Ok(InlineNode::SubscriptText(SubscriptText {
+                    role,
+                    content,
+                    location,
+                }));
+            }
+            Rule::superscript_text => {
+                let content = get_paragraph_content("superscript", false, &pair, metadata)?;
+                return Ok(InlineNode::SuperscriptText(SuperscriptText {
+                    role,
+                    content,
+                    location,
+                }));
+            }
+            Rule::icon_inline
+            | Rule::image_inline
+            | Rule::keyboard_inline
+            | Rule::btn_inline
+            | Rule::menu_inline
+            | Rule::url_macro
+            | Rule::link_macro
+            | Rule::autolink
+            | Rule::pass_inline
+            | Rule::single_double_passthrough
+            | Rule::triple_passthrough => return parse_inline_macro(pair),
             Rule::role => role = Some(pair.as_str().to_string()),
             Rule::inline_line_break => {
                 return Ok(InlineNode::InlineLineBreak(location));
@@ -881,14 +934,76 @@ fn parse_inline_text(
 }
 
 #[instrument(level = "trace")]
+fn parse_inline_macro(pair: Pair<Rule>) -> Result<InlineNode, Error> {
+    let start = pair.as_span().start_pos();
+    let end = pair.as_span().end_pos();
+    let location = Location {
+        start: Position {
+            line: start.line_col().0,
+            column: start.line_col().1,
+        },
+        end: Position {
+            line: end.line_col().0,
+            column: end.line_col().1,
+        },
+    };
+
+    match pair.as_rule() {
+        Rule::icon_inline => Ok(InlineNode::Macro(InlineMacro::Icon(Icon::parse_inline(
+            pair.into_inner(),
+            location,
+        )))),
+        Rule::image_inline => Ok(InlineNode::Macro(InlineMacro::Image(Box::new(
+            Image::parse_inline(pair.into_inner(), location),
+        )))),
+        Rule::keyboard_inline => Ok(InlineNode::Macro(InlineMacro::Keyboard(
+            Keyboard::parse_inline(pair.into_inner(), location),
+        ))),
+        Rule::btn_inline => Ok(InlineNode::Macro(InlineMacro::Button(
+            Button::parse_inline(pair.into_inner(), location),
+        ))),
+        Rule::menu_inline => Ok(InlineNode::Macro(InlineMacro::Menu(Menu::parse_inline(
+            pair.into_inner(),
+            location,
+        )))),
+        Rule::url_macro => Ok(InlineNode::Macro(InlineMacro::Url(Url::parse_inline(
+            pair.into_inner(),
+            location,
+        )))),
+        Rule::link_macro => Ok(InlineNode::Macro(InlineMacro::Link(Link::parse_inline(
+            pair.into_inner(),
+            location,
+        )))),
+        Rule::autolink => Ok(InlineNode::Macro(InlineMacro::Autolink(
+            Autolink::parse_inline(pair.into_inner(), location),
+        ))),
+        Rule::pass_inline => Ok(InlineNode::Macro(InlineMacro::Pass(Pass::parse_inline(
+            pair.into_inner(),
+            location,
+        )))),
+        Rule::single_double_passthrough | Rule::triple_passthrough => {
+            Ok(InlineNode::Macro(InlineMacro::Pass(
+                Pass::parse_inline_single_double_or_triple(Pairs::single(pair), location),
+            )))
+        }
+        unknown => unreachable!("{unknown:?}"),
+    }
+}
+
+#[instrument(level = "trace")]
 fn get_paragraph_content(
     text_style: &str,
+    unconstrained: bool,
     pair: &Pair<Rule>,
     metadata: &mut BlockMetadata,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut content = Vec::new();
     let len = pair.as_str().len();
-    match InnerPestParser::parse(Rule::paragraph_inner, &pair.as_str()[1..len - 1]) {
+    let token_length = if unconstrained { 2 } else { 1 };
+    match InnerPestParser::parse(
+        Rule::paragraph_inner,
+        &pair.as_str()[token_length..len - token_length],
+    ) {
         Ok(pairs) => {
             for pair in pairs {
                 content.extend(parse_paragraph_inner(pair, metadata)?);
@@ -906,7 +1021,7 @@ fn get_paragraph_content(
 fn parse_paragraph(
     pair: Pair<Rule>,
     metadata: &mut BlockMetadata,
-    attributes: &mut Vec<AttributeEntry>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
 ) -> Result<Block, Error> {
     let start = pair.as_span().start_pos();
     let end = pair.as_span().end_pos();
@@ -951,10 +1066,7 @@ fn parse_paragraph(
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
                     } else {
-                        attributes.push(AttributeEntry {
-                            name: None,
-                            value: Some(value),
-                        });
+                        attributes.insert(value, None);
                     }
                 }
             }
@@ -977,9 +1089,36 @@ fn parse_paragraph(
     }))
 }
 
+fn parse_named_attribute_inline(
+    pairs: Pairs<Rule>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
+) {
+    let mut name = String::new();
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::id => {
+                attributes.insert("id".to_string(), Some(pair.as_str().to_string()));
+            }
+            Rule::role => {
+                attributes.insert("role".to_string(), Some(pair.as_str().to_string()));
+            }
+            Rule::option => {
+                attributes.insert("option".to_string(), Some(pair.as_str().to_string()));
+            }
+            Rule::attribute_name => name = pair.as_str().to_string(),
+            Rule::named_attribute_value => {
+                attributes.insert(name.clone(), Some(pair.as_str().to_string()));
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+}
+
 fn parse_named_attribute(
     pairs: Pairs<Rule>,
-    attributes: &mut Vec<AttributeEntry>,
+    attributes: &mut HashMap<AttributeName, Option<String>>,
     metadata: &mut BlockMetadata,
 ) {
     let mut name = None;
@@ -1006,12 +1145,13 @@ fn parse_named_attribute(
 
     if let Some(name) = name {
         if name == "role" {
-            metadata.roles.push(value.unwrap());
+            if let Some(value) = value {
+                metadata.roles.push(value);
+            } else {
+                tracing::warn!("named 'role' attribute without value");
+            }
         } else {
-            attributes.push(AttributeEntry {
-                name: Some(name),
-                value,
-            });
+            attributes.insert(name, value);
         }
     }
 }
@@ -1019,7 +1159,7 @@ fn parse_named_attribute(
 fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut title = None;
     let mut metadata = BlockMetadata::default();
-    let mut attributes = Vec::new();
+    let mut attributes = HashMap::new();
     let mut style_found = false;
     let mut block = Block::UnorderedList(UnorderedList {
         title: None,
@@ -1057,10 +1197,7 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
                     } else {
-                        attributes.push(AttributeEntry {
-                            name: None,
-                            value: Some(value),
-                        });
+                        attributes.insert(value, None);
                     }
                 }
             }
@@ -1084,7 +1221,7 @@ fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
 fn parse_description_list(
     title: Option<String>,
     metadata: BlockMetadata,
-    attributes: Vec<AttributeEntry>,
+    attributes: HashMap<AttributeName, Option<String>>,
     pairs: Pairs<Rule>,
 ) -> Result<Block, Error> {
     let mut location = Location {
@@ -1217,7 +1354,7 @@ fn parse_anchor(pairs: Pairs<Rule>) -> Anchor {
 fn parse_simple_list(
     title: Option<String>,
     metadata: BlockMetadata,
-    attributes: Vec<AttributeEntry>,
+    attributes: HashMap<AttributeName, Option<String>>,
     pairs: Pairs<Rule>,
 ) -> Result<Block, Error> {
     let mut location = Location {
@@ -1322,7 +1459,7 @@ fn parse_list_item(pairs: Pairs<Rule>) -> Result<ListItem, Error> {
 
 fn parse_section(pair: &Pair<Rule>) -> Result<Block, Error> {
     let metadata = BlockMetadata::default();
-    let attributes = Vec::new();
+    let attributes = HashMap::new();
     let mut title = String::new();
     let mut level = 0;
     let mut content = Vec::new();
@@ -1418,7 +1555,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
     let mut inner = DelimitedBlockType::DelimitedComment(String::new());
     let mut metadata = BlockMetadata::default();
     let mut title = None;
-    let mut attributes = Vec::new();
+    let mut attributes = HashMap::new();
     let mut location = Location {
         start: Position { line: 0, column: 0 },
         end: Position { line: 0, column: 0 },
@@ -1507,10 +1644,7 @@ fn parse_delimited_block(pairs: Pairs<Rule>) -> Result<Block, Error> {
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
                     } else {
-                        attributes.push(AttributeEntry {
-                            name: None,
-                            value: Some(value),
-                        });
+                        attributes.insert(value, None);
                     }
                 }
             }
@@ -1551,9 +1685,7 @@ mod tests {
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
         if test_file_path.exists() {
-            let result = parser
-                .parse(&std::fs::read_to_string(&path).unwrap())
-                .unwrap();
+            let result = parser.parse_file(path).unwrap();
             let test: Document =
                 serde_json::from_str(&std::fs::read_to_string(test_file_path).unwrap()).unwrap();
             assert_eq!(test, result);
@@ -1567,9 +1699,7 @@ mod tests {
     fn test_section_with_invalid_subsection() {
         let parser = PestParser;
         let result = parser
-            .parse(include_str!(
-                "../fixtures/tests/section_with_invalid_subsection.adoc"
-            ))
+            .parse_file("fixtures/tests/section_with_invalid_subsection.adoc")
             .unwrap_err();
         if let Error::NestedSectionLevelMismatch(ref detail, 2, 3) = result {
             assert_eq!(
@@ -1586,21 +1716,11 @@ mod tests {
         }
     }
 
-    #[test]
-    #[tracing_test::traced_test]
-    fn test_empty_block() {
-        let parser = PestParser;
-        let result = parser
-            .parse("The text [.underline]#underline me# is underlined.")
-            .unwrap();
-        dbg!(&result);
-        panic!()
-    }
-
     // #[test]
+    // #[tracing_test::traced_test]
     // fn test_mdbasics_adoc() {
     //     let result = PestParser
-    //         .parse(include_str!("../fixtures/samples/mdbasics/mdbasics.adoc"))
+    //         .parse_file("fixtures/samples/mdbasics/mdbasics.adoc")
     //         .unwrap();
     //     dbg!(&result);
     //     panic!()

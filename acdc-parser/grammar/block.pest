@@ -79,10 +79,37 @@ admonition_node = _{
     admonition ~ ": "
 }
 
-bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ POP }
-italic_text = { PUSH("_") ~ (!"_" ~ ANY)+ ~ POP }
-monospace_text = { PUSH("`") ~ (!"`" ~ ANY)+ ~ POP }
-highlight_text = { PUSH("#") ~ (!"#" ~ ANY)+ ~ POP }
+// ** inline passthroughs **
+// TODO(nlopes): This currently doesn't quite follow the rules of constrained vs unconstrained
+// so there will be plenty of bugs here
+single_double_passthrough = {
+    (
+        (PUSH("++") ~ (!"++" ~ ANY)+) |
+        (PUSH("+") ~ (!"+" ~ ANY)+)
+    )
+    ~ POP
+}
+
+punctuation = _{ "." | "," | ";" | ":" | "!" | "?" | "\"" }
+
+triple_passthrough = {
+    PUSH("+++") ~ (!"+++" ~ ANY)+ ~ POP
+}
+pass_inline = { "pass:" ~ substitution_values? ~ "[" ~ pass_inline_text ~ "]" }
+substitution_values = _{
+    (substitution_value ~ ","?)+
+}
+substitution_value = { (!("," | "[") ~ ANY)+ }
+pass_inline_text = { (!"]" ~ ANY)+ }
+
+bold_text_unconstrained = { PUSH("**") ~ (!"**" ~ ANY)+ ~ POP }
+bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ (!"**" ~ POP) }
+italic_text_unconstrained = { PUSH("__") ~ (!"__" ~ ANY)+ ~ POP }
+italic_text = { PUSH("_") ~ (!"_" ~ ANY)+ ~ (!"__" ~ POP) }
+monospace_text_unconstrained = { PUSH("``") ~ (!"``" ~ ANY)+ ~ POP }
+monospace_text = { PUSH("`") ~ (!"`" ~ ANY)+ ~ (!"``" ~ POP) }
+highlight_text_unconstrained = { PUSH("##") ~ (!"##" ~ ANY)+ ~ POP }
+highlight_text = { PUSH("#") ~ (!"#" ~ ANY)+ ~ (!"##" ~ POP) }
 subscript_text = { PUSH("~") ~ (!"~" ~ ANY)+ ~ POP }
 superscript_text = { PUSH("^") ~ (!"^" ~ ANY)+ ~ POP }
 curved_quotation_text = { PUSH("\"`") ~ (!"`\"" ~ ANY)+ ~ POP }
@@ -90,10 +117,47 @@ curved_apostrophe_text = { PUSH("'`") ~ (!"`'" ~ ANY)+ ~ POP }
 
 inline_line_break = { " +" ~ NEWLINE }
 
+//name:<target>?[<attrlist>?]
+image_inline = { "image:" ~ (url | path) ~ attrlist }
+icon_inline = { "icon:" ~ path ~ attrlist }
+keyboard_inline = { "kbd:[" ~ key ~ (("," ~ key)+ | ("+" ~ key)+)? ~ "]" }
+key = { (!"]" ~ ANY)+ }
+// TODO(nlopes): Documentation states that btn should have an attrlist instead of label
+// Check: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads#user-content-button-macro
+btn_inline = { "btn:" ~ label }
+label = { (!"]" ~ ANY)+ }
+
+menu_inline = { "menu:" ~ path ~ menu_attrlist }
+menu_attrlist = _{
+    "[" ~ menu_item ~ (" > " ~ menu_item)* ~ "]"
+}
+menu_item = { (!("]" | " > ") ~ ANY)+ }
+
+autolink = { ("<" ~ url ~ ">") | url }
+url_macro = { url ~ attrlist }
+link_macro = { "link:" ~ (url | path) ~ attrlist }
+// TODO(nlopes): STEM - https://docs.asciidoctor.org/asciidoc/latest/stem/
+
+
 non_plain_text = {
-    attrlist? ~ (
+    image_inline |
+    icon_inline |
+    keyboard_inline |
+    btn_inline |
+    menu_inline |
+    url_macro |
+    link_macro |
+    autolink |
+    pass_inline |
+    single_double_passthrough |
+    triple_passthrough |
+    (attrlist? ~ (
         footnote |
         inline_line_break |
+        bold_text_unconstrained |
+        italic_text_unconstrained |
+        monospace_text_unconstrained |
+        highlight_text_unconstrained |
         bold_text |
         italic_text |
         monospace_text |
@@ -102,7 +166,7 @@ non_plain_text = {
         superscript_text |
         curved_quotation_text |
         curved_apostrophe_text
-    )
+    ))
 }
 
 footnote = { "footnote:" ~ footnote_id? ~ "[" ~ footnote_text? ~ "]" }
@@ -119,5 +183,5 @@ admonition = !{
     )
 }
 plain_text = {
-    (&(!(NEWLINE{2,} | EOI | non_plain_text | attrlist)) ~ ANY)+
+    (&(!(NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+
 }

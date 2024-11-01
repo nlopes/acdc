@@ -10,12 +10,9 @@
           ],
           "style": "source"
         },
-        "attributes": [
-          {
-            "name": "title",
-            "value": "\"Hello,world\""
-          }
-        ],
+        "attributes": {
+          "title": "\"Hello,world\""
+        },
         "content": [
           {
             "PlainText": {

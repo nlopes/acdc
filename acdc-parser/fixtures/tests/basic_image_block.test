@@ -7,20 +7,11 @@
         "source": {
           "Path": "sunset.jpg"
         },
-        "attributes": [
-          {
-            "name": "alt",
-            "value": "Sunset"
-          },
-          {
-            "name": "width",
-            "value": "300"
-          },
-          {
-            "name": "height",
-            "value": "400"
-          }
-        ],
+        "attributes": {
+          "alt": "Sunset",
+          "width": "300",
+          "height": "400"
+        },
         "location": [
           {
             "line": 1,
@@ -38,20 +29,11 @@
         "source": {
           "Path": "sunset2.jpg"
         },
-        "attributes": [
-          {
-            "name": "alt",
-            "value": "Sunset"
-          },
-          {
-            "name": "width",
-            "value": "300"
-          },
-          {
-            "name": "height",
-            "value": "400"
-          }
-        ],
+        "attributes": {
+          "alt": "Sunset",
+          "width": "300",
+          "height": "400"
+        },
         "location": [
           {
             "line": 3,

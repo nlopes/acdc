@@ -619,6 +619,7 @@ name = { (ASCII_ALPHANUMERIC | "-" | "_")+ }
 value = { (!EOI ~ ANY)+ }"#]
     pub(crate) struct Parser;
 
+    #[tracing::instrument(level = "trace")]
     pub(crate) fn parse_line(attributes: &mut HashMap<AttributeName, AttributeValue>, line: &str) {
         if let Ok(pairs) = Parser::parse(Rule::document_attribute, line) {
             let mut unset = false;

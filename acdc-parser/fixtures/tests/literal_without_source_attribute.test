@@ -7,12 +7,9 @@
         "inner": {
           "DelimitedListing": "include::app.rb[]"
         },
-        "attributes": [
-          {
-            "name": null,
-            "value": "ruby"
-          }
-        ],
+        "attributes": {
+          "ruby": null
+        },
         "location": [
           {
             "line": 1,
