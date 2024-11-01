@@ -28,13 +28,13 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 ** [*] Table
 ** [*] Pass
 ** [*] Quote
-* [*] Paragraph
+* [*] Paragraph _(constrained not supported well!)_
 ** [*] Bold
-** [ ] Italic
-** [ ] Monospace
-** [ ] Literal Monospacae
-** [ ] Highlight
-** [ ] Subscript / Superscript
+** [*] Italic
+** [*] Monospace
+** [*] Literal Monospace
+** [*] Highlight
+** [*] Subscript / Superscript
 * [*] Image
 * [*] Lists
 ** [*] Ordered
