@@ -1,7 +1,7 @@
 //! The data models for the `AsciiDoc` document.
 use std::{
     collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use serde::{
@@ -9,8 +9,7 @@ use serde::{
     Deserialize, Serialize,
 };
 
-use crate::Error;
-
+/// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Document {
     pub(crate) name: String,
@@ -26,6 +25,7 @@ pub struct Document {
 
 type Subtitle = String;
 
+/// A `Title` represents the title of a document.
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Title {
     pub(crate) name: String,
@@ -35,6 +35,9 @@ pub struct Title {
     pub location: Location,
 }
 
+/// A `Header` represents the header of a document.
+///
+/// The header contains the title, subtitle, and authors
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Header {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -46,6 +49,7 @@ pub struct Header {
     pub location: Location,
 }
 
+/// An `Author` represents the author of a document.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Author {
     pub first_name: String,
@@ -56,12 +60,16 @@ pub struct Author {
     pub email: Option<String>,
 }
 
+/// An `AttributeEntry` represents an attribute entry in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AttributeEntry {
     pub name: Option<AttributeName>,
     pub value: Option<String>,
 }
 
+/// An `Anchor` represents an anchor in a document.
+///
+/// An anchor is a reference point in a document that can be linked to.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Anchor {
     pub id: String,
@@ -72,6 +80,7 @@ pub struct Anchor {
 
 pub type Role = String;
 
+/// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -86,6 +95,9 @@ pub struct BlockMetadata {
     pub anchors: Vec<Anchor>,
 }
 
+/// A `Block` represents a block in a document.
+///
+/// A block is a structural element in a document that can contain other blocks.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Block {
@@ -104,15 +116,25 @@ pub enum Block {
     Video(Video),
 }
 
+/// An `AttributeName` represents the name of an attribute in a document.
 pub type AttributeName = String;
 
+/// An `AttributeValue` represents the value of an attribute in a document.
+///
+/// An attribute value can be a string or a boolean.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
+    /// A string attribute value.
     String(String),
+    /// A boolean attribute value. `false` means it is unset.
     Bool(bool),
 }
 
+/// A `DocumentAttribute` represents a document attribute in a document.
+///
+/// A document attribute is a key-value pair that can be used to set metadata in a
+/// document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DocumentAttribute {
     pub name: AttributeName,
@@ -120,6 +142,10 @@ pub struct DocumentAttribute {
     pub location: Location,
 }
 
+/// An `InlineNode` represents an inline node in a document.
+///
+/// An inline node is a structural element in a document that can contain other inline
+/// nodes and are only valid within a paragraph (a leaf).
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum InlineNode {
@@ -134,6 +160,7 @@ pub enum InlineNode {
     Macro(InlineMacro),
 }
 
+/// An `InlineMacro` represents an inline macro in a document.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum InlineMacro {
@@ -148,6 +175,7 @@ pub enum InlineMacro {
     Pass(Pass),
 }
 
+/// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Pass {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -157,6 +185,7 @@ pub struct Pass {
     pub location: Location,
 }
 
+/// A `Substitution` represents a substitution in a passthrough macro.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Substitution {
@@ -186,6 +215,7 @@ impl From<&str> for Substitution {
     }
 }
 
+/// An `Icon` represents an inline icon in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Icon {
     pub target: String,
@@ -193,6 +223,7 @@ pub struct Icon {
     pub location: Location,
 }
 
+/// A `Link` represents an inline link in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Link {
     pub target: LinkTarget,
@@ -207,6 +238,7 @@ pub enum LinkTarget {
     Path(PathBuf),
 }
 
+/// An `Url` represents an inline URL in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Url {
     pub target: String,
@@ -215,12 +247,14 @@ pub struct Url {
     pub location: Location,
 }
 
+/// A `Button` represents an inline button in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Button {
     pub label: String,
     pub location: Location,
 }
 
+/// A `Menu` represents an inline menu in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Menu {
     pub target: String,
@@ -229,6 +263,7 @@ pub struct Menu {
     pub location: Location,
 }
 
+/// A `Keyboard` represents an inline keyboard shortcut in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Keyboard {
     pub keys: Vec<Key>,
@@ -238,12 +273,17 @@ pub struct Keyboard {
 // TODO(nlopes): this could perhaps be an enum instead with the allowed keys
 pub type Key = String;
 
+/// An `Autolink` represents an inline autolink in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Autolink {
     pub url: String,
     pub location: Location,
 }
 
+/// A `DiscreteHeader` represents a discrete header in a document.
+///
+/// Discrete headings are useful for making headings inside of other blocks, like a
+/// sidebar.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DiscreteHeader {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -253,6 +293,7 @@ pub struct DiscreteHeader {
     pub location: Location,
 }
 
+/// A `SubscriptText` represents a subscript section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SubscriptText {
     pub role: Option<Role>,
@@ -260,6 +301,7 @@ pub struct SubscriptText {
     pub location: Location,
 }
 
+/// A `SuperscriptText` represents a superscript section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SuperscriptText {
     pub role: Option<Role>,
@@ -267,6 +309,7 @@ pub struct SuperscriptText {
     pub location: Location,
 }
 
+/// A `MonospaceText` represents a monospace section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MonospaceText {
     pub role: Option<Role>,
@@ -274,6 +317,7 @@ pub struct MonospaceText {
     pub location: Location,
 }
 
+/// A `HighlightText` represents a highlighted section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HighlightText {
     pub role: Option<Role>,
@@ -281,6 +325,7 @@ pub struct HighlightText {
     pub location: Location,
 }
 
+/// A `BoldText` represents a bold section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct BoldText {
     pub role: Option<Role>,
@@ -288,6 +333,7 @@ pub struct BoldText {
     pub location: Location,
 }
 
+/// An `ItalicText` represents an italic section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ItalicText {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -296,12 +342,16 @@ pub struct ItalicText {
     pub location: Location,
 }
 
+/// A `PlainText` represents a plain text section in a document.
+///
+/// This is the most basic form of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PlainText {
     pub content: String,
     pub location: Location,
 }
 
+/// A `ThematicBreak` represents a thematic break in a document.
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ThematicBreak {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -311,6 +361,7 @@ pub struct ThematicBreak {
     pub location: Location,
 }
 
+/// A `PageBreak` represents a page break in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageBreak {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -322,6 +373,7 @@ pub struct PageBreak {
     pub location: Location,
 }
 
+/// An `Audio` represents an audio block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Audio {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -334,6 +386,7 @@ pub struct Audio {
     pub location: Location,
 }
 
+/// A `Video` represents a video block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Video {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -347,6 +400,7 @@ pub struct Video {
     pub location: Location,
 }
 
+/// An `Image` represents an image block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Image {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -382,6 +436,7 @@ pub enum ImageSource {
     Url(String),
 }
 
+/// A `DescriptionList` represents a description list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionList {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -395,6 +450,7 @@ pub struct DescriptionList {
     pub location: Location,
 }
 
+/// A `DescriptionListItem` represents a description list item in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionListItem {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -411,6 +467,7 @@ pub enum DescriptionListDescription {
     Blocks(Vec<Block>),
 }
 
+/// A `UnorderedList` represents an unordered list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnorderedList {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -424,9 +481,11 @@ pub struct UnorderedList {
     pub location: Location,
 }
 
+/// An `OrderedList` represents an ordered list in a document.
 pub type OrderedList = UnorderedList;
 pub type ListLevel = u8;
 
+/// A `ListItem` represents a list item in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ListItem {
     // TODO(nlopes): missing anchors
@@ -437,6 +496,7 @@ pub struct ListItem {
     pub content: Vec<String>,
 }
 
+/// A `Paragraph` represents a paragraph in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Paragraph {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
@@ -460,6 +520,7 @@ fn is_default_metadata(metadata: &BlockMetadata) -> bool {
         && metadata.anchors.is_empty()
 }
 
+/// A `DelimitedBlock` represents a delimited block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DelimitedBlock {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
@@ -472,6 +533,7 @@ pub struct DelimitedBlock {
     pub location: Location,
 }
 
+/// A `DelimitedBlockType` represents the type of a delimited block in a document.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DelimitedBlockType {
@@ -486,8 +548,10 @@ pub enum DelimitedBlockType {
     DelimitedQuote(Vec<Block>),
 }
 
+/// A `SectionLevel` represents a section depth in a document.
 pub type SectionLevel = u8;
 
+/// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Section {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
@@ -501,9 +565,12 @@ pub struct Section {
     pub location: Location,
 }
 
+/// A `Location` represents a location in a document.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Deserialize)]
 pub struct Location {
+    /// The start position of the location.
     pub start: Position,
+    /// The end position of the location.
     pub end: Position,
 }
 
@@ -524,44 +591,12 @@ impl Serialize for Location {
     }
 }
 
+/// A `Position` represents a position in a document.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Position {
+    /// The line number of the position.
     pub line: usize,
+    /// The column number of the position.
     #[serde(rename = "col")]
     pub column: usize,
-}
-
-/// The `Parser` trait defines the interface for parsing `AsciiDoc` documents.
-pub trait Parser {
-    /// Parse the input string and return a Document.
-    ///
-    /// # Arguments
-    ///
-    /// * `input` - A string slice that holds the input to be parsed.
-    ///
-    /// # Returns
-    ///
-    /// A `Document` if the `input` was successfully parsed, or an `Error` if the input
-    /// could not be parsed.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Error` if the input string cannot be parsed.
-    fn parse(&self, input: &str) -> Result<Document, Error>;
-
-    /// Parse the file in `file_path` and return a Document.
-    ///
-    /// # Arguments
-    ///
-    /// * `file_path` - A file path that holds the input to be parsed.
-    ///
-    /// # Returns
-    ///
-    /// A `Document` if the `file_path` was successfully parsed, or an `Error` if the
-    /// input could not be parsed.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Error` if the input from `file_path` cannot be parsed.
-    fn parse_file<P: AsRef<Path>>(&self, file_path: P) -> Result<Document, Error>;
 }
