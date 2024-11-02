@@ -543,13 +543,33 @@ pub enum DelimitedBlockType {
     DelimitedLiteral(String),
     DelimitedOpen(Vec<Block>),
     DelimitedSidebar(Vec<Block>),
-    DelimitedTable(String),
+    DelimitedTable(Table),
     DelimitedPass(String),
     DelimitedQuote(Vec<Block>),
 }
 
 /// A `SectionLevel` represents a section depth in a document.
 pub type SectionLevel = u8;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Table {
+    pub header: Option<TableRow>,
+    pub footer: Option<TableRow>,
+    pub rows: Vec<TableRow>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TableRow {
+    pub columns: Vec<TableColumn>,
+    //pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TableColumn {
+    pub content: Vec<Block>,
+    //pub location: Location,
+}
 
 /// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -6,6 +6,7 @@ mod image;
 mod list;
 mod paragraph;
 mod section;
+mod table;
 mod video;
 
 use pest::iterators::Pairs;

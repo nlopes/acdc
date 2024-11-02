@@ -170,7 +170,14 @@ impl Block {
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
                 Rule::section => block = Section::parse(&pair)?,
-                Rule::delimited_block => block = DelimitedBlock::parse(pair.into_inner())?,
+                Rule::delimited_block => {
+                    block = DelimitedBlock::parse(
+                        pair.into_inner(),
+                        title.clone(),
+                        &metadata,
+                        &attributes,
+                    )?;
+                }
                 Rule::paragraph => block = Paragraph::parse(pair, &mut metadata, &mut attributes)?,
                 Rule::list => block = parse_list(pair.into_inner())?,
                 Rule::image_block => {

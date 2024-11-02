@@ -4,19 +4,22 @@ use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks,
-    model::{Anchor, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Location},
+    model::{
+        AttributeName, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Location, Table,
+    },
     Error, InnerPestParser, Rule,
 };
 
 impl DelimitedBlock {
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Block, Error> {
+    pub(crate) fn parse(
+        pairs: Pairs<Rule>,
+        title: Option<String>,
+        metadata: &BlockMetadata,
+        attributes: &HashMap<AttributeName, Option<String>>,
+    ) -> Result<Block, Error> {
         let mut inner = DelimitedBlockType::DelimitedComment(String::new());
-        let mut metadata = BlockMetadata::default();
-        let mut title = None;
-        let mut attributes = HashMap::new();
         let mut location = Location::default();
-        let mut style_found = false;
 
         for pair in pairs {
             if pair.as_rule() == Rule::EOI || pair.as_rule() == Rule::comment {
@@ -90,43 +93,21 @@ impl DelimitedBlock {
                     inner = DelimitedBlockType::DelimitedSidebar(blocks::parse(pairs)?);
                 }
                 Rule::delimited_table => {
-                    inner =
-                        DelimitedBlockType::DelimitedTable(pair.into_inner().as_str().to_string());
-                }
-                Rule::title => {
-                    title = Some(pair.as_str().to_string());
-                }
-                Rule::empty_style => {
-                    style_found = true;
-                }
-                Rule::positional_attribute_value => {
-                    let value = pair.as_str().to_string();
-                    if !value.is_empty() {
-                        if metadata.style.is_none() && !style_found {
-                            metadata.style = Some(value);
-                        } else {
-                            attributes.insert(value, None);
-                        }
-                    }
-                }
-                Rule::named_attribute => {
-                    Block::parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
-                }
-                Rule::option => metadata.options.push(pair.as_str().to_string()),
-                Rule::anchor => {
-                    let anchor = Anchor::parse(pair.into_inner());
-                    metadata.id = Some(anchor.clone());
-                    metadata.anchors.push(anchor);
+                    inner = DelimitedBlockType::DelimitedTable(Table::parse(
+                        &pair.into_inner(),
+                        metadata,
+                        attributes,
+                    )?);
                 }
                 unknown => unreachable!("{unknown:?}"),
             }
         }
 
         Ok(Block::DelimitedBlock(DelimitedBlock {
-            metadata,
+            metadata: metadata.clone(),
             inner,
             title,
-            attributes,
+            attributes: attributes.clone(),
             location,
         }))
     }

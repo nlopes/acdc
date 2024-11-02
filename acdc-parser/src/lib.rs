@@ -68,7 +68,7 @@ pub fn parse(input: &str) -> Result<Document, Error> {
     match InnerPestParser::parse(Rule::document, &input) {
         Ok(pairs) => Document::parse(pairs),
         Err(e) => {
-            tracing::error!("error preprocessing document: {e}");
+            tracing::error!("error parsing document content: {e}");
             Err(Error::Parse(e.to_string()))
         }
     }
@@ -81,7 +81,7 @@ pub fn parse_file<P: AsRef<Path>>(file_path: P) -> Result<Document, Error> {
     match InnerPestParser::parse(Rule::document, &input) {
         Ok(pairs) => Document::parse(pairs),
         Err(e) => {
-            tracing::error!("error preprocessing document: {e}");
+            tracing::error!("error parsing document content: {e}");
             Err(Error::Parse(e.to_string()))
         }
     }
