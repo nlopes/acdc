@@ -12,9 +12,10 @@
 //! - `parse_file`: parses the content of a file containing `AsciiDoc` content.
 //!
 //! ```rust
-//! use asciidoc::Parser;
 //!
-//! let parser = Parser;
+//! use acdc_parser::Document;
+//!
+//! let doc = Document::default();
 //! let content = r#"= Document Title
 //!
 //! This is a paragraph.
@@ -23,7 +24,7 @@
 //!
 //! This is a subsection."#;
 //!
-//! let document = parser.parse(content).unwrap();
+//! let document = doc.parse(content).unwrap();
 //!
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
