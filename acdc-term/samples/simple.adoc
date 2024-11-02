@@ -1,0 +1,10 @@
+= Document Title
+Norberto Lopes <nlopesml@gmail.com>
+
+This is a preamble of something or other.
+
+== Section 1
+
+This is a paragraph with some _italic_ and *bold* text.
+
+And a paragraph with some ##highlighted text##.

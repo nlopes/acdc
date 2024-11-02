@@ -1,0 +1,15 @@
+[package]
+name = "acdc-term"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+anyhow = "1.0.92"
+clap = { version = "4.5.20", features = ["derive"] }
+acdc-parser = { path = "../acdc-parser" }
+crossterm = "0.28.1"
+
+[lints]
+workspace = true
