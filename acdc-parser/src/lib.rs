@@ -13,9 +13,8 @@
 //!
 //! ```rust
 //!
-//! use acdc_parser::Document;
+//! use acdc_parser::{Document, parse};
 //!
-//! let doc = Document::default();
 //! let content = r#"= Document Title
 //!
 //! This is a paragraph.
@@ -24,7 +23,7 @@
 //!
 //! This is a subsection."#;
 //!
-//! let document = doc.parse(content).unwrap();
+//! let document = parse(content).unwrap();
 //!
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
