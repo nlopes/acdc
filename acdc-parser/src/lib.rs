@@ -48,7 +48,7 @@ pub use model::{
     DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
     Header, HighlightText, Icon, Image, ImageSource, InlineMacro, InlineNode, ItalicText, Keyboard,
     Link, ListItem, Location, Menu, MonospaceText, OrderedList, PageBreak, Paragraph, Pass,
-    PlainText, Position, Section, SubscriptText, SuperscriptText, ThematicBreak, Title,
+    PlainText, Position, Section, SubscriptText, SuperscriptText, Table, ThematicBreak, Title,
     UnorderedList, Url, VideoSource,
 };
 

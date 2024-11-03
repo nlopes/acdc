@@ -46,10 +46,22 @@ impl InlineNode {
 
             match pair.as_rule() {
                 Rule::plain_text => {
-                    return Ok(InlineNode::PlainText(PlainText {
-                        content: pair.as_str().to_string().trim().to_string(),
-                        location,
-                    }));
+                    let content = if let Some(v) = &metadata.style {
+                        if v == &String::from("literal") {
+                            pair.as_str().strip_prefix(" ").unwrap_or(pair.as_str())
+                        } else {
+                            pair.as_str()
+                        }
+                    } else {
+                        pair.as_str()
+                    };
+                    let content = content
+                        .strip_suffix("\r\n")
+                        .or(content.strip_suffix("\n"))
+                        .unwrap_or(content)
+                        .to_string();
+
+                    return Ok(InlineNode::PlainText(PlainText { content, location }));
                 }
                 Rule::highlight_text | Rule::highlight_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;

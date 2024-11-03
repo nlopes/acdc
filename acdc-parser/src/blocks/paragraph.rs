@@ -98,7 +98,8 @@ impl Paragraph {
 
         for pair in pairs {
             if first {
-                let value = pair.as_str().trim_end().to_string();
+                // Remove the trailing newline if there is one.
+                let value = pair.as_str().to_string();
                 if value.starts_with(' ') {
                     metadata.style = Some("literal".to_string());
                 }
