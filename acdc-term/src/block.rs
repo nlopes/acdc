@@ -7,6 +7,7 @@ impl Render for acdc_parser::Block {
         writeln!(w)?;
         match self {
             acdc_parser::Block::Paragraph(p) => p.render(w),
+            acdc_parser::Block::DelimitedBlock(d) => d.render(w),
             acdc_parser::Block::Section(s) => s.render(w),
             _ => Ok(()),
         }

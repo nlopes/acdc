@@ -5,7 +5,9 @@ pub trait Render {
 }
 
 mod block;
+mod delimited;
 mod document;
 mod inline;
 mod paragraph;
 mod section;
+mod table;

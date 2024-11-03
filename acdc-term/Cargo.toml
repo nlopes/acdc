@@ -6,9 +6,10 @@ authors.workspace = true
 description.workspace = true
 
 [dependencies]
+acdc-parser = { path = "../acdc-parser" }
 anyhow = "1.0.92"
 clap = { version = "4.5.20", features = ["derive"] }
-acdc-parser = { path = "../acdc-parser" }
+comfy-table = "7.1.1"
 crossterm = "0.28.1"
 
 [lints]

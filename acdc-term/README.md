@@ -15,3 +15,13 @@ You can also pass multiple files and it will parse and print them all.
 ```bash
 acdc-term samples/*
 ```
+
+## Examples
+
+Here's a simple table.
+
+![Table Example](images/table.adoc.png)
+
+## TODO
+
+- [] Add `syntect` for syntax highlighting in literal code blocks

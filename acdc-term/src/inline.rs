@@ -10,7 +10,9 @@ use crate::Render;
 impl Render for acdc_parser::InlineNode {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         match self {
-            acdc_parser::InlineNode::PlainText(p) => write!(w, "{}", p.content.clone()),
+            acdc_parser::InlineNode::PlainText(p) => {
+                write!(w, "{}", p.content.clone())
+            }
             acdc_parser::InlineNode::ItalicText(i) => {
                 // ItalicText is a wrapper around a Vec<InlineNode>
                 //
@@ -27,6 +29,7 @@ impl Render for acdc_parser::InlineNode {
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
                         .unwrap_or_default()
+                        .trim()
                         .italic(),
                 ))?;
                 Ok(())
@@ -40,6 +43,7 @@ impl Render for acdc_parser::InlineNode {
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
                         .unwrap_or_default()
+                        .trim()
                         .bold(),
                 ))?;
                 Ok(())
@@ -53,12 +57,28 @@ impl Render for acdc_parser::InlineNode {
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
                         .unwrap_or_default()
+                        .trim()
                         .black()
                         .on_yellow(),
                 ))?;
                 Ok(())
             }
-            _ => Ok(()),
+            acdc_parser::InlineNode::MonospaceText(m) => {
+                let mut inner = std::io::BufWriter::new(Vec::new());
+                m.content
+                    .iter()
+                    .try_for_each(|node| node.render(&mut inner))?;
+                inner.flush()?;
+                w.queue(PrintStyledContent(
+                    String::from_utf8(inner.get_ref().clone())
+                        .unwrap_or_default()
+                        .trim()
+                        .black()
+                        .on_grey(),
+                ))?;
+                Ok(())
+            }
+            unknown => unimplemented!("{:?}", unknown),
         }
     }
 }

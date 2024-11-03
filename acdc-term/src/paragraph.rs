@@ -9,11 +9,8 @@ impl Render for acdc_parser::Paragraph {
         if let Some(title) = &self.title {
             write!(w, "{}", title.clone().bold().white())?;
         }
-        for (i, node) in self.content.iter().enumerate() {
+        for node in &self.content {
             node.render(w)?;
-            if i != self.content.len() - 1 {
-                write!(w, " ")?;
-            }
         }
         Ok(())
     }
