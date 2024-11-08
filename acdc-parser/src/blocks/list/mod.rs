@@ -7,11 +7,17 @@ use std::collections::HashMap;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Block, BlockMetadata, DescriptionList, Location, Position, UnorderedList},
+    model::{
+        Block, BlockMetadata, DescriptionList, DocumentAttributes, Location, Position,
+        UnorderedList,
+    },
     Error, Rule,
 };
 
-pub(crate) fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
+pub(crate) fn parse_list(
+    pairs: Pairs<Rule>,
+    parent_attributes: &mut DocumentAttributes,
+) -> Result<Block, Error> {
     let mut title = None;
     let mut metadata = BlockMetadata::default();
     let mut attributes = HashMap::new();
@@ -34,10 +40,11 @@ pub(crate) fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
             }
             Rule::unordered_list | Rule::ordered_list => {
                 block = Block::parse_simple_list(
+                    pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
                     attributes.clone(),
-                    pair.into_inner(),
+                    parent_attributes,
                 )?;
             }
             Rule::named_attribute => {
@@ -60,10 +67,11 @@ pub(crate) fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::description_list => {
                 block = DescriptionList::parse(
+                    pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
                     attributes.clone(),
-                    pair.into_inner(),
+                    parent_attributes,
                 )?;
             }
             Rule::EOI | Rule::comment => {}

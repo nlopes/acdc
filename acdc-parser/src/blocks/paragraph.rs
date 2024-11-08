@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use pest::{
-    iterators::{Pair, Pairs},
-    Parser as _,
-};
+use pest::iterators::{Pair, Pairs};
 use tracing::instrument;
 
 use crate::{
-    model::{AttributeName, Block, BlockMetadata, InlineNode, Location, Paragraph, Position},
+    model::{
+        AttributeName, Block, BlockMetadata, DocumentAttributes, InlineNode, Location, Paragraph,
+        Position,
+    },
     Error, Rule,
 };
 
@@ -17,6 +17,7 @@ impl Paragraph {
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let start = pair.as_span().start_pos();
         let end = pair.as_span().end_pos();
@@ -44,8 +45,10 @@ impl Paragraph {
                 Rule::admonition => {
                     admonition = Some(pair.as_str().to_string());
                 }
-                Rule::paragraph_inner => {
-                    content.extend(Self::parse_inner(pair, metadata)?);
+                Rule::inlines => {
+                    // TODO(nlopes): we should merge the parent_attributes, with the
+                    // attributes we have here?!?
+                    content.extend(Self::parse_inner(pair, metadata, parent_attributes)?);
                 }
                 Rule::role => metadata.roles.push(pair.as_str().to_string()),
                 Rule::option => metadata.options.push(pair.as_str().to_string()),
@@ -90,6 +93,7 @@ impl Paragraph {
     pub(crate) fn parse_inner(
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<Vec<InlineNode>, Error> {
         let pairs = pair.into_inner();
 
@@ -108,40 +112,13 @@ impl Paragraph {
 
             match pair.as_rule() {
                 Rule::non_plain_text => {
-                    content.push(InlineNode::parse(pair.into_inner(), metadata)?);
+                    content.push(InlineNode::parse(pair.into_inner(), parent_attributes)?);
                 }
                 Rule::plain_text => {
-                    content.push(InlineNode::parse(Pairs::single(pair), metadata)?);
+                    content.push(InlineNode::parse(Pairs::single(pair), parent_attributes)?);
                 }
                 Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),
-            }
-        }
-        Ok(content)
-    }
-
-    #[instrument(level = "trace")]
-    pub(crate) fn get_content(
-        text_style: &str,
-        unconstrained: bool,
-        pair: &Pair<Rule>,
-        metadata: &mut BlockMetadata,
-    ) -> Result<Vec<InlineNode>, Error> {
-        let mut content = Vec::new();
-        let len = pair.as_str().len();
-        let token_length = if unconstrained { 2 } else { 1 };
-        match crate::InnerPestParser::parse(
-            Rule::paragraph_inner,
-            &pair.as_str()[token_length..len - token_length],
-        ) {
-            Ok(pairs) => {
-                for pair in pairs {
-                    content.extend(Self::parse_inner(pair, metadata)?);
-                }
-            }
-            Err(e) => {
-                tracing::error!(text_style, "error parsing text: {e}");
-                return Err(Error::Parse(e.to_string()));
             }
         }
         Ok(content)

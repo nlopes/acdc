@@ -38,6 +38,7 @@ mod error;
 mod inlines;
 mod model;
 mod preprocessor;
+mod substitutions;
 
 use preprocessor::Preprocessor;
 
@@ -126,6 +127,30 @@ mod tests {
         } else {
             panic!("unexpected error: {result:?}");
         }
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_something() {
+        let result = parse(
+            ":norberto: meh
+:asdf: something + \\
+or other {norberto}
+:app-name: pass:q[MyApp^2^]
+
+== Section Title
+
+First: {asdf}
+
+:asdf: another thing {asdf}
+
+Second: {asdf}
+
+{app-name}",
+        )
+        .unwrap();
+        dbg!(&result);
+        //panic!();
     }
 
     // #[test]

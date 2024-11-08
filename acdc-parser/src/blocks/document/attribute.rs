@@ -1,12 +1,16 @@
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{AttributeName, AttributeValue, DocumentAttribute},
+    model::{AttributeName, AttributeValue, DocumentAttribute, DocumentAttributes},
+    substitutions::{Substitute, HEADER},
     Rule,
 };
 
 impl DocumentAttribute {
-    pub(crate) fn parse(pairs: Pairs<Rule>) -> (AttributeName, AttributeValue) {
+    pub(crate) fn parse(
+        pairs: Pairs<Rule>,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> (AttributeName, AttributeValue) {
         let mut unset = false;
         let mut name = "";
         let mut value = None;
@@ -20,19 +24,24 @@ impl DocumentAttribute {
                     unset = true;
                 }
                 Rule::document_attribute_value => {
-                    value = Some(pair.as_str().to_string());
+                    let text = pair.as_str();
+                    value = Some(AttributeValue::String(
+                        text.substitute(HEADER, parent_attributes),
+                    ));
                 }
                 unknown => {
                     tracing::warn!(?unknown, "unknown rule in header attribute");
                 }
             }
         }
-        if unset {
+        let (name, value) = if unset {
             (name.to_string(), AttributeValue::Bool(false))
         } else if let Some(value) = value {
-            (name.to_string(), AttributeValue::String(value))
+            (name.to_string(), value)
         } else {
             (name.to_string(), AttributeValue::Bool(true))
-        }
+        };
+        parent_attributes.insert(name.clone(), value.clone());
+        (name, value)
     }
 }

@@ -9,6 +9,8 @@ use serde::{
     Deserialize, Serialize,
 };
 
+pub type DocumentAttributes = HashMap<AttributeName, AttributeValue>;
+
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Document {
@@ -17,7 +19,7 @@ pub struct Document {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<Header>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, AttributeValue>,
+    pub attributes: DocumentAttributes,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<Block>,
     pub location: Location,
@@ -197,6 +199,7 @@ pub enum Substitution {
     Normal,
     Verbatim,
     Quotes,
+    Callouts,
 }
 
 impl From<&str> for Substitution {
@@ -210,6 +213,7 @@ impl From<&str> for Substitution {
             "normal" | "n" => Substitution::Normal,
             "verbatim" | "v" => Substitution::Verbatim,
             "quotes" | "q" => Substitution::Quotes,
+            "callouts" => Substitution::Callouts,
             unknown => unimplemented!("{unknown:?}"),
         }
     }

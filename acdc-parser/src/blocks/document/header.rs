@@ -1,21 +1,21 @@
-use std::collections::HashMap;
-
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
     model::{
-        AttributeName, AttributeValue, Author, DocumentAttribute, Header, Location, Position, Title,
+        AttributeValue, Author, DocumentAttribute, DocumentAttributes, Header, Location, Position,
+        Title,
     },
-    Rule,
+    substitutions::{self, Substitute},
+    Error, Rule,
 };
 
 impl Header {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
-        attributes: &mut HashMap<AttributeName, AttributeValue>,
-    ) -> Self {
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<Option<Self>, Error> {
         let mut title = None;
         let mut subtitle = None;
         let mut authors = Vec::new();
@@ -75,19 +75,19 @@ impl Header {
                     for pair in inner_pairs {
                         match pair.as_rule() {
                             Rule::revision_number => {
-                                attributes.insert(
+                                parent_attributes.insert(
                                     "revnumber".to_string(),
                                     AttributeValue::String(pair.as_str().to_string()),
                                 );
                             }
                             Rule::revision_date => {
-                                attributes.insert(
+                                parent_attributes.insert(
                                     "revdate".to_string(),
                                     AttributeValue::String(pair.as_str().to_string()),
                                 );
                             }
                             Rule::revision_remark => {
-                                attributes.insert(
+                                parent_attributes.insert(
                                     "revremark".to_string(),
                                     AttributeValue::String(pair.as_str().to_string()),
                                 );
@@ -97,18 +97,35 @@ impl Header {
                     }
                 }
                 Rule::document_attribute => {
-                    let (name, value) = DocumentAttribute::parse(pair.into_inner());
-                    attributes.insert(name, value);
+                    let (name, value) =
+                        DocumentAttribute::parse(pair.into_inner(), parent_attributes);
+
+                    let value = match value {
+                        AttributeValue::String(value) => AttributeValue::String(
+                            value.substitute(substitutions::HEADER, parent_attributes),
+                        ),
+                        AttributeValue::Bool(value) => AttributeValue::Bool(value),
+                    };
+                    parent_attributes.insert(name, value);
                 }
                 unknown => unreachable!("{:?}", unknown),
             }
         }
 
-        Self {
-            title,
-            subtitle,
-            authors,
-            location,
-        }
+        Ok(
+            if title.is_none() && subtitle.is_none() && authors.is_empty() {
+                // We do this here because we do may capture document attributes while parsing
+                // the document header, and in that case  we want to make sure we don't return
+                // an empty header
+                None
+            } else {
+                Some(Self {
+                    title,
+                    subtitle,
+                    authors,
+                    location,
+                })
+            },
+        )
     }
 }

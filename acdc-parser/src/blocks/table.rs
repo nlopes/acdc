@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{AttributeName, BlockMetadata, Location, Table, TableColumn, TableRow},
+    model::{
+        AttributeName, BlockMetadata, DocumentAttributes, Location, Table, TableColumn, TableRow,
+    },
     Error, Rule,
 };
 
@@ -12,6 +14,7 @@ impl Table {
         pairs: &Pairs<Rule>,
         metadata: &BlockMetadata,
         attributes: &HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<Self, Error> {
         let mut separator = "|".to_string();
         if let Some(Some(format)) = attributes.get("format") {
@@ -56,7 +59,7 @@ impl Table {
             let columns = row
                 .iter()
                 .filter(|cell| !cell.is_empty())
-                .map(|cell| parse_table_cell(cell))
+                .map(|cell| parse_table_cell(cell, parent_attributes))
                 .collect::<Result<Vec<_>, _>>()?;
 
             // validate that if we have ncols we have the same number of columns in each row
@@ -147,12 +150,15 @@ impl Table {
     }
 }
 
-fn parse_table_cell(text: &str) -> Result<TableColumn, Error> {
+fn parse_table_cell(
+    text: &str,
+    parent_attributes: &mut DocumentAttributes,
+) -> Result<TableColumn, Error> {
     use pest::Parser as _;
 
     let parse = crate::InnerPestParser::parse(Rule::block, text)
         .map_err(|e| Error::Parse(format!("error parsing table cell: {e}")))?;
-    let content = crate::blocks::parse(parse)?;
+    let content = crate::blocks::parse(parse, parent_attributes)?;
 
     Ok(TableColumn { content })
 }

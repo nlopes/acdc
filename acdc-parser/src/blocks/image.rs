@@ -4,7 +4,10 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Anchor, AttributeName, Block, BlockMetadata, Image, ImageSource, Location, Position},
+    model::{
+        Anchor, AttributeName, Block, BlockMetadata, DocumentAttributes, Image, ImageSource,
+        Location, Position,
+    },
     Rule,
 };
 
@@ -14,6 +17,7 @@ impl Image {
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = ImageSource::Path(String::new());
         let mut title = None;

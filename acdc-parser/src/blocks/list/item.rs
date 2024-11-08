@@ -1,10 +1,16 @@
 use pest::iterators::Pairs;
 
-use crate::{model::ListItem, Error, Rule};
+use crate::{
+    model::{DocumentAttributes, ListItem},
+    Error, Rule,
+};
 
 impl ListItem {
     #[tracing::instrument(level = "trace")]
-    pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<ListItem, Error> {
+    pub(crate) fn parse(
+        pairs: Pairs<Rule>,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<ListItem, Error> {
         let mut content = Vec::new();
         let mut level = 0;
         let mut checked = None;

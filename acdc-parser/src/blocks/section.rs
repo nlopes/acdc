@@ -4,12 +4,15 @@ use pest::{iterators::Pair, Parser as _};
 
 use crate::{
     blocks,
-    model::{Block, BlockMetadata, Location, Position, Section},
+    model::{Block, BlockMetadata, DocumentAttributes, Location, Position, Section},
     Error, InnerPestParser, Rule,
 };
 
 impl Section {
-    pub(crate) fn parse(pair: &Pair<Rule>) -> Result<Block, Error> {
+    pub(crate) fn parse(
+        pair: &Pair<Rule>,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<Block, Error> {
         let metadata = BlockMetadata::default();
         let attributes = HashMap::new();
         let mut title = String::new();
@@ -33,10 +36,10 @@ impl Section {
                             .map_err(|e| {
                                 Error::Parse(format!("error parsing section content: {e}"))
                             })?;
-                        content.extend(blocks::parse(pairs)?);
+                        content.extend(blocks::parse(pairs, parent_attributes)?);
                     } else {
                         for pair in inner {
-                            content.extend(blocks::parse(pair.into_inner())?);
+                            content.extend(blocks::parse(pair.into_inner(), parent_attributes)?);
                         }
                     }
                 }

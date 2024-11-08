@@ -6,8 +6,8 @@ use tracing::instrument;
 use crate::{
     blocks::list::parse_list,
     model::{
-        Anchor, AttributeName, Audio, Block, BlockMetadata, DelimitedBlock, Image, Location,
-        PageBreak, Paragraph, Position, Section, ThematicBreak, Video,
+        Anchor, AttributeName, Audio, Block, BlockMetadata, DelimitedBlock, DocumentAttributes,
+        Image, Location, PageBreak, Paragraph, Position, Section, ThematicBreak, Video,
     },
     Error, Rule,
 };
@@ -134,16 +134,16 @@ impl std::fmt::Display for Block {
 
 impl Block {
     #[instrument(level = "trace")]
-    pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Block, Error> {
+    pub(crate) fn parse(
+        pairs: Pairs<Rule>,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<Block, Error> {
         let mut title = None;
         let mut anchors = Vec::new();
         let mut metadata = BlockMetadata::default();
         let mut attributes = HashMap::new();
         let mut style_found = false;
-        let mut location = Location {
-            start: Position { line: 0, column: 0 },
-            end: Position { line: 0, column: 0 },
-        };
+        let mut location = Location::default();
         let mut block = Block::Paragraph(Paragraph {
             metadata: BlockMetadata::default(),
             attributes: HashMap::new(),
@@ -169,25 +169,44 @@ impl Block {
             }
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
-                Rule::section => block = Section::parse(&pair)?,
+                Rule::section => block = Section::parse(&pair, parent_attributes)?,
                 Rule::delimited_block => {
                     block = DelimitedBlock::parse(
                         pair.into_inner(),
                         title.clone(),
                         &metadata,
                         &attributes,
+                        parent_attributes,
                     )?;
                 }
-                Rule::paragraph => block = Paragraph::parse(pair, &mut metadata, &mut attributes)?,
-                Rule::list => block = parse_list(pair.into_inner())?,
+                Rule::paragraph => {
+                    block =
+                        Paragraph::parse(pair, &mut metadata, &mut attributes, parent_attributes)?;
+                }
+                Rule::list => block = parse_list(pair.into_inner(), parent_attributes)?,
                 Rule::image_block => {
-                    block = Image::parse(pair.into_inner(), &mut metadata, &mut attributes);
+                    block = Image::parse(
+                        pair.into_inner(),
+                        &mut metadata,
+                        &mut attributes,
+                        parent_attributes,
+                    );
                 }
                 Rule::audio_block => {
-                    block = Audio::parse(pair.into_inner(), &mut metadata, &mut attributes);
+                    block = Audio::parse(
+                        pair.into_inner(),
+                        &mut metadata,
+                        &mut attributes,
+                        parent_attributes,
+                    );
                 }
                 Rule::video_block => {
-                    block = Video::parse(pair.into_inner(), &mut metadata, &mut attributes);
+                    block = Video::parse(
+                        pair.into_inner(),
+                        &mut metadata,
+                        &mut attributes,
+                        parent_attributes,
+                    );
                 }
                 Rule::option => metadata.options.push(pair.as_str().to_string()),
                 Rule::role => metadata.roles.push(pair.as_str().to_string()),

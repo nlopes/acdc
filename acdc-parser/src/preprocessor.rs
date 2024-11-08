@@ -1,10 +1,7 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
 use std::{collections::HashMap, path::Path};
 
-use crate::{
-    error::Error,
-    model::{AttributeName, AttributeValue},
-};
+use crate::error::Error;
 
 use include::Include;
 
@@ -25,6 +22,7 @@ mod include {
     use crate::{
         error::Error,
         model::{AttributeName, AttributeValue},
+        substitutions::Substitute,
     };
 
     /**
@@ -210,22 +208,13 @@ attribute_value = {
                         Rule::target => {
                             let target_raw = pair.as_str().trim();
                             let target_raw =
-                                super::resolve_attribute_references(attributes, target_raw);
-                            include.target = if let AttributeValue::String(target_raw) = target_raw
+                                target_raw.substitute(crate::substitutions::HEADER, attributes);
+                            include.target = if target_raw.starts_with("http://")
+                                || target_raw.starts_with("https://")
                             {
-                                if target_raw.starts_with("http://")
-                                    || target_raw.starts_with("https://")
-                                {
-                                    Target::Url(Url::parse(&target_raw)?)
-                                } else {
-                                    Target::Path(PathBuf::from(target_raw))
-                                }
+                                Target::Url(Url::parse(&target_raw)?)
                             } else {
-                                tracing::error!(
-                                    ?target_raw,
-                                    "target attribute value is not a string"
-                                );
-                                return Err(Error::InvalidIncludeDirective);
+                                Target::Path(PathBuf::from(target_raw))
                             };
                         }
                         unknown => {
@@ -604,7 +593,10 @@ mod attribute {
     use pest::Parser as _;
     use pest_derive::Parser;
 
-    use crate::model::{AttributeName, AttributeValue};
+    use crate::{
+        model::{AttributeName, AttributeValue},
+        substitutions::Substitute,
+    };
 
     #[derive(Parser, Debug)]
     #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
@@ -645,59 +637,13 @@ value = { (!EOI ~ ANY)+ }"#]
             if unset {
                 attributes.insert(name.to_string(), AttributeValue::Bool(false));
             } else {
-                let value = if value.contains('{') && value.contains('}') {
-                    super::resolve_attribute_references(attributes, value)
-                } else {
-                    AttributeValue::String(value.to_string())
-                };
+                let value = AttributeValue::String(
+                    value.substitute(crate::substitutions::HEADER, attributes),
+                );
                 attributes.insert(name.to_string(), value);
             }
         }
     }
-}
-
-/**
-Given a text and a set of attributes, resolve the attribute references in the text.
-
-The attribute references are in the form of {name}.
-*/
-pub fn resolve_attribute_references(
-    attributes: &HashMap<AttributeName, AttributeValue>,
-    value: &str,
-) -> AttributeValue {
-    let mut result = String::with_capacity(value.len());
-    let mut i: usize = 0;
-
-    while i < value.len() {
-        if value[i..].starts_with('{') {
-            if let Some(end_brace) = value[i + 1..].find('}') {
-                let attr_name = &value[i + 1..i + 1 + end_brace];
-                match attributes.get(attr_name) {
-                    Some(AttributeValue::Bool(true)) => {
-                        result.push_str("");
-                    }
-                    Some(AttributeValue::String(attr_value)) => {
-                        result.push_str(attr_value);
-                    }
-                    _ => {
-                        // If the attribute is not found, we return the attribute reference as is.
-                        result.push('{');
-                        result.push_str(attr_name);
-                        result.push('}');
-                    }
-                }
-                i += end_brace + 2;
-            } else {
-                result.push_str(&value[i..=i]);
-                i += 1;
-            }
-        } else {
-            result.push_str(&value[i..=i]);
-            i += 1;
-        }
-    }
-
-    AttributeValue::String(result)
 }
 
 impl Preprocessor {
@@ -736,12 +682,46 @@ impl Preprocessor {
     fn process_either(&self, input: &str, file_parent: Option<&Path>) -> Result<String, Error> {
         let input = Preprocessor::normalize(input);
         let mut attributes = HashMap::new();
-
         let mut output = Vec::new();
         let mut lines = input.lines().peekable();
         while let Some(line) = lines.next() {
-            if line.starts_with(':') {
-                attribute::parse_line(&mut attributes, line);
+            if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
+                let mut attribute_content = String::new();
+                if line.ends_with(" + \\") {
+                    attribute_content.push_str(line);
+                    attribute_content.push('\n');
+                } else if line.ends_with(" \\") {
+                    attribute_content.push_str(line.trim_end_matches('\\'));
+                }
+                while let Some(next_line) = lines.peek() {
+                    let next_line = next_line.trim();
+                    // If the next line isn't the end of a continuation, or a
+                    // continuation, we need to break out.
+                    if next_line.starts_with(':') || next_line.is_empty() {
+                        break;
+                    }
+                    // If we get here, and we get a hard wrap, keep everything as is.
+                    // If we get here, and we get a soft wrap, then remove the newline.
+                    // Anything else means we're at the end of the wrapped attribute, so
+                    // feed it and break.
+                    if next_line.ends_with(" + \\") {
+                        attribute_content.push_str(next_line);
+                        attribute_content.push('\n');
+                        lines.next();
+                    } else if next_line.ends_with(" \\") {
+                        attribute_content.push_str(next_line.trim_end_matches('\\'));
+                        lines.next();
+                    } else {
+                        attribute_content.push_str(next_line);
+                        lines.next();
+                        break;
+                    }
+                }
+                attribute::parse_line(&mut attributes, attribute_content.as_str());
+                output.push(attribute_content);
+                continue;
+            } else if line.starts_with(':') {
+                attribute::parse_line(&mut attributes, line.trim());
             }
             if line.starts_with("----") {
                 let mut keep_lines = vec![line.to_string()];
@@ -822,38 +802,6 @@ impl Preprocessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_resolve_attribute_references() {
-        let mut attributes = HashMap::new();
-        attributes.insert(
-            "name".to_string(),
-            AttributeValue::String("value".to_string()),
-        );
-        attributes.insert(
-            "name2".to_string(),
-            AttributeValue::String("value2".to_string()),
-        );
-
-        let value = "{name}";
-        let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, AttributeValue::String("value".to_string()));
-
-        let value = "{name} {name2}";
-        let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, AttributeValue::String("value value2".to_string()));
-
-        let value = "{name} {name3}";
-        let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(
-            resolved,
-            AttributeValue::String("value {name3}".to_string())
-        );
-
-        let value = "{name3}";
-        let resolved = resolve_attribute_references(&attributes, value);
-        assert_eq!(resolved, AttributeValue::String("{name3}".to_string()));
-    }
 
     #[test]
     fn test_process() {

@@ -1,0 +1,7 @@
+:description: If you have a very long line of text \
+that you need to substitute regularly in a document, \
+you may find it easier to split the value neatly in the header \
+so it remains readable to folks looking at the AsciiDoc source.
+:haiku: Write your docs in text, + \
+AsciiDoc makes it easy, + \
+Now get back to work!
