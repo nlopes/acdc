@@ -9,7 +9,7 @@ description.workspace = true
 acdc-parser = { path = "../acdc-parser" }
 anyhow = "1.0.93"
 clap = { version = "4.5.20", features = ["derive"] }
-comfy-table = "7.1.1"
+comfy-table = "7.1.2"
 crossterm = "0.28.1"
 
 [lints]
