@@ -9,10 +9,11 @@ mod section;
 mod table;
 mod video;
 
+use acdc_core::{DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Block, DocumentAttribute, DocumentAttributes, Location, Position},
+    model::{Block, DocumentAttribute},
     Error, Rule,
 };
 

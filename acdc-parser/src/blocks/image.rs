@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{
-        Anchor, AttributeName, Block, BlockMetadata, DocumentAttributes, Image, ImageSource,
-        Location, Position,
-    },
+    model::{Anchor, Block, BlockMetadata, Image, ImageSource},
     Rule,
 };
 

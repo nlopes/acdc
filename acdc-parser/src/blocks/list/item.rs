@@ -1,9 +1,7 @@
+use acdc_core::DocumentAttributes;
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{DocumentAttributes, ListItem},
-    Error, Rule,
-};
+use crate::{model::ListItem, Error, Rule};
 
 impl ListItem {
     #[tracing::instrument(level = "trace")]

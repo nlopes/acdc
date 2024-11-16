@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
     blocks::list::parse_list,
     model::{
-        Anchor, AttributeName, Audio, Block, BlockMetadata, DelimitedBlock, DocumentAttributes,
-        Image, Location, PageBreak, Paragraph, Position, Section, ThematicBreak, Video,
+        Anchor, Audio, Block, BlockMetadata, DelimitedBlock, Image, PageBreak, Paragraph, Section,
+        ThematicBreak, Video,
     },
     Error, Rule,
 };

@@ -1,10 +1,7 @@
+use acdc_core::{AttributeName, AttributeValue, DocumentAttributes};
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{AttributeName, AttributeValue, DocumentAttribute, DocumentAttributes},
-    substitutions::{Substitute, HEADER},
-    Rule,
-};
+use crate::{model::DocumentAttribute, Rule};
 
 impl DocumentAttribute {
     pub(crate) fn parse(
@@ -24,10 +21,7 @@ impl DocumentAttribute {
                     unset = true;
                 }
                 Rule::document_attribute_value => {
-                    let text = pair.as_str();
-                    value = Some(AttributeValue::String(
-                        text.substitute(HEADER, parent_attributes),
-                    ));
+                    value = Some(AttributeValue::String(pair.as_str().to_string()));
                 }
                 unknown => {
                     tracing::warn!(?unknown, "unknown rule in header attribute");

@@ -1,9 +1,7 @@
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{Keyboard, Location},
-    Rule,
-};
+use crate::{model::Keyboard, Rule};
 
 impl Keyboard {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {

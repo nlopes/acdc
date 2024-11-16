@@ -4,12 +4,8 @@ use std::{
     path::PathBuf,
 };
 
-use serde::{
-    ser::{SerializeSeq, Serializer},
-    Deserialize, Serialize,
-};
-
-pub type DocumentAttributes = HashMap<AttributeName, AttributeValue>;
+use acdc_core::{AttributeName, AttributeValue, DocumentAttributes, Location, Substitution};
+use serde::{Deserialize, Serialize};
 
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -118,21 +114,6 @@ pub enum Block {
     Video(Video),
 }
 
-/// An `AttributeName` represents the name of an attribute in a document.
-pub type AttributeName = String;
-
-/// An `AttributeValue` represents the value of an attribute in a document.
-///
-/// An attribute value can be a string or a boolean.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum AttributeValue {
-    /// A string attribute value.
-    String(String),
-    /// A boolean attribute value. `false` means it is unset.
-    Bool(bool),
-}
-
 /// A `DocumentAttribute` represents a document attribute in a document.
 ///
 /// A document attribute is a key-value pair that can be used to set metadata in a
@@ -185,38 +166,6 @@ pub struct Pass {
     #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     pub substitutions: HashSet<Substitution>,
     pub location: Location,
-}
-
-/// A `Substitution` represents a substitution in a passthrough macro.
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Substitution {
-    SpecialChars,
-    Attributes,
-    Replacements,
-    Macros,
-    PostReplacements,
-    Normal,
-    Verbatim,
-    Quotes,
-    Callouts,
-}
-
-impl From<&str> for Substitution {
-    fn from(value: &str) -> Self {
-        match value {
-            "specialchars" | "c" => Substitution::SpecialChars,
-            "attributes" | "a" => Substitution::Attributes,
-            "replacements" | "r" => Substitution::Replacements,
-            "macros" | "m" => Substitution::Macros,
-            "post_replacements" | "p" => Substitution::PostReplacements,
-            "normal" | "n" => Substitution::Normal,
-            "verbatim" | "v" => Substitution::Verbatim,
-            "quotes" | "q" => Substitution::Quotes,
-            "callouts" => Substitution::Callouts,
-            unknown => unimplemented!("{unknown:?}"),
-        }
-    }
 }
 
 /// An `Icon` represents an inline icon in a document.
@@ -587,40 +536,4 @@ pub struct Section {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<Block>,
     pub location: Location,
-}
-
-/// A `Location` represents a location in a document.
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Deserialize)]
-pub struct Location {
-    /// The start position of the location.
-    pub start: Position,
-    /// The end position of the location.
-    pub end: Position,
-}
-
-// We need to implement `Serialize` because I prefer our current `Location` struct to the
-// `asciidoc` `ASG` definition.
-//
-// We serialize `Location` into the ASG format, which is a sequence of two elements: the
-// start and end positions as an array.
-impl Serialize for Location {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(2))?;
-        state.serialize_element(&self.start)?;
-        state.serialize_element(&self.end)?;
-        state.end()
-    }
-}
-
-/// A `Position` represents a position in a document.
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Position {
-    /// The line number of the position.
-    pub line: usize,
-    /// The column number of the position.
-    #[serde(rename = "col")]
-    pub column: usize,
 }

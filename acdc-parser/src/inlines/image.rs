@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{BlockMetadata, Image, ImageSource, Location},
+    model::{BlockMetadata, Image, ImageSource},
     Rule,
 };
 

@@ -1,12 +1,9 @@
+use acdc_core::{AttributeValue, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{
-        AttributeValue, Author, DocumentAttribute, DocumentAttributes, Header, Location, Position,
-        Title,
-    },
-    substitutions::{self, Substitute},
+    model::{Author, DocumentAttribute, Header, Title},
     Error, Rule,
 };
 
@@ -99,13 +96,6 @@ impl Header {
                 Rule::document_attribute => {
                     let (name, value) =
                         DocumentAttribute::parse(pair.into_inner(), parent_attributes);
-
-                    let value = match value {
-                        AttributeValue::String(value) => AttributeValue::String(
-                            value.substitute(substitutions::HEADER, parent_attributes),
-                        ),
-                        AttributeValue::Bool(value) => AttributeValue::Bool(value),
-                    };
                     parent_attributes.insert(name, value);
                 }
                 unknown => unreachable!("{:?}", unknown),

@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{Icon, Location},
-    Rule,
-};
+use crate::{model::Icon, Rule};
 
 impl Icon {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {

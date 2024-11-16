@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 
 use crate::{
     blocks,
     model::{
-        Anchor, AttributeName, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
-        DescriptionListItem, DocumentAttributes, Location, Position,
+        Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
+        DescriptionListItem,
     },
     Error, Rule,
 };

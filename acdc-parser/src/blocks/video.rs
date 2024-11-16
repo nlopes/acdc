@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{
-        AttributeName, Block, BlockMetadata, DocumentAttributes, Location, Video, VideoSource,
-    },
+    model::{Block, BlockMetadata, Video, VideoSource},
     Rule,
 };
 

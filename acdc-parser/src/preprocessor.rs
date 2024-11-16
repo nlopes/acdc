@@ -15,15 +15,12 @@ mod include {
         str::FromStr,
     };
 
+    use acdc_core::{AttributeName, AttributeValue, Substitute, HEADER};
     use pest::Parser as _;
     use pest_derive::Parser;
     use url::Url;
 
-    use crate::{
-        error::Error,
-        model::{AttributeName, AttributeValue},
-        substitutions::Substitute,
-    };
+    use crate::error::Error;
 
     /**
     The format of an include directive is the following:
@@ -207,8 +204,7 @@ attribute_value = {
                         }
                         Rule::target => {
                             let target_raw = pair.as_str().trim();
-                            let target_raw =
-                                target_raw.substitute(crate::substitutions::HEADER, attributes);
+                            let target_raw = target_raw.substitute(HEADER, attributes);
                             include.target = if target_raw.starts_with("http://")
                                 || target_raw.starts_with("https://")
                             {
@@ -334,13 +330,11 @@ attribute_value = {
 mod conditional {
     use std::collections::HashMap;
 
+    use acdc_core::{AttributeName, AttributeValue};
     use pest::Parser as _;
     use pest_derive::Parser;
 
-    use crate::{
-        error::Error,
-        model::{AttributeName, AttributeValue},
-    };
+    use crate::error::Error;
 
     #[derive(Debug)]
     pub(crate) enum Conditional {
@@ -590,13 +584,9 @@ expression = { (!"]" ~ ANY)+ }
 mod attribute {
     use std::collections::HashMap;
 
+    use acdc_core::{AttributeName, AttributeValue, Substitute, HEADER};
     use pest::Parser as _;
     use pest_derive::Parser;
-
-    use crate::{
-        model::{AttributeName, AttributeValue},
-        substitutions::Substitute,
-    };
 
     #[derive(Parser, Debug)]
     #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }
@@ -637,9 +627,7 @@ value = { (!EOI ~ ANY)+ }"#]
             if unset {
                 attributes.insert(name.to_string(), AttributeValue::Bool(false));
             } else {
-                let value = AttributeValue::String(
-                    value.substitute(crate::substitutions::HEADER, attributes),
-                );
+                let value = AttributeValue::String(value.substitute(HEADER, attributes));
                 attributes.insert(name.to_string(), value);
             }
         }

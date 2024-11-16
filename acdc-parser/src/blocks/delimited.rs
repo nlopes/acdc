@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks,
-    model::{
-        AttributeName, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-        DocumentAttributes, Location, Table,
-    },
+    model::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Table},
     Error, InnerPestParser, Rule,
 };
 

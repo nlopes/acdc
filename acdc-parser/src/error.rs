@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::model::{Location, Position, SectionLevel};
+use acdc_core::{Location, Position};
+
+use crate::model::SectionLevel;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

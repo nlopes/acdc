@@ -1,0 +1,12 @@
+[package]
+name = "acdc-core"
+description = "Traits and models used by other crates related with parsing and converting `AsciiDoc`"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[lints]
+workspace = true

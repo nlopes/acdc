@@ -1,10 +1,8 @@
+use acdc_core::Position;
 use pest::iterators::Pairs;
 use tracing::instrument;
 
-use crate::{
-    model::{Anchor, Position},
-    Rule,
-};
+use crate::{model::Anchor, Rule};
 
 impl Anchor {
     #[instrument(level = "trace")]

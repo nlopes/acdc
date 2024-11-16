@@ -6,12 +6,13 @@ mod validate;
 
 use std::collections::HashMap;
 
+use acdc_core::{Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
     blocks,
-    model::{Document, Header, Location, Position},
+    model::{Document, Header},
     Error, Rule,
 };
 

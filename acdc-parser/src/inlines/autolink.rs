@@ -1,9 +1,7 @@
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{Autolink, Location},
-    Rule,
-};
+use crate::{model::Autolink, Rule};
 
 impl Autolink {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
