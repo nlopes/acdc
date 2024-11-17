@@ -4,7 +4,7 @@
   "blocks": [
     {
       "Section": {
-        "title": "Section 1",
+        "title": [{"PlainText": { "content": "Section 1", "location": [{"line": 1, "col": 4},{"line": 1, "col": 13}]}}],
         "level": 1,
         "content": [
           {

@@ -40,7 +40,7 @@
             },
             {
               "DiscreteHeader": {
-                "title": "Discrete Heading",
+                "title": [{"PlainText": { "content": "Discrete Heading", "location": [{"line": 4, "col": 4},{"line": 4, "col": 20}]}}],
                 "level": 1,
                 "location": [
                   {

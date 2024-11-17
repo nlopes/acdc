@@ -4,12 +4,12 @@
   "blocks": [
     {
       "Section": {
-        "title": "A list of sorts:",
+        "title": [{"PlainText": {"content": "A list of sorts:", "location": [{"line": 1, "col": 4},{"line": 1, "col": 20}]}}],
         "level": 1,
         "content": [
           {
             "UnorderedList": {
-              "title": "Possible DefOps manual locations",
+              "title": [{"PlainText": {"content": "Possible DefOps manual locations", "location": [{"line": 3, "col": 2},{"line": 3, "col": 34}]}}],
               "items": [
                 {
                   "level": 1,

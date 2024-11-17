@@ -5,6 +5,7 @@ use pest::iterators::{Pair, Pairs};
 use tracing::instrument;
 
 use crate::{
+    inlines::parse_inlines,
     model::{Block, BlockMetadata, InlineNode, Paragraph},
     Error, Rule,
 };
@@ -23,7 +24,7 @@ impl Paragraph {
 
         let mut content = Vec::new();
         let mut style_found = false;
-        let mut title = None;
+        let mut title = Vec::new();
 
         let mut admonition = None;
 
@@ -67,7 +68,7 @@ impl Paragraph {
                     }
                 }
                 Rule::title => {
-                    title = Some(pair.as_str().to_string());
+                    title = parse_inlines(pair, parent_attributes)?;
                 }
                 Rule::EOI | Rule::comment => {}
                 unknown => {

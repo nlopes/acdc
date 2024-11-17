@@ -157,6 +157,7 @@ pub trait Substitute: ToString {
         text
     }
 
+    #[must_use]
     fn substitute_special_chars(text: &str) -> String {
         text.to_string()
     }
@@ -165,7 +166,8 @@ pub trait Substitute: ToString {
     Given a text and a set of attributes, resolve the attribute references in the text.
 
     The attribute references are in the form of {name}.
-    */
+     */
+    #[must_use]
     fn substitute_attributes(text: &str, attributes: &DocumentAttributes) -> String {
         let mut result = String::with_capacity(text.len());
         let mut i: usize = 0;
@@ -202,22 +204,27 @@ pub trait Substitute: ToString {
         result
     }
 
+    #[must_use]
     fn substitute_quotes(text: &str) -> String {
         text.to_string()
     }
 
+    #[must_use]
     fn substitute_replacements(text: &str) -> String {
         text.to_string()
     }
 
+    #[must_use]
     fn substitute_macros(text: &str) -> String {
         text.to_string()
     }
 
+    #[must_use]
     fn substitute_post_replacements(text: &str) -> String {
         text.to_string()
     }
 
+    #[must_use]
     fn substitute_callouts(text: &str) -> String {
         text.to_string()
     }

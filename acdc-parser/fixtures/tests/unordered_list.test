@@ -4,7 +4,7 @@
   "blocks": [
     {
       "Section": {
-        "title": "A list of sorts:",
+        "title": [{"PlainText": {"content": "A list of sorts:", "location": [{"line": 1, "col": 4},{"line": 1, "col": 20}]}}],
         "level": 1,
         "content": [
           {

@@ -84,6 +84,7 @@ pub(crate) fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error>
             (Block::Section(section), false) => {
                 if let Some(style) = &section.metadata.style {
                     if style == "discrete" {
+                        dbg!(&section.title);
                         stack.push(Block::DiscreteHeader(DiscreteHeader {
                             anchors: section.metadata.anchors.clone(),
                             title: section.title.clone(),

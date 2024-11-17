@@ -5,7 +5,7 @@
     "title": {
       "name": "text",
       "type": "string",
-      "value": "Document Title",
+      "value": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
     },
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
@@ -13,7 +13,7 @@
   "blocks": [
     {
       "Section": {
-        "title": "First Section",
+        "title": [{"PlainText": {"content": "First Section", "location": [{"line": 3, "col": 4},{"line": 3, "col": 17}]}}],
         "level": 1,
         "content": [
           {
@@ -49,7 +49,7 @@
           },
           {
             "Section": {
-              "title": "Nested Section",
+              "title": [{"PlainText": {"content": "Nested Section", "location": [{"line": 7, "col": 5},{"line": 7, "col": 19}]}}],
               "level": 2,
               "content": [
                 {
@@ -111,7 +111,7 @@
     },
     {
       "Section": {
-        "title": "Second Section",
+        "title": [{"PlainText": {"content": "Second Section", "location": [{"line": 11, "col": 4},{"line": 11, "col": 18}]}}],
         "level": 1,
         "content": [
           {

@@ -325,7 +325,7 @@
             ]
           }
         },
-        "title": "A table with a title",
+        "title": [{"PlainText": {"content": "A table with a title", "location": [{"line": 1, "col": 2},{"line": 1, "col": 22}]}}],
         "attributes": {
           "cols": "\"1,1\""
         },

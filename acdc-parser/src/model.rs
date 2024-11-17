@@ -29,7 +29,7 @@ pub struct Title {
     pub(crate) name: String,
     pub(crate) r#type: String,
     #[serde(rename = "value")]
-    pub title: String,
+    pub title: Vec<InlineNode>,
     pub location: Location,
 }
 
@@ -241,7 +241,8 @@ pub struct Autolink {
 pub struct DiscreteHeader {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
-    pub title: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub level: u8,
     pub location: Location,
 }
@@ -309,16 +310,16 @@ pub struct PlainText {
 pub struct ThematicBreak {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub location: Location,
 }
 
 /// A `PageBreak` represents a page break in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageBreak {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -329,8 +330,8 @@ pub struct PageBreak {
 /// An `Audio` represents an audio block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Audio {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub source: AudioSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
@@ -342,8 +343,8 @@ pub struct Audio {
 /// A `Video` represents a video block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Video {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<VideoSource>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
@@ -356,8 +357,8 @@ pub struct Video {
 /// An `Image` represents an image block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Image {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub source: ImageSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
@@ -392,8 +393,8 @@ pub enum ImageSource {
 /// A `DescriptionList` represents a description list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionList {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -423,8 +424,8 @@ pub enum DescriptionListDescription {
 /// A `UnorderedList` represents an unordered list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnorderedList {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -456,8 +457,8 @@ pub struct Paragraph {
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub attributes: HashMap<AttributeName, Option<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -479,8 +480,8 @@ pub struct DelimitedBlock {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
@@ -531,7 +532,7 @@ pub struct Section {
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub attributes: HashMap<AttributeName, Option<String>>,
-    pub title: String,
+    pub title: Vec<InlineNode>,
     pub level: SectionLevel,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<Block>,

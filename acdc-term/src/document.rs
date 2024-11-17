@@ -48,7 +48,9 @@ impl Render for acdc_parser::Header {
 
 impl Render for acdc_parser::Title {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
-        writeln!(w, "{}", self.title.clone().bold().white())?;
+        for node in &self.title {
+            node.render(w)?;
+        }
         Ok(())
     }
 }
@@ -89,7 +91,10 @@ mod tests {
     fn test_render_document_with_header() {
         let mut doc = Document::default();
         let mut title = Title::default();
-        title.title = "Title".to_string();
+        title.title = vec![InlineNode::PlainText(PlainText {
+            content: "Title".to_string(),
+            location: Location::default(),
+        })];
         doc.header = Some(Header {
             title: Some(title),
             subtitle: None,
@@ -104,7 +109,7 @@ mod tests {
         doc.blocks = vec![];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(buffer, b"\x1b[38;5;15m\x1b[1mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n");
+        assert_eq!(buffer, b"Title\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n");
     }
 
     #[test]
@@ -120,10 +125,13 @@ mod tests {
                 location: Location::default(),
                 attributes: HashMap::new(),
                 metadata: BlockMetadata::default(),
-                title: None,
+                title: Vec::new(),
             }),
             Block::Section(Section {
-                title: "Section".to_string(),
+                title: vec![InlineNode::PlainText(PlainText {
+                    content: "Section".to_string(),
+                    location: Location::default(),
+                })],
                 content: vec![Block::Paragraph(Paragraph {
                     content: vec![InlineNode::PlainText(PlainText {
                         content: "Hello, section!".to_string(),
@@ -133,7 +141,7 @@ mod tests {
                     attributes: HashMap::new(),
                     metadata: BlockMetadata::default(),
                     admonition: None,
-                    title: None,
+                    title: Vec::new(),
                 })],
                 location: Location::default(),
                 attributes: HashMap::new(),
@@ -143,9 +151,6 @@ mod tests {
         ];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(
-            buffer,
-            b"\nHello, world!\n\n> \x1b[38;5;15m\x1b[1mSection\x1b[0m <\n\nHello, section!"
-        );
+        assert_eq!(buffer, b"\nHello, world!\n\n> Section <\n\nHello, section!");
     }
 }

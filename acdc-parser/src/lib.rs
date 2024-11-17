@@ -128,29 +128,40 @@ mod tests {
         }
     }
 
-    #[test]
-    #[tracing_test::traced_test]
-    fn test_something() {
-        let result = parse(
-            ":norberto: meh
-:asdf: something + \\
-or other {norberto}
-:app-name: pass:q[MyApp^2^]
+    //     #[test]
+    //     #[tracing_test::traced_test]
+    //     fn test_something() {
+    //         let result = parse(
+    //             ":norberto: meh
+    // :asdf: something + \\
+    // or other {norberto}
+    // :app-name: pass:q[MyApp^2^]
 
-== Section Title
+    // == Section **Title**
 
-First: {asdf}
+    // First: {asdf}
 
-:asdf: another thing {asdf}
+    // :asdf: another thing {asdf}
 
-Second: {asdf}
+    // Second: {asdf}
 
-{app-name}",
-        )
-        .unwrap();
-        dbg!(&result);
-        //panic!();
-    }
+    // {app-name}
+
+    // Click image:pause.png[title=Pause **for** stuff] when you need a break.
+
+    // .Something other meh
+    // Ok here we go, a paragraph.
+
+    // .Mint
+    // [sidebar]
+    // Mint has visions of global conquest.
+    // If you don't plant it in a container, it will take over your garden.
+    // ",
+    //         )
+    //         .unwrap();
+    //         dbg!(&result);
+    //         panic!();
+    //     }
 
     // #[test]
     // #[tracing_test::traced_test]

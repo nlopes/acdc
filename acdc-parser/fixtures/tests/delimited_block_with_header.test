@@ -10,7 +10,7 @@
         "metadata": {
           "style": "source"
         },
-        "title": "Specify GitLab CI stages",
+        "title": [{"PlainText": {"content": "Specify GitLab CI stages", "location": [{"line": 1, "col": 2},{"line": 1, "col": 26}]}}],
         "attributes": {
           "yaml": null
         },

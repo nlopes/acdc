@@ -5,7 +5,7 @@
     "title": {
       "name": "text",
       "type": "string",
-      "value": "Document Title",
+      "value": [{"PlainText": { "content": "Document Title: this is the subtitle", "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 39 }] }}],
       "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 39 }]
     },
     "subtitle": "this is the subtitle",

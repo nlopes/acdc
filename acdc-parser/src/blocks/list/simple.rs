@@ -5,7 +5,7 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Block, BlockMetadata, ListItem, OrderedList, UnorderedList},
+    model::{Block, BlockMetadata, InlineNode, ListItem, OrderedList, UnorderedList},
     Error, Rule,
 };
 
@@ -13,7 +13,7 @@ impl Block {
     #[instrument(level = "trace")]
     pub(crate) fn parse_simple_list(
         pairs: Pairs<Rule>,
-        title: Option<String>,
+        title: Vec<InlineNode>,
         metadata: BlockMetadata,
         attributes: HashMap<AttributeName, Option<String>>,
         parent_attributes: &mut DocumentAttributes,

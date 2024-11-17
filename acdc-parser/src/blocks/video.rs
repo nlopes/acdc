@@ -59,7 +59,7 @@ impl Video {
         }
         Block::Video(Video {
             location: Location::default(),
-            title: None,
+            title: Vec::new(),
             sources,
             metadata: metadata.clone(),
             attributes: attributes.clone(),

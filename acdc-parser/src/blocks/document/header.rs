@@ -3,7 +3,8 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Author, DocumentAttribute, Header, Title},
+    inlines::parse_inlines,
+    model::{Author, DocumentAttribute, Header, InlineNode, PlainText, Title},
     Error, Rule,
 };
 
@@ -34,29 +35,42 @@ impl Header {
                     for inner_pair in pair.into_inner() {
                         match inner_pair.as_rule() {
                             Rule::document_title => {
-                                let mut title_content = inner_pair.as_str().to_string();
+                                let title_content = inner_pair.as_str().to_string();
                                 // find the subtitle by looking for the last colon in title
                                 // andsetting title to everything before the last colon and
                                 // subtitle to everything after the last colon
                                 if let Some(colon_index) = title_content.rfind(':') {
                                     subtitle =
                                         Some(title_content[colon_index + 1..].trim().to_string());
-                                    title_content = title_content[..colon_index].trim().to_string();
+                                    // TODO(nlopes): none of this is necessary if I parse
+                                    // subtitle in the grammar
+                                    //
+                                    // title_content = title_content[..colon_index].trim().to_string();
                                 }
+                                let title_location = Location {
+                                    start: Position {
+                                        line: inner_pair.as_span().start_pos().line_col().0,
+                                        column: inner_pair.as_span().start_pos().line_col().1,
+                                    },
+                                    end: Position {
+                                        line: inner_pair.as_span().end_pos().line_col().0,
+                                        column: inner_pair.as_span().end_pos().line_col().1,
+                                    },
+                                };
+                                let inner_title =
+                                    if inner_pair.clone().into_inner().as_str().is_empty() {
+                                        vec![InlineNode::PlainText(PlainText {
+                                            content: title_content.clone(),
+                                            location: title_location.clone(),
+                                        })]
+                                    } else {
+                                        parse_inlines(inner_pair.clone(), parent_attributes)?
+                                    };
                                 title = Some(Title {
                                     name: "text".to_string(),
                                     r#type: "string".to_string(),
-                                    title: title_content.clone(),
-                                    location: Location {
-                                        start: Position {
-                                            line: inner_pair.as_span().start_pos().line_col().0,
-                                            column: inner_pair.as_span().start_pos().line_col().1,
-                                        },
-                                        end: Position {
-                                            line: inner_pair.as_span().end_pos().line_col().0,
-                                            column: inner_pair.as_span().end_pos().line_col().1,
-                                        },
-                                    },
+                                    title: inner_title,
+                                    location: title_location,
                                 });
                             }
                             unknown => unreachable!("{:?}", unknown),

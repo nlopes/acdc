@@ -9,7 +9,7 @@
     "title": {
       "name": "text",
       "type": "string",
-      "value": "Document Title",
+      "value": [{ "PlainText": { "content": "Document Title", "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }] } }],
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
     },
     "location": [{ "line": 1, "col": 1 }, { "line": 3, "col": 6 }]

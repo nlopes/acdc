@@ -50,7 +50,7 @@ impl Audio {
         }
         Block::Audio(Audio {
             location: Location::default(),
-            title: None,
+            title: Vec::new(),
             source,
             metadata: metadata.clone(),
             attributes: attributes.clone(),

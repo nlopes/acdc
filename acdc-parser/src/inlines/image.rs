@@ -29,7 +29,7 @@ impl Image {
         }
         Self {
             metadata,
-            title: attributes.remove("title").map(Option::unwrap_or_default),
+            title: Vec::new(), //attributes.remove("title").map(Option::unwrap_or_default),
             source,
             attributes,
             location,

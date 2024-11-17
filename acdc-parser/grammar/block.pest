@@ -35,7 +35,7 @@ section_content = !{ (!(EOI | &blocks) ~ ANY)+ }
 section_level_symbol = _{ ("=" | "#") }
 
 section_level = { section_level_symbol{1,6} }
-section_title = { ONE_CHAR* }
+section_title = { inlines_inner }
 
 image_block = { image ~ &NEWLINE? }
 image = { "image::" ~ (url | path) ~ attrlist }
@@ -69,6 +69,13 @@ paragraph = {
 }
 
 inlines = {
+    (
+        non_plain_text |
+        plain_text
+    )+
+}
+
+inlines_inner = _{
     (
         non_plain_text |
         plain_text
@@ -184,6 +191,10 @@ admonition = !{
         "CAUTION"
     )
 }
+one_line_plain_text = {
+    (&(!(NEWLINE | EOI | non_plain_text)) ~ ANY)+
+}
+
 plain_text = {
     (&(!(NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+
 }

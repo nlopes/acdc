@@ -7,7 +7,7 @@ use crate::{
     blocks,
     model::{
         Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
-        DescriptionListItem,
+        DescriptionListItem, InlineNode,
     },
     Error, Rule,
 };
@@ -15,7 +15,7 @@ use crate::{
 impl DescriptionList {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
-        title: Option<String>,
+        title: Vec<InlineNode>,
         metadata: BlockMetadata,
         attributes: HashMap<AttributeName, Option<String>>,
         parent_attributes: &mut DocumentAttributes,

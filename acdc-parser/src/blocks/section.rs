@@ -5,6 +5,7 @@ use pest::{iterators::Pair, Parser as _};
 
 use crate::{
     blocks,
+    inlines::parse_inlines,
     model::{Block, BlockMetadata, Section},
     Error, InnerPestParser, Rule,
 };
@@ -16,14 +17,15 @@ impl Section {
     ) -> Result<Block, Error> {
         let metadata = BlockMetadata::default();
         let attributes = HashMap::new();
-        let mut title = String::new();
+        //let mut title = String::new();
+        let mut title = Vec::new();
         let mut level = 0;
         let mut content = Vec::new();
 
         for inner_pair in pair.clone().into_inner() {
             match inner_pair.as_rule() {
                 Rule::section_title => {
-                    title = inner_pair.as_str().to_string();
+                    title = parse_inlines(inner_pair, parent_attributes)?;
                 }
                 Rule::section_level => {
                     level = u8::try_from(inner_pair.as_str().chars().count()).map_err(|e| {

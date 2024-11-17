@@ -5,7 +5,7 @@
     "title": {
       "name": "text",
       "type": "string",
-      "value": "Document Title",
+      "value": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
     },
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
@@ -13,7 +13,7 @@
   "blocks": [
     {
       "Section": {
-        "title": "Section 1",
+        "title": [{"PlainText": {"content": "Section 1", "location": [{"line": 3, "col": 4},{"line": 3, "col": 13}]}}],
         "level": 1,
         "content": [
           {
@@ -49,7 +49,7 @@
           },
           {
             "Section": {
-              "title": "Section 1.1",
+              "title": [{"PlainText": {"content": "Section 1.1", "location": [{"line": 7, "col": 5},{"line": 7, "col": 16}]}}],
               "level": 2,
               "content": [
                 {
@@ -85,7 +85,7 @@
                 },
                 {
                   "Section": {
-                    "title": "Section 1.1.1",
+                    "title": [{"PlainText": {"content": "Section 1.1.1", "location": [{"line": 11, "col": 6},{"line": 11, "col": 19}]}}],
                     "level": 3,
                     "content": [
                       {
@@ -160,7 +160,7 @@
     },
     {
       "Section": {
-        "title": "Section 2",
+        "title": [{"PlainText": {"content": "Section 2", "location": [{"line": 15, "col": 4},{"line": 15, "col": 13}]}}],
         "level": 1,
         "content": [
           {

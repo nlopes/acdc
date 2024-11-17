@@ -18,7 +18,6 @@ impl Image {
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = ImageSource::Path(String::new());
-        let mut title = None;
 
         for pair in pairs {
             match pair.as_rule() {
@@ -27,7 +26,6 @@ impl Image {
                     let anchor = Anchor::parse(pair.into_inner());
                     metadata.anchors.push(anchor);
                 }
-                Rule::title => title = Some(pair.as_str().to_string()),
                 Rule::image => {
                     Self::parse_inner(pair.into_inner(), attributes, &mut source, metadata);
                 }
@@ -43,7 +41,7 @@ impl Image {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
-            title,
+            title: Vec::new(),
             source,
             metadata: metadata.clone(),
             attributes: attributes.clone(),

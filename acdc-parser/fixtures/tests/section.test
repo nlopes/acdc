@@ -5,7 +5,7 @@
     "title": {
       "name": "text",
       "type": "string",
-      "value": "Document Title",
+      "value": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
     },
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
@@ -13,7 +13,7 @@
   "blocks": [
     {
       "Section": {
-        "title": "Section 1",
+        "title": [{"PlainText": {"content": "Section 1", "location": [{"line": 3, "col": 4},{"line": 3, "col": 13}]}}],
         "level": 1,
         "content": [
           {

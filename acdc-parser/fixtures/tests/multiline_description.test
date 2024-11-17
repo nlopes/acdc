@@ -8,7 +8,7 @@
     "title": {
       "name": "text",
       "type": "string",
-      "value": "The Intrepid Chronicles",
+      "value": [{"PlainText": {"content": "The Intrepid Chronicles", "location": [{"line": 1, "col": 3}, {"line": 1, "col": 26}] }}],
       "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 26 }]
     },
     "authors": [

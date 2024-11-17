@@ -49,7 +49,7 @@ impl InlineNode {
             };
 
             match pair.as_rule() {
-                Rule::plain_text => {
+                Rule::plain_text | Rule::one_line_plain_text => {
                     let content = pair.as_str().trim();
                     let content = content
                         .strip_suffix("\r\n")
@@ -234,7 +234,7 @@ pub(crate) fn parse_inlines(
             Rule::non_plain_text => {
                 content.push(InlineNode::parse(pair.into_inner(), parent_attributes)?);
             }
-            Rule::plain_text => {
+            Rule::plain_text | Rule::one_line_plain_text => {
                 content.push(InlineNode::parse(Pairs::single(pair), parent_attributes)?);
             }
             Rule::EOI | Rule::comment => {}

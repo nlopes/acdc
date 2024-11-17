@@ -5,7 +5,7 @@ use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks,
-    model::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Table},
+    model::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Table},
     Error, InnerPestParser, Rule,
 };
 
@@ -13,7 +13,7 @@ impl DelimitedBlock {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
-        title: Option<String>,
+        title: Vec<InlineNode>,
         metadata: &BlockMetadata,
         attributes: &HashMap<AttributeName, Option<String>>,
         parent_attributes: &mut DocumentAttributes,
