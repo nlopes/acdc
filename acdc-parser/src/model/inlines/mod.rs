@@ -21,13 +21,13 @@ use crate::model::Image;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum InlineNode {
-    PlainText(PlainText),
-    BoldText(BoldText),
-    ItalicText(ItalicText),
-    MonospaceText(MonospaceText),
-    HighlightText(HighlightText),
-    SubscriptText(SubscriptText),
-    SuperscriptText(SuperscriptText),
+    PlainText(Plain),
+    BoldText(Bold),
+    ItalicText(Italic),
+    MonospaceText(Monospace),
+    HighlightText(Highlight),
+    SubscriptText(Subscript),
+    SuperscriptText(Superscript),
     LineBreak(LineBreak),
     Macro(InlineMacro),
 }
@@ -137,7 +137,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                     ("text", "string") => {
                         let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
 
-                        Ok(InlineNode::PlainText(PlainText {
+                        Ok(InlineNode::PlainText(Plain {
                             content: my_value,
                             location: my_location,
                         }))
@@ -183,32 +183,32 @@ impl<'de> Deserialize<'de> for InlineNode {
                         let my_inlines =
                             my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         match my_variant.as_str() {
-                            "strong" => Ok(InlineNode::BoldText(BoldText {
+                            "strong" => Ok(InlineNode::BoldText(Bold {
                                 role: None,
                                 content: my_inlines,
                                 location: my_location,
                             })),
-                            "emphasis" => Ok(InlineNode::ItalicText(ItalicText {
+                            "emphasis" => Ok(InlineNode::ItalicText(Italic {
                                 role: None,
                                 content: my_inlines,
                                 location: my_location,
                             })),
-                            "code" => Ok(InlineNode::MonospaceText(MonospaceText {
+                            "code" => Ok(InlineNode::MonospaceText(Monospace {
                                 role: None,
                                 content: my_inlines,
                                 location: my_location,
                             })),
-                            "mark" => Ok(InlineNode::HighlightText(HighlightText {
+                            "mark" => Ok(InlineNode::HighlightText(Highlight {
                                 role: None,
                                 content: my_inlines,
                                 location: my_location,
                             })),
-                            "subscript" => Ok(InlineNode::SubscriptText(SubscriptText {
+                            "subscript" => Ok(InlineNode::SubscriptText(Subscript {
                                 role: None,
                                 content: my_inlines,
                                 location: my_location,
                             })),
-                            "superscript" => Ok(InlineNode::SuperscriptText(SuperscriptText {
+                            "superscript" => Ok(InlineNode::SuperscriptText(Superscript {
                                 role: None,
                                 content: my_inlines,
                                 location: my_location,

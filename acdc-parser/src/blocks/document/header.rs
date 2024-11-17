@@ -4,7 +4,7 @@ use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines,
-    model::{Author, DocumentAttribute, Header, InlineNode, PlainText},
+    model::{Author, DocumentAttribute, Header, InlineNode, Plain},
     Error, Rule,
 };
 
@@ -58,7 +58,7 @@ impl Header {
                                     },
                                 };
                                 title = if inner_pair.clone().into_inner().as_str().is_empty() {
-                                    vec![InlineNode::PlainText(PlainText {
+                                    vec![InlineNode::PlainText(Plain {
                                         content: title_content.clone(),
                                         location: title_location.clone(),
                                     })]

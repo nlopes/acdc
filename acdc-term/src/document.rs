@@ -66,7 +66,7 @@ mod tests {
 
     use super::*;
     use acdc_parser::{
-        Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, PlainText,
+        Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, Plain,
         Section,
     };
 
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn test_render_document_with_header() {
         let mut doc = Document::default();
-        let title = vec![InlineNode::PlainText(PlainText {
+        let title = vec![InlineNode::PlainText(Plain {
             content: "Title".to_string(),
             location: Location::default(),
         })];
@@ -108,7 +108,7 @@ mod tests {
         let mut doc = Document::default();
         doc.blocks = vec![
             Block::Paragraph(Paragraph {
-                content: vec![InlineNode::PlainText(PlainText {
+                content: vec![InlineNode::PlainText(Plain {
                     content: "Hello, world!".to_string(),
                     location: Location::default(),
                 })],
@@ -119,12 +119,12 @@ mod tests {
                 title: Vec::new(),
             }),
             Block::Section(Section {
-                title: vec![InlineNode::PlainText(PlainText {
+                title: vec![InlineNode::PlainText(Plain {
                     content: "Section".to_string(),
                     location: Location::default(),
                 })],
                 content: vec![Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(PlainText {
+                    content: vec![InlineNode::PlainText(Plain {
                         content: "Hello, section!".to_string(),
                         location: Location::default(),
                     })],

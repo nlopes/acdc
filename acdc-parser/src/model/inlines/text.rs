@@ -8,9 +8,9 @@ use crate::model::Role;
 
 use super::InlineNode;
 
-/// A `SubscriptText` represents a subscript section of text in a document.
+/// A `Subscript` represents a subscript section of text in a document.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct SubscriptText {
+pub struct Subscript {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
     #[serde(rename = "inlines")]
@@ -18,9 +18,9 @@ pub struct SubscriptText {
     pub location: Location,
 }
 
-/// A `SuperscriptText` represents a superscript section of text in a document.
+/// A `Superscript` represents a superscript section of text in a document.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct SuperscriptText {
+pub struct Superscript {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
     #[serde(rename = "inlines")]
@@ -28,9 +28,9 @@ pub struct SuperscriptText {
     pub location: Location,
 }
 
-/// A `MonospaceText` represents a monospace section of text in a document.
+/// A `Monospace` represents a monospace section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MonospaceText {
+pub struct Monospace {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
     #[serde(rename = "inlines")]
@@ -38,9 +38,9 @@ pub struct MonospaceText {
     pub location: Location,
 }
 
-/// A `HighlightText` represents a highlighted section of text in a document.
+/// A `Highlight` represents a highlighted section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct HighlightText {
+pub struct Highlight {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
     #[serde(rename = "inlines")]
@@ -48,9 +48,9 @@ pub struct HighlightText {
     pub location: Location,
 }
 
-/// A `BoldText` represents a bold section of text in a document.
+/// A `Bold` represents a bold section of text in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BoldText {
+pub struct Bold {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
     #[serde(rename = "inlines")]
@@ -58,9 +58,9 @@ pub struct BoldText {
     pub location: Location,
 }
 
-/// An `ItalicText` represents an italic section of text in a document.
+/// An `Italic` represents an italic section of text in a document.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct ItalicText {
+pub struct Italic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
     #[serde(rename = "inlines")]
@@ -87,17 +87,17 @@ impl Serialize for LineBreak {
     }
 }
 
-/// A `PlainText` represents a plain text section in a document.
+/// A `Plain` represents a plain text section in a document.
 ///
 /// This is the most basic form of text in a document.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-pub struct PlainText {
+pub struct Plain {
     #[serde(rename = "value")]
     pub content: String,
     pub location: Location,
 }
 
-impl Serialize for PlainText {
+impl Serialize for Plain {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -111,7 +111,7 @@ impl Serialize for PlainText {
     }
 }
 
-impl Serialize for ItalicText {
+impl Serialize for Italic {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -127,7 +127,7 @@ impl Serialize for ItalicText {
     }
 }
 
-impl Serialize for SuperscriptText {
+impl Serialize for Superscript {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -143,7 +143,7 @@ impl Serialize for SuperscriptText {
     }
 }
 
-impl Serialize for SubscriptText {
+impl Serialize for Subscript {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

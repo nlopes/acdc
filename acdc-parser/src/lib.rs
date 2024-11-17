@@ -44,12 +44,12 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Anchor, AttributeEntry, AudioSource, Author, Autolink, Block, BlockMetadata, BoldText, Button,
+    Anchor, AttributeEntry, AudioSource, Author, Autolink, Block, BlockMetadata, Bold, Button,
     DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
-    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, HighlightText, Icon,
-    Image, ImageSource, InlineMacro, InlineNode, ItalicText, Keyboard, Link, ListItem, Menu,
-    MonospaceText, OrderedList, PageBreak, Paragraph, Pass, PlainText, Section, SubscriptText,
-    SuperscriptText, Table, ThematicBreak, UnorderedList, Url, VideoSource,
+    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Highlight, Icon,
+    Image, ImageSource, InlineMacro, InlineNode, Italic, Keyboard, Link, ListItem, Menu, Monospace,
+    OrderedList, PageBreak, Paragraph, Pass, Plain, Section, Subscript, Superscript, Table,
+    ThematicBreak, UnorderedList, Url, VideoSource,
 };
 
 #[derive(Parser, Debug)]

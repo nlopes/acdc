@@ -19,9 +19,8 @@ use tracing::instrument;
 
 use crate::{
     model::{
-        Autolink, BoldText, Button, HighlightText, Icon, Image, InlineMacro, InlineNode,
-        ItalicText, Keyboard, LineBreak, Link, Menu, MonospaceText, Pass, PlainText, SubscriptText,
-        SuperscriptText, Url,
+        Autolink, Bold, Button, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
+        LineBreak, Link, Menu, Monospace, Pass, Plain, Subscript, Superscript, Url,
     },
     Error, Rule,
 };
@@ -57,13 +56,13 @@ impl InlineNode {
                         .unwrap_or(content)
                         .to_string();
 
-                    return Ok(InlineNode::PlainText(PlainText { content, location }));
+                    return Ok(InlineNode::PlainText(Plain { content, location }));
                 }
                 Rule::highlight_text | Rule::highlight_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;
                     let content =
                         get_content("highlight", unconstrained, &pair, parent_attributes)?;
-                    return Ok(InlineNode::HighlightText(HighlightText {
+                    return Ok(InlineNode::HighlightText(Highlight {
                         role,
                         content,
                         location,
@@ -72,7 +71,7 @@ impl InlineNode {
                 Rule::italic_text | Rule::italic_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::italic_text_unconstrained;
                     let content = get_content("italic", unconstrained, &pair, parent_attributes)?;
-                    return Ok(InlineNode::ItalicText(ItalicText {
+                    return Ok(InlineNode::ItalicText(Italic {
                         role,
                         content,
                         location,
@@ -81,7 +80,7 @@ impl InlineNode {
                 Rule::bold_text | Rule::bold_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::bold_text_unconstrained;
                     let content = get_content("bold", unconstrained, &pair, parent_attributes)?;
-                    return Ok(InlineNode::BoldText(BoldText {
+                    return Ok(InlineNode::BoldText(Bold {
                         role,
                         content,
                         location,
@@ -91,7 +90,7 @@ impl InlineNode {
                     let unconstrained = pair.as_rule() == Rule::monospace_text_unconstrained;
                     let content =
                         get_content("monospace", unconstrained, &pair, parent_attributes)?;
-                    return Ok(InlineNode::MonospaceText(MonospaceText {
+                    return Ok(InlineNode::MonospaceText(Monospace {
                         role,
                         content,
                         location,
@@ -99,7 +98,7 @@ impl InlineNode {
                 }
                 Rule::subscript_text => {
                     let content = get_content("subscript", false, &pair, parent_attributes)?;
-                    return Ok(InlineNode::SubscriptText(SubscriptText {
+                    return Ok(InlineNode::SubscriptText(Subscript {
                         role,
                         content,
                         location,
@@ -107,7 +106,7 @@ impl InlineNode {
                 }
                 Rule::superscript_text => {
                     let content = get_content("superscript", false, &pair, parent_attributes)?;
-                    return Ok(InlineNode::SuperscriptText(SuperscriptText {
+                    return Ok(InlineNode::SuperscriptText(Superscript {
                         role,
                         content,
                         location,
