@@ -15,19 +15,19 @@
         },
         "content": [
           {
-            "PlainText": {
-              "content": "Something or other",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 1
-                },
-                {
-                  "line": 2,
-                  "col": 19
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "Something or other",
+            "location": [
+              {
+                "line": 2,
+                "col": 1
+              },
+              {
+                "line": 2,
+                "col": 19
+              }
+            ]
           }
         ],
         "location": [

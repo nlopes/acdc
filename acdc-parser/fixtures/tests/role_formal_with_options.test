@@ -15,19 +15,19 @@
         },
         "content": [
           {
-            "PlainText": {
-              "content": "A paragraph.",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 1
-                },
-                {
-                  "line": 2,
-                  "col": 13
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "A paragraph.",
+            "location": [
+              {
+                "line": 2,
+                "col": 1
+              },
+              {
+                "line": 2,
+                "col": 13
+              }
+            ]
           }
         ],
         "location": [

@@ -2,32 +2,46 @@
   "name": "document",
   "type": "block",
   "header": {
-    "title": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]
+      }
+    ],
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
   },
   "blocks": [
     {
       "Section": {
-        "title": [{"PlainText": {"content": "Section 1", "location": [{"line": 3, "col": 4},{"line": 3, "col": 13}]}}],
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Section 1",
+            "location": [{"line": 3, "col": 4},{"line": 3, "col": 13}]
+          }
+        ],
         "level": 1,
         "content": [
           {
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "This is the content of section 1.",
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 1
-                      },
-                      {
-                        "line": 5,
-                        "col": 34
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "This is the content of section 1.",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 34
+                    }
+                  ]
                 }
               ],
               "location": [
@@ -44,26 +58,33 @@
           },
           {
             "Section": {
-              "title": [{"PlainText": {"content": "Section 1.1", "location": [{"line": 7, "col": 5},{"line": 7, "col": 16}]}}],
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Section 1.1",
+                  "location": [{"line": 7, "col": 5},{"line": 7, "col": 16}]
+                }
+              ],
               "level": 2,
               "content": [
                 {
                   "Paragraph": {
                     "content": [
                       {
-                        "PlainText": {
-                          "content": "This is the content of section 1.1.",
-                          "location": [
-                            {
-                              "line": 9,
-                              "col": 1
-                            },
-                            {
-                              "line": 9,
-                              "col": 36
-                            }
-                          ]
-                        }
+                        "name": "text",
+                        "type": "string",
+                        "value": "This is the content of section 1.1.",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 1
+                          },
+                          {
+                            "line": 9,
+                            "col": 36
+                          }
+                        ]
                       }
                     ],
                     "location": [
@@ -80,26 +101,33 @@
                 },
                 {
                   "Section": {
-                    "title": [{"PlainText": {"content": "Section 1.1.1", "location": [{"line": 11, "col": 6},{"line": 11, "col": 19}]}}],
+                    "title": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Section 1.1.1",
+                        "location": [{"line": 11, "col": 6},{"line": 11, "col": 19}]
+                      }
+                    ],
                     "level": 3,
                     "content": [
                       {
                         "Paragraph": {
                           "content": [
                             {
-                              "PlainText": {
-                                "content": "This is the content of section 1.1.1.",
-                                "location": [
-                                  {
-                                    "line": 13,
-                                    "col": 1
-                                  },
-                                  {
-                                    "line": 13,
-                                    "col": 38
-                                  }
-                                ]
-                              }
+                              "name": "text",
+                              "type": "string",
+                              "value": "This is the content of section 1.1.1.",
+                              "location": [
+                                {
+                                  "line": 13,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 13,
+                                  "col": 38
+                                }
+                              ]
                             }
                           ],
                           "location": [
@@ -155,26 +183,33 @@
     },
     {
       "Section": {
-        "title": [{"PlainText": {"content": "Section 2", "location": [{"line": 15, "col": 4},{"line": 15, "col": 13}]}}],
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Section 2",
+            "location": [{"line": 15, "col": 4},{"line": 15, "col": 13}]
+          }
+        ],
         "level": 1,
         "content": [
           {
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "This is the content of section 2.",
-                    "location": [
-                      {
-                        "line": 17,
-                        "col": 1
-                      },
-                      {
-                        "line": 17,
-                        "col": 34
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value":  "This is the content of section 2.",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 1
+                    },
+                    {
+                      "line": 17,
+                      "col": 34
+                    }
+                  ]
                 }
               ],
               "location": [

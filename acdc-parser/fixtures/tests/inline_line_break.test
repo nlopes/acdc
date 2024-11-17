@@ -6,62 +6,24 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "Rubies are red,",
-              "location": [
-
-                {
-                  "line": 1,
-                  "col": 1
-                },
-
-                {
-                  "line": 1,
-                  "col": 16
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "Rubies are red,",
+            "location": [{"line": 1,"col": 1},{"line": 1,"col": 16}]
           },
           {
-            "InlineLineBreak": {
-              "start": {
-                "line": 1,
-                "col": 16
-              },
-              "end": {
-                "line": 2,
-                "col": 1
-              }
-            }
+            "name": "linebreak",
+            "type": "string",
+            "location": [{"line": 1,"col": 16},{"line": 2,"col": 1}]
           },
           {
-            "PlainText": {
-              "content": "Topazes are blue.",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 1
-                },
-                {
-                  "line": 2,
-                  "col": 18
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "Topazes are blue.",
+            "location": [{"line": 2,"col": 1},{"line": 2,"col": 18}]
           }
         ],
-        "location": [
-
-          {
-            "line": 1,
-            "col": 1
-          },
-
-          {
-            "line": 2,
-            "col": 18
-          }
-        ]
+        "location": [{ "line": 1, "col": 1 },{ "line": 2, "col": 18 }]
       }
     }
   ],

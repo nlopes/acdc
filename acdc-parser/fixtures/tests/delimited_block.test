@@ -6,19 +6,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "This is a paragraph.",
-                "location": [
-                    {
-                    "line": 1,
-                    "col": 1
-                    },
-                    {
-                    "line": 1,
-                    "col": 21
-                    }
-                ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "This is a paragraph.",
+            "location": [
+              {
+                "line": 1,
+                "col": 1
+              },
+              {
+                "line": 1,
+                "col": 21
+              }
+            ]
           }
         ],
         "location": [
@@ -37,19 +37,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "// A comment block\n// that spans multiple lines.",
-                "location": [
-                    {
-                    "line": 3,
-                    "col": 1
-                    },
-                    {
-                    "line": 4,
-                    "col": 30
-                    }
-                ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "// A comment block\n// that spans multiple lines.",
+            "location": [
+              {
+                "line": 3,
+                "col": 1
+              },
+              {
+                "line": 4,
+                "col": 30
+              }
+            ]
           }
         ],
         "location": [
@@ -71,19 +71,19 @@
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "This is an example of an example block.\nThat's so meta.",
-                    "location": [
-                        {
-                        "line": 1,
-                        "col": 1
-                        },
-                        {
-                        "line": 3,
-                        "col": 1
-                        }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "This is an example of an example block.\nThat's so meta.",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 1
+                    },
+                    {
+                      "line": 3,
+                      "col": 1
+                    }
+                  ]
                 }
               ],
               "location": [

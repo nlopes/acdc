@@ -20,7 +20,7 @@ use tracing::instrument;
 use crate::{
     model::{
         Autolink, BoldText, Button, HighlightText, Icon, Image, InlineMacro, InlineNode,
-        ItalicText, Keyboard, Link, Menu, MonospaceText, Pass, PlainText, SubscriptText,
+        ItalicText, Keyboard, LineBreak, Link, Menu, MonospaceText, Pass, PlainText, SubscriptText,
         SuperscriptText, Url,
     },
     Error, Rule,
@@ -126,7 +126,7 @@ impl InlineNode {
                 | Rule::triple_passthrough => return Self::parse_macro(pair),
                 Rule::role => role = Some(pair.as_str().to_string()),
                 Rule::inline_line_break | Rule::hard_wrap => {
-                    return Ok(InlineNode::InlineLineBreak(location));
+                    return Ok(InlineNode::LineBreak(LineBreak { location }));
                 }
                 Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),

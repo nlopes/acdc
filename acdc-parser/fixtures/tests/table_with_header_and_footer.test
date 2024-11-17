@@ -23,19 +23,19 @@
                       "Paragraph": {
                         "content": [
                           {
-                            "PlainText": {
-                              "content": "Cell in column 1, row 1",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell in column 1, row 1",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1
+                              },
+                              {
+                                "line": 1,
+                                "col": 24
+                              }
+                            ]
                           }
                         ],
                         "location": [
@@ -58,19 +58,19 @@
                       "Paragraph": {
                         "content": [
                           {
-                            "PlainText": {
-                              "content": "Cell in column 2, row 1",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell in column 2, row 1",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1
+                              },
+                              {
+                                "line": 1,
+                                "col": 24
+                              }
+                            ]
                           }
                         ],
                         "location": [
@@ -97,19 +97,19 @@
                       "Paragraph": {
                         "content": [
                           {
-                            "PlainText": {
-                              "content": "Cell in column 1, row 4",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
+                            "name": "text",
+                            "type": "string",
+                            "value":  "Cell in column 1, row 4",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1
+                              },
+                              {
+                                "line": 1,
+                                "col": 24
+                              }
+                            ]
                           }
                         ],
                         "location": [
@@ -132,19 +132,19 @@
                       "Paragraph": {
                         "content": [
                           {
-                            "PlainText": {
-                              "content": "Cell in column 2, row 4",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell in column 2, row 4",
+                            "location": [
+                              {
+                                "line": 1,
+                                "col": 1
+                              },
+                              {
+                                "line": 1,
+                                "col": 24
+                              }
+                            ]
                           }
                         ],
                         "location": [
@@ -172,19 +172,19 @@
                         "Paragraph": {
                           "content": [
                             {
-                              "PlainText": {
-                                "content": "Cell in column 1, row 2",
-                                "location": [
-                                  {
-                                    "line": 1,
-                                    "col": 1
-                                  },
-                                  {
-                                    "line": 1,
-                                    "col": 24
-                                  }
-                                ]
-                              }
+                              "name": "text",
+                              "type": "string",
+                              "value": "Cell in column 1, row 2",
+                              "location": [
+                                {
+                                  "line": 1,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 1,
+                                  "col": 24
+                                }
+                              ]
                             }
                           ],
                           "location": [
@@ -207,19 +207,19 @@
                         "Paragraph": {
                           "content": [
                             {
-                              "PlainText": {
-                                "content": "Cell in column 2, row 2",
-                                "location": [
-                                  {
-                                    "line": 1,
-                                    "col": 1
-                                  },
-                                  {
-                                    "line": 1,
-                                    "col": 24
-                                  }
-                                ]
-                              }
+                              "name": "text",
+                              "type": "string",
+                              "value": "Cell in column 2, row 2",
+                              "location": [
+                                {
+                                  "line": 1,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 1,
+                                  "col": 24
+                                }
+                              ]
                             }
                           ],
                           "location": [
@@ -246,19 +246,19 @@
                         "Paragraph": {
                           "content": [
                             {
-                              "PlainText": {
-                                "content": "Cell in column 1, row 3",
-                                "location": [
-                                  {
-                                    "line": 1,
-                                    "col": 1
-                                  },
-                                  {
-                                    "line": 1,
-                                    "col": 24
-                                  }
-                                ]
-                              }
+                              "name": "text",
+                              "type": "string",
+                              "value": "Cell in column 1, row 3",
+                              "location": [
+                                {
+                                  "line": 1,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 1,
+                                  "col": 24
+                                }
+                              ]
                             }
                           ],
                           "location": [
@@ -281,19 +281,19 @@
                         "Paragraph": {
                           "content": [
                             {
-                              "PlainText": {
-                                "content": "Cell in column 2, row 3",
-                                "location": [
-                                  {
-                                    "line": 1,
-                                    "col": 1
-                                  },
-                                  {
-                                    "line": 1,
-                                    "col": 24
-                                  }
-                                ]
-                              }
+                              "name": "text",
+                              "type": "string",
+                              "value": "Cell in column 2, row 3",
+                              "location": [
+                                {
+                                  "line": 1,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 1,
+                                  "col": 24
+                                }
+                              ]
                             }
                           ],
                           "location": [
@@ -325,7 +325,14 @@
             ]
           }
         },
-        "title": [{"PlainText": {"content": "A table with a title", "location": [{"line": 1, "col": 2},{"line": 1, "col": 22}]}}],
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "A table with a title",
+            "location": [{"line": 1, "col": 2},{"line": 1, "col": 22}]
+          }
+        ],
         "attributes": {
           "cols": "\"1,1\""
         },

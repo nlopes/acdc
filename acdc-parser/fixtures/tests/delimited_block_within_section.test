@@ -4,26 +4,33 @@
   "blocks": [
     {
       "Section": {
-        "title": [{"PlainText": { "content": "Section 1", "location": [{"line": 1, "col": 4},{"line": 1, "col": 13}]}}],
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Section 1",
+            "location": [{"line": 1, "col": 4},{"line": 1, "col": 13}]
+          }
+        ],
         "level": 1,
         "content": [
           {
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "Something is up. Let's see.",
-                    "location": [
-                      {
-                        "line": 3,
-                        "col": 1
-                      },
-                      {
-                        "line": 3,
-                        "col": 28
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "Something is up. Let's see.",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 1
+                    },
+                    {
+                      "line": 3,
+                      "col": 28
+                    }
+                  ]
                 }
               ],
               "location": [
@@ -65,19 +72,19 @@
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "And that's it.",
-                    "location": [
-                      {
-                        "line": 11,
-                        "col": 1
-                      },
-                      {
-                        "line": 11,
-                        "col": 15
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "And that's it.",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 15
+                    }
+                  ]
                 }
               ],
               "location": [

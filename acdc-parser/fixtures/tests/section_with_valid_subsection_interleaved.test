@@ -2,32 +2,46 @@
   "name": "document",
   "type": "block",
   "header": {
-    "title": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]
+      }
+    ],
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
   },
   "blocks": [
     {
       "Section": {
-        "title": [{"PlainText": {"content": "First Section", "location": [{"line": 3, "col": 4},{"line": 3, "col": 17}]}}],
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "First Section",
+            "location": [{"line": 3, "col": 4},{"line": 3, "col": 17}]
+          }
+        ],
         "level": 1,
         "content": [
           {
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "Content of first section",
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 1
-                      },
-                      {
-                        "line": 5,
-                        "col": 25
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "Content of first section",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 25
+                    }
+                  ]
                 }
               ],
               "location": [
@@ -44,26 +58,33 @@
           },
           {
             "Section": {
-              "title": [{"PlainText": {"content": "Nested Section", "location": [{"line": 7, "col": 5},{"line": 7, "col": 19}]}}],
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Nested Section",
+                  "location": [{"line": 7, "col": 5},{"line": 7, "col": 19}]
+                }
+              ],
               "level": 2,
               "content": [
                 {
                   "Paragraph": {
                     "content": [
                       {
-                        "PlainText": {
-                          "content": "Content of nested section",
-                          "location": [
-                            {
-                              "line": 9,
-                              "col": 1
-                            },
-                            {
-                              "line": 9,
-                              "col": 26
-                            }
-                          ]
-                        }
+                        "name": "text",
+                        "type": "string",
+                        "value": "Content of nested section",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 1
+                          },
+                          {
+                            "line": 9,
+                            "col": 26
+                          }
+                        ]
                       }
                     ],
                     "location": [
@@ -106,26 +127,33 @@
     },
     {
       "Section": {
-        "title": [{"PlainText": {"content": "Second Section", "location": [{"line": 11, "col": 4},{"line": 11, "col": 18}]}}],
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Second Section",
+            "location": [{"line": 11, "col": 4},{"line": 11, "col": 18}]
+          }
+        ],
         "level": 1,
         "content": [
           {
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "Content of second section",
-                    "location": [
-                      {
-                        "line": 13,
-                        "col": 1
-                      },
-                      {
-                        "line": 13,
-                        "col": 26
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "Content of second section",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 1
+                    },
+                    {
+                      "line": 13,
+                      "col": 26
+                    }
+                  ]
                 }
               ],
               "location": [

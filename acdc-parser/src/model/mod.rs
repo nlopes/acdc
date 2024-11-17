@@ -1,11 +1,12 @@
 //! The data models for the `AsciiDoc` document.
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::collections::HashMap;
 
-use acdc_core::{AttributeName, AttributeValue, DocumentAttributes, Location, Substitution};
+use acdc_core::{AttributeName, AttributeValue, DocumentAttributes, Location};
 use serde::{Deserialize, Serialize};
+
+mod inlines;
+
+pub use inlines::*;
 
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -122,114 +123,6 @@ pub struct DocumentAttribute {
     pub location: Location,
 }
 
-/// An `InlineNode` represents an inline node in a document.
-///
-/// An inline node is a structural element in a document that can contain other inline
-/// nodes and are only valid within a paragraph (a leaf).
-#[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum InlineNode {
-    PlainText(PlainText),
-    BoldText(BoldText),
-    ItalicText(ItalicText),
-    MonospaceText(MonospaceText),
-    HighlightText(HighlightText),
-    SubscriptText(SubscriptText),
-    SuperscriptText(SuperscriptText),
-    InlineLineBreak(Location),
-    Macro(InlineMacro),
-}
-
-/// An `InlineMacro` represents an inline macro in a document.
-#[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum InlineMacro {
-    Icon(Icon),
-    Image(Box<Image>),
-    Keyboard(Keyboard),
-    Button(Button),
-    Menu(Menu),
-    Url(Url),
-    Link(Link),
-    Autolink(Autolink),
-    Pass(Pass),
-}
-
-/// A `Pass` represents a passthrough macro in a document.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Pass {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
-    pub substitutions: HashSet<Substitution>,
-    pub location: Location,
-}
-
-/// An `Icon` represents an inline icon in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Icon {
-    pub target: String,
-    pub attributes: HashMap<AttributeName, Option<String>>,
-    pub location: Location,
-}
-
-/// A `Link` represents an inline link in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Link {
-    pub target: LinkTarget,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
-    pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum LinkTarget {
-    Url(String),
-    Path(PathBuf),
-}
-
-/// An `Url` represents an inline URL in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Url {
-    pub target: String,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
-    pub location: Location,
-}
-
-/// A `Button` represents an inline button in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Button {
-    pub label: String,
-    pub location: Location,
-}
-
-/// A `Menu` represents an inline menu in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Menu {
-    pub target: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
-    pub location: Location,
-}
-
-/// A `Keyboard` represents an inline keyboard shortcut in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Keyboard {
-    pub keys: Vec<Key>,
-    pub location: Location,
-}
-
-// TODO(nlopes): this could perhaps be an enum instead with the allowed keys
-pub type Key = String;
-
-/// An `Autolink` represents an inline autolink in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Autolink {
-    pub url: String,
-    pub location: Location,
-}
-
 /// A `DiscreteHeader` represents a discrete header in a document.
 ///
 /// Discrete headings are useful for making headings inside of other blocks, like a
@@ -241,64 +134,6 @@ pub struct DiscreteHeader {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub level: u8,
-    pub location: Location,
-}
-
-/// A `SubscriptText` represents a subscript section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SubscriptText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `SuperscriptText` represents a superscript section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SuperscriptText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `MonospaceText` represents a monospace section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MonospaceText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `HighlightText` represents a highlighted section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct HighlightText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `BoldText` represents a bold section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BoldText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// An `ItalicText` represents an italic section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ItalicText {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `PlainText` represents a plain text section in a document.
-///
-/// This is the most basic form of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PlainText {
-    pub content: String,
     pub location: Location,
 }
 
