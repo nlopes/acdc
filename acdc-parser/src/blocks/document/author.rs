@@ -9,16 +9,23 @@ impl Author {
         let mut first_name = String::new();
         let mut middle_name = None;
         let mut last_name = String::new();
+        let mut initials = String::new();
         let mut email = None;
 
         for pair in pairs {
             match pair.as_rule() {
                 Rule::author_first_name => {
                     first_name = pair.as_str().to_string();
+                    initials.push_str(&first_name.chars().next().unwrap_or_default().to_string());
                 }
-                Rule::author_middle_name => middle_name = Some(pair.as_str().to_string()),
+                Rule::author_middle_name => {
+                    let text = pair.as_str();
+                    middle_name = Some(text.to_string());
+                    initials.push_str(&text.chars().next().unwrap_or_default().to_string());
+                }
                 Rule::author_last_name => {
                     last_name = pair.as_str().to_string();
+                    initials.push_str(&last_name.chars().next().unwrap_or_default().to_string());
                 }
                 Rule::author_email => {
                     email = Some(pair.as_str().to_string()).map(|s| s.to_string());
@@ -31,6 +38,7 @@ impl Author {
             first_name,
             middle_name,
             last_name,
+            initials,
             email,
         }
     }

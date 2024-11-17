@@ -2,12 +2,7 @@
   "name": "document",
   "type": "block",
   "header": {
-    "title": {
-      "name": "text",
-      "type": "string",
-      "value": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
-      "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
-    },
+    "title": [{"PlainText": {"content": "Document Title", "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]}}],
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
   },
   "blocks": [

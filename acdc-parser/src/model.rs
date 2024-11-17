@@ -23,23 +23,13 @@ pub struct Document {
 
 type Subtitle = String;
 
-/// A `Title` represents the title of a document.
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Title {
-    pub(crate) name: String,
-    pub(crate) r#type: String,
-    #[serde(rename = "value")]
-    pub title: Vec<InlineNode>,
-    pub location: Location,
-}
-
 /// A `Header` represents the header of a document.
 ///
 /// The header contains the title, subtitle, and authors
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Header {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<Title>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<Subtitle>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -50,11 +40,18 @@ pub struct Header {
 /// An `Author` represents the author of a document.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Author {
+    #[serde(rename = "firstname")]
     pub first_name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "middlename"
+    )]
     pub middle_name: Option<String>,
+    #[serde(rename = "lastname")]
     pub last_name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initials: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "address")]
     pub email: Option<String>,
 }
 

@@ -10,24 +10,21 @@
     "revremark": "Fall incarnation"
   },
   "header": {
-    "title": {
-      "name": "text",
-      "type": "string",
-      "value": [{ "PlainText": { "content": "Document Title", "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 17 }] } }],
-      "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 17 }]
-    },
+    "title": [{ "PlainText": { "content": "Document Title", "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 17 }] } }],
     "authors": [
       {
-        "first_name": "Lorn_Kismet",
-        "middle_name": "R.",
-        "last_name": "Lee",
-        "email": "kismet@asciidoctor.org"
+        "firstname": "Lorn_Kismet",
+        "middlename": "R.",
+        "lastname": "Lee",
+        "initials": "LRL",
+        "address": "kismet@asciidoctor.org"
       },
       {
-        "first_name": "Norberto",
-        "middle_name": "M.",
-        "last_name": "Lopes",
-        "email": "nlopesml@gmail.com"
+        "firstname": "Norberto",
+        "middlename": "M.",
+        "lastname": "Lopes",
+        "initials": "NML",
+        "address": "nlopesml@gmail.com"
       }
     ],
     "location": [{ "line": 3, "col": 1 }, { "line": 8, "col": 35 }]

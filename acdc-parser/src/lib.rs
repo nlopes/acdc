@@ -49,7 +49,7 @@ pub use model::{
     DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, HighlightText, Icon,
     Image, ImageSource, InlineMacro, InlineNode, ItalicText, Keyboard, Link, ListItem, Menu,
     MonospaceText, OrderedList, PageBreak, Paragraph, Pass, PlainText, Section, SubscriptText,
-    SuperscriptText, Table, ThematicBreak, Title, UnorderedList, Url, VideoSource,
+    SuperscriptText, Table, ThematicBreak, UnorderedList, Url, VideoSource,
 };
 
 #[derive(Parser, Debug)]

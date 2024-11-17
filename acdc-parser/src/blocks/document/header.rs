@@ -4,7 +4,7 @@ use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines,
-    model::{Author, DocumentAttribute, Header, InlineNode, PlainText, Title},
+    model::{Author, DocumentAttribute, Header, InlineNode, PlainText},
     Error, Rule,
 };
 
@@ -14,7 +14,7 @@ impl Header {
         pairs: Pairs<Rule>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Option<Self>, Error> {
-        let mut title = None;
+        let mut title = Vec::new();
         let mut subtitle = None;
         let mut authors = Vec::new();
         let mut location = Location::default();
@@ -57,21 +57,14 @@ impl Header {
                                         column: inner_pair.as_span().end_pos().line_col().1,
                                     },
                                 };
-                                let inner_title =
-                                    if inner_pair.clone().into_inner().as_str().is_empty() {
-                                        vec![InlineNode::PlainText(PlainText {
-                                            content: title_content.clone(),
-                                            location: title_location.clone(),
-                                        })]
-                                    } else {
-                                        parse_inlines(inner_pair.clone(), parent_attributes)?
-                                    };
-                                title = Some(Title {
-                                    name: "text".to_string(),
-                                    r#type: "string".to_string(),
-                                    title: inner_title,
-                                    location: title_location,
-                                });
+                                title = if inner_pair.clone().into_inner().as_str().is_empty() {
+                                    vec![InlineNode::PlainText(PlainText {
+                                        content: title_content.clone(),
+                                        location: title_location.clone(),
+                                    })]
+                                } else {
+                                    parse_inlines(inner_pair.clone(), parent_attributes)?
+                                };
                             }
                             unknown => unreachable!("{:?}", unknown),
                         }
@@ -117,9 +110,9 @@ impl Header {
         }
 
         Ok(
-            if title.is_none() && subtitle.is_none() && authors.is_empty() {
+            if title.is_empty() && subtitle.is_none() && authors.is_empty() {
                 // We do this here because we do may capture document attributes while parsing
-                // the document header, and in that case  we want to make sure we don't return
+                // the document header, and in that case we want to make sure we don't return
                 // an empty header
                 None
             } else {

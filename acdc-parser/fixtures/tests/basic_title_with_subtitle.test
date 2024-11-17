@@ -2,12 +2,7 @@
   "name": "document",
   "type": "block",
   "header": {
-    "title": {
-      "name": "text",
-      "type": "string",
-      "value": [{"PlainText": { "content": "Document Title: this is the subtitle", "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 39 }] }}],
-      "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 39 }]
-    },
+    "title": [{"PlainText": { "content": "Document Title: this is the subtitle", "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 39 }] }}],
     "subtitle": "this is the subtitle",
     "location": [{ "line": 3, "col": 1 }, { "line": 3, "col": 39 }]
   },

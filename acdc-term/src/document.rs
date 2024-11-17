@@ -24,8 +24,8 @@ impl Render for acdc_parser::Document {
 
 impl Render for acdc_parser::Header {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
-        if let Some(title) = &self.title {
-            title.render(w)?;
+        for node in &self.title {
+            node.render(w)?;
         }
         if !self.authors.is_empty() {
             w.queue(PrintStyledContent("by ".italic()))?;
@@ -41,15 +41,6 @@ impl Render for acdc_parser::Header {
                     Ok::<(), std::io::Error>(())
                 })?;
             writeln!(w)?;
-        }
-        Ok(())
-    }
-}
-
-impl Render for acdc_parser::Title {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
-        for node in &self.title {
-            node.render(w)?;
         }
         Ok(())
     }
@@ -76,7 +67,7 @@ mod tests {
     use super::*;
     use acdc_parser::{
         Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, PlainText,
-        Section, Title,
+        Section,
     };
 
     #[test]
@@ -90,18 +81,18 @@ mod tests {
     #[test]
     fn test_render_document_with_header() {
         let mut doc = Document::default();
-        let mut title = Title::default();
-        title.title = vec![InlineNode::PlainText(PlainText {
+        let title = vec![InlineNode::PlainText(PlainText {
             content: "Title".to_string(),
             location: Location::default(),
         })];
         doc.header = Some(Header {
-            title: Some(title),
+            title,
             subtitle: None,
             authors: vec![Author {
                 first_name: "John".to_string(),
                 middle_name: Some("M".to_string()),
                 last_name: "Doe".to_string(),
+                initials: "JMD".to_string(),
                 email: Some("johndoe@example.com".to_string()),
             }],
             location: Location::default(),
