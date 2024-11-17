@@ -16,16 +16,16 @@ impl Author {
             match pair.as_rule() {
                 Rule::author_first_name => {
                     first_name = pair.as_str().to_string();
-                    initials.push_str(&first_name.chars().next().unwrap_or_default().to_string());
+                    initials.push(first_name.chars().next().unwrap_or_default());
                 }
                 Rule::author_middle_name => {
                     let text = pair.as_str();
                     middle_name = Some(text.to_string());
-                    initials.push_str(&text.chars().next().unwrap_or_default().to_string());
+                    initials.push(text.chars().next().unwrap_or_default());
                 }
                 Rule::author_last_name => {
                     last_name = pair.as_str().to_string();
-                    initials.push_str(&last_name.chars().next().unwrap_or_default().to_string());
+                    initials.push(last_name.chars().next().unwrap_or_default());
                 }
                 Rule::author_email => {
                     email = Some(pair.as_str().to_string()).map(|s| s.to_string());

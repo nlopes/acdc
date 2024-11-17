@@ -48,6 +48,7 @@ pub enum InlineMacro {
 }
 
 impl<'de> Deserialize<'de> for InlineNode {
+    #[allow(clippy::too_many_lines)]
     fn deserialize<D>(deserializer: D) -> Result<InlineNode, D::Error>
     where
         D: Deserializer<'de>,
@@ -153,7 +154,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                     }
                     ("image", "inline") => todo!("implement image deserialization"),
                     ("keyboard", "inline") => todo!("implement keyboard deserialization"),
-                    ("btn", "inline") | ("button", "inline") => {
+                    ("btn" | "button", "inline") => {
                         todo!("implement button deserialization")
                     }
                     ("menu", "inline") => todo!("implement menu deserialization"),
