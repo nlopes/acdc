@@ -6,12 +6,14 @@
     "toc": true
   },
   "header": {
-    "title": {
-      "name": "text",
-      "type": "string",
-      "value": "Document Title",
-      "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
-    },
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
+      }
+    ],
     "location": [{ "line": 1, "col": 1 }, { "line": 3, "col": 6 }]
   },
   "blocks": [
@@ -19,19 +21,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "content",
-                "location": [
-                    {
-                    "line": 5,
-                    "col": 1
-                    },
-                    {
-                    "line": 5,
-                    "col": 8
-                    }
-                ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "content",
+            "location": [
+              {
+                "line": 5,
+                "col": 1
+              },
+              {
+                "line": 5,
+                "col": 8
+              }
+            ]
           }
         ],
         "location": [

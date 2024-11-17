@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{AttributeName, Block, BlockMetadata, Location, Video, VideoSource},
+    model::{Block, BlockMetadata, Video, VideoSource},
     Rule,
 };
 
@@ -14,6 +15,7 @@ impl Video {
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut sources = vec![];
         let mut attribute_idx = 0;
@@ -57,7 +59,7 @@ impl Video {
         }
         Block::Video(Video {
             location: Location::default(),
-            title: None,
+            title: Vec::new(),
             sources,
             metadata: metadata.clone(),
             attributes: attributes.clone(),

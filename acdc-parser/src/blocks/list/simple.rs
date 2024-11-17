@@ -1,23 +1,22 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{
-        AttributeName, Block, BlockMetadata, ListItem, Location, OrderedList, Position,
-        UnorderedList,
-    },
+    model::{Block, BlockMetadata, InlineNode, ListItem, OrderedList, UnorderedList},
     Error, Rule,
 };
 
 impl Block {
     #[instrument(level = "trace")]
     pub(crate) fn parse_simple_list(
-        title: Option<String>,
+        pairs: Pairs<Rule>,
+        title: Vec<InlineNode>,
         metadata: BlockMetadata,
         attributes: HashMap<AttributeName, Option<String>>,
-        pairs: Pairs<Rule>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut location = Location::default();
 
@@ -50,11 +49,11 @@ impl Block {
 
             match pair.as_rule() {
                 Rule::unordered_list_item => {
-                    items.push(ListItem::parse(pair.into_inner())?);
+                    items.push(ListItem::parse(pair.into_inner(), parent_attributes)?);
                 }
                 Rule::ordered_list_item => {
                     kind = "ordered";
-                    items.push(ListItem::parse(pair.into_inner())?);
+                    items.push(ListItem::parse(pair.into_inner(), parent_attributes)?);
                 }
                 unknown => unreachable!("{unknown:?}"),
             }

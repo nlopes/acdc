@@ -1,13 +1,12 @@
 //! The data models for the `AsciiDoc` document.
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::collections::HashMap;
 
-use serde::{
-    ser::{SerializeSeq, Serializer},
-    Deserialize, Serialize,
-};
+use acdc_core::{AttributeName, AttributeValue, DocumentAttributes, Location};
+use serde::{Deserialize, Serialize};
+
+mod inlines;
+
+pub use inlines::*;
 
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
@@ -17,7 +16,7 @@ pub struct Document {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<Header>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, AttributeValue>,
+    pub attributes: DocumentAttributes,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<Block>,
     pub location: Location,
@@ -25,23 +24,13 @@ pub struct Document {
 
 type Subtitle = String;
 
-/// A `Title` represents the title of a document.
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Title {
-    pub(crate) name: String,
-    pub(crate) r#type: String,
-    #[serde(rename = "value")]
-    pub title: String,
-    pub location: Location,
-}
-
 /// A `Header` represents the header of a document.
 ///
 /// The header contains the title, subtitle, and authors
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Header {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<Title>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<Subtitle>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -52,11 +41,18 @@ pub struct Header {
 /// An `Author` represents the author of a document.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Author {
+    #[serde(rename = "firstname")]
     pub first_name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "middlename"
+    )]
     pub middle_name: Option<String>,
+    #[serde(rename = "lastname")]
     pub last_name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initials: String,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "address")]
     pub email: Option<String>,
 }
 
@@ -116,21 +112,6 @@ pub enum Block {
     Video(Video),
 }
 
-/// An `AttributeName` represents the name of an attribute in a document.
-pub type AttributeName = String;
-
-/// An `AttributeValue` represents the value of an attribute in a document.
-///
-/// An attribute value can be a string or a boolean.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum AttributeValue {
-    /// A string attribute value.
-    String(String),
-    /// A boolean attribute value. `false` means it is unset.
-    Bool(bool),
-}
-
 /// A `DocumentAttribute` represents a document attribute in a document.
 ///
 /// A document attribute is a key-value pair that can be used to set metadata in a
@@ -142,144 +123,6 @@ pub struct DocumentAttribute {
     pub location: Location,
 }
 
-/// An `InlineNode` represents an inline node in a document.
-///
-/// An inline node is a structural element in a document that can contain other inline
-/// nodes and are only valid within a paragraph (a leaf).
-#[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum InlineNode {
-    PlainText(PlainText),
-    BoldText(BoldText),
-    ItalicText(ItalicText),
-    MonospaceText(MonospaceText),
-    HighlightText(HighlightText),
-    SubscriptText(SubscriptText),
-    SuperscriptText(SuperscriptText),
-    InlineLineBreak(Location),
-    Macro(InlineMacro),
-}
-
-/// An `InlineMacro` represents an inline macro in a document.
-#[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum InlineMacro {
-    Icon(Icon),
-    Image(Box<Image>),
-    Keyboard(Keyboard),
-    Button(Button),
-    Menu(Menu),
-    Url(Url),
-    Link(Link),
-    Autolink(Autolink),
-    Pass(Pass),
-}
-
-/// A `Pass` represents a passthrough macro in a document.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Pass {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
-    pub substitutions: HashSet<Substitution>,
-    pub location: Location,
-}
-
-/// A `Substitution` represents a substitution in a passthrough macro.
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Substitution {
-    SpecialChars,
-    Attributes,
-    Replacements,
-    Macros,
-    PostReplacements,
-    Normal,
-    Verbatim,
-    Quotes,
-}
-
-impl From<&str> for Substitution {
-    fn from(value: &str) -> Self {
-        match value {
-            "specialchars" | "c" => Substitution::SpecialChars,
-            "attributes" | "a" => Substitution::Attributes,
-            "replacements" | "r" => Substitution::Replacements,
-            "macros" | "m" => Substitution::Macros,
-            "post_replacements" | "p" => Substitution::PostReplacements,
-            "normal" | "n" => Substitution::Normal,
-            "verbatim" | "v" => Substitution::Verbatim,
-            "quotes" | "q" => Substitution::Quotes,
-            unknown => unimplemented!("{unknown:?}"),
-        }
-    }
-}
-
-/// An `Icon` represents an inline icon in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Icon {
-    pub target: String,
-    pub attributes: HashMap<AttributeName, Option<String>>,
-    pub location: Location,
-}
-
-/// A `Link` represents an inline link in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Link {
-    pub target: LinkTarget,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
-    pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum LinkTarget {
-    Url(String),
-    Path(PathBuf),
-}
-
-/// An `Url` represents an inline URL in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Url {
-    pub target: String,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
-    pub location: Location,
-}
-
-/// A `Button` represents an inline button in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Button {
-    pub label: String,
-    pub location: Location,
-}
-
-/// A `Menu` represents an inline menu in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Menu {
-    pub target: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
-    pub location: Location,
-}
-
-/// A `Keyboard` represents an inline keyboard shortcut in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Keyboard {
-    pub keys: Vec<Key>,
-    pub location: Location,
-}
-
-// TODO(nlopes): this could perhaps be an enum instead with the allowed keys
-pub type Key = String;
-
-/// An `Autolink` represents an inline autolink in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Autolink {
-    pub url: String,
-    pub location: Location,
-}
-
 /// A `DiscreteHeader` represents a discrete header in a document.
 ///
 /// Discrete headings are useful for making headings inside of other blocks, like a
@@ -288,66 +131,9 @@ pub struct Autolink {
 pub struct DiscreteHeader {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
-    pub title: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub level: u8,
-    pub location: Location,
-}
-
-/// A `SubscriptText` represents a subscript section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SubscriptText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `SuperscriptText` represents a superscript section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct SuperscriptText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `MonospaceText` represents a monospace section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct MonospaceText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `HighlightText` represents a highlighted section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct HighlightText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `BoldText` represents a bold section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct BoldText {
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// An `ItalicText` represents an italic section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct ItalicText {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role: Option<Role>,
-    pub content: Vec<InlineNode>,
-    pub location: Location,
-}
-
-/// A `PlainText` represents a plain text section in a document.
-///
-/// This is the most basic form of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct PlainText {
-    pub content: String,
     pub location: Location,
 }
 
@@ -356,16 +142,16 @@ pub struct PlainText {
 pub struct ThematicBreak {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub location: Location,
 }
 
 /// A `PageBreak` represents a page break in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct PageBreak {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -376,8 +162,8 @@ pub struct PageBreak {
 /// An `Audio` represents an audio block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Audio {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub source: AudioSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
@@ -389,8 +175,8 @@ pub struct Audio {
 /// A `Video` represents a video block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Video {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<VideoSource>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
@@ -403,8 +189,8 @@ pub struct Video {
 /// An `Image` represents an image block in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Image {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     pub source: ImageSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
@@ -439,8 +225,8 @@ pub enum ImageSource {
 /// A `DescriptionList` represents a description list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DescriptionList {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -470,8 +256,8 @@ pub enum DescriptionListDescription {
 /// A `UnorderedList` represents an unordered list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct UnorderedList {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
@@ -503,8 +289,8 @@ pub struct Paragraph {
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub attributes: HashMap<AttributeName, Option<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -526,8 +312,8 @@ pub struct DelimitedBlock {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
@@ -578,45 +364,9 @@ pub struct Section {
     pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub attributes: HashMap<AttributeName, Option<String>>,
-    pub title: String,
+    pub title: Vec<InlineNode>,
     pub level: SectionLevel,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<Block>,
     pub location: Location,
-}
-
-/// A `Location` represents a location in a document.
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Deserialize)]
-pub struct Location {
-    /// The start position of the location.
-    pub start: Position,
-    /// The end position of the location.
-    pub end: Position,
-}
-
-// We need to implement `Serialize` because I prefer our current `Location` struct to the
-// `asciidoc` `ASG` definition.
-//
-// We serialize `Location` into the ASG format, which is a sequence of two elements: the
-// start and end positions as an array.
-impl Serialize for Location {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(2))?;
-        state.serialize_element(&self.start)?;
-        state.serialize_element(&self.end)?;
-        state.end()
-    }
-}
-
-/// A `Position` represents a position in a document.
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub struct Position {
-    /// The line number of the position.
-    pub line: usize,
-    /// The column number of the position.
-    #[serde(rename = "col")]
-    pub column: usize,
 }

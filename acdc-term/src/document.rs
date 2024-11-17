@@ -24,8 +24,8 @@ impl Render for acdc_parser::Document {
 
 impl Render for acdc_parser::Header {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
-        if let Some(title) = &self.title {
-            title.render(w)?;
+        for node in &self.title {
+            node.render(w)?;
         }
         if !self.authors.is_empty() {
             w.queue(PrintStyledContent("by ".italic()))?;
@@ -42,13 +42,6 @@ impl Render for acdc_parser::Header {
                 })?;
             writeln!(w)?;
         }
-        Ok(())
-    }
-}
-
-impl Render for acdc_parser::Title {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
-        writeln!(w, "{}", self.title.clone().bold().white())?;
         Ok(())
     }
 }
@@ -73,8 +66,8 @@ mod tests {
 
     use super::*;
     use acdc_parser::{
-        Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, PlainText,
-        Section, Title,
+        Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, Plain,
+        Section,
     };
 
     #[test]
@@ -88,15 +81,18 @@ mod tests {
     #[test]
     fn test_render_document_with_header() {
         let mut doc = Document::default();
-        let mut title = Title::default();
-        title.title = "Title".to_string();
+        let title = vec![InlineNode::PlainText(Plain {
+            content: "Title".to_string(),
+            location: Location::default(),
+        })];
         doc.header = Some(Header {
-            title: Some(title),
+            title,
             subtitle: None,
             authors: vec![Author {
                 first_name: "John".to_string(),
                 middle_name: Some("M".to_string()),
                 last_name: "Doe".to_string(),
+                initials: "JMD".to_string(),
                 email: Some("johndoe@example.com".to_string()),
             }],
             location: Location::default(),
@@ -104,7 +100,7 @@ mod tests {
         doc.blocks = vec![];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(buffer, b"\x1b[38;5;15m\x1b[1mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n");
+        assert_eq!(buffer, b"Title\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n");
     }
 
     #[test]
@@ -112,7 +108,7 @@ mod tests {
         let mut doc = Document::default();
         doc.blocks = vec![
             Block::Paragraph(Paragraph {
-                content: vec![InlineNode::PlainText(PlainText {
+                content: vec![InlineNode::PlainText(Plain {
                     content: "Hello, world!".to_string(),
                     location: Location::default(),
                 })],
@@ -120,12 +116,15 @@ mod tests {
                 location: Location::default(),
                 attributes: HashMap::new(),
                 metadata: BlockMetadata::default(),
-                title: None,
+                title: Vec::new(),
             }),
             Block::Section(Section {
-                title: "Section".to_string(),
+                title: vec![InlineNode::PlainText(Plain {
+                    content: "Section".to_string(),
+                    location: Location::default(),
+                })],
                 content: vec![Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(PlainText {
+                    content: vec![InlineNode::PlainText(Plain {
                         content: "Hello, section!".to_string(),
                         location: Location::default(),
                     })],
@@ -133,7 +132,7 @@ mod tests {
                     attributes: HashMap::new(),
                     metadata: BlockMetadata::default(),
                     admonition: None,
-                    title: None,
+                    title: Vec::new(),
                 })],
                 location: Location::default(),
                 attributes: HashMap::new(),
@@ -143,9 +142,6 @@ mod tests {
         ];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(
-            buffer,
-            b"\nHello, world!\n\n> \x1b[38;5;15m\x1b[1mSection\x1b[0m <\n\nHello, section!"
-        );
+        assert_eq!(buffer, b"\nHello, world!\n\n> Section <\n\nHello, section!");
     }
 }

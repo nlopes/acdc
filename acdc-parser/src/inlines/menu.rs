@@ -1,9 +1,7 @@
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{Location, Menu},
-    Rule,
-};
+use crate::{model::Menu, Rule};
 
 impl Menu {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {

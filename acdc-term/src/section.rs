@@ -1,12 +1,14 @@
 use std::io::Write;
 
-use crossterm::style::Stylize;
-
 use crate::Render;
 
 impl Render for acdc_parser::Section {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
-        writeln!(w, "> {} <", self.title.clone().bold().white())?;
+        write!(w, "> ")?;
+        for node in &self.title {
+            node.render(w)?;
+        }
+        writeln!(w, " <")?;
         for (i, block) in self.content.iter().enumerate() {
             block.render(w)?;
             if i != self.content.len() - 1 {

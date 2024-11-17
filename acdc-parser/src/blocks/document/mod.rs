@@ -6,12 +6,13 @@ mod validate;
 
 use std::collections::HashMap;
 
+use acdc_core::{Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
     blocks,
-    model::{Document, Header, Location, Position},
+    model::{Document, Header},
     Error, Rule,
 };
 
@@ -21,11 +22,7 @@ impl Document {
         let mut document_header = None;
         let mut attributes = HashMap::new();
         let mut blocks = Vec::new();
-
-        let mut location = Location {
-            start: Position { line: 0, column: 0 },
-            end: Position { line: 0, column: 0 },
-        };
+        let mut location = Location::default();
 
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
@@ -40,10 +37,10 @@ impl Document {
             };
             match pair.as_rule() {
                 Rule::document_header => {
-                    document_header = Some(Header::parse(pair.into_inner(), &mut attributes));
+                    document_header = Header::parse(pair.into_inner(), &mut attributes)?;
                 }
                 Rule::blocks => {
-                    blocks.extend(blocks::parse(pair.into_inner())?);
+                    blocks.extend(blocks::parse(pair.into_inner(), &mut attributes)?);
                 }
                 Rule::comment | Rule::EOI => {}
                 unknown => unimplemented!("{:?}", unknown),

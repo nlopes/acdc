@@ -9,14 +9,18 @@ mod section;
 mod table;
 mod video;
 
+use acdc_core::{DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Block, DocumentAttribute, Location, Position},
+    model::{Block, DocumentAttribute},
     Error, Rule,
 };
 
-pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
+pub(crate) fn parse(
+    pairs: Pairs<Rule>,
+    parent_attributes: &mut DocumentAttributes,
+) -> Result<Vec<Block>, Error> {
     if pairs.len() == 0 {
         return Ok(Vec::new());
     }
@@ -29,13 +33,16 @@ pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Vec<Block>, Error> {
     for pair in pairs {
         match pair.as_rule() {
             Rule::blocks => {
-                blocks.extend(parse(pair.into_inner())?);
+                blocks.extend(parse(pair.into_inner(), parent_attributes)?);
             }
             Rule::block => {
-                blocks.push(Block::parse(pair.into_inner())?);
+                blocks.push(Block::parse(pair.into_inner(), parent_attributes)?);
             }
             Rule::document_attribute => {
-                let (name, value) = DocumentAttribute::parse(pair.clone().into_inner());
+                let (name, value) =
+                    DocumentAttribute::parse(pair.clone().into_inner(), parent_attributes);
+                // TODO(nlopes): I don't think I need to store the document attributes as
+                // a block anymore
                 let attribute = DocumentAttribute {
                     name,
                     value,

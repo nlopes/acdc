@@ -1,9 +1,10 @@
 use std::{collections::HashMap, path::Path};
 
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Link, LinkTarget, Location},
+    model::{Link, LinkTarget},
     Rule,
 };
 

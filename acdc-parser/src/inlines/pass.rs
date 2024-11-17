@@ -1,11 +1,9 @@
 use std::collections::HashSet;
 
+use acdc_core::{Location, Substitution};
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{Location, Pass, Substitution},
-    Rule,
-};
+use crate::{model::Pass, Rule};
 
 impl Pass {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {

@@ -10,14 +10,17 @@ mod url;
 
 use std::collections::HashMap;
 
-use pest::iterators::{Pair, Pairs};
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use pest::{
+    iterators::{Pair, Pairs},
+    Parser as _,
+};
 use tracing::instrument;
 
 use crate::{
     model::{
-        AttributeName, Autolink, BlockMetadata, BoldText, Button, HighlightText, Icon, Image,
-        InlineMacro, InlineNode, ItalicText, Keyboard, Link, Location, Menu, MonospaceText,
-        Paragraph, Pass, PlainText, Position, SubscriptText, SuperscriptText, Url,
+        Autolink, Bold, Button, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
+        LineBreak, Link, Menu, Monospace, Pass, Plain, Subscript, Superscript, Url,
     },
     Error, Rule,
 };
@@ -26,7 +29,7 @@ impl InlineNode {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
-        metadata: &mut BlockMetadata,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<InlineNode, Error> {
         let mut role = None;
         for pair in pairs {
@@ -45,29 +48,21 @@ impl InlineNode {
             };
 
             match pair.as_rule() {
-                Rule::plain_text => {
-                    let content = if let Some(v) = &metadata.style {
-                        if v == &String::from("literal") {
-                            pair.as_str().strip_prefix(" ").unwrap_or(pair.as_str())
-                        } else {
-                            pair.as_str()
-                        }
-                    } else {
-                        pair.as_str()
-                    };
+                Rule::plain_text | Rule::one_line_plain_text => {
+                    let content = pair.as_str().trim();
                     let content = content
                         .strip_suffix("\r\n")
                         .or(content.strip_suffix("\n"))
                         .unwrap_or(content)
                         .to_string();
 
-                    return Ok(InlineNode::PlainText(PlainText { content, location }));
+                    return Ok(InlineNode::PlainText(Plain { content, location }));
                 }
                 Rule::highlight_text | Rule::highlight_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;
                     let content =
-                        Paragraph::get_content("highlight", unconstrained, &pair, metadata)?;
-                    return Ok(InlineNode::HighlightText(HighlightText {
+                        get_content("highlight", unconstrained, &pair, parent_attributes)?;
+                    return Ok(InlineNode::HighlightText(Highlight {
                         role,
                         content,
                         location,
@@ -75,8 +70,8 @@ impl InlineNode {
                 }
                 Rule::italic_text | Rule::italic_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::italic_text_unconstrained;
-                    let content = Paragraph::get_content("italic", unconstrained, &pair, metadata)?;
-                    return Ok(InlineNode::ItalicText(ItalicText {
+                    let content = get_content("italic", unconstrained, &pair, parent_attributes)?;
+                    return Ok(InlineNode::ItalicText(Italic {
                         role,
                         content,
                         location,
@@ -84,8 +79,8 @@ impl InlineNode {
                 }
                 Rule::bold_text | Rule::bold_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::bold_text_unconstrained;
-                    let content = Paragraph::get_content("bold", unconstrained, &pair, metadata)?;
-                    return Ok(InlineNode::BoldText(BoldText {
+                    let content = get_content("bold", unconstrained, &pair, parent_attributes)?;
+                    return Ok(InlineNode::BoldText(Bold {
                         role,
                         content,
                         location,
@@ -94,24 +89,24 @@ impl InlineNode {
                 Rule::monospace_text | Rule::monospace_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::monospace_text_unconstrained;
                     let content =
-                        Paragraph::get_content("monospace", unconstrained, &pair, metadata)?;
-                    return Ok(InlineNode::MonospaceText(MonospaceText {
+                        get_content("monospace", unconstrained, &pair, parent_attributes)?;
+                    return Ok(InlineNode::MonospaceText(Monospace {
                         role,
                         content,
                         location,
                     }));
                 }
                 Rule::subscript_text => {
-                    let content = Paragraph::get_content("subscript", false, &pair, metadata)?;
-                    return Ok(InlineNode::SubscriptText(SubscriptText {
+                    let content = get_content("subscript", false, &pair, parent_attributes)?;
+                    return Ok(InlineNode::SubscriptText(Subscript {
                         role,
                         content,
                         location,
                     }));
                 }
                 Rule::superscript_text => {
-                    let content = Paragraph::get_content("superscript", false, &pair, metadata)?;
-                    return Ok(InlineNode::SuperscriptText(SuperscriptText {
+                    let content = get_content("superscript", false, &pair, parent_attributes)?;
+                    return Ok(InlineNode::SuperscriptText(Superscript {
                         role,
                         content,
                         location,
@@ -129,8 +124,8 @@ impl InlineNode {
                 | Rule::single_double_passthrough
                 | Rule::triple_passthrough => return Self::parse_macro(pair),
                 Rule::role => role = Some(pair.as_str().to_string()),
-                Rule::inline_line_break => {
-                    return Ok(InlineNode::InlineLineBreak(location));
+                Rule::inline_line_break | Rule::hard_wrap => {
+                    return Ok(InlineNode::LineBreak(LineBreak { location }));
                 }
                 Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),
@@ -223,4 +218,54 @@ fn parse_named_attribute(
             unknown => unreachable!("{unknown:?}"),
         }
     }
+}
+
+#[instrument(level = "trace")]
+pub(crate) fn parse_inlines(
+    pair: Pair<Rule>,
+    parent_attributes: &mut DocumentAttributes,
+) -> Result<Vec<InlineNode>, Error> {
+    let pairs = pair.into_inner();
+    let mut content = Vec::new();
+
+    for pair in pairs {
+        match pair.as_rule() {
+            Rule::non_plain_text => {
+                content.push(InlineNode::parse(pair.into_inner(), parent_attributes)?);
+            }
+            Rule::plain_text | Rule::one_line_plain_text => {
+                content.push(InlineNode::parse(Pairs::single(pair), parent_attributes)?);
+            }
+            Rule::EOI | Rule::comment => {}
+            unknown => unreachable!("{unknown:?}"),
+        }
+    }
+    Ok(content)
+}
+
+#[instrument(level = "trace")]
+pub(crate) fn get_content(
+    text_style: &str,
+    unconstrained: bool,
+    pair: &Pair<Rule>,
+    parent_attributes: &mut DocumentAttributes,
+) -> Result<Vec<InlineNode>, Error> {
+    let mut content = Vec::new();
+    let len = pair.as_str().len();
+    let token_length = if unconstrained { 2 } else { 1 };
+    match crate::InnerPestParser::parse(
+        Rule::inlines,
+        &pair.as_str()[token_length..len - token_length],
+    ) {
+        Ok(pairs) => {
+            for pair in pairs {
+                content.extend(parse_inlines(pair, parent_attributes)?);
+            }
+        }
+        Err(e) => {
+            tracing::error!(text_style, "error parsing text: {e}");
+            return Err(Error::Parse(e.to_string()));
+        }
+    }
+    Ok(content)
 }

@@ -1,4 +1,3 @@
-
 // this comment line is ignored
 = Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>
@@ -7,4 +6,4 @@ v2.9, 01-09-2024: Fall incarnation
 :sectanchors:
 :url-repo: https://my-git-repo.com
 
-The document body starts here.
+The document __body__ starts here.

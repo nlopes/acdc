@@ -35,7 +35,7 @@ section_content = !{ (!(EOI | &blocks) ~ ANY)+ }
 section_level_symbol = _{ ("=" | "#") }
 
 section_level = { section_level_symbol{1,6} }
-section_title = { ONE_CHAR* }
+section_title = { inlines_inner }
 
 image_block = { image ~ &NEWLINE? }
 image = { "image::" ~ (url | path) ~ attrlist }
@@ -65,10 +65,17 @@ page_break = _{ "<<<\n\n" }
 
 // Paragraphs
 paragraph = {
-    admonition_node? ~ paragraph_inner ~ &(NEWLINE+ | EOI)
+    admonition_node? ~ inlines ~ &(NEWLINE+ | EOI)
 }
 
-paragraph_inner = {
+inlines = {
+    (
+        non_plain_text |
+        plain_text
+    )+
+}
+
+inlines_inner = _{
     (
         non_plain_text |
         plain_text
@@ -137,8 +144,11 @@ url_macro = { url ~ attrlist }
 link_macro = { "link:" ~ (url | path) ~ attrlist }
 // TODO(nlopes): STEM - https://docs.asciidoctor.org/asciidoc/latest/stem/
 
+//soft_wrap = { " \\" ~ NEWLINE }
+hard_wrap = { SPACE ~ "+" ~ SPACE ~ "\\" ~ NEWLINE }
 
 non_plain_text = {
+    hard_wrap |
     image_inline |
     icon_inline |
     keyboard_inline |
@@ -181,6 +191,10 @@ admonition = !{
         "CAUTION"
     )
 }
+one_line_plain_text = {
+    (&(!(NEWLINE | EOI | non_plain_text)) ~ ANY)+
+}
+
 plain_text = {
     (&(!(NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+
 }

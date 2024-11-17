@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks,
-    model::{
-        AttributeName, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Location, Table,
-    },
+    model::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Table},
     Error, InnerPestParser, Rule,
 };
 
@@ -14,9 +13,10 @@ impl DelimitedBlock {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
-        title: Option<String>,
+        title: Vec<InlineNode>,
         metadata: &BlockMetadata,
         attributes: &HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut inner = DelimitedBlockType::DelimitedComment(String::new());
         let mut location = Location::default();
@@ -55,7 +55,10 @@ impl DelimitedBlock {
                     text.push('\n');
                     let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                    inner = DelimitedBlockType::DelimitedExample(blocks::parse(pairs)?);
+                    inner = DelimitedBlockType::DelimitedExample(blocks::parse(
+                        pairs,
+                        parent_attributes,
+                    )?);
                 }
                 Rule::delimited_pass => {
                     inner =
@@ -66,7 +69,10 @@ impl DelimitedBlock {
                     text.push('\n');
                     let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                    inner = DelimitedBlockType::DelimitedQuote(blocks::parse(pairs)?);
+                    inner = DelimitedBlockType::DelimitedQuote(blocks::parse(
+                        pairs,
+                        parent_attributes,
+                    )?);
                 }
                 Rule::delimited_listing => {
                     inner = DelimitedBlockType::DelimitedListing(
@@ -83,20 +89,25 @@ impl DelimitedBlock {
                     text.push('\n');
                     let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                    inner = DelimitedBlockType::DelimitedOpen(blocks::parse(pairs)?);
+                    inner =
+                        DelimitedBlockType::DelimitedOpen(blocks::parse(pairs, parent_attributes)?);
                 }
                 Rule::delimited_sidebar => {
                     let mut text = pair.into_inner().as_str().to_string();
                     text.push('\n');
                     let pairs = InnerPestParser::parse(Rule::document, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                    inner = DelimitedBlockType::DelimitedSidebar(blocks::parse(pairs)?);
+                    inner = DelimitedBlockType::DelimitedSidebar(blocks::parse(
+                        pairs,
+                        parent_attributes,
+                    )?);
                 }
                 Rule::delimited_table => {
                     inner = DelimitedBlockType::DelimitedTable(Table::parse(
                         &pair.into_inner(),
                         metadata,
                         attributes,
+                        parent_attributes,
                     )?);
                 }
                 unknown => unreachable!("{unknown:?}"),

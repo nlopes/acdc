@@ -6,19 +6,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 1
-                },
-                {
-                  "line": 2,
-                  "col": 59
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "Paragraphs don't require any special markup in AsciiDoc.\nA paragraph is just one or more lines of consecutive text.",
+            "location": [
+              {
+                "line": 1,
+                "col": 1
+              },
+              {
+                "line": 2,
+                "col": 59
+              }
+            ]
           }
         ],
         "location": [
@@ -37,19 +37,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.",
-              "location": [
-                {
-                  "line": 4,
-                  "col": 1
-                },
-                {
-                  "line": 4,
-                  "col": 103
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "To begin a new paragraph, separate it by at least one empty line from the previous paragraph or block.",
+            "location": [
+              {
+                "line": 4,
+                "col": 1
+              },
+              {
+                "line": 4,
+                "col": 103
+              }
+            ]
           }
         ],
         "location": [

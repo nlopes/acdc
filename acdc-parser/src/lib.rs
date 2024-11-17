@@ -28,6 +28,7 @@
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
 
+pub use acdc_core::{AttributeName, AttributeValue, Location, Position};
 use pest::Parser as _;
 use pest_derive::Parser;
 use tracing::instrument;
@@ -43,13 +44,12 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Anchor, AttributeEntry, AttributeName, AttributeValue, AudioSource, Author, Autolink, Block,
-    BlockMetadata, BoldText, Button, DelimitedBlock, DelimitedBlockType, DescriptionList,
-    DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
-    Header, HighlightText, Icon, Image, ImageSource, InlineMacro, InlineNode, ItalicText, Keyboard,
-    Link, ListItem, Location, Menu, MonospaceText, OrderedList, PageBreak, Paragraph, Pass,
-    PlainText, Position, Section, SubscriptText, SuperscriptText, Table, ThematicBreak, Title,
-    UnorderedList, Url, VideoSource,
+    Anchor, AttributeEntry, AudioSource, Author, Autolink, Block, BlockMetadata, Bold, Button,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
+    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Highlight, Icon,
+    Image, ImageSource, InlineMacro, InlineNode, Italic, Keyboard, Link, ListItem, Menu, Monospace,
+    OrderedList, PageBreak, Paragraph, Pass, Plain, Section, Subscript, Superscript, Table,
+    ThematicBreak, UnorderedList, Url, VideoSource,
 };
 
 #[derive(Parser, Debug)]
@@ -127,6 +127,41 @@ mod tests {
             panic!("unexpected error: {result:?}");
         }
     }
+
+    //     #[test]
+    //     #[tracing_test::traced_test]
+    //     fn test_something() {
+    //         let result = parse(
+    //             ":norberto: meh
+    // :asdf: something + \\
+    // or other {norberto}
+    // :app-name: pass:q[MyApp^2^]
+
+    // == Section **Title**
+
+    // First: {asdf}
+
+    // :asdf: another thing {asdf}
+
+    // Second: {asdf}
+
+    // {app-name}
+
+    // Click image:pause.png[title=Pause **for** stuff] when you need a break.
+
+    // .Something other meh
+    // Ok here we go, a paragraph.
+
+    // .Mint
+    // [sidebar]
+    // Mint has visions of global conquest.
+    // If you don't plant it in a container, it will take over your garden.
+    // ",
+    //         )
+    //         .unwrap();
+    //         dbg!(&result);
+    //         panic!();
+    //     }
 
     // #[test]
     // #[tracing_test::traced_test]

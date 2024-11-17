@@ -1,5 +1,5 @@
 [workspace]
-members = [
+members = [ "acdc-core",
   "acdc-parser",
   "acdc-term",
 ]
@@ -13,6 +13,7 @@ description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
 pretty_assertions = "1.4.1"
+serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 thiserror = "1.0"
 

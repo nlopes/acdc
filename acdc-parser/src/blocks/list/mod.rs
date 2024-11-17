@@ -4,20 +4,25 @@ mod simple;
 
 use std::collections::HashMap;
 
+use acdc_core::{DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Block, BlockMetadata, DescriptionList, Location, Position, UnorderedList},
+    inlines::parse_inlines,
+    model::{Block, BlockMetadata, DescriptionList, UnorderedList},
     Error, Rule,
 };
 
-pub(crate) fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
-    let mut title = None;
+pub(crate) fn parse_list(
+    pairs: Pairs<Rule>,
+    parent_attributes: &mut DocumentAttributes,
+) -> Result<Block, Error> {
+    let mut title = Vec::new();
     let mut metadata = BlockMetadata::default();
     let mut attributes = HashMap::new();
     let mut style_found = false;
     let mut block = Block::UnorderedList(UnorderedList {
-        title: None,
+        title: Vec::new(),
         metadata: metadata.clone(),
         attributes: attributes.clone(),
         items: Vec::new(),
@@ -30,14 +35,15 @@ pub(crate) fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
     for pair in pairs {
         match pair.as_rule() {
             Rule::list_title | Rule::blocktitle | Rule::title => {
-                title = Some(pair.as_str().to_string());
+                title = parse_inlines(pair, parent_attributes)?;
             }
             Rule::unordered_list | Rule::ordered_list => {
                 block = Block::parse_simple_list(
+                    pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
                     attributes.clone(),
-                    pair.into_inner(),
+                    parent_attributes,
                 )?;
             }
             Rule::named_attribute => {
@@ -60,10 +66,11 @@ pub(crate) fn parse_list(pairs: Pairs<Rule>) -> Result<Block, Error> {
             Rule::option => metadata.options.push(pair.as_str().to_string()),
             Rule::description_list => {
                 block = DescriptionList::parse(
+                    pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
                     attributes.clone(),
-                    pair.into_inner(),
+                    parent_attributes,
                 )?;
             }
             Rule::EOI | Rule::comment => {}

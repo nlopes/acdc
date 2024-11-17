@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{AttributeName, Audio, AudioSource, Block, BlockMetadata, Location},
+    model::{Audio, AudioSource, Block, BlockMetadata},
     Rule,
 };
 
@@ -14,6 +15,7 @@ impl Audio {
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = AudioSource::Path(String::new());
 
@@ -48,7 +50,7 @@ impl Audio {
         }
         Block::Audio(Audio {
             location: Location::default(),
-            title: None,
+            title: Vec::new(),
             source,
             metadata: metadata.clone(),
             attributes: attributes.clone(),

@@ -3,9 +3,17 @@
 version = 3
 
 [[package]]
+name = "acdc-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "acdc-parser"
 version = "0.1.0"
 dependencies = [
+ "acdc-core",
  "pest",
  "pest_derive",
  "pretty_assertions",

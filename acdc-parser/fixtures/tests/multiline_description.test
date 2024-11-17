@@ -5,18 +5,21 @@
     "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
   },
   "header": {
-    "title": {
-      "name": "text",
-      "type": "string",
-      "value": "The Intrepid Chronicles",
-      "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 26 }]
-    },
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "The Intrepid Chronicles",
+        "location": [{"line": 1, "col": 3}, {"line": 1, "col": 26}]
+      }
+    ],
     "authors": [
       {
-        "first_name": "Kismet",
-        "middle_name": null,
-        "last_name": "Lee",
-        "email": "kismet@asciidoctor.org"
+        "firstname": "Kismet",
+        "middlename": null,
+        "lastname": "Lee",
+        "initials": "KL",
+        "address": "kismet@asciidoctor.org"
       }
     ],
     "location": [{ "line": 1, "col": 1 }, { "line": 3, "col": 167 }]
@@ -26,19 +29,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "This journey begins on a bleary Monday morning.",
-              "location": [
-                {
-                  "line": 5,
-                  "col": 1
-                },
-                {
-                  "line": 5,
-                  "col": 48
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "This journey begins on a bleary Monday morning.",
+            "location": [
+              {
+                "line": 5,
+                "col": 1
+              },
+              {
+                "line": 5,
+                "col": 48
+              }
+            ]
           }
         ],
         "location": [

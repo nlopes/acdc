@@ -1,22 +1,24 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 
 use crate::{
     blocks,
     model::{
-        Anchor, AttributeName, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
-        DescriptionListItem, Location, Position,
+        Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
+        DescriptionListItem, InlineNode,
     },
     Error, Rule,
 };
 
 impl DescriptionList {
     pub(crate) fn parse(
-        title: Option<String>,
+        pairs: Pairs<Rule>,
+        title: Vec<InlineNode>,
         metadata: BlockMetadata,
         attributes: HashMap<AttributeName, Option<String>>,
-        pairs: Pairs<Rule>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut location = Location {
             start: Position { line: 0, column: 0 },
@@ -55,7 +57,8 @@ impl DescriptionList {
                                 delimiter = inner_pair.as_str();
                             }
                             Rule::blocks => {
-                                let description = blocks::parse(inner_pair.into_inner())?;
+                                let description =
+                                    blocks::parse(inner_pair.into_inner(), parent_attributes)?;
                                 items.push(DescriptionListItem {
                                     anchors: anchors.clone(),
                                     term: term.to_string(),
@@ -80,7 +83,10 @@ impl DescriptionList {
                             _ => {
                                 // If we get here, it means we have a block that is not a
                                 // description list
-                                blocks.push(Block::parse(inner_pair.into_inner())?);
+                                blocks.push(Block::parse(
+                                    inner_pair.into_inner(),
+                                    parent_attributes,
+                                )?);
                             }
                         }
                     }

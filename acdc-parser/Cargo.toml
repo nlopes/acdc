@@ -1,12 +1,15 @@
 [package]
 name = "acdc-parser"
-version = "0.1.0"
-edition = "2021"
+description = "`AsciiDoc` parser using PEG grammars"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
 
 [dependencies]
+acdc-core = { path = "../acdc-core" }
 pest = "2.7"
 pest_derive = "2.7"
-serde = { version = "1", features = ["derive"] }
+serde.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 url = "2.5.3"

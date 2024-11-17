@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
     blocks::list::parse_list,
+    inlines::parse_inlines,
     model::{
-        Anchor, AttributeName, Audio, Block, BlockMetadata, DelimitedBlock, Image, Location,
-        PageBreak, Paragraph, Position, Section, ThematicBreak, Video,
+        Anchor, Audio, Block, BlockMetadata, DelimitedBlock, Image, InlineNode, PageBreak,
+        Paragraph, Section, ThematicBreak, Video,
     },
     Error, Rule,
 };
@@ -67,21 +69,21 @@ impl BlockExt for Block {
         }
     }
 
-    fn set_title(&mut self, title: String) {
+    fn set_title(&mut self, title: Vec<InlineNode>) {
         match self {
             Block::DiscreteHeader(header) => header.title = title,
             Block::DocumentAttribute(_attr) => {}
-            Block::ThematicBreak(thematic_break) => thematic_break.title = Some(title),
-            Block::PageBreak(page_break) => page_break.title = Some(title),
-            Block::UnorderedList(unordered_list) => unordered_list.title = Some(title),
-            Block::OrderedList(ordered_list) => ordered_list.title = Some(title),
-            Block::DescriptionList(description_list) => description_list.title = Some(title),
+            Block::ThematicBreak(thematic_break) => thematic_break.title = title,
+            Block::PageBreak(page_break) => page_break.title = title,
+            Block::UnorderedList(unordered_list) => unordered_list.title = title,
+            Block::OrderedList(ordered_list) => ordered_list.title = title,
+            Block::DescriptionList(description_list) => description_list.title = title,
             Block::Section(section) => section.title = title,
-            Block::DelimitedBlock(delimited_block) => delimited_block.title = Some(title),
-            Block::Paragraph(paragraph) => paragraph.title = Some(title),
-            Block::Image(image) => image.title = Some(title),
-            Block::Audio(audio) => audio.title = Some(title),
-            Block::Video(video) => video.title = Some(title),
+            Block::DelimitedBlock(delimited_block) => delimited_block.title = title,
+            Block::Paragraph(paragraph) => paragraph.title = title,
+            Block::Image(image) => image.title = title,
+            Block::Audio(audio) => audio.title = title,
+            Block::Video(video) => video.title = title,
         }
     }
 
@@ -107,7 +109,7 @@ impl BlockExt for Block {
 pub(crate) trait BlockExt {
     fn set_location(&mut self, location: Location);
     fn set_anchors(&mut self, anchor: Vec<Anchor>);
-    fn set_title(&mut self, title: String);
+    fn set_title(&mut self, title: Vec<InlineNode>);
     fn set_attributes(&mut self, attributes: HashMap<AttributeName, Option<String>>);
     fn set_metadata(&mut self, metadata: BlockMetadata);
 }
@@ -134,20 +136,20 @@ impl std::fmt::Display for Block {
 
 impl Block {
     #[instrument(level = "trace")]
-    pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Block, Error> {
-        let mut title = None;
+    pub(crate) fn parse(
+        pairs: Pairs<Rule>,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<Block, Error> {
+        let mut title = Vec::new();
         let mut anchors = Vec::new();
         let mut metadata = BlockMetadata::default();
         let mut attributes = HashMap::new();
         let mut style_found = false;
-        let mut location = Location {
-            start: Position { line: 0, column: 0 },
-            end: Position { line: 0, column: 0 },
-        };
+        let mut location = Location::default();
         let mut block = Block::Paragraph(Paragraph {
             metadata: BlockMetadata::default(),
             attributes: HashMap::new(),
-            title: None,
+            title: Vec::new(),
             content: Vec::new(),
             location: location.clone(),
             admonition: None,
@@ -169,25 +171,44 @@ impl Block {
             }
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
-                Rule::section => block = Section::parse(&pair)?,
+                Rule::section => block = Section::parse(&pair, parent_attributes)?,
                 Rule::delimited_block => {
                     block = DelimitedBlock::parse(
                         pair.into_inner(),
                         title.clone(),
                         &metadata,
                         &attributes,
+                        parent_attributes,
                     )?;
                 }
-                Rule::paragraph => block = Paragraph::parse(pair, &mut metadata, &mut attributes)?,
-                Rule::list => block = parse_list(pair.into_inner())?,
+                Rule::paragraph => {
+                    block =
+                        Paragraph::parse(pair, &mut metadata, &mut attributes, parent_attributes)?;
+                }
+                Rule::list => block = parse_list(pair.into_inner(), parent_attributes)?,
                 Rule::image_block => {
-                    block = Image::parse(pair.into_inner(), &mut metadata, &mut attributes);
+                    block = Image::parse(
+                        pair.into_inner(),
+                        &mut metadata,
+                        &mut attributes,
+                        parent_attributes,
+                    );
                 }
                 Rule::audio_block => {
-                    block = Audio::parse(pair.into_inner(), &mut metadata, &mut attributes);
+                    block = Audio::parse(
+                        pair.into_inner(),
+                        &mut metadata,
+                        &mut attributes,
+                        parent_attributes,
+                    );
                 }
                 Rule::video_block => {
-                    block = Video::parse(pair.into_inner(), &mut metadata, &mut attributes);
+                    block = Video::parse(
+                        pair.into_inner(),
+                        &mut metadata,
+                        &mut attributes,
+                        parent_attributes,
+                    );
                 }
                 Rule::option => metadata.options.push(pair.as_str().to_string()),
                 Rule::role => metadata.roles.push(pair.as_str().to_string()),
@@ -195,7 +216,7 @@ impl Block {
                     style_found = true;
                 }
                 Rule::title => {
-                    title = Some(pair.as_str().to_string());
+                    title = parse_inlines(pair, parent_attributes)?;
                 }
                 Rule::thematic_break_block => {
                     let thematic_break = ThematicBreak {
@@ -235,9 +256,10 @@ impl Block {
         block.set_anchors(anchors);
         block.set_attributes(attributes);
         block.set_metadata(metadata);
-        if let Some(title) = title {
+        if !title.is_empty() {
             block.set_title(title);
         }
+
         Ok(block)
     }
 

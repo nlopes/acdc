@@ -27,7 +27,7 @@ inline_anchor = _{
 xreflabel = { (!"]" ~ ANY)+ }
 
 blocktitle = _{ "." ~ !("." | SPACE) ~ title ~ NEWLINE }
-title = { ONE_CHAR+ }
+title = { (non_plain_text | one_line_plain_text)+ }
 
 attribute_list = _{ attrlist ~ NEWLINE }
 

@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use acdc_core::Location;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{BlockMetadata, Image, ImageSource, Location},
+    model::{BlockMetadata, Image, ImageSource},
     Rule,
 };
 
@@ -28,7 +29,7 @@ impl Image {
         }
         Self {
             metadata,
-            title: attributes.remove("title").map(Option::unwrap_or_default),
+            title: Vec::new(), //attributes.remove("title").map(Option::unwrap_or_default),
             source,
             attributes,
             location,

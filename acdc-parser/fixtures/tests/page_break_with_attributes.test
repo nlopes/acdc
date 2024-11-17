@@ -6,19 +6,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "A paragraph",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 1
-                },
-                {
-                  "line": 1,
-                  "col": 12
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "A paragraph",
+            "location": [
+              {
+                "line": 1,
+                "col": 1
+              },
+              {
+                "line": 1,
+                "col": 12
+              }
+            ]
           }
         ],
         "location": [
@@ -54,19 +54,19 @@
       "Paragraph": {
         "content": [
           {
-            "PlainText": {
-              "content": "Another paragraph",
-              "location": [
-                {
-                  "line": 6,
-                  "col": 1
-                },
-                {
-                  "line": 6,
-                  "col": 18
-                }
-              ]
-            }
+            "name": "text",
+            "type": "string",
+            "value": "Another paragraph",
+            "location": [
+              {
+                "line": 6,
+                "col": 1
+              },
+              {
+                "line": 6,
+                "col": 18
+              }
+            ]
           }
         ],
         "location": [

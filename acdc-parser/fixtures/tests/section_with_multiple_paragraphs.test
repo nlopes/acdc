@@ -2,37 +2,46 @@
   "name": "document",
   "type": "block",
   "header": {
-    "title": {
-      "name": "text",
-      "type": "string",
-      "value": "Document Title",
-      "location": [{ "line": 1, "col": 3 }, { "line": 1, "col": 17 }]
-    },
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [{"line": 1, "col": 3},{"line": 1, "col": 17}]
+      }
+    ],
     "location": [{ "line": 1, "col": 1 }, { "line": 1, "col": 17 }]
   },
   "blocks": [
     {
       "Section": {
-        "title": "Section 1",
+        "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Section 1",
+            "location": [{"line": 3, "col": 4},{"line": 3, "col": 13}]
+          }
+        ],
         "level": 1,
         "content": [
           {
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "This is the content of section 1.",
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 1
-                      },
-                      {
-                        "line": 5,
-                        "col": 34
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "This is the content of section 1.",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 34
+                    }
+                  ]
                 }
               ],
               "location": [
@@ -51,19 +60,19 @@
             "Paragraph": {
               "content": [
                 {
-                  "PlainText": {
-                    "content": "And another paragraph with content.",
-                    "location": [
-                      {
-                        "line": 7,
-                        "col": 1
-                      },
-                      {
-                        "line": 7,
-                        "col": 36
-                      }
-                    ]
-                  }
+                  "name": "text",
+                  "type": "string",
+                  "value": "And another paragraph with content.",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 36
+                    }
+                  ]
                 }
               ],
               "location": [

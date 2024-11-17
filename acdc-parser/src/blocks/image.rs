@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Anchor, AttributeName, Block, BlockMetadata, Image, ImageSource, Location, Position},
+    model::{Anchor, Block, BlockMetadata, Image, ImageSource},
     Rule,
 };
 
@@ -14,9 +15,9 @@ impl Image {
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, Option<String>>,
+        parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = ImageSource::Path(String::new());
-        let mut title = None;
 
         for pair in pairs {
             match pair.as_rule() {
@@ -25,7 +26,6 @@ impl Image {
                     let anchor = Anchor::parse(pair.into_inner());
                     metadata.anchors.push(anchor);
                 }
-                Rule::title => title = Some(pair.as_str().to_string()),
                 Rule::image => {
                     Self::parse_inner(pair.into_inner(), attributes, &mut source, metadata);
                 }
@@ -41,7 +41,7 @@ impl Image {
                 start: Position { line: 0, column: 0 },
                 end: Position { line: 0, column: 0 },
             },
-            title,
+            title: Vec::new(),
             source,
             metadata: metadata.clone(),
             attributes: attributes.clone(),

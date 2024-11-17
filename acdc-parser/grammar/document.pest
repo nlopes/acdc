@@ -1,29 +1,39 @@
 document_header = {
-  (document_attribute ~ NEWLINE)* ~
-  (document_title_token ~ NEWLINE ~ author_revision)? ~
-  ((document_attribute ~ NEWLINE) | comment)*
+  (document_attribute ~ (NEWLINE|&EOI))* ~
+  (document_title_token ~ (NEWLINE|&EOI) ~ author_revision)? ~
+  ((document_attribute ~ (NEWLINE|&EOI)) | comment)*
 }
 
-document_attribute = { document_attribute_entry ~ &NEWLINE }
+document_attribute = { document_attribute_entry ~ &(NEWLINE|EOI) }
 
 // TODO(nlopes): I'd love to capture subtitle here but it's a lot trickier to find the
 // last colon and capture everything up to it as the title and everything after it as the
 // subtitle. So I'm just going to ignore it for now and instead do it in the parser.
-document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ &NEWLINE }
+document_title_token = @{ ("=" | "#") ~ SPACE ~ document_title ~ &(NEWLINE|EOI) }
 document_title = !{ ONE_CHAR+ }
 
 document_attribute_entry = _{
+    document_attribute_name_token ~
+    (SPACE ~ document_attribute_value)? ~
+    &(NEWLINE|EOI)
+}
+
+document_attribute_name_token = _{
     ":" ~
     (
         (unset ~ attribute_name) |
         (attribute_name ~ unset) |
         attribute_name
     ) ~
-    ":" ~
-    (SPACE ~ document_attribute_value)? ~
-    &NEWLINE
+    ":"
 }
-document_attribute_value = !{ ONE_CHAR* }
+
+// The value of a document attribute can be one of 3 things:
+//
+// 1. A single line of text
+// 2. Multiple lines where the newline is escaped with a backslash (line ends with a backslash)
+// 3. Multiple lines where the line ends with "+ \\n" (line ends with a plus sign followed by a backslash and newline) where "+ \\n" is captured as a hard_wrap
+document_attribute_value = { (!(&(NEWLINE ~ document_attribute_name_token) | &NEWLINE{2,} | &EOI) ~ ANY)+ }
 
 unset = { "!" }
 author_revision = _{
