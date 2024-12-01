@@ -344,15 +344,16 @@ pub struct DelimitedBlock {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum DelimitedBlockType {
-    DelimitedComment(String),
+    DelimitedComment(Vec<InlineNode>),
     DelimitedExample(Vec<Block>),
-    DelimitedListing(String), // TODO: this should be a Vec<InlineNode>
-    DelimitedLiteral(String),
+    DelimitedListing(Vec<InlineNode>), // TODO: this should be a Vec<InlineNode>
+    DelimitedLiteral(Vec<InlineNode>),
     DelimitedOpen(Vec<Block>),
     DelimitedSidebar(Vec<Block>),
     DelimitedTable(Table),
-    DelimitedPass(String),
+    DelimitedPass(Vec<InlineNode>),
     DelimitedQuote(Vec<Block>),
+    DelimitedVerse(Vec<InlineNode>),
 }
 
 /// A `SectionLevel` represents a section depth in a document.
@@ -463,11 +464,10 @@ impl<'de> Deserialize<'de> for Block {
                 let mut my_anchors = None;
                 let mut my_marker = None;
                 let mut my_blocks = None;
-                let mut my_inlines = None;
                 let mut my_items = None;
+                let mut my_inlines = None;
                 let mut my_content: Option<serde_json::Value> = None;
 
-                // TODO(nlopes): need to deserialize the attributes!
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
                         "name" => {
@@ -768,6 +768,20 @@ impl<'de> Deserialize<'de> for Block {
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedQuote(my_blocks),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("verse", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_inlines =
+                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedVerse(my_inlines),
                             title: my_title,
                             location: my_location,
                         }))

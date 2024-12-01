@@ -60,7 +60,23 @@
           "type": "block",
           "form": "delimited",
           "delimiter": "----",
-          "inlines": "image: node:16-buster\nstages: [ init, verify, deploy ]",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "image: node:16-buster\nstages: [ init, verify, deploy ]",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 33
+                }
+              ]
+            }
+          ],
           "metadata": {
             "style": "source",
             "attributes": {
