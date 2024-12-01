@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "metadata": {
           "roles": [
             "\"formal\""
@@ -40,7 +41,6 @@
             "col": 13
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 2,"col": 13}]

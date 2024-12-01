@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Section": {
+        "name": "section",
+        "type": "block",
         "title": [
           {
             "name": "text",
@@ -13,9 +14,11 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "UnorderedList": {
+              "name": "list",
+              "type": "block",
+              "variant": "unordered",
               "title": [
                 {
                   "name": "text",
@@ -66,10 +69,11 @@
                   "col": 1
                 }
               ]
-            }
           },
           {
-            "OrderedList": {
+              "name": "list",
+              "type": "block",
+              "variant": "ordered",
               "items": [
                 {
                   "level": 1,
@@ -122,7 +126,6 @@
                 }
               ]
             }
-          }
         ],
         "location": [
           {
@@ -134,7 +137,6 @@
             "col": 13
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 16,"col": 13}]

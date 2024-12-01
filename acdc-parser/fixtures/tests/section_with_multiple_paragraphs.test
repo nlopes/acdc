@@ -14,7 +14,8 @@
   },
   "blocks": [
     {
-      "Section": {
+        "name": "section",
+        "type": "block",
         "title": [
           {
             "name": "text",
@@ -24,9 +25,10 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "Paragraph": {
+                "name": "paragraph",
+                "type": "block",
               "content": [
                 {
                   "name": "text",
@@ -54,10 +56,10 @@
                   "col": 34
                 }
               ]
-            }
           },
           {
-            "Paragraph": {
+                "name": "paragraph",
+                "type": "block",
               "content": [
                 {
                   "name": "text",
@@ -85,7 +87,6 @@
                   "col": 36
                 }
               ]
-            }
           }
         ],
         "location": [
@@ -98,7 +99,6 @@
             "col": 1
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 7,"col": 36}]

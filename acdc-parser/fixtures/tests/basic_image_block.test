@@ -3,14 +3,16 @@
   "type": "block",
   "blocks": [
     {
-      "Image": {
-        "source": {
-          "Path": "sunset.jpg"
-        },
-        "attributes": {
-          "alt": "Sunset",
-          "width": "300",
-          "height": "400"
+        "name": "image",
+        "type": "block",
+        "form": "macro",
+        "target": "sunset.jpg",
+        "metadata": {
+            "attributes": {
+                "alt": "Sunset",
+                "height": "400",
+                "width": "300"
+            }
         },
         "location": [
           {
@@ -22,17 +24,18 @@
             "col": 51
           }
         ]
-      }
     },
     {
-      "Image": {
-        "source": {
-          "Path": "sunset2.jpg"
-        },
-        "attributes": {
-          "alt": "Sunset",
-          "width": "300",
-          "height": "400"
+        "name": "image",
+        "type": "block",
+        "form": "macro",
+        "target": "sunset2.jpg",
+        "metadata": {
+            "attributes": {
+                "alt": "Sunset",
+                "height": "400",
+                "width": "300"
+            }
         },
         "location": [
           {
@@ -44,7 +47,6 @@
             "col": 35
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 3,"col": 35}]

@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Section": {
+        "name": "section",
+        "type": "block",
         "title": [
           {
             "name": "text",
@@ -13,9 +14,11 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "OrderedList": {
+            "name": "list",
+            "type": "block",
+            "variant": "ordered",
               "items": [
                 {
                   "level": 1,
@@ -50,7 +53,6 @@
                 }
               ]
             }
-          }
         ],
         "location": [
           {
@@ -62,7 +64,6 @@
             "col": 13
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 5,"col": 13}]

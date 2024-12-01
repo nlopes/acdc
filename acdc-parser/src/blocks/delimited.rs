@@ -5,7 +5,10 @@ use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks,
-    model::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Table},
+    model::{
+        Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
+        OptionalAttributeValue, Table,
+    },
     Error, InnerPestParser, Rule,
 };
 
@@ -15,7 +18,7 @@ impl DelimitedBlock {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: &BlockMetadata,
-        attributes: &HashMap<AttributeName, Option<String>>,
+        attributes: &HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut inner = DelimitedBlockType::DelimitedComment(String::new());
@@ -118,7 +121,6 @@ impl DelimitedBlock {
             metadata: metadata.clone(),
             inner,
             title,
-            attributes: attributes.clone(),
             location,
         }))
     }

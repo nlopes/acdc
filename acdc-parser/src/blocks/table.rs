@@ -4,7 +4,7 @@ use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{BlockMetadata, Table, TableColumn, TableRow},
+    model::{BlockMetadata, OptionalAttributeValue, Table, TableColumn, TableRow},
     Error, Rule,
 };
 
@@ -12,11 +12,11 @@ impl Table {
     pub(crate) fn parse(
         pairs: &Pairs<Rule>,
         metadata: &BlockMetadata,
-        attributes: &HashMap<AttributeName, Option<String>>,
+        attributes: &HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Self, Error> {
         let mut separator = "|".to_string();
-        if let Some(Some(format)) = attributes.get("format") {
+        if let Some(OptionalAttributeValue(Some(format))) = attributes.get("format") {
             separator = match format.as_str() {
                 "csv" => ",".to_string(),
                 "dsv" => ":".to_string(),
@@ -27,11 +27,12 @@ impl Table {
         // override the separator if it is provided in the document
         separator = attributes
             .get("separator")
-            .unwrap_or(&Some(separator.clone()))
+            .unwrap_or(&OptionalAttributeValue(Some(separator.clone())))
             .clone()
+            .0
             .unwrap();
 
-        let ncols = if let Some(Some(cols)) = attributes.get("cols") {
+        let ncols = if let Some(OptionalAttributeValue(Some(cols))) = attributes.get("cols") {
             Some(cols.split(',').count())
         } else {
             None

@@ -3,12 +3,15 @@
   "type": "block",
   "blocks": [
     {
-      "DelimitedBlock": {
-        "inner": {
-          "DelimitedListing": "include::app.rb[]"
-        },
-        "attributes": {
-          "ruby": null
+        "name": "listing",
+        "type": "block",
+        "form": "delimited",
+        "delimiter": "----",
+        "inlines": "include::app.rb[]",
+        "metadata": {
+            "attributes": {
+                "ruby": null
+            }
         },
         "location": [
           {
@@ -20,7 +23,6 @@
             "col": 5
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 4,"col": 5}]

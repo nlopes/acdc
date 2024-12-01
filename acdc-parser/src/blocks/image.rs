@@ -5,7 +5,7 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Anchor, Block, BlockMetadata, Image, ImageSource},
+    model::{Anchor, Block, BlockMetadata, Image, ImageSource, OptionalAttributeValue},
     Rule,
 };
 
@@ -14,7 +14,7 @@ impl Image {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = ImageSource::Path(String::new());
@@ -44,14 +44,13 @@ impl Image {
             title: Vec::new(),
             source,
             metadata: metadata.clone(),
-            attributes: attributes.clone(),
         })
     }
 
     #[instrument(level = "trace")]
     fn parse_inner(
         pairs: Pairs<Rule>,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         source: &mut ImageSource,
         metadata: &mut BlockMetadata,
     ) {
@@ -74,7 +73,7 @@ impl Image {
                         .get(&attribute_idx)
                         .map(ToString::to_string)
                     {
-                        attributes.insert(name, Some(value));
+                        attributes.insert(name, OptionalAttributeValue(Some(value)));
                     } else {
                         tracing::warn!(?value, "unexpected positional attribute in image block");
                     }

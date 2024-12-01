@@ -3,7 +3,9 @@
   "type": "block",
   "blocks": [
     {
-      "UnorderedList": {
+        "name": "list",
+        "type": "block",
+        "variant": "unordered",
         "items": [
           {
             "level": 1,
@@ -22,10 +24,11 @@
             "col": 1
           }
         ]
-      }
     },
     {
-      "UnorderedList": {
+        "name": "list",
+        "type": "block",
+        "variant": "unordered",
         "items": [
           {
             "level": 1,
@@ -44,10 +47,11 @@
             "col": 1
           }
         ]
-      }
     },
     {
-      "UnorderedList": {
+        "name": "list",
+        "type": "block",
+        "variant": "unordered",
         "items": [
           {
             "level": 1,
@@ -66,7 +70,6 @@
             "col": 49
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 9,"col": 49}]

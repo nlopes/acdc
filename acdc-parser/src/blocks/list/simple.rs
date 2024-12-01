@@ -5,7 +5,10 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Block, BlockMetadata, InlineNode, ListItem, OrderedList, UnorderedList},
+    model::{
+        Block, BlockMetadata, InlineNode, ListItem, OptionalAttributeValue, OrderedList,
+        UnorderedList,
+    },
     Error, Rule,
 };
 
@@ -15,7 +18,7 @@ impl Block {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
-        attributes: HashMap<AttributeName, Option<String>>,
+        attributes: HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut location = Location::default();
@@ -62,14 +65,12 @@ impl Block {
             "ordered" => Block::OrderedList(OrderedList {
                 title,
                 metadata,
-                attributes,
                 items,
                 location,
             }),
             _ => Block::UnorderedList(UnorderedList {
                 title,
                 metadata,
-                attributes,
                 items,
                 location,
             }),

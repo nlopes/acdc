@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -31,10 +32,10 @@
             "col": 59
           }
         ]
-      }
     },
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -62,7 +63,6 @@
             "col": 103
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 4,"col": 103}]

@@ -3,7 +3,10 @@
   "type": "block",
   "blocks": [
     {
-      "DelimitedBlock": {
+        "name": "table",
+        "type": "block",
+        "form": "delimited",
+        "delimiter": "|===",
         "metadata": {
           "roles": [
             "name-of-role"
@@ -11,319 +14,320 @@
           "options": [
             "header",
             "footer"
-          ]
+          ],
+          "attributes": {
+            "cols": "\"1,1\""
+          }
         },
-        "inner": {
-          "DelimitedTable": {
-            "header": {
-              "columns": [
-                {
-                  "content": [
+        "content": {
+        "header": {
+            "columns": [
+            {
+                "content": [
                     {
-                      "Paragraph": {
+                        "name": "paragraph",
+                        "type": "block",
                         "content": [
-                          {
+                            {
                             "name": "text",
                             "type": "string",
                             "value": "Cell in column 1, row 1",
                             "location": [
-                              {
+                                {
                                 "line": 1,
                                 "col": 1
-                              },
-                              {
+                                },
+                                {
                                 "line": 1,
                                 "col": 24
-                              }
+                                }
                             ]
-                          }
+                            }
                         ],
                         "location": [
-                          {
+                            {
                             "line": 1,
                             "col": 1
-                          },
-                          {
+                            },
+                            {
                             "line": 1,
                             "col": 24
-                          }
+                            }
                         ]
-                      }
                     }
-                  ]
-                },
-                {
-                  "content": [
+                ]
+            },
+            {
+                "content": [
                     {
-                      "Paragraph": {
+                        "name": "paragraph",
+                        "type": "block",
                         "content": [
-                          {
+                            {
                             "name": "text",
                             "type": "string",
                             "value": "Cell in column 2, row 1",
                             "location": [
-                              {
+                                {
                                 "line": 1,
                                 "col": 1
-                              },
-                              {
+                                },
+                                {
                                 "line": 1,
                                 "col": 24
-                              }
+                                }
                             ]
-                          }
+                            }
                         ],
                         "location": [
-                          {
+                            {
                             "line": 1,
                             "col": 1
-                          },
-                          {
+                            },
+                            {
                             "line": 1,
                             "col": 24
-                          }
+                            }
                         ]
-                      }
                     }
-                  ]
-                }
-              ]
-            },
-            "footer": {
-              "columns": [
-                {
-                  "content": [
+                ]
+            }
+            ]
+        },
+        "footer": {
+            "columns": [
+            {
+                "content": [
                     {
-                      "Paragraph": {
+                        "name": "paragraph",
+                        "type": "block",
                         "content": [
-                          {
+                            {
                             "name": "text",
                             "type": "string",
                             "value":  "Cell in column 1, row 4",
                             "location": [
-                              {
+                                {
                                 "line": 1,
                                 "col": 1
-                              },
-                              {
+                                },
+                                {
                                 "line": 1,
                                 "col": 24
-                              }
+                                }
                             ]
-                          }
+                            }
                         ],
                         "location": [
-                          {
+                            {
                             "line": 1,
                             "col": 1
-                          },
-                          {
+                            },
+                            {
                             "line": 1,
                             "col": 24
-                          }
+                            }
                         ]
-                      }
                     }
-                  ]
-                },
+                ]
+            },
+            {
+                "content": [
                 {
-                  "content": [
+                    "name": "paragraph",
+                    "type": "block",
+                    "content": [
+                        {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell in column 2, row 4",
+                        "location": [
+                            {
+                            "line": 1,
+                            "col": 1
+                            },
+                            {
+                            "line": 1,
+                            "col": 24
+                            }
+                        ]
+                        }
+                    ],
+                    "location": [
+                        {
+                        "line": 1,
+                        "col": 1
+                        },
+                        {
+                        "line": 1,
+                        "col": 24
+                        }
+                    ]
+                }
+                ]
+            }
+            ]
+        },
+        "rows": [
+            {
+            "columns": [
+                {
+                "content": [
                     {
-                      "Paragraph": {
+                        "name": "paragraph",
+                        "type": "block",
                         "content": [
-                          {
+                        {
                             "name": "text",
                             "type": "string",
-                            "value": "Cell in column 2, row 4",
+                            "value": "Cell in column 1, row 2",
                             "location": [
-                              {
+                            {
                                 "line": 1,
                                 "col": 1
-                              },
-                              {
+                            },
+                            {
                                 "line": 1,
                                 "col": 24
-                              }
+                            }
                             ]
-                          }
+                        }
                         ],
                         "location": [
-                          {
+                        {
                             "line": 1,
                             "col": 1
-                          },
-                          {
+                        },
+                        {
                             "line": 1,
                             "col": 24
-                          }
+                        }
                         ]
-                      }
                     }
-                  ]
+                ]
+                },
+                {
+                "content": [
+                    {
+                        "name": "paragraph",
+                        "type": "block",
+                        "content": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell in column 2, row 2",
+                            "location": [
+                            {
+                                "line": 1,
+                                "col": 1
+                            },
+                            {
+                                "line": 1,
+                                "col": 24
+                            }
+                            ]
+                        }
+                        ],
+                        "location": [
+                        {
+                            "line": 1,
+                            "col": 1
+                        },
+                        {
+                            "line": 1,
+                            "col": 24
+                        }
+                        ]
+                    }
+                ]
                 }
-              ]
-            },
-            "rows": [
-              {
-                "columns": [
-                  {
-                    "content": [
-                      {
-                        "Paragraph": {
-                          "content": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Cell in column 1, row 2",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 1,
-                              "col": 1
-                            },
-                            {
-                              "line": 1,
-                              "col": 24
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "content": [
-                      {
-                        "Paragraph": {
-                          "content": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Cell in column 2, row 2",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 1,
-                              "col": 1
-                            },
-                            {
-                              "line": 1,
-                              "col": 24
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "columns": [
-                  {
-                    "content": [
-                      {
-                        "Paragraph": {
-                          "content": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Cell in column 1, row 3",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 1,
-                              "col": 1
-                            },
-                            {
-                              "line": 1,
-                              "col": 24
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "content": [
-                      {
-                        "Paragraph": {
-                          "content": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Cell in column 2, row 3",
-                              "location": [
-                                {
-                                  "line": 1,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 1,
-                                  "col": 24
-                                }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 1,
-                              "col": 1
-                            },
-                            {
-                              "line": 1,
-                              "col": 24
-                            }
-                          ]
-                        }
-                      }
-                    ]
-                  }
-                ]
-              }
-            ],
-            "location": [
-              {
-                "line": 0,
-                "col": 0
-              },
-              {
-                "line": 0,
-                "col": 0
-              }
             ]
-          }
+            },
+            {
+            "columns": [
+                {
+                "content": [
+                    {
+                        "name": "paragraph",
+                        "type": "block",
+                        "content": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell in column 1, row 3",
+                            "location": [
+                            {
+                                "line": 1,
+                                "col": 1
+                            },
+                            {
+                                "line": 1,
+                                "col": 24
+                            }
+                            ]
+                        }
+                        ],
+                        "location": [
+                        {
+                            "line": 1,
+                            "col": 1
+                        },
+                        {
+                            "line": 1,
+                            "col": 24
+                        }
+                        ]
+                    }
+                ]
+                },
+                {
+                "content": [
+                    {
+                        "name": "paragraph",
+                        "type": "block",
+                        "content": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell in column 2, row 3",
+                            "location": [
+                            {
+                                "line": 1,
+                                "col": 1
+                            },
+                            {
+                                "line": 1,
+                                "col": 24
+                            }
+                            ]
+                        }
+                        ],
+                        "location": [
+                        {
+                            "line": 1,
+                            "col": 1
+                        },
+                        {
+                            "line": 1,
+                            "col": 24
+                        }
+                        ]
+                    }
+                ]
+                }
+            ]
+            }
+        ],
+        "location": [
+            {
+            "line": 0,
+            "col": 0
+            },
+            {
+            "line": 0,
+            "col": 0
+            }
+        ]
         },
         "title": [
           {
@@ -333,30 +337,8 @@
             "location": [{"line": 1, "col": 2},{"line": 1, "col": 22}]
           }
         ],
-        "attributes": {
-          "cols": "\"1,1\""
-        },
-        "location": [
-          {
-            "line": 1,
-            "col": 2
-          },
-          {
-            "line": 16,
-            "col": 5
-          }
-        ]
-      }
+        "location": [{"line": 1,"col": 2},{"line": 16,"col": 5}]
     }
   ],
-  "location": [
-    {
-      "line": 1,
-      "col": 1
-    },
-    {
-      "line": 16,
-      "col": 5
-    }
-  ]
+  "location": [{"line": 1,"col": 1},{"line": 16,"col": 5}]
 }

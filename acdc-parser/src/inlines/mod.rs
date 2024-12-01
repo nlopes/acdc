@@ -20,7 +20,8 @@ use tracing::instrument;
 use crate::{
     model::{
         Autolink, Bold, Button, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
-        LineBreak, Link, Menu, Monospace, Pass, Plain, Subscript, Superscript, Url,
+        LineBreak, Link, Menu, Monospace, OptionalAttributeValue, Pass, Plain, Subscript,
+        Superscript, Url,
     },
     Error, Rule,
 };
@@ -195,24 +196,36 @@ impl InlineNode {
 
 fn parse_named_attribute(
     pairs: Pairs<Rule>,
-    attributes: &mut HashMap<AttributeName, Option<String>>,
+    attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
 ) {
     let mut name = String::new();
 
     for pair in pairs {
         match pair.as_rule() {
             Rule::id => {
-                attributes.insert("id".to_string(), Some(pair.as_str().to_string()));
+                attributes.insert(
+                    "id".to_string(),
+                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                );
             }
             Rule::role => {
-                attributes.insert("role".to_string(), Some(pair.as_str().to_string()));
+                attributes.insert(
+                    "role".to_string(),
+                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                );
             }
             Rule::option => {
-                attributes.insert("option".to_string(), Some(pair.as_str().to_string()));
+                attributes.insert(
+                    "option".to_string(),
+                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                );
             }
             Rule::attribute_name => name = pair.as_str().to_string(),
             Rule::named_attribute_value => {
-                attributes.insert(name.clone(), Some(pair.as_str().to_string()));
+                attributes.insert(
+                    name.clone(),
+                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                );
             }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),

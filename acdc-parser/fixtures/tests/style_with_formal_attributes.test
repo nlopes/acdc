@@ -3,15 +3,16 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "metadata": {
+          "attributes": {
+              "title": "\"Hello,world\""
+          },
           "options": [
             "nolines"
           ],
           "style": "source"
-        },
-        "attributes": {
-          "title": "\"Hello,world\""
         },
         "content": [
           {
@@ -40,7 +41,6 @@
             "col": 19
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 2,"col": 19}]

@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -31,10 +32,10 @@
             "col": 21
           }
         ]
-      }
     },
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -62,43 +63,45 @@
             "col": 30
           }
         ]
-      }
     },
     {
-      "DelimitedBlock": {
-        "inner": {
-          "DelimitedExample": [{
-            "Paragraph": {
-              "content": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "This is an example of an example block.\nThat's so meta.",
-                  "location": [
+        "name": "example",
+        "type": "block",
+        "form": "delimited",
+        "delimiter": "====",
+        "blocks": [
+            {
+                "name": "paragraph",
+                "type": "block",
+                "content": [
                     {
-                      "line": 1,
-                      "col": 1
+                    "name": "text",
+                    "type": "string",
+                    "value": "This is an example of an example block.\nThat's so meta.",
+                    "location": [
+                        {
+                        "line": 1,
+                        "col": 1
+                        },
+                        {
+                        "line": 3,
+                        "col": 1
+                        }
+                    ]
+                    }
+                ],
+                "location": [
+                    {
+                    "line": 1,
+                    "col": 1
                     },
                     {
-                      "line": 3,
-                      "col": 1
+                    "line": 3,
+                    "col": 1
                     }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 1,
-                  "col": 1
-                },
-                {
-                  "line": 3,
-                  "col": 1
-                }
-              ]
+                ]
             }
-          }]
-        },
+        ],
         "location": [
           {
             "line": 6,
@@ -109,7 +112,6 @@
             "col": 5
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 9,"col": 5}]

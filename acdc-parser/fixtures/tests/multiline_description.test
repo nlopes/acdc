@@ -26,7 +26,8 @@
   },
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -54,7 +55,6 @@
             "col": 48
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 5,"col": 48}]

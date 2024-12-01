@@ -80,9 +80,35 @@ pub struct Anchor {
 
 pub type Role = String;
 
+// TODO: we could and probably should just use a `AttributeValue` instead
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct OptionalAttributeValue(
+    #[serde(default, skip_serializing_if = "Option::is_none")] pub Option<String>,
+);
+
+impl<'de> Deserialize<'de> for OptionalAttributeValue {
+    fn deserialize<D>(deserializer: D) -> Result<OptionalAttributeValue, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(value) => {
+                if value.as_str() == "null" {
+                    Ok(OptionalAttributeValue(None))
+                } else {
+                    Ok(OptionalAttributeValue(Some(value)))
+                }
+            }
+            None => Ok(OptionalAttributeValue(None)),
+        }
+    }
+}
+
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -93,6 +119,12 @@ pub struct BlockMetadata {
     pub id: Option<Anchor>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
+}
+
+impl BlockMetadata {
+    pub fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>) {
+        self.attributes = attributes;
+    }
 }
 
 /// A `Block` represents a block in a document.
@@ -158,8 +190,6 @@ pub struct PageBreak {
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -171,8 +201,6 @@ pub struct Audio {
     pub source: AudioSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -185,8 +213,6 @@ pub struct Video {
     pub sources: Vec<VideoSource>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -198,8 +224,6 @@ pub struct Image {
     pub source: ImageSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -233,8 +257,6 @@ pub struct DescriptionList {
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<DescriptionListItem>,
     pub location: Location,
@@ -264,8 +286,6 @@ pub struct UnorderedList {
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ListItem>,
     pub location: Location,
@@ -291,8 +311,6 @@ pub struct ListItem {
 pub struct Paragraph {
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -308,6 +326,7 @@ fn is_default_metadata(metadata: &BlockMetadata) -> bool {
         && metadata.style.is_none()
         && metadata.id.is_none()
         && metadata.anchors.is_empty()
+        && metadata.attributes.is_empty()
 }
 
 /// A `DelimitedBlock` represents a delimited block in a document.
@@ -318,8 +337,6 @@ pub struct DelimitedBlock {
     pub inner: DelimitedBlockType,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     pub location: Location,
 }
 
@@ -329,7 +346,7 @@ pub struct DelimitedBlock {
 pub enum DelimitedBlockType {
     DelimitedComment(String),
     DelimitedExample(Vec<Block>),
-    DelimitedListing(String),
+    DelimitedListing(String), // TODO: this should be a Vec<InlineNode>
     DelimitedLiteral(String),
     DelimitedOpen(Vec<Block>),
     DelimitedSidebar(Vec<Block>),
@@ -366,8 +383,6 @@ pub struct TableColumn {
 pub struct Section {
     //#[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    //#[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
     pub title: Vec<InlineNode>,
     pub level: SectionLevel,
     //#[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -387,9 +402,6 @@ impl Serialize for Section {
         state.serialize_entry("level", &self.level)?;
         if !is_default_metadata(&self.metadata) {
             state.serialize_entry("metadata", &self.metadata)?;
-        }
-        if !self.attributes.is_empty() {
-            state.serialize_entry("attributes", &self.attributes)?;
         }
         if !self.content.is_empty() {
             state.serialize_entry("content", &self.content)?;
@@ -418,667 +430,6 @@ impl Serialize for DiscreteHeader {
     }
 }
 
-impl<'de> Deserialize<'de> for DiscreteHeader {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<DiscreteHeader, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = DiscreteHeader;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<DiscreteHeader, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_name = None;
-                let mut my_title = None;
-                let mut my_level = None;
-                let mut my_location = None;
-                let mut my_anchors = None;
-
-                // TODO(nlopes): need to deserialize the attributes!
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "title" => {
-                            if my_title.is_some() {
-                                return Err(de::Error::duplicate_field("title"));
-                            }
-                            my_title = Some(map.next_value()?);
-                        }
-                        "level" => {
-                            if my_level.is_some() {
-                                return Err(de::Error::duplicate_field("level"));
-                            }
-                            my_level = Some(map.next_value::<SectionLevel>()?);
-                        }
-                        "anchors" => {
-                            if my_anchors.is_some() {
-                                return Err(de::Error::duplicate_field("anchors"));
-                            }
-                            my_anchors = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
-                let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
-                let my_anchors = my_anchors.ok_or_else(|| de::Error::missing_field("anchors"))?;
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-
-                if my_name != "heading" {
-                    return Err(de::Error::custom(format!("unexpected name: {}", my_name)));
-                }
-                Ok(DiscreteHeader {
-                    title: my_title,
-                    level: my_level,
-                    anchors: my_anchors,
-                    location: my_location,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for PageBreak {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<PageBreak, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = PageBreak;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<PageBreak, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_name = None;
-                let mut my_type = None;
-                let mut my_variant = None;
-                let mut my_title = None;
-                let mut my_metadata = None;
-                let mut my_attributes = None;
-                let mut my_location = None;
-
-                // TODO(nlopes): need to deserialize the attributes!
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "title" => {
-                            if my_title.is_some() {
-                                return Err(de::Error::duplicate_field("title"));
-                            }
-                            my_title = Some(map.next_value()?);
-                        }
-                        "type" => {
-                            if my_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            my_type = Some(map.next_value::<String>()?);
-                        }
-                        "variant" => {
-                            if my_variant.is_some() {
-                                return Err(de::Error::duplicate_field("variant"));
-                            }
-                            my_variant = Some(map.next_value::<String>()?);
-                        }
-                        "metadata" => {
-                            if my_metadata.is_some() {
-                                return Err(de::Error::duplicate_field("metadata"));
-                            }
-                            my_metadata = Some(map.next_value()?);
-                        }
-                        "attributes" => {
-                            if my_attributes.is_some() {
-                                return Err(de::Error::duplicate_field("attributes"));
-                            }
-                            my_attributes = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_variant = my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
-                let my_metadata =
-                    my_metadata.ok_or_else(|| de::Error::missing_field("metadata"))?;
-                let my_attributes =
-                    my_attributes.ok_or_else(|| de::Error::missing_field("attributes"))?;
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-
-                if my_name != "break" && my_type != "block" && my_variant != "page" {
-                    return Err(de::Error::custom(format!(
-                        "unexpected name/type/variant: {my_name}/{my_type}/{my_variant}",
-                    )));
-                }
-                Ok(PageBreak {
-                    title: my_title,
-                    metadata: my_metadata,
-                    attributes: my_attributes,
-                    location: my_location,
-                })
-            }
-        }
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for ThematicBreak {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<ThematicBreak, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = ThematicBreak;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<ThematicBreak, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_name = None;
-                let mut my_type = None;
-                let mut my_variant = None;
-                let mut my_title = None;
-                let mut my_location = None;
-                let mut my_anchors = None;
-
-                // TODO(nlopes): need to deserialize the attributes!
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "type" => {
-                            if my_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            my_type = Some(map.next_value::<String>()?);
-                        }
-                        "variant" => {
-                            if my_variant.is_some() {
-                                return Err(de::Error::duplicate_field("variant"));
-                            }
-                            my_variant = Some(map.next_value::<String>()?);
-                        }
-                        "title" => {
-                            if my_title.is_some() {
-                                return Err(de::Error::duplicate_field("title"));
-                            }
-                            my_title = Some(map.next_value()?);
-                        }
-                        "anchors" => {
-                            if my_anchors.is_some() {
-                                return Err(de::Error::duplicate_field("anchors"));
-                            }
-                            my_anchors = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_variant = my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
-                let my_anchors = my_anchors.ok_or_else(|| de::Error::missing_field("anchors"))?;
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-
-                if my_name != "break" && my_type != "block" && my_variant != "thematic" {
-                    return Err(de::Error::custom(format!(
-                        "unexpected name/type/variant: {my_name}/{my_type}/{my_variant}",
-                    )));
-                }
-                Ok(ThematicBreak {
-                    title: my_title,
-                    anchors: my_anchors,
-                    location: my_location,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for Section {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<Section, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = Section;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Section, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_name = None;
-                let mut my_type = None;
-                let mut my_title = None;
-                let mut my_level = None;
-                let mut my_metadata = None;
-                let mut my_location = None;
-                let mut my_content = None;
-
-                // TODO(nlopes): need to deserialize the attributes!
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "type" => {
-                            if my_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            my_type = Some(map.next_value::<String>()?);
-                        }
-                        "title" => {
-                            if my_title.is_some() {
-                                return Err(de::Error::duplicate_field("title"));
-                            }
-                            my_title = Some(map.next_value()?);
-                        }
-                        "level" => {
-                            if my_level.is_some() {
-                                return Err(de::Error::duplicate_field("level"));
-                            }
-                            my_level = Some(map.next_value::<SectionLevel>()?);
-                        }
-                        "metadata" => {
-                            if my_metadata.is_some() {
-                                return Err(de::Error::duplicate_field("metadata"));
-                            }
-                            my_metadata = Some(map.next_value()?);
-                        }
-                        "content" => {
-                            if my_content.is_some() {
-                                return Err(de::Error::duplicate_field("content"));
-                            }
-                            my_content = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
-                let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
-                let my_metadata =
-                    my_metadata.ok_or_else(|| de::Error::missing_field("metadata"))?;
-                let my_content = my_content.ok_or_else(|| de::Error::missing_field("content"))?;
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-
-                match (my_name.as_str(), my_type.as_str()) {
-                    ("section", "block") => Ok(Section {
-                        metadata: my_metadata,
-                        attributes: Default::default(),
-                        title: my_title,
-                        level: my_level,
-                        content: my_content,
-                        location: my_location,
-                    }),
-                    _ => Err(de::Error::custom(format!(
-                        "unexpected name/type combination: {}/{}",
-                        my_name, my_type
-                    ))),
-                }
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for UnorderedList {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<UnorderedList, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = UnorderedList;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<UnorderedList, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                todo!("implement deserialize for unorderedlist")
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for DocumentAttribute {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<DocumentAttribute, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = DocumentAttribute;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<DocumentAttribute, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                todo!("implement deserialize for documentattribute")
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for DescriptionList {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<DescriptionList, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = DescriptionList;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<DescriptionList, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                // TODO
-                Ok(DescriptionList {
-                    title: map.next_value()?,
-                    metadata: map.next_value()?,
-                    attributes: map.next_value()?,
-                    items: map.next_value()?,
-                    location: map.next_value()?,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for DelimitedBlock {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<DelimitedBlock, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = DelimitedBlock;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<DelimitedBlock, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                // TODO
-                Ok(DelimitedBlock {
-                    metadata: map.next_value()?,
-                    inner: map.next_value()?,
-                    title: map.next_value()?,
-                    attributes: map.next_value()?,
-                    location: map.next_value()?,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for Paragraph {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<Paragraph, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = Paragraph;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Paragraph, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                // TODO
-                Ok(Paragraph {
-                    metadata: map.next_value()?,
-                    attributes: map.next_value()?,
-                    title: map.next_value()?,
-                    content: map.next_value()?,
-                    location: map.next_value()?,
-                    admonition: map.next_value()?,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for Image {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<Image, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = Image;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Image, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                // TODO
-                Ok(Image {
-                    title: map.next_value()?,
-                    source: map.next_value()?,
-                    metadata: map.next_value()?,
-                    attributes: map.next_value()?,
-                    location: map.next_value()?,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for Audio {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<Audio, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = Audio;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Audio, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                // TODO
-                Ok(Audio {
-                    title: map.next_value()?,
-                    source: map.next_value()?,
-                    metadata: map.next_value()?,
-                    attributes: map.next_value()?,
-                    location: map.next_value()?,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for Video {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<Video, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = Video;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Video, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                // TODO
-                Ok(Video {
-                    title: map.next_value()?,
-                    sources: map.next_value()?,
-                    metadata: map.next_value()?,
-                    attributes: map.next_value()?,
-                    location: map.next_value()?,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
-    }
-}
-
 impl<'de> Deserialize<'de> for Block {
     #[allow(clippy::too_many_lines)]
     fn deserialize<D>(deserializer: D) -> Result<Block, D::Error>
@@ -1100,10 +451,20 @@ impl<'de> Deserialize<'de> for Block {
             {
                 let mut my_name = None;
                 let mut my_type = None;
+                let mut my_id = None;
                 let mut my_title = None;
                 let mut my_level = None;
                 let mut my_metadata = None;
                 let mut my_location = None;
+                let mut my_ref_text = None;
+                let mut my_form = None;
+                let mut my_target = None;
+                let mut my_variant = None;
+                let mut my_anchors = None;
+                let mut my_marker = None;
+                let mut my_blocks = None;
+                let mut my_inlines = None;
+                let mut my_items = None;
                 let mut my_content: Option<serde_json::Value> = None;
 
                 // TODO(nlopes): need to deserialize the attributes!
@@ -1121,11 +482,41 @@ impl<'de> Deserialize<'de> for Block {
                             }
                             my_type = Some(map.next_value::<String>()?);
                         }
+                        "form" => {
+                            if my_form.is_some() {
+                                return Err(de::Error::duplicate_field("form"));
+                            }
+                            my_form = Some(map.next_value::<String>()?);
+                        }
+                        "target" => {
+                            if my_target.is_some() {
+                                return Err(de::Error::duplicate_field("target"));
+                            }
+                            my_target = Some(map.next_value::<String>()?);
+                        }
+                        "reftext" => {
+                            if my_ref_text.is_some() {
+                                return Err(de::Error::duplicate_field("reftext"));
+                            }
+                            my_ref_text = Some(map.next_value::<String>()?);
+                        }
+                        "id" => {
+                            if my_id.is_some() {
+                                return Err(de::Error::duplicate_field("id"));
+                            }
+                            my_id = Some(map.next_value::<String>()?);
+                        }
                         "title" => {
                             if my_title.is_some() {
                                 return Err(de::Error::duplicate_field("title"));
                             }
                             my_title = Some(map.next_value()?);
+                        }
+                        "anchors" => {
+                            if my_anchors.is_some() {
+                                return Err(de::Error::duplicate_field("anchors"));
+                            }
+                            my_anchors = Some(map.next_value()?);
                         }
                         "level" => {
                             if my_level.is_some() {
@@ -1139,11 +530,41 @@ impl<'de> Deserialize<'de> for Block {
                             }
                             my_metadata = Some(map.next_value()?);
                         }
+                        "variant" => {
+                            if my_variant.is_some() {
+                                return Err(de::Error::duplicate_field("variant"));
+                            }
+                            my_variant = Some(map.next_value::<String>()?);
+                        }
                         "content" => {
                             if my_content.is_some() {
                                 return Err(de::Error::duplicate_field("content"));
                             }
                             my_content = Some(map.next_value()?);
+                        }
+                        "blocks" => {
+                            if my_blocks.is_some() {
+                                return Err(de::Error::duplicate_field("blocks"));
+                            }
+                            my_blocks = Some(map.next_value()?);
+                        }
+                        "inlines" => {
+                            if my_inlines.is_some() {
+                                return Err(de::Error::duplicate_field("inlines"));
+                            }
+                            my_inlines = Some(map.next_value()?);
+                        }
+                        "marker" => {
+                            if my_marker.is_some() {
+                                return Err(de::Error::duplicate_field("marker"));
+                            }
+                            my_marker = Some(map.next_value::<String>()?);
+                        }
+                        "items" => {
+                            if my_items.is_some() {
+                                return Err(de::Error::duplicate_field("items"));
+                            }
+                            my_items = Some(map.next_value()?);
                         }
                         "location" => {
                             if my_location.is_some() {
@@ -1160,30 +581,28 @@ impl<'de> Deserialize<'de> for Block {
 
                 let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
                 let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
-                let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
-                let my_metadata =
-                    my_metadata.ok_or_else(|| de::Error::missing_field("metadata"))?;
+                let my_title = my_title.unwrap_or_else(Vec::new);
+                let my_anchors = my_anchors.unwrap_or_else(Vec::new);
+                let my_metadata = my_metadata.unwrap_or_else(BlockMetadata::default);
                 let my_location =
                     my_location.ok_or_else(|| de::Error::missing_field("location"))?;
 
                 match (my_name.as_str(), my_type.as_str()) {
                     ("section", "block") => {
-                        let my_content =
-                            match my_content.ok_or_else(|| de::Error::missing_field("content"))? {
+                        let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
+                        let my_blocks =
+                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
                                     .into_iter()
                                     .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
                                     .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("content must be an array")),
+                                _ => return Err(de::Error::custom("blocks must be an array")),
                             };
-
                         Ok(Block::Section(Section {
                             metadata: my_metadata,
-                            attributes: Default::default(),
                             title: my_title,
                             level: my_level,
-                            content: my_content,
+                            content: my_blocks,
                             location: my_location,
                         }))
                     }
@@ -1199,16 +618,285 @@ impl<'de> Deserialize<'de> for Block {
 
                         Ok(Block::Paragraph(Paragraph {
                             metadata: my_metadata,
-                            attributes: Default::default(),
                             title: my_title,
                             content: my_content,
                             location: my_location,
                             admonition: None,
                         }))
                     }
+                    ("image", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "macro" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        Ok(Block::Image(Image {
+                            title: my_title,
+                            // TODO(nlopes): this should be figured out if url or path
+                            source: ImageSource::Path(
+                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
+                            ),
+                            metadata: my_metadata,
+                            location: my_location,
+                        }))
+                    }
+                    ("audio", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "macro" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        Ok(Block::Audio(Audio {
+                            title: my_title,
+                            source: AudioSource::Path(
+                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
+                            ),
+                            metadata: my_metadata,
+                            location: my_location,
+                        }))
+                    }
+                    ("video", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "macro" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        Ok(Block::Video(Video {
+                            title: my_title,
+                            sources: vec![VideoSource::Path(
+                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
+                            )],
+                            metadata: my_metadata,
+                            location: my_location,
+                        }))
+                    }
+                    ("break", "block") => {
+                        let my_variant =
+                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
+                        match my_variant.as_str() {
+                            "page" => Ok(Block::PageBreak(PageBreak {
+                                title: my_title,
+                                metadata: my_metadata,
+                                location: my_location,
+                            })),
+                            "thematic" => Ok(Block::ThematicBreak(ThematicBreak {
+                                title: my_title,
+                                anchors: my_anchors,
+                                location: my_location,
+                            })),
+                            _ => Err(de::Error::custom(format!(
+                                "unexpected 'break' variant: {my_variant}",
+                            ))),
+                        }
+                    }
+                    ("heading", "block") => Ok(Block::DiscreteHeader(DiscreteHeader {
+                        title: my_title,
+                        level: my_level.ok_or_else(|| de::Error::missing_field("level"))?,
+                        anchors: my_anchors, // TODO: this should be in metadata instead?
+                        location: my_location,
+                    })),
+                    ("example", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_blocks =
+                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
+                                    .collect::<Result<Vec<Block>, _>>()?,
+                                _ => return Err(de::Error::custom("blocks must be an array")),
+                            };
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedExample(my_blocks),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("sidebar", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_blocks =
+                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
+                                    .collect::<Result<Vec<Block>, _>>()?,
+                                _ => return Err(de::Error::custom("blocks must be an array")),
+                            };
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedSidebar(my_blocks),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("open", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_blocks =
+                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
+                                    .collect::<Result<Vec<Block>, _>>()?,
+                                _ => return Err(de::Error::custom("blocks must be an array")),
+                            };
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedOpen(my_blocks),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("quote", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_blocks =
+                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
+                                    .collect::<Result<Vec<Block>, _>>()?,
+                                _ => return Err(de::Error::custom("blocks must be an array")),
+                            };
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedQuote(my_blocks),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("listing", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_inlines =
+                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedListing(my_inlines),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("literal", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_inlines =
+                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedLiteral(my_inlines),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("pass", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_inlines =
+                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedPass(my_inlines),
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("table", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let inner = DelimitedBlockType::DelimitedTable(
+                            serde_json::from_value(
+                                my_content.ok_or_else(|| de::Error::missing_field("content"))?,
+                            )
+                            .map_err(|_| {
+                                tracing::error!("content must be compatible with `Table` type");
+                                de::Error::custom("content must be compatible with `Table` type")
+                            })?,
+                        );
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner,
+                            title: my_title,
+                            location: my_location,
+                        }))
+                    }
+                    ("dlist", "block") => {
+                        let _my_marker = my_marker.unwrap_or_else(String::new); // TODO: what is this marker?
+                        Ok(Block::DescriptionList(DescriptionList {
+                            title: my_title,
+                            metadata: my_metadata,
+                            items: match my_items
+                                .ok_or_else(|| de::Error::missing_field("items"))?
+                            {
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
+                                    .collect::<Result<Vec<DescriptionListItem>, _>>()?,
+                                _ => return Err(de::Error::custom("items must be an array")),
+                            },
+                            location: my_location,
+                        }))
+                    }
+                    ("list", "block") => {
+                        let my_variant =
+                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
+                        let _my_marker = my_marker.unwrap_or_else(String::new); // TODO: what is this marker?
+                        match my_variant.as_str() {
+                            "unordered" => Ok(Block::UnorderedList(UnorderedList {
+                                title: my_title,
+                                metadata: my_metadata,
+                                items: match my_items
+                                    .ok_or_else(|| de::Error::missing_field("items"))?
+                                {
+                                    serde_json::Value::Array(a) => a
+                                        .into_iter()
+                                        .map(|v| {
+                                            serde_json::from_value(v).map_err(de::Error::custom)
+                                        })
+                                        .collect::<Result<Vec<ListItem>, _>>()?,
+                                    _ => return Err(de::Error::custom("items must be an array")),
+                                },
+                                location: my_location,
+                            })),
+                            "ordered" => Ok(Block::OrderedList(OrderedList {
+                                title: my_title,
+                                metadata: my_metadata,
+                                items: match my_items
+                                    .ok_or_else(|| de::Error::missing_field("items"))?
+                                {
+                                    serde_json::Value::Array(a) => a
+                                        .into_iter()
+                                        .map(|v| {
+                                            serde_json::from_value(v).map_err(de::Error::custom)
+                                        })
+                                        .collect::<Result<Vec<ListItem>, _>>()?,
+                                    _ => return Err(de::Error::custom("items must be an array")),
+                                },
+                                location: my_location,
+                            })),
+                            "callout" => todo!("callout list"),
+                            _ => Err(de::Error::custom(format!(
+                                "unexpected 'list' variant: {my_variant}",
+                            ))),
+                        }
+                    }
                     _ => Err(de::Error::custom(format!(
-                        "unexpected name/type combination: {}/{}",
-                        my_name, my_type
+                        "unexpected name/type combination: {my_name}/{my_type}",
                     ))),
                 }
             }

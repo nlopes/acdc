@@ -6,6 +6,8 @@ use std::{
 use acdc_core::{AttributeName, Location, Substitution};
 use serde::{Deserialize, Serialize};
 
+use crate::model::OptionalAttributeValue;
+
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Pass {
@@ -20,7 +22,7 @@ pub struct Pass {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Icon {
     pub target: String,
-    pub attributes: HashMap<AttributeName, Option<String>>,
+    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
     pub location: Location,
 }
 
@@ -29,7 +31,7 @@ pub struct Icon {
 pub struct Link {
     pub target: LinkTarget,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
+    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
     pub location: Location,
 }
 
@@ -44,7 +46,7 @@ pub enum LinkTarget {
 pub struct Url {
     pub target: String,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, Option<String>>,
+    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
     pub location: Location,
 }
 

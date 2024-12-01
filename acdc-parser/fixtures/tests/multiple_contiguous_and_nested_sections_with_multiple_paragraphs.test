@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -31,10 +32,10 @@
             "col": 12
           }
         ]
-      }
     },
     {
-      "Section": {
+      "name": "section",
+      "type": "block",
         "title": [
           {
             "name": "text",
@@ -44,9 +45,10 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "Section": {
+              "name": "section",
+              "type": "block",
               "title": [
                 {
                   "name": "text",
@@ -56,9 +58,10 @@
                 }
               ],
               "level": 2,
-              "content": [
+              "blocks": [
                 {
-                  "Paragraph": {
+                    "name": "paragraph",
+                    "type": "block",
                     "content": [
                       {
                         "name": "text",
@@ -86,10 +89,10 @@
                         "col": 12
                       }
                     ]
-                  }
                 },
                 {
-                  "Section": {
+                    "name": "section",
+                    "type": "block",
                     "title": [
                       {
                         "name": "text",
@@ -99,9 +102,10 @@
                       }
                     ],
                     "level": 3,
-                    "content": [
+                    "blocks": [
                       {
-                        "Paragraph": {
+                          "name": "paragraph",
+                          "type": "block",
                           "content": [
                             {
                               "name": "text",
@@ -129,10 +133,10 @@
                               "col": 12
                             }
                           ]
-                        }
                       },
                       {
-                        "Paragraph": {
+                          "name": "paragraph",
+                          "type": "block",
                           "content": [
                             {
                               "name": "text",
@@ -160,10 +164,10 @@
                               "col": 12
                             }
                           ]
-                        }
                       },
                       {
-                        "Section": {
+                          "name": "section",
+                          "type": "block",
                           "title": [
                             {
                               "name": "text",
@@ -173,9 +177,10 @@
                             }
                           ],
                           "level": 4,
-                          "content": [
+                          "blocks": [
                             {
-                              "Paragraph": {
+                                "name": "paragraph",
+                                "type": "block",
                                 "content": [
                                   {
                                     "name": "text",
@@ -203,7 +208,6 @@
                                     "col": 15
                                   }
                                 ]
-                              }
                             }
                           ],
                           "location": [
@@ -217,7 +221,6 @@
                             }
                           ]
                         }
-                      }
                     ],
                     "location": [
                       {
@@ -229,7 +232,6 @@
                         "col": 15
                       }
                     ]
-                  }
                 }
               ],
               "location": [
@@ -243,7 +245,6 @@
                 }
               ]
             }
-          }
         ],
         "location": [
           {
@@ -255,7 +256,6 @@
             "col": 15
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 17,"col": 15}]

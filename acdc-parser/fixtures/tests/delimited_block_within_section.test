@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Section": {
+        "name": "section",
+        "type": "block",
         "title": [
           {
             "name": "text",
@@ -13,9 +14,10 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "Paragraph": {
+              "name": "paragraph",
+              "type": "block",
               "content": [
                 {
                   "name": "text",
@@ -43,18 +45,18 @@
                   "col": 28
                 }
               ]
-            }
           },
           {
-            "DelimitedBlock": {
-              "inner": {
-                "DelimitedListing": "image: node:16-buster\nstages: [ init, verify, deploy ]"
-              },
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "inlines": "image: node:16-buster\nstages: [ init, verify, deploy ]",
               "metadata": {
-                "style": "source"
-              },
-              "attributes": {
-                "yaml": null
+                  "style": "source",
+                  "attributes": {
+                      "yaml": null
+                  }
               },
               "location": [
                 {
@@ -66,10 +68,10 @@
                   "col": 5
                 }
               ]
-            }
           },
           {
-            "Paragraph": {
+                "name": "paragraph",
+                "type": "block",
               "content": [
                 {
                   "name": "text",
@@ -97,7 +99,6 @@
                   "col": 15
                 }
               ]
-            }
           }
         ],
         "location": [
@@ -110,7 +111,6 @@
             "col": 5
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 11,"col": 15}]

@@ -25,9 +25,10 @@
         }
       ],
       "level": 1,
-      "content": [
+      "blocks": [
         {
-          "Paragraph": {
+            "name": "paragraph",
+            "type": "block",
             "content": [
               {
                 "name": "text",
@@ -37,7 +38,6 @@
               }
             ],
             "location": [{"line": 5, "col": 1},{"line": 5, "col": 34}]
-          }
         }
       ],
       "location": [{"line": 3, "col": 1},{"line": 5, "col": 1}]

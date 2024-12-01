@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "metadata": {
           "options": [],
           "style": "literal"
@@ -35,7 +36,6 @@
             "col": 33
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 3,"col": 33}]

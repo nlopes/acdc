@@ -14,7 +14,8 @@
   },
   "blocks": [
     {
-      "Section": {
+        "name": "section",
+        "type": "block",
         "title": [
           {
             "name": "text",
@@ -24,9 +25,10 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "Paragraph": {
+              "name": "paragraph",
+              "type": "block",
               "content": [
                 {
                   "name": "text",
@@ -54,10 +56,10 @@
                   "col": 25
                 }
               ]
-            }
           },
           {
-            "Section": {
+              "name": "section",
+              "type": "block",
               "title": [
                 {
                   "name": "text",
@@ -67,9 +69,10 @@
                 }
               ],
               "level": 2,
-              "content": [
+              "blocks": [
                 {
-                  "Paragraph": {
+                    "name": "paragraph",
+                    "type": "block",
                     "content": [
                       {
                         "name": "text",
@@ -97,7 +100,6 @@
                         "col": 26
                       }
                     ]
-                  }
                 }
               ],
               "location": [
@@ -110,7 +112,6 @@
                   "col": 1
                 }
               ]
-            }
           }
         ],
         "location": [
@@ -123,10 +124,10 @@
             "col": 26
           }
         ]
-      }
     },
     {
-      "Section": {
+        "name": "section",
+        "type": "block",
         "title": [
           {
             "name": "text",
@@ -136,9 +137,10 @@
           }
         ],
         "level": 1,
-        "content": [
+        "blocks": [
           {
-            "Paragraph": {
+              "name": "paragraph",
+              "type": "block",
               "content": [
                 {
                   "name": "text",
@@ -166,7 +168,6 @@
                   "col": 26
                 }
               ]
-            }
           }
         ],
         "location": [
@@ -179,7 +180,6 @@
             "col": 1
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 13,"col": 26}]

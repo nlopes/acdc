@@ -11,7 +11,10 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::model::Image;
+use crate::{
+    model::{Image, ImageSource},
+    BlockMetadata,
+};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -34,7 +37,7 @@ pub enum InlineNode {
 
 /// An `InlineMacro` represents an inline macro in a document.
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum InlineMacro {
     Icon(Icon),
     Image(Box<Image>),
@@ -72,6 +75,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_variant = None;
                 let mut my_location = None;
                 let mut my_inlines = None;
+                let mut my_title = None;
                 let mut my_target = None;
 
                 // TODO(nlopes): need to deserialize the attributes!
@@ -106,6 +110,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 return Err(de::Error::duplicate_field("variant"));
                             }
                             my_variant = Some(map.next_value::<String>()?);
+                        }
+                        "title" => {
+                            if my_title.is_some() {
+                                return Err(de::Error::duplicate_field("title"));
+                            }
+                            my_title = Some(map.next_value()?);
                         }
                         "target" => {
                             if my_target.is_some() {
@@ -152,7 +162,17 @@ impl<'de> Deserialize<'de> for InlineNode {
                             location: my_location,
                         })))
                     }
-                    ("image", "inline") => todo!("implement image deserialization"),
+                    ("image", "inline") => {
+                        let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
+                        let my_target =
+                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
+                            title: my_title,
+                            source: ImageSource::Path(my_target),
+                            metadata: BlockMetadata::default(),
+                            location: my_location,
+                        }))))
+                    }
                     ("keyboard", "inline") => todo!("implement keyboard deserialization"),
                     ("btn" | "button", "inline") => {
                         todo!("implement button deserialization")

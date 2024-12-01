@@ -6,7 +6,7 @@ use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines,
-    model::{Block, BlockMetadata, InlineNode, Paragraph},
+    model::{Block, BlockMetadata, InlineNode, OptionalAttributeValue, Paragraph},
     Error, Rule,
 };
 
@@ -15,7 +15,7 @@ impl Paragraph {
     pub(crate) fn parse(
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let start = pair.as_span().start_pos();
@@ -63,7 +63,7 @@ impl Paragraph {
                         if metadata.style.is_none() && !style_found {
                             metadata.style = Some(value);
                         } else {
-                            attributes.insert(value, None);
+                            attributes.insert(value, OptionalAttributeValue(None));
                         }
                     }
                 }
@@ -78,7 +78,6 @@ impl Paragraph {
         }
         Ok(Block::Paragraph(Self {
             metadata: metadata.clone(),
-            attributes: attributes.clone(),
             title,
             content,
             location,

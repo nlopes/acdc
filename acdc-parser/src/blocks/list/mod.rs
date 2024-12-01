@@ -9,9 +9,11 @@ use pest::iterators::Pairs;
 
 use crate::{
     inlines::parse_inlines,
-    model::{Block, BlockMetadata, DescriptionList, UnorderedList},
+    model::{Block, BlockMetadata, DescriptionList, OptionalAttributeValue, UnorderedList},
     Error, Rule,
 };
+
+use super::block::BlockExt;
 
 pub(crate) fn parse_list(
     pairs: Pairs<Rule>,
@@ -24,7 +26,6 @@ pub(crate) fn parse_list(
     let mut block = Block::UnorderedList(UnorderedList {
         title: Vec::new(),
         metadata: metadata.clone(),
-        attributes: attributes.clone(),
         items: Vec::new(),
         location: Location {
             start: Position { line: 0, column: 0 },
@@ -58,7 +59,7 @@ pub(crate) fn parse_list(
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
                     } else {
-                        attributes.insert(value, None);
+                        attributes.insert(value, OptionalAttributeValue(None));
                     }
                 }
             }
@@ -69,7 +70,6 @@ pub(crate) fn parse_list(
                     pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
-                    attributes.clone(),
                     parent_attributes,
                 )?;
             }
@@ -77,5 +77,6 @@ pub(crate) fn parse_list(
             unknown => unreachable!("{unknown:?}"),
         }
     }
+    block.set_attributes(attributes);
     Ok(block)
 }

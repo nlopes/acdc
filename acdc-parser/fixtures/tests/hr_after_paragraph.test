@@ -3,7 +3,8 @@
   "type": "block",
   "blocks": [
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -31,10 +32,11 @@
             "col": 12
           }
         ]
-      }
     },
     {
-      "ThematicBreak": {
+        "name": "break",
+        "type": "block",
+        "variant": "thematic",
         "location": [
           {
             "line": 3,
@@ -45,10 +47,10 @@
             "col": 4
           }
         ]
-      }
     },
     {
-      "Paragraph": {
+        "name": "paragraph",
+        "type": "block",
         "content": [
           {
             "name": "text",
@@ -76,7 +78,6 @@
             "col": 18
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 5,"col": 18}]

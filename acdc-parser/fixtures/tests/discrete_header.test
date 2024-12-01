@@ -3,11 +3,14 @@
   "type": "block",
   "blocks": [
     {
-      "DelimitedBlock": {
-        "inner": {
-          "DelimitedSidebar": [
+        "name": "sidebar",
+        "type": "block",
+        "form": "delimited",
+        "delimiter": "****",
+        "blocks": [
             {
-              "Paragraph": {
+                "name": "paragraph",
+                "type": "block",
                 "content": [
                   {
                     "name": "text",
@@ -36,10 +39,10 @@
                   }
                 ],
                 "admonition": null
-              }
             },
             {
-              "DiscreteHeader": {
+                "name": "heading",
+                "type": "block",
                 "title": [
                   {
                     "name": "text",
@@ -59,10 +62,10 @@
                     "col": 1
                   }
                 ]
-              }
             },
             {
-              "Paragraph": {
+                "name": "paragraph",
+                "type": "block",
                 "content": [
                   {
                     "name": "text",
@@ -90,10 +93,8 @@
                     "col": 1
                   }
                 ]
-              }
             }
-          ]
-        },
+        ],
         "location": [
           {
             "line": 1,
@@ -104,7 +105,6 @@
             "col": 5
           }
         ]
-      }
     }
   ],
   "location": [{"line": 1, "col": 1},{"line": 8,"col": 5}]
