@@ -95,7 +95,7 @@ mod tests {
     #[rstest::rstest]
     #[trace]
     fn for_each_file(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
-        let test_file_path = path.with_extension("test");
+        let test_file_path = path.with_extension("json");
 
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
