@@ -3,87 +3,96 @@
   "type": "block",
   "blocks": [
     {
-        "name": "paragraph",
-        "type": "block",
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "A paragraph",
-            "location": [
-              {
-                "line": 1,
-                "col": 1
-              },
-              {
-                "line": 1,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 1
-          },
-          {
-            "line": 1,
-            "col": 12
-          }
-        ]
-    },
-    {
-        "name": "break",
-        "type": "block",
-        "variant": "page",
-        "metadata": {
-          "attributes": {
-            "page-layout": "landscape"
-          }
+      "name": "paragraph",
+      "type": "block",
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A paragraph",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
         },
-        "location": [
-          {
-            "line": 3,
-            "col": 2
-          },
-          {
-            "line": 6,
-            "col": 1
-          }
-        ]
+        {
+          "line": 1,
+          "col": 12
+        }
+      ]
     },
     {
-        "name": "paragraph",
-        "type": "block",
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Another paragraph",
-            "location": [
-              {
-                "line": 6,
-                "col": 1
-              },
-              {
-                "line": 6,
-                "col": 18
-              }
-            ]
-          }
-        ],
-        "location": [
-          {
-            "line": 6,
-            "col": 1
-          },
-          {
-            "line": 6,
-            "col": 18
-          }
-        ]
+      "name": "break",
+      "type": "block",
+      "variant": "page",
+      "metadata": {
+        "attributes": {
+          "page-layout": "landscape"
+        }
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 2
+        },
+        {
+          "line": 6,
+          "col": 1
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Another paragraph",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 18
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 6,"col": 18}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 6,
+      "col": 18
+    }
+  ]
 }

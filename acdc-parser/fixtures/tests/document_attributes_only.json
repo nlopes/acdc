@@ -5,5 +5,14 @@
     "attributeA": "a simple attribute",
     "attributeB": "another attribute"
   },
-  "location": [{ "line": 1, "col": 1}, {"line": 2, "col": 31}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 31
+    }
+  ]
 }

@@ -3,40 +3,49 @@
   "type": "block",
   "blocks": [
     {
-        "name": "paragraph",
-        "type": "block",
-        "metadata": {
-          "options": [],
-          "style": "literal"
+      "name": "paragraph",
+      "type": "block",
+      "metadata": {
+        "options": [],
+        "style": "literal"
+      },
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "error: 1954 Forbidden search\nabsolutely fatal: operation lost in the dodecahedron of doom\nWould you like to try again? y/n",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
         },
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "error: 1954 Forbidden search\nabsolutely fatal: operation lost in the dodecahedron of doom\nWould you like to try again? y/n",
-            "location": [
-              {
-                "line": 1,
-                "col": 1
-              },
-              {
-                "line": 3,
-                "col": 33
-              }
-            ]
-          }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 1
-          },
-          {
-            "line": 3,
-            "col": 33
-          }
-        ]
+        {
+          "line": 3,
+          "col": 33
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 3,"col": 33}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 33
+    }
+  ]
 }

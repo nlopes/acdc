@@ -3,260 +3,305 @@
   "type": "block",
   "blocks": [
     {
-        "name": "paragraph",
-        "type": "block",
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Paragraph 1",
-            "location": [
-              {
-                "line": 1,
-                "col": 1
-              },
-              {
-                "line": 1,
-                "col": 12
-              }
-            ]
-          }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 1
-          },
-          {
-            "line": 1,
-            "col": 12
-          }
-        ]
+      "name": "paragraph",
+      "type": "block",
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Paragraph 1",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 12
+        }
+      ]
     },
     {
       "name": "section",
       "type": "block",
-        "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Section 1",
-            "location": [{"line": 3, "col": 4},{"line": 3, "col": 13}]
-          }
-        ],
-        "level": 1,
-        "blocks": [
-          {
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section 1",
+          "location": [
+            {
+              "line": 3,
+              "col": 4
+            },
+            {
+              "line": 3,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Section 2",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 5
+                },
+                {
+                  "line": 5,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Paragraph 2",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 12
+                }
+              ]
+            },
+            {
               "name": "section",
               "type": "block",
               "title": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Section 2",
-                  "location": [{"line": 5, "col": 5},{"line": 5, "col": 14}]
+                  "value": "Section 3",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 6
+                    },
+                    {
+                      "line": 9,
+                      "col": 15
+                    }
+                  ]
                 }
               ],
-              "level": 2,
+              "level": 3,
               "blocks": [
                 {
-                    "name": "paragraph",
-                    "type": "block",
-                    "content": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Paragraph 2",
-                        "location": [
-                          {
-                            "line": 7,
-                            "col": 1
-                          },
-                          {
-                            "line": 7,
-                            "col": 12
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 7,
-                        "col": 1
-                      },
-                      {
-                        "line": 7,
-                        "col": 12
-                      }
-                    ]
+                  "name": "paragraph",
+                  "type": "block",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Paragraph 3",
+                      "location": [
+                        {
+                          "line": 11,
+                          "col": 1
+                        },
+                        {
+                          "line": 11,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 12
+                    }
+                  ]
                 },
                 {
-                    "name": "section",
-                    "type": "block",
-                    "title": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Section 3",
-                        "location": [{"line": 9, "col": 6},{"line": 9, "col": 15}]
-                      }
-                    ],
-                    "level": 3,
-                    "blocks": [
-                      {
-                          "name": "paragraph",
-                          "type": "block",
-                          "content": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value":  "Paragraph 3",
-                              "location": [
-                                {
-                                  "line": 11,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 11,
-                                  "col": 12
-                                }
-                              ]
-                            }
-                          ],
+                  "name": "paragraph",
+                  "type": "block",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Paragraph 4",
+                      "location": [
+                        {
+                          "line": 13,
+                          "col": 1
+                        },
+                        {
+                          "line": 13,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 1
+                    },
+                    {
+                      "line": 13,
+                      "col": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "section",
+                  "type": "block",
+                  "title": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Section 4",
+                      "location": [
+                        {
+                          "line": 15,
+                          "col": 7
+                        },
+                        {
+                          "line": 15,
+                          "col": 16
+                        }
+                      ]
+                    }
+                  ],
+                  "level": 4,
+                  "blocks": [
+                    {
+                      "name": "paragraph",
+                      "type": "block",
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Something here",
                           "location": [
                             {
-                              "line": 11,
-                              "col": 1
-                            },
-                            {
-                              "line": 11,
-                              "col": 12
-                            }
-                          ]
-                      },
-                      {
-                          "name": "paragraph",
-                          "type": "block",
-                          "content": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Paragraph 4",
-                              "location": [
-                                {
-                                  "line": 13,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 13,
-                                  "col": 12
-                                }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 13,
-                              "col": 1
-                            },
-                            {
-                              "line": 13,
-                              "col": 12
-                            }
-                          ]
-                      },
-                      {
-                          "name": "section",
-                          "type": "block",
-                          "title": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Section 4",
-                              "location": [{"line": 15, "col": 7},{"line": 15, "col": 16}]
-                            }
-                          ],
-                          "level": 4,
-                          "blocks": [
-                            {
-                                "name": "paragraph",
-                                "type": "block",
-                                "content": [
-                                  {
-                                    "name": "text",
-                                    "type": "string",
-                                    "value": "Something here",
-                                    "location": [
-                                      {
-                                        "line": 17,
-                                        "col": 1
-                                      },
-                                      {
-                                        "line": 17,
-                                        "col": 15
-                                      }
-                                    ]
-                                  }
-                                ],
-                                "location": [
-                                  {
-                                    "line": 17,
-                                    "col": 1
-                                  },
-                                  {
-                                    "line": 17,
-                                    "col": 15
-                                  }
-                                ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 15,
+                              "line": 17,
                               "col": 1
                             },
                             {
                               "line": 17,
-                              "col": 1
+                              "col": 15
                             }
                           ]
                         }
-                    ],
-                    "location": [
-                      {
-                        "line": 9,
-                        "col": 1
-                      },
-                      {
-                        "line": 17,
-                        "col": 15
-                      }
-                    ]
+                      ],
+                      "location": [
+                        {
+                          "line": 17,
+                          "col": 1
+                        },
+                        {
+                          "line": 17,
+                          "col": 15
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 1
+                    },
+                    {
+                      "line": 17,
+                      "col": 1
+                    }
+                  ]
                 }
               ],
               "location": [
                 {
-                  "line": 5,
+                  "line": 9,
                   "col": 1
                 },
                 {
                   "line": 17,
-                  "col": 1
+                  "col": 15
                 }
               ]
             }
-        ],
-        "location": [
-          {
-            "line": 3,
-            "col": 1
-          },
-          {
-            "line": 17,
-            "col": 15
-          }
-        ]
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 1
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 15
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 17,"col": 15}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 17,
+      "col": 15
+    }
+  ]
 }

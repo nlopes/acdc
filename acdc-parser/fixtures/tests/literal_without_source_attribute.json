@@ -3,27 +3,36 @@
   "type": "block",
   "blocks": [
     {
-        "name": "listing",
-        "type": "block",
-        "form": "delimited",
-        "delimiter": "----",
-        "inlines": "include::app.rb[]",
-        "metadata": {
-            "attributes": {
-                "ruby": null
-            }
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": "include::app.rb[]",
+      "metadata": {
+        "attributes": {
+          "ruby": null
+        }
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 2
         },
-        "location": [
-          {
-            "line": 1,
-            "col": 2
-          },
-          {
-            "line": 4,
-            "col": 5
-          }
-        ]
+        {
+          "line": 4,
+          "col": 5
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 4,"col": 5}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 5
+    }
+  ]
 }

@@ -3,141 +3,168 @@
   "type": "block",
   "blocks": [
     {
-        "name": "section",
-        "type": "block",
-        "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "A list of sorts:",
-            "location": [{"line": 1, "col": 4},{"line": 1, "col": 20}]
-          }
-        ],
-        "level": 1,
-        "blocks": [
-          {
-              "name": "list",
-              "type": "block",
-              "variant": "unordered",
-              "title": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Possible DefOps manual locations",
-                  "location": [{"line": 3, "col": 2},{"line": 3, "col": 34}]
-                }
-              ],
-              "items": [
-                {
-                  "level": 1,
-                  "content": [
-                    "West wood maze"
-                  ]
-                },
-                {
-                  "level": 2,
-                  "content": [
-                    "Maze heart"
-                  ]
-                },
-                {
-                  "level": 3,
-                  "content": [
-                    "Reflection pool"
-                  ]
-                },
-                {
-                  "level": 2,
-                  "content": [
-                    "Secret exit"
-                  ]
-                },
-                {
-                  "level": 1,
-                  "content": [
-                    "Untracked file in git repository"
-                  ]
-                }
-              ],
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A list of sorts:",
+          "location": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Possible DefOps manual locations",
               "location": [
                 {
                   "line": 3,
                   "col": 2
                 },
                 {
-                  "line": 9,
-                  "col": 1
-                }
-              ]
-          },
-          {
-              "name": "list",
-              "type": "block",
-              "variant": "ordered",
-              "items": [
-                {
-                  "level": 1,
-                  "checked": false,
-                  "content": [
-                    "Item 1"
-                  ]
-                },
-                {
-                  "level": 2,
-                  "content": [
-                    "Item 1.1"
-                  ]
-                },
-                {
-                  "level": 3,
-                  "checked": true,
-                  "content": [
-                    "Item 1.1.1"
-                  ]
-                },
-                {
-                  "level": 1,
-                  "content": [
-                    "Item 2"
-                  ]
-                },
-                {
-                  "level": 2,
-                  "content": [
-                    "Item 2.1"
-                  ]
-                },
-                {
-                  "level": 1,
-                  "checked": true,
-                  "content": [
-                    "Item 3"
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 11,
-                  "col": 1
-                },
-                {
-                  "line": 16,
-                  "col": 13
+                  "line": 3,
+                  "col": 34
                 }
               ]
             }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 1
-          },
-          {
-            "line": 16,
-            "col": 13
-          }
-        ]
+          ],
+          "items": [
+            {
+              "level": 1,
+              "content": [
+                "West wood maze"
+              ]
+            },
+            {
+              "level": 2,
+              "content": [
+                "Maze heart"
+              ]
+            },
+            {
+              "level": 3,
+              "content": [
+                "Reflection pool"
+              ]
+            },
+            {
+              "level": 2,
+              "content": [
+                "Secret exit"
+              ]
+            },
+            {
+              "level": 1,
+              "content": [
+                "Untracked file in git repository"
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 9,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "items": [
+            {
+              "level": 1,
+              "checked": false,
+              "content": [
+                "Item 1"
+              ]
+            },
+            {
+              "level": 2,
+              "content": [
+                "Item 1.1"
+              ]
+            },
+            {
+              "level": 3,
+              "checked": true,
+              "content": [
+                "Item 1.1.1"
+              ]
+            },
+            {
+              "level": 1,
+              "content": [
+                "Item 2"
+              ]
+            },
+            {
+              "level": 2,
+              "content": [
+                "Item 2.1"
+              ]
+            },
+            {
+              "level": 1,
+              "checked": true,
+              "content": [
+                "Item 3"
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 13
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 16,"col": 13}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 16,
+      "col": 13
+    }
+  ]
 }

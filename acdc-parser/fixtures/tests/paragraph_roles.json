@@ -3,43 +3,52 @@
   "type": "block",
   "blocks": [
     {
-        "name": "paragraph",
-        "type": "block",
-        "metadata": {
-          "roles": [
-            "text-center",
-            "superduper",
-            "naff"
-          ]
-        },
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "This text is centered, so it must be important.",
-            "location": [
-              {
-                "line": 2,
-                "col": 1
-              },
-              {
-                "line": 2,
-                "col": 48
-              }
-            ]
-          }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 3
-          },
-          {
-            "line": 2,
-            "col": 48
-          }
+      "name": "paragraph",
+      "type": "block",
+      "metadata": {
+        "roles": [
+          "text-center",
+          "superduper",
+          "naff"
         ]
+      },
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This text is centered, so it must be important.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 3
+        },
+        {
+          "line": 2,
+          "col": 48
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 2,"col": 48}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 48
+    }
+  ]
 }

@@ -3,36 +3,54 @@
   "type": "block",
   "blocks": [
     {
-        "name": "listing",
-        "type": "block",
-        "form": "delimited",
-        "delimiter": "----",
-        "inlines": "image: node:16-buster\nstages: [ init, verify, deploy ]",
-        "metadata": {
-            "style": "source",
-            "attributes": {
-                "yaml": "null"
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": "image: node:16-buster\nstages: [ init, verify, deploy ]",
+      "metadata": {
+        "style": "source",
+        "attributes": {
+          "yaml": "null"
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Specify GitLab CI stages",
+          "location": [
+            {
+              "line": 1,
+              "col": 2
+            },
+            {
+              "line": 1,
+              "col": 26
             }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 2
         },
-        "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Specify GitLab CI stages",
-            "location": [{"line": 1, "col": 2},{"line": 1, "col": 26}]
-          }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 2
-          },
-          {
-            "line": 6,
-            "col": 5
-          }
-        ]
+        {
+          "line": 6,
+          "col": 5
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 6,"col": 5}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 6,
+      "col": 5
+    }
+  ]
 }

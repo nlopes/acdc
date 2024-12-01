@@ -7,44 +7,71 @@
         "name": "text",
         "type": "string",
         "value": "Document Title: this is not the subtitle: this is the subtitle",
-        "location": [{ "line": 3, "col": 3 }, { "line": 3, "col": 65 }]
+        "location": [
+          {
+            "line": 3,
+            "col": 3
+          },
+          {
+            "line": 3,
+            "col": 65
+          }
+        ]
       }
     ],
     "subtitle": "this is the subtitle",
-    "location": [{ "line": 3, "col": 1 }, { "line": 3, "col": 65}]
+    "location": [
+      {
+        "line": 3,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 65
+      }
+    ]
   },
   "blocks": [
     {
-        "name": "paragraph",
-        "type": "block",
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "body text",
-            "location": [
-              {
-                "line": 5,
-                "col": 1
-              },
-              {
-                "line": 5,
-                "col": 10
-              }
-            ]
-          }
-        ],
-        "location": [
-          {
-            "line": 5,
-            "col": 1
-          },
-          {
-            "line": 5,
-            "col": 10
-          }
-        ]
+      "name": "paragraph",
+      "type": "block",
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "body text",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 10
+        }
+      ]
     }
   ],
-  "location": [{"line": 2, "col": 1},{"line": 5,"col": 10}]
+  "location": [
+    {
+      "line": 2,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 10
+    }
+  ]
 }

@@ -3,45 +3,54 @@
   "type": "block",
   "blocks": [
     {
-        "name": "paragraph",
-        "type": "block",
-        "metadata": {
-          "roles": [
-            "properties"
-          ],
-          "options": [
-            "step"
-          ],
-          "style": "horizontal"
-        },
-        "content": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "A paragraph",
-            "location": [
-              {
-                "line": 2,
-                "col": 1
-              },
-              {
-                "line": 2,
-                "col": 12
-              }
-            ]
-          }
+      "name": "paragraph",
+      "type": "block",
+      "metadata": {
+        "roles": [
+          "properties"
         ],
-        "location": [
-          {
-            "line": 1,
-            "col": 2
-          },
-          {
-            "line": 2,
-            "col": 12
-          }
-        ]
+        "options": [
+          "step"
+        ],
+        "style": "horizontal"
+      },
+      "content": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A paragraph",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 2
+        },
+        {
+          "line": 2,
+          "col": 12
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 2,"col": 12}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 12
+    }
+  ]
 }

@@ -3,38 +3,35 @@
   "type": "block",
   "blocks": [
     {
-        "name": "section",
-        "type": "block",
-        "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Section 1",
-            "location": [{"line": 1, "col": 4},{"line": 1, "col": 13}]
-          }
-        ],
-        "level": 1,
-        "blocks": [
-          {
-              "name": "paragraph",
-              "type": "block",
-              "content": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Something is up. Let's see.",
-                  "location": [
-                    {
-                      "line": 3,
-                      "col": 1
-                    },
-                    {
-                      "line": 3,
-                      "col": 28
-                    }
-                  ]
-                }
-              ],
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section 1",
+          "location": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "content": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Something is up. Let's see.",
               "location": [
                 {
                   "line": 3,
@@ -45,50 +42,50 @@
                   "col": 28
                 }
               ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "inlines": "image: node:16-buster\nstages: [ init, verify, deploy ]",
+          "metadata": {
+            "style": "source",
+            "attributes": {
+              "yaml": null
+            }
           },
-          {
-              "name": "listing",
-              "type": "block",
-              "form": "delimited",
-              "delimiter": "----",
-              "inlines": "image: node:16-buster\nstages: [ init, verify, deploy ]",
-              "metadata": {
-                  "style": "source",
-                  "attributes": {
-                      "yaml": null
-                  }
-              },
-              "location": [
-                {
-                  "line": 5,
-                  "col": 2
-                },
-                {
-                  "line": 9,
-                  "col": 5
-                }
-              ]
-          },
-          {
-                "name": "paragraph",
-                "type": "block",
-              "content": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "And that's it.",
-                  "location": [
-                    {
-                      "line": 11,
-                      "col": 1
-                    },
-                    {
-                      "line": 11,
-                      "col": 15
-                    }
-                  ]
-                }
-              ],
+          "location": [
+            {
+              "line": 5,
+              "col": 2
+            },
+            {
+              "line": 9,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "content": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "And that's it.",
               "location": [
                 {
                   "line": 11,
@@ -99,19 +96,40 @@
                   "col": 15
                 }
               ]
-          }
-        ],
-        "location": [
-          {
-            "line": 1,
-            "col": 1
-          },
-          {
-            "line": 9,
-            "col": 5
-          }
-        ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 5
+        }
+      ]
     }
   ],
-  "location": [{"line": 1, "col": 1},{"line": 11,"col": 15}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 15
+    }
+  ]
 }
