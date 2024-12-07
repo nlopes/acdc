@@ -38,7 +38,7 @@
     {
       "name": "paragraph",
       "type": "block",
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

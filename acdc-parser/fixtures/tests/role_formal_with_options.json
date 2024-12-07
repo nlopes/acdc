@@ -14,7 +14,7 @@
           "trick"
         ]
       },
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

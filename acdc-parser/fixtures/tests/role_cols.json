@@ -15,7 +15,7 @@
           "cols": "2*~"
         }
       },
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

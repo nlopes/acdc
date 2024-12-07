@@ -14,7 +14,7 @@
         ],
         "style": "horizontal"
       },
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

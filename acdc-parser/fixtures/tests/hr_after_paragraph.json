@@ -5,7 +5,7 @@
     {
       "name": "paragraph",
       "type": "block",
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",
@@ -51,7 +51,7 @@
     {
       "name": "paragraph",
       "type": "block",
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

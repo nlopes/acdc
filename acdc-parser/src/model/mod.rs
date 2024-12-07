@@ -482,6 +482,7 @@ impl<'de> Deserialize<'de> for Block {
                             }
                             my_type = Some(map.next_value::<String>()?);
                         }
+
                         "form" => {
                             if my_form.is_some() {
                                 return Err(de::Error::duplicate_field("form"));
@@ -607,19 +608,12 @@ impl<'de> Deserialize<'de> for Block {
                         }))
                     }
                     ("paragraph", "block") => {
-                        let my_content =
-                            match my_content.ok_or_else(|| de::Error::missing_field("content"))? {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<InlineNode>, _>>()?,
-                                _ => return Err(de::Error::custom("content must be an array")),
-                            };
-
+                        let my_inlines =
+                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         Ok(Block::Paragraph(Paragraph {
                             metadata: my_metadata,
                             title: my_title,
-                            content: my_content,
+                            content: my_inlines,
                             location: my_location,
                             admonition: None,
                         }))
@@ -907,6 +901,31 @@ impl<'de> Deserialize<'de> for Block {
                             _ => Err(de::Error::custom(format!(
                                 "unexpected 'list' variant: {my_variant}",
                             ))),
+                        }
+                    }
+                    ("admonition", "block") => {
+                        let my_variant =
+                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
+                        dbg!(&my_variant);
+                        let my_blocks =
+                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
+                                    .collect::<Result<Vec<Block>, _>>()?,
+                                _ => return Err(de::Error::custom("blocks must be an array")),
+                            };
+                        if let [first, ..] = my_blocks.as_slice() {
+                            if let Block::Paragraph(paragraph) = first {
+                                Ok(Block::Paragraph(Paragraph {
+                                    admonition: Some(my_variant),
+                                    ..paragraph.clone()
+                                }))
+                            } else {
+                                Err(de::Error::custom("admonition must start with a paragraph"))
+                            }
+                        } else {
+                            Err(de::Error::custom("admonition must have at least one block"))
                         }
                     }
                     _ => Err(de::Error::custom(format!(

@@ -14,7 +14,7 @@
         ],
         "style": "source"
       },
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

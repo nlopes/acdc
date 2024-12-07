@@ -10,7 +10,7 @@
           "\"formal\""
         ]
       },
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",

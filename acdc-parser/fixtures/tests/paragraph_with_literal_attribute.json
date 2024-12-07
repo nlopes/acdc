@@ -9,7 +9,7 @@
         "options": [],
         "style": "literal"
       },
-      "content": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",
