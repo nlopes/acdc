@@ -1,5 +1,5 @@
-use acdc_core::DocumentAttributes;
-use pest::iterators::Pairs;
+use acdc_core::{DocumentAttributes, Location, Position};
+use pest::{iterators::Pairs, Parser as _};
 
 use crate::{model::ListItem, Error, Rule};
 
@@ -11,14 +11,50 @@ impl ListItem {
     ) -> Result<ListItem, Error> {
         let mut content = Vec::new();
         let mut level = 0;
+        let mut marker = String::new();
         let mut checked = None;
+        let mut location = Location::default();
 
-        for pair in pairs {
+        let len = pairs.clone().count();
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.start = Position {
+                    line: pair.as_span().start_pos().line_col().0,
+                    column: pair.as_span().start_pos().line_col().1,
+                };
+            }
+            if i == len - 1 {
+                location.end = Position {
+                    line: pair.as_span().end_pos().line_col().0,
+                    column: pair.as_span().end_pos().line_col().1,
+                };
+            }
             match pair.as_rule() {
                 Rule::list_item => {
-                    content.push(pair.as_str().trim().to_string());
+                    let current_pos = pair.as_span().start_pos();
+                    let (current_start_line, current_start_column) =
+                        (current_pos.line_col().0, current_pos.line_col().1);
+                    match crate::InnerPestParser::parse(Rule::inlines, pair.as_str()) {
+                        Ok(pairs) => {
+                            for pair in pairs {
+                                content.extend(crate::inlines::parse_inlines(
+                                    pair,
+                                    parent_attributes,
+                                )?);
+                            }
+                            for inline in &mut content {
+                                inline
+                                    .shift_start_location(current_start_line, current_start_column);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("error parsing text: {e}");
+                            return Err(Error::Parse(e.to_string()));
+                        }
+                    }
                 }
                 Rule::unordered_level | Rule::ordered_level => {
+                    marker = pair.as_str().to_string();
                     level = u8::try_from(pair.as_str().chars().count())
                         .map_err(|e| Error::Parse(format!("error with list level depth: {e}")))?;
                 }
@@ -42,8 +78,10 @@ impl ListItem {
         }
         Ok(ListItem {
             level,
+            marker,
             checked,
             content,
+            location,
         })
     }
 }

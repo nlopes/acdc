@@ -4,7 +4,7 @@ use acdc_core::Location;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Link, LinkTarget},
+    model::{Link, LinkTarget, OptionalAttributeValue},
     Rule,
 };
 
@@ -20,7 +20,7 @@ impl Link {
                     super::parse_named_attribute(pair.into_inner(), &mut attributes);
                 }
                 Rule::positional_attribute_value => {
-                    attributes.insert(pair.as_str().to_string(), None);
+                    attributes.insert(pair.as_str().to_string(), OptionalAttributeValue(None));
                 }
                 Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),

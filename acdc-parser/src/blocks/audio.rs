@@ -5,7 +5,7 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Audio, AudioSource, Block, BlockMetadata},
+    model::{Audio, AudioSource, Block, BlockMetadata, OptionalAttributeValue},
     Rule,
 };
 
@@ -14,7 +14,7 @@ impl Audio {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = AudioSource::Path(String::new());
@@ -53,7 +53,6 @@ impl Audio {
             title: Vec::new(),
             source,
             metadata: metadata.clone(),
-            attributes: attributes.clone(),
         })
     }
 }

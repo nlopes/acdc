@@ -1,10 +1,11 @@
 use std::fmt;
 
 use acdc_core::{Location, Position};
+use serde::Deserialize;
 
 use crate::model::SectionLevel;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Deserialize)]
 pub enum Error {
     #[error("Parsing error: {0}")]
     Parse(String),
@@ -28,19 +29,22 @@ pub enum Error {
     InvalidLevelOffset(String),
 
     #[error("I/O error: {0}")]
+    #[serde(skip_deserializing)]
     Io(#[from] std::io::Error),
 
     #[error("URL error: {0}")]
+    #[serde(skip_deserializing)]
     Url(#[from] url::ParseError),
 
     #[error("ParseInt error: {0}")]
+    #[serde(skip_deserializing)]
     ParseInt(#[from] std::num::ParseIntError),
 
     #[error("Unexpected block: {0}")]
     UnexpectedBlock(String),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct Detail {
     pub location: Location,
 }

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use acdc_core::{DocumentAttributes, Location, Position};
 use pest::{iterators::Pair, Parser as _};
 
@@ -16,8 +14,6 @@ impl Section {
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let metadata = BlockMetadata::default();
-        let attributes = HashMap::new();
-        //let mut title = String::new();
         let mut title = Vec::new();
         let mut level = 0;
         let mut content = Vec::new();
@@ -53,7 +49,6 @@ impl Section {
 
         Ok(Block::Section(Self {
             metadata,
-            attributes,
             title,
             level,
             content,

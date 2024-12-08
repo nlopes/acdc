@@ -1,0 +1,260 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A list of sorts:",
+          "location": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Possible DefOps manual locations",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 2
+                },
+                {
+                  "line": 3,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "West wood maze",
+                  "location": [{ "line": 4, "col": 3 }, { "line": 4, "col": 17 }]
+                }
+              ],
+              "location": [{ "line": 4, "col": 1 }, { "line": 4, "col": 17 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "**",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Maze heart",
+                  "location": [{ "line": 5, "col": 4 }, { "line": 5, "col": 14 }]
+                }
+              ],
+              "location": [{ "line": 5, "col": 1 }, { "line": 5, "col": 14 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "***",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Reflection pool",
+                  "location": [{ "line": 6, "col": 5 }, { "line": 6, "col": 20 }]
+                }
+              ],
+              "location": [{ "line": 6, "col": 1 }, { "line": 6, "col": 20 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "**",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Secret exit",
+                  "location": [{ "line": 7, "col": 4 }, { "line": 7, "col": 15 }]
+                }
+              ],
+              "location": [{ "line": 7, "col": 1 }, { "line": 7, "col": 15 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Untracked file in git repository",
+                  "location": [{ "line": 8, "col": 3 }, { "line": 8, "col": 35 }]
+                }
+              ],
+              "location": [{ "line": 8, "col": 1 }, { "line": 8, "col": 35 }]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 9,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "marker": ".",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "checked": false,
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1",
+                  "location": [{ "line": 11, "col": 7 }, { "line": 11, "col": 13 }]
+                }
+              ],
+              "location": [{ "line": 11, "col": 1 }, { "line": 11, "col": 13 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "..",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1.1",
+                  "location": [{ "line": 12, "col": 4 }, { "line": 12, "col": 12 }]
+                }
+              ],
+              "location": [{ "line": 12, "col": 1 }, { "line": 12, "col": 12 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "...",
+              "checked": true,
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1.1.1",
+                  "location": [{ "line": 13, "col": 9 }, { "line": 13, "col": 19 }]
+                }
+              ],
+              "location": [{ "line": 13, "col": 1 }, { "line": 13, "col": 19 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2",
+                  "location": [{ "line": 14, "col": 3 }, { "line": 14, "col": 9 }]
+                }
+              ],
+              "location": [{ "line": 14, "col": 1 }, { "line": 14, "col": 9 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "..",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2.1",
+                  "location": [{ "line": 15, "col": 4 }, { "line": 15, "col": 12 }]
+                }
+              ],
+              "location": [{ "line": 15, "col": 1 }, { "line": 15, "col": 12 }]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "checked": true,
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 3",
+                  "location": [{ "line": 16, "col": 7 }, { "line": 16, "col": 13 }]
+                }
+              ],
+              "location": [{ "line": 16, "col": 1 }, { "line": 16, "col": 13 }]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 16,
+      "col": 13
+    }
+  ]
+}

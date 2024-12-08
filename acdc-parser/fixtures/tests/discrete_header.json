@@ -1,0 +1,128 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "sidebar",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "****",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Discrete headings are useful for making headings inside of other blocks, like this sidebar.",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 92
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 92
+            }
+          ]
+        },
+        {
+          "name": "heading",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Discrete Heading",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 4
+                },
+                {
+                  "line": 4,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "level": 1,
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Discrete headings can be used where sections are not permitted.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 64
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 64
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 8,
+      "col": 5
+    }
+  ]
+}

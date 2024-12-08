@@ -5,7 +5,7 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Block, BlockMetadata, Video, VideoSource},
+    model::{Block, BlockMetadata, OptionalAttributeValue, Video, VideoSource},
     Rule,
 };
 
@@ -14,7 +14,7 @@ impl Video {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut sources = vec![];
@@ -39,7 +39,7 @@ impl Video {
                             Rule::positional_attribute_value => {
                                 let name = pair.as_str().to_string();
                                 if attribute_idx == 0 {
-                                    attributes.insert(name, None);
+                                    attributes.insert(name, OptionalAttributeValue(None));
                                 } else {
                                     tracing::warn!(
                                         ?name,
@@ -62,7 +62,6 @@ impl Video {
             title: Vec::new(),
             sources,
             metadata: metadata.clone(),
-            attributes: attributes.clone(),
         })
     }
 }

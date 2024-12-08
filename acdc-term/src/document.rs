@@ -62,8 +62,6 @@ impl Render for acdc_parser::Author {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
     use acdc_parser::{
         Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, Plain,
@@ -112,9 +110,7 @@ mod tests {
                     content: "Hello, world!".to_string(),
                     location: Location::default(),
                 })],
-                admonition: None,
                 location: Location::default(),
-                attributes: HashMap::new(),
                 metadata: BlockMetadata::default(),
                 title: Vec::new(),
             }),
@@ -129,13 +125,10 @@ mod tests {
                         location: Location::default(),
                     })],
                     location: Location::default(),
-                    attributes: HashMap::new(),
                     metadata: BlockMetadata::default(),
-                    admonition: None,
                     title: Vec::new(),
                 })],
                 location: Location::default(),
-                attributes: HashMap::new(),
                 level: 1,
                 metadata: BlockMetadata::default(),
             }),

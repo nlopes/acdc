@@ -1,0 +1,54 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "include::app.rb[]",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "ruby": null
+        }
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 5
+    }
+  ]
+}

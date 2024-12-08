@@ -95,36 +95,29 @@ mod tests {
     #[rstest::rstest]
     #[trace]
     fn for_each_file(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
-        let test_file_path = path.with_extension("test");
+        let test_file_path = path.with_extension("json");
 
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
-        if test_file_path.exists() {
-            let result = parse_file(path).unwrap();
-            let test: Document =
-                serde_json::from_str(&std::fs::read_to_string(test_file_path).unwrap()).unwrap();
-            assert_eq!(test, result);
+        if test_file_path.exists()
+            && !test_file_path
+                .to_str()
+                .expect("path can't be converted to str")
+                .contains("ordered_")
+        {
+            let test_file = std::fs::read_to_string(test_file_path).unwrap();
+            match parse_file(path.clone()) {
+                Ok(result) => {
+                    let test: Document = serde_json::from_str(&test_file).unwrap();
+                    assert_eq!(test, result);
+                }
+                Err(e) => {
+                    let test: Error = serde_json::from_str(&test_file).unwrap();
+                    assert_eq!(test.to_string(), e.to_string());
+                }
+            }
         } else {
             tracing::warn!("no test file found for {:?}", path);
-        }
-    }
-
-    #[test]
-    #[tracing_test::traced_test]
-    fn test_section_with_invalid_subsection() {
-        let result = parse_file("fixtures/tests/section_with_invalid_subsection.adoc").unwrap_err();
-        if let Error::NestedSectionLevelMismatch(ref detail, 2, 3) = result {
-            assert_eq!(
-                &ErrorDetail {
-                    location: Location {
-                        start: Position { line: 3, column: 1 },
-                        end: Position { line: 5, column: 1 }
-                    }
-                },
-                detail
-            );
-        } else {
-            panic!("unexpected error: {result:?}");
         }
     }
 

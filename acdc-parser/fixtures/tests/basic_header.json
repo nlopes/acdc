@@ -1,0 +1,148 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "description": "The document's description.",
+    "sectanchors": true,
+    "url-repo": "https://my-git-repo.com",
+    "revnumber": "v2.9",
+    "revdate": "01-09-2024",
+    "revremark": "Fall incarnation"
+  },
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [
+          {
+            "line": 2,
+            "col": 3
+          },
+          {
+            "line": 2,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "Lorn_Kismet",
+        "middlename": "R.",
+        "lastname": "Lee",
+        "initials": "LRL",
+        "address": "kismet@asciidoctor.org"
+      },
+      {
+        "firstname": "Norberto",
+        "middlename": "M.",
+        "lastname": "Lopes",
+        "initials": "NML",
+        "address": "nlopesml@gmail.com"
+      }
+    ],
+    "location": [
+      {
+        "line": 2,
+        "col": 1
+      },
+      {
+        "line": 7,
+        "col": 35
+      }
+    ]
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The document",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "emphasis",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "body",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 5
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 14
+            },
+            {
+              "line": 9,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "starts here.",
+          "location": [
+            {
+              "line": 9,
+              "col": 22
+            },
+            {
+              "line": 9,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 35
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 35
+    }
+  ]
+}
