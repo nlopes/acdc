@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
+use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
@@ -22,36 +22,45 @@ impl DelimitedBlock {
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut inner = DelimitedBlockType::DelimitedComment(Vec::new());
+        let mut delimiter = String::new();
         let mut location = Location::default();
 
-        for pair in pairs {
+        let len = pairs.clone().count();
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.start = Position {
+                    line: pair.as_span().start_pos().line_col().0,
+                    column: pair.as_span().start_pos().line_col().1,
+                };
+            }
+            if i == len - 1 {
+                location.end = Position {
+                    line: pair.as_span().end_pos().line_col().0,
+                    column: pair.as_span().end_pos().line_col().1,
+                };
+            }
             let rule = pair.as_rule();
             if rule == Rule::EOI || rule == Rule::comment {
                 continue;
             }
-            if location.start.line == 0
-                && location.start.column == 0
-                && location.end.line == 0
-                && location.end.column == 0
-            {
-                location.start.line = pair.as_span().start_pos().line_col().0;
-                location.start.column = pair.as_span().start_pos().line_col().1;
-                location.end.line = pair.as_span().end_pos().line_col().0;
-                location.end.column = pair.as_span().end_pos().line_col().1;
-            }
-            if pair.as_span().start_pos().line_col().0 < location.start.line {
-                location.start.line = pair.as_span().start_pos().line_col().0;
-            }
-            if pair.as_span().start_pos().line_col().1 < location.start.column {
-                location.start.column = pair.as_span().start_pos().line_col().1;
-            }
-            location.end.line = pair.as_span().end_pos().line_col().0;
-            location.end.column = pair.as_span().end_pos().line_col().1;
-
             let pair = if rule == Rule::delimited_table {
-                pair
+                // TODO(nlopes): must fix this - we're not extracting the delimiter so we
+                // need to change this section.
+                let mut pair_inner = pair.into_inner();
+                let delimiter_pair = pair_inner.next().ok_or_else(|| {
+                    Error::Parse(String::from("delimited block must have a delimiter"))
+                })?;
+                delimiter = delimiter_pair.as_str().to_string();
+                pair_inner.next().ok_or_else(|| {
+                    Error::Parse(String::from("delimited block must have content"))
+                })?
             } else {
-                pair.into_inner().next().ok_or_else(|| {
+                let mut pair_inner = pair.into_inner();
+                let delimiter_pair = pair_inner.next().ok_or_else(|| {
+                    Error::Parse(String::from("delimited block must have a delimiter"))
+                })?;
+                delimiter = delimiter_pair.as_str().to_string();
+                pair_inner.next().ok_or_else(|| {
                     Error::Parse(String::from("delimited block must have content"))
                 })?
             };
@@ -141,7 +150,7 @@ impl DelimitedBlock {
                 }
                 Rule::delimited_table => {
                     inner = DelimitedBlockType::DelimitedTable(Table::parse(
-                        &pair.into_inner(),
+                        &pair,
                         metadata,
                         attributes,
                         parent_attributes,
@@ -153,6 +162,7 @@ impl DelimitedBlock {
 
         Ok(Block::DelimitedBlock(DelimitedBlock {
             metadata: metadata.clone(),
+            delimiter,
             inner,
             title,
             location,

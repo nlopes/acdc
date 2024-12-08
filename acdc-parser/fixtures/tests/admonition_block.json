@@ -33,27 +33,52 @@
           "name": "list",
           "type": "block",
           "variant": "ordered",
+          "marker": ".",
           "items": [
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
               "checked": null,
-              "content": [
-                "They are allergic to cinnamon."
-              ]
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "They are allergic to cinnamon.",
+                  "location": [{"line": 3,"col": 3},{"line": 3,"col": 33}]
+                }
+              ],
+              "location": [{"line": 3,"col": 1},{"line": 3,"col": 33}]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
               "checked": null,
-              "content": [
-                "More than two glasses of orange juice in 24 hours makes them howl in harmony with alarms and sirens."
-              ]
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "More than two glasses of orange juice in 24 hours makes them howl in harmony with alarms and sirens.",
+                  "location": [{"line": 4,"col": 3},{"line": 4,"col": 103}]
+                }
+              ],
+              "location": [{"line": 4,"col": 1},{"line": 4,"col": 103}]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
               "checked": null,
-              "content": [
-                "Celery makes them sad."
-              ]
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Celery makes them sad.",
+                  "location": [{"line": 5,"col": 3},{"line": 5,"col": 25}]
+                }
+              ],
+              "location": [{"line": 5,"col": 1},{"line": 5,"col": 25}]
             }
           ],
           "location": [{"line": 3,"col": 1},{"line": 5,"col": 25}]

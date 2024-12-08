@@ -28,6 +28,7 @@
           "name": "list",
           "type": "block",
           "variant": "unordered",
+          "marker": "*",
           "title": [
             {
               "name": "text",
@@ -47,34 +48,74 @@
           ],
           "items": [
             {
-              "level": 1,
-              "content": [
-                "West wood maze"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "West wood maze",
+                  "location": [{ "line": 4, "col": 3 }, { "line": 4, "col": 17 }]
+                }
+              ],
+              "location": [{ "line": 4, "col": 1 }, { "line": 4, "col": 17 }]
             },
             {
-              "level": 2,
-              "content": [
-                "Maze heart"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "**",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Maze heart",
+                  "location": [{ "line": 5, "col": 4 }, { "line": 5, "col": 14 }]
+                }
+              ],
+              "location": [{ "line": 5, "col": 1 }, { "line": 5, "col": 14 }]
             },
             {
-              "level": 3,
-              "content": [
-                "Reflection pool"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "***",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Reflection pool",
+                  "location": [{ "line": 6, "col": 5 }, { "line": 6, "col": 20 }]
+                }
+              ],
+              "location": [{ "line": 6, "col": 1 }, { "line": 6, "col": 20 }]
             },
             {
-              "level": 2,
-              "content": [
-                "Secret exit"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "**",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Secret exit",
+                  "location": [{ "line": 7, "col": 4 }, { "line": 7, "col": 15 }]
+                }
+              ],
+              "location": [{ "line": 7, "col": 1 }, { "line": 7, "col": 15 }]
             },
             {
-              "level": 1,
-              "content": [
-                "Untracked file in git repository"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Untracked file in git repository",
+                  "location": [{ "line": 8, "col": 3 }, { "line": 8, "col": 35 }]
+                }
+              ],
+              "location": [{ "line": 8, "col": 1 }, { "line": 8, "col": 35 }]
             }
           ],
           "location": [
@@ -92,45 +133,94 @@
           "name": "list",
           "type": "block",
           "variant": "ordered",
+          "marker": ".",
           "items": [
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
               "checked": false,
-              "content": [
-                "Item 1"
-              ]
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1",
+                  "location": [{ "line": 11, "col": 7 }, { "line": 11, "col": 13 }]
+                }
+              ],
+              "location": [{ "line": 11, "col": 1 }, { "line": 11, "col": 13 }]
             },
             {
-              "level": 2,
-              "content": [
-                "Item 1.1"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "..",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1.1",
+                  "location": [{ "line": 12, "col": 4 }, { "line": 12, "col": 12 }]
+                }
+              ],
+              "location": [{ "line": 12, "col": 1 }, { "line": 12, "col": 12 }]
             },
             {
-              "level": 3,
+              "name": "listItem",
+              "type": "block",
+              "marker": "...",
               "checked": true,
-              "content": [
-                "Item 1.1.1"
-              ]
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1.1.1",
+                  "location": [{ "line": 13, "col": 9 }, { "line": 13, "col": 19 }]
+                }
+              ],
+              "location": [{ "line": 13, "col": 1 }, { "line": 13, "col": 19 }]
             },
             {
-              "level": 1,
-              "content": [
-                "Item 2"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2",
+                  "location": [{ "line": 14, "col": 3 }, { "line": 14, "col": 9 }]
+                }
+              ],
+              "location": [{ "line": 14, "col": 1 }, { "line": 14, "col": 9 }]
             },
             {
-              "level": 2,
-              "content": [
-                "Item 2.1"
-              ]
+              "name": "listItem",
+              "type": "block",
+              "marker": "..",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2.1",
+                  "location": [{ "line": 15, "col": 4 }, { "line": 15, "col": 12 }]
+                }
+              ],
+              "location": [{ "line": 15, "col": 1 }, { "line": 15, "col": 12 }]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
               "checked": true,
-              "content": [
-                "Item 3"
-              ]
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 3",
+                  "location": [{ "line": 16, "col": 7 }, { "line": 16, "col": 13 }]
+                }
+              ],
+              "location": [{ "line": 16, "col": 1 }, { "line": 16, "col": 13 }]
             }
           ],
           "location": [

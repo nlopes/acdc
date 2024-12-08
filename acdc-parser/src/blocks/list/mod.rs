@@ -4,7 +4,7 @@ mod simple;
 
 use std::collections::HashMap;
 
-use acdc_core::{DocumentAttributes, Location, Position};
+use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
 use crate::{
@@ -27,10 +27,8 @@ pub(crate) fn parse_list(
         title: Vec::new(),
         metadata: metadata.clone(),
         items: Vec::new(),
-        location: Location {
-            start: Position { line: 0, column: 0 },
-            end: Position { line: 0, column: 0 },
-        },
+        marker: String::new(),
+        location: Location::default(),
     });
 
     for pair in pairs {

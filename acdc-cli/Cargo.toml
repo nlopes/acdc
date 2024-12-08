@@ -1,0 +1,16 @@
+[package]
+name = "acdc-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+acdc-parser = { path = "../acdc-parser" }
+anyhow = "1.0.93"
+clap = { version = "4.5.20", features = ["derive"] }
+serde_json.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

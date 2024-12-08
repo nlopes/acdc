@@ -35,6 +35,34 @@ pub enum InlineNode {
     Macro(InlineMacro),
 }
 
+impl InlineNode {
+    pub fn shift_start_location(&mut self, line: usize, column: usize) {
+        match self {
+            InlineNode::PlainText(plain) => plain.location.shift_start(line, column),
+            InlineNode::BoldText(bold) => bold.location.shift_start(line, column),
+            InlineNode::ItalicText(italic) => italic.location.shift_start(line, column),
+            InlineNode::MonospaceText(monospace) => monospace.location.shift_start(line, column),
+            InlineNode::HighlightText(highlight) => highlight.location.shift_start(line, column),
+            InlineNode::SubscriptText(subscript) => subscript.location.shift_start(line, column),
+            InlineNode::SuperscriptText(superscript) => {
+                superscript.location.shift_start(line, column);
+            }
+            InlineNode::LineBreak(linebreak) => linebreak.location.shift_start(line, column),
+            InlineNode::Macro(macro_) => match macro_ {
+                InlineMacro::Icon(icon) => icon.location.shift_start(line, column),
+                InlineMacro::Image(image) => image.location.shift_start(line, column),
+                InlineMacro::Keyboard(keyboard) => keyboard.location.shift_start(line, column),
+                InlineMacro::Button(button) => button.location.shift_start(line, column),
+                InlineMacro::Menu(menu) => menu.location.shift_start(line, column),
+                InlineMacro::Url(url) => url.location.shift_start(line, column),
+                InlineMacro::Link(inline_link) => inline_link.location.shift_start(line, column),
+                InlineMacro::Autolink(autolink) => autolink.location.shift_start(line, column),
+                InlineMacro::Pass(pass) => pass.location.shift_start(line, column),
+            },
+        }
+    }
+}
+
 /// An `InlineMacro` represents an inline macro in a document.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]

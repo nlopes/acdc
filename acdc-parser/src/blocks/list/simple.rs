@@ -61,17 +61,23 @@ impl Block {
                 unknown => unreachable!("{unknown:?}"),
             }
         }
+
+        // We need to clone the marker from the first item
+        let marker = items[0].marker.clone();
+
         Ok(match kind {
             "ordered" => Block::OrderedList(OrderedList {
                 title,
                 metadata,
                 items,
+                marker,
                 location,
             }),
             _ => Block::UnorderedList(UnorderedList {
                 title,
                 metadata,
                 items,
+                marker,
                 location,
             }),
         })

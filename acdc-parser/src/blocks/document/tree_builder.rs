@@ -16,6 +16,7 @@ fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> R
                     metadata: delimited_block.metadata,
                     inner: DelimitedBlockType::DelimitedExample(blocks),
                     title: delimited_block.title,
+                    delimiter: delimited_block.delimiter,
                     location: delimited_block.location,
                 }));
             }
@@ -26,6 +27,7 @@ fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> R
                     metadata: delimited_block.metadata,
                     inner: DelimitedBlockType::DelimitedQuote(blocks),
                     title: delimited_block.title,
+                    delimiter: delimited_block.delimiter,
                     location: delimited_block.location,
                 }));
             }
@@ -36,6 +38,7 @@ fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> R
                     metadata: delimited_block.metadata,
                     inner: DelimitedBlockType::DelimitedOpen(blocks),
                     title: delimited_block.title,
+                    delimiter: delimited_block.delimiter,
                     location: delimited_block.location,
                 }));
             }
@@ -46,6 +49,7 @@ fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> R
                     metadata: delimited_block.metadata,
                     inner: DelimitedBlockType::DelimitedSidebar(blocks),
                     title: delimited_block.title,
+                    delimiter: delimited_block.delimiter,
                     location: delimited_block.location,
                 }));
             }

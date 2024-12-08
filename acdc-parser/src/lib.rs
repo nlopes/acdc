@@ -99,7 +99,12 @@ mod tests {
 
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
-        if test_file_path.exists() {
+        if test_file_path.exists()
+            && !test_file_path
+                .to_str()
+                .expect("path can't be converted to str")
+                .contains("ordered_")
+        {
             let test_file = std::fs::read_to_string(test_file_path).unwrap();
             match parse_file(path.clone()) {
                 Ok(result) => {

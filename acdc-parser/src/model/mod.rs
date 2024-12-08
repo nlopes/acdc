@@ -127,6 +127,16 @@ impl BlockMetadata {
     pub fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>) {
         self.attributes = attributes;
     }
+
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        self.roles.is_empty()
+            && self.options.is_empty()
+            && self.style.is_none()
+            && self.id.is_none()
+            && self.anchors.is_empty()
+            && self.attributes.is_empty()
+    }
 }
 
 /// A `Block` represents a block in a document.
@@ -134,6 +144,7 @@ impl BlockMetadata {
 /// A block is a structural element in a document that can contain other blocks.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum Block {
     Admonition(Admonition),
     DiscreteHeader(DiscreteHeader),
@@ -283,30 +294,35 @@ pub enum DescriptionListDescription {
 }
 
 /// A `UnorderedList` represents an unordered list in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UnorderedList {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<ListItem>,
+    pub marker: String,
     pub location: Location,
 }
 
 /// An `OrderedList` represents an ordered list in a document.
-pub type OrderedList = UnorderedList;
+#[derive(Clone, Debug, PartialEq)]
+pub struct OrderedList {
+    pub title: Vec<InlineNode>,
+    pub metadata: BlockMetadata,
+    pub items: Vec<ListItem>,
+    pub marker: String,
+    pub location: Location,
+}
 pub type ListLevel = u8;
 
 /// A `ListItem` represents a list item in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ListItem {
     // TODO(nlopes): missing anchors
     pub level: ListLevel,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marker: String,
     pub checked: Option<bool>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub content: Vec<String>,
+    pub content: Vec<InlineNode>,
+    pub location: Location,
 }
 
 /// A `Paragraph` represents a paragraph in a document.
@@ -322,21 +338,15 @@ pub struct Paragraph {
 }
 
 fn is_default_metadata(metadata: &BlockMetadata) -> bool {
-    metadata.roles.is_empty()
-        && metadata.options.is_empty()
-        && metadata.style.is_none()
-        && metadata.id.is_none()
-        && metadata.anchors.is_empty()
-        && metadata.attributes.is_empty()
+    metadata.is_default()
 }
 
 /// A `DelimitedBlock` represents a delimited block in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DelimitedBlock {
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delimiter: String,
     pub title: Vec<InlineNode>,
     pub location: Location,
 }
@@ -384,10 +394,11 @@ impl FromStr for AdmonitionVariant {
 /// A `DelimitedBlockType` represents the type of a delimited block in a document.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum DelimitedBlockType {
     DelimitedComment(Vec<InlineNode>),
     DelimitedExample(Vec<Block>),
-    DelimitedListing(Vec<InlineNode>), // TODO: this should be a Vec<InlineNode>
+    DelimitedListing(Vec<InlineNode>),
     DelimitedLiteral(Vec<InlineNode>),
     DelimitedOpen(Vec<Block>),
     DelimitedSidebar(Vec<Block>),
@@ -395,6 +406,23 @@ pub enum DelimitedBlockType {
     DelimitedPass(Vec<InlineNode>),
     DelimitedQuote(Vec<Block>),
     DelimitedVerse(Vec<InlineNode>),
+}
+
+impl DelimitedBlockType {
+    fn name(&self) -> &'static str {
+        match self {
+            DelimitedBlockType::DelimitedComment(_) => "comment",
+            DelimitedBlockType::DelimitedExample(_) => "example",
+            DelimitedBlockType::DelimitedListing(_) => "listing",
+            DelimitedBlockType::DelimitedLiteral(_) => "literal",
+            DelimitedBlockType::DelimitedOpen(_) => "open",
+            DelimitedBlockType::DelimitedSidebar(_) => "sidebar",
+            DelimitedBlockType::DelimitedTable(_) => "table",
+            DelimitedBlockType::DelimitedPass(_) => "pass",
+            DelimitedBlockType::DelimitedQuote(_) => "quote",
+            DelimitedBlockType::DelimitedVerse(_) => "verse",
+        }
+    }
 }
 
 /// A `SectionLevel` represents a section depth in a document.
@@ -423,11 +451,9 @@ pub struct TableColumn {
 /// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Section {
-    //#[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub title: Vec<InlineNode>,
     pub level: SectionLevel,
-    //#[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<Block>,
     pub location: Location,
 }
@@ -448,6 +474,87 @@ impl Serialize for Section {
         if !self.content.is_empty() {
             state.serialize_entry("content", &self.content)?;
         }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for DelimitedBlock {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", self.inner.name())?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("form", "delimited")?;
+        state.serialize_entry("delimiter", &self.delimiter)?;
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("blocks", &self.inner)?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for UnorderedList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "list")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "unordered")?;
+        state.serialize_entry("marker", &self.marker)?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for OrderedList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "list")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "ordered")?;
+        state.serialize_entry("marker", &self.marker)?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for ListItem {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "listItem")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("marker", &self.marker)?;
+        state.serialize_entry("principal", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }
@@ -508,6 +615,7 @@ impl<'de> Deserialize<'de> for Block {
                 let mut my_items = None;
                 let mut my_inlines = None;
                 let mut my_content: Option<serde_json::Value> = None;
+                let mut my_delimiter = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
@@ -535,6 +643,12 @@ impl<'de> Deserialize<'de> for Block {
                                 return Err(de::Error::duplicate_field("target"));
                             }
                             my_target = Some(map.next_value::<String>()?);
+                        }
+                        "delimiter" => {
+                            if my_delimiter.is_some() {
+                                return Err(de::Error::duplicate_field("delimiter"));
+                            }
+                            my_delimiter = Some(map.next_value::<String>()?);
                         }
                         "reftext" => {
                             if my_ref_text.is_some() {
@@ -731,6 +845,8 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -743,6 +859,7 @@ impl<'de> Deserialize<'de> for Block {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedExample(my_blocks),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -751,6 +868,8 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -762,6 +881,7 @@ impl<'de> Deserialize<'de> for Block {
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedSidebar(my_blocks),
+                            delimiter: my_delimiter,
                             title: my_title,
                             location: my_location,
                         }))
@@ -771,6 +891,8 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -783,6 +905,7 @@ impl<'de> Deserialize<'de> for Block {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedOpen(my_blocks),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -791,6 +914,8 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -803,6 +928,7 @@ impl<'de> Deserialize<'de> for Block {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedQuote(my_blocks),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -811,12 +937,15 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_inlines =
                             my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedVerse(my_inlines),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -825,12 +954,15 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_inlines =
                             my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedListing(my_inlines),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -839,12 +971,15 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_inlines =
                             my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedLiteral(my_inlines),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -853,12 +988,15 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let my_inlines =
                             my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedPass(my_inlines),
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -867,6 +1005,8 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "delimited" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
                         let inner = DelimitedBlockType::DelimitedTable(
                             serde_json::from_value(
                                 my_content.ok_or_else(|| de::Error::missing_field("content"))?,
@@ -880,6 +1020,7 @@ impl<'de> Deserialize<'de> for Block {
                             metadata: my_metadata,
                             inner,
                             title: my_title,
+                            delimiter: my_delimiter,
                             location: my_location,
                         }))
                     }
@@ -903,11 +1044,13 @@ impl<'de> Deserialize<'de> for Block {
                     ("list", "block") => {
                         let my_variant =
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        let _my_marker = my_marker.unwrap_or_else(String::new); // TODO: what is this marker?
+                        let my_marker =
+                            my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
                         match my_variant.as_str() {
                             "unordered" => Ok(Block::UnorderedList(UnorderedList {
                                 title: my_title,
                                 metadata: my_metadata,
+                                marker: my_marker,
                                 items: match my_items
                                     .ok_or_else(|| de::Error::missing_field("items"))?
                                 {
@@ -924,6 +1067,7 @@ impl<'de> Deserialize<'de> for Block {
                             "ordered" => Ok(Block::OrderedList(OrderedList {
                                 title: my_title,
                                 metadata: my_metadata,
+                                marker: my_marker,
                                 items: match my_items
                                     .ok_or_else(|| de::Error::missing_field("items"))?
                                 {
@@ -946,7 +1090,6 @@ impl<'de> Deserialize<'de> for Block {
                     ("admonition", "block") => {
                         let my_variant =
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        dbg!(&my_variant);
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -971,6 +1114,107 @@ impl<'de> Deserialize<'de> for Block {
             }
         }
 
+        deserializer.deserialize_map(MyStructVisitor)
+    }
+}
+
+impl<'de> Deserialize<'de> for ListItem {
+    #[allow(clippy::too_many_lines)]
+    fn deserialize<D>(deserializer: D) -> Result<ListItem, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct MyStructVisitor;
+
+        impl<'de> Visitor<'de> for MyStructVisitor {
+            type Value = ListItem;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a struct representing ListItem")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<ListItem, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut my_name = None;
+                let mut my_type = None;
+                let mut my_marker = None;
+                let mut my_principal: Option<Vec<InlineNode>> = None;
+                let mut my_location = None;
+                let mut my_checked = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "name" => {
+                            if my_name.is_some() {
+                                return Err(de::Error::duplicate_field("name"));
+                            }
+                            my_name = Some(map.next_value::<String>()?);
+                        }
+                        "type" => {
+                            if my_type.is_some() {
+                                return Err(de::Error::duplicate_field("type"));
+                            }
+                            my_type = Some(map.next_value::<String>()?);
+                        }
+                        "principal" => {
+                            if my_principal.is_some() {
+                                return Err(de::Error::duplicate_field("principal"));
+                            }
+                            my_principal = Some(map.next_value()?);
+                        }
+                        "checked" => {
+                            if my_checked.is_some() {
+                                return Err(de::Error::duplicate_field("marker"));
+                            }
+                            my_checked = Some(map.next_value::<Option<bool>>()?);
+                        }
+                        "marker" => {
+                            if my_marker.is_some() {
+                                return Err(de::Error::duplicate_field("marker"));
+                            }
+                            my_marker = Some(map.next_value::<String>()?);
+                        }
+                        "location" => {
+                            if my_location.is_some() {
+                                return Err(de::Error::duplicate_field("location"));
+                            }
+                            my_location = Some(map.next_value()?);
+                        }
+                        _ => {
+                            // Ignore any other fields
+                            let _ = map.next_value::<de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
+                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
+                let my_marker = my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
+                let my_location =
+                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
+                let my_principal =
+                    my_principal.ok_or_else(|| de::Error::missing_field("principal"))?;
+
+                if my_name != "listItem" {
+                    return Err(de::Error::custom(format!("unexpected name: {my_name}")));
+                }
+                if my_type != "block" {
+                    return Err(de::Error::custom(format!("unexpected type: {my_type}")));
+                }
+                let level = ListLevel::try_from(my_marker.len()).map_err(de::Error::custom)?;
+                let my_checked = my_checked.unwrap_or(None);
+
+                Ok(ListItem {
+                    marker: my_marker,
+                    content: my_principal,
+                    location: my_location,
+                    checked: my_checked,
+                    level,
+                })
+            }
+        }
         deserializer.deserialize_map(MyStructVisitor)
     }
 }

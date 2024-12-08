@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use acdc_core::{AttributeName, DocumentAttributes, Location};
-use pest::iterators::Pairs;
+use pest::iterators::Pair;
 
 use crate::{
     model::{BlockMetadata, OptionalAttributeValue, Table, TableColumn, TableRow},
@@ -10,7 +10,7 @@ use crate::{
 
 impl Table {
     pub(crate) fn parse(
-        pairs: &Pairs<Rule>,
+        pair: &Pair<Rule>,
         metadata: &BlockMetadata,
         attributes: &HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
@@ -41,7 +41,7 @@ impl Table {
         // Set this to true if the user mandates it!
         let mut has_header = metadata.options.contains(&String::from("header"));
 
-        let raw_rows = Self::parse_rows(pairs.as_str(), &separator, &mut has_header);
+        let raw_rows = Self::parse_rows(pair.as_str(), &separator, &mut has_header);
 
         // If the user forces a noheader, we should not have a header, so after we've
         // tried to figure out if there are any headers, we should set it to false one

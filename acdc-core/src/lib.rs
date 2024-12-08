@@ -31,6 +31,15 @@ pub struct Location {
     pub end: Position,
 }
 
+impl Location {
+    pub fn shift_start(&mut self, line: usize, column: usize) {
+        self.start.line += line - 1;
+        self.end.line += line - 1;
+        self.start.column += column - 1;
+        self.end.column += column - 1;
+    }
+}
+
 // We need to implement `Serialize` because I prefer our current `Location` struct to the
 // `asciidoc` `ASG` definition.
 //
