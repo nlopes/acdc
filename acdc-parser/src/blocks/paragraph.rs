@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::{Pair, Pairs};
@@ -6,7 +6,10 @@ use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines,
-    model::{Block, BlockMetadata, InlineNode, OptionalAttributeValue, Paragraph},
+    model::{
+        Admonition, AdmonitionVariant, Block, BlockMetadata, InlineNode, OptionalAttributeValue,
+        Paragraph,
+    },
     Error, Rule,
 };
 
@@ -42,7 +45,7 @@ impl Paragraph {
         for pair in pairs {
             match pair.as_rule() {
                 Rule::admonition => {
-                    admonition = Some(pair.as_str().to_string());
+                    admonition = Some(pair.as_str());
                 }
                 Rule::inlines => {
                     // TODO(nlopes): we should merge the parent_attributes, with the
@@ -76,13 +79,27 @@ impl Paragraph {
                 }
             }
         }
-        Ok(Block::Paragraph(Self {
-            metadata: metadata.clone(),
-            title,
-            content,
-            location,
-            admonition,
-        }))
+        if let Some(admonition) = admonition {
+            Ok(Block::Admonition(Admonition {
+                metadata: metadata.clone(),
+                title,
+                blocks: vec![Block::Paragraph(Self {
+                    metadata: metadata.clone(),
+                    title: Vec::new(),
+                    content,
+                    location: location.clone(),
+                })],
+                location,
+                variant: AdmonitionVariant::from_str(admonition)?,
+            }))
+        } else {
+            Ok(Block::Paragraph(Self {
+                metadata: metadata.clone(),
+                title,
+                content,
+                location,
+            }))
+        }
     }
 
     // TODO(nlopes): we probably need to offset the location so that it starts at whatever

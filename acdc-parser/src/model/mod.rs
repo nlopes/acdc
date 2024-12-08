@@ -1,5 +1,5 @@
 //! The data models for the `AsciiDoc` document.
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use acdc_core::{AttributeName, AttributeValue, DocumentAttributes, Location};
 use serde::{
@@ -7,6 +7,8 @@ use serde::{
     ser::{SerializeMap, Serializer},
     Deserialize, Serialize,
 };
+
+use crate::Error;
 
 mod inlines;
 
@@ -133,6 +135,7 @@ impl BlockMetadata {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum Block {
+    Admonition(Admonition),
     DiscreteHeader(DiscreteHeader),
     DocumentAttribute(DocumentAttribute),
     ThematicBreak(ThematicBreak),
@@ -316,8 +319,6 @@ pub struct Paragraph {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<InlineNode>,
     pub location: Location,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub admonition: Option<String>,
 }
 
 fn is_default_metadata(metadata: &BlockMetadata) -> bool {
@@ -338,6 +339,46 @@ pub struct DelimitedBlock {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub location: Location,
+}
+
+/// An `Admonition` represents an admonition in a document.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Admonition {
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
+    pub metadata: BlockMetadata,
+    pub variant: AdmonitionVariant,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub blocks: Vec<Block>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub title: Vec<InlineNode>,
+    pub location: Location,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AdmonitionVariant {
+    Note,
+    Tip,
+    Important,
+    Caution,
+    Warning,
+}
+
+impl FromStr for AdmonitionVariant {
+    type Err = Error;
+
+    fn from_str(variant: &str) -> Result<Self, Self::Err> {
+        match variant {
+            "NOTE" | "note" => Ok(AdmonitionVariant::Note),
+            "TIP" | "tip" => Ok(AdmonitionVariant::Tip),
+            "IMPORTANT" | "important" => Ok(AdmonitionVariant::Important),
+            "CAUTION" | "caution" => Ok(AdmonitionVariant::Caution),
+            "WARNING" | "warning" => Ok(AdmonitionVariant::Warning),
+            _ => Err(Error::Parse(format!(
+                "unknown admonition variant: {variant}"
+            ))),
+        }
+    }
 }
 
 /// A `DelimitedBlockType` represents the type of a delimited block in a document.
@@ -615,7 +656,6 @@ impl<'de> Deserialize<'de> for Block {
                             title: my_title,
                             content: my_inlines,
                             location: my_location,
-                            admonition: None,
                         }))
                     }
                     ("image", "block") => {
@@ -915,18 +955,14 @@ impl<'de> Deserialize<'de> for Block {
                                     .collect::<Result<Vec<Block>, _>>()?,
                                 _ => return Err(de::Error::custom("blocks must be an array")),
                             };
-                        if let [first, ..] = my_blocks.as_slice() {
-                            if let Block::Paragraph(paragraph) = first {
-                                Ok(Block::Paragraph(Paragraph {
-                                    admonition: Some(my_variant),
-                                    ..paragraph.clone()
-                                }))
-                            } else {
-                                Err(de::Error::custom("admonition must start with a paragraph"))
-                            }
-                        } else {
-                            Err(de::Error::custom("admonition must have at least one block"))
-                        }
+                        Ok(Block::Admonition(Admonition {
+                            metadata: my_metadata,
+                            variant: AdmonitionVariant::from_str(my_variant.as_str())
+                                .map_err(de::Error::custom)?,
+                            blocks: my_blocks,
+                            title: my_title,
+                            location: my_location,
+                        }))
                     }
                     _ => Err(de::Error::custom(format!(
                         "unexpected name/type combination: {my_name}/{my_type}",

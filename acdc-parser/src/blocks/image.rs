@@ -79,6 +79,7 @@ impl Image {
                     }
                     attribute_idx += 1;
                 }
+                Rule::open_sb | Rule::close_sb => {}
                 unknown => unreachable!("{unknown:?}"),
             };
         }

@@ -1,0 +1,66 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "important",
+      "delimited": " ",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Feeding the Werewolves",
+          "location": [{"line": 2, "col": 2},{"line": 2,"col": 24}]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "While werewolves are hardy community members, keep in mind the following dietary concerns:",
+              "location": [{"line": 1, "col": 1},{"line": 1,"col": 91}]
+            }
+          ],
+          "location": [{"line": 1, "col": 1},{"line": 1,"col": 91}]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "items": [
+            {
+              "level": 1,
+              "checked": null,
+              "content": [
+                "They are allergic to cinnamon."
+              ]
+            },
+            {
+              "level": 1,
+              "checked": null,
+              "content": [
+                "More than two glasses of orange juice in 24 hours makes them howl in harmony with alarms and sirens."
+              ]
+            },
+            {
+              "level": 1,
+              "checked": null,
+              "content": [
+                "Celery makes them sad."
+              ]
+            }
+          ],
+          "location": [{"line": 3,"col": 1},{"line": 5,"col": 25}]
+        }
+      ],
+      "location": [{"line": 1, "col": 1},{"line": 9,"col": 5}]
+    }
+  ],
+  "location": [{"line": 1,"col": 1},{"line": 9,"col": 5}]
+}
