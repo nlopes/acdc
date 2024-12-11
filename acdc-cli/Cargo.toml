@@ -7,10 +7,16 @@ description.workspace = true
 
 [dependencies]
 acdc-parser = { path = "../acdc-parser" }
+acdc-term = { path = "../acdc-term", optional = true }
 anyhow = "1.0.93"
 clap = { version = "4.5.20", features = ["derive"] }
 serde_json.workspace = true
 tracing.workspace = true
+
+[features]
+default = ["html"]
+terminal = ["dep:acdc-term"]
+html = []
 
 [lints]
 workspace = true

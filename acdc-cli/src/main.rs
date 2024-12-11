@@ -1,23 +1,64 @@
 use std::{
+    fmt,
     io::{self, BufReader, Read},
     path::PathBuf,
 };
 
 use anyhow::Result;
-use clap::{ArgGroup, Parser};
+use clap::{Parser, ValueEnum};
+
+#[derive(Debug, ValueEnum, Clone)]
+enum Backend {
+    Html,
+    #[cfg(feature = "terminal")]
+    Terminal,
+}
+
+impl fmt::Display for Backend {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Backend::Html => write!(f, "html"),
+
+            #[cfg(feature = "terminal")]
+            Backend::Terminal => write!(f, "terminal"),
+        }
+    }
+}
+
+#[derive(Debug, ValueEnum, Clone)]
+enum Doctype {
+    Article,
+    Book,
+    Manpage,
+    Inline,
+}
+
+impl fmt::Display for Doctype {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Doctype::Article => write!(f, "article"),
+            Doctype::Book => write!(f, "book"),
+            Doctype::Manpage => write!(f, "manpage"),
+            Doctype::Inline => write!(f, "inline"),
+        }
+    }
+}
 
 /// Parses files
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-#[command(group(
-    ArgGroup::new("input")
-        .required(true)
-        .args(["tck_mode", "files"])
-))]
 struct Args {
     /// List of files to parse
     #[arg(required = true, conflicts_with = "tck_mode")]
     files: Vec<PathBuf>,
+
+    /// backend output format
+    #[arg(long, required = true, conflicts_with = "tck_mode", default_value_t = Backend::Html)]
+    backend: Backend,
+
+    /// document type to use when converting document
+    #[arg(long, required = true, conflicts_with = "tck_mode", default_value_t = Doctype::Article)]
+    doctype: Doctype,
 
     /// Run in TCK compatible mode, taking a single `AsciiDoc` document from `stdin` and
     /// outputting JSON to `stdout`
@@ -30,10 +71,7 @@ fn main() -> Result<()> {
     if args.tck_mode {
         handle_tck_mode()?;
     } else {
-        todo!();
-        // for file in &args.files {
-        //     let doc = acdc_parser::parse_file(file)?;
-        // }
+        handle_normal_mode(args)?;
     }
 
     Ok(())
@@ -45,7 +83,26 @@ fn handle_tck_mode() -> Result<()> {
     let mut input = String::new();
     reader.read_to_string(&mut input)?;
 
+    use std::io::Write;
     let doc = acdc_parser::parse(&input)?;
-    serde_json::to_writer_pretty(io::stdout(), &doc)?;
+    let mut stdout = io::stdout();
+    serde_json::to_writer_pretty(&stdout, &doc)?;
+    stdout.flush()?;
+    Ok(())
+}
+
+fn handle_normal_mode(args: Args) -> Result<()> {
+    match args.backend {
+        Backend::Html => {
+            todo!("html backend")
+        }
+
+        #[cfg(feature = "terminal")]
+        Backend::Terminal => {
+            for file in &args.files {
+                acdc_term::parse_file(file)?;
+            }
+        }
+    }
     Ok(())
 }

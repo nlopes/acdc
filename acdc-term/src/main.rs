@@ -1,10 +1,7 @@
-use std::io::{self, Write};
 use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-
-use acdc_term::Render;
 
 /// Parses files
 #[derive(Parser, Debug)]
@@ -18,15 +15,7 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
     for file in &args.files {
-        parse_file(file)?;
+        acdc_term::parse_file(file)?;
     }
-    Ok(())
-}
-
-fn parse_file(file: &PathBuf) -> Result<()> {
-    let doc = acdc_parser::parse_file(file)?;
-    let mut stdout = io::stdout();
-    doc.render(&mut stdout)?;
-    stdout.flush()?;
     Ok(())
 }
