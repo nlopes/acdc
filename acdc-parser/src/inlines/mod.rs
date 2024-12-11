@@ -44,7 +44,7 @@ impl InlineNode {
                 },
                 end: Position {
                     line: end.line_col().0,
-                    column: end.line_col().1,
+                    column: end.line_col().1 - 1,
                 },
             };
 
@@ -147,7 +147,7 @@ impl InlineNode {
             },
             end: Position {
                 line: end.line_col().0,
-                column: end.line_col().1,
+                column: end.line_col().1 - 1,
             },
         };
 

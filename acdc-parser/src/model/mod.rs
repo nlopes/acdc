@@ -326,13 +326,10 @@ pub struct ListItem {
 }
 
 /// A `Paragraph` represents a paragraph in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Paragraph {
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<InlineNode>,
     pub location: Location,
 }
@@ -573,6 +570,26 @@ impl Serialize for DiscreteHeader {
         state.serialize_entry("level", &self.level)?;
         if !self.anchors.is_empty() {
             state.serialize_entry("anchors", &self.anchors)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for Paragraph {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "paragraph")?;
+        state.serialize_entry("type", "block")?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        state.serialize_entry("inlines", &self.content)?;
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -1124,9 +1141,9 @@ impl<'de> Deserialize<'de> for ListItem {
     where
         D: Deserializer<'de>,
     {
-        struct MyStructVisitor;
+        struct ListItemVisitor;
 
-        impl<'de> Visitor<'de> for MyStructVisitor {
+        impl<'de> Visitor<'de> for ListItemVisitor {
             type Value = ListItem;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -1203,7 +1220,11 @@ impl<'de> Deserialize<'de> for ListItem {
                 if my_type != "block" {
                     return Err(de::Error::custom(format!("unexpected type: {my_type}")));
                 }
-                let level = ListLevel::try_from(my_marker.len()).map_err(de::Error::custom)?;
+
+                // Calculate the level of depth of the list item from the marker
+                let level =
+                    ListLevel::try_from(ListItem::parse_depth_from_marker(&my_marker).unwrap_or(1))
+                        .map_err(de::Error::custom)?;
                 let my_checked = my_checked.unwrap_or(None);
 
                 Ok(ListItem {
@@ -1215,6 +1236,6 @@ impl<'de> Deserialize<'de> for ListItem {
                 })
             }
         }
-        deserializer.deserialize_map(MyStructVisitor)
+        deserializer.deserialize_map(ListItemVisitor)
     }
 }

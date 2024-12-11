@@ -19,7 +19,7 @@
           "name": "list",
           "type": "block",
           "variant": "ordered",
-          "marker": ".",
+          "marker": "1.",
           "items": [
             {
               "name": "listItem",

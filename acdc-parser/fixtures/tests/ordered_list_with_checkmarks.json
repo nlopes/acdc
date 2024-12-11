@@ -24,7 +24,7 @@
             {
               "name": "listItem",
               "type": "block",
-              "marker": "1.",
+              "marker": ".",
               "checked": false,
               "principal": [
                 {
@@ -39,7 +39,7 @@
             {
               "name": "listItem",
               "type": "block",
-              "marker": "2.",
+              "marker": ".",
               "principal": [
                 {
                   "name": "text",
@@ -53,7 +53,7 @@
             {
               "name": "listItem",
               "type": "block",
-              "marker": "3.",
+              "marker": ".",
               "checked": true,
               "principal": [
                 {

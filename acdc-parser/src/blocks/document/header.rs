@@ -28,7 +28,7 @@ impl Header {
             }
             location.end = Position {
                 line: pair.as_span().end_pos().line_col().0,
-                column: pair.as_span().end_pos().line_col().1,
+                column: pair.as_span().end_pos().line_col().1 - 1,
             };
             match pair.as_rule() {
                 Rule::document_title_token => {
@@ -54,7 +54,7 @@ impl Header {
                                     },
                                     end: Position {
                                         line: inner_pair.as_span().end_pos().line_col().0,
-                                        column: inner_pair.as_span().end_pos().line_col().1,
+                                        column: inner_pair.as_span().end_pos().line_col().1 - 1,
                                     },
                                 };
                                 title = if inner_pair.clone().into_inner().as_str().is_empty() {

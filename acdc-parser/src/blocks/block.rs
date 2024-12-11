@@ -187,7 +187,7 @@ impl Block {
             if i == len - 1 {
                 location.end = Position {
                     line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1,
+                    column: pair.as_span().end_pos().line_col().1 - 1,
                 };
             }
             match pair.as_rule() {

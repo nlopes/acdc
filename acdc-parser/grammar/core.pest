@@ -73,7 +73,7 @@ named_attribute_value = {
     ("\"" ~ inner_attribute_value ~ "\"") |
     ( (!"," ~ !"]" ~ ANY)+ )
 }
-positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY)+ }
+positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY) ~ (!("\"" | "," | "]" | "#" | "%") ~ ANY)* }
 inner_attribute_value = _{ ( "\\\"" | (!"\"" ~ ANY))* }
 
 url = ${proto ~ "://" ~ path}
