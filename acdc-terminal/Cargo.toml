@@ -1,0 +1,19 @@
+[package]
+name = "acdc-terminal"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+acdc-core = { path = "../acdc-core" }
+acdc-parser = { path = "../acdc-parser" }
+anyhow = "1.0.93"
+clap = { version = "4.5.20", features = ["derive"] }
+comfy-table = "7.1.3"
+crossterm = "0.28.1"
+thiserror.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true

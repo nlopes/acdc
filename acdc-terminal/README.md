@@ -1,11 +1,11 @@
-# `acdc-term`
+# `acdc-terminal`
 
 A simple terminal parser for `AsciiDoc` documents.
 
 ## Usage
 
 ```bash
-acdc-term samples/simple.adoc
+acdc-terminal samples/simple.adoc
 ```
 
 ![Simple Document](images/simple.adoc.png)
@@ -13,7 +13,7 @@ acdc-term samples/simple.adoc
 You can also pass multiple files and it will parse and print them all.
 
 ```bash
-acdc-term samples/*
+acdc-terminal samples/*
 ```
 
 ## Examples

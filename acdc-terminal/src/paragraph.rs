@@ -8,8 +8,12 @@ impl Render for acdc_parser::Paragraph {
             node.render(w)?;
         }
 
-        for node in &self.content {
+        let last_index = self.content.len() - 1;
+        for (i, node) in self.content.iter().enumerate() {
             node.render(w)?;
+            if i != last_index {
+                write!(w, " ")?;
+            }
         }
         Ok(())
     }

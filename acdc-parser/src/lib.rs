@@ -47,9 +47,9 @@ pub use model::{
     Anchor, AttributeEntry, AudioSource, Author, Autolink, Block, BlockMetadata, Bold, Button,
     DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
     DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Highlight, Icon,
-    Image, ImageSource, InlineMacro, InlineNode, Italic, Keyboard, Link, ListItem, Menu, Monospace,
-    OrderedList, PageBreak, Paragraph, Pass, Plain, Section, Subscript, Superscript, Table,
-    ThematicBreak, UnorderedList, Url, VideoSource,
+    Image, ImageSource, InlineMacro, InlineNode, Italic, Keyboard, Link, LinkTarget, ListItem,
+    Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, Plain, Section, Subscript,
+    Superscript, Table, ThematicBreak, UnorderedList, Url, VideoSource,
 };
 
 #[derive(Parser, Debug)]

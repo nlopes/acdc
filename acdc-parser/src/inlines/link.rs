@@ -13,7 +13,6 @@ impl Link {
         let mut target = LinkTarget::Url(String::new());
         let mut attributes = HashMap::new();
         for pair in pairs {
-            dbg!(&pair);
             match pair.as_rule() {
                 Rule::url => target = LinkTarget::Url(pair.as_str().to_string()),
                 Rule::path => target = LinkTarget::Path(Path::new(pair.as_str()).to_path_buf()),

@@ -5,6 +5,9 @@ use serde::{
     Deserialize, Serialize,
 };
 
+mod config;
+pub use config::*;
+
 pub type DocumentAttributes = HashMap<AttributeName, AttributeValue>;
 
 /// An `AttributeName` represents the name of an attribute in a document.

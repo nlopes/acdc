@@ -78,7 +78,29 @@ impl Render for acdc_parser::InlineNode {
                 ))?;
                 Ok(())
             }
-            unknown => unimplemented!("{:?}", unknown),
+            // implement macro link
+            acdc_parser::InlineNode::Macro(m) => {
+                m.render(w)?;
+                Ok(())
+            }
+            unknown => unimplemented!("GAH: {:?}", unknown),
         }
+    }
+}
+
+impl Render for acdc_parser::InlineMacro {
+    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+        match self {
+            acdc_parser::InlineMacro::Link(l) => match &l.target {
+                acdc_parser::LinkTarget::Url(url) => {
+                    write!(w, "{url}")?;
+                }
+                acdc_parser::LinkTarget::Path(path) => {
+                    write!(w, "{}", path.display())?;
+                }
+            },
+            unknown => unimplemented!("GAH: {:?}", unknown),
+        }
+        Ok(())
     }
 }

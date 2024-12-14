@@ -12,9 +12,10 @@ impl Render for acdc_parser::Document {
         if let Some(header) = &self.header {
             header.render(w)?;
         }
+        let last_index = self.blocks.len() - 1;
         for (i, block) in self.blocks.iter().enumerate() {
             block.render(w)?;
-            if i != self.blocks.len() - 1 {
+            if i != last_index {
                 writeln!(w)?;
             }
         }
@@ -42,6 +43,7 @@ impl Render for acdc_parser::Header {
                 })?;
             writeln!(w)?;
         }
+        w.queue(Print("\n\n"))?;
         Ok(())
     }
 }
