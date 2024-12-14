@@ -16,14 +16,14 @@
               "name": "text",
               "type": "string",
               "value": "Here is a paragraph with a notice.",
-              "location": [{"line": 1, "col": 12},{"line": 1,"col": 46}]
+              "location": [{"line": 1, "col": 12},{"line": 1,"col": 45}]
             }
           ],
           "location": [{"line": 1, "col": 1},{"line": 1,"col": 45}]
         }
       ],
-      "location": [{"line": 1, "col": 1},{"line": 1,"col": 46}]
+      "location": [{"line": 1, "col": 1},{"line": 1,"col": 45}]
     }
   ],
-  "location": [{"line": 1,"col": 1},{"line": 1,"col": 46}]
+  "location": [{"line": 1,"col": 1},{"line": 1,"col": 45}]
 }

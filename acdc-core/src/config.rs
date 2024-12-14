@@ -30,5 +30,12 @@ pub trait Processable {
     type Error;
 
     fn new(config: Self::Config) -> Self;
+
+    /// Process a list of files
+    ///
+    /// # Errors
+    ///
+    /// Will typically return parsing or rendering errors. Implementations are free to
+    /// return any error type they wish though.
     fn process_files<P: AsRef<Path>>(&self, files: &[P]) -> Result<(), Self::Error>;
 }

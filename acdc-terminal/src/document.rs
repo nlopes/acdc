@@ -12,11 +12,13 @@ impl Render for acdc_parser::Document {
         if let Some(header) = &self.header {
             header.render(w)?;
         }
-        let last_index = self.blocks.len() - 1;
-        for (i, block) in self.blocks.iter().enumerate() {
-            block.render(w)?;
-            if i != last_index {
-                writeln!(w)?;
+        if !self.blocks.is_empty() {
+            let last_index = self.blocks.len() - 1;
+            for (i, block) in self.blocks.iter().enumerate() {
+                block.render(w)?;
+                if i != last_index {
+                    writeln!(w)?;
+                }
             }
         }
         Ok(())
@@ -100,7 +102,7 @@ mod tests {
         doc.blocks = vec![];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(buffer, b"Title\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n");
+        assert_eq!(buffer, b"Title\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
     }
 
     #[test]
@@ -137,6 +139,6 @@ mod tests {
         ];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(buffer, b"\nHello, world!\n\n> Section <\n\nHello, section!");
+        assert_eq!(buffer, b"Hello, world!\n\n> Section <\nHello, section!\n\n");
     }
 }

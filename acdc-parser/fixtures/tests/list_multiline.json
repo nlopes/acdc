@@ -17,7 +17,7 @@
               "name": "text",
               "type": "string",
               "value": "The document header in AsciiDoc is optional.\nIf present, it must start with a document title.",
-              "location": [{ "line": 1, "col": 3 }, { "line": 2, "col": 51 }]
+              "location": [{ "line": 1, "col": 3 }, { "line": 2, "col": 50 }]
             }
           ],
           "location": [{ "line": 1, "col": 1 }, { "line": 2, "col": 49 }]
@@ -30,7 +30,7 @@
         },
         {
           "line": 3,
-          "col": 1
+          "col": 0
         }
       ]
     },
@@ -49,7 +49,7 @@
               "name": "text",
               "type": "string",
               "value": "Optional author and revision information lines\nimmediately follow the document title.",
-              "location": [{ "line": 4, "col": 3 }, { "line": 5, "col": 41 }]
+              "location": [{ "line": 4, "col": 3 }, { "line": 5, "col": 40 }]
             }
           ],
           "location": [{ "line": 4, "col": 1 }, { "line": 5, "col": 39 }]
@@ -62,7 +62,7 @@
         },
         {
           "line": 6,
-          "col": 1
+          "col": 0
         }
       ]
     },
@@ -81,7 +81,7 @@
               "name": "text",
               "type": "string",
               "value": "The document header must be separated from\n  the remainder of the document by one or more\n  empty lines and it cannot contain empty lines.",
-              "location": [{ "line": 7, "col": 3 }, { "line": 9, "col": 51 }]
+              "location": [{ "line": 7, "col": 3 }, { "line": 9, "col": 50 }]
             }
           ],
           "location": [{ "line": 7, "col": 1 }, { "line": 9, "col": 49 }]
@@ -94,7 +94,7 @@
         },
         {
           "line": 9,
-          "col": 49
+          "col": 48
         }
       ]
     }
@@ -106,7 +106,7 @@
     },
     {
       "line": 9,
-      "col": 49
+      "col": 48
     }
   ]
 }
