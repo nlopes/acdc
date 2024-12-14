@@ -10,7 +10,7 @@ acdc-core = { path = "../acdc-core" }
 acdc-html = { path = "../acdc-html", optional = true }
 acdc-parser = { path = "../acdc-parser" }
 acdc-terminal = { path = "../acdc-terminal", optional = true }
-anyhow = "1.0.93"
+anyhow = "1.0.94"
 clap.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
