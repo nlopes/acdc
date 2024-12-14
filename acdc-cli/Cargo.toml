@@ -1,0 +1,25 @@
+[package]
+name = "acdc-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+acdc-core = { path = "../acdc-core" }
+acdc-html = { path = "../acdc-html", optional = true }
+acdc-parser = { path = "../acdc-parser" }
+acdc-terminal = { path = "../acdc-terminal", optional = true }
+anyhow = "1.0.93"
+clap.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
+[features]
+default = ["html"]
+terminal = ["dep:acdc-terminal"]
+html = ["dep:acdc-html"]
+
+[lints]
+workspace = true

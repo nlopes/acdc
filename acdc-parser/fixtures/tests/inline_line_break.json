@@ -1,0 +1,76 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Rubies are red,",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "linebreak",
+          "type": "string",
+          "location": [
+            {
+              "line": 1,
+              "col": 16
+            },
+            {
+              "line": 2,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Topazes are blue.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 18
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 18
+    }
+  ]
+}

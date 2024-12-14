@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
@@ -8,8 +8,9 @@ use crate::{
     blocks::list::parse_list,
     inlines::parse_inlines,
     model::{
-        Anchor, Audio, Block, BlockMetadata, DelimitedBlock, Image, InlineNode, PageBreak,
-        Paragraph, Section, ThematicBreak, Video,
+        Admonition, AdmonitionVariant, Anchor, Audio, Block, BlockMetadata, DelimitedBlock,
+        DelimitedBlockType, Image, InlineNode, OptionalAttributeValue, PageBreak, Paragraph,
+        Section, ThematicBreak, Video,
     },
     Error, Rule,
 };
@@ -30,24 +31,30 @@ impl BlockExt for Block {
             Block::Image(image) => image.metadata = metadata,
             Block::Audio(audio) => audio.metadata = metadata,
             Block::Video(video) => video.metadata = metadata,
+            Block::Admonition(admonition) => admonition.metadata = metadata,
         }
     }
 
-    fn set_attributes(&mut self, attributes: HashMap<AttributeName, Option<String>>) {
+    fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>) {
         match self {
             Block::DiscreteHeader(_header) => {}
             Block::DocumentAttribute(_attr) => {}
             Block::ThematicBreak(_thematic_break) => {}
-            Block::PageBreak(page_break) => page_break.attributes = attributes,
-            Block::UnorderedList(unordered_list) => unordered_list.attributes = attributes,
-            Block::OrderedList(ordered_list) => ordered_list.attributes = attributes,
-            Block::DescriptionList(description_list) => description_list.attributes = attributes,
-            Block::Section(section) => section.attributes = attributes,
-            Block::DelimitedBlock(delimited_block) => delimited_block.attributes = attributes,
-            Block::Paragraph(paragraph) => paragraph.attributes = attributes,
-            Block::Image(image) => image.attributes = attributes,
-            Block::Audio(audio) => audio.attributes = attributes,
-            Block::Video(video) => video.attributes = attributes,
+            Block::PageBreak(page_break) => page_break.metadata.attributes = attributes,
+            Block::UnorderedList(unordered_list) => unordered_list.metadata.attributes = attributes,
+            Block::OrderedList(ordered_list) => ordered_list.metadata.attributes = attributes,
+            Block::DescriptionList(description_list) => {
+                description_list.metadata.attributes = attributes;
+            }
+            Block::Section(section) => section.metadata.attributes = attributes,
+            Block::DelimitedBlock(delimited_block) => {
+                delimited_block.metadata.attributes = attributes;
+            }
+            Block::Paragraph(paragraph) => paragraph.metadata.attributes = attributes,
+            Block::Image(image) => image.metadata.attributes = attributes,
+            Block::Audio(audio) => audio.metadata.attributes = attributes,
+            Block::Video(video) => video.metadata.attributes = attributes,
+            Block::Admonition(admonition) => admonition.metadata.attributes = attributes,
         }
     }
 
@@ -66,6 +73,7 @@ impl BlockExt for Block {
             Block::Image(image) => image.metadata.anchors = anchors,
             Block::Audio(audio) => audio.metadata.anchors = anchors,
             Block::Video(video) => video.metadata.anchors = anchors,
+            Block::Admonition(admonition) => admonition.metadata.anchors = anchors,
         }
     }
 
@@ -84,6 +92,7 @@ impl BlockExt for Block {
             Block::Image(image) => image.title = title,
             Block::Audio(audio) => audio.title = title,
             Block::Video(video) => video.title = title,
+            Block::Admonition(admonition) => admonition.title = title,
         }
     }
 
@@ -102,6 +111,17 @@ impl BlockExt for Block {
             Block::Image(image) => image.location = location,
             Block::Audio(audio) => audio.location = location,
             Block::Video(video) => video.location = location,
+            Block::Admonition(admonition) => admonition.location = location,
+        }
+    }
+
+    fn is_admonition(&self) -> bool {
+        matches!(self, Block::Admonition(_))
+    }
+
+    fn set_admonition_blocks(&mut self, blocks: Vec<Block>) {
+        if let Block::Admonition(admonition) = self {
+            admonition.blocks = blocks;
         }
     }
 }
@@ -110,8 +130,10 @@ pub(crate) trait BlockExt {
     fn set_location(&mut self, location: Location);
     fn set_anchors(&mut self, anchor: Vec<Anchor>);
     fn set_title(&mut self, title: Vec<InlineNode>);
-    fn set_attributes(&mut self, attributes: HashMap<AttributeName, Option<String>>);
+    fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>);
     fn set_metadata(&mut self, metadata: BlockMetadata);
+    fn is_admonition(&self) -> bool;
+    fn set_admonition_blocks(&mut self, blocks: Vec<Block>);
 }
 
 impl std::fmt::Display for Block {
@@ -130,6 +152,7 @@ impl std::fmt::Display for Block {
             Block::Image(_) => write!(f, "Image"),
             Block::Audio(_) => write!(f, "Audio"),
             Block::Video(_) => write!(f, "Video"),
+            Block::Admonition(_) => write!(f, "Admonition"),
         }
     }
 }
@@ -148,11 +171,9 @@ impl Block {
         let mut location = Location::default();
         let mut block = Block::Paragraph(Paragraph {
             metadata: BlockMetadata::default(),
-            attributes: HashMap::new(),
             title: Vec::new(),
             content: Vec::new(),
             location: location.clone(),
-            admonition: None,
         });
 
         let len = pairs.clone().count();
@@ -166,24 +187,44 @@ impl Block {
             if i == len - 1 {
                 location.end = Position {
                     line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1,
+                    column: pair.as_span().end_pos().line_col().1 - 1,
                 };
             }
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
                 Rule::section => block = Section::parse(&pair, parent_attributes)?,
                 Rule::delimited_block => {
-                    block = DelimitedBlock::parse(
+                    let delimited_block = DelimitedBlock::parse(
                         pair.into_inner(),
                         title.clone(),
                         &metadata,
                         &attributes,
                         parent_attributes,
                     )?;
+                    if block.is_admonition() {
+                        if let Block::DelimitedBlock(maybe_example_block) = delimited_block {
+                            if let DelimitedBlockType::DelimitedExample(blocks) =
+                                maybe_example_block.inner
+                            {
+                                block.set_admonition_blocks(blocks);
+                            }
+                        } else {
+                            tracing::warn!(
+                                "admonition block with non-example delimited block, skipping"
+                            );
+                        }
+                    } else {
+                        block = delimited_block;
+                    }
                 }
                 Rule::paragraph => {
-                    block =
+                    let paragraph =
                         Paragraph::parse(pair, &mut metadata, &mut attributes, parent_attributes)?;
+                    if block.is_admonition() {
+                        block.set_admonition_blocks(vec![paragraph]);
+                    } else {
+                        block = paragraph;
+                    }
                 }
                 Rule::list => block = parse_list(pair.into_inner(), parent_attributes)?,
                 Rule::image_block => {
@@ -230,17 +271,28 @@ impl Block {
                     block = Block::PageBreak(PageBreak {
                         title: title.clone(),
                         metadata: metadata.clone(),
-                        attributes: attributes.clone(),
                         location: location.clone(),
                     });
                 }
                 Rule::positional_attribute_value => {
                     let value = pair.as_str().to_string();
                     if !value.is_empty() {
+                        // if we have a positional attribute and it is the first one, then
+                        // it's the style
                         if metadata.style.is_none() && !style_found {
-                            metadata.style = Some(value);
+                            if AdmonitionVariant::from_str(&value).is_ok() {
+                                block = Block::Admonition(Admonition {
+                                    metadata: metadata.clone(),
+                                    title: title.clone(),
+                                    blocks: Vec::new(),
+                                    location: location.clone(),
+                                    variant: AdmonitionVariant::from_str(&value)?,
+                                });
+                            } else {
+                                metadata.style = Some(value);
+                            }
                         } else {
-                            attributes.insert(value, None);
+                            attributes.insert(value, OptionalAttributeValue(None));
                         }
                     }
                 }
@@ -248,14 +300,14 @@ impl Block {
                     Self::parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
                 }
 
-                Rule::EOI | Rule::comment => {}
+                Rule::open_sb | Rule::close_sb | Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),
             }
         }
         block.set_location(location);
         block.set_anchors(anchors);
-        block.set_attributes(attributes);
         block.set_metadata(metadata);
+        block.set_attributes(attributes);
         if !title.is_empty() {
             block.set_title(title);
         }
@@ -265,7 +317,7 @@ impl Block {
 
     pub(crate) fn parse_named_attribute(
         pairs: Pairs<Rule>,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         metadata: &mut BlockMetadata,
     ) {
         let mut name = None;
@@ -298,7 +350,7 @@ impl Block {
                     tracing::warn!("named 'role' attribute without value");
                 }
             } else {
-                attributes.insert(name, value);
+                attributes.insert(name, OptionalAttributeValue(value));
             }
         }
     }

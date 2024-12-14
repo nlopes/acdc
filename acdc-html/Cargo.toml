@@ -1,0 +1,14 @@
+[package]
+name = "acdc-html"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+
+[dependencies]
+acdc-core = { path = "../acdc-core" }
+acdc-parser = { path = "../acdc-parser" }
+thiserror.workspace = true
+
+[lints]
+workspace = true

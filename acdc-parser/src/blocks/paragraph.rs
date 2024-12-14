@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::{Pair, Pairs};
@@ -6,7 +6,10 @@ use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines,
-    model::{Block, BlockMetadata, InlineNode, Paragraph},
+    model::{
+        Admonition, AdmonitionVariant, Block, BlockMetadata, InlineNode, OptionalAttributeValue,
+        Paragraph,
+    },
     Error, Rule,
 };
 
@@ -15,7 +18,7 @@ impl Paragraph {
     pub(crate) fn parse(
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, Option<String>>,
+        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let start = pair.as_span().start_pos();
@@ -35,14 +38,14 @@ impl Paragraph {
             },
             end: Position {
                 line: end.line_col().0,
-                column: end.line_col().1,
+                column: end.line_col().1 - 1,
             },
         };
 
         for pair in pairs {
             match pair.as_rule() {
                 Rule::admonition => {
-                    admonition = Some(pair.as_str().to_string());
+                    admonition = Some(pair.as_str());
                 }
                 Rule::inlines => {
                     // TODO(nlopes): we should merge the parent_attributes, with the
@@ -63,7 +66,7 @@ impl Paragraph {
                         if metadata.style.is_none() && !style_found {
                             metadata.style = Some(value);
                         } else {
-                            attributes.insert(value, None);
+                            attributes.insert(value, OptionalAttributeValue(None));
                         }
                     }
                 }
@@ -76,14 +79,27 @@ impl Paragraph {
                 }
             }
         }
-        Ok(Block::Paragraph(Self {
-            metadata: metadata.clone(),
-            attributes: attributes.clone(),
-            title,
-            content,
-            location,
-            admonition,
-        }))
+        if let Some(admonition) = admonition {
+            Ok(Block::Admonition(Admonition {
+                metadata: metadata.clone(),
+                title,
+                blocks: vec![Block::Paragraph(Self {
+                    metadata: metadata.clone(),
+                    title: Vec::new(),
+                    content,
+                    location: location.clone(),
+                })],
+                location,
+                variant: AdmonitionVariant::from_str(admonition)?,
+            }))
+        } else {
+            Ok(Block::Paragraph(Self {
+                metadata: metadata.clone(),
+                title,
+                content,
+                location,
+            }))
+        }
     }
 
     // TODO(nlopes): we probably need to offset the location so that it starts at whatever

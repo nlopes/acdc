@@ -13,7 +13,7 @@ impl Menu {
                 Rule::menu_item => {
                     items.push(pair.as_str().to_string());
                 }
-                Rule::EOI | Rule::comment => {}
+                Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}
                 unknown => unreachable!("{unknown:?}"),
             }
         }

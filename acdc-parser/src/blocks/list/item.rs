@@ -1,5 +1,5 @@
-use acdc_core::DocumentAttributes;
-use pest::iterators::Pairs;
+use acdc_core::{DocumentAttributes, Location, Position};
+use pest::{iterators::Pairs, Parser as _};
 
 use crate::{model::ListItem, Error, Rule};
 
@@ -11,28 +11,55 @@ impl ListItem {
     ) -> Result<ListItem, Error> {
         let mut content = Vec::new();
         let mut level = 0;
+        let mut marker = String::new();
         let mut checked = None;
+        let mut location = Location::default();
 
-        for pair in pairs {
+        let len = pairs.clone().count();
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.start = Position {
+                    line: pair.as_span().start_pos().line_col().0,
+                    column: pair.as_span().start_pos().line_col().1,
+                };
+            }
+            if i == len - 1 {
+                location.end = Position {
+                    line: pair.as_span().end_pos().line_col().0,
+                    column: pair.as_span().end_pos().line_col().1,
+                };
+            }
             match pair.as_rule() {
                 Rule::list_item => {
-                    content.push(pair.as_str().trim().to_string());
+                    let current_pos = pair.as_span().start_pos();
+                    let (current_start_line, current_start_column) =
+                        (current_pos.line_col().0, current_pos.line_col().1);
+                    match crate::InnerPestParser::parse(Rule::inlines, pair.as_str()) {
+                        Ok(pairs) => {
+                            for pair in pairs {
+                                content.extend(crate::inlines::parse_inlines(
+                                    pair,
+                                    parent_attributes,
+                                )?);
+                            }
+                            for inline in &mut content {
+                                inline
+                                    .shift_start_location(current_start_line, current_start_column);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("error parsing text: {e}");
+                            return Err(Error::Parse(e.to_string()));
+                        }
+                    }
                 }
                 Rule::unordered_level | Rule::ordered_level => {
-                    level = u8::try_from(pair.as_str().chars().count())
-                        .map_err(|e| Error::Parse(format!("error with list level depth: {e}")))?;
-                }
-                Rule::ordered_level_number => {
-                    let number_string = pair.as_str();
-                    level = number_string.parse::<u8>().map_err(|e| {
-                        Error::Parse(format!(
-                            "error with ordered level number {number_string}: {e}"
-                        ))
+                    marker = pair.as_str().to_string();
+
+                    level = u8::try_from(ListItem::parse_depth_from_marker(&marker).unwrap_or(1))
+                        .map_err(|e| {
+                        Error::Parse(format!("error with list level depth: {e}"))
                     })?;
-                    // TODO(nlopes): implement ordered_level_number
-                    //
-                    // Do I need to? Does this make a difference? (Perhaps in providing errors
-                    // to the user)
                 }
                 Rule::checklist_item_checked => checked = Some(true),
                 Rule::checklist_item_unchecked => checked = Some(false),
@@ -42,8 +69,60 @@ impl ListItem {
         }
         Ok(ListItem {
             level,
+            marker,
             checked,
             content,
+            location,
         })
+    }
+
+    /// This takes a single line and tries to parse it according to the described
+    /// `AsciiDoc` list item rules. It simply identifies the depth of nesting. It handles
+    /// the patterns as follows:
+    ///
+    /// Unordered list:
+    /// * -> depth 1
+    /// - -> depth 1
+    ///
+    /// ** -> depth 2
+    ///
+    /// Ordered list:
+    /// . -> depth 1
+    /// .. -> depth 2
+    /// 1. , 10. -> depth 1 (numeric prefix with a dot)
+    pub(crate) fn parse_depth_from_marker(marker: &str) -> Option<usize> {
+        let trimmed = marker.trim();
+
+        // Check for unordered lists first
+        if trimmed.starts_with('*') {
+            // Count how many '*' at the start
+            let depth = trimmed.chars().take_while(|&c| c == '*').count();
+            return Some(depth);
+        }
+
+        if trimmed.starts_with('-') {
+            // '-' form only depth 1
+            return Some(1);
+        }
+
+        // Check for ordered lists
+        if trimmed.starts_with('.') {
+            // Count how many '.' at the start
+            let depth = trimmed.chars().take_while(|&c| c == '.').count();
+            return Some(depth);
+        }
+
+        // Check if it starts with a digit followed by a dot
+        // For example: "1. something" or "10. something"
+        if let Some(dot_pos) = trimmed.find('.') {
+            let (num_part, _) = trimmed.split_at(dot_pos);
+            if num_part.chars().all(|c| c.is_ascii_digit()) {
+                // It's a numeric ordered list at depth 1
+                return Some(1);
+            }
+        }
+
+        // If it doesn't match any known pattern
+        None
     }
 }

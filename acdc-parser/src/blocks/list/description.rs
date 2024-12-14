@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use acdc_core::{DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 
 use crate::{
@@ -17,7 +15,6 @@ impl DescriptionList {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
-        attributes: HashMap<AttributeName, Option<String>>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut location = Location {
@@ -115,7 +112,6 @@ impl DescriptionList {
         Ok(Block::DescriptionList(Self {
             title,
             metadata,
-            attributes,
             items,
             location,
         }))

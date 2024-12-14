@@ -33,11 +33,14 @@ attribute_list = _{ attrlist ~ NEWLINE }
 
 attrlist = _{
     // The case in which we keep the style empty
-    "[" ~ empty_style ~ "," ~ (attribute ~ ("," ~ attribute)*)? ~ "]" |
+    open_sb ~ empty_style ~ "," ~ (attribute ~ ("," ~ attribute)*)? ~ close_sb |
 
     // The case in which style will be captured by a positional attribute
-    "[" ~ (attribute ~ ("," ~ attribute)* )? ~ "]"
+    open_sb ~ (attribute ~ ("," ~ attribute)* )? ~ close_sb
 }
+
+open_sb = { "[" }
+close_sb = { "]" }
 
 id_token = { "#" ~ id }
 
@@ -70,7 +73,7 @@ named_attribute_value = {
     ("\"" ~ inner_attribute_value ~ "\"") |
     ( (!"," ~ !"]" ~ ANY)+ )
 }
-positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY)+ }
+positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY) ~ (!("\"" | "," | "]" | "#" | "%") ~ ANY)* }
 inner_attribute_value = _{ ( "\\\"" | (!"\"" ~ ANY))* }
 
 url = ${proto ~ "://" ~ path}

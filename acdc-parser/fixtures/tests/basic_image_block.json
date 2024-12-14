@@ -1,0 +1,62 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "target": "sunset.jpg",
+      "metadata": {
+        "attributes": {
+          "alt": "Sunset",
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "target": "sunset2.jpg",
+      "metadata": {
+        "attributes": {
+          "alt": "Sunset",
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 35
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 35
+    }
+  ]
+}

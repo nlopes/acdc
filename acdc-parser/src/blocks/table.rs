@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 
 use acdc_core::{AttributeName, DocumentAttributes, Location};
-use pest::iterators::Pairs;
+use pest::iterators::Pair;
 
 use crate::{
-    model::{BlockMetadata, Table, TableColumn, TableRow},
+    model::{BlockMetadata, OptionalAttributeValue, Table, TableColumn, TableRow},
     Error, Rule,
 };
 
 impl Table {
     pub(crate) fn parse(
-        pairs: &Pairs<Rule>,
+        pair: &Pair<Rule>,
         metadata: &BlockMetadata,
-        attributes: &HashMap<AttributeName, Option<String>>,
+        attributes: &HashMap<AttributeName, OptionalAttributeValue>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Self, Error> {
         let mut separator = "|".to_string();
-        if let Some(Some(format)) = attributes.get("format") {
+        if let Some(OptionalAttributeValue(Some(format))) = attributes.get("format") {
             separator = match format.as_str() {
                 "csv" => ",".to_string(),
                 "dsv" => ":".to_string(),
@@ -27,11 +27,12 @@ impl Table {
         // override the separator if it is provided in the document
         separator = attributes
             .get("separator")
-            .unwrap_or(&Some(separator.clone()))
+            .unwrap_or(&OptionalAttributeValue(Some(separator.clone())))
             .clone()
+            .0
             .unwrap();
 
-        let ncols = if let Some(Some(cols)) = attributes.get("cols") {
+        let ncols = if let Some(OptionalAttributeValue(Some(cols))) = attributes.get("cols") {
             Some(cols.split(',').count())
         } else {
             None
@@ -40,7 +41,7 @@ impl Table {
         // Set this to true if the user mandates it!
         let mut has_header = metadata.options.contains(&String::from("header"));
 
-        let raw_rows = Self::parse_rows(pairs.as_str(), &separator, &mut has_header);
+        let raw_rows = Self::parse_rows(pair.as_str(), &separator, &mut has_header);
 
         // If the user forces a noheader, we should not have a header, so after we've
         // tried to figure out if there are any headers, we should set it to false one

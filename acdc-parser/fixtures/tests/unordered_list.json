@@ -1,0 +1,89 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A list of sorts:",
+          "location": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "level": 1,
+              "checked": null,
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1",
+                  "location": [{"line": 3,"col": 3},{"line": 3,"col": 9}]
+                }
+              ],
+              "location": [{"line": 3,"col": 1},{"line": 3,"col": 9}]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "level": 1,
+              "checked": null,
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2",
+                  "location": [{"line": 4,"col": 3},{"line": 4,"col": 9}]
+                }
+              ],
+              "location": [{"line": 4,"col": 1},{"line": 4,"col": 9}]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "level": 1,
+              "checked": null,
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 3",
+                  "location": [{"line": 5,"col": 3},{"line": 5,"col": 9}]
+                }
+              ],
+              "location": [{"line": 5,"col": 1},{"line": 5,"col": 9}]
+            }
+          ],
+          "location": [{"line": 3,"col": 1},{"line": 5,"col": 9}]
+        }
+      ],
+      "location": [{"line": 1,"col": 1},{"line": 5,"col": 9}]
+    }
+  ],
+  "location": [{"line": 1,"col": 1},{"line": 5,"col": 9}]
+}

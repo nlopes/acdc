@@ -1,7 +1,10 @@
 [workspace]
-members = [ "acdc-core",
+members = [
+  "acdc-cli",
+  "acdc-core",
+  "acdc-html",
   "acdc-parser",
-  "acdc-term",
+  "acdc-terminal",
 ]
 resolver = "2"
 
@@ -12,8 +15,10 @@ authors = ["Norberto Lopes <nlopesml@gmail.com>"]
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
+clap = { version = "4.5.20", features = ["derive"] }
 pretty_assertions = "1.4"
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tracing = "0.1"
 thiserror = "2"
 
