@@ -4,5 +4,5 @@ This is a collection of tools to handle `AsciiDoc` documents.
 
 ## Tooling
 
-- [x] `link:./acdc-parser[acdc-parser]` - `AsciiDoc` parser library
+- `link:./acdc-parser[acdc-parser]` - `AsciiDoc` parser library
 - `link:./acdc-term[acdc-term]` - `AsciiDoc` terminal printer (à la *nix command `cat`)

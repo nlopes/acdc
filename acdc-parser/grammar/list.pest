@@ -22,7 +22,7 @@ continuation = { NEWLINE ~ "+" ~ NEWLINE }
 
 // TODO(nlopes): only support one line for now
 unordered_list = { unordered_list_item+ }
-unordered_list_item = { unordered_level ~ SPACE ~ list_item ~ (NEWLINE | EOI) }
+unordered_list_item = { unordered_level ~ SPACE ~ checklist_item? ~ list_item ~ (NEWLINE | EOI) }
 unordered_level = { ("*"+ | "-") }
 
 ordered_list = { ordered_list_item+ }
