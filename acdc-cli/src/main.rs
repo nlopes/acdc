@@ -1,11 +1,12 @@
 use std::{
-    io::{self, BufReader, Read, Write},
+    io::{self, BufReader, Write},
     path::PathBuf,
 };
 
 use acdc_core::{Config, Doctype, Processable, SafeMode};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
+use serde::Deserialize;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -62,16 +63,26 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+struct TckInput {
+    contents: String,
+    path: String,
+    r#type: String,
+}
+
 #[tracing::instrument]
 fn handle_tck_mode() -> Result<()> {
     let stdin = io::stdin();
     let mut reader = BufReader::new(stdin.lock());
-    let mut input = String::new();
-    reader.read_to_string(&mut input)?;
-
-    let doc = acdc_parser::parse(&input)?;
+    let tck_input: TckInput = serde_json::from_reader(&mut reader)?;
+    tracing::debug!(
+        path = tck_input.path,
+        r#type = tck_input.r#type,
+        "processing TCK input",
+    );
+    let doc = acdc_parser::parse(&tck_input.contents)?;
     let mut stdout = io::stdout();
-    serde_json::to_writer_pretty(&stdout, &doc)?;
+    serde_json::to_writer(&stdout, &doc)?;
     stdout.flush()?;
     Ok(())
 }

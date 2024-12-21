@@ -12,6 +12,7 @@ dependencies = [
  "acdc-terminal",
  "anyhow",
  "clap",
+ "serde",
  "serde_json",
  "tracing",
  "tracing-subscriber",

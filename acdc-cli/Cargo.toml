@@ -12,6 +12,7 @@ acdc-parser = { path = "../acdc-parser" }
 acdc-terminal = { path = "../acdc-terminal", optional = true }
 anyhow = "1.0.95"
 clap.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
