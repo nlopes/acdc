@@ -1,14 +1,63 @@
 use std::collections::HashMap;
 
 use serde::{
-    ser::{SerializeSeq, Serializer},
+    ser::{SerializeMap, SerializeSeq, Serializer},
     Deserialize, Serialize,
 };
 
 mod config;
 pub use config::*;
 
-pub type DocumentAttributes = HashMap<AttributeName, AttributeValue>;
+#[derive(Debug, Default, PartialEq, Deserialize)]
+pub struct DocumentAttributes(
+    #[serde(skip_serializing_if = "HashMap::is_empty")] HashMap<AttributeName, AttributeValue>,
+);
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum Toc {
+    Auto,
+    Left,
+    Right,
+    Macro,
+    Preamble,
+}
+
+impl Serialize for DocumentAttributes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // We serialize the attributes as a sequence of key-value pairs.
+        let mut state = serializer.serialize_map(Some(self.0.len()))?;
+        for (key, value) in &self.0 {
+            if key == "toc" && value == &AttributeValue::Bool(true) {
+                state.serialize_entry(key, &AttributeValue::String("".to_string()))?;
+                continue;
+            }
+            state.serialize_entry(key, value)?;
+        }
+        state.end()
+    }
+}
+
+impl DocumentAttributes {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+        self.0.insert(name, value);
+    }
+
+    pub fn get(&self, name: &str) -> Option<&AttributeValue> {
+        self.0.get(name)
+    }
+
+    pub fn contains_key(&self, name: &str) -> bool {
+        self.0.contains_key(name)
+    }
+}
 
 /// An `AttributeName` represents the name of an attribute in a document.
 pub type AttributeName = String;
@@ -258,7 +307,7 @@ mod tests {
         // resolved.
         let attribute_volume_repeat = String::from("value {attribute_volume}");
 
-        let mut attributes = HashMap::new();
+        let mut attributes = DocumentAttributes(HashMap::new());
         attributes.insert("weight".to_string(), attribute_weight.clone());
         attributes.insert("mass".to_string(), attribute_mass.clone());
 

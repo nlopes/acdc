@@ -1,5 +1,7 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
+
+use acdc_core::DocumentAttributes;
 
 use crate::error::Error;
 
@@ -10,12 +12,11 @@ pub(crate) struct Preprocessor;
 
 mod include {
     use std::{
-        collections::HashMap,
         path::{Path, PathBuf},
         str::FromStr,
     };
 
-    use acdc_core::{AttributeName, AttributeValue, Substitute, HEADER};
+    use acdc_core::{DocumentAttributes, Substitute, HEADER};
     use pest::Parser as _;
     use pest_derive::Parser;
     use url::Url;
@@ -179,7 +180,7 @@ attribute_value = {
         pub(crate) fn parse(
             file_parent: &Path,
             line: &str,
-            attributes: &HashMap<AttributeName, AttributeValue>,
+            attributes: &DocumentAttributes,
         ) -> Result<Self, Error> {
             let mut include = Include {
                 file_parent: file_parent.to_path_buf(),
@@ -328,9 +329,7 @@ attribute_value = {
 }
 
 mod conditional {
-    use std::collections::HashMap;
-
-    use acdc_core::{AttributeName, AttributeValue};
+    use acdc_core::DocumentAttributes;
     use pest::Parser as _;
     use pest_derive::Parser;
 
@@ -372,7 +371,7 @@ mod conditional {
     impl Conditional {
         pub(crate) fn is_true(
             &self,
-            attributes: &HashMap<AttributeName, AttributeValue>,
+            attributes: &DocumentAttributes,
             content: &mut String,
         ) -> bool {
             match self {
@@ -451,10 +450,7 @@ expression = { (!"]" ~ ANY)+ }
     pub(crate) struct Parser;
 
     #[tracing::instrument(level = "trace")]
-    pub(crate) fn parse_line(
-        attributes: &mut HashMap<AttributeName, AttributeValue>,
-        line: &str,
-    ) -> Result<Conditional, Error> {
+    pub(crate) fn parse_line(line: &str) -> Result<Conditional, Error> {
         match Parser::parse(Rule::conditional, line) {
             Ok(pairs) => {
                 let mut conditional = Conditional::Ifdef(Ifdef {
@@ -465,13 +461,13 @@ expression = { (!"]" ~ ANY)+ }
                 for pair in pairs {
                     match pair.as_rule() {
                         Rule::ifdef => {
-                            conditional = parse_ifdef(attributes, pair)?;
+                            conditional = parse_ifdef(pair)?;
                         }
                         Rule::ifndef => {
-                            conditional = parse_ifndef(attributes, pair)?;
+                            conditional = parse_ifndef(pair)?;
                         }
                         Rule::ifeval => {
-                            conditional = parse_ifeval(attributes, pair)?;
+                            conditional = parse_ifeval(pair)?;
                         }
                         unknown => {
                             tracing::warn!(?unknown, "unknown rule in conditional directive");
@@ -488,10 +484,7 @@ expression = { (!"]" ~ ANY)+ }
     }
 
     #[tracing::instrument(level = "trace")]
-    fn parse_ifdef(
-        attributes: &mut HashMap<AttributeName, AttributeValue>,
-        pair: pest::iterators::Pair<Rule>,
-    ) -> Result<Conditional, Error> {
+    fn parse_ifdef(pair: pest::iterators::Pair<Rule>) -> Result<Conditional, Error> {
         let mut attributes = Vec::new();
         let mut content = None;
         let mut operation = None;
@@ -524,10 +517,7 @@ expression = { (!"]" ~ ANY)+ }
     }
 
     #[tracing::instrument(level = "trace")]
-    fn parse_ifndef(
-        attributes: &mut HashMap<AttributeName, AttributeValue>,
-        pair: pest::iterators::Pair<Rule>,
-    ) -> Result<Conditional, Error> {
+    fn parse_ifndef(pair: pest::iterators::Pair<Rule>) -> Result<Conditional, Error> {
         let mut attributes = Vec::new();
         let mut content = None;
         let mut operation = None;
@@ -560,10 +550,7 @@ expression = { (!"]" ~ ANY)+ }
     }
 
     #[tracing::instrument(level = "trace")]
-    fn parse_ifeval(
-        attributes: &mut HashMap<AttributeName, AttributeValue>,
-        pair: pest::iterators::Pair<Rule>,
-    ) -> Result<Conditional, Error> {
+    fn parse_ifeval(pair: pest::iterators::Pair<Rule>) -> Result<Conditional, Error> {
         let mut expression = String::new();
 
         for pair in pair.into_inner() {
@@ -582,9 +569,7 @@ expression = { (!"]" ~ ANY)+ }
 }
 
 mod attribute {
-    use std::collections::HashMap;
-
-    use acdc_core::{AttributeName, AttributeValue, Substitute, HEADER};
+    use acdc_core::{AttributeValue, DocumentAttributes, Substitute, HEADER};
     use pest::Parser as _;
     use pest_derive::Parser;
 
@@ -602,7 +587,7 @@ value = { (!EOI ~ ANY)+ }"#]
     pub(crate) struct Parser;
 
     #[tracing::instrument(level = "trace")]
-    pub(crate) fn parse_line(attributes: &mut HashMap<AttributeName, AttributeValue>, line: &str) {
+    pub(crate) fn parse_line(attributes: &mut DocumentAttributes, line: &str) {
         if let Ok(pairs) = Parser::parse(Rule::document_attribute, line) {
             let mut unset = false;
             let mut name = "";
@@ -669,7 +654,7 @@ impl Preprocessor {
     #[tracing::instrument]
     fn process_either(&self, input: &str, file_parent: Option<&Path>) -> Result<String, Error> {
         let input = Preprocessor::normalize(input);
-        let mut attributes = HashMap::new();
+        let mut attributes = DocumentAttributes::default();
         let mut output = Vec::new();
         let mut lines = input.lines().peekable();
         while let Some(line) = lines.next() {
@@ -745,7 +730,7 @@ impl Preprocessor {
                     || line.starts_with("ifeval")
                 {
                     let mut content = String::new();
-                    let condition = conditional::parse_line(&mut attributes, line)?;
+                    let condition = conditional::parse_line(line)?;
                     while let Some(next_line) = lines.peek() {
                         if next_line.is_empty() {
                             tracing::trace!(?line, "single line if directive");
@@ -763,6 +748,7 @@ impl Preprocessor {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
+                    // TODO(nlopes): need to read the file according to the type of file
                     if let Some(file_parent) = file_parent {
                         // Parse the include directive
                         let include = Include::parse(file_parent, line, &attributes)?;

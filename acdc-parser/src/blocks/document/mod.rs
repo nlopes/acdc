@@ -4,9 +4,7 @@ mod header;
 mod tree_builder;
 mod validate;
 
-use std::collections::HashMap;
-
-use acdc_core::{Location, Position};
+use acdc_core::{DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
@@ -20,7 +18,7 @@ impl Document {
     #[instrument(level = "trace")]
     pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Self, Error> {
         let mut document_header = None;
-        let mut attributes = HashMap::new();
+        let mut attributes = DocumentAttributes::default();
         let mut blocks = Vec::new();
         let mut location = Location::default();
 
