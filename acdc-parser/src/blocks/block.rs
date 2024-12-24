@@ -10,7 +10,7 @@ use crate::{
     model::{
         Admonition, AdmonitionVariant, Anchor, Audio, Block, BlockMetadata, DelimitedBlock,
         DelimitedBlockType, Image, InlineNode, OptionalAttributeValue, PageBreak, Paragraph,
-        Section, ThematicBreak, Video,
+        Section, TableOfContents, ThematicBreak, Video,
     },
     Error, Rule,
 };
@@ -242,6 +242,11 @@ impl Block {
                         &mut attributes,
                         parent_attributes,
                     );
+                }
+                Rule::toc_block => {
+                    block = Block::TableOfContents(TableOfContents {
+                        location: location.clone(),
+                    });
                 }
                 Rule::video_block => {
                     block = Video::parse(

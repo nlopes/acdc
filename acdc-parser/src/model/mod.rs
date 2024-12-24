@@ -146,6 +146,7 @@ impl BlockMetadata {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Block {
+    TableOfContents(TableOfContents),
     Admonition(Admonition),
     DiscreteHeader(DiscreteHeader),
     DocumentAttribute(DocumentAttribute),
@@ -238,6 +239,12 @@ pub struct Image {
     pub source: ImageSource,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
+    pub location: Location,
+}
+
+/// A `TableOfContents` represents a table of contents block.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct TableOfContents {
     pub location: Location,
 }
 
