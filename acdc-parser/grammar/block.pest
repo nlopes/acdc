@@ -16,6 +16,7 @@ block = {
         image_block |
         audio_block |
         video_block |
+        toc_block |
         thematic_break_block |
         page_break_block |
         list |
@@ -45,6 +46,8 @@ audio = { "audio::" ~ (url | path) ~ attrlist }
 
 video_block = { video ~ &NEWLINE? }
 video = { "video::" ~ (url | path) ~ ("," ~ (url | path))* ~ attrlist }
+
+toc_block = { "toc::[]" ~ &NEWLINE? }
 
 thematic_break_block = @{
     (
