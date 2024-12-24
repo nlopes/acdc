@@ -18,9 +18,10 @@ use crate::{
 impl BlockExt for Block {
     fn set_metadata(&mut self, metadata: BlockMetadata) {
         match self {
-            Block::DiscreteHeader(_header) => {}
-            Block::DocumentAttribute(_attr) => {}
-            Block::ThematicBreak(_thematic_break) => {}
+            Block::TableOfContents(_) => {}
+            Block::DiscreteHeader(_) => {}
+            Block::DocumentAttribute(_) => {}
+            Block::ThematicBreak(_) => {}
             Block::PageBreak(page_break) => page_break.metadata = metadata,
             Block::UnorderedList(unordered_list) => unordered_list.metadata = metadata,
             Block::OrderedList(ordered_list) => ordered_list.metadata = metadata,
@@ -37,9 +38,10 @@ impl BlockExt for Block {
 
     fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>) {
         match self {
-            Block::DiscreteHeader(_header) => {}
-            Block::DocumentAttribute(_attr) => {}
-            Block::ThematicBreak(_thematic_break) => {}
+            Block::TableOfContents(_) => {}
+            Block::DiscreteHeader(_) => {}
+            Block::DocumentAttribute(_) => {}
+            Block::ThematicBreak(_) => {}
             Block::PageBreak(page_break) => page_break.metadata.attributes = attributes,
             Block::UnorderedList(unordered_list) => unordered_list.metadata.attributes = attributes,
             Block::OrderedList(ordered_list) => ordered_list.metadata.attributes = attributes,
@@ -60,8 +62,9 @@ impl BlockExt for Block {
 
     fn set_anchors(&mut self, anchors: Vec<Anchor>) {
         match self {
+            Block::TableOfContents(_) => {}
             Block::DiscreteHeader(header) => header.anchors = anchors,
-            Block::DocumentAttribute(_attr) => {}
+            Block::DocumentAttribute(_) => {}
             Block::ThematicBreak(thematic_break) => thematic_break.anchors = anchors,
             Block::PageBreak(page_break) => page_break.metadata.anchors = anchors,
             Block::UnorderedList(unordered_list) => unordered_list.metadata.anchors = anchors,
@@ -79,8 +82,9 @@ impl BlockExt for Block {
 
     fn set_title(&mut self, title: Vec<InlineNode>) {
         match self {
+            Block::TableOfContents(_) => {}
             Block::DiscreteHeader(header) => header.title = title,
-            Block::DocumentAttribute(_attr) => {}
+            Block::DocumentAttribute(_) => {}
             Block::ThematicBreak(thematic_break) => thematic_break.title = title,
             Block::PageBreak(page_break) => page_break.title = title,
             Block::UnorderedList(unordered_list) => unordered_list.title = title,
@@ -98,6 +102,7 @@ impl BlockExt for Block {
 
     fn set_location(&mut self, location: Location) {
         match self {
+            Block::TableOfContents(toc) => toc.location = location,
             Block::DiscreteHeader(header) => header.location = location,
             Block::DocumentAttribute(attr) => attr.location = location,
             Block::ThematicBreak(thematic_break) => thematic_break.location = location,
@@ -139,6 +144,7 @@ pub(crate) trait BlockExt {
 impl std::fmt::Display for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Block::TableOfContents(_) => write!(f, "TableOfContents"),
             Block::DiscreteHeader(_) => write!(f, "DiscreteHeader"),
             Block::DocumentAttribute(_) => write!(f, "DocumentAttribute"),
             Block::ThematicBreak(_) => write!(f, "ThematicBreak"),
