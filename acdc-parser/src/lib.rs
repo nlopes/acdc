@@ -53,6 +53,7 @@ pub use model::{
 };
 
 #[derive(Parser, Debug)]
+#[grammar = "../grammar/inlines.pest"]
 #[grammar = "../grammar/block.pest"]
 #[grammar = "../grammar/core.pest"]
 #[grammar = "../grammar/list.pest"]

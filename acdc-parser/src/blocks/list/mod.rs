@@ -17,6 +17,7 @@ use super::block::BlockExt;
 
 pub(crate) fn parse_list(
     pairs: Pairs<Rule>,
+    parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Block, Error> {
     let mut title = Vec::new();
@@ -34,7 +35,7 @@ pub(crate) fn parse_list(
     for pair in pairs {
         match pair.as_rule() {
             Rule::list_title | Rule::blocktitle | Rule::title => {
-                title = parse_inlines(pair, parent_attributes)?;
+                title = parse_inlines(pair, parent_location, parent_attributes)?;
             }
             Rule::unordered_list | Rule::ordered_list => {
                 block = Block::parse_simple_list(
@@ -42,6 +43,7 @@ pub(crate) fn parse_list(
                     title.clone(),
                     metadata.clone(),
                     attributes.clone(),
+                    parent_location,
                     parent_attributes,
                 )?;
             }
@@ -68,6 +70,7 @@ pub(crate) fn parse_list(
                     pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
+                    parent_location,
                     parent_attributes,
                 )?;
             }

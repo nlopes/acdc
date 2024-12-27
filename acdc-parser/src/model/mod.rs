@@ -15,15 +15,15 @@ mod inlines;
 pub use inlines::*;
 
 /// A `Document` represents the root of an `AsciiDoc` document.
-#[derive(Default, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 pub struct Document {
     pub(crate) name: String,
     pub(crate) r#type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub header: Option<Header>,
-    #[serde(default, skip_serializing_if = "DocumentAttributes::is_empty")]
+    #[serde(default)]
     pub attributes: DocumentAttributes,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub blocks: Vec<Block>,
     pub location: Location,
 }
@@ -462,6 +462,28 @@ pub struct Section {
     pub location: Location,
 }
 
+impl Serialize for Document {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "document")?;
+        state.serialize_entry("type", "block")?;
+        if let Some(header) = &self.header {
+            state.serialize_entry("header", header)?;
+            state.serialize_entry("attributes", &self.attributes)?;
+        } else if !self.attributes.is_empty() {
+            state.serialize_entry("attributes", &self.attributes)?;
+        }
+        if !self.blocks.is_empty() {
+            state.serialize_entry("blocks", &self.blocks)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
 impl Serialize for Section {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -476,7 +498,7 @@ impl Serialize for Section {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.content.is_empty() {
-            state.serialize_entry("content", &self.content)?;
+            state.serialize_entry("blocks", &self.content)?;
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -496,7 +518,19 @@ impl Serialize for DelimitedBlock {
         if !is_default_metadata(&self.metadata) {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        state.serialize_entry("blocks", &self.inner)?;
+
+        match &self.inner {
+            /* TODO(nlopes): missing stem */
+            DelimitedBlockType::DelimitedListing(inner)
+            | DelimitedBlockType::DelimitedLiteral(inner)
+            | DelimitedBlockType::DelimitedPass(inner)
+            | DelimitedBlockType::DelimitedVerse(inner) => {
+                state.serialize_entry("inlines", &inner)?;
+            }
+            inner => {
+                state.serialize_entry("blocks", &inner)?;
+            }
+        }
         if !self.title.is_empty() {
             state.serialize_entry("title", &self.title)?;
         }

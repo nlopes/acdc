@@ -44,7 +44,7 @@
                   "location": [{"line": 3,"col": 3},{"line": 3,"col": 8}]
                 }
               ],
-              "location": [{"line": 3,"col": 1},{"line": 3,"col": 9}]
+              "location": [{"line": 3,"col": 1},{"line": 3,"col": 8}]
             },
             {
               "name": "listItem",
@@ -60,7 +60,7 @@
                   "location": [{"line": 4,"col": 3},{"line": 4,"col": 8}]
                 }
               ],
-              "location": [{"line": 4,"col": 1},{"line": 4,"col": 9}]
+              "location": [{"line": 4,"col": 1},{"line": 4,"col": 8}]
             },
             {
               "name": "listItem",
@@ -76,7 +76,7 @@
                   "location": [{"line": 5,"col": 3},{"line": 5,"col": 8}]
                 }
               ],
-              "location": [{"line": 5,"col": 1},{"line": 5,"col": 9}]
+              "location": [{"line": 5,"col": 1},{"line": 5,"col": 8}]
             }
           ],
           "location": [{"line": 3,"col": 1},{"line": 5,"col": 8}]

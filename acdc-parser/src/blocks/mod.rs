@@ -9,7 +9,7 @@ mod section;
 mod table;
 mod video;
 
-use acdc_core::{DocumentAttributes, Location, Position};
+use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
 use crate::{
@@ -19,6 +19,7 @@ use crate::{
 
 pub(crate) fn parse(
     pairs: Pairs<Rule>,
+    parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Vec<Block>, Error> {
     if pairs.len() == 0 {
@@ -33,12 +34,23 @@ pub(crate) fn parse(
     for pair in pairs {
         match pair.as_rule() {
             Rule::blocks => {
-                blocks.extend(parse(pair.into_inner(), parent_attributes)?);
+                blocks.extend(parse(
+                    pair.into_inner(),
+                    parent_location,
+                    parent_attributes,
+                )?);
             }
             Rule::block => {
-                blocks.push(Block::parse(pair.into_inner(), parent_attributes)?);
+                blocks.push(Block::parse(
+                    pair.into_inner(),
+                    parent_location,
+                    parent_attributes,
+                )?);
             }
             Rule::document_attribute => {
+                if parent_location.is_some() {
+                    tracing::warn!("document attribute should account for parent_location");
+                }
                 let (name, value) =
                     DocumentAttribute::parse(pair.clone().into_inner(), parent_attributes);
                 // TODO(nlopes): I don't think I need to store the document attributes as
@@ -46,16 +58,7 @@ pub(crate) fn parse(
                 let attribute = DocumentAttribute {
                     name,
                     value,
-                    location: Location {
-                        start: Position {
-                            line: pair.as_span().start_pos().line_col().0,
-                            column: pair.as_span().start_pos().line_col().1,
-                        },
-                        end: Position {
-                            line: pair.as_span().end_pos().line_col().0,
-                            column: pair.as_span().end_pos().line_col().1 - 1,
-                        },
-                    },
+                    location: Location::from_pair(&pair),
                 };
                 blocks.push(Block::DocumentAttribute(attribute));
             }

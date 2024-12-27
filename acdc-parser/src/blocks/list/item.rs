@@ -1,4 +1,4 @@
-use acdc_core::{DocumentAttributes, Location, Position};
+use acdc_core::{DocumentAttributes, Location};
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{model::ListItem, Error, Rule};
@@ -7,6 +7,7 @@ impl ListItem {
     #[tracing::instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<ListItem, Error> {
         let mut content = Vec::new();
@@ -18,33 +19,23 @@ impl ListItem {
         let len = pairs.clone().count();
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
-                location.start = Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                };
+                location.set_start_from_pos(&pair.as_span().start_pos());
             }
             if i == len - 1 {
-                location.end = Position {
-                    line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1,
-                };
+                location.set_end_from_pos(&pair.as_span().end_pos());
             }
             match pair.as_rule() {
                 Rule::list_item => {
-                    let current_pos = pair.as_span().start_pos();
-                    let (current_start_line, current_start_column) =
-                        (current_pos.line_col().0, current_pos.line_col().1);
+                    let mut item_location = Location::from_pair(&pair);
+                    item_location.shift(parent_location);
                     match crate::InnerPestParser::parse(Rule::inlines, pair.as_str()) {
                         Ok(pairs) => {
                             for pair in pairs {
                                 content.extend(crate::inlines::parse_inlines(
                                     pair,
+                                    Some(&item_location),
                                     parent_attributes,
                                 )?);
-                            }
-                            for inline in &mut content {
-                                inline
-                                    .shift_start_location(current_start_line, current_start_column);
                             }
                         }
                         Err(e) => {
@@ -67,6 +58,7 @@ impl ListItem {
                 unknown => unreachable!("{unknown:?}"),
             }
         }
+        location.shift(parent_location);
         Ok(ListItem {
             level,
             marker,

@@ -1,4 +1,4 @@
-use acdc_core::{DocumentAttributes, Location, Position};
+use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
 use crate::{
@@ -15,26 +15,15 @@ impl DescriptionList {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
+        _parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
-        let mut location = Location {
-            start: Position { line: 0, column: 0 },
-            end: Position { line: 0, column: 0 },
-        };
-
+        let mut location = Location::default();
+        // TODO(nlopes): handle parent_location
         let mut items = Vec::new();
 
         for pair in pairs {
-            let location = Location {
-                start: Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                },
-                end: Position {
-                    line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1,
-                },
-            };
+            let location = Location::from_pair(&pair);
             let mut blocks = Vec::new();
             match pair.as_rule() {
                 Rule::description_list_item => {
@@ -54,8 +43,11 @@ impl DescriptionList {
                                 delimiter = inner_pair.as_str();
                             }
                             Rule::blocks => {
-                                let description =
-                                    blocks::parse(inner_pair.into_inner(), parent_attributes)?;
+                                let description = blocks::parse(
+                                    inner_pair.into_inner(),
+                                    Some(&location),
+                                    parent_attributes,
+                                )?;
                                 items.push(DescriptionListItem {
                                     anchors: anchors.clone(),
                                     term: term.to_string(),
@@ -82,6 +74,7 @@ impl DescriptionList {
                                 // description list
                                 blocks.push(Block::parse(
                                     inner_pair.into_inner(),
+                                    Some(&location),
                                     parent_attributes,
                                 )?);
                             }

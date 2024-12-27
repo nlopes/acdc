@@ -35,14 +35,18 @@ attrlist = _{
     // The case in which we keep the style empty
     open_sb ~ empty_style ~ "," ~ (attribute ~ ("," ~ attribute)*)? ~ close_sb |
 
-    // The case in which style will be captured by a positional attribute
-    open_sb ~ (attribute ~ ("," ~ attribute)* )? ~ close_sb
+    // The case in which there is a block style and other attributes
+    open_sb  ~ block_style ~ "," ~ attribute ~ ("," ~ attribute)* ~ close_sb |
+
+    // The case in which there is a block style and no other attributes
+    open_sb  ~ block_style ~ close_sb |
+
+    // The case in which there is no block style
+    open_sb  ~ (attribute ~ ("," ~ attribute)* )? ~ close_sb
 }
 
 open_sb = { "[" }
 close_sb = { "]" }
-
-id_token = { "#" ~ id }
 
 empty_style = { "" }
 role = { (!"," ~ !"]" ~ !"#" ~ !"." ~ !"%" ~ ANY)+ }
@@ -56,7 +60,7 @@ option = { "\\\"" | (!"\"" ~ !"," ~ !"]" ~ !"#" ~ !"." ~ !"%" ~ ANY)+ }
 // a number.
 attribute_name = !{ (ASCII_ALPHANUMERIC | "-" | "_")+ }
 
-attribute = _{ named_attribute | positional_attribute }
+attribute = _{ named_attribute | positional_attribute_value }
 named_attribute = {
     ("id" ~ "=" ~ id) |
     ("role" ~ "=" ~ role) |
@@ -64,16 +68,35 @@ named_attribute = {
     (attribute_name ~ "=" ~ named_attribute_value)
 }
 
-positional_attribute = _{
-    positional_attribute_value ~ (("#" ~ id)? ~ (("." ~ role) | ("%" ~ option))*) |
-    ("#" ~ id) ~ (("." ~ role) | ("%" ~ option))* |
-    (("." ~ role) | ("%" ~ option))+
- }
+// The block style is a positional attribute that is used to set the style of a block element.
+//
+// It has an optional "style", followed by the attribute shorthands.
+//
+// # - ID
+// . - role
+// % - option
+//
+//Each shorthand entry is placed directly adjacent to previous one, starting immediately
+//after the optional block style. The order of the entries does not matter, except for the
+//style, which must come first.
+block_style = _{
+    positional_attribute_value? ~ (("#" ~ block_style_id) | ("." ~ role) | ("%" ~ option))*
+}
+
+block_style_id = @{ id_start_char ~ block_style_id_subsequent_char* }
+
+block_style_id_subsequent_char = @{
+    ASCII_ALPHANUMERIC |
+    "_" |
+    "-"
+}
+
+
 named_attribute_value = {
     ("\"" ~ inner_attribute_value ~ "\"") |
     ( (!"," ~ !"]" ~ ANY)+ )
 }
-positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY) ~ (!("\"" | "," | "]" | "#" | "%") ~ ANY)* }
+positional_attribute_value = { (!("\"" | "," | "]" | "#" | "." | "%") ~ ANY) ~ (!("\"" | "," | "]" | "#" | "%" | "=" | ".") ~ ANY)* }
 inner_attribute_value = _{ ( "\\\"" | (!"\"" ~ ANY))* }
 
 url = ${proto ~ "://" ~ path}

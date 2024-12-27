@@ -4,7 +4,7 @@ mod header;
 mod tree_builder;
 mod validate;
 
-use acdc_core::{DocumentAttributes, Location, Position};
+use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
@@ -22,23 +22,21 @@ impl Document {
         let mut blocks = Vec::new();
         let mut location = Location::default();
 
+        let len = pairs.clone().count();
+
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
-                location.start = Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                };
+                location.set_start_from_pos(&pair.as_span().start_pos());
             }
-            location.end = Position {
-                line: pair.as_span().end_pos().line_col().0,
-                column: pair.as_span().end_pos().line_col().1 - 1,
-            };
+            if i == len - 1 {
+                location.set_end_from_pos(&pair.as_span().end_pos());
+            }
             match pair.as_rule() {
                 Rule::document_header => {
                     document_header = Header::parse(pair.into_inner(), &mut attributes)?;
                 }
                 Rule::blocks => {
-                    blocks.extend(blocks::parse(pair.into_inner(), &mut attributes)?);
+                    blocks.extend(blocks::parse(pair.into_inner(), None, &mut attributes)?);
                 }
                 Rule::comment | Rule::EOI => {}
                 unknown => unimplemented!("{:?}", unknown),

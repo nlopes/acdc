@@ -1,6 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
@@ -167,6 +167,7 @@ impl Block {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut title = Vec::new();
@@ -185,17 +186,12 @@ impl Block {
         let len = pairs.clone().count();
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
-                location.start = Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                };
+                location.set_start_from_pos(&pair.as_span().start_pos());
             }
             if i == len - 1 {
-                location.end = Position {
-                    line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1 - 1,
-                };
+                location.set_end_from_pos(&pair.as_span().end_pos());
             }
+
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
                 Rule::section => block = Section::parse(&pair, parent_attributes)?,
@@ -205,6 +201,7 @@ impl Block {
                         title.clone(),
                         &metadata,
                         &attributes,
+                        parent_location,
                         parent_attributes,
                     )?;
                     if block.is_admonition() {
@@ -224,15 +221,22 @@ impl Block {
                     }
                 }
                 Rule::paragraph => {
-                    let paragraph =
-                        Paragraph::parse(pair, &mut metadata, &mut attributes, parent_attributes)?;
+                    let paragraph = Paragraph::parse(
+                        pair,
+                        &mut metadata,
+                        &mut attributes,
+                        parent_location,
+                        parent_attributes,
+                    )?;
                     if block.is_admonition() {
                         block.set_admonition_blocks(vec![paragraph]);
                     } else {
                         block = paragraph;
                     }
                 }
-                Rule::list => block = parse_list(pair.into_inner(), parent_attributes)?,
+                Rule::list => {
+                    block = parse_list(pair.into_inner(), parent_location, parent_attributes)?
+                }
                 Rule::image_block => {
                     block = Image::parse(
                         pair.into_inner(),
@@ -264,11 +268,27 @@ impl Block {
                 }
                 Rule::option => metadata.options.push(pair.as_str().to_string()),
                 Rule::role => metadata.roles.push(pair.as_str().to_string()),
+                Rule::id | Rule::block_style_id => {
+                    if metadata.id.is_some() {
+                        tracing::warn!(
+                            id = pair.as_str(),
+                            "block already has an id, ignoring this one"
+                        );
+                        continue;
+                    }
+                    let anchor = Anchor {
+                        id: pair.as_str().to_string(),
+                        location: location.clone(),
+                        ..Default::default()
+                    };
+                    metadata.anchors.push(anchor.clone());
+                    metadata.id = Some(anchor);
+                }
                 Rule::empty_style => {
                     style_found = true;
                 }
                 Rule::title => {
-                    title = parse_inlines(pair, parent_attributes)?;
+                    title = parse_inlines(pair, parent_location, parent_attributes)?;
                 }
                 Rule::thematic_break_block => {
                     let thematic_break = ThematicBreak {
@@ -310,12 +330,16 @@ impl Block {
                 Rule::named_attribute => {
                     Self::parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
                 }
-
-                Rule::open_sb | Rule::close_sb | Rule::EOI | Rule::comment => {}
+                Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}
                 unknown => unreachable!("{unknown:?}"),
             }
         }
-        block.set_location(location);
+
+        // If we have a block that does not have a parent_location set, then we want to
+        // set the location to surround everything we've found.
+        if parent_location.is_none() {
+            block.set_location(location);
+        }
         block.set_anchors(anchors);
         block.set_metadata(metadata);
         block.set_attributes(attributes);

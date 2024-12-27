@@ -158,7 +158,7 @@ fn parse_table_cell(
 
     let parse = crate::InnerPestParser::parse(Rule::block, text)
         .map_err(|e| Error::Parse(format!("error parsing table cell: {e}")))?;
-    let content = crate::blocks::parse(parse, parent_attributes)?;
+    let content = crate::blocks::parse(parse, Some(&Location::default()), parent_attributes)?;
 
     Ok(TableColumn { content })
 }

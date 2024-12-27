@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
@@ -19,6 +19,7 @@ impl DelimitedBlock {
         title: Vec<InlineNode>,
         metadata: &BlockMetadata,
         attributes: &HashMap<AttributeName, OptionalAttributeValue>,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut inner = DelimitedBlockType::DelimitedComment(Vec::new());
@@ -28,21 +29,20 @@ impl DelimitedBlock {
         let len = pairs.clone().count();
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
-                location.start = Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                };
+                location.set_start_from_pos(&pair.as_span().start_pos());
+                location.shift_start(parent_location);
             }
             if i == len - 1 {
-                location.end = Position {
-                    line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1,
-                };
+                location.set_end_from_pos(&pair.as_span().end_pos());
+                location.shift_end(parent_location);
             }
             let rule = pair.as_rule();
             if rule == Rule::EOI || rule == Rule::comment {
                 continue;
             }
+
+            // TODO(nlopes): these are 2 blocks that are very similar, we should refactor
+            // them
             let pair = if rule == Rule::delimited_table {
                 // TODO(nlopes): must fix this - we're not extracting the delimiter so we
                 // need to change this section.
@@ -65,35 +65,32 @@ impl DelimitedBlock {
                 })?
             };
 
-            let (start_line, start_column) = pair.as_span().start_pos().line_col();
-            let (end_line, end_column) = pair.as_span().end_pos().line_col();
-            location.start.line = start_line;
-            location.start.column = start_column;
-            location.end.line = end_line;
-            location.end.column = end_column;
             let text = pair.as_str().to_string();
+            let mut inner_location = Location::from_pair(&pair);
+            inner_location.shift(parent_location);
 
             match rule {
                 Rule::delimited_comment => {
                     // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
                     inner =
                         DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
-                            location: location.clone(),
+                            location: inner_location.clone(),
                             content: text.clone(),
                         })]);
                 }
                 Rule::delimited_example => {
-                    let pairs = InnerPestParser::parse(Rule::document, text.as_str())
+                    let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedExample(blocks::parse(
                         pairs,
+                        Some(&location),
                         parent_attributes,
                     )?);
                 }
                 Rule::delimited_pass => {
                     // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
                     inner = DelimitedBlockType::DelimitedPass(vec![InlineNode::PlainText(Plain {
-                        location: location.clone(),
+                        location: inner_location.clone(),
                         content: text.clone(),
                     })]);
                 }
@@ -111,10 +108,11 @@ impl DelimitedBlock {
                             continue;
                         }
                     }
-                    let pairs = InnerPestParser::parse(Rule::document, text.as_str())
+                    let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedQuote(blocks::parse(
                         pairs,
+                        Some(&location),
                         parent_attributes,
                     )?);
                 }
@@ -122,7 +120,7 @@ impl DelimitedBlock {
                     // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
                     inner =
                         DelimitedBlockType::DelimitedListing(vec![InlineNode::PlainText(Plain {
-                            location: location.clone(),
+                            location: inner_location.clone(),
                             content: text.clone(),
                         })]);
                 }
@@ -130,21 +128,25 @@ impl DelimitedBlock {
                     // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
                     inner =
                         DelimitedBlockType::DelimitedLiteral(vec![InlineNode::PlainText(Plain {
-                            location: location.clone(),
+                            location: inner_location.clone(),
                             content: text.clone(),
                         })]);
                 }
                 Rule::delimited_open => {
-                    let pairs = InnerPestParser::parse(Rule::document, text.as_str())
+                    let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
-                    inner =
-                        DelimitedBlockType::DelimitedOpen(blocks::parse(pairs, parent_attributes)?);
+                    inner = DelimitedBlockType::DelimitedOpen(blocks::parse(
+                        pairs,
+                        Some(&location),
+                        parent_attributes,
+                    )?);
                 }
                 Rule::delimited_sidebar => {
-                    let pairs = InnerPestParser::parse(Rule::document, text.as_str())
+                    let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedSidebar(blocks::parse(
                         pairs,
+                        Some(&location),
                         parent_attributes,
                     )?);
                 }

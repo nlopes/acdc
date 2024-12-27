@@ -10,7 +10,7 @@ mod url;
 
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::{
     iterators::{Pair, Pairs},
     Parser as _,
@@ -30,23 +30,13 @@ impl InlineNode {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<InlineNode, Error> {
         let mut role = None;
         for pair in pairs {
-            let start = pair.as_span().start_pos();
-            let end = pair.as_span().end_pos();
-
-            let location = Location {
-                start: Position {
-                    line: start.line_col().0,
-                    column: start.line_col().1,
-                },
-                end: Position {
-                    line: end.line_col().0,
-                    column: end.line_col().1 - 1,
-                },
-            };
+            let mut location = Location::from_pair(&pair);
+            location.shift_inline(parent_location);
 
             match pair.as_rule() {
                 Rule::plain_text | Rule::one_line_plain_text => {
@@ -56,13 +46,17 @@ impl InlineNode {
                         .or(content.strip_suffix("\n"))
                         .unwrap_or(content)
                         .to_string();
-
                     return Ok(InlineNode::PlainText(Plain { content, location }));
                 }
                 Rule::highlight_text | Rule::highlight_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;
-                    let content =
-                        get_content("highlight", unconstrained, &pair, parent_attributes)?;
+                    let content = get_content(
+                        "highlight",
+                        unconstrained,
+                        &pair,
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                     return Ok(InlineNode::HighlightText(Highlight {
                         role,
                         content,
@@ -71,7 +65,13 @@ impl InlineNode {
                 }
                 Rule::italic_text | Rule::italic_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::italic_text_unconstrained;
-                    let content = get_content("italic", unconstrained, &pair, parent_attributes)?;
+                    let content = get_content(
+                        "italic",
+                        unconstrained,
+                        &pair,
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                     return Ok(InlineNode::ItalicText(Italic {
                         role,
                         content,
@@ -80,7 +80,13 @@ impl InlineNode {
                 }
                 Rule::bold_text | Rule::bold_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::bold_text_unconstrained;
-                    let content = get_content("bold", unconstrained, &pair, parent_attributes)?;
+                    let content = get_content(
+                        "bold",
+                        unconstrained,
+                        &pair,
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                     return Ok(InlineNode::BoldText(Bold {
                         role,
                         content,
@@ -89,8 +95,13 @@ impl InlineNode {
                 }
                 Rule::monospace_text | Rule::monospace_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::monospace_text_unconstrained;
-                    let content =
-                        get_content("monospace", unconstrained, &pair, parent_attributes)?;
+                    let content = get_content(
+                        "monospace",
+                        unconstrained,
+                        &pair,
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                     return Ok(InlineNode::MonospaceText(Monospace {
                         role,
                         content,
@@ -98,7 +109,13 @@ impl InlineNode {
                     }));
                 }
                 Rule::subscript_text => {
-                    let content = get_content("subscript", false, &pair, parent_attributes)?;
+                    let content = get_content(
+                        "subscript",
+                        false,
+                        &pair,
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                     return Ok(InlineNode::SubscriptText(Subscript {
                         role,
                         content,
@@ -106,7 +123,13 @@ impl InlineNode {
                     }));
                 }
                 Rule::superscript_text => {
-                    let content = get_content("superscript", false, &pair, parent_attributes)?;
+                    let content = get_content(
+                        "superscript",
+                        false,
+                        &pair,
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                     return Ok(InlineNode::SuperscriptText(Superscript {
                         role,
                         content,
@@ -138,19 +161,7 @@ impl InlineNode {
 
     #[instrument(level = "trace")]
     fn parse_macro(pair: Pair<Rule>) -> Result<InlineNode, Error> {
-        let start = pair.as_span().start_pos();
-        let end = pair.as_span().end_pos();
-        let location = Location {
-            start: Position {
-                line: start.line_col().0,
-                column: start.line_col().1,
-            },
-            end: Position {
-                line: end.line_col().0,
-                column: end.line_col().1 - 1,
-            },
-        };
-
+        let location = Location::from_pair(&pair);
         match pair.as_rule() {
             Rule::icon_inline => Ok(InlineNode::Macro(InlineMacro::Icon(Icon::parse_inline(
                 pair.into_inner(),
@@ -236,6 +247,7 @@ fn parse_named_attribute(
 #[instrument(level = "trace")]
 pub(crate) fn parse_inlines(
     pair: Pair<Rule>,
+    parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Vec<InlineNode>, Error> {
     let pairs = pair.into_inner();
@@ -244,10 +256,18 @@ pub(crate) fn parse_inlines(
     for pair in pairs {
         match pair.as_rule() {
             Rule::non_plain_text => {
-                content.push(InlineNode::parse(pair.into_inner(), parent_attributes)?);
+                content.push(InlineNode::parse(
+                    pair.into_inner(),
+                    parent_location,
+                    parent_attributes,
+                )?);
             }
             Rule::plain_text | Rule::one_line_plain_text => {
-                content.push(InlineNode::parse(Pairs::single(pair), parent_attributes)?);
+                content.push(InlineNode::parse(
+                    Pairs::single(pair),
+                    parent_location,
+                    parent_attributes,
+                )?);
             }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
@@ -261,18 +281,30 @@ pub(crate) fn get_content(
     text_style: &str,
     unconstrained: bool,
     pair: &Pair<Rule>,
+    parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut content = Vec::new();
     let len = pair.as_str().len();
     let token_length = if unconstrained { 2 } else { 1 };
+    let parent_location = if let Some(location) = parent_location {
+        let mut location = location.clone();
+        location.shift_line_column(1, token_length + 1);
+        Some(location)
+    } else {
+        None
+    };
     match crate::InnerPestParser::parse(
         Rule::inlines,
         &pair.as_str()[token_length..len - token_length],
     ) {
         Ok(pairs) => {
             for pair in pairs {
-                content.extend(parse_inlines(pair, parent_attributes)?);
+                content.extend(parse_inlines(
+                    pair,
+                    parent_location.as_ref(),
+                    parent_attributes,
+                )?);
             }
         }
         Err(e) => {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::{
     de::{self, Deserializer, MapAccess, Visitor},
+    ser::{SerializeMap, Serializer},
     Deserialize, Serialize,
 };
 
@@ -21,8 +22,7 @@ use crate::{
 /// An inline node is a structural element in a document that can contain other inline
 /// nodes and are only valid within a paragraph (a leaf).
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(untagged)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum InlineNode {
     PlainText(Plain),
     BoldText(Bold),
@@ -38,26 +38,38 @@ pub enum InlineNode {
 impl InlineNode {
     pub fn shift_start_location(&mut self, line: usize, column: usize) {
         match self {
-            InlineNode::PlainText(plain) => plain.location.shift_start(line, column),
-            InlineNode::BoldText(bold) => bold.location.shift_start(line, column),
-            InlineNode::ItalicText(italic) => italic.location.shift_start(line, column),
-            InlineNode::MonospaceText(monospace) => monospace.location.shift_start(line, column),
-            InlineNode::HighlightText(highlight) => highlight.location.shift_start(line, column),
-            InlineNode::SubscriptText(subscript) => subscript.location.shift_start(line, column),
-            InlineNode::SuperscriptText(superscript) => {
-                superscript.location.shift_start(line, column);
+            InlineNode::PlainText(plain) => plain.location.shift_line_column(line, column),
+            InlineNode::BoldText(bold) => bold.location.shift_line_column(line, column),
+            InlineNode::ItalicText(italic) => italic.location.shift_line_column(line, column),
+            InlineNode::MonospaceText(monospace) => {
+                monospace.location.shift_line_column(line, column)
             }
-            InlineNode::LineBreak(linebreak) => linebreak.location.shift_start(line, column),
+            InlineNode::HighlightText(highlight) => {
+                highlight.location.shift_line_column(line, column)
+            }
+            InlineNode::SubscriptText(subscript) => {
+                subscript.location.shift_line_column(line, column)
+            }
+            InlineNode::SuperscriptText(superscript) => {
+                superscript.location.shift_line_column(line, column);
+            }
+            InlineNode::LineBreak(linebreak) => linebreak.location.shift_line_column(line, column),
             InlineNode::Macro(macro_) => match macro_ {
-                InlineMacro::Icon(icon) => icon.location.shift_start(line, column),
-                InlineMacro::Image(image) => image.location.shift_start(line, column),
-                InlineMacro::Keyboard(keyboard) => keyboard.location.shift_start(line, column),
-                InlineMacro::Button(button) => button.location.shift_start(line, column),
-                InlineMacro::Menu(menu) => menu.location.shift_start(line, column),
-                InlineMacro::Url(url) => url.location.shift_start(line, column),
-                InlineMacro::Link(inline_link) => inline_link.location.shift_start(line, column),
-                InlineMacro::Autolink(autolink) => autolink.location.shift_start(line, column),
-                InlineMacro::Pass(pass) => pass.location.shift_start(line, column),
+                InlineMacro::Icon(icon) => icon.location.shift_line_column(line, column),
+                InlineMacro::Image(image) => image.location.shift_line_column(line, column),
+                InlineMacro::Keyboard(keyboard) => {
+                    keyboard.location.shift_line_column(line, column)
+                }
+                InlineMacro::Button(button) => button.location.shift_line_column(line, column),
+                InlineMacro::Menu(menu) => menu.location.shift_line_column(line, column),
+                InlineMacro::Url(url) => url.location.shift_line_column(line, column),
+                InlineMacro::Link(inline_link) => {
+                    inline_link.location.shift_line_column(line, column)
+                }
+                InlineMacro::Autolink(autolink) => {
+                    autolink.location.shift_line_column(line, column)
+                }
+                InlineMacro::Pass(pass) => pass.location.shift_line_column(line, column),
             },
         }
     }
@@ -76,6 +88,101 @@ pub enum InlineMacro {
     Link(Link),
     Autolink(Autolink),
     Pass(Pass),
+}
+
+impl Serialize for InlineNode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+
+        match self {
+            InlineNode::PlainText(plain) => {
+                map.serialize_entry("name", "text")?;
+                map.serialize_entry("type", "string")?;
+                map.serialize_entry("value", &plain.content)?;
+                map.serialize_entry("location", &plain.location)?;
+            }
+            InlineNode::HighlightText(highlight) => {
+                map.serialize_entry("name", "span")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", "mark")?;
+                map.serialize_entry("form", "constrained")?;
+                if let Some(role) = &highlight.role {
+                    map.serialize_entry("role", role)?;
+                }
+                map.serialize_entry("inlines", &highlight.content)?;
+                map.serialize_entry("location", &highlight.location)?;
+            }
+            InlineNode::ItalicText(italic) => {
+                map.serialize_entry("name", "span")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", "emphasis")?;
+                map.serialize_entry("form", "constrained")?;
+                if let Some(role) = &italic.role {
+                    map.serialize_entry("role", role)?;
+                }
+                map.serialize_entry("inlines", &italic.content)?;
+                map.serialize_entry("location", &italic.location)?;
+            }
+            InlineNode::BoldText(bold) => {
+                map.serialize_entry("name", "span")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", "strong")?;
+                map.serialize_entry("form", "constrained")?;
+                if let Some(role) = &bold.role {
+                    map.serialize_entry("role", role)?;
+                }
+                map.serialize_entry("inlines", &bold.content)?;
+                map.serialize_entry("location", &bold.location)?;
+            }
+            InlineNode::MonospaceText(monospace) => {
+                map.serialize_entry("name", "span")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", "code")?;
+                if let Some(role) = &monospace.role {
+                    map.serialize_entry("role", role)?;
+                }
+                map.serialize_entry("inlines", &monospace.content)?;
+                map.serialize_entry("location", &monospace.location)?;
+            }
+            InlineNode::SubscriptText(subscript) => {
+                map.serialize_entry("name", "span")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", "subscript")?;
+                map.serialize_entry("form", "constrained")?;
+                if let Some(role) = &subscript.role {
+                    map.serialize_entry("role", role)?;
+                }
+                map.serialize_entry("inlines", &subscript.content)?;
+                map.serialize_entry("location", &subscript.location)?;
+            }
+            InlineNode::SuperscriptText(superscript) => {
+                map.serialize_entry("name", "span")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", "superscript")?;
+                map.serialize_entry("form", "constrained")?;
+                if let Some(role) = &superscript.role {
+                    map.serialize_entry("role", role)?;
+                }
+                map.serialize_entry("inlines", &superscript.content)?;
+                map.serialize_entry("location", &superscript.location)?;
+            }
+            InlineNode::LineBreak(line_break) => {
+                map.serialize_entry("name", "break")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("location", &line_break.location)?;
+            }
+            InlineNode::Macro(macro_node) => {
+                todo!(
+                    "implement macro serialization for InlineNode: {:?}",
+                    macro_node
+                )
+            }
+        }
+        map.end()
+    }
 }
 
 impl<'de> Deserialize<'de> for InlineNode {

@@ -1,14 +1,14 @@
 use std::{collections::HashMap, str::FromStr};
 
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::{Pair, Pairs};
 use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines,
     model::{
-        Admonition, AdmonitionVariant, Block, BlockMetadata, InlineNode, OptionalAttributeValue,
-        Paragraph,
+        Admonition, AdmonitionVariant, Anchor, Block, BlockMetadata, InlineNode,
+        OptionalAttributeValue, Paragraph,
     },
     Error, Rule,
 };
@@ -19,28 +19,16 @@ impl Paragraph {
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
-        let start = pair.as_span().start_pos();
-        let end = pair.as_span().end_pos();
+        let mut location = Location::from_pair(&pair);
         let pairs = pair.into_inner();
 
         let mut content = Vec::new();
         let mut style_found = false;
         let mut title = Vec::new();
-
         let mut admonition = None;
-
-        let location = Location {
-            start: Position {
-                line: start.line_col().0,
-                column: start.line_col().1,
-            },
-            end: Position {
-                line: end.line_col().0,
-                column: end.line_col().1 - 1,
-            },
-        };
 
         for pair in pairs {
             match pair.as_rule() {
@@ -50,7 +38,12 @@ impl Paragraph {
                 Rule::inlines => {
                     // TODO(nlopes): we should merge the parent_attributes, with the
                     // attributes we have here?!?
-                    content.extend(Self::parse_inner(pair, metadata, parent_attributes)?);
+                    content.extend(Self::parse_inner(
+                        pair,
+                        metadata,
+                        parent_location,
+                        parent_attributes,
+                    )?);
                 }
                 Rule::role => metadata.roles.push(pair.as_str().to_string()),
                 Rule::option => metadata.options.push(pair.as_str().to_string()),
@@ -71,14 +64,15 @@ impl Paragraph {
                     }
                 }
                 Rule::title => {
-                    title = parse_inlines(pair, parent_attributes)?;
+                    title = parse_inlines(pair, parent_location, parent_attributes)?;
                 }
-                Rule::EOI | Rule::comment => {}
+                Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}
                 unknown => {
                     unreachable!("{unknown:?}");
                 }
             }
         }
+        location.shift(parent_location);
         if let Some(admonition) = admonition {
             Ok(Block::Admonition(Admonition {
                 metadata: metadata.clone(),
@@ -89,7 +83,7 @@ impl Paragraph {
                     content,
                     location: location.clone(),
                 })],
-                location,
+                location: location.clone(),
                 variant: AdmonitionVariant::from_str(admonition)?,
             }))
         } else {
@@ -97,23 +91,33 @@ impl Paragraph {
                 metadata: metadata.clone(),
                 title,
                 content,
-                location,
+                location: location.clone(),
             }))
         }
     }
 
-    // TODO(nlopes): we probably need to offset the location so that it starts at whatever
-    // offset we provide - that's because we call this recursively
     #[instrument(level = "trace")]
     pub(crate) fn parse_inner(
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Vec<InlineNode>, Error> {
         let pairs = pair.into_inner();
+        let mut attributes = HashMap::new();
 
         let mut content = Vec::new();
         let mut first = true;
+
+        // We need to do this because the inlines locations below will calculate their
+        // lines by assuming there is already a newline but in this specific case
+        // (paragraph) there isn't.
+        let parent_location = parent_location.map(|l| {
+            let mut l = l.clone();
+            l.start.line += 1;
+            l.end.line += 1;
+            l
+        });
 
         for pair in pairs {
             if first {
@@ -126,13 +130,51 @@ impl Paragraph {
             }
 
             match pair.as_rule() {
+                Rule::option => metadata.options.push(pair.as_str().to_string()),
+                Rule::role => metadata.roles.push(pair.as_str().to_string()),
+                Rule::id | Rule::block_style_id => {
+                    if metadata.id.is_some() {
+                        tracing::warn!(
+                            id = pair.as_str(),
+                            "block already has an id, ignoring this one"
+                        );
+                        continue;
+                    }
+                    let mut location = Location::from_pair(&pair);
+                    location.shift(parent_location.as_ref());
+                    let anchor = Anchor {
+                        id: pair.as_str().to_string(),
+                        location,
+                        ..Default::default()
+                    };
+                    metadata.anchors.push(anchor.clone());
+                    metadata.id = Some(anchor);
+                }
+                Rule::positional_attribute_value => {
+                    let value = pair.as_str().to_string();
+                    if !value.is_empty() {
+                        if metadata.style.is_none() {
+                            metadata.style = Some(value);
+                        } else {
+                            attributes.insert(value, OptionalAttributeValue(None));
+                        }
+                    }
+                }
                 Rule::non_plain_text => {
-                    content.push(InlineNode::parse(pair.into_inner(), parent_attributes)?);
+                    content.push(InlineNode::parse(
+                        pair.into_inner(),
+                        parent_location.as_ref(),
+                        parent_attributes,
+                    )?);
                 }
                 Rule::plain_text => {
-                    content.push(InlineNode::parse(Pairs::single(pair), parent_attributes)?);
+                    content.push(InlineNode::parse(
+                        Pairs::single(pair),
+                        parent_location.as_ref(),
+                        parent_attributes,
+                    )?);
                 }
-                Rule::EOI | Rule::comment => {}
+                Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}
                 unknown => unreachable!("{unknown:?}"),
             }
         }

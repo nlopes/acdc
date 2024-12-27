@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
+use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
@@ -19,6 +19,7 @@ impl Block {
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
         attributes: HashMap<AttributeName, OptionalAttributeValue>,
+        parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
         let mut location = Location::default();
@@ -26,37 +27,29 @@ impl Block {
         let mut items = Vec::new();
         let mut kind = "unordered";
 
-        for pair in pairs {
-            let span = pair.as_span();
-            if location.start == location.end {
-                location = Location {
-                    start: Position {
-                        line: span.start_pos().line_col().0,
-                        column: span.start_pos().line_col().1,
-                    },
-                    end: Position {
-                        line: span.end_pos().line_col().0,
-                        column: span.end_pos().line_col().1,
-                    },
-                };
+        let len = pairs.clone().count();
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.set_start_from_pos(&pair.as_span().start_pos());
             }
-
-            if span.start_pos().line_col().0 < location.start.line {
-                location.start.line = span.start_pos().line_col().0;
+            if i == len - 1 {
+                location.set_end_from_pos(&pair.as_span().end_pos());
             }
-            if span.start_pos().line_col().1 < location.start.column {
-                location.start.column = span.start_pos().line_col().1;
-            }
-            location.end.line = span.end_pos().line_col().0;
-            location.end.column = span.end_pos().line_col().1;
-
             match pair.as_rule() {
                 Rule::unordered_list_item => {
-                    items.push(ListItem::parse(pair.into_inner(), parent_attributes)?);
+                    items.push(ListItem::parse(
+                        pair.into_inner(),
+                        parent_location,
+                        parent_attributes,
+                    )?);
                 }
                 Rule::ordered_list_item => {
                     kind = "ordered";
-                    items.push(ListItem::parse(pair.into_inner(), parent_attributes)?);
+                    items.push(ListItem::parse(
+                        pair.into_inner(),
+                        parent_location,
+                        parent_attributes,
+                    )?);
                 }
                 unknown => unreachable!("{unknown:?}"),
             }
@@ -64,7 +57,8 @@ impl Block {
 
         // We need to clone the marker from the first item
         let marker = items[0].marker.clone();
-
+        // let's shift the location by the parent location starting point
+        location.shift(parent_location);
         Ok(match kind {
             "ordered" => Block::OrderedList(OrderedList {
                 title,

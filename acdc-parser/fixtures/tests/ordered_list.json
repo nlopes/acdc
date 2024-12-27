@@ -33,7 +33,7 @@
                   "location": [{"line": 3,"col": 4},{"line": 3, "col": 9}]
                 }
               ],
-              "location": [{"line": 3,"col": 1},{"line": 3, "col": 10}]
+              "location": [{"line": 3,"col": 1},{"line": 3, "col": 9}]
             },
             {
               "name": "listItem",
@@ -47,7 +47,7 @@
                   "location": [{"line": 4,"col": 4},{"line": 4, "col": 9}]
                 }
               ],
-              "location": [{"line": 4,"col": 1},{"line": 4, "col": 10}]
+              "location": [{"line": 4,"col": 1},{"line": 4, "col": 9}]
             },
             {
               "name": "listItem",
@@ -61,7 +61,7 @@
                   "location": [{"line": 5,"col": 4},{"line": 5, "col": 9}]
                 }
               ],
-              "location": [{"line": 5,"col": 1},{"line": 5, "col": 10}]
+              "location": [{"line": 5,"col": 1},{"line": 5, "col": 9}]
             }
           ],
           "location": [{"line": 3,"col": 1},{"line": 5, "col": 9}]

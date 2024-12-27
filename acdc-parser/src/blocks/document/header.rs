@@ -19,17 +19,14 @@ impl Header {
         let mut authors = Vec::new();
         let mut location = Location::default();
 
+        let len = pairs.clone().count();
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
-                location.start = Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                };
+                location.set_start_from_pos(&pair.as_span().start_pos());
             }
-            location.end = Position {
-                line: pair.as_span().end_pos().line_col().0,
-                column: pair.as_span().end_pos().line_col().1 - 1,
-            };
+            if i == len - 1 {
+                location.set_end_from_pos(&pair.as_span().end_pos());
+            }
             match pair.as_rule() {
                 Rule::document_title_token => {
                     for inner_pair in pair.into_inner() {
@@ -63,7 +60,7 @@ impl Header {
                                         location: title_location.clone(),
                                     })]
                                 } else {
-                                    parse_inlines(inner_pair.clone(), parent_attributes)?
+                                    parse_inlines(inner_pair.clone(), None, parent_attributes)?
                                 };
                             }
                             unknown => unreachable!("{:?}", unknown),

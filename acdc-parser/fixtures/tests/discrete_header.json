@@ -18,11 +18,11 @@
               "value": "Discrete headings are useful for making headings inside of other blocks, like this sidebar.",
               "location": [
                 {
-                  "line": 1,
+                  "line": 2,
                   "col": 1
                 },
                 {
-                  "line": 1,
+                  "line": 2,
                   "col": 91
                 }
               ]
@@ -30,11 +30,11 @@
           ],
           "location": [
             {
-              "line": 1,
+              "line": 2,
               "col": 1
             },
             {
-              "line": 1,
+              "line": 2,
               "col": 91
             }
           ]
@@ -62,7 +62,7 @@
           "level": 1,
           "location": [
             {
-              "line": 3,
+              "line": 4,
               "col": 1
             },
             {
@@ -81,11 +81,11 @@
               "value": "Discrete headings can be used where sections are not permitted.",
               "location": [
                 {
-                  "line": 6,
+                  "line": 7,
                   "col": 1
                 },
                 {
-                  "line": 6,
+                  "line": 7,
                   "col": 63
                 }
               ]
@@ -93,11 +93,11 @@
           ],
           "location": [
             {
-              "line": 6,
+              "line": 7,
               "col": 1
             },
             {
-              "line": 6,
+              "line": 7,
               "col": 63
             }
           ]

@@ -101,7 +101,7 @@ pub(crate) fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error>
                             delimited_block.location.end.clone()
                         }
                         // We don't use paragraph because we don't calculate positions for paragraphs yet
-                        Block::Paragraph(_) => section.location.end.clone(),
+                        Block::Paragraph(paragraph) => paragraph.location.end.clone(),
                         Block::OrderedList(ordered_list) => ordered_list.location.end.clone(),
                         Block::UnorderedList(unordered_list) => unordered_list.location.end.clone(),
                         Block::DocumentAttribute(attribute) => attribute.location.end.clone(),
