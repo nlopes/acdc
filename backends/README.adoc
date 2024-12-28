@@ -1,5 +1,5 @@
 # `acdc` backends
 
 - `link:./acdc-html[acdc-html]` - `AsciiDoc` html backend
-- `link:./acdc-tck[tck]` - `AsciiDoc` TCK output backend (this should only be used to validate against the `asciidoc-tck` test suite)
+- `link:./acdc-tck[acdc-tck]` - `AsciiDoc` TCK output backend (this should only be used to validate against the `asciidoc-tck` test suite)
 - `link:./acdc-terminal[acdc-terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
