@@ -1,13 +1,33 @@
 # `acdc-cli`
 
-This is main binary for the command line processor. Think of it as the equivalent to the
-`asciidoctor` tool.
+This is the main binary for the command line processor. Think of it as the equivalent to
+the `asciidoctor` tool.
 
 ## Usage
 
+[source,console]
+....
+cargo run --all-features -- --help
+
+A suite of tools for AsciiDoc documents
+
+Usage: acdc-cli [OPTIONS] [FILES]...
+
+Arguments:
+  [FILES]...  List of files to parse
+
+Options:
+      --backend <BACKEND>      backend output format [default: html] [possible values: html, tck, terminal]
+      --doctype <DOCTYPE>      document type to use when converting document [default: article] [possible values: article, book, manpage, inline]
+      --safe-mode <SAFE_MODE>  safe mode to use when converting document [default: unsafe] [possible values: safe, unsafe, server, secure]
+  -h, --help                   Print help
+  -V, --version                Print version
+....
+
 ## Backends supported
 
-Check `link:../backends/README.adoc[backends README] for details on each of the backends.
+Check the `link:../backends/README.adoc[backends README]` for details on each of the
+backends.
 
 - `link:./acdc-html[html]`
 - `link:./acdc-terminal[terminal]` (not built by default)
@@ -15,12 +35,14 @@ Check `link:../backends/README.adoc[backends README] for details on each of the 
 
 If you so wish, you can build an optional backend like so:
 
-```shell
-$ cargo build --features terminal
-```
+[source,console]
+....
+cargo build --features terminal
+....
 
 Alternatively, you can build them all like so:
 
-```shell
-$ cargo build --all-features
-```
+[source,console]
+....
+cargo build --all-features
+....
