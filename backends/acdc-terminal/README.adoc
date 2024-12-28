@@ -26,4 +26,4 @@ image::images/table.adoc.png["Table Example"]
 
 ## TODO
 
-- [] Add `syntect` for syntax highlighting in literal code blocks
+- [ ] Add `syntect` for syntax highlighting in literal code blocks
