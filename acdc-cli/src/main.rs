@@ -71,7 +71,7 @@ fn main() -> Result<()> {
             if args.files.is_empty() {
                 tracing::error!("You must pass files to this processor");
             }
-            acdc_terminal::Processor::new(config).run()?
+            acdc_terminal::Processor::new(config).run()?;
         }
     };
 

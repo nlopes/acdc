@@ -42,13 +42,13 @@ impl InlineNode {
             InlineNode::BoldText(bold) => bold.location.shift_line_column(line, column),
             InlineNode::ItalicText(italic) => italic.location.shift_line_column(line, column),
             InlineNode::MonospaceText(monospace) => {
-                monospace.location.shift_line_column(line, column)
+                monospace.location.shift_line_column(line, column);
             }
             InlineNode::HighlightText(highlight) => {
-                highlight.location.shift_line_column(line, column)
+                highlight.location.shift_line_column(line, column);
             }
             InlineNode::SubscriptText(subscript) => {
-                subscript.location.shift_line_column(line, column)
+                subscript.location.shift_line_column(line, column);
             }
             InlineNode::SuperscriptText(superscript) => {
                 superscript.location.shift_line_column(line, column);
@@ -58,16 +58,16 @@ impl InlineNode {
                 InlineMacro::Icon(icon) => icon.location.shift_line_column(line, column),
                 InlineMacro::Image(image) => image.location.shift_line_column(line, column),
                 InlineMacro::Keyboard(keyboard) => {
-                    keyboard.location.shift_line_column(line, column)
+                    keyboard.location.shift_line_column(line, column);
                 }
                 InlineMacro::Button(button) => button.location.shift_line_column(line, column),
                 InlineMacro::Menu(menu) => menu.location.shift_line_column(line, column),
                 InlineMacro::Url(url) => url.location.shift_line_column(line, column),
                 InlineMacro::Link(inline_link) => {
-                    inline_link.location.shift_line_column(line, column)
+                    inline_link.location.shift_line_column(line, column);
                 }
                 InlineMacro::Autolink(autolink) => {
-                    autolink.location.shift_line_column(line, column)
+                    autolink.location.shift_line_column(line, column);
                 }
                 InlineMacro::Pass(pass) => pass.location.shift_line_column(line, column),
             },

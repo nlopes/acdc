@@ -32,7 +32,7 @@ impl Serialize for DocumentAttributes {
         let mut state = serializer.serialize_map(Some(self.0.len()))?;
         for (key, value) in &self.0 {
             if key == "toc" && value == &AttributeValue::Bool(true) {
-                state.serialize_entry(key, &AttributeValue::String("".to_string()))?;
+                state.serialize_entry(key, &AttributeValue::String(String::new()))?;
                 continue;
             }
             state.serialize_entry(key, value)?;
@@ -42,6 +42,7 @@ impl Serialize for DocumentAttributes {
 }
 
 impl DocumentAttributes {
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -50,10 +51,12 @@ impl DocumentAttributes {
         self.0.insert(name, value);
     }
 
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&AttributeValue> {
         self.0.get(name)
     }
 
+    #[must_use]
     pub fn contains_key(&self, name: &str) -> bool {
         self.0.contains_key(name)
     }
@@ -84,6 +87,7 @@ pub struct Location {
 }
 
 impl Location {
+    #[must_use]
     pub fn from_pair<R: pest::RuleType>(pair: &pest::iterators::Pair<R>) -> Self {
         let mut location = Location::default();
         let start = pair.as_span().start_pos();
