@@ -2,10 +2,10 @@
 members = [
   "acdc-cli",
   "acdc-core",
-  "acdc-html",
   "acdc-parser",
-  "acdc-tck",
-  "acdc-terminal",
+  "backends/acdc-html",
+  "backends/acdc-tck",
+  "backends/acdc-terminal",
 ]
 resolver = "2"
 
@@ -16,6 +16,8 @@ authors = ["Norberto Lopes <nlopesml@gmail.com>"]
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
+acdc-core = { path = "./acdc-core" }
+acdc-parser = { path = "./acdc-parser" }
 clap = { version = "4.5.20", features = ["derive"] }
 pretty_assertions = "1.4"
 serde = { version = "1", features = ["derive"] }

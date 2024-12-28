@@ -6,10 +6,9 @@ authors.workspace = true
 description.workspace = true
 
 [dependencies]
-acdc-core = { path = "../acdc-core" }
-acdc-parser = { path = "../acdc-parser" }
-anyhow = "1.0.95"
-clap = { version = "4.5.20", features = ["derive"] }
+acdc-core.workspace = true
+acdc-parser.workspace = true
+clap.workspace = true
 comfy-table = "7.1.3"
 crossterm = "0.28.1"
 thiserror.workspace = true

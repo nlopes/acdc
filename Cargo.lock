@@ -72,7 +72,6 @@ version = "0.1.0"
 dependencies = [
  "acdc-core",
  "acdc-parser",
- "anyhow",
  "clap",
  "comfy-table",
  "crossterm",
