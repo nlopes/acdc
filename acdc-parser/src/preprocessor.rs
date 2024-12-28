@@ -632,6 +632,16 @@ impl Preprocessor {
             .join("\n")
     }
 
+    #[tracing::instrument(skip(reader))]
+    pub fn process_reader<R: std::io::Read>(&self, mut reader: R) -> Result<String, Error> {
+        let mut input = String::new();
+        reader.read_to_string(&mut input).map_err(|e| {
+            tracing::error!("failed to read from reader: {:?}", e);
+            e
+        })?;
+        self.process(&input)
+    }
+
     #[tracing::instrument]
     pub fn process(&self, input: &str) -> Result<String, Error> {
         self.process_either(input, None)

@@ -63,6 +63,19 @@ pub use model::{
 #[grammar = "../grammar/asciidoc.pest"]
 pub(crate) struct InnerPestParser;
 
+#[instrument(skip(reader))]
+pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error> {
+    let input = Preprocessor.process_reader(reader)?;
+    tracing::trace!(?input, "post preprocessor");
+    match InnerPestParser::parse(Rule::document, &input) {
+        Ok(pairs) => Document::parse(pairs),
+        Err(e) => {
+            tracing::error!("error parsing document content: {e}");
+            Err(Error::Parse(e.to_string()))
+        }
+    }
+}
+
 #[instrument]
 pub fn parse(input: &str) -> Result<Document, Error> {
     let input = Preprocessor.process(input)?;
