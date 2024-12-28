@@ -5,7 +5,7 @@ A simple terminal parser for `AsciiDoc` documents.
 ## Usage
 
 ```bash
-acdc-terminal samples/simple.adoc
+acdc-cli --backend terminal simple.adoc
 ```
 
 ![Simple Document](images/simple.adoc.png)
@@ -13,7 +13,7 @@ acdc-terminal samples/simple.adoc
 You can also pass multiple files and it will parse and print them all.
 
 ```bash
-acdc-terminal samples/*
+acdc-cli --backend terminal *.adoc
 ```
 
 ## Examples

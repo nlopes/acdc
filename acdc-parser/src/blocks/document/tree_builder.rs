@@ -105,7 +105,19 @@ pub(crate) fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error>
                         Block::OrderedList(ordered_list) => ordered_list.location.end.clone(),
                         Block::UnorderedList(unordered_list) => unordered_list.location.end.clone(),
                         Block::DocumentAttribute(attribute) => attribute.location.end.clone(),
-                        unknown => unimplemented!("{:?}", unknown),
+                        Block::Admonition(admonition) => admonition.location.end.clone(),
+                        Block::TableOfContents(toc) => toc.location.end.clone(),
+                        Block::ThematicBreak(thematic_break) => thematic_break.location.end.clone(),
+                        Block::PageBreak(page_break) => page_break.location.end.clone(),
+                        Block::DescriptionList(description_list) => {
+                            description_list.location.end.clone()
+                        }
+                        Block::Image(image) => image.location.end.clone(),
+                        Block::Audio(audio) => audio.location.end.clone(),
+                        Block::Video(video) => video.location.end.clone(),
+                        Block::DiscreteHeader(discrete_header) => {
+                            discrete_header.location.end.clone()
+                        }
                     };
                     section.content.push(block_from_stack);
                 }

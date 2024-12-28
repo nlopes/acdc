@@ -29,9 +29,9 @@ Options:
 Check the `link:../backends/README.adoc[backends README]` for details on each of the
 backends.
 
-- `link:./acdc-html[html]`
-- `link:./acdc-terminal[terminal]` (not built by default)
-- `link:./acdc-tck[tck]` (not built by default)
+- `link:../backends/acdc-html[html]`
+- `link:../backends/acdc-terminal[terminal]` (not built by default)
+- `link:../backends/acdc-tck[tck]` (not built by default)
 
 If you so wish, you can build an optional backend like so:
 
