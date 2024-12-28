@@ -4,23 +4,25 @@ A simple terminal parser for `AsciiDoc` documents.
 
 ## Usage
 
-```bash
+[source,console]
+....
 acdc-cli --backend terminal simple.adoc
-```
+....
 
-![Simple Document](images/simple.adoc.png)
+image::images/simple.adoc.png["Simple Document"]
 
 You can also pass multiple files and it will parse and print them all.
 
-```bash
+[source,console]
+....
 acdc-cli --backend terminal *.adoc
-```
+....
 
 ## Examples
 
 Here's a simple table.
 
-![Table Example](images/table.adoc.png)
+image::images/table.adoc.png["Table Example"]
 
 ## TODO
 
