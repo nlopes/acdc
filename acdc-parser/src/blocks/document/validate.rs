@@ -1,6 +1,6 @@
 use tracing::instrument;
 
-use crate::{model::Block, Error, ErrorDetail};
+use crate::{Block, Error, ErrorDetail};
 
 // Validate that the block level is correct for the section level.
 //

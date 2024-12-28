@@ -1,11 +1,8 @@
-use acdc_core::{DocumentAttributes, Location};
 use pest::{iterators::Pair, Parser as _};
 
 use crate::{
-    blocks,
-    inlines::parse_inlines,
-    model::{Block, BlockMetadata, Section},
-    Error, InnerPestParser, Rule,
+    blocks, inlines::parse_inlines, Block, BlockMetadata, DocumentAttributes, Error,
+    InnerPestParser, Location, Rule, Section,
 };
 
 impl Section {

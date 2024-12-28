@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pair;
 
 use crate::{
-    model::{BlockMetadata, OptionalAttributeValue, Table, TableColumn, TableRow},
-    Error, Rule,
+    AttributeName, BlockMetadata, DocumentAttributes, Error, Location, OptionalAttributeValue,
+    Rule, Table, TableColumn, TableRow,
 };
 
 impl Table {

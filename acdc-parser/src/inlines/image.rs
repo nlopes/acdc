@@ -1,12 +1,8 @@
 use std::collections::HashMap;
 
-use acdc_core::Location;
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{BlockMetadata, Image, ImageSource, OptionalAttributeValue},
-    Rule,
-};
+use crate::{BlockMetadata, Image, ImageSource, Location, OptionalAttributeValue, Rule};
 
 impl Image {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
@@ -30,7 +26,7 @@ impl Image {
         metadata.set_attributes(attributes);
         Self {
             metadata,
-            title: Vec::new(), //attributes.remove("title").map(Option::unwrap_or_default),
+            title: Vec::new(), //attributes.remove("title").map(Option::unwrap_or_default), TODO(nlopes): we should support title?
             source,
             location,
         }

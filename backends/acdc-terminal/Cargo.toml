@@ -6,7 +6,7 @@ authors.workspace = true
 description.workspace = true
 
 [dependencies]
-acdc-core.workspace = true
+acdc-backends-common.workspace = true
 acdc-parser.workspace = true
 clap.workspace = true
 comfy-table = "7.1.3"

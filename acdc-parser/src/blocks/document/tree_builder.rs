@@ -1,9 +1,6 @@
 use tracing::instrument;
 
-use crate::{
-    model::{Block, DelimitedBlock, DelimitedBlockType, DiscreteHeader},
-    Error, ErrorDetail,
-};
+use crate::{Block, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Error, ErrorDetail};
 
 #[instrument(level = "trace")]
 fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> Result<(), Error> {

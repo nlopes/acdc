@@ -1,13 +1,8 @@
-use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
 use crate::{
-    blocks,
-    model::{
-        Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
-        DescriptionListItem, InlineNode,
-    },
-    Error, Rule,
+    blocks, Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
+    DescriptionListItem, DocumentAttributes, Error, InlineNode, Location, Rule,
 };
 
 impl DescriptionList {

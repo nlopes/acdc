@@ -28,7 +28,6 @@
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
 
-pub use acdc_core::{AttributeName, AttributeValue, Location, Position};
 use pest::Parser as _;
 use pest_derive::Parser;
 use tracing::instrument;
@@ -44,12 +43,14 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Anchor, AttributeEntry, AudioSource, Author, Autolink, Block, BlockMetadata, Bold, Button,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDescription,
-    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Header, Highlight, Icon,
-    Image, ImageSource, InlineMacro, InlineNode, Italic, Keyboard, Link, LinkTarget, ListItem,
-    Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, Plain, Section, Subscript,
-    Superscript, Table, ThematicBreak, UnorderedList, Url, VideoSource,
+    Admonition, AdmonitionVariant, Anchor, AttributeEntry, AttributeName, AttributeValue, Audio,
+    AudioSource, Author, Autolink, Block, BlockMetadata, Bold, Button, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DescriptionListDescription, DescriptionListItem,
+    DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Header, Highlight, Icon,
+    Image, ImageSource, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, LinkTarget,
+    ListItem, Location, Menu, Monospace, OptionalAttributeValue, OrderedList, PageBreak, Paragraph,
+    Pass, Plain, Role, Section, Subscript, Substitution, Superscript, Table, TableColumn,
+    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video, VideoSource,
 };
 
 #[derive(Parser, Debug)]

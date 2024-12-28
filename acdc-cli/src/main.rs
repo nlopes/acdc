@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acdc_core::{Config, Doctype, Processable, SafeMode};
+use acdc_backends_common::{Config, Doctype, Processable, SafeMode};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use tracing_subscriber::prelude::*;

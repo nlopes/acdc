@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Anchor, Block, BlockMetadata, Image, ImageSource, OptionalAttributeValue},
-    Rule,
+    Anchor, AttributeName, Block, BlockMetadata, DocumentAttributes, Image, ImageSource, Location,
+    OptionalAttributeValue, Rule,
 };
 
 impl Image {
@@ -37,10 +36,7 @@ impl Image {
             metadata.id = Some(anchor.clone());
         }
         Block::Image(Self {
-            location: Location {
-                start: Position { line: 0, column: 0 },
-                end: Position { line: 0, column: 0 },
-            },
+            location: Location::default(),
             title: Vec::new(),
             source,
             metadata: metadata.clone(),

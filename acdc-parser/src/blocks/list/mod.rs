@@ -4,13 +4,11 @@ mod simple;
 
 use std::collections::HashMap;
 
-use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
 use crate::{
-    inlines::parse_inlines,
-    model::{Block, BlockMetadata, DescriptionList, OptionalAttributeValue, UnorderedList},
-    Error, Rule,
+    inlines::parse_inlines, Block, BlockMetadata, DescriptionList, DocumentAttributes, Error,
+    Location, OptionalAttributeValue, Rule, UnorderedList,
 };
 
 use super::block::BlockExt;

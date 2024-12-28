@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use acdc_core::Location;
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{Icon, OptionalAttributeValue},
+    model::{Icon, Location, OptionalAttributeValue},
     Rule,
 };
 

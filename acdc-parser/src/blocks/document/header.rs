@@ -1,11 +1,9 @@
-use acdc_core::{AttributeValue, DocumentAttributes, Location, Position};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    inlines::parse_inlines,
-    model::{Author, DocumentAttribute, Header, InlineNode, Plain},
-    Error, Rule,
+    inlines::parse_inlines, AttributeValue, Author, DocumentAttribute, DocumentAttributes, Error,
+    Header, InlineNode, Location, Plain, Rule,
 };
 
 impl Header {
@@ -44,16 +42,7 @@ impl Header {
                                     //
                                     // title_content = title_content[..colon_index].trim().to_string();
                                 }
-                                let title_location = Location {
-                                    start: Position {
-                                        line: inner_pair.as_span().start_pos().line_col().0,
-                                        column: inner_pair.as_span().start_pos().line_col().1,
-                                    },
-                                    end: Position {
-                                        line: inner_pair.as_span().end_pos().line_col().0,
-                                        column: inner_pair.as_span().end_pos().line_col().1 - 1,
-                                    },
-                                };
+                                let title_location = Location::from_pair(&inner_pair);
                                 title = if inner_pair.clone().into_inner().as_str().is_empty() {
                                     vec![InlineNode::PlainText(Plain {
                                         content: title_content.clone(),

@@ -4,15 +4,10 @@ mod header;
 mod tree_builder;
 mod validate;
 
-use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
-use crate::{
-    blocks,
-    model::{Document, Header},
-    Error, Rule,
-};
+use crate::{blocks, Document, DocumentAttributes, Error, Header, Location, Rule};
 
 impl Document {
     #[instrument(level = "trace")]

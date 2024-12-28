@@ -1,7 +1,6 @@
 //! The data models for the `AsciiDoc` document.
 use std::{collections::HashMap, str::FromStr};
 
-use acdc_core::{AttributeName, AttributeValue, DocumentAttributes, Location};
 use serde::{
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
@@ -10,9 +9,15 @@ use serde::{
 
 use crate::Error;
 
+mod document_attributes;
 mod inlines;
+mod location;
+mod substitution;
 
+pub use document_attributes::*;
 pub use inlines::*;
+pub use location::*;
+pub use substitution::*;
 
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Deserialize)]

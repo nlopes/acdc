@@ -4,7 +4,7 @@ The implementation here follows from:
 
 * https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/lexicon.adoc[Language Lexicon]: nomenclature of elements
 * https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc[Language Outline]: behaviour/layout
-* https://docs.asciidoctor.org/asciidoc/latest[asciidoctor Language Documentation]: behaviour/layout
+* https://docs.asciidoctor.org/asciidoc/latest[Asciidoctor Language Documentation]: behaviour/layout
 
 NOTE: I took a few of the grammar rules from https://github.com/kober-systems/literate_programming_toolsuite/blob/master/asciidoctrine/src/reader/asciidoc.pest[here] - some were already a perfect match to what I had, others I adapted, others I had in different forms and simplified. Credit where credit is due!
 

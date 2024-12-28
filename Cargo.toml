@@ -1,8 +1,8 @@
 [workspace]
 members = [
   "acdc-cli",
-  "acdc-core",
   "acdc-parser",
+  "backends/acdc-backends-common",
   "backends/acdc-html",
   "backends/acdc-tck",
   "backends/acdc-terminal",
@@ -16,7 +16,7 @@ authors = ["Norberto Lopes <nlopesml@gmail.com>"]
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
-acdc-core = { path = "./acdc-core" }
+acdc-backends-common = { path = "./backends/acdc-backends-common" }
 acdc-parser = { path = "./acdc-parser" }
 clap = { version = "4.5.20", features = ["derive"] }
 pretty_assertions = "1.4"

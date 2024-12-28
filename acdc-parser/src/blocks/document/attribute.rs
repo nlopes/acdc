@@ -1,7 +1,6 @@
-use acdc_core::{AttributeName, AttributeValue, DocumentAttributes};
 use pest::iterators::Pairs;
 
-use crate::{model::DocumentAttribute, Rule};
+use crate::{AttributeName, AttributeValue, DocumentAttribute, DocumentAttributes, Rule};
 
 impl DocumentAttribute {
     pub(crate) fn parse(

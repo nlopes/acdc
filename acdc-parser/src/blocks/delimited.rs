@@ -1,15 +1,11 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
-    blocks,
-    model::{
-        Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
-        OptionalAttributeValue, Plain, Table,
-    },
-    Error, InnerPestParser, Rule,
+    blocks, AttributeName, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
+    DocumentAttributes, Error, InlineNode, InnerPestParser, Location, OptionalAttributeValue,
+    Plain, Rule, Table,
 };
 
 impl DelimitedBlock {

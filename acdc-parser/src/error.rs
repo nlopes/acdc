@@ -1,9 +1,8 @@
 use std::fmt;
 
-use acdc_core::{Location, Position};
 use serde::Deserialize;
 
-use crate::model::SectionLevel;
+use crate::model::{Location, Position, SectionLevel};
 
 #[derive(thiserror::Error, Debug, Deserialize)]
 pub enum Error {

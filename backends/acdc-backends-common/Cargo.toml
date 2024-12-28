@@ -1,14 +1,12 @@
 [package]
-name = "acdc-html"
+name = "acdc-backends-common"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description.workspace = true
 
 [dependencies]
-acdc-backends-common.workspace = true
-acdc-parser.workspace = true
-thiserror.workspace = true
+clap.workspace = true
 
 [lints]
 workspace = true

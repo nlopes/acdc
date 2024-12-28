@@ -1,18 +1,13 @@
 use std::{collections::HashMap, str::FromStr};
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    blocks::list::parse_list,
-    inlines::parse_inlines,
-    model::{
-        Admonition, AdmonitionVariant, Anchor, Audio, Block, BlockMetadata, DelimitedBlock,
-        DelimitedBlockType, Image, InlineNode, OptionalAttributeValue, PageBreak, Paragraph,
-        Section, TableOfContents, ThematicBreak, Video,
-    },
-    Error, Rule,
+    blocks::list::parse_list, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
+    AttributeName, Audio, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
+    DocumentAttributes, Error, Image, InlineNode, Location, OptionalAttributeValue, PageBreak,
+    Paragraph, Rule, Section, TableOfContents, ThematicBreak, Video,
 };
 
 impl BlockExt for Block {

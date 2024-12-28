@@ -3,10 +3,9 @@ use std::{
     path::PathBuf,
 };
 
-use acdc_core::{AttributeName, Location, Substitution};
 use serde::{Deserialize, Serialize};
 
-use crate::model::OptionalAttributeValue;
+use crate::{AttributeName, Location, OptionalAttributeValue, Substitution};
 
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

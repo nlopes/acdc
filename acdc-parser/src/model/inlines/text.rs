@@ -1,10 +1,9 @@
-use acdc_core::Location;
 use serde::{
     ser::{SerializeMap, Serializer},
     Deserialize, Serialize,
 };
 
-use crate::model::Role;
+use crate::{Location, Role};
 
 use super::InlineNode;
 

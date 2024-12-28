@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    model::{Audio, AudioSource, Block, BlockMetadata, OptionalAttributeValue},
-    Rule,
+    AttributeName, Audio, AudioSource, Block, BlockMetadata, DocumentAttributes, Location,
+    OptionalAttributeValue, Rule,
 };
 
 impl Audio {

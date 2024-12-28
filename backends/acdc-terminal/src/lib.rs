@@ -1,6 +1,6 @@
 use std::{io::Write, path::Path};
 
-use acdc_core::{Config, Processable};
+use acdc_backends_common::{Config, Processable};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

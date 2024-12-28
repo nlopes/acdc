@@ -1,16 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::iterators::{Pair, Pairs};
 use tracing::instrument;
 
 use crate::{
-    inlines::parse_inlines,
-    model::{
-        Admonition, AdmonitionVariant, Anchor, Block, BlockMetadata, InlineNode,
-        OptionalAttributeValue, Paragraph,
-    },
-    Error, Rule,
+    inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor, AttributeName, Block,
+    BlockMetadata, DocumentAttributes, Error, InlineNode, Location, OptionalAttributeValue,
+    Paragraph, Rule,
 };
 
 impl Paragraph {

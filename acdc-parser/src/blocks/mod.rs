@@ -9,13 +9,9 @@ mod section;
 mod table;
 mod video;
 
-use acdc_core::{DocumentAttributes, Location};
 use pest::iterators::Pairs;
 
-use crate::{
-    model::{Block, DocumentAttribute},
-    Error, Rule,
-};
+use crate::{Block, DocumentAttribute, DocumentAttributes, Error, Location, Rule};
 
 pub(crate) fn parse(
     pairs: Pairs<Rule>,

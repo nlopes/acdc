@@ -1,4 +1,3 @@
-use acdc_core::Position;
 use pest::iterators::Pairs;
 use tracing::instrument;
 
@@ -11,16 +10,12 @@ impl Anchor {
         let len = pairs.clone().count();
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
-                anchor.location.start = Position {
-                    line: pair.as_span().start_pos().line_col().0,
-                    column: pair.as_span().start_pos().line_col().1,
-                };
+                anchor
+                    .location
+                    .set_start_from_pos(&pair.as_span().start_pos());
             }
             if i == len - 1 {
-                anchor.location.end = Position {
-                    line: pair.as_span().end_pos().line_col().0,
-                    column: pair.as_span().end_pos().line_col().1,
-                };
+                anchor.location.set_end_from_pos(&pair.as_span().end_pos());
             }
             match pair.as_rule() {
                 Rule::id => {

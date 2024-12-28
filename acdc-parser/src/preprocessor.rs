@@ -1,9 +1,7 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
 use std::path::Path;
 
-use acdc_core::DocumentAttributes;
-
-use crate::error::Error;
+use crate::{error::Error, DocumentAttributes};
 
 use include::Include;
 
@@ -16,12 +14,15 @@ mod include {
         str::FromStr,
     };
 
-    use acdc_core::{DocumentAttributes, Substitute, HEADER};
     use pest::Parser as _;
     use pest_derive::Parser;
     use url::Url;
 
-    use crate::error::Error;
+    use crate::{
+        error::Error,
+        model::{Substitute, HEADER},
+        DocumentAttributes,
+    };
 
     /**
     The format of an include directive is the following:
@@ -329,11 +330,10 @@ attribute_value = {
 }
 
 mod conditional {
-    use acdc_core::DocumentAttributes;
     use pest::Parser as _;
     use pest_derive::Parser;
 
-    use crate::error::Error;
+    use crate::{error::Error, DocumentAttributes};
 
     #[derive(Debug)]
     pub(crate) enum Conditional {
@@ -569,9 +569,13 @@ expression = { (!"]" ~ ANY)+ }
 }
 
 mod attribute {
-    use acdc_core::{AttributeValue, DocumentAttributes, Substitute, HEADER};
     use pest::Parser as _;
     use pest_derive::Parser;
+
+    use crate::{
+        model::{Substitute, HEADER},
+        AttributeValue, DocumentAttributes,
+    };
 
     #[derive(Parser, Debug)]
     #[grammar_inline = r#"WHITESPACE = _{ " " | "\t" }

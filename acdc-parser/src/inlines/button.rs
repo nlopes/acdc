@@ -1,7 +1,6 @@
-use acdc_core::Location;
 use pest::iterators::Pairs;
 
-use crate::{model::Button, Rule};
+use crate::{Button, Location, Rule};
 
 impl Button {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {

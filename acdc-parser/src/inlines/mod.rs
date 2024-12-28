@@ -10,7 +10,6 @@ mod url;
 
 use std::collections::HashMap;
 
-use acdc_core::{AttributeName, DocumentAttributes, Location};
 use pest::{
     iterators::{Pair, Pairs},
     Parser as _,
@@ -18,12 +17,9 @@ use pest::{
 use tracing::instrument;
 
 use crate::{
-    model::{
-        Autolink, Bold, Button, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
-        LineBreak, Link, Menu, Monospace, OptionalAttributeValue, Pass, Plain, Subscript,
-        Superscript, Url,
-    },
-    Error, Rule,
+    error::Error, AttributeName, Autolink, Bold, Button, DocumentAttributes, Highlight, Icon,
+    Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location, Menu, Monospace,
+    OptionalAttributeValue, Pass, Plain, Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
