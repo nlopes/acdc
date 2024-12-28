@@ -9,6 +9,7 @@ dependencies = [
  "acdc-core",
  "acdc-html",
  "acdc-parser",
+ "acdc-tck",
  "acdc-terminal",
  "anyhow",
  "clap",
@@ -51,6 +52,18 @@ dependencies = [
  "tracing",
  "tracing-test",
  "url",
+]
+
+[[package]]
+name = "acdc-tck"
+version = "0.1.0"
+dependencies = [
+ "acdc-core",
+ "acdc-parser",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

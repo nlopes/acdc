@@ -1,0 +1,25 @@
+# `acdc-cli`
+
+This is main binary for the command line processor. Think of it as the `asciidoctor` tool.
+
+## Usage
+
+## Backends
+
+- `link:./acdc-html[html]` - `AsciiDoc` html backend
+- `link:./acdc-terminal[terminal]` (optional, not built by default)
+- `link:./acdc-tck[tck]` (optional, not build by default)
+
+### Optional backends
+
+__NOTE: These are not built by default.__
+
+- `link:./acdc-terminal[acdc-terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
+- `link:./acdc-tck[tck]` - `AsciiDoc` TCK output (`json`, only used to validate against the `asciidoc-tck` test suite)
+
+
+If you so wish, you can build them:
+
+```shell
+$ cargo build --features terminal
+```

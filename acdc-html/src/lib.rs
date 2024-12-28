@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use acdc_core::{Config, Processable};
 
 #[derive(thiserror::Error, Debug)]
@@ -24,8 +22,8 @@ impl Processable for Processor {
         Self { config }
     }
 
-    fn process_files<P: AsRef<Path>>(&self, files: &[P]) -> Result<(), Error> {
-        for file in files {
+    fn run(&self) -> Result<(), Error> {
+        for file in &self.config.files {
             acdc_parser::parse_file(file)?;
         }
         Ok(())

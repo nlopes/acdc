@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 use clap::ValueEnum;
 
@@ -20,9 +20,11 @@ pub enum SafeMode {
     Secure,
 }
 
+#[derive(Debug)]
 pub struct Config {
     pub doctype: Doctype,
     pub safe_mode: SafeMode,
+    pub files: Vec<PathBuf>,
 }
 
 pub trait Processable {
@@ -31,11 +33,11 @@ pub trait Processable {
 
     fn new(config: Self::Config) -> Self;
 
-    /// Process a list of files
+    /// Run the processor
     ///
     /// # Errors
     ///
     /// Will typically return parsing or rendering errors. Implementations are free to
     /// return any error type they wish though.
-    fn process_files<P: AsRef<Path>>(&self, files: &[P]) -> Result<(), Self::Error>;
+    fn run(&self) -> Result<(), Self::Error>;
 }

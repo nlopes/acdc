@@ -30,8 +30,8 @@ impl Processable for Processor {
         Self { config }
     }
 
-    fn process_files<P: AsRef<Path>>(&self, files: &[P]) -> Result<(), Error> {
-        for file in files {
+    fn run(&self) -> Result<(), Error> {
+        for file in &self.config.files {
             parse_file(file)?;
         }
         Ok(())

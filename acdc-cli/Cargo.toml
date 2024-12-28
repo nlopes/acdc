@@ -9,6 +9,7 @@ description.workspace = true
 acdc-core = { path = "../acdc-core" }
 acdc-html = { path = "../acdc-html", optional = true }
 acdc-parser = { path = "../acdc-parser" }
+acdc-tck = { path = "../acdc-tck", optional = true }
 acdc-terminal = { path = "../acdc-terminal", optional = true }
 anyhow = "1.0.95"
 clap.workspace = true
@@ -19,8 +20,9 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 
 [features]
 default = ["html"]
-terminal = ["dep:acdc-terminal"]
 html = ["dep:acdc-html"]
+tck = ["dep:acdc-tck"]
+terminal = ["dep:acdc-terminal"]
 
 [lints]
 workspace = true

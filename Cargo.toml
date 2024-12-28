@@ -4,6 +4,7 @@ members = [
   "acdc-core",
   "acdc-html",
   "acdc-parser",
+  "acdc-tck",
   "acdc-terminal",
 ]
 resolver = "2"
