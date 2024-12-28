@@ -9,6 +9,7 @@ description.workspace = true
 acdc-backends-common.workspace = true
 acdc-parser.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true

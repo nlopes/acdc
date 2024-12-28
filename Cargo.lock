@@ -33,6 +33,7 @@ dependencies = [
  "acdc-backends-common",
  "acdc-parser",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]

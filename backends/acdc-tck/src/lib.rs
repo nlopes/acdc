@@ -16,7 +16,7 @@
 /// the parser and write the output to `stdout`.
 use std::io::{self, BufReader, Write};
 
-use acdc_backends_common::{Config, Processable};
+use acdc_backends_common::{Config, Processable, Source};
 use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]
@@ -39,19 +39,27 @@ struct TckInput {
 }
 
 #[derive(Debug)]
-pub struct Processor;
+pub struct Processor {
+    config: Config,
+}
 
 impl Processable for Processor {
     type Config = Config;
     type Error = Error;
 
     #[must_use]
-    fn new(_config: Config) -> Self {
-        Self
+    fn new(config: Config) -> Self {
+        Self { config }
     }
 
     #[tracing::instrument]
     fn run(&self) -> Result<(), Error> {
+        if self.config.source != Source::Stdin {
+            return Err(Error::Io(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "only stdin is supported",
+            )));
+        }
         let stdin = io::stdin();
         let mut reader = BufReader::new(stdin.lock());
         let tck_input: TckInput = serde_json::from_reader(&mut reader)?;
@@ -65,5 +73,9 @@ impl Processable for Processor {
         serde_json::to_writer(&stdout, &doc)?;
         stdout.flush()?;
         Ok(())
+    }
+
+    fn output(&self) -> Result<String, Self::Error> {
+        unimplemented!("output purposefully not implemented for the tck processor")
     }
 }
