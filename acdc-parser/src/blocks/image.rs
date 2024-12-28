@@ -27,7 +27,7 @@ impl Image {
                     metadata.anchors.push(anchor);
                 }
                 Rule::image => {
-                    Self::parse_inner(pair.into_inner(), attributes, &mut source, metadata);
+                    Self::parse_inner(pair.into_inner(), metadata, attributes, &mut source);
                 }
                 Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),
@@ -50,9 +50,9 @@ impl Image {
     #[instrument(level = "trace")]
     fn parse_inner(
         pairs: Pairs<Rule>,
+        metadata: &mut BlockMetadata,
         attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
         source: &mut ImageSource,
-        metadata: &mut BlockMetadata,
     ) {
         let mut attribute_idx = 0;
         let mut attribute_mapping = HashMap::new();
