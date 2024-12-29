@@ -22,22 +22,33 @@ pub struct Processor {
     config: Config,
 }
 
-trait ToFile: Render {
-    fn to_file<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()> {
+impl Processor {
+    fn to_file<P: AsRef<Path>>(&self, doc: &Document, path: P) -> std::io::Result<()> {
         let mut file = std::fs::File::create(path)?;
         let mut writer = BufWriter::new(&mut file);
-        self.render(&mut writer)?;
+        let options = RenderOptions {
+            ..RenderOptions::default()
+        };
+        doc.render(&mut writer, self, &options)?;
         writer.flush()?;
         Ok(())
     }
 }
 
-/// A simple trait for helping in rendering `AsciiDoc` content.
-trait Render {
-    fn render(&self, w: &mut impl std::io::Write) -> std::io::Result<()>;
+#[derive(Debug, Default)]
+struct RenderOptions {
+    inlines_basic: bool,
 }
 
-impl ToFile for Document {}
+/// A simple trait for helping in rendering `AsciiDoc` content.
+trait Render {
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        options: &RenderOptions,
+    ) -> std::io::Result<()>;
+}
 
 impl Processable for Processor {
     type Config = Config;
@@ -54,7 +65,7 @@ impl Processable for Processor {
                 for file in files {
                     let html_path = file.with_extension("html");
                     tracing::debug!(source = ?file, destination = ?html_path, "processing file");
-                    acdc_parser::parse_file(file)?.to_file(&html_path)?;
+                    self.to_file(&acdc_parser::parse_file(file)?, &html_path)?;
                     println!("Generated HTML file: {}", html_path.to_string_lossy());
                 }
             }
@@ -69,17 +80,20 @@ impl Processable for Processor {
     }
 
     fn output(&self) -> Result<String, Self::Error> {
+        let options = RenderOptions {
+            ..RenderOptions::default()
+        };
         match &self.config.source {
             Source::Files(files) => {
                 let mut buffer = Vec::new();
                 for file in files {
-                    acdc_parser::parse_file(file)?.render(&mut buffer)?;
+                    acdc_parser::parse_file(file)?.render(&mut buffer, self, &options)?;
                 }
                 Ok(String::from_utf8(buffer)?)
             }
             Source::String(content) => {
                 let mut buffer = Vec::new();
-                acdc_parser::parse(content)?.render(&mut buffer)?;
+                acdc_parser::parse(content)?.render(&mut buffer, self, &options)?;
                 Ok(String::from_utf8(buffer)?)
             }
             Source::Stdin => {
@@ -87,16 +101,18 @@ impl Processable for Processor {
                 let mut reader = std::io::BufReader::new(stdin.lock());
                 let doc = acdc_parser::parse_from_reader(&mut reader)?;
                 let mut buffer = Vec::new();
-                doc.render(&mut buffer)?;
+                doc.render(&mut buffer, self, &options)?;
                 Ok(String::from_utf8(buffer)?)
             }
         }
     }
 }
 
-impl Render for Document {
-    fn render(&self, w: &mut impl std::io::Write) -> std::io::Result<()> {
-        write!(w, "Norberto")?;
-        Ok(())
-    }
-}
+mod block;
+mod delimited;
+mod document;
+mod inlines;
+mod list;
+mod paragraph;
+mod section;
+mod table;

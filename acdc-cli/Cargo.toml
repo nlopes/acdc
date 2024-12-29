@@ -5,6 +5,10 @@ edition.workspace = true
 authors.workspace = true
 description.workspace = true
 
+[[bin]]
+name = "acdc"
+path = "src/main.rs"
+
 [dependencies]
 acdc-backends-common.workspace = true
 acdc-html = { path = "../backends/acdc-html", optional = true }

@@ -1,0 +1,114 @@
+use std::io::Write;
+
+use acdc_parser::{Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget};
+
+use crate::{Processor, Render, RenderOptions};
+
+impl Render for InlineNode {
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        options: &RenderOptions,
+    ) -> std::io::Result<()> {
+        match self {
+            InlineNode::PlainText(p) => write!(w, "{}", p.content)?,
+            InlineNode::BoldText(b) => {
+                if !options.inlines_basic {
+                    write!(w, "<strong>")?;
+                }
+                for inline in &b.content {
+                    inline.render(w, processor, options)?;
+                }
+                if !options.inlines_basic {
+                    write!(w, "</strong>")?;
+                }
+            }
+            InlineNode::ItalicText(i) => {
+                if !options.inlines_basic {
+                    write!(w, "<em>")?;
+                }
+                for inline in &i.content {
+                    inline.render(w, processor, options)?;
+                }
+                if !options.inlines_basic {
+                    write!(w, "</em>")?;
+                }
+            }
+            InlineNode::MonospaceText(m) => {
+                if !options.inlines_basic {
+                    write!(w, "<code>")?;
+                }
+                for inline in &m.content {
+                    inline.render(w, processor, options)?;
+                }
+                if !options.inlines_basic {
+                    write!(w, "</code>")?;
+                }
+            }
+            InlineNode::Macro(m) => m.render(w, processor, options)?,
+            unknown => todo!("inlines: {:?}", unknown),
+        };
+        Ok(())
+    }
+}
+
+impl Render for InlineMacro {
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        options: &RenderOptions,
+    ) -> std::io::Result<()> {
+        match self {
+            InlineMacro::Link(l) => l.render(w, processor, options),
+            InlineMacro::Image(i) => i.render(w, processor, options),
+            unknown => todo!("inline macro: {:?}", unknown),
+        }
+    }
+}
+
+impl Render for Link {
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        options: &RenderOptions,
+    ) -> std::io::Result<()> {
+        let target = match self.target {
+            LinkTarget::Url(ref url) => url.to_string(),
+            LinkTarget::Path(ref path) => path.to_string_lossy().to_string(),
+        };
+        if options.inlines_basic {
+            write!(w, "{target}")
+        } else {
+            write!(w, "<a href=\"{target}\">{target}</a>",)
+        }
+    }
+}
+
+impl Render for Image {
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        options: &RenderOptions,
+    ) -> std::io::Result<()> {
+        write!(
+            w,
+            "<img src=\"{}\"",
+            match &self.source {
+                ImageSource::Url(url) => url,
+                ImageSource::Path(path) => path,
+            }
+        )?;
+        if !self.title.is_empty() {
+            write!(w, " alt=\"",)?;
+            self.title
+                .iter()
+                .try_for_each(|node| node.render(w, processor, options))?;
+            write!(w, "\"")?;
+        }
+        write!(w, "\">")
+    }
+}

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acdc_backends_common::{Config, Doctype, Processable, SafeMode, Source};
+use acdc_backends_common::{Config, Doctype, GeneratorMetadata, Processable, SafeMode, Source};
 use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use tracing_subscriber::prelude::*;
@@ -54,6 +54,10 @@ fn main() -> Result<()> {
     let args = Args::parse();
 
     let mut config = Config {
+        generator_metadata: GeneratorMetadata::new(
+            env!("CARGO_BIN_NAME"),
+            env!("CARGO_PKG_VERSION"),
+        ),
         doctype: args.doctype.clone(),
         safe_mode: args.safe_mode.clone(),
         source: Source::Files(args.files.clone()),

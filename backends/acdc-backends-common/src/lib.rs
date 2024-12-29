@@ -12,6 +12,17 @@ pub enum Doctype {
     Inline,
 }
 
+impl std::fmt::Display for Doctype {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Doctype::Article => write!(f, "article"),
+            Doctype::Book => write!(f, "book"),
+            Doctype::Manpage => write!(f, "manpage"),
+            Doctype::Inline => write!(f, "inline"),
+        }
+    }
+}
+
 /// safe mode to use when converting document
 #[derive(Debug, Clone, ValueEnum, Default)]
 pub enum SafeMode {
@@ -24,9 +35,32 @@ pub enum SafeMode {
 
 #[derive(Debug, Default, Clone)]
 pub struct Config {
+    pub generator_metadata: GeneratorMetadata,
     pub doctype: Doctype,
     pub safe_mode: SafeMode,
     pub source: Source,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct GeneratorMetadata {
+    pub name: String,
+    pub version: String,
+}
+
+impl GeneratorMetadata {
+    #[must_use]
+    pub fn new<S: AsRef<str>>(name: S, version: S) -> Self {
+        Self {
+            name: name.as_ref().to_string(),
+            version: version.as_ref().to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for GeneratorMetadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} v{}", self.name, self.version)
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
