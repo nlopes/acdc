@@ -67,13 +67,6 @@ pub struct Author {
     pub email: Option<String>,
 }
 
-/// An `AttributeEntry` represents an attribute entry in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AttributeEntry {
-    pub name: Option<AttributeName>,
-    pub value: Option<String>,
-}
-
 /// An `Anchor` represents an anchor in a document.
 ///
 /// An anchor is a reference point in a document that can be linked to.
