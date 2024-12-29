@@ -11,11 +11,13 @@ impl Render for UnorderedList {
         processor: &Processor,
         options: &RenderOptions,
     ) -> std::io::Result<()> {
+        writeln!(w, "<div class=\"ulist\">")?;
         writeln!(w, "<ul>")?;
         for item in &self.items {
             item.render(w, processor, options)?;
         }
         writeln!(w, "</ul>")?;
+        writeln!(w, "</div>")?;
         Ok(())
     }
 }
@@ -27,14 +29,10 @@ impl Render for ListItem {
         processor: &Processor,
         options: &RenderOptions,
     ) -> std::io::Result<()> {
-        write!(w, "<li>")?;
-        for (i, inline) in self.content.iter().enumerate() {
-            if i != 0 {
-                write!(w, " ")?;
-            }
-
-            inline.render(w, processor, options)?;
-        }
+        writeln!(w, "<li>")?;
+        writeln!(w, "<p>")?;
+        crate::inlines::render_inlines(&self.content, w, processor, options)?;
+        writeln!(w, "</p>")?;
         writeln!(w, "</li>")?;
         Ok(())
     }

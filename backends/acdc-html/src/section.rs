@@ -11,14 +11,16 @@ impl Render for Section {
         processor: &Processor,
         options: &RenderOptions,
     ) -> std::io::Result<()> {
-        write!(w, "<h{}>", self.level)?;
-        for inline in &self.title {
-            inline.render(w, processor, options)?;
-        }
+        writeln!(w, "<div class=\"sect{}\">", self.level)?;
+        write!(w, "<h{}>", self.level + 1)?;
+        crate::inlines::render_inlines(&self.title, w, processor, options)?;
         writeln!(w, "</h{}>", self.level)?;
+        writeln!(w, "<div class=\"sectionbody\">")?;
         for block in &self.content {
             block.render(w, processor, options)?;
         }
+        writeln!(w, "</div>")?;
+        writeln!(w, "</div>")?;
         Ok(())
     }
 }

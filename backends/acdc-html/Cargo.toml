@@ -8,6 +8,7 @@ description.workspace = true
 [dependencies]
 acdc-backends-common.workspace = true
 acdc-parser.workspace = true
+chrono = "0.4.39"
 thiserror.workspace = true
 tracing.workspace = true
 

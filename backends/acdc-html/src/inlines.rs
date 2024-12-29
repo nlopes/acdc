@@ -12,7 +12,9 @@ impl Render for InlineNode {
         options: &RenderOptions,
     ) -> std::io::Result<()> {
         match self {
-            InlineNode::PlainText(p) => write!(w, "{}", p.content)?,
+            InlineNode::PlainText(p) => {
+                write!(w, "{}", p.content)?;
+            }
             InlineNode::BoldText(b) => {
                 if !options.inlines_basic {
                     write!(w, "<strong>")?;
@@ -79,10 +81,17 @@ impl Render for Link {
             LinkTarget::Url(ref url) => url.to_string(),
             LinkTarget::Path(ref path) => path.to_string_lossy().to_string(),
         };
+        let text = self
+            .attributes
+            .iter()
+            .filter_map(|(k, v)| if v.0.is_none() { Some(k) } else { None })
+            .next()
+            .unwrap_or(&target);
+
         if options.inlines_basic {
-            write!(w, "{target}")
+            write!(w, "{text}")
         } else {
-            write!(w, "<a href=\"{target}\">{target}</a>",)
+            write!(w, "<a href=\"{target}\">{text}</a>",)
         }
     }
 }
@@ -111,4 +120,16 @@ impl Render for Image {
         }
         write!(w, "\">")
     }
+}
+
+pub(crate) fn render_inlines(
+    inlines: &[InlineNode],
+    w: &mut impl Write,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> std::io::Result<()> {
+    for inline in inlines {
+        inline.render(w, processor, options)?;
+    }
+    Ok(())
 }

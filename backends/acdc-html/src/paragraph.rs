@@ -11,14 +11,11 @@ impl Render for Paragraph {
         processor: &Processor,
         options: &RenderOptions,
     ) -> std::io::Result<()> {
+        writeln!(w, "<div class=\"paragraph\">")?;
         write!(w, "<p>")?;
-        for (i, inline) in self.content.iter().enumerate() {
-            if i != 0 {
-                write!(w, " ")?;
-            }
-            inline.render(w, processor, options)?;
-        }
+        crate::inlines::render_inlines(&self.content, w, processor, options)?;
         writeln!(w, "</p>")?;
+        writeln!(w, "</div>")?;
         Ok(())
     }
 }
