@@ -5,12 +5,14 @@ use acdc_parser::Admonition;
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for Admonition {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<div class=\"admonitionblock {}\">", self.variant)?;
         writeln!(w, "<table>")?;
         writeln!(w, "<tr>")?;

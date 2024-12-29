@@ -5,12 +5,14 @@ use acdc_parser::Block;
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for Block {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         match self {
             Block::Admonition(a) => a.render(w, processor, options),
             Block::Paragraph(p) => p.render(w, processor, options),

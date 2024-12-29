@@ -5,12 +5,14 @@ use acdc_parser::Table;
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for Table {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<table>")?;
         if let Some(header) = &self.header {
             writeln!(w, "<thead>")?;

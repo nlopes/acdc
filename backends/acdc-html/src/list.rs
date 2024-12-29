@@ -5,12 +5,14 @@ use acdc_parser::{ListItem, UnorderedList};
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for UnorderedList {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<div class=\"ulist\">")?;
         writeln!(w, "<ul>")?;
         for item in &self.items {
@@ -23,12 +25,14 @@ impl Render for UnorderedList {
 }
 
 impl Render for ListItem {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<li>")?;
         writeln!(w, "<p>")?;
         crate::inlines::render_inlines(&self.content, w, processor, options)?;

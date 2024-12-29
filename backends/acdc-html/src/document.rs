@@ -5,12 +5,14 @@ use acdc_parser::{Author, Block, Document, Header};
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for Document {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<!DOCTYPE html>")?;
         writeln!(w, "<html>")?;
         writeln!(w, "<head>")?;
@@ -131,15 +133,17 @@ fn find_preamble(blocks: &mut Vec<Block>) -> Option<Vec<Block>> {
 }
 
 impl Render for Header {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         self.authors.iter().try_for_each(|author| {
             author.render(w, processor, options)?;
-            Ok::<(), std::io::Error>(())
+            Ok::<(), Self::Error>(())
         })?;
         write!(w, "<title>")?;
         crate::inlines::render_inlines(&self.title, w, processor, options)?;
@@ -149,12 +153,14 @@ impl Render for Header {
 }
 
 impl Render for Author {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         _processor: &Processor,
         _options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         write!(w, "<meta name=\"author\" content=\"")?;
         write!(w, "{} ", self.first_name)?;
         if let Some(middle_name) = &self.middle_name {

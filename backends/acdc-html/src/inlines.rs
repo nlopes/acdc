@@ -7,21 +7,22 @@ use acdc_parser::{
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for InlineNode {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         match self {
             InlineNode::PlainText(p) => {
                 let text = if options.inlines_substitutions {
-                    dbg!(&p.content);
                     substitution_text(&p.content)
                 } else {
                     p.content.clone()
                 };
-                write!(w, "{}", text)?;
+                write!(w, "{text}")?;
             }
             InlineNode::BoldText(b) => {
                 if !options.inlines_basic {
@@ -64,12 +65,14 @@ impl Render for InlineNode {
 }
 
 impl Render for InlineMacro {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         match self {
             InlineMacro::Link(l) => l.render(w, processor, options),
             InlineMacro::Image(i) => i.render(w, processor, options),
@@ -80,12 +83,14 @@ impl Render for InlineMacro {
 }
 
 impl Render for Link {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         _processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         let target = match self.target {
             LinkTarget::Url(ref url) => url.to_string(),
             LinkTarget::Path(ref path) => path.to_string_lossy().to_string(),
@@ -104,20 +109,23 @@ impl Render for Link {
             .unwrap_or(&target);
 
         if options.inlines_basic {
-            write!(w, "{text}")
+            write!(w, "{text}")?;
         } else {
-            write!(w, "<a href=\"{target}\">{text}</a>",)
+            write!(w, "<a href=\"{target}\">{text}</a>",)?;
         }
+        Ok(())
     }
 }
 
 impl Render for Image {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         write!(
             w,
             "<img src=\"{}\"",
@@ -133,17 +141,20 @@ impl Render for Image {
                 .try_for_each(|node| node.render(w, processor, options))?;
             write!(w, "\"")?;
         }
-        write!(w, "\">")
+        write!(w, "\">")?;
+        Ok(())
     }
 }
 
 impl Render for Pass {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         _processor: &Processor,
         _options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         if let Some(ref text) = self.text {
             let text = substitution_text(text);
             write!(w, "{text}")?;
@@ -157,7 +168,7 @@ pub(crate) fn render_inlines(
     w: &mut impl Write,
     processor: &Processor,
     options: &RenderOptions,
-) -> std::io::Result<()> {
+) -> Result<(), crate::Error> {
     for inline in inlines {
         inline.render(w, processor, options)?;
     }
@@ -165,8 +176,8 @@ pub(crate) fn render_inlines(
 }
 
 fn substitution_text(text: &str) -> String {
-    text.replace('>', "&gt;")
+    text.replace('&', "&amp;")
+        .replace('>', "&gt;")
         .replace('<', "&lt;")
-        .replace('&', "&amp;")
         .replace('"', "&quot;")
 }

@@ -5,12 +5,14 @@ use acdc_parser::Section;
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for Section {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<div class=\"sect{}\">", self.level)?;
         write!(w, "<h{}>", self.level + 1)?;
         crate::inlines::render_inlines(&self.title, w, processor, options)?;

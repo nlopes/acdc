@@ -5,17 +5,19 @@ use acdc_parser::{DelimitedBlock, DelimitedBlockType};
 use crate::{Processor, Render, RenderOptions};
 
 impl Render for DelimitedBlock {
+    type Error = crate::Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Self::Error> {
         writeln!(w, "<div>")?;
         match &self.inner {
             DelimitedBlockType::DelimitedTable(t) => t.render(w, processor, options)?,
             DelimitedBlockType::DelimitedPass(inlines) => {
-                crate::inlines::render_inlines(inlines, w, processor, options)?
+                crate::inlines::render_inlines(inlines, w, processor, options)?;
             }
             DelimitedBlockType::DelimitedListing(inlines)
             | DelimitedBlockType::DelimitedLiteral(inlines) => {
@@ -34,7 +36,7 @@ impl Render for DelimitedBlock {
                     w,
                     processor,
                     &RenderOptions {
-                        inlines_substitutions: false,
+                        inlines_substitutions: true,
                         ..*options
                     },
                 )?;

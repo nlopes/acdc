@@ -23,7 +23,12 @@ pub struct Processor {
 }
 
 impl Processor {
-    fn to_file<P: AsRef<Path>>(&self, doc: &Document, original: P, path: P) -> std::io::Result<()> {
+    fn to_file<P: AsRef<Path>>(
+        &self,
+        doc: &Document,
+        original: P,
+        path: P,
+    ) -> Result<(), crate::Error> {
         let mut file = std::fs::File::create(path)?;
         let mut writer = BufWriter::new(&mut file);
         let options = RenderOptions {
@@ -48,12 +53,14 @@ struct RenderOptions {
 
 /// A simple trait for helping in rendering `AsciiDoc` content.
 trait Render {
+    type Error;
+
     fn render<W: Write>(
         &self,
         w: &mut W,
         processor: &Processor,
         options: &RenderOptions,
-    ) -> std::io::Result<()>;
+    ) -> Result<(), Self::Error>;
 }
 
 impl Processable for Processor {
@@ -65,7 +72,7 @@ impl Processable for Processor {
         Self { config }
     }
 
-    fn run(&self) -> Result<(), Error> {
+    fn run(&self) -> Result<(), Self::Error> {
         match &self.config.source {
             Source::Files(files) => {
                 for file in files {
