@@ -6,39 +6,43 @@ use crate::{Block, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Error, Er
 fn build_section_tree_delimited(block: Block, kept_layers: &mut Vec<Block>) -> Result<(), Error> {
     if let Block::DelimitedBlock(delimited_block) = block {
         match &delimited_block.inner {
-            DelimitedBlockType::DelimitedExample(blocks) => {
-                let mut blocks = blocks.clone();
-                build_section_tree(&mut blocks)?;
-                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
-                    metadata: delimited_block.metadata,
-                    inner: DelimitedBlockType::DelimitedExample(blocks),
-                    title: delimited_block.title,
-                    delimiter: delimited_block.delimiter,
-                    location: delimited_block.location,
-                }));
-            }
-            DelimitedBlockType::DelimitedQuote(blocks) => {
-                let mut blocks = blocks.clone();
-                build_section_tree(&mut blocks)?;
-                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
-                    metadata: delimited_block.metadata,
-                    inner: DelimitedBlockType::DelimitedQuote(blocks),
-                    title: delimited_block.title,
-                    delimiter: delimited_block.delimiter,
-                    location: delimited_block.location,
-                }));
-            }
-            DelimitedBlockType::DelimitedOpen(blocks) => {
-                let mut blocks = blocks.clone();
-                build_section_tree(&mut blocks)?;
-                kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
-                    metadata: delimited_block.metadata,
-                    inner: DelimitedBlockType::DelimitedOpen(blocks),
-                    title: delimited_block.title,
-                    delimiter: delimited_block.delimiter,
-                    location: delimited_block.location,
-                }));
-            }
+            // TODO(nlopes): I need to figure out why I had added this code here
+            //
+            // If I remove the DelimitedSidebar from the match, the discrete_header test fails
+            //
+            // DelimitedBlockType::DelimitedExample(blocks) => {
+            //     let mut blocks = blocks.clone();
+            //     build_section_tree(&mut blocks)?;
+            //     kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+            //         metadata: delimited_block.metadata,
+            //         inner: DelimitedBlockType::DelimitedExample(blocks),
+            //         title: delimited_block.title,
+            //         delimiter: delimited_block.delimiter,
+            //         location: delimited_block.location,
+            //     }));
+            // }
+            // DelimitedBlockType::DelimitedQuote(blocks) => {
+            //     let mut blocks = blocks.clone();
+            //     build_section_tree(&mut blocks)?;
+            //     kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+            //         metadata: delimited_block.metadata,
+            //         inner: DelimitedBlockType::DelimitedQuote(blocks),
+            //         title: delimited_block.title,
+            //         delimiter: delimited_block.delimiter,
+            //         location: delimited_block.location,
+            //     }));
+            // }
+            // DelimitedBlockType::DelimitedOpen(blocks) => {
+            //     let mut blocks = blocks.clone();
+            //     build_section_tree(&mut blocks)?;
+            //     kept_layers.push(Block::DelimitedBlock(DelimitedBlock {
+            //         metadata: delimited_block.metadata,
+            //         inner: DelimitedBlockType::DelimitedOpen(blocks),
+            //         title: delimited_block.title,
+            //         delimiter: delimited_block.delimiter,
+            //         location: delimited_block.location,
+            //     }));
+            // }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 let mut blocks = blocks.clone();
                 build_section_tree(&mut blocks)?;
@@ -97,7 +101,6 @@ pub(crate) fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error>
                         Block::DelimitedBlock(delimited_block) => {
                             delimited_block.location.end.clone()
                         }
-                        // We don't use paragraph because we don't calculate positions for paragraphs yet
                         Block::Paragraph(paragraph) => paragraph.location.end.clone(),
                         Block::OrderedList(ordered_list) => ordered_list.location.end.clone(),
                         Block::UnorderedList(unordered_list) => unordered_list.location.end.clone(),

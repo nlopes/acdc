@@ -17,17 +17,22 @@ inlines_inner = _{
 // so there will be plenty of bugs here
 single_double_passthrough = {
     (
-        (PUSH("++") ~ (!"++" ~ ANY)+) |
-        (PUSH("+") ~ (!"+" ~ ANY)+)
+        (PUSH("++") ~ double_passthrough_inner) |
+        (PUSH("+") ~ single_passthrough_inner)
     )
     ~ POP
 }
 
+triple_passthrough = {
+    PUSH("+++") ~ triple_passthrough_inner ~ POP
+}
+
+single_passthrough_inner = { (!"+" ~ ANY)+ }
+double_passthrough_inner = { (!"++" ~ ANY)+ }
+triple_passthrough_inner = { (!"+++" ~ ANY)+ }
+
 punctuation = _{ "." | "," | ";" | ":" | "!" | "?" | "\"" }
 
-triple_passthrough = {
-    PUSH("+++") ~ (!"+++" ~ ANY)+ ~ POP
-}
 pass_inline = { "pass:" ~ substitution_values? ~ "[" ~ pass_inline_text ~ "]" }
 substitution_values = _{
     (substitution_value ~ ","?)+
@@ -84,8 +89,8 @@ non_plain_text = {
     link_macro |
     autolink |
     pass_inline |
-    single_double_passthrough |
     triple_passthrough |
+    single_double_passthrough |
     (attrlist? ~ (
         footnote |
         inline_line_break |

@@ -35,6 +35,9 @@ impl Pass {
         for pair in pairs {
             match pair.as_rule() {
                 Rule::single_double_passthrough | Rule::triple_passthrough => {
+                    let pair = pair.into_inner().next().unwrap_or_else(|| {
+                        unreachable!("single_double_passthrough or triple_passthrough should have a pair inside")
+                    });
                     text = Some(pair.as_str().to_string());
                 }
                 Rule::substitution_value => {

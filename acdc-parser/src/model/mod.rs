@@ -377,6 +377,18 @@ pub enum AdmonitionVariant {
     Warning,
 }
 
+impl std::fmt::Display for AdmonitionVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AdmonitionVariant::Note => write!(f, "note"),
+            AdmonitionVariant::Tip => write!(f, "tip"),
+            AdmonitionVariant::Important => write!(f, "important"),
+            AdmonitionVariant::Caution => write!(f, "caution"),
+            AdmonitionVariant::Warning => write!(f, "warning"),
+        }
+    }
+}
+
 impl FromStr for AdmonitionVariant {
     type Err = Error;
 
