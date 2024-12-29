@@ -12,6 +12,7 @@ impl Render for Block {
         options: &RenderOptions,
     ) -> std::io::Result<()> {
         match self {
+            Block::Admonition(a) => a.render(w, processor, options),
             Block::Paragraph(p) => p.render(w, processor, options),
             Block::DelimitedBlock(d) => d.render(w, processor, options),
             Block::Section(s) => s.render(w, processor, options),

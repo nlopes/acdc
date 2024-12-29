@@ -12,10 +12,38 @@ impl Render for DelimitedBlock {
         options: &RenderOptions,
     ) -> std::io::Result<()> {
         writeln!(w, "<div>")?;
-        let _ = match &self.inner {
-            DelimitedBlockType::DelimitedTable(t) => t.render(w, processor, options),
+        match &self.inner {
+            DelimitedBlockType::DelimitedTable(t) => t.render(w, processor, options)?,
+            DelimitedBlockType::DelimitedPass(inlines) => {
+                crate::inlines::render_inlines(inlines, w, processor, options)?
+            }
+            DelimitedBlockType::DelimitedListing(inlines)
+            | DelimitedBlockType::DelimitedLiteral(inlines) => {
+                if let Some(style) = &self.metadata.style {
+                    writeln!(w, "<div class=\"{style}block\">")?;
+                } else {
+                    writeln!(w, "<div class=\"literalblock\">")?;
+                }
+                write!(w, "<div class=\"title\">")?;
+                crate::inlines::render_inlines(&self.title, w, processor, options)?;
+                writeln!(w, "</div>")?;
+                writeln!(w, "<div class=\"content\">")?;
+                writeln!(w, "<pre>")?;
+                crate::inlines::render_inlines(
+                    inlines,
+                    w,
+                    processor,
+                    &RenderOptions {
+                        inlines_substitutions: false,
+                        ..*options
+                    },
+                )?;
+                writeln!(w, "</pre>")?;
+                writeln!(w, "</div>")?;
+                writeln!(w, "</div>")?;
+            }
             unknown => todo!("Unknown delimited block type: {:?}", unknown),
-        };
+        }
         writeln!(w, "</div>")?;
         Ok(())
     }

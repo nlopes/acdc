@@ -1,6 +1,8 @@
 use std::io::Write;
 
-use acdc_parser::{AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget};
+use acdc_parser::{
+    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget, Pass,
+};
 
 use crate::{Processor, Render, RenderOptions};
 
@@ -13,7 +15,13 @@ impl Render for InlineNode {
     ) -> std::io::Result<()> {
         match self {
             InlineNode::PlainText(p) => {
-                write!(w, "{}", p.content)?;
+                let text = if options.inlines_substitutions {
+                    dbg!(&p.content);
+                    substitution_text(&p.content)
+                } else {
+                    p.content.clone()
+                };
+                write!(w, "{}", text)?;
             }
             InlineNode::BoldText(b) => {
                 if !options.inlines_basic {
@@ -65,6 +73,7 @@ impl Render for InlineMacro {
         match self {
             InlineMacro::Link(l) => l.render(w, processor, options),
             InlineMacro::Image(i) => i.render(w, processor, options),
+            InlineMacro::Pass(p) => p.render(w, processor, options),
             unknown => todo!("inline macro: {:?}", unknown),
         }
     }
@@ -84,7 +93,7 @@ impl Render for Link {
         let text = self
             .attributes
             .iter()
-            .filter_map(|(k, v)| {
+            .find_map(|(k, v)| {
                 // Link macros can only have one positional attribute, which is the text.
                 if *v == AttributeValue::None {
                     Some(k)
@@ -92,7 +101,6 @@ impl Render for Link {
                     None
                 }
             })
-            .next()
             .unwrap_or(&target);
 
         if options.inlines_basic {
@@ -129,6 +137,21 @@ impl Render for Image {
     }
 }
 
+impl Render for Pass {
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        _options: &RenderOptions,
+    ) -> std::io::Result<()> {
+        if let Some(ref text) = self.text {
+            let text = substitution_text(text);
+            write!(w, "{text}")?;
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn render_inlines(
     inlines: &[InlineNode],
     w: &mut impl Write,
@@ -139,4 +162,11 @@ pub(crate) fn render_inlines(
         inline.render(w, processor, options)?;
     }
     Ok(())
+}
+
+fn substitution_text(text: &str) -> String {
+    text.replace('>', "&gt;")
+        .replace('<', "&lt;")
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
 }
