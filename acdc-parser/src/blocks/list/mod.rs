@@ -2,13 +2,11 @@ mod description;
 mod item;
 mod simple;
 
-use std::collections::HashMap;
-
 use pest::iterators::Pairs;
 
 use crate::{
-    inlines::parse_inlines, Block, BlockMetadata, DescriptionList, DocumentAttributes, Error,
-    Location, OptionalAttributeValue, Rule, UnorderedList,
+    inlines::parse_inlines, AttributeValue, Block, BlockMetadata, DescriptionList,
+    DocumentAttributes, ElementAttributes, Error, Location, Rule, UnorderedList,
 };
 
 use super::block::BlockExt;
@@ -20,7 +18,7 @@ pub(crate) fn parse_list(
 ) -> Result<Block, Error> {
     let mut title = Vec::new();
     let mut metadata = BlockMetadata::default();
-    let mut attributes = HashMap::new();
+    let mut attributes = ElementAttributes::default();
     let mut style_found = false;
     let mut block = Block::UnorderedList(UnorderedList {
         title: Vec::new(),
@@ -57,7 +55,7 @@ pub(crate) fn parse_list(
                     if metadata.style.is_none() && !style_found {
                         metadata.style = Some(value);
                     } else {
-                        attributes.insert(value, OptionalAttributeValue(None));
+                        attributes.insert(value, AttributeValue::None);
                     }
                 }
             }

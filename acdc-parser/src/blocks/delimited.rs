@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
-    blocks, AttributeName, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DocumentAttributes, Error, InlineNode, InnerPestParser, Location, OptionalAttributeValue,
-    Plain, Rule, Table,
+    blocks, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
+    ElementAttributes, Error, InlineNode, InnerPestParser, Location, Plain, Rule, Table,
 };
 
 impl DelimitedBlock {
@@ -14,7 +11,7 @@ impl DelimitedBlock {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: &BlockMetadata,
-        attributes: &HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &ElementAttributes,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {

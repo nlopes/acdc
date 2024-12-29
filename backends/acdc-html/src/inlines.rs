@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget};
+use acdc_parser::{AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget};
 
 use crate::{Processor, Render, RenderOptions};
 
@@ -84,7 +84,14 @@ impl Render for Link {
         let text = self
             .attributes
             .iter()
-            .filter_map(|(k, v)| if v.0.is_none() { Some(k) } else { None })
+            .filter_map(|(k, v)| {
+                // Link macros can only have one positional attribute, which is the text.
+                if *v == AttributeValue::None {
+                    Some(k)
+                } else {
+                    None
+                }
+            })
             .next()
             .unwrap_or(&target);
 

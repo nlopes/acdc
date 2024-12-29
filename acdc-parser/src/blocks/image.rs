@@ -4,8 +4,8 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    Anchor, AttributeName, Block, BlockMetadata, DocumentAttributes, Image, ImageSource, Location,
-    OptionalAttributeValue, Rule,
+    Anchor, AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Image,
+    ImageSource, Location, Rule,
 };
 
 impl Image {
@@ -13,7 +13,7 @@ impl Image {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &mut ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = ImageSource::Path(String::new());
@@ -47,7 +47,7 @@ impl Image {
     fn parse_inner(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &mut ElementAttributes,
         source: &mut ImageSource,
     ) {
         let mut attribute_idx = 0;
@@ -69,7 +69,7 @@ impl Image {
                         .get(&attribute_idx)
                         .map(ToString::to_string)
                     {
-                        attributes.insert(name, OptionalAttributeValue(Some(value)));
+                        attributes.insert(name, AttributeValue::String(value));
                     } else {
                         tracing::warn!(?value, "unexpected positional attribute in image block");
                     }

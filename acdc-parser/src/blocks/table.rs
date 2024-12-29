@@ -1,21 +1,19 @@
-use std::collections::HashMap;
-
 use pest::iterators::Pair;
 
 use crate::{
-    AttributeName, BlockMetadata, DocumentAttributes, Error, Location, OptionalAttributeValue,
-    Rule, Table, TableColumn, TableRow,
+    AttributeValue, BlockMetadata, DocumentAttributes, ElementAttributes, Error, Location, Rule,
+    Table, TableColumn, TableRow,
 };
 
 impl Table {
     pub(crate) fn parse(
         pair: &Pair<Rule>,
         metadata: &BlockMetadata,
-        attributes: &HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Self, Error> {
         let mut separator = "|".to_string();
-        if let Some(OptionalAttributeValue(Some(format))) = attributes.get("format") {
+        if let Some(AttributeValue::String(format)) = attributes.get("format") {
             separator = match format.as_str() {
                 "csv" => ",".to_string(),
                 "dsv" => ":".to_string(),
@@ -26,12 +24,10 @@ impl Table {
         // override the separator if it is provided in the document
         separator = attributes
             .get("separator")
-            .unwrap_or(&OptionalAttributeValue(Some(separator.clone())))
-            .clone()
-            .0
-            .unwrap();
+            .unwrap_or(&AttributeValue::String(separator.clone()))
+            .to_string();
 
-        let ncols = if let Some(OptionalAttributeValue(Some(cols))) = attributes.get("cols") {
+        let ncols = if let Some(AttributeValue::String(cols)) = attributes.get("cols") {
             Some(cols.split(',').count())
         } else {
             None

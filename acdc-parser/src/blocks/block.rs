@@ -1,12 +1,12 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
     blocks::list::parse_list, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
-    AttributeName, Audio, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DocumentAttributes, Error, Image, InlineNode, Location, OptionalAttributeValue, PageBreak,
+    AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
+    DocumentAttributes, ElementAttributes, Error, Image, InlineNode, Location, PageBreak,
     Paragraph, Rule, Section, TableOfContents, ThematicBreak, Video,
 };
 
@@ -31,7 +31,7 @@ impl BlockExt for Block {
         }
     }
 
-    fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>) {
+    fn set_attributes(&mut self, attributes: ElementAttributes) {
         match self {
             Block::TableOfContents(_)
             | Block::DiscreteHeader(_)
@@ -129,7 +129,7 @@ pub(crate) trait BlockExt {
     fn set_location(&mut self, location: Location);
     fn set_anchors(&mut self, anchor: Vec<Anchor>);
     fn set_title(&mut self, title: Vec<InlineNode>);
-    fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>);
+    fn set_attributes(&mut self, attributes: ElementAttributes);
     fn set_metadata(&mut self, metadata: BlockMetadata);
     fn is_admonition(&self) -> bool;
     fn set_admonition_blocks(&mut self, blocks: Vec<Block>);
@@ -167,7 +167,7 @@ impl Block {
         let mut title = Vec::new();
         let mut anchors = Vec::new();
         let mut metadata = BlockMetadata::default();
-        let mut attributes = HashMap::new();
+        let mut attributes = ElementAttributes::default();
         let mut style_found = false;
         let mut location = Location::default();
         let mut block = Block::Paragraph(Paragraph {
@@ -317,7 +317,7 @@ impl Block {
                                 metadata.style = Some(value);
                             }
                         } else {
-                            attributes.insert(value, OptionalAttributeValue(None));
+                            attributes.insert(value, AttributeValue::None);
                         }
                     }
                 }
@@ -346,7 +346,7 @@ impl Block {
 
     pub(crate) fn parse_named_attribute(
         pairs: Pairs<Rule>,
-        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &mut ElementAttributes,
         metadata: &mut BlockMetadata,
     ) {
         let mut name = None;
@@ -378,8 +378,8 @@ impl Block {
                 } else {
                     tracing::warn!("named 'role' attribute without value");
                 }
-            } else {
-                attributes.insert(name, OptionalAttributeValue(value));
+            } else if let Some(value) = value {
+                attributes.insert(name, AttributeValue::String(value));
             }
         }
     }

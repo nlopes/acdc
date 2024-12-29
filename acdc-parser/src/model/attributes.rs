@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
 use serde::{
+    de::Deserializer,
     ser::{SerializeMap, Serializer},
     Deserialize, Serialize,
 };
 
-#[derive(Debug, Default, PartialEq, Deserialize)]
-pub struct DocumentAttributes(
-    #[serde(skip_serializing_if = "HashMap::is_empty")] HashMap<AttributeName, AttributeValue>,
-);
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct Document(HashMap<AttributeName, AttributeValue>);
+pub type Element = Document;
 
-impl Serialize for DocumentAttributes {
+impl Serialize for Document {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -19,7 +19,7 @@ impl Serialize for DocumentAttributes {
         let mut state = serializer.serialize_map(Some(self.0.len()))?;
         for (key, value) in &self.0 {
             if key == "toc" && value == &AttributeValue::Bool(true) {
-                state.serialize_entry(key, &AttributeValue::String(String::new()))?;
+                state.serialize_entry(key, "")?;
                 continue;
             }
             state.serialize_entry(key, value)?;
@@ -28,7 +28,21 @@ impl Serialize for DocumentAttributes {
     }
 }
 
-impl DocumentAttributes {
+impl<'de> Deserialize<'de> for Document {
+    fn deserialize<D>(deserializer: D) -> Result<Document, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let pairs = HashMap::deserialize(deserializer).unwrap_or_default();
+        Ok(Document(pairs))
+    }
+}
+
+impl Document {
+    pub fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
+        self.0.iter()
+    }
+
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -54,7 +68,7 @@ pub type AttributeName = String;
 
 /// An `AttributeValue` represents the value of an attribute in a document.
 ///
-/// An attribute value can be a string or a boolean.
+/// An attribute value can be a string, a boolean, or nothing
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
@@ -62,4 +76,16 @@ pub enum AttributeValue {
     String(String),
     /// A boolean attribute value. `false` means it is unset.
     Bool(bool),
+    /// No value (or it was unset)
+    None,
+}
+
+impl std::fmt::Display for AttributeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AttributeValue::String(value) => write!(f, "{value}"),
+            AttributeValue::Bool(value) => write!(f, "{value}"),
+            AttributeValue::None => write!(f, "null"),
+        }
+    }
 }

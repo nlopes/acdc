@@ -4,9 +4,9 @@ use pest::iterators::{Pair, Pairs};
 use tracing::instrument;
 
 use crate::{
-    inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor, AttributeName, Block,
-    BlockMetadata, DocumentAttributes, Error, InlineNode, Location, OptionalAttributeValue,
-    Paragraph, Rule,
+    inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor, AttributeValue, Block,
+    BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode, Location, Paragraph,
+    Rule,
 };
 
 impl Paragraph {
@@ -14,7 +14,7 @@ impl Paragraph {
     pub(crate) fn parse(
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &mut ElementAttributes,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
@@ -55,7 +55,7 @@ impl Paragraph {
                         if metadata.style.is_none() && !style_found {
                             metadata.style = Some(value);
                         } else {
-                            attributes.insert(value, OptionalAttributeValue(None));
+                            attributes.insert(value, AttributeValue::None);
                         }
                     }
                 }
@@ -152,7 +152,7 @@ impl Paragraph {
                         if metadata.style.is_none() {
                             metadata.style = Some(value);
                         } else {
-                            attributes.insert(value, OptionalAttributeValue(None));
+                            attributes.insert(value, AttributeValue::None);
                         }
                     }
                 }

@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    AttributeName, Block, BlockMetadata, DocumentAttributes, Error, InlineNode, ListItem, Location,
-    OptionalAttributeValue, OrderedList, Rule, UnorderedList,
+    Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode, ListItem,
+    Location, OrderedList, Rule, UnorderedList,
 };
 
 impl Block {
@@ -14,7 +12,7 @@ impl Block {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
-        attributes: HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: ElementAttributes,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {

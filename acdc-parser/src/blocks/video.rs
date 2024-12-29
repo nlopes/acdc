@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    AttributeName, Block, BlockMetadata, DocumentAttributes, Location, OptionalAttributeValue,
-    Rule, Video, VideoSource,
+    AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Location, Rule,
+    Video, VideoSource,
 };
 
 impl Video {
@@ -13,7 +11,7 @@ impl Video {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &mut ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut sources = vec![];
@@ -38,7 +36,7 @@ impl Video {
                             Rule::positional_attribute_value => {
                                 let name = pair.as_str().to_string();
                                 if attribute_idx == 0 {
-                                    attributes.insert(name, OptionalAttributeValue(None));
+                                    attributes.insert(name, AttributeValue::None);
                                 } else {
                                     tracing::warn!(
                                         ?name,

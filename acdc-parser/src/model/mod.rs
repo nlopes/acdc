@@ -1,5 +1,5 @@
 //! The data models for the `AsciiDoc` document.
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use serde::{
     de::{self, Deserializer, MapAccess, Visitor},
@@ -9,12 +9,14 @@ use serde::{
 
 use crate::Error;
 
-mod document_attributes;
+mod attributes;
 mod inlines;
 mod location;
 mod substitution;
 
-pub use document_attributes::*;
+pub use attributes::{
+    AttributeName, AttributeValue, Document as DocumentAttributes, Element as ElementAttributes,
+};
 pub use inlines::*;
 pub use location::*;
 pub use substitution::*;
@@ -107,8 +109,7 @@ impl<'de> Deserialize<'de> for OptionalAttributeValue {
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
+    pub attributes: ElementAttributes,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -122,7 +123,7 @@ pub struct BlockMetadata {
 }
 
 impl BlockMetadata {
-    pub fn set_attributes(&mut self, attributes: HashMap<AttributeName, OptionalAttributeValue>) {
+    pub fn set_attributes(&mut self, attributes: ElementAttributes) {
         self.attributes = attributes;
     }
 

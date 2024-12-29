@@ -46,10 +46,10 @@ pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, AudioSource,
     Author, Autolink, Block, BlockMetadata, Bold, Button, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Header, Highlight, Icon, Image, ImageSource,
-    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, LinkTarget, ListItem, Location,
-    Menu, Monospace, OptionalAttributeValue, OrderedList, PageBreak, Paragraph, Pass, Plain, Role,
-    Section, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
+    DocumentAttribute, DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image,
+    ImageSource, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, LinkTarget, ListItem,
+    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, Plain, Role, Section,
+    Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
     ThematicBreak, UnorderedList, Url, Video, VideoSource,
 };
 

@@ -1,11 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-};
+use std::{collections::HashSet, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AttributeName, Location, OptionalAttributeValue, Substitution};
+use crate::{ElementAttributes, Location, Substitution};
 
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -21,7 +18,7 @@ pub struct Pass {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Icon {
     pub target: String,
-    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
+    pub attributes: ElementAttributes,
     pub location: Location,
 }
 
@@ -29,8 +26,7 @@ pub struct Icon {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Link {
     pub target: LinkTarget,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
+    pub attributes: ElementAttributes,
     pub location: Location,
 }
 
@@ -44,8 +40,7 @@ pub enum LinkTarget {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Url {
     pub target: String,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub attributes: HashMap<AttributeName, OptionalAttributeValue>,
+    pub attributes: ElementAttributes,
     pub location: Location,
 }
 

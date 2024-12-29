@@ -1,11 +1,8 @@
-use std::collections::HashMap;
-
 use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    AttributeName, Audio, AudioSource, Block, BlockMetadata, DocumentAttributes, Location,
-    OptionalAttributeValue, Rule,
+    Audio, AudioSource, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Location, Rule,
 };
 
 impl Audio {
@@ -13,7 +10,7 @@ impl Audio {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
-        attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
+        attributes: &mut ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = AudioSource::Path(String::new());

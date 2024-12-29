@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
@@ -12,10 +10,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{
-    model::{Image, ImageSource},
-    BlockMetadata,
-};
+use crate::{BlockMetadata, ElementAttributes, Image, ImageSource};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -292,7 +287,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
                         Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
-                            attributes: HashMap::new(),
+                            attributes: ElementAttributes::default(),
                             target: my_target,
                             location: my_location,
                         })))
@@ -320,7 +315,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
                         match my_variant.as_str() {
                             "url" => Ok(InlineNode::Macro(InlineMacro::Url(Url {
-                                attributes: HashMap::new(),
+                                attributes: ElementAttributes::default(),
                                 target: my_target,
                                 location: my_location,
                             }))),

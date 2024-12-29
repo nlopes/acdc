@@ -8,8 +8,6 @@ mod menu;
 mod pass;
 mod url;
 
-use std::collections::HashMap;
-
 use pest::{
     iterators::{Pair, Pairs},
     Parser as _,
@@ -17,9 +15,9 @@ use pest::{
 use tracing::instrument;
 
 use crate::{
-    error::Error, AttributeName, Autolink, Bold, Button, DocumentAttributes, Highlight, Icon,
-    Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location, Menu, Monospace,
-    OptionalAttributeValue, Pass, Plain, Rule, Subscript, Superscript, Url,
+    error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
+    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
+    Menu, Monospace, Pass, Plain, Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -201,10 +199,7 @@ impl InlineNode {
     }
 }
 
-fn parse_named_attribute(
-    pairs: Pairs<Rule>,
-    attributes: &mut HashMap<AttributeName, OptionalAttributeValue>,
-) {
+fn parse_named_attribute(pairs: Pairs<Rule>, attributes: &mut ElementAttributes) {
     let mut name = String::new();
 
     for pair in pairs {
@@ -212,26 +207,26 @@ fn parse_named_attribute(
             Rule::id => {
                 attributes.insert(
                     "id".to_string(),
-                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                    AttributeValue::String(pair.as_str().to_string()),
                 );
             }
             Rule::role => {
                 attributes.insert(
                     "role".to_string(),
-                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                    AttributeValue::String(pair.as_str().to_string()),
                 );
             }
             Rule::option => {
                 attributes.insert(
                     "option".to_string(),
-                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                    AttributeValue::String(pair.as_str().to_string()),
                 );
             }
             Rule::attribute_name => name = pair.as_str().to_string(),
             Rule::named_attribute_value => {
                 attributes.insert(
                     name.clone(),
-                    OptionalAttributeValue(Some(pair.as_str().to_string())),
+                    AttributeValue::String(pair.as_str().to_string()),
                 );
             }
             Rule::EOI | Rule::comment => {}
