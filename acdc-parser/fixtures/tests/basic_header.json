@@ -62,7 +62,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "The document",
+          "value": "The document ",
           "location": [
             {
               "line": 9,
@@ -110,7 +110,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "starts here.",
+          "value": " starts here.",
           "location": [
             {
               "line": 9,

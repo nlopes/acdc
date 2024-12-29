@@ -36,7 +36,7 @@ impl InlineNode {
 
             match pair.as_rule() {
                 Rule::plain_text | Rule::one_line_plain_text => {
-                    let content = pair.as_str().trim();
+                    let content = pair.as_str();
                     let content = content
                         .strip_suffix("\r\n")
                         .or(content.strip_suffix("\n"))
