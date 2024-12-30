@@ -1,5 +1,5 @@
 [package]
-name = "acdc-backends-common"
+name = "acdc-converters-common"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

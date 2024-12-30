@@ -1,15 +1,16 @@
 [package]
-name = "acdc-tck"
+name = "acdc-terminal"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description.workspace = true
 
 [dependencies]
-acdc-backends-common.workspace = true
+acdc-converters-common.workspace = true
 acdc-parser.workspace = true
-serde.workspace = true
-serde_json.workspace = true
+clap.workspace = true
+comfy-table = "7.1.3"
+crossterm = "0.28.1"
 thiserror.workspace = true
 tracing.workspace = true
 

@@ -24,16 +24,15 @@ Options:
   -V, --version                Print version
 ....
 
-## Backends supported
+## Backends (converters) supported
 
-Check the `link:../backends/README.adoc[backends README]` for details on each of the
-backends.
+Check the `link:../converters/README.adoc[converters README]` for details.
 
-- `link:../backends/acdc-html[html]`
-- `link:../backends/acdc-terminal[terminal]` (not built by default)
-- `link:../backends/acdc-tck[tck]` (not built by default)
+- `link:../converters/html[html]`
+- `link:../converters/terminal[terminal]` (not built by default)
+- `link:../converters/tck[tck]` (not built by default)
 
-If you so wish, you can build an optional backend like so:
+### Building an optional backend
 
 [source,console]
 ....

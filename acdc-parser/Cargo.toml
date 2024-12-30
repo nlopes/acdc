@@ -6,7 +6,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-acdc-backends-common.workspace = true
+acdc-converters-common.workspace = true
 pest = "2.7"
 pest_derive = "2.7"
 serde.workspace = true

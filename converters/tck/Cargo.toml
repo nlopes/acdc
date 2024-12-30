@@ -1,14 +1,15 @@
 [package]
-name = "acdc-html"
+name = "acdc-tck"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description.workspace = true
 
 [dependencies]
-acdc-backends-common.workspace = true
+acdc-converters-common.workspace = true
 acdc-parser.workspace = true
-chrono = "0.4.39"
+serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

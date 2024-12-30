@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use acdc_backends_common::{Config, Processable, Source};
+use acdc_converters_common::{Config, Processable, Source};
 use acdc_parser::Document;
 
 #[derive(thiserror::Error, Debug)]

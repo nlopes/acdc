@@ -3,17 +3,10 @@
 version = 4
 
 [[package]]
-name = "acdc-backends-common"
-version = "0.1.0"
-dependencies = [
- "clap",
-]
-
-[[package]]
 name = "acdc-cli"
 version = "0.1.0"
 dependencies = [
- "acdc-backends-common",
+ "acdc-converters-common",
  "acdc-html",
  "acdc-parser",
  "acdc-tck",
@@ -27,10 +20,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "acdc-converters-common"
+version = "0.1.0"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "acdc-html"
 version = "0.1.0"
 dependencies = [
- "acdc-backends-common",
+ "acdc-converters-common",
  "acdc-parser",
  "chrono",
  "thiserror",
@@ -41,7 +41,7 @@ dependencies = [
 name = "acdc-parser"
 version = "0.1.0"
 dependencies = [
- "acdc-backends-common",
+ "acdc-converters-common",
  "pest",
  "pest_derive",
  "pretty_assertions",
@@ -58,7 +58,7 @@ dependencies = [
 name = "acdc-tck"
 version = "0.1.0"
 dependencies = [
- "acdc-backends-common",
+ "acdc-converters-common",
  "acdc-parser",
  "serde",
  "serde_json",
@@ -70,7 +70,7 @@ dependencies = [
 name = "acdc-terminal"
 version = "0.1.0"
 dependencies = [
- "acdc-backends-common",
+ "acdc-converters-common",
  "acdc-parser",
  "clap",
  "comfy-table",

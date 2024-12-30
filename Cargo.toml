@@ -2,10 +2,10 @@
 members = [
   "acdc-cli",
   "acdc-parser",
-  "backends/acdc-backends-common",
-  "backends/acdc-html",
-  "backends/acdc-tck",
-  "backends/acdc-terminal",
+  "converters/common",
+  "converters/html",
+  "converters/tck",
+  "converters/terminal",
 ]
 resolver = "2"
 
@@ -16,7 +16,7 @@ authors = ["Norberto Lopes <nlopesml@gmail.com>"]
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
-acdc-backends-common = { path = "./backends/acdc-backends-common" }
+acdc-converters-common = { path = "./converters/common" }
 acdc-parser = { path = "./acdc-parser" }
 clap = { version = "4.5.20", features = ["derive"] }
 pretty_assertions = "1.4"

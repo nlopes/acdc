@@ -16,7 +16,7 @@
 /// the parser and write the output to `stdout`.
 use std::io::{self, BufReader, Write};
 
-use acdc_backends_common::{Config, Processable, Source};
+use acdc_converters_common::{Config, Processable, Source};
 use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]

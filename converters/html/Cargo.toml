@@ -1,16 +1,14 @@
 [package]
-name = "acdc-terminal"
+name = "acdc-html"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description.workspace = true
 
 [dependencies]
-acdc-backends-common.workspace = true
+acdc-converters-common.workspace = true
 acdc-parser.workspace = true
-clap.workspace = true
-comfy-table = "7.1.3"
-crossterm = "0.28.1"
+chrono = "0.4.39"
 thiserror.workspace = true
 tracing.workspace = true
 

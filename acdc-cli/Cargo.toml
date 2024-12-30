@@ -10,11 +10,11 @@ name = "acdc"
 path = "src/main.rs"
 
 [dependencies]
-acdc-backends-common.workspace = true
-acdc-html = { path = "../backends/acdc-html", optional = true }
+acdc-converters-common.workspace = true
+acdc-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
-acdc-tck = { path = "../backends/acdc-tck", optional = true }
-acdc-terminal = { path = "../backends/acdc-terminal", optional = true }
+acdc-tck = { path = "../converters/tck", optional = true }
+acdc-terminal = { path = "../converters/terminal", optional = true }
 anyhow = "1.0.95"
 clap.workspace = true
 serde.workspace = true

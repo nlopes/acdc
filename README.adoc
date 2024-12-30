@@ -10,4 +10,4 @@ Users will likely want to look at `link:./acdc-cli[acdc-cli]`.
 
 - `link:./acdc-cli[acdc-cli]` - `AsciiDoc` processor
 - `link:./acdc-parser[acdc-parser]` - `AsciiDoc` parser library
-- `link:./backends[backends]` - collection of `AsciiDoc` backend implementations
+- `link:./converters[converters]` - collection of `AsciiDoc` converters
