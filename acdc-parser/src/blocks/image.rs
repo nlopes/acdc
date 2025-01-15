@@ -17,8 +17,16 @@ impl Image {
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = ImageSource::Path(String::new());
+        let mut location = Location::default();
 
-        for pair in pairs {
+        let len = pairs.clone().count();
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.set_start_from_pos(&pair.as_span().start_pos());
+            }
+            if i == len - 1 {
+                location.set_end_from_pos(&pair.as_span().end_pos());
+            }
             match pair.as_rule() {
                 Rule::anchor => {
                     tracing::error!("unexpected anchor in image block");
@@ -36,7 +44,7 @@ impl Image {
             metadata.id = Some(anchor.clone());
         }
         Block::Image(Self {
-            location: Location::default(),
+            location,
             title: Vec::new(),
             source,
             metadata: metadata.clone(),

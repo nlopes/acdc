@@ -17,13 +17,14 @@ use tracing::instrument;
 use crate::{
     error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
     Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
-    Menu, Monospace, Pass, Plain, Rule, Subscript, Superscript, Url,
+    Menu, Monospace, Pass, Plain, Position, ProcessedContent, Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        processed: Option<&ProcessedContent>,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<InlineNode, Error> {
@@ -48,6 +49,7 @@ impl InlineNode {
                         "highlight",
                         unconstrained,
                         &pair,
+                        processed,
                         Some(&location),
                         parent_attributes,
                     )?;
@@ -63,6 +65,7 @@ impl InlineNode {
                         "italic",
                         unconstrained,
                         &pair,
+                        processed,
                         Some(&location),
                         parent_attributes,
                     )?;
@@ -78,6 +81,7 @@ impl InlineNode {
                         "bold",
                         unconstrained,
                         &pair,
+                        processed,
                         Some(&location),
                         parent_attributes,
                     )?;
@@ -93,6 +97,7 @@ impl InlineNode {
                         "monospace",
                         unconstrained,
                         &pair,
+                        processed,
                         Some(&location),
                         parent_attributes,
                     )?;
@@ -107,6 +112,7 @@ impl InlineNode {
                         "subscript",
                         false,
                         &pair,
+                        processed,
                         Some(&location),
                         parent_attributes,
                     )?;
@@ -121,6 +127,7 @@ impl InlineNode {
                         "superscript",
                         false,
                         &pair,
+                        processed,
                         Some(&location),
                         parent_attributes,
                     )?;
@@ -138,9 +145,51 @@ impl InlineNode {
                 | Rule::url_macro
                 | Rule::link_macro
                 | Rule::autolink
-                | Rule::pass_inline
-                | Rule::single_double_passthrough
-                | Rule::triple_passthrough => return Self::parse_macro(pair),
+                | Rule::pass_inline => return Self::parse_macro(pair),
+                Rule::placeholder => {
+                    // If there is processed content, which is the case for a placeholder,
+                    // like a pass macro or a passthrough we need to find the processed
+                    // content that matches the location of the placeholder and return the
+                    // content of the passthrough, with updated location information
+                    if let Some(processed) = processed {
+                        for pass in processed.passthroughs.iter() {
+                            // If the location of the placeholder matches the location of
+                            // the processed content
+                            if pass.content.location.absolute_start
+                                - pass.content.location.start.line
+                                - 1
+                                == location.absolute_start
+                            {
+                                let mapped_start = pass.source_map.map_position(pass.start);
+                                let mapped_end = pass.source_map.map_position(pass.end);
+
+                                return Ok(InlineNode::PlainText(Plain {
+                                    content: pass.content.text.clone().unwrap_or_default(),
+                                    location: Location {
+                                        start: Position {
+                                            line: pass.content.location.start.line,
+                                            column: mapped_start,
+                                        },
+                                        end: Position {
+                                            line: pass.content.location.end.line,
+                                            column: mapped_end,
+                                        },
+                                        absolute_start: pass.content.location.absolute_start,
+                                        absolute_end: pass.content.location.absolute_end,
+                                    },
+                                }));
+                            }
+                        }
+                    } else {
+                        tracing::error!(
+                            location = %location,
+                            "no processed content found for placeholder at location"
+                        );
+                        return Err(Error::Parse(
+                            "no processed content found for placeholder".to_string(),
+                        ));
+                    }
+                }
                 Rule::role => role = Some(pair.as_str().to_string()),
                 Rule::inline_line_break | Rule::hard_wrap => {
                     return Ok(InlineNode::LineBreak(LineBreak { location }));
@@ -189,11 +238,11 @@ impl InlineNode {
                 pair.into_inner(),
                 location,
             )))),
-            Rule::single_double_passthrough | Rule::triple_passthrough => {
-                Ok(InlineNode::Macro(InlineMacro::Pass(
-                    Pass::parse_inline_single_double_or_triple(Pairs::single(pair), location),
-                )))
-            }
+            // Rule::single_double_passthrough | Rule::triple_passthrough => {
+            //     Ok(InlineNode::Macro(InlineMacro::Pass(
+            //         Pass::parse_inline_single_double_or_triple(Pairs::single(pair), location),
+            //     )))
+            // }
             unknown => unreachable!("{unknown:?}"),
         }
     }
@@ -238,27 +287,31 @@ fn parse_named_attribute(pairs: Pairs<Rule>, attributes: &mut ElementAttributes)
 #[instrument(level = "trace")]
 pub(crate) fn parse_inlines(
     pair: Pair<Rule>,
+    processed: Option<&ProcessedContent>,
     parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Vec<InlineNode>, Error> {
     let pairs = pair.into_inner();
     let mut content = Vec::new();
-
     for pair in pairs {
         match pair.as_rule() {
             Rule::non_plain_text => {
-                content.push(InlineNode::parse(
+                let entry = InlineNode::parse(
                     pair.into_inner(),
+                    processed,
                     parent_location,
                     parent_attributes,
-                )?);
+                )?;
+                content.push(entry);
             }
             Rule::plain_text | Rule::one_line_plain_text => {
-                content.push(InlineNode::parse(
+                let entry = InlineNode::parse(
                     Pairs::single(pair),
+                    processed,
                     parent_location,
                     parent_attributes,
-                )?);
+                )?;
+                content.push(entry);
             }
             Rule::EOI | Rule::comment => {}
             unknown => unreachable!("{unknown:?}"),
@@ -272,6 +325,7 @@ pub(crate) fn get_content(
     text_style: &str,
     unconstrained: bool,
     pair: &Pair<Rule>,
+    processed: Option<&ProcessedContent>,
     parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Vec<InlineNode>, Error> {
@@ -293,6 +347,7 @@ pub(crate) fn get_content(
             for pair in pairs {
                 content.extend(parse_inlines(
                     pair,
+                    processed,
                     parent_location.as_ref(),
                     parent_attributes,
                 )?);

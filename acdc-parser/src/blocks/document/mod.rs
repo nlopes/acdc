@@ -18,7 +18,6 @@ impl Document {
         let mut location = Location::default();
 
         let len = pairs.clone().count();
-
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
                 location.set_start_from_pos(&pair.as_span().start_pos());

@@ -28,6 +28,7 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.metadata = metadata,
             Block::Video(video) => video.metadata = metadata,
             Block::Admonition(admonition) => admonition.metadata = metadata,
+            Block::_DiscreteHeaderSection(_) => {}
         }
     }
 
@@ -52,6 +53,7 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.metadata.attributes = attributes,
             Block::Video(video) => video.metadata.attributes = attributes,
             Block::Admonition(admonition) => admonition.metadata.attributes = attributes,
+            Block::_DiscreteHeaderSection(_) => {}
         }
     }
 
@@ -72,6 +74,7 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.metadata.anchors = anchors,
             Block::Video(video) => video.metadata.anchors = anchors,
             Block::Admonition(admonition) => admonition.metadata.anchors = anchors,
+            Block::_DiscreteHeaderSection(section) => section.anchors = anchors,
         }
     }
 
@@ -91,6 +94,7 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.title = title,
             Block::Video(video) => video.title = title,
             Block::Admonition(admonition) => admonition.title = title,
+            Block::_DiscreteHeaderSection(section) => section.title = title,
         }
     }
 
@@ -111,6 +115,7 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.location = location,
             Block::Video(video) => video.location = location,
             Block::Admonition(admonition) => admonition.location = location,
+            Block::_DiscreteHeaderSection(section) => section.location = location,
         }
     }
 
@@ -153,6 +158,7 @@ impl std::fmt::Display for Block {
             Block::Audio(_) => write!(f, "Audio"),
             Block::Video(_) => write!(f, "Video"),
             Block::Admonition(_) => write!(f, "Admonition"),
+            Block::_DiscreteHeaderSection(_) => write!(f, "_DiscreteHeaderSection"),
         }
     }
 }
@@ -188,7 +194,7 @@ impl Block {
 
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
-                Rule::section => block = Section::parse(&pair, parent_attributes)?,
+                Rule::section => block = Section::parse(&pair, parent_location, parent_attributes)?,
                 Rule::delimited_block => {
                     let delimited_block = DelimitedBlock::parse(
                         pair.into_inner(),
@@ -204,6 +210,10 @@ impl Block {
                                 maybe_example_block.inner
                             {
                                 block.set_admonition_blocks(blocks);
+                                // Need to set location here because we might have a
+                                // parent location and therefore the check at the return
+                                // point of this function fails.
+                                block.set_location(location.clone());
                             }
                         } else {
                             tracing::warn!(
@@ -282,7 +292,11 @@ impl Block {
                     style_found = true;
                 }
                 Rule::title => {
-                    title = parse_inlines(pair, parent_location, parent_attributes)?;
+                    // TODO(nlopes): insted of None, `processed` should be passed here
+                    //
+                    // In order to do that, we need to pre-process the title and then
+                    // pass it to `parse_inlines` as `Some(processed)`
+                    title = parse_inlines(pair, None, parent_location, parent_attributes)?;
                 }
                 Rule::thematic_break_block => {
                     let thematic_break = ThematicBreak {

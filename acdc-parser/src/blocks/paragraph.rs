@@ -1,12 +1,15 @@
 use std::{collections::HashMap, str::FromStr};
 
-use pest::iterators::{Pair, Pairs};
+use pest::{
+    iterators::{Pair, Pairs},
+    Parser,
+};
 use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor, AttributeValue, Block,
-    BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode, Location, Paragraph,
-    Rule,
+    BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode, InlinePreprocessor,
+    InnerPestParser, Location, Paragraph, ProcessedContent, Rule,
 };
 
 impl Paragraph {
@@ -18,7 +21,7 @@ impl Paragraph {
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
-        let mut location = Location::from_pair(&pair);
+        let mut outer_location = Location::from_pair(&pair);
         let pairs = pair.into_inner();
 
         let mut content = Vec::new();
@@ -27,17 +30,36 @@ impl Paragraph {
         let mut admonition = None;
 
         for pair in pairs {
+            let mut location = Location::from_pair(&pair);
             match pair.as_rule() {
                 Rule::admonition => {
                     admonition = Some(pair.as_str());
                 }
                 Rule::inlines => {
+                    let text = pair.as_str();
+                    let start_pos = pair.as_span().start_pos().pos();
+
+                    // Run inline preprocessor before parsing inlines
+                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
+                    let processed = preprocessor.process(text, start_pos)?;
+
+                    // Now parse the processed text
+                    let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
+                        .map_err(|e| Error::Parse(e.to_string()))?;
+
+                    // We need to shift the location of the inlines so that they are
+                    // correct.
+                    location.shift(parent_location);
                     // TODO(nlopes): we should merge the parent_attributes, with the
                     // attributes we have here?!?
                     content.extend(Self::parse_inner(
-                        pair,
+                        pairs.next().ok_or_else(|| {
+                            tracing::error!("error parsing paragraph content");
+                            Error::Parse("error parsing paragraph content".to_string())
+                        })?,
                         metadata,
-                        parent_location,
+                        &processed,
+                        Some(&location),
                         parent_attributes,
                     )?);
                 }
@@ -60,7 +82,11 @@ impl Paragraph {
                     }
                 }
                 Rule::title => {
-                    title = parse_inlines(pair, parent_location, parent_attributes)?;
+                    // TODO(nlopes): insted of None, `processed` should be passed here
+                    //
+                    // In order to do that, we need to pre-process the title and then
+                    // pass it to `parse_inlines` as `Some(processed)`
+                    title = parse_inlines(pair, None, parent_location, parent_attributes)?;
                 }
                 Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}
                 unknown => {
@@ -68,7 +94,7 @@ impl Paragraph {
                 }
             }
         }
-        location.shift(parent_location);
+        outer_location.shift(parent_location);
         if let Some(admonition) = admonition {
             Ok(Block::Admonition(Admonition {
                 metadata: metadata.clone(),
@@ -77,9 +103,9 @@ impl Paragraph {
                     metadata: metadata.clone(),
                     title: Vec::new(),
                     content,
-                    location: location.clone(),
+                    location: outer_location.clone(),
                 })],
-                location: location.clone(),
+                location: outer_location.clone(),
                 variant: AdmonitionVariant::from_str(admonition)?,
             }))
         } else {
@@ -87,7 +113,7 @@ impl Paragraph {
                 metadata: metadata.clone(),
                 title,
                 content,
-                location: location.clone(),
+                location: outer_location.clone(),
             }))
         }
     }
@@ -96,6 +122,7 @@ impl Paragraph {
     pub(crate) fn parse_inner(
         pair: Pair<Rule>,
         metadata: &mut BlockMetadata,
+        processed: &ProcessedContent,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Vec<InlineNode>, Error> {
@@ -108,12 +135,12 @@ impl Paragraph {
         // We need to do this because the inlines locations below will calculate their
         // lines by assuming there is already a newline but in this specific case
         // (paragraph) there isn't.
-        let parent_location = parent_location.map(|l| {
-            let mut l = l.clone();
-            l.start.line += 1;
-            l.end.line += 1;
-            l
-        });
+        // let parent_location = parent_location.map(|l| {
+        //     let mut l = l.clone();
+        //     l.start.line += 1;
+        //     l.end.line += 1;
+        //     l
+        // });
 
         for pair in pairs {
             if first {
@@ -137,7 +164,7 @@ impl Paragraph {
                         continue;
                     }
                     let mut location = Location::from_pair(&pair);
-                    location.shift(parent_location.as_ref());
+                    location.shift(parent_location);
                     let anchor = Anchor {
                         id: pair.as_str().to_string(),
                         location,
@@ -159,14 +186,16 @@ impl Paragraph {
                 Rule::non_plain_text => {
                     content.push(InlineNode::parse(
                         pair.into_inner(),
-                        parent_location.as_ref(),
+                        Some(processed),
+                        parent_location,
                         parent_attributes,
                     )?);
                 }
                 Rule::plain_text => {
                     content.push(InlineNode::parse(
                         Pairs::single(pair),
-                        parent_location.as_ref(),
+                        None,
+                        parent_location,
                         parent_attributes,
                     )?);
                 }

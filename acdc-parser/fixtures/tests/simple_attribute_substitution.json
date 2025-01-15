@@ -1,0 +1,60 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "version": "**1.0**"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Version ",
+          "location": [{"line": 3,"col": 4},{"line": 3,"col": 11}]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "1.0",
+              "location": [{"line": 3,"col": 14},{"line": 3,"col": 16}]
+            }
+          ],
+          "location": [{"line": 3,"col": 12},{"line": 3,"col": 18}]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Release Notes",
+          "location": [{"line": 3,"col": 19},{"line": 3,"col": 32}]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Some content here.",
+              "location": [{"line": 5,"col": 1},{"line": 5,"col": 18}]
+            }
+          ],
+          "location": [{"line": 5,"col": 1},{"line": 5,"col": 18}]
+        }
+      ],
+      "location": [{"line": 3,"col": 1},{"line": 5,"col": 18}]
+    }
+  ],
+  "location": [{"line": 1,"col": 1},{"line": 5,"col": 18}]
+}

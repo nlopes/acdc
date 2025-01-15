@@ -31,7 +31,11 @@ pub(crate) fn parse_list(
     for pair in pairs {
         match pair.as_rule() {
             Rule::list_title | Rule::blocktitle | Rule::title => {
-                title = parse_inlines(pair, parent_location, parent_attributes)?;
+                // TODO(nlopes): insted of None, `processed` should be passed here
+                //
+                // In order to do that, we need to pre-process the inlines and then
+                // pass it to `parse_inlines` as `Some(processed)`
+                title = parse_inlines(pair, None, parent_location, parent_attributes)?;
             }
             Rule::unordered_list | Rule::ordered_list => {
                 block = Block::parse_simple_list(

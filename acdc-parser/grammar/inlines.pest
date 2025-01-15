@@ -12,25 +12,6 @@ inlines_inner = _{
     )+
 }
 
-// ** inline passthroughs **
-// TODO(nlopes): This currently doesn't quite follow the rules of constrained vs unconstrained
-// so there will be plenty of bugs here
-single_double_passthrough = {
-    (
-        (PUSH("++") ~ double_passthrough_inner) |
-        (PUSH("+") ~ single_passthrough_inner)
-    )
-    ~ POP
-}
-
-triple_passthrough = {
-    PUSH("+++") ~ triple_passthrough_inner ~ POP
-}
-
-single_passthrough_inner = { (!"+" ~ ANY)+ }
-double_passthrough_inner = { (!"++" ~ ANY)+ }
-triple_passthrough_inner = { (!"+++" ~ ANY)+ }
-
 punctuation = _{ "." | "," | ";" | ":" | "!" | "?" | "\"" }
 
 pass_inline = { "pass:" ~ substitution_values? ~ "[" ~ pass_inline_text ~ "]" }
@@ -78,6 +59,10 @@ link_macro = { "link:" ~ (url | path) ~ attrlist }
 //soft_wrap = { " \\" ~ NEWLINE }
 hard_wrap = { SPACE ~ "+" ~ SPACE ~ "\\" ~ NEWLINE }
 
+// Note: Passthrough and attribute references are handled by preprocessor
+// So we only need to match the placeholder character here
+placeholder = { "\u{FFFD}" }
+
 non_plain_text = {
     hard_wrap |
     image_inline |
@@ -89,8 +74,7 @@ non_plain_text = {
     link_macro |
     autolink |
     pass_inline |
-    triple_passthrough |
-    single_double_passthrough |
+    placeholder |
     (attrlist? ~ (
         footnote |
         inline_line_break |

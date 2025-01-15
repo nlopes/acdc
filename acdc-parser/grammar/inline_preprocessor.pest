@@ -1,0 +1,30 @@
+// Top level rule for preprocessing
+preprocessed_text = { SOI ~ (passthrough | attr_ref | unprocessed_text)* ~ EOI }
+
+// Attribute references
+attr_ref = { "{" ~ attr_name ~ "}" }
+attr_name = @{ (ASCII_ALPHANUMERIC | "-" | "_")+ }
+
+// Inline passthroughs
+passthrough = {
+    triple_plus_passthrough |
+    double_plus_passthrough |
+    single_plus_passthrough |
+    pass_macro
+}
+
+single_plus_passthrough = { "+" ~ (!("+" | EOI) ~ ANY)* ~ "+" }
+double_plus_passthrough = { "++" ~ (!"++" ~ ANY)* ~ "++" }
+triple_plus_passthrough = { "+++" ~ (!"+++" ~ ANY)* ~ "+++" }
+
+// Pass macro
+pass_macro = { "pass:" ~ substitutions? ~ "[" ~ pass_content ~ "]" }
+substitutions = { substitution_value ~ ("," ~ substitution_value)* }
+substitution_value = { ASCII_ALPHANUMERIC+ }
+pass_content = { (!"]" ~ ANY)* }
+
+// Text that doesn't match any special syntax
+unprocessed_text = { (!(passthrough | attr_ref) ~ ANY)+ }
+
+// Utility rule for escaped characters
+escaped = _{ "\\" ~ ANY }

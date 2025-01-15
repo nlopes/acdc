@@ -23,11 +23,11 @@ impl DelimitedBlock {
         for (i, pair) in pairs.enumerate() {
             if i == 0 {
                 location.set_start_from_pos(&pair.as_span().start_pos());
-                location.shift_start(parent_location);
+                //location.shift_start(parent_location);
             }
             if i == len - 1 {
                 location.set_end_from_pos(&pair.as_span().end_pos());
-                location.shift_end(parent_location);
+                //location.shift_end(parent_location);
             }
             let rule = pair.as_rule();
             if rule == Rule::EOI || rule == Rule::comment {
@@ -58,8 +58,8 @@ impl DelimitedBlock {
                 })?
             };
 
-            let text = pair.as_str().to_string();
             let mut inner_location = Location::from_pair(&pair);
+            let text = pair.as_str().to_string();
             inner_location.shift(parent_location);
 
             match rule {
@@ -135,6 +135,8 @@ impl DelimitedBlock {
                     )?);
                 }
                 Rule::delimited_sidebar => {
+                    // Adjust one line here for the start of the delimiter
+                    //location.start.line += 1;
                     let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedSidebar(blocks::parse(

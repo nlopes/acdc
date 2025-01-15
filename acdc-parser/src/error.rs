@@ -61,6 +61,7 @@ impl fmt::Display for Detail {
                     line: end_line,
                     column: end_column,
                 },
+            ..
         } = self.location;
 
         write!(
@@ -78,6 +79,8 @@ mod tests {
     fn test_error_detail_display() {
         let detail = Detail {
             location: Location {
+                absolute_start: 2,
+                absolute_end: 20,
                 start: Position { line: 1, column: 2 },
                 end: Position { line: 3, column: 4 },
             },
@@ -93,6 +96,8 @@ mod tests {
         let error = Error::NestedSectionLevelMismatch(
             Detail {
                 location: Location {
+                    absolute_start: 2,
+                    absolute_end: 20,
                     start: Position { line: 1, column: 2 },
                     end: Position { line: 3, column: 4 },
                 },

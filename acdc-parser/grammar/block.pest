@@ -4,13 +4,11 @@ meta_block = _{
     NEWLINE* ~
     (
         document_attribute |
+        section |
         block
     )
 }
 
-non_section_block = {
-    (anchor | attribute_list | blocktitle)* ~ block_common
-}
 
 block_common = _{
     delimited_block |
@@ -26,17 +24,18 @@ block_common = _{
 
 block = {
     (anchor | attribute_list | blocktitle)* ~
-    (section | block_common)
+    block_common
 }
 
 section = {
+    (anchor | attribute_list | blocktitle)* ~
     section_header_start ~ section_title ~ NEWLINE{2} ~
     section_content*
 }
 
 section_header_start = _{ section_level ~ SPACE }
 
-section_content = !{ (!(EOI | &blocks) ~ ANY)+ }
+section_content = { (section | block) ~ ((NEWLINE{2} | EOI) ~ !section) }
 
 section_level_symbol = _{ ("=" | "#") }
 

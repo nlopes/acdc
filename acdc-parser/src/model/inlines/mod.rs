@@ -10,7 +10,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{BlockMetadata, ElementAttributes, Image, ImageSource};
+use crate::{BlockMetadata, ElementAttributes, Image, ImageSource, Location};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -28,46 +28,42 @@ pub enum InlineNode {
     SuperscriptText(Superscript),
     LineBreak(LineBreak),
     Macro(InlineMacro),
+
+    // Internal use only - DO NOT USE unless you're inside the parser
+    _PlaceholderContent(PlaceholderContent),
 }
 
 impl InlineNode {
-    pub fn shift_start_location(&mut self, line: usize, column: usize) {
+    pub fn location(&self) -> Location {
         match self {
-            InlineNode::PlainText(plain) => plain.location.shift_line_column(line, column),
-            InlineNode::BoldText(bold) => bold.location.shift_line_column(line, column),
-            InlineNode::ItalicText(italic) => italic.location.shift_line_column(line, column),
-            InlineNode::MonospaceText(monospace) => {
-                monospace.location.shift_line_column(line, column);
-            }
-            InlineNode::HighlightText(highlight) => {
-                highlight.location.shift_line_column(line, column);
-            }
-            InlineNode::SubscriptText(subscript) => {
-                subscript.location.shift_line_column(line, column);
-            }
-            InlineNode::SuperscriptText(superscript) => {
-                superscript.location.shift_line_column(line, column);
-            }
-            InlineNode::LineBreak(linebreak) => linebreak.location.shift_line_column(line, column),
-            InlineNode::Macro(macro_) => match macro_ {
-                InlineMacro::Icon(icon) => icon.location.shift_line_column(line, column),
-                InlineMacro::Image(image) => image.location.shift_line_column(line, column),
-                InlineMacro::Keyboard(keyboard) => {
-                    keyboard.location.shift_line_column(line, column);
-                }
-                InlineMacro::Button(button) => button.location.shift_line_column(line, column),
-                InlineMacro::Menu(menu) => menu.location.shift_line_column(line, column),
-                InlineMacro::Url(url) => url.location.shift_line_column(line, column),
-                InlineMacro::Link(inline_link) => {
-                    inline_link.location.shift_line_column(line, column);
-                }
-                InlineMacro::Autolink(autolink) => {
-                    autolink.location.shift_line_column(line, column);
-                }
-                InlineMacro::Pass(pass) => pass.location.shift_line_column(line, column),
+            InlineNode::PlainText(plain) => plain.location.clone(),
+            InlineNode::BoldText(bold) => bold.location.clone(),
+            InlineNode::ItalicText(italic) => italic.location.clone(),
+            InlineNode::MonospaceText(monospace) => monospace.location.clone(),
+            InlineNode::HighlightText(highlight) => highlight.location.clone(),
+            InlineNode::SubscriptText(subscript) => subscript.location.clone(),
+            InlineNode::SuperscriptText(superscript) => superscript.location.clone(),
+            InlineNode::LineBreak(line_break) => line_break.location.clone(),
+            InlineNode::Macro(macro_node) => match macro_node {
+                InlineMacro::Icon(icon) => icon.location.clone(),
+                InlineMacro::Image(image) => image.location.clone(),
+                InlineMacro::Keyboard(keyboard) => keyboard.location.clone(),
+                InlineMacro::Button(button) => button.location.clone(),
+                InlineMacro::Menu(menu) => menu.location.clone(),
+                InlineMacro::Url(url) => url.location.clone(),
+                InlineMacro::Link(link) => link.location.clone(),
+                InlineMacro::Autolink(autolink) => autolink.location.clone(),
+                InlineMacro::Pass(pass) => pass.location.clone(),
             },
+            InlineNode::_PlaceholderContent(placeholder) => placeholder.location.clone(),
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PlaceholderContent {
+    pub(crate) content: Pass,
+    pub(crate) location: crate::Location,
 }
 
 /// An `InlineMacro` represents an inline macro in a document.
@@ -173,6 +169,12 @@ impl Serialize for InlineNode {
                 todo!(
                     "implement macro serialization for InlineNode: {:?}",
                     macro_node
+                )
+            }
+            InlineNode::_PlaceholderContent(placeholder) => {
+                unreachable!(
+                    "PlaceholderContent must not be serialized: {:?}",
+                    placeholder
                 )
             }
         }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{
     de::Deserializer,
@@ -7,7 +7,7 @@ use serde::{
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct Document(HashMap<AttributeName, AttributeValue>);
+pub struct Document(BTreeMap<AttributeName, AttributeValue>);
 pub type Element = Document;
 
 impl Serialize for Document {
@@ -33,7 +33,7 @@ impl<'de> Deserialize<'de> for Document {
     where
         D: Deserializer<'de>,
     {
-        let pairs = HashMap::deserialize(deserializer).unwrap_or_default();
+        let pairs = BTreeMap::deserialize(deserializer).unwrap_or_default();
         Ok(Document(pairs))
     }
 }
@@ -78,6 +78,9 @@ pub enum AttributeValue {
     Bool(bool),
     /// No value (or it was unset)
     None,
+
+    /// A list of inline elements - used for the inline preprocessor only!
+    Inlines(Vec<crate::InlineNode>),
 }
 
 impl std::fmt::Display for AttributeValue {
@@ -86,6 +89,7 @@ impl std::fmt::Display for AttributeValue {
             AttributeValue::String(value) => write!(f, "{value}"),
             AttributeValue::Bool(value) => write!(f, "{value}"),
             AttributeValue::None => write!(f, "null"),
+            AttributeValue::Inlines(_) => unreachable!(),
         }
     }
 }

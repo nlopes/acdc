@@ -79,24 +79,23 @@ pub(crate) fn build_section_tree(document: &mut Vec<Block>) -> Result<(), Error>
             (delimited_block @ Block::DelimitedBlock(_), true) => {
                 build_section_tree_delimited(delimited_block, &mut kept_layers)?;
             }
+            (Block::_DiscreteHeaderSection(section), true) => {
+                stack.extend(section.content);
+                stack.push(Block::DiscreteHeader(DiscreteHeader {
+                    anchors: section.anchors,
+                    title: section.title,
+                    level: section.level,
+                    location: section.location,
+                }));
+            }
             (Block::Section(section), true) => {
                 kept_layers.push(Block::Section(section));
             }
             (Block::Section(section), false) => {
-                if let Some(style) = &section.metadata.style {
-                    if style == "discrete" {
-                        stack.push(Block::DiscreteHeader(DiscreteHeader {
-                            anchors: section.metadata.anchors.clone(),
-                            title: section.title.clone(),
-                            level: section.level,
-                            location: section.location.clone(),
-                        }));
-                        continue;
-                    }
-                }
                 let mut section = section;
                 while let Some(block_from_stack) = stack.pop() {
                     section.location.end = match &block_from_stack {
+                        Block::_DiscreteHeaderSection(section) => section.location.end.clone(),
                         Block::Section(section) => section.location.end.clone(),
                         Block::DelimitedBlock(delimited_block) => {
                             delimited_block.location.end.clone()

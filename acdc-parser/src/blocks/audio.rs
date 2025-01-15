@@ -14,8 +14,16 @@ impl Audio {
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
         let mut source = AudioSource::Path(String::new());
+        let mut location = Location::default();
 
-        for pair in pairs {
+        let len = pairs.clone().count();
+        for (i, pair) in pairs.enumerate() {
+            if i == 0 {
+                location.set_start_from_pos(&pair.as_span().start_pos());
+            }
+            if i == len - 1 {
+                location.set_end_from_pos(&pair.as_span().end_pos());
+            }
             match pair.as_rule() {
                 Rule::audio => {
                     for pair in pair.into_inner() {
@@ -45,7 +53,7 @@ impl Audio {
             }
         }
         Block::Audio(Audio {
-            location: Location::default(),
+            location,
             title: Vec::new(),
             source,
             metadata: metadata.clone(),

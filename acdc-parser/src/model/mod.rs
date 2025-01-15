@@ -160,6 +160,9 @@ pub enum Block {
     Image(Image),
     Audio(Audio),
     Video(Video),
+
+    // Internal only, please DO NOT USE - you shouldn't need to use.
+    _DiscreteHeaderSection(DiscreteHeaderSection),
 }
 
 /// A `DocumentAttribute` represents a document attribute in a document.
@@ -185,6 +188,20 @@ pub struct DiscreteHeader {
     pub title: Vec<InlineNode>,
     pub level: u8,
     pub location: Location,
+}
+
+// TODO(nlopes): this only exists as an auxiliary structure. We figure out a discrete
+// header as part of parsing a section. Therefore, if we find a "discrete", we put it into
+// this structure and then when building the tree (tree_builder) we convert it into a
+// DiscreteHeader and add the content into the stack of blocks of the document (i.e: not
+// part of the section/discrete header).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) struct DiscreteHeaderSection {
+    pub(crate) anchors: Vec<Anchor>,
+    pub(crate) title: Vec<InlineNode>,
+    pub(crate) level: u8,
+    pub(crate) location: Location,
+    pub(crate) content: Vec<Block>,
 }
 
 /// A `ThematicBreak` represents a thematic break in a document.

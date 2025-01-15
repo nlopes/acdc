@@ -49,7 +49,16 @@ impl Header {
                                         location: title_location.clone(),
                                     })]
                                 } else {
-                                    parse_inlines(inner_pair.clone(), None, parent_attributes)?
+                                    // TODO(nlopes): insted of None, `processed` should be passed here
+                                    //
+                                    // In order to do that, we need to pre-process the title and then
+                                    // pass it to `parse_inlines` as `Some(processed)`
+                                    parse_inlines(
+                                        inner_pair.clone(),
+                                        None,
+                                        None,
+                                        parent_attributes,
+                                    )?
                                 };
                             }
                             unknown => unreachable!("{:?}", unknown),

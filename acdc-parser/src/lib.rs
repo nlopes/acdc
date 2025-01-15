@@ -35,10 +35,12 @@ use tracing::instrument;
 mod anchor;
 mod blocks;
 mod error;
+mod inline_preprocessor;
 mod inlines;
 mod model;
 mod preprocessor;
 
+use inline_preprocessor::{InlinePreprocessor, ProcessedContent};
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
@@ -48,8 +50,8 @@ pub use model::{
     DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
     DocumentAttribute, DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image,
     ImageSource, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, LinkTarget, ListItem,
-    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, Plain, Role, Section,
-    Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
+    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, Plain, Position, Role,
+    Section, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
     ThematicBreak, UnorderedList, Url, Video, VideoSource,
 };
 
@@ -115,14 +117,16 @@ mod tests {
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
         if test_file_path.exists() {
-            let test_file = std::fs::read_to_string(test_file_path).unwrap();
+            let test_file_contents = std::fs::read_to_string(test_file_path).unwrap();
             match parse_file(path.clone()) {
                 Ok(result) => {
-                    let test: Document = serde_json::from_str(&test_file).unwrap();
-                    assert_eq!(test, result);
+                    let result_str = serde_json::to_string(&result).unwrap();
+                    let test: Document = serde_json::from_str(&test_file_contents).unwrap();
+                    let test_str = serde_json::to_string(&test).unwrap();
+                    assert_eq!(test_str, result_str);
                 }
                 Err(e) => {
-                    let test: Error = serde_json::from_str(&test_file).unwrap();
+                    let test: Error = serde_json::from_str(&test_file_contents).unwrap();
                     assert_eq!(test.to_string(), e.to_string());
                 }
             }
@@ -130,6 +134,47 @@ mod tests {
             tracing::warn!("no test file found for {:?}", path);
         }
     }
+
+    //     #[test]
+    //     #[tracing_test::traced_test]
+    //     fn test_something() {
+    //         let result = parse("
+    // = Test Document
+    // :docname: test-doc
+    // :version: 2.0
+    // :nested1: {version}
+    // :nested2: {nested1}
+    // :url: https://example.org
+
+    // // Basic paragraph with attribute
+    // This is {docname} version {version}.
+
+    // // Paragraph with nested attributes
+    // The document is at version {nested2} right now.
+
+    // // Basic passthrough tests
+    // Here is some +*escaped bold*+ and ++**more escaped**++.
+
+    // // Pass macro variations
+    // Look at pass:q[*quoted*] vs pass:a[{docname}] and pass:q,a[_{docname}_].
+
+    // // Complex pass macro with HTML and attributes
+    // The text pass:q,a[<u>My doc *{docname}* v{version}</u>] is underlined.
+
+    // // Test attributes in links
+    // Check {url}[the main site] for more.
+    // The {url}[site] has more info.
+
+    // // Complex nesting test
+    // See pass:a[version *{nested2}*] details at +https://link.to/{docname}+ or pass:q,a[this **{url}[{docname}]**].
+
+    // // Multiple attributes in one line
+    // Project {docname} v{version} by pass:a[{author}].",
+    //             )
+    //             .unwrap();
+    //         dbg!(&result);
+    //         panic!();
+    //     }
 
     //     #[test]
     //     #[tracing_test::traced_test]

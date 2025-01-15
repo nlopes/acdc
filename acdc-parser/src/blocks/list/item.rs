@@ -30,8 +30,13 @@ impl ListItem {
                     match crate::InnerPestParser::parse(Rule::inlines, pair.as_str()) {
                         Ok(pairs) => {
                             for pair in pairs {
+                                // TODO(nlopes): insted of None, `processed` should be passed here
+                                //
+                                // In order to do that, we need to pre-process the inlines and then
+                                // pass it to `parse_inlines` as `Some(processed)`
                                 content.extend(crate::inlines::parse_inlines(
                                     pair,
+                                    None,
                                     Some(&item_location),
                                     parent_attributes,
                                 )?);

@@ -11,7 +11,7 @@ mod video;
 
 use pest::iterators::Pairs;
 
-use crate::{Block, DocumentAttribute, DocumentAttributes, Error, Location, Rule};
+use crate::{Block, DocumentAttribute, DocumentAttributes, Error, Location, Rule, Section};
 
 pub(crate) fn parse(
     pairs: Pairs<Rule>,
@@ -42,6 +42,9 @@ pub(crate) fn parse(
                     parent_location,
                     parent_attributes,
                 )?);
+            }
+            Rule::section => {
+                blocks.push(Section::parse(&pair, parent_location, parent_attributes)?);
             }
             Rule::document_attribute => {
                 if parent_location.is_some() {
