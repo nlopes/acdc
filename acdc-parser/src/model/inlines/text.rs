@@ -110,6 +110,32 @@ impl Serialize for Plain {
     }
 }
 
+/// A `Raw` represents a raw text section in a document.
+///
+/// This is the most basic form of text in a document and it should note that it's
+/// contents must be rendered as they are (e.g: "<h1>" should not end up being a <h1> tag,
+/// it should be "<h1>" text in html, very likely &lt;h1&gt;).
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct Raw {
+    #[serde(rename = "value")]
+    pub content: String,
+    pub location: Location,
+}
+
+impl Serialize for Raw {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(4))?;
+        state.serialize_entry("name", "raw")?;
+        state.serialize_entry("type", "string")?;
+        state.serialize_entry("value", &self.content)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
 impl Serialize for Italic {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -13,9 +13,13 @@ passthrough = {
     pass_macro
 }
 
-single_plus_passthrough = { "+" ~ (!("+" | EOI) ~ ANY)* ~ "+" }
-double_plus_passthrough = { "++" ~ (!"++" ~ ANY)* ~ "++" }
-triple_plus_passthrough = { "+++" ~ (!"+++" ~ ANY)* ~ "+++" }
+single_plus_passthrough = {
+    "+" ~
+    ("+" | (!"+" ~ ANY)+) ~
+    "+"
+}
+double_plus_passthrough = { "++" ~ (!"++" ~ ANY)+ ~ "++" }
+triple_plus_passthrough = { "+++" ~ (!"+++" ~ ANY)+ ~ "+++" }
 
 // Pass macro
 pass_macro = { "pass:" ~ substitutions? ~ "[" ~ pass_content ~ "]" }

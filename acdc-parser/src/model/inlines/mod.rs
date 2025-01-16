@@ -20,6 +20,7 @@ use crate::{BlockMetadata, ElementAttributes, Image, ImageSource, Location};
 #[derive(Clone, Debug, PartialEq)]
 pub enum InlineNode {
     PlainText(Plain),
+    RawText(Raw),
     BoldText(Bold),
     ItalicText(Italic),
     MonospaceText(Monospace),
@@ -37,6 +38,7 @@ impl InlineNode {
     pub fn location(&self) -> Location {
         match self {
             InlineNode::PlainText(plain) => plain.location.clone(),
+            InlineNode::RawText(raw) => raw.location.clone(),
             InlineNode::BoldText(bold) => bold.location.clone(),
             InlineNode::ItalicText(italic) => italic.location.clone(),
             InlineNode::MonospaceText(monospace) => monospace.location.clone(),
@@ -94,6 +96,12 @@ impl Serialize for InlineNode {
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &plain.content)?;
                 map.serialize_entry("location", &plain.location)?;
+            }
+            InlineNode::RawText(raw) => {
+                map.serialize_entry("name", "raw")?;
+                map.serialize_entry("type", "string")?;
+                map.serialize_entry("value", &raw.content)?;
+                map.serialize_entry("location", &raw.location)?;
             }
             InlineNode::HighlightText(highlight) => {
                 map.serialize_entry("name", "span")?;
@@ -281,6 +289,14 @@ impl<'de> Deserialize<'de> for InlineNode {
                         let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
 
                         Ok(InlineNode::PlainText(Plain {
+                            content: my_value,
+                            location: my_location,
+                        }))
+                    }
+                    ("raw", "string") => {
+                        let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
+
+                        Ok(InlineNode::RawText(Raw {
                             content: my_value,
                             location: my_location,
                         }))

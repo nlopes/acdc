@@ -42,7 +42,6 @@ impl Paragraph {
                     // Run inline preprocessor before parsing inlines
                     let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
                     let processed = preprocessor.process(text, start_pos)?;
-
                     // Now parse the processed text
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;

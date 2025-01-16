@@ -22,25 +22,71 @@ pub(crate) struct SourceMap {
 }
 
 impl SourceMap {
-    fn add_offset(&mut self, position: usize, offset: i32) {
+    pub fn add_offset(&mut self, position: usize, offset: i32) {
+        // Sort and merge overlapping/adjacent offsets
         self.offsets.push((position, offset));
-    }
+        self.offsets.sort_by_key(|k| k.0);
 
-    // Maps position from original text to processed text position
-    pub(crate) fn map_position(&self, orig_pos: usize) -> usize {
-        let mut offsets = self.offsets.clone();
-        offsets.sort_by_key(|k| k.0);
+        let mut merged = Vec::new();
+        let mut current_pos = 0;
+        let mut current_offset = 0;
 
-        let mut offset = 0;
-        for (position, delta) in &self.offsets {
-            if orig_pos > *position {
-                offset += delta;
+        for (pos, offs) in self.offsets.drain(..) {
+            if pos == current_pos {
+                current_offset += offs;
+            } else if pos > current_pos {
+                if current_offset != 0 {
+                    merged.push((current_pos, current_offset));
+                }
+                current_pos = pos;
+                current_offset = offs;
             }
         }
 
-        ((orig_pos as i32) + offset) as usize
+        if current_offset != 0 {
+            merged.push((current_pos, current_offset));
+        }
+
+        self.offsets = merged;
+    }
+
+    pub fn map_position(&self, pos: usize) -> usize {
+        let mut offset = 0;
+
+        // Apply cumulative offsets up to this position
+        for (offset_pos, delta) in &self.offsets {
+            if pos >= *offset_pos {
+                offset += delta;
+            } else {
+                break;
+            }
+        }
+
+        ((pos as i32) + offset) as usize
     }
 }
+
+// impl SourceMap {
+//     fn add_offset(&mut self, position: usize, offset: i32) {
+//         self.offsets.push((position, offset));
+//     }
+
+//     // Maps position from original text to processed text position
+//     pub(crate) fn map_position(&self, orig_pos: usize) -> usize {
+//         let mut offsets = self.offsets.clone();
+//         offsets.sort_by_key(|k| k.0);
+
+//         let mut offset = 0;
+//         for (position, delta) in &self.offsets {
+//             if orig_pos > *position {
+//                 offset += delta;
+//             }
+//         }
+
+//         // We add +1 at the end because pest counts \u{FFFD} as two characters
+//         ((orig_pos as i32) + offset) as usize
+//     }
+// }
 
 #[derive(Debug)]
 pub(crate) struct PassthroughSpan {
@@ -76,7 +122,6 @@ impl InlinePreprocessor {
 
         let pairs = InlinePreprocessorParser::parse(Rule::preprocessed_text, text)
             .map_err(|e| Error::Parse(format!("Invalid inline text: {}", e)))?;
-
         for pair in pairs.flatten() {
             match pair.as_rule() {
                 Rule::attr_ref => {
@@ -113,9 +158,8 @@ impl InlinePreprocessor {
 
                     self.source_map.add_offset(
                         start_position + span.start(),
-                        1 - span.as_str().len() as i32,
+                        0 - span.as_str().len() as i32,
                     );
-
                     passthroughs.push(PassthroughSpan {
                         start: start_position + span.start(),
                         end: start_position + span.end(),
@@ -149,22 +193,13 @@ impl InlinePreprocessor {
 
         let rule = pair.as_rule();
 
-        // TODO(nlopes): remove me?
-        let offset = match rule {
-            Rule::single_plus_passthrough => 0,
-            Rule::double_plus_passthrough => 0,
-            Rule::triple_plus_passthrough => 0,
-            Rule::pass_macro => 0,
-            _ => unreachable!(),
-        };
-
         match rule {
             Rule::single_plus_passthrough
             | Rule::double_plus_passthrough
             | Rule::triple_plus_passthrough => {
                 let location = Location {
-                    absolute_start: span.start_pos().pos() + offset + start_position - 1,
-                    absolute_end: span.end_pos().pos() + offset + start_position - 1,
+                    absolute_start: span.start_pos().pos() + start_position,
+                    absolute_end: span.end_pos().pos() + start_position,
                     start: Position {
                         line: span_start.0,
                         column: self.map_position(span_start.1),
@@ -226,8 +261,8 @@ impl InlinePreprocessor {
                 };
                 substitutions.extend(subs.unwrap_or_default());
                 let location = Location {
-                    absolute_start: span.start_pos().pos() + offset + start_position - 1,
-                    absolute_end: span.end_pos().pos() + offset + start_position - 1,
+                    absolute_start: span.start_pos().pos() + start_position - 1,
+                    absolute_end: span.end_pos().pos() + start_position - 1,
                     start: Position {
                         line: span_start.0,
                         column: self.map_position(span_start.1),
@@ -484,5 +519,53 @@ mod tests {
 
         // Verify no passthroughs were captured
         assert!(result.passthroughs.is_empty());
+    }
+
+    #[test]
+    fn test_section_with_passthrough() {
+        let attrs = setup_attributes();
+        let mut preprocessor = InlinePreprocessor::new(attrs);
+
+        let input = "= Document Title\nHello +<h1>+World+</h1>+ of +<u>+Gemini+</u>+";
+        //                 012345678901234567890123456789012345678901234567890123456789012
+        //                 0         1         2         3         4         5         6
+        let start_pos = 0;
+
+        let result = preprocessor.process(input, start_pos).unwrap();
+
+        assert_eq!(
+            result.text,
+            "= Document Title\nHello \u{FFFD}World\u{FFFD} of \u{FFFD}Gemini\u{FFFD}"
+        );
+
+        // Verify passthrough was captured
+        assert_eq!(result.passthroughs.len(), 4);
+
+        let first_pass = &result.passthroughs[0];
+        let second_pass = &result.passthroughs[1];
+
+        // Check passthrough content preserved original text
+        assert_eq!(first_pass.content.text.as_ref().unwrap(), "<h1>");
+        assert_eq!(second_pass.content.text.as_ref().unwrap(), "</h1>");
+
+        // Verify substitutions were captured
+        assert!(first_pass
+            .content
+            .substitutions
+            .contains(&Substitution::SpecialChars));
+
+        // Check positions
+        assert_eq!(first_pass.start, 23); // Start of pass macro
+        assert_eq!(first_pass.end, 29); // End of pass macro content including brackets
+
+        // Verify substitutions were captured
+        assert!(second_pass
+            .content
+            .substitutions
+            .contains(&Substitution::SpecialChars));
+
+        // Check positions
+        assert_eq!(second_pass.start, 34); // Start of pass macro
+        assert_eq!(second_pass.end, 41); // End of pass macro content including brackets
     }
 }

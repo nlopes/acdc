@@ -17,11 +17,12 @@ impl Render for InlineNode {
     ) -> Result<(), Self::Error> {
         match self {
             InlineNode::PlainText(p) => {
-                let text = if options.inlines_substitutions {
-                    substitution_text(&p.content)
-                } else {
-                    p.content.clone()
-                };
+                let text = substitution_text(&p.content);
+
+                write!(w, "{text}")?;
+            }
+            InlineNode::RawText(r) => {
+                let text = substitution_text(&r.content);
                 write!(w, "{text}")?;
             }
             InlineNode::BoldText(b) => {
@@ -180,4 +181,8 @@ fn substitution_text(text: &str) -> String {
         .replace('>', "&gt;")
         .replace('<', "&lt;")
         .replace('"', "&quot;")
+        .replace(" -- ", "&thinsp;&mdash;&thinsp;")
+        .replace(" --", "&thinsp;&mdash;")
+        .replace("-- ", "&mdash;&thinsp;")
+        .replace("--", "&mdash;")
 }

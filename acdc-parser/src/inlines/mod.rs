@@ -17,7 +17,8 @@ use tracing::instrument;
 use crate::{
     error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
     Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
-    Menu, Monospace, Pass, Plain, Position, ProcessedContent, Rule, Subscript, Superscript, Url,
+    Menu, Monospace, Pass, Plain, Position, ProcessedContent, Raw, Rule, Subscript, Superscript,
+    Url,
 };
 
 impl InlineNode {
@@ -29,6 +30,7 @@ impl InlineNode {
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<InlineNode, Error> {
         let mut role = None;
+
         for pair in pairs {
             let mut location = Location::from_pair(&pair);
             location.shift_inline(parent_location);
@@ -152,33 +154,46 @@ impl InlineNode {
                     // content that matches the location of the placeholder and return the
                     // content of the passthrough, with updated location information
                     if let Some(processed) = processed {
-                        for pass in processed.passthroughs.iter() {
-                            // If the location of the placeholder matches the location of
-                            // the processed content
-                            if pass.content.location.absolute_start
-                                - pass.content.location.start.line
-                                - 1
-                                == location.absolute_start
-                            {
-                                let mapped_start = pass.source_map.map_position(pass.start);
-                                let mapped_end = pass.source_map.map_position(pass.end);
+                        let effective_start = location.absolute_start;
+                        let matching_pass =
+                            processed.passthroughs.iter().enumerate().find(|(i, pass)| {
+                                // Calculate the expected position of this placeholder
+                                // based on number of previous replacements
+                                let placeholder_pos = pass.start
+                                    - processed.passthroughs[..*i]
+                                        .iter()
+                                        .map(|p| {
+                                            p.content
+                                                .text
+                                                .as_ref()
+                                                .unwrap_or(&String::from(" "))
+                                                .len()
+                                                - 1
+                                        })
+                                        .sum::<usize>();
 
-                                return Ok(InlineNode::PlainText(Plain {
-                                    content: pass.content.text.clone().unwrap_or_default(),
-                                    location: Location {
-                                        start: Position {
-                                            line: pass.content.location.start.line,
-                                            column: mapped_start,
-                                        },
-                                        end: Position {
-                                            line: pass.content.location.end.line,
-                                            column: mapped_end,
-                                        },
-                                        absolute_start: pass.content.location.absolute_start,
-                                        absolute_end: pass.content.location.absolute_end,
+                                effective_start == placeholder_pos
+                            });
+
+                        if let Some((_, pass)) = matching_pass {
+                            let mapped_start = pass.source_map.map_position(pass.start);
+                            let mapped_end = pass.source_map.map_position(pass.end);
+
+                            return Ok(InlineNode::RawText(Raw {
+                                content: pass.content.text.clone().unwrap_or_default(),
+                                location: Location {
+                                    start: Position {
+                                        line: pass.content.location.start.line,
+                                        column: mapped_start,
                                     },
-                                }));
-                            }
+                                    end: Position {
+                                        line: pass.content.location.end.line,
+                                        column: mapped_end,
+                                    },
+                                    absolute_start: pass.content.location.absolute_start,
+                                    absolute_end: pass.content.location.absolute_end,
+                                },
+                            }));
                         }
                     } else {
                         tracing::error!(
@@ -198,7 +213,6 @@ impl InlineNode {
                 unknown => unreachable!("{unknown:?}"),
             }
         }
-        // TODO: this should be unreachable instead!
         Err(Error::Parse("no valid inline text found".to_string()))
     }
 
