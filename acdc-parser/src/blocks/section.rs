@@ -12,6 +12,7 @@ use crate::{
 // What typically happens is that we parse a section but it is instead a discrete header
 // with other content following.
 impl Section {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn parse(
         pair: &Pair<Rule>,
         parent_location: Option<&Location>,
@@ -114,6 +115,7 @@ impl Section {
         }
 
         if discrete {
+            #[allow(clippy::used_underscore_items)]
             return Ok(Block::_DiscreteHeaderSection(DiscreteHeaderSection {
                 anchors,
                 title,

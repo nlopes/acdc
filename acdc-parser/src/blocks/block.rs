@@ -16,7 +16,8 @@ impl BlockExt for Block {
             Block::TableOfContents(_)
             | Block::DiscreteHeader(_)
             | Block::DocumentAttribute(_)
-            | Block::ThematicBreak(_) => {}
+            | Block::ThematicBreak(_)
+            | Block::_DiscreteHeaderSection(_) => {}
             Block::PageBreak(page_break) => page_break.metadata = metadata,
             Block::UnorderedList(unordered_list) => unordered_list.metadata = metadata,
             Block::OrderedList(ordered_list) => ordered_list.metadata = metadata,
@@ -28,7 +29,6 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.metadata = metadata,
             Block::Video(video) => video.metadata = metadata,
             Block::Admonition(admonition) => admonition.metadata = metadata,
-            Block::_DiscreteHeaderSection(_) => {}
         }
     }
 
@@ -37,7 +37,8 @@ impl BlockExt for Block {
             Block::TableOfContents(_)
             | Block::DiscreteHeader(_)
             | Block::DocumentAttribute(_)
-            | Block::ThematicBreak(_) => {}
+            | Block::ThematicBreak(_)
+            | Block::_DiscreteHeaderSection(_) => {}
             Block::PageBreak(page_break) => page_break.metadata.attributes = attributes,
             Block::UnorderedList(unordered_list) => unordered_list.metadata.attributes = attributes,
             Block::OrderedList(ordered_list) => ordered_list.metadata.attributes = attributes,
@@ -53,7 +54,6 @@ impl BlockExt for Block {
             Block::Audio(audio) => audio.metadata.attributes = attributes,
             Block::Video(video) => video.metadata.attributes = attributes,
             Block::Admonition(admonition) => admonition.metadata.attributes = attributes,
-            Block::_DiscreteHeaderSection(_) => {}
         }
     }
 

@@ -35,6 +35,7 @@ pub enum InlineNode {
 }
 
 impl InlineNode {
+    #[must_use]
     pub fn location(&self) -> Location {
         match self {
             InlineNode::PlainText(plain) => plain.location.clone(),

@@ -32,14 +32,21 @@ impl SourceMap {
         let mut current_offset = 0;
 
         for (pos, offs) in self.offsets.drain(..) {
-            if pos == current_pos {
-                current_offset += offs;
-            } else if pos > current_pos {
-                if current_offset != 0 {
-                    merged.push((current_pos, current_offset));
+            match pos.cmp(&current_pos) {
+                std::cmp::Ordering::Equal => {
+                    current_offset += offs;
                 }
-                current_pos = pos;
-                current_offset = offs;
+                std::cmp::Ordering::Greater => {
+                    if current_offset != 0 {
+                        merged.push((current_pos, current_offset));
+                    }
+                    current_pos = pos;
+                    current_offset = offs;
+                }
+                std::cmp::Ordering::Less => {
+                    // Skip overlapping offsets
+                    continue;
+                }
             }
         }
 
@@ -62,7 +69,7 @@ impl SourceMap {
             }
         }
 
-        ((pos as i32) + offset) as usize
+        usize::try_from(i32::try_from(pos).unwrap_or_default() + offset).unwrap_or_default()
     }
 }
 
@@ -121,7 +128,7 @@ impl InlinePreprocessor {
         let mut passthroughs = Vec::new();
 
         let pairs = InlinePreprocessorParser::parse(Rule::preprocessed_text, text)
-            .map_err(|e| Error::Parse(format!("Invalid inline text: {}", e)))?;
+            .map_err(|e| Error::Parse(format!("Invalid inline text: {e}")))?;
         for pair in pairs.flatten() {
             match pair.as_rule() {
                 Rule::attr_ref => {
@@ -132,7 +139,9 @@ impl InlinePreprocessor {
                                 let attr_span = pair.as_span();
                                 self.source_map.add_offset(
                                     start_position + attr_span.start(),
-                                    s.len() as i32 - attr_span.as_str().len() as i32,
+                                    i32::try_from(s.len()).unwrap_or_default()
+                                        - i32::try_from(attr_span.as_str().len())
+                                            .unwrap_or_default(),
                                 );
                                 result.push_str(s);
                             }
@@ -158,7 +167,7 @@ impl InlinePreprocessor {
 
                     self.source_map.add_offset(
                         start_position + span.start(),
-                        0 - span.as_str().len() as i32,
+                        0 - i32::try_from(span.as_str().len()).unwrap_or(0),
                     );
                     passthroughs.push(PassthroughSpan {
                         start: start_position + span.start(),
