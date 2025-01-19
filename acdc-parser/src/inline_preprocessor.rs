@@ -18,27 +18,33 @@ pub(crate) struct InlinePreprocessor {
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SourceMap {
-    pub(crate) offsets: Vec<(usize, i32)>,
+    offsets: Vec<(usize, i32, ProcessedKind)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ProcessedKind {
+    Attribute,
+    Passthrough,
 }
 
 impl SourceMap {
-    pub fn add_offset(&mut self, position: usize, offset: i32) {
+    fn add_offset(&mut self, position: usize, offset: i32, kind: ProcessedKind) {
         // Sort and merge overlapping/adjacent offsets
-        self.offsets.push((position, offset));
+        self.offsets.push((position, offset, kind.clone()));
         self.offsets.sort_by_key(|k| k.0);
 
         let mut merged = Vec::new();
         let mut current_pos = 0;
         let mut current_offset = 0;
 
-        for (pos, offs) in self.offsets.drain(..) {
+        for (pos, offs, kind) in self.offsets.drain(..) {
             match pos.cmp(&current_pos) {
                 std::cmp::Ordering::Equal => {
                     current_offset += offs;
                 }
                 std::cmp::Ordering::Greater => {
                     if current_offset != 0 {
-                        merged.push((current_pos, current_offset));
+                        merged.push((current_pos, current_offset, kind));
                     }
                     current_pos = pos;
                     current_offset = offs;
@@ -51,21 +57,35 @@ impl SourceMap {
         }
 
         if current_offset != 0 {
-            merged.push((current_pos, current_offset));
+            merged.push((current_pos, current_offset, kind));
         }
 
         self.offsets = merged;
     }
 
-    pub fn map_position(&self, pos: usize) -> usize {
+    /// Map a source position back to its original location
+    pub(crate) fn map_position(&self, pos: usize) -> usize {
         let mut offset = 0;
 
+        if pos <= self.offsets.first().map(|(p, _, _)| *p).unwrap_or_default() {
+            return pos;
+        }
+
         // Apply cumulative offsets up to this position
-        for (offset_pos, delta) in &self.offsets {
-            if pos >= *offset_pos {
-                offset += delta;
-            } else {
-                break;
+        for (offset_pos, delta, kind) in &self.offsets {
+            match kind {
+                ProcessedKind::Attribute => {
+                    offset += -1 * delta;
+                    if pos >= *offset_pos {
+                        break;
+                    }
+                }
+                ProcessedKind::Passthrough => {
+                    offset += -1 * delta;
+                    if pos > *offset_pos {
+                        break;
+                    }
+                }
             }
         }
 
@@ -73,40 +93,11 @@ impl SourceMap {
     }
 }
 
-// impl SourceMap {
-//     fn add_offset(&mut self, position: usize, offset: i32) {
-//         self.offsets.push((position, offset));
-//     }
-
-//     // Maps position from original text to processed text position
-//     pub(crate) fn map_position(&self, orig_pos: usize) -> usize {
-//         let mut offsets = self.offsets.clone();
-//         offsets.sort_by_key(|k| k.0);
-
-//         let mut offset = 0;
-//         for (position, delta) in &self.offsets {
-//             if orig_pos > *position {
-//                 offset += delta;
-//             }
-//         }
-
-//         // We add +1 at the end because pest counts \u{FFFD} as two characters
-//         ((orig_pos as i32) + offset) as usize
-//     }
-// }
-
-#[derive(Debug)]
-pub(crate) struct PassthroughSpan {
-    pub start: usize,
-    pub end: usize,
-    pub content: Pass,
-    pub(crate) source_map: SourceMap,
-}
-
 #[derive(Debug)]
 pub(crate) struct ProcessedContent {
     pub text: String,
-    pub passthroughs: Vec<PassthroughSpan>,
+    pub passthroughs: Vec<Pass>,
+    pub(crate) source_map: SourceMap,
 }
 
 impl InlinePreprocessor {
@@ -142,10 +133,12 @@ impl InlinePreprocessor {
                                     i32::try_from(s.len()).unwrap_or_default()
                                         - i32::try_from(attr_span.as_str().len())
                                             .unwrap_or_default(),
+                                    ProcessedKind::Attribute,
                                 );
                                 result.push_str(s);
                             }
                             _ => {
+                                // TODO(nlopes): do we need to handle other types?
                                 // For non-string attributes, keep original text
                                 result.push_str(pair.as_str());
                             }
@@ -167,14 +160,10 @@ impl InlinePreprocessor {
 
                     self.source_map.add_offset(
                         start_position + span.start(),
-                        0 - i32::try_from(span.as_str().len()).unwrap_or(0),
+                        0 - i32::try_from(span.as_str().len()).unwrap_or(0) + 1, // +1 here to account for the placeholder
+                        ProcessedKind::Passthrough,
                     );
-                    passthroughs.push(PassthroughSpan {
-                        start: start_position + span.start(),
-                        end: start_position + span.end(),
-                        content: pass,
-                        source_map: self.source_map.clone(),
-                    });
+                    passthroughs.push(pass);
                 }
                 Rule::unprocessed_text => {
                     result.push_str(pair.as_str());
@@ -186,6 +175,7 @@ impl InlinePreprocessor {
         Ok(ProcessedContent {
             text: result,
             passthroughs,
+            source_map: self.source_map.clone(),
         })
     }
 
@@ -211,11 +201,11 @@ impl InlinePreprocessor {
                     absolute_end: span.end_pos().pos() + start_position,
                     start: Position {
                         line: span_start.0,
-                        column: self.map_position(span_start.1),
+                        column: span_start.1,
                     },
                     end: Position {
                         line: span_end.0,
-                        column: self.map_position(span_end.1),
+                        column: span_end.1,
                     },
                 };
 
@@ -233,6 +223,8 @@ impl InlinePreprocessor {
                 };
                 Ok(Pass {
                     text: Some(content.to_string()),
+                    // We add SpecialChars here for single and double but we don't do
+                    // anything with them, only the converter does.
                     substitutions: if marker_size < 3 {
                         vec![Substitution::SpecialChars].into_iter().collect()
                     } else {
@@ -274,11 +266,11 @@ impl InlinePreprocessor {
                     absolute_end: span.end_pos().pos() + start_position - 1,
                     start: Position {
                         line: span_start.0,
-                        column: self.map_position(span_start.1),
+                        column: span_start.1,
                     },
                     end: Position {
                         line: span_end.0,
-                        column: self.map_position(span_end.1),
+                        column: span_end.1,
                     },
                 };
 
@@ -290,11 +282,6 @@ impl InlinePreprocessor {
             }
             _ => Err(Error::Parse("Invalid passthrough type".to_string())),
         }
-    }
-
-    /// Map a source position back to its original location
-    pub(crate) fn map_position(&self, pos: usize) -> usize {
-        self.source_map.map_position(pos)
     }
 }
 
@@ -327,11 +314,11 @@ mod tests {
         );
 
         // Check that source positions are mapped correctly
-        // Original: "The {s}[syntax page]..."
-        //          012345678
+        // Original:  "The {s}[syntax page]..."
+        //             01234567890123456789012
         // Processed: "The link:/nonono[syntax page]..."
-        let pos = preprocessor.map_position(5); // Position after "{s}"
-        assert_eq!(pos, 14); // Should map to end of "link:/nonono"
+        let pos = result.source_map.map_position(16); // Position after "{s}"
+        assert_eq!(pos, 7); // Should map to end of "link:/nonono"
     }
 
     #[test]
@@ -356,21 +343,18 @@ mod tests {
         assert_eq!(result.passthroughs.len(), 2);
 
         // Check first passthrough
-        assert_eq!(
-            result.passthroughs[0].content.text.as_ref().unwrap(),
-            "*bold*"
-        );
-        assert_eq!(result.passthroughs[0].start, 24);
-        assert_eq!(result.passthroughs[0].end, 32);
+        assert_eq!(result.passthroughs[0].text.as_ref().unwrap(), "*bold*");
+        assert_eq!(result.passthroughs[0].location.absolute_start, 24);
+        assert_eq!(result.passthroughs[0].location.absolute_end, 32);
 
         // Check second passthrough
         assert_eq!(
-            result.passthroughs[1].content.text.as_ref().unwrap(),
+            result.passthroughs[1].text.as_ref().unwrap(),
             "**more bold**"
         );
 
-        assert_eq!(result.passthroughs[1].start, 42);
-        assert_eq!(result.passthroughs[1].end, 59);
+        assert_eq!(result.passthroughs[1].location.absolute_start, 42);
+        assert_eq!(result.passthroughs[1].location.absolute_end, 59);
     }
 
     #[test]
@@ -388,20 +372,19 @@ mod tests {
 
         assert_eq!(result.text, "Version 1.0 of My Title");
 
-        // Original: "Version {version} of {title}"
-        //            0123456789012345678901234567
+        // Original:  "Version {version} of {title}"
+        //             0123456789012345678901234567
         // Processed: "Version 1.0 of My Title"
-        //             01234567890123456789012
 
         // Verify position mapping:
         // Position 8 in original (start of {version})
         // should map to position 8 in processed (start of "1.0")
-        let pos = preprocessor.map_position(8);
+        let pos = result.source_map.map_position(8);
         assert_eq!(pos, 8); // Same position since it's before any changes
 
         // Position 19 in original should map considering the change in length
-        let pos = preprocessor.map_position(19);
-        assert_eq!(pos, 13); // Maps to position in "of"
+        let pos = result.source_map.map_position(15);
+        assert_eq!(pos, 21); // Maps to position in "of"
 
         // Test nested attribute reference
         let input = ".{title} v{version}";
@@ -429,12 +412,12 @@ mod tests {
         // Verify passthrough was captured and preserved
         assert_eq!(result.passthroughs.len(), 1);
         assert_eq!(
-            result.passthroughs[0].content.text.as_ref().unwrap(),
+            result.passthroughs[0].text.as_ref().unwrap(),
             "this {s} won't expand"
         );
 
         // Verify source mapping
-        let pos = preprocessor.map_position(10); // Start of {s}
+        let pos = result.source_map.map_position(10); // Start of {s}
         assert_eq!(pos, 10); // Should map to start of "link:/nonono"
     }
 
@@ -457,13 +440,13 @@ mod tests {
         // Verify passthrough content preserved original text without expansion
         assert_eq!(result.passthroughs.len(), 1);
         assert_eq!(
-            result.passthroughs[0].content.text.as_ref().unwrap(),
+            result.passthroughs[0].text.as_ref().unwrap(),
             "special {nested2} value"
         );
 
         // Verify source positions for debugging
-        let start_pos = result.passthroughs[0].start;
-        let end_pos = result.passthroughs[0].end;
+        let start_pos = result.passthroughs[0].location.absolute_start;
+        let end_pos = result.passthroughs[0].location.absolute_end;
         assert_eq!(start_pos, 10); // Start of passthrough content
         assert_eq!(end_pos, 35); // End of passthrough content
     }
@@ -478,6 +461,7 @@ mod tests {
         let input = "The text pass:q,a[<u>underline _{docname}_</u>] is underlined.";
         //                 01234567890123456789012345678901234567890123456789012345678901
         //                          ^start of pass        ^docname
+        //                "The text F is underlined."
         let result = preprocessor.process(input, 0).unwrap();
 
         assert_eq!(result.text, "The text \u{FFFD} is underlined.");
@@ -488,28 +472,22 @@ mod tests {
         let pass = &result.passthroughs[0];
 
         // Check passthrough content preserved original text
-        assert_eq!(
-            pass.content.text.as_ref().unwrap(),
-            "<u>underline _test-doc_</u>"
-        );
+        assert_eq!(pass.text.as_ref().unwrap(), "<u>underline _test-doc_</u>");
 
         // Verify substitutions were captured
-        assert!(pass.content.substitutions.contains(&Substitution::Quotes)); // 'q'
-        assert!(pass
-            .content
-            .substitutions
-            .contains(&Substitution::Attributes)); // 'a'
+        assert!(pass.substitutions.contains(&Substitution::Quotes)); // 'q'
+        assert!(pass.substitutions.contains(&Substitution::Attributes)); // 'a'
 
         // Check positions
-        assert_eq!(pass.start, 9); // Start of pass macro
-        assert_eq!(pass.end, 47); // End of pass macro content including brackets
+        assert_eq!(pass.location.absolute_start, 9); // Start of pass macro
+        assert_eq!(pass.location.absolute_end, 47); // End of pass macro content including brackets
 
         // Test position mapping
-        let pos = preprocessor.map_position(9); // Start of pass macro
+        let pos = result.source_map.map_position(9); // Start of pass macro
         assert_eq!(pos, 9); // Position unchanged before placeholder
 
-        let pos = preprocessor.map_position(47); // After pass macro
-        assert_eq!(pos, 9); // Position after placeholder
+        let pos = result.source_map.map_position(24); // After pass macro
+        assert_eq!(pos, 61); // Position after placeholder
     }
 
     #[test]
@@ -554,27 +532,25 @@ mod tests {
         let second_pass = &result.passthroughs[1];
 
         // Check passthrough content preserved original text
-        assert_eq!(first_pass.content.text.as_ref().unwrap(), "<h1>");
-        assert_eq!(second_pass.content.text.as_ref().unwrap(), "</h1>");
+        assert_eq!(first_pass.text.as_ref().unwrap(), "<h1>");
+        assert_eq!(second_pass.text.as_ref().unwrap(), "</h1>");
 
         // Verify substitutions were captured
         assert!(first_pass
-            .content
             .substitutions
             .contains(&Substitution::SpecialChars));
 
         // Check positions
-        assert_eq!(first_pass.start, 23); // Start of pass macro
-        assert_eq!(first_pass.end, 29); // End of pass macro content including brackets
+        assert_eq!(first_pass.location.absolute_start, 23); // Start of pass macro
+        assert_eq!(first_pass.location.absolute_end, 29); // End of pass macro content including brackets
 
         // Verify substitutions were captured
         assert!(second_pass
-            .content
             .substitutions
             .contains(&Substitution::SpecialChars));
 
         // Check positions
-        assert_eq!(second_pass.start, 34); // Start of pass macro
-        assert_eq!(second_pass.end, 41); // End of pass macro content including brackets
+        assert_eq!(second_pass.location.absolute_start, 34); // Start of pass macro
+        assert_eq!(second_pass.location.absolute_end, 41); // End of pass macro content including brackets
     }
 }

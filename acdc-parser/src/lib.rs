@@ -1,3 +1,6 @@
+#![deny(clippy::pedantic)]
+#![warn(clippy::all)]
+#![allow(clippy::module_name_repetitions)]
 //! `AsciiDoc` parser.
 //!
 //! This module provides a parser for the `AsciiDoc` markup language. The parser is
@@ -40,7 +43,7 @@ mod inlines;
 mod model;
 mod preprocessor;
 
-use inline_preprocessor::{InlinePreprocessor, ProcessedContent};
+pub(crate) use inline_preprocessor::{InlinePreprocessor, ProcessedContent};
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
@@ -65,6 +68,22 @@ pub use model::{
 #[grammar = "../grammar/asciidoc.pest"]
 pub(crate) struct InnerPestParser;
 
+/// Parse `AsciiDoc` content from a reader.
+///
+/// This function reads the content from the provided reader and parses it as `AsciiDoc`.
+///
+/// # Example
+///
+/// ```
+/// use acdc_parser::parse_from_reader;
+/// use std::fs::File;
+///
+/// let file = File::open("fixtures/samples/README.adoc").unwrap();
+/// let document = parse_from_reader(file).unwrap();
+/// ```
+///
+/// # Errors
+/// This function returns an error if the content cannot be parsed.
 #[instrument(skip(reader))]
 pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error> {
     let input = Preprocessor.process_reader(reader)?;
@@ -78,6 +97,21 @@ pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error>
     }
 }
 
+/// Parse `AsciiDoc` content from a string.
+///
+/// This function parses the provided string as `AsciiDoc`.
+///
+/// # Example
+///
+/// ```
+/// use acdc_parser::parse;
+///
+/// let content = r#"= Document Title\n\nThis is a paragraph.\n\n== Section Title\n\nThis is a subsection."#;
+/// let document = parse(content).unwrap();
+/// ```
+///
+/// # Errors
+/// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str) -> Result<Document, Error> {
     let input = Preprocessor.process(input)?;
@@ -91,6 +125,22 @@ pub fn parse(input: &str) -> Result<Document, Error> {
     }
 }
 
+/// Parse `AsciiDoc` content from a file.
+///
+/// This function reads the content from the provided file and parses it as `AsciiDoc`.
+///
+/// # Example
+///
+/// ```
+/// use acdc_parser::parse_file;
+/// use std::path::Path;
+///
+/// let file_path = Path::new("fixtures/samples/README.adoc");
+/// let document = parse_file(file_path).unwrap();
+/// ```
+///
+/// # Errors
+/// This function returns an error if the content cannot be parsed.
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P) -> Result<Document, Error> {
     let input = Preprocessor.process_file(file_path)?;
@@ -134,6 +184,18 @@ mod tests {
             tracing::warn!("no test file found for {:?}", path);
         }
     }
+
+    // TODO(nlopes): Fix the inlines location after a passthrough adjustment
+    //     #[test]
+    //     #[tracing_test::traced_test]
+    //     fn test_something() {
+    //         let result = parse(
+    //             ":norberto: meh\n\n= Title\n\nFirst: {norberto} +or+ something else.",
+    //         )
+    //         .unwrap();
+    //         dbg!(&result);
+    //         panic!();
+    //     }
 
     //     #[test]
     //     #[tracing_test::traced_test]
