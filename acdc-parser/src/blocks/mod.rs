@@ -1,7 +1,6 @@
 mod audio;
 mod block;
 mod delimited;
-mod document;
 mod image;
 mod list;
 mod paragraph;

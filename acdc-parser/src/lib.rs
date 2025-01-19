@@ -37,6 +37,7 @@ use tracing::instrument;
 
 mod anchor;
 mod blocks;
+mod document;
 mod error;
 mod inline_preprocessor;
 mod inlines;
