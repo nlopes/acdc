@@ -154,44 +154,34 @@ impl InlineNode {
                     // content that matches the location of the placeholder and return the
                     // content of the passthrough, with updated location information
                     if let Some(processed) = processed {
-                        let effective_start = location.absolute_start;
-                        let matching_pass =
-                            processed.passthroughs.iter().enumerate().find(|(i, pass)| {
-                                // Calculate the expected position of this placeholder
-                                // based on number of previous replacements
-                                let placeholder_pos = pass.start
-                                    - processed.passthroughs[..*i]
-                                        .iter()
-                                        .map(|p| {
-                                            p.content
-                                                .text
-                                                .as_ref()
-                                                .unwrap_or(&String::from(" "))
-                                                .len()
-                                                - 1
-                                        })
-                                        .sum::<usize>();
+                        let effective_start =
+                            processed.source_map.map_position(location.absolute_start);
+                        let matching_pass = processed
+                            .passthroughs
+                            .iter()
+                            .find(|pass| effective_start == pass.location.absolute_start);
 
-                                effective_start == placeholder_pos
-                            });
+                        if let Some(pass) = matching_pass {
+                            let mapped_start = processed
+                                .source_map
+                                .map_position(pass.location.start.column);
+                            let mapped_end =
+                                processed.source_map.map_position(pass.location.end.column);
 
-                        if let Some((_, pass)) = matching_pass {
-                            let mapped_start = pass.source_map.map_position(pass.start);
-                            let mapped_end = pass.source_map.map_position(pass.end);
-
+                            // TODO(nlopes): we need to do this for the rest of the inline nodes as well :(
                             return Ok(InlineNode::RawText(Raw {
-                                content: pass.content.text.clone().unwrap_or_default(),
+                                content: pass.text.clone().unwrap_or_default(),
                                 location: Location {
                                     start: Position {
-                                        line: pass.content.location.start.line,
+                                        line: location.start.line,
                                         column: mapped_start,
                                     },
                                     end: Position {
-                                        line: pass.content.location.end.line,
+                                        line: location.end.line,
                                         column: mapped_end,
                                     },
-                                    absolute_start: pass.content.location.absolute_start,
-                                    absolute_end: pass.content.location.absolute_end,
+                                    absolute_start: pass.location.absolute_start,
+                                    absolute_end: pass.location.absolute_end,
                                 },
                             }));
                         }
