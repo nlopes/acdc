@@ -262,8 +262,8 @@ impl InlinePreprocessor {
                 };
                 substitutions.extend(subs.unwrap_or_default());
                 let location = Location {
-                    absolute_start: span.start_pos().pos() + start_position - 1,
-                    absolute_end: span.end_pos().pos() + start_position - 1,
+                    absolute_start: span.start_pos().pos() + start_position,
+                    absolute_end: span.end_pos().pos() + start_position,
                     start: Position {
                         line: span_start.0,
                         column: span_start.1,
