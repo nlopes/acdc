@@ -80,12 +80,29 @@ impl Paragraph {
                         }
                     }
                 }
+                // TODO(nlopes): can paragraphs ever have titles?! We may be able to remove this.
                 Rule::title => {
-                    // TODO(nlopes): insted of None, `processed` should be passed here
-                    //
-                    // In order to do that, we need to pre-process the title and then
-                    // pass it to `parse_inlines` as `Some(processed)`
-                    title = parse_inlines(pair, None, parent_location, parent_attributes)?;
+                    let text = pair.as_str();
+                    let start_pos = pair.as_span().start_pos().pos();
+                    let mut location = Location::from_pair(&pair);
+                    location.shift(parent_location);
+
+                    // Run inline preprocessor before parsing inlines
+                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
+                    let processed = preprocessor.process(text, start_pos)?;
+
+                    let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
+                        .map_err(|e| Error::Parse(e.to_string()))?;
+
+                    title = parse_inlines(
+                        pairs.next().ok_or_else(|| {
+                            tracing::error!("error parsing paragraph title");
+                            Error::Parse("error parsing paragraph title".to_string())
+                        })?,
+                        Some(&processed),
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                 }
                 Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}
                 unknown => {
@@ -130,16 +147,6 @@ impl Paragraph {
 
         let mut content = Vec::new();
         let mut first = true;
-
-        // We need to do this because the inlines locations below will calculate their
-        // lines by assuming there is already a newline but in this specific case
-        // (paragraph) there isn't.
-        // let parent_location = parent_location.map(|l| {
-        //     let mut l = l.clone();
-        //     l.start.line += 1;
-        //     l.end.line += 1;
-        //     l
-        // });
 
         for pair in pairs {
             if first {

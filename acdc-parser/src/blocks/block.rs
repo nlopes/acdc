@@ -1,13 +1,14 @@
 use std::str::FromStr;
 
-use pest::iterators::Pairs;
+use pest::{iterators::Pairs, Parser as _};
 use tracing::instrument;
 
 use crate::{
     blocks::list::parse_list, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
     AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DocumentAttributes, ElementAttributes, Error, Image, InlineNode, Location, PageBreak,
-    Paragraph, Rule, Section, TableOfContents, ThematicBreak, Video,
+    DocumentAttributes, ElementAttributes, Error, Image, InlineNode, InlinePreprocessor,
+    InnerPestParser, Location, PageBreak, Paragraph, Rule, Section, TableOfContents, ThematicBreak,
+    Video,
 };
 
 impl BlockExt for Block {
@@ -292,11 +293,26 @@ impl Block {
                     style_found = true;
                 }
                 Rule::title => {
-                    // TODO(nlopes): insted of None, `processed` should be passed here
-                    //
-                    // In order to do that, we need to pre-process the title and then
-                    // pass it to `parse_inlines` as `Some(processed)`
-                    title = parse_inlines(pair, None, parent_location, parent_attributes)?;
+                    let text = pair.as_str();
+                    let start_pos = pair.as_span().start_pos().pos();
+                    let mut location = Location::from_pair(&pair);
+                    location.shift(parent_location);
+
+                    // Run inline preprocessor before parsing inlines
+                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
+                    let processed = preprocessor.process(text, start_pos)?;
+                    let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
+                        .map_err(|e| Error::Parse(e.to_string()))?;
+
+                    title = parse_inlines(
+                        pairs.next().ok_or_else(|| {
+                            tracing::error!("error parsing block title");
+                            Error::Parse("error parsing block title".to_string())
+                        })?,
+                        Some(&processed),
+                        Some(&location),
+                        parent_attributes,
+                    )?;
                 }
                 Rule::thematic_break_block => {
                     let thematic_break = ThematicBreak {

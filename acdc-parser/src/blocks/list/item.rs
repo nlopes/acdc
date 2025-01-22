@@ -27,26 +27,28 @@ impl ListItem {
                 Rule::list_item => {
                     let mut item_location = Location::from_pair(&pair);
                     item_location.shift(parent_location);
-                    match crate::InnerPestParser::parse(Rule::inlines, pair.as_str()) {
-                        Ok(pairs) => {
-                            for pair in pairs {
-                                // TODO(nlopes): insted of None, `processed` should be passed here
-                                //
-                                // In order to do that, we need to pre-process the inlines and then
-                                // pass it to `parse_inlines` as `Some(processed)`
-                                content.extend(crate::inlines::parse_inlines(
-                                    pair,
-                                    None,
-                                    Some(&item_location),
-                                    parent_attributes,
-                                )?);
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!("error parsing text: {e}");
-                            return Err(Error::Parse(e.to_string()));
-                        }
-                    }
+
+                    let text = pair.as_str();
+                    let start_pos = pair.as_span().start_pos().pos();
+
+                    // Run inline preprocessor before parsing inlines
+                    let mut preprocessor =
+                        crate::InlinePreprocessor::new(parent_attributes.clone());
+                    let processed = preprocessor.process(text, start_pos)?;
+
+                    // Now parse the processed text
+                    let mut pairs = crate::InnerPestParser::parse(Rule::inlines, &processed.text)
+                        .map_err(|e| Error::Parse(e.to_string()))?;
+
+                    content.extend(crate::inlines::parse_inlines(
+                        pairs.next().ok_or_else(|| {
+                            tracing::error!("error parsing list item content");
+                            Error::Parse("error parsing list item content".to_string())
+                        })?,
+                        Some(&processed),
+                        Some(&item_location),
+                        parent_attributes,
+                    )?);
                 }
                 Rule::unordered_level | Rule::ordered_level => {
                     marker = pair.as_str().to_string();
