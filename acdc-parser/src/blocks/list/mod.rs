@@ -2,11 +2,12 @@ mod description;
 mod item;
 mod simple;
 
-use pest::iterators::Pairs;
+use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     inlines::parse_inlines, AttributeValue, Block, BlockMetadata, DescriptionList,
-    DocumentAttributes, ElementAttributes, Error, Location, Rule, UnorderedList,
+    DocumentAttributes, ElementAttributes, Error, InlinePreprocessor, InnerPestParser, Location,
+    Rule, UnorderedList,
 };
 
 use super::block::BlockExt;
@@ -31,11 +32,27 @@ pub(crate) fn parse_list(
     for pair in pairs {
         match pair.as_rule() {
             Rule::list_title | Rule::blocktitle | Rule::title => {
-                // TODO(nlopes): insted of None, `processed` should be passed here
-                //
-                // In order to do that, we need to pre-process the inlines and then
-                // pass it to `parse_inlines` as `Some(processed)`
-                title = parse_inlines(pair, None, parent_location, parent_attributes)?;
+                let text = pair.as_str();
+                let start_pos = pair.as_span().start_pos().pos();
+                let mut location = Location::from_pair(&pair);
+                location.shift(parent_location);
+
+                // Run inline preprocessor before parsing inlines
+                let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
+                let processed = preprocessor.process(text, start_pos)?;
+
+                let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
+                    .map_err(|e| Error::Parse(e.to_string()))?;
+
+                title = parse_inlines(
+                    pairs.next().ok_or_else(|| {
+                        tracing::error!("error parsing list title");
+                        Error::Parse("error parsing list title".to_string())
+                    })?,
+                    Some(&processed),
+                    Some(&location),
+                    parent_attributes,
+                )?;
             }
             Rule::unordered_list | Rule::ordered_list => {
                 block = Block::parse_simple_list(

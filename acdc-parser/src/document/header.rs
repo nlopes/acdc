@@ -1,9 +1,9 @@
-use pest::iterators::Pairs;
+use pest::{iterators::Pairs, Parser as _};
 use tracing::instrument;
 
 use crate::{
     inlines::parse_inlines, AttributeValue, Author, DocumentAttribute, DocumentAttributes, Error,
-    Header, InlineNode, Location, Plain, Rule,
+    Header, InlineNode, InlinePreprocessor, InnerPestParser, Location, Plain, Rule,
 };
 
 impl Header {
@@ -49,13 +49,24 @@ impl Header {
                                         location: title_location.clone(),
                                     })]
                                 } else {
-                                    // TODO(nlopes): insted of None, `processed` should be passed here
-                                    //
-                                    // In order to do that, we need to pre-process the title and then
-                                    // pass it to `parse_inlines` as `Some(processed)`
+                                    let text = inner_pair.as_str();
+                                    let start_pos = inner_pair.as_span().start_pos().pos();
+
+                                    // Run inline preprocessor before parsing inlines
+                                    let mut preprocessor =
+                                        InlinePreprocessor::new(parent_attributes.clone());
+                                    let processed = preprocessor.process(text, start_pos)?;
+
+                                    let mut pairs =
+                                        InnerPestParser::parse(Rule::inlines, &processed.text)
+                                            .map_err(|e| Error::Parse(e.to_string()))?;
+
                                     parse_inlines(
-                                        inner_pair.clone(),
-                                        None,
+                                        pairs.next().ok_or_else(|| {
+                                            tracing::error!("error parsing document title");
+                                            Error::Parse("error parsing document title".to_string())
+                                        })?,
+                                        Some(&processed),
                                         None,
                                         parent_attributes,
                                     )?
