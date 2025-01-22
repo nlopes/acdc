@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget, Pass,
+    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget, Pass, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -78,6 +78,7 @@ impl Render for InlineMacro {
             InlineMacro::Link(l) => l.render(w, processor, options),
             InlineMacro::Image(i) => i.render(w, processor, options),
             InlineMacro::Pass(p) => p.render(w, processor, options),
+            InlineMacro::Url(u) => u.render(w, processor, options),
             unknown => todo!("inline macro: {:?}", unknown),
         }
     }
@@ -113,6 +114,37 @@ impl Render for Link {
             write!(w, "{text}")?;
         } else {
             write!(w, "<a href=\"{target}\">{text}</a>",)?;
+        }
+        Ok(())
+    }
+}
+
+impl Render for Url {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        let text = self
+            .attributes
+            .iter()
+            .find_map(|(k, v)| {
+                // Link macros can only have one positional attribute, which is the text.
+                if *v == AttributeValue::None {
+                    Some(k)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(&self.target);
+
+        if options.inlines_basic {
+            write!(w, "{text}")?;
+        } else {
+            write!(w, "<a href=\"{}\">{text}</a>", self.target)?;
         }
         Ok(())
     }
