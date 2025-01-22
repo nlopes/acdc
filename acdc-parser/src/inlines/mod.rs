@@ -43,7 +43,17 @@ impl InlineNode {
                         .or(content.strip_suffix("\n"))
                         .unwrap_or(content)
                         .to_string();
-                    return Ok(InlineNode::PlainText(Plain { content, location }));
+                    match map_inline_location(&location, processed) {
+                        Some((Some(content), location)) => {
+                            return Ok(InlineNode::PlainText(Plain { content, location }));
+                        }
+                        Some((None, location)) => {
+                            return Ok(InlineNode::PlainText(Plain { content, location }));
+                        }
+                        None => {
+                            return Ok(InlineNode::PlainText(Plain { content, location }));
+                        }
+                    }
                 }
                 Rule::highlight_text | Rule::highlight_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;
@@ -149,50 +159,10 @@ impl InlineNode {
                 | Rule::autolink
                 | Rule::pass_inline => return Self::parse_macro(pair),
                 Rule::placeholder => {
-                    // If there is processed content, which is the case for a placeholder,
-                    // like a pass macro or a passthrough we need to find the processed
-                    // content that matches the location of the placeholder and return the
-                    // content of the passthrough, with updated location information
-                    if let Some(processed) = processed {
-                        let effective_start =
-                            processed.source_map.map_position(location.absolute_start);
-                        let matching_pass = processed
-                            .passthroughs
-                            .iter()
-                            .find(|pass| effective_start == pass.location.absolute_start);
-
-                        if let Some(pass) = matching_pass {
-                            let mapped_start = processed
-                                .source_map
-                                .map_position(pass.location.start.column);
-                            let mapped_end =
-                                processed.source_map.map_position(pass.location.end.column);
-
-                            // TODO(nlopes): we need to do this for the rest of the inline nodes as well :(
-                            return Ok(InlineNode::RawText(Raw {
-                                content: pass.text.clone().unwrap_or_default(),
-                                location: Location {
-                                    start: Position {
-                                        line: location.start.line,
-                                        column: mapped_start,
-                                    },
-                                    end: Position {
-                                        line: location.end.line,
-                                        column: mapped_end,
-                                    },
-                                    absolute_start: pass.location.absolute_start,
-                                    absolute_end: pass.location.absolute_end,
-                                },
-                            }));
-                        }
-                    } else {
-                        tracing::error!(
-                            location = %location,
-                            "no processed content found for placeholder at location"
-                        );
-                        return Err(Error::Parse(
-                            "no processed content found for placeholder".to_string(),
-                        ));
+                    if let Some((Some(content), location)) =
+                        map_inline_location(&location, processed)
+                    {
+                        return Ok(InlineNode::RawText(Raw { content, location }));
                     }
                 }
                 Rule::role => role = Some(pair.as_str().to_string()),
@@ -242,11 +212,6 @@ impl InlineNode {
                 pair.into_inner(),
                 location,
             )))),
-            // Rule::single_double_passthrough | Rule::triple_passthrough => {
-            //     Ok(InlineNode::Macro(InlineMacro::Pass(
-            //         Pass::parse_inline_single_double_or_triple(Pairs::single(pair), location),
-            //     )))
-            // }
             unknown => unreachable!("{unknown:?}"),
         }
     }
@@ -363,4 +328,71 @@ pub(crate) fn get_content(
         }
     }
     Ok(content)
+}
+
+#[instrument(level = "trace")]
+fn map_inline_location(
+    location: &Location,
+    processed: Option<&ProcessedContent>,
+) -> Option<(Option<String>, Location)> {
+    // If there is processed content, which is the case for a placeholder,
+    // like a pass macro or a passthrough we need to find the processed
+    // content that matches the location of the placeholder and return the
+    // content of the passthrough, with updated location information
+    if let Some(processed) = processed {
+        let effective_start = processed.source_map.map_position(location.absolute_start);
+        let matching_pass = processed
+            .passthroughs
+            .iter()
+            .find(|pass| effective_start == pass.location.absolute_start);
+        if let Some(pass) = matching_pass {
+            let mapped_start = processed
+                .source_map
+                .map_position(pass.location.start.column);
+            let mapped_end = processed.source_map.map_position(pass.location.end.column);
+            let location = Location {
+                start: Position {
+                    line: location.start.line,
+                    column: mapped_start,
+                },
+                end: Position {
+                    line: location.end.line,
+                    column: mapped_end,
+                },
+                absolute_start: pass.location.absolute_start,
+                absolute_end: pass.location.absolute_end,
+            };
+            return Some((pass.text.clone(), location));
+        } else if effective_start != location.absolute_start {
+            // If we're here, it means that the placeholder is not a passthrough
+            //
+            // We also have to calculate the delta in the column position and for that we
+            // have to do some trickery.  We must map_position of the effective_start
+            // (that's the mapped position of the absolute start) which might feel like a
+            // repeat but it's not. the effective start is the mapped position of the
+            // absolute start. What we want is to understand how much the effective start
+            // is shifted from the absolute start. We can then use this delta to adjust
+            // the column position of the location.
+            let mapping_to_calculate_delta = processed.source_map.map_position(effective_start);
+            let delta = mapping_to_calculate_delta - effective_start;
+            let location = Location {
+                start: Position {
+                    line: location.start.line,
+                    column: location.start.column + delta,
+                },
+                end: Position {
+                    line: location.end.line,
+                    column: location.end.column + delta,
+                },
+                absolute_start: processed.source_map.map_position(effective_start),
+                absolute_end: processed.source_map.map_position(location.absolute_end),
+            };
+            return Some((None, location));
+        }
+    }
+    tracing::debug!(
+        location = %location,
+        "no processed content found for placeholder at location"
+    );
+    None
 }

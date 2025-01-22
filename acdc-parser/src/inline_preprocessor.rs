@@ -36,18 +36,20 @@ impl SourceMap {
         let mut merged = Vec::new();
         let mut current_pos = 0;
         let mut current_offset = 0;
+        let mut current_kind = ProcessedKind::Attribute;
 
-        for (pos, offs, kind) in self.offsets.drain(..) {
+        for (pos, offs, offset_kind) in self.offsets.drain(..) {
             match pos.cmp(&current_pos) {
                 std::cmp::Ordering::Equal => {
                     current_offset += offs;
                 }
                 std::cmp::Ordering::Greater => {
                     if current_offset != 0 {
-                        merged.push((current_pos, current_offset, kind));
+                        merged.push((current_pos, current_offset, current_kind));
                     }
                     current_pos = pos;
                     current_offset = offs;
+                    current_kind = offset_kind;
                 }
                 std::cmp::Ordering::Less => {
                     // Skip overlapping offsets
@@ -59,7 +61,6 @@ impl SourceMap {
         if current_offset != 0 {
             merged.push((current_pos, current_offset, kind));
         }
-
         self.offsets = merged;
     }
 
@@ -72,21 +73,11 @@ impl SourceMap {
         }
 
         // Apply cumulative offsets up to this position
-        for (offset_pos, delta, kind) in &self.offsets {
-            match kind {
-                ProcessedKind::Attribute => {
-                    offset += -1 * delta;
-                    if pos >= *offset_pos {
-                        break;
-                    }
-                }
-                ProcessedKind::Passthrough => {
-                    offset += -1 * delta;
-                    if pos > *offset_pos {
-                        break;
-                    }
-                }
+        for (offset_pos, delta, _kind) in &self.offsets {
+            if pos < *offset_pos {
+                break;
             }
+            offset += -1 * delta;
         }
 
         usize::try_from(i32::try_from(pos).unwrap_or_default() + offset).unwrap_or_default()
