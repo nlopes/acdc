@@ -193,7 +193,7 @@ impl Paragraph {
                 Rule::plain_text => {
                     content.push(InlineNode::parse(
                         Pairs::single(pair),
-                        None,
+                        Some(processed),
                         parent_location,
                         parent_attributes,
                     )?);

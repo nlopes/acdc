@@ -186,18 +186,6 @@ mod tests {
         }
     }
 
-    // TODO(nlopes): Fix the inlines location after a passthrough adjustment
-    //     #[test]
-    //     #[tracing_test::traced_test]
-    //     fn test_something() {
-    //         let result = parse(
-    //             ":norberto: meh\n\n= Title\n\nFirst: {norberto} +or+ something else.",
-    //         )
-    //         .unwrap();
-    //         dbg!(&result);
-    //         panic!();
-    //     }
-
     //     #[test]
     //     #[tracing_test::traced_test]
     //     fn test_something() {
