@@ -186,6 +186,29 @@ mod tests {
         }
     }
 
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_something() {
+        // +<h1>+ +<h2>+ +=+ no +-+ (+#+)
+        // N N N no N
+        // 123456789012345678901234567890123456789012345678901234567890123456789012345678901
+        // 0        1         2         3         4         5         6         7         8
+        // 012345678901234567890123456789012345678901234567890123456789012345678901234567890
+        let input = "+<h1>+ +<h2>+ +=+ no +-+. maria alice (+#+)";
+
+        let attrs = DocumentAttributes::default();
+        let mut preprocessor = InlinePreprocessor::new(attrs);
+        let processed = preprocessor.process(input, 0).unwrap();
+
+        println!("Processed text: {:?}", processed.text);
+        println!("Passthroughs: {:?}", processed.passthroughs);
+        println!("Source map: {:?}", processed.source_map);
+
+        let result = parse(input).unwrap();
+        dbg!(&result);
+        panic!();
+    }
+
     //     #[test]
     //     #[tracing_test::traced_test]
     //     fn test_something() {
