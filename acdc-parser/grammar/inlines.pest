@@ -61,7 +61,8 @@ hard_wrap = { SPACE ~ "+" ~ SPACE ~ "\\" ~ NEWLINE }
 
 // Note: Passthrough and attribute references are handled by preprocessor
 // So we only need to match the placeholder character here
-placeholder = { "\u{FFFD}" }
+placeholder = { "\u{FFFD}\u{FFFD}\u{FFFD}" ~ placeholder_index ~ "\u{FFFD}\u{FFFD}\u{FFFD}" }
+placeholder_index = { ASCII_DIGIT+ }
 
 non_plain_text = {
     hard_wrap |

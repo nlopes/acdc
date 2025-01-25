@@ -2,7 +2,7 @@ use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
-    ElementAttributes, Error, InlineNode, InnerPestParser, Location, Plain, Rule, Table,
+    ElementAttributes, Error, InlineNode, InnerPestParser, Location, Plain, Raw, Rule, Table,
 };
 
 impl DelimitedBlock {
@@ -82,7 +82,7 @@ impl DelimitedBlock {
                 }
                 Rule::delimited_pass => {
                     // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
-                    inner = DelimitedBlockType::DelimitedPass(vec![InlineNode::PlainText(Plain {
+                    inner = DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
                         location: inner_location.clone(),
                         content: text.clone(),
                     })]);

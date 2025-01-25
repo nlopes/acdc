@@ -54,9 +54,9 @@ pub use model::{
     DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
     DocumentAttribute, DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image,
     ImageSource, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, LinkTarget, ListItem,
-    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, Plain, Position, Raw, Role,
-    Section, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
-    ThematicBreak, UnorderedList, Url, Video, VideoSource,
+    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain,
+    Position, Raw, Role, Section, Subscript, Substitution, Superscript, Table, TableColumn,
+    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video, VideoSource,
 };
 
 #[derive(Parser, Debug)]
