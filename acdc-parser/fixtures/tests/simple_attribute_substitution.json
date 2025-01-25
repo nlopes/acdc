@@ -25,16 +25,16 @@
               "name": "text",
               "type": "string",
               "value": "1.0",
-              "location": [{"line": 3,"col": 14},{"line": 3,"col": 16}]
+              "location": [{"line": 3,"col": 14},{"line": 3,"col": 18}]
             }
           ],
-          "location": [{"line": 3,"col": 12},{"line": 3,"col": 18}]
+          "location": [{"line": 3,"col": 12},{"line": 3,"col": 20}]
         },
         {
           "name": "text",
           "type": "string",
           "value": " Release Notes",
-          "location": [{"line": 3,"col": 21},{"line": 3,"col": 34}]
+          "location": [{"line": 3,"col": 19},{"line": 3,"col": 34}]
         }
       ],
       "level": 1,

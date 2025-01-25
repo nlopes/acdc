@@ -35,6 +35,8 @@ impl InlineNode {
             let mut location = Location::from_pair(&pair);
             location.shift_inline(parent_location);
 
+            let mapped_location = map_inline_location(&location, processed)
+                .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
             match pair.as_rule() {
                 Rule::plain_text | Rule::one_line_plain_text => {
                     let content = pair.as_str();
@@ -43,17 +45,10 @@ impl InlineNode {
                         .or(content.strip_suffix("\n"))
                         .unwrap_or(content)
                         .to_string();
-                    match map_inline_location(&location, processed) {
-                        Some((Some(content), location)) => {
-                            return Ok(InlineNode::PlainText(Plain { content, location }));
-                        }
-                        Some((None, location)) => {
-                            return Ok(InlineNode::PlainText(Plain { content, location }));
-                        }
-                        None => {
-                            return Ok(InlineNode::PlainText(Plain { content, location }));
-                        }
-                    }
+                    return Ok(InlineNode::PlainText(Plain {
+                        content,
+                        location: mapped_location.1,
+                    }));
                 }
                 Rule::highlight_text | Rule::highlight_text_unconstrained => {
                     let unconstrained = pair.as_rule() == Rule::highlight_text_unconstrained;
@@ -94,13 +89,13 @@ impl InlineNode {
                         unconstrained,
                         &pair,
                         processed,
-                        Some(&location),
+                        Some(&mapped_location.1),
                         parent_attributes,
                     )?;
                     return Ok(InlineNode::BoldText(Bold {
                         role,
                         content,
-                        location,
+                        location: mapped_location.1,
                     }));
                 }
                 Rule::monospace_text | Rule::monospace_text_unconstrained => {
@@ -159,11 +154,10 @@ impl InlineNode {
                 | Rule::autolink
                 | Rule::pass_inline => return Self::parse_macro(pair),
                 Rule::placeholder => {
-                    if let Some((Some(content), location)) =
-                        map_inline_location(&location, processed)
-                    {
-                        return Ok(InlineNode::RawText(Raw { content, location }));
-                    }
+                    return Ok(InlineNode::RawText(Raw {
+                        content: mapped_location.0.unwrap_or_default(),
+                        location: mapped_location.1,
+                    }));
                 }
                 Rule::role => role = Some(pair.as_str().to_string()),
                 Rule::inline_line_break | Rule::hard_wrap => {
@@ -337,15 +331,14 @@ pub(crate) fn get_content(
     Ok(content)
 }
 
-#[instrument(level = "trace")]
+// == Version **1.0** Release Notes
+// == Version {version} Release Notes
+// 1234567890123456789012345678901234
+// 0        1         2         3
 fn map_inline_location(
     location: &Location,
     processed: Option<&ProcessedContent>,
 ) -> Option<(Option<String>, Location)> {
-    // If there is processed content, which is the case for a placeholder,
-    // like a pass macro or a passthrough we need to find the processed
-    // content that matches the location of the placeholder and return the
-    // content of the passthrough, with updated location information
     if let Some(processed) = processed {
         let effective_start = location.absolute_start;
         let (matching_pass, passthroughs_before_count) = processed.passthroughs.iter().fold(
@@ -358,23 +351,49 @@ fn map_inline_location(
                 // length of the passthrough according to pest (len_utf8)
                 else if pass.location.absolute_start
                     == effective_start + 3 * passthroughs_before_count
+                    || pass.location.absolute_start == effective_start + 3
+                    || pass.location.absolute_start
+                        == effective_start
+                            + 3 * (if passthroughs_before_count > 0 {
+                                passthroughs_before_count - 1
+                            } else {
+                                passthroughs_before_count
+                            })
                 {
+                    dbg!((
+                        "FOUND A PASS NORBERTO",
+                        &pass.location,
+                        &effective_start,
+                        &pass.text
+                    ));
                     (Some(pass), passthroughs_before_count)
                 } else {
+                    dbg!((
+                        "NOT FOUND A PASS NORBERTO",
+                        &pass.location,
+                        &effective_start,
+                        &pass.text
+                    ));
                     (matching_pass, passthroughs_before_count)
                 }
             },
         );
-        dbg!((effective_start, matching_pass));
+
         if let Some(pass) = matching_pass {
             let mapped_start = processed
                 .source_map
                 .map_position(effective_start - passthroughs_before_count)
                 + 1
                 - passthroughs_before_count;
+            dbg!((
+                "MAPPED START NORBERTO",
+                &mapped_start,
+                &effective_start,
+                &passthroughs_before_count
+            ));
             let mapped_end = processed
                 .source_map
-                .map_position(location.absolute_end - passthroughs_before_count - 1)
+                .map_position(location.absolute_end - passthroughs_before_count)
                 - 1
                 - passthroughs_before_count;
             let location = Location {
@@ -389,42 +408,49 @@ fn map_inline_location(
                 absolute_start: pass.location.absolute_start,
                 absolute_end: pass.location.absolute_end,
             };
-            return Some((pass.text.clone(), location));
+            return Some((pass.text.clone(), location.clone()));
         }
 
-        // If we're here, it means that the placeholder is not a passthrough
+        // Add the following code to sort the location of the attributes
+        // if we're here and we're within the location of an attributes (per the source map having an entry for it) then, we need to adjust start and end columns
+        // to the original source location
         //
-        // We also have to calculate the delta in the column position and for that we
-        // have to do some trickery.  We must map_position of the effective_start
-        // (that's the mapped position of the absolute start) which might feel like a
-        // repeat but it's not. the effective start is the mapped position of the
-        // absolute start. What we want is to understand how much the effective start
-        // is shifted from the absolute start. We can then use this delta to adjust
-        // the column position of the location.
-        let mapping_to_calculate_delta = processed.source_map.map_position(effective_start);
+        // This is because the source map only maps the start and end columns of the attributes
+        // and not the content within the attributes
+        if let Some((_, offset, _)) =
+            processed
+                .source_map
+                .offsets
+                .iter()
+                .find(|(absolute_start, _offset, kind)| {
+                    *kind == ProcessedKind::Attribute && *absolute_start == location.absolute_start
+                })
+        {
+            let mut adjusted_location = location.clone();
+            let end = i32::try_from(adjusted_location.end.column).unwrap() - offset;
+            adjusted_location.end.column = usize::try_from(end).unwrap();
 
-        let delta = if mapping_to_calculate_delta > effective_start {
-            mapping_to_calculate_delta - effective_start
-        } else {
-            effective_start - mapping_to_calculate_delta
-        };
-        let location = Location {
-            start: Position {
-                line: location.start.line,
-                column: location.start.column + delta,
-            },
-            end: Position {
-                line: location.end.line,
-                column: location.end.column + delta,
-            },
-            absolute_start: processed.source_map.map_position(effective_start),
-            absolute_end: processed.source_map.map_position(location.absolute_end),
-        };
-        return Some((None, location));
+            return Some((None, adjusted_location));
+        }
+        let mut adjusted_location = location.clone();
+
+        // Map positions back to the original source using the source map
+        adjusted_location.start.column = processed
+            .source_map
+            .map_position(adjusted_location.start.column);
+        adjusted_location.end.column = processed
+            .source_map
+            .map_position(adjusted_location.end.column);
+
+        adjusted_location.absolute_start = processed
+            .source_map
+            .map_position(adjusted_location.absolute_start);
+        adjusted_location.absolute_end = processed
+            .source_map
+            .map_position(adjusted_location.absolute_end);
+
+        Some((None, adjusted_location))
+    } else {
+        None
     }
-    tracing::debug!(
-        location = %location,
-        "no processed content found for placeholder at location"
-    );
-    None
 }
