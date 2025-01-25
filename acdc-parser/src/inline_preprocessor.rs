@@ -18,11 +18,11 @@ pub(crate) struct InlinePreprocessor {
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SourceMap {
-    offsets: Vec<(usize, i32, ProcessedKind)>,
+    pub(crate) offsets: Vec<(usize, i32, ProcessedKind)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ProcessedKind {
+pub(crate) enum ProcessedKind {
     Attribute,
     Passthrough,
 }
@@ -36,7 +36,7 @@ impl SourceMap {
         let mut merged = Vec::new();
         let mut current_pos = 0;
         let mut current_offset = 0;
-        let mut current_kind = ProcessedKind::Attribute;
+        let mut current_kind = kind;
 
         for (pos, offs, offset_kind) in self.offsets.drain(..) {
             match pos.cmp(&current_pos) {
@@ -59,7 +59,7 @@ impl SourceMap {
         }
 
         if current_offset != 0 {
-            merged.push((current_pos, current_offset, kind));
+            merged.push((current_pos, current_offset, current_kind));
         }
         self.offsets = merged;
     }
@@ -74,7 +74,7 @@ impl SourceMap {
 
         // Apply cumulative offsets up to this position
         for (offset_pos, delta, _kind) in &self.offsets {
-            if pos < *offset_pos {
+            if pos <= *offset_pos {
                 break;
             }
             offset += -1 * delta;
@@ -111,6 +111,7 @@ impl InlinePreprocessor {
 
         let pairs = InlinePreprocessorParser::parse(Rule::preprocessed_text, text)
             .map_err(|e| Error::Parse(format!("Invalid inline text: {e}")))?;
+        let mut pass_found_count = 0;
         for pair in pairs.flatten() {
             match pair.as_rule() {
                 Rule::attr_ref => {
@@ -145,15 +146,18 @@ impl InlinePreprocessor {
                 | Rule::pass_macro => {
                     let span = pair.as_span();
                     let pass = self.create_passthrough(pair, start_position)?;
+                    let len = span.end_pos().line_col().1 - span.start_pos().line_col().1;
 
                     // Insert placeholder
                     result.push('\u{FFFD}');
 
                     self.source_map.add_offset(
-                        start_position + span.start(),
-                        0 - i32::try_from(span.as_str().len()).unwrap_or(0) + 1, // +1 here to account for the placeholder
+                        start_position + span.start() - 3 * pass_found_count,
+                        0 - i32::try_from(len).unwrap_or(0) + 1, // +1 here to account for the placeholder
                         ProcessedKind::Passthrough,
                     );
+
+                    pass_found_count += 1;
                     passthroughs.push(pass);
                 }
                 Rule::unprocessed_text => {
