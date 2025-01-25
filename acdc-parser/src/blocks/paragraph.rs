@@ -149,6 +149,8 @@ impl Paragraph {
         let mut content = Vec::new();
         let mut first = true;
 
+        let mut last_index_seen = None;
+
         for pair in pairs {
             if first {
                 // Remove the trailing newline if there is one.
@@ -196,6 +198,7 @@ impl Paragraph {
                         Some(processed),
                         parent_location,
                         parent_attributes,
+                        &mut last_index_seen,
                     )?);
                 }
                 Rule::plain_text => {
@@ -204,6 +207,7 @@ impl Paragraph {
                         Some(processed),
                         parent_location,
                         parent_attributes,
+                        &mut last_index_seen,
                     )?);
                 }
                 Rule::EOI | Rule::comment | Rule::open_sb | Rule::close_sb => {}

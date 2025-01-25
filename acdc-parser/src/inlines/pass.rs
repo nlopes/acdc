@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use pest::iterators::Pairs;
 
-use crate::{Location, Pass, Rule, Substitution};
+use crate::{Location, Pass, PassthroughKind, Rule, Substitution};
 
 impl Pass {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
@@ -22,6 +22,7 @@ impl Pass {
             text,
             substitutions,
             location,
+            kind: PassthroughKind::Macro,
         }
     }
 }

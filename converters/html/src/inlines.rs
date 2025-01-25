@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget, Pass, Url,
+    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget, Pass,
+    PassthroughKind, Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -18,12 +19,10 @@ impl Render for InlineNode {
         match self {
             InlineNode::PlainText(p) => {
                 let text = substitution_text(&p.content);
-
                 write!(w, "{text}")?;
             }
             InlineNode::RawText(r) => {
-                let text = substitution_text(&r.content);
-                write!(w, "{text}")?;
+                write!(w, "{}", r.content)?;
             }
             InlineNode::BoldText(b) => {
                 if !options.inlines_basic {
@@ -189,8 +188,15 @@ impl Render for Pass {
         _options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         if let Some(ref text) = self.text {
-            let text = substitution_text(text);
-            write!(w, "{text}")?;
+            if self.substitutions.contains(&Substitution::SpecialChars)
+                || self.kind == PassthroughKind::Single
+                || self.kind == PassthroughKind::Double
+            {
+                let text = substitution_text(text);
+                write!(w, "{text}")?;
+            } else {
+                write!(w, "{text}")?;
+            }
         }
         Ok(())
     }
@@ -209,6 +215,9 @@ pub(crate) fn render_inlines(
 }
 
 fn substitution_text(text: &str) -> String {
+    if text.is_empty() {
+        return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
+    }
     text.replace('&', "&amp;")
         .replace('>', "&gt;")
         .replace('<', "&lt;")

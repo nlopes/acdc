@@ -1,10 +1,13 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use pest::Parser;
 use pest_derive::Parser;
 use tracing::instrument;
 
-use crate::{AttributeValue, DocumentAttributes, Error, Location, Pass, Position, Substitution};
+use crate::{
+    AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
+    Substitution,
+};
 
 #[derive(Parser)]
 #[grammar = "../grammar/inline_preprocessor.pest"]
@@ -29,6 +32,35 @@ pub(crate) enum ProcessedKind {
 
 impl SourceMap {
     fn add_offset(&mut self, position: usize, offset: i32, kind: ProcessedKind) {
+        self.offsets.push((position, offset, kind));
+        self.offsets.sort_by_key(|k| k.0);
+
+        let mut merged = Vec::new();
+        let mut current_pos = 0;
+        let mut current_offset = 0;
+        let mut current_kind = None;
+
+        for (pos, offs, kind) in self.offsets.drain(..) {
+            if pos == current_pos {
+                current_offset += offs;
+                current_kind = Some(kind);
+            } else {
+                if current_offset != 0 {
+                    merged.push((current_pos, current_offset, current_kind.unwrap()));
+                }
+                current_pos = pos;
+                current_offset = offs;
+                current_kind = Some(kind);
+            }
+        }
+
+        if current_offset != 0 {
+            merged.push((current_pos, current_offset, current_kind.unwrap()));
+        }
+        self.offsets = merged;
+    }
+
+    fn add_offset_orig(&mut self, position: usize, offset: i32, kind: ProcessedKind) {
         // Sort and merge overlapping/adjacent offsets
         self.offsets.push((position, offset, kind.clone()));
         self.offsets.sort_by_key(|k| k.0);
@@ -88,6 +120,7 @@ impl SourceMap {
 pub(crate) struct ProcessedContent {
     pub text: String,
     pub passthroughs: Vec<Pass>,
+    pub attributes: HashMap<usize, Location>,
     pub(crate) source_map: SourceMap,
 }
 
@@ -108,6 +141,7 @@ impl InlinePreprocessor {
     ) -> Result<ProcessedContent, Error> {
         let mut result = String::with_capacity(text.len());
         let mut passthroughs = Vec::new();
+        let mut attributes = HashMap::new();
 
         let pairs = InlinePreprocessorParser::parse(Rule::preprocessed_text, text)
             .map_err(|e| Error::Parse(format!("Invalid inline text: {e}")))?;
@@ -128,6 +162,10 @@ impl InlinePreprocessor {
                                     ProcessedKind::Attribute,
                                 );
                                 result.push_str(s);
+                                attributes.insert(
+                                    self.source_map.offsets.len(),
+                                    Location::from_pair(&pair),
+                                );
                             }
                             _ => {
                                 // TODO(nlopes): do we need to handle other types?
@@ -149,10 +187,12 @@ impl InlinePreprocessor {
                     let len = span.end_pos().line_col().1 - span.start_pos().line_col().1;
 
                     // Insert placeholder
-                    result.push('\u{FFFD}');
+                    result.push_str(&format!(
+                        "\u{FFFD}\u{FFFD}\u{FFFD}{pass_found_count}\u{FFFD}\u{FFFD}\u{FFFD}"
+                    ));
 
                     self.source_map.add_offset(
-                        start_position + span.start() - 3 * pass_found_count,
+                        start_position + span.start(),
                         0 - i32::try_from(len).unwrap_or(0) + 1, // +1 here to account for the placeholder
                         ProcessedKind::Passthrough,
                     );
@@ -170,6 +210,7 @@ impl InlinePreprocessor {
         Ok(ProcessedContent {
             text: result,
             passthroughs,
+            attributes,
             source_map: self.source_map.clone(),
         })
     }
@@ -191,19 +232,6 @@ impl InlinePreprocessor {
             Rule::single_plus_passthrough
             | Rule::double_plus_passthrough
             | Rule::triple_plus_passthrough => {
-                let location = Location {
-                    absolute_start: span.start_pos().pos() + start_position,
-                    absolute_end: span.end_pos().pos() + start_position,
-                    start: Position {
-                        line: span_start.0,
-                        column: span_start.1,
-                    },
-                    end: Position {
-                        line: span_end.0,
-                        column: span_end.1,
-                    },
-                };
-
                 let (content, marker_size) = match rule {
                     Rule::single_plus_passthrough => {
                         (&pair.as_str()[1..pair.as_str().len() - 1], 1)
@@ -216,8 +244,26 @@ impl InlinePreprocessor {
                     }
                     _ => unreachable!(),
                 };
+                let location = Location {
+                    absolute_start: span.start_pos().pos() + start_position,
+                    absolute_end: span.end_pos().pos() + start_position,
+                    start: Position {
+                        line: span_start.0,
+                        column: span_start.1,
+                    },
+                    end: Position {
+                        line: span_end.0,
+                        column: span_end.1,
+                    },
+                };
                 Ok(Pass {
                     text: Some(content.to_string()),
+                    kind: match marker_size {
+                        1 => PassthroughKind::Single,
+                        2 => PassthroughKind::Double,
+                        3 => PassthroughKind::Triple,
+                        _ => unreachable!(),
+                    },
                     // We add SpecialChars here for single and double but we don't do
                     // anything with them, only the converter does.
                     substitutions: if marker_size < 3 {
@@ -273,6 +319,7 @@ impl InlinePreprocessor {
                     text,
                     substitutions,
                     location,
+                    kind: PassthroughKind::Macro,
                 })
             }
             _ => Err(Error::Parse("Invalid passthrough type".to_string())),
@@ -331,7 +378,7 @@ mod tests {
         // Verify processed text has placeholders
         assert_eq!(
             result.text,
-            "Something\n\nHere is some \u{FFFD} text and \u{FFFD} text."
+            "Something\n\nHere is some \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} text and \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} text."
         );
 
         // Verify passthroughs were captured
@@ -401,7 +448,7 @@ mod tests {
 
         assert_eq!(
             result.text,
-            "Check the link:/nonono[syntax page] and \u{FFFD} for details."
+            "Check the link:/nonono[syntax page] and \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} for details."
         );
 
         // Verify passthrough was captured and preserved
@@ -430,7 +477,10 @@ mod tests {
         let result = preprocessor.process(input, 0).unwrap();
 
         // Verify the passthrough preserved the unexpanded attribute
-        assert_eq!(result.text, "Here is a \u{FFFD} to test.");
+        assert_eq!(
+            result.text,
+            "Here is a \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} to test."
+        );
 
         // Verify passthrough content preserved original text without expansion
         assert_eq!(result.passthroughs.len(), 1);
@@ -459,7 +509,10 @@ mod tests {
         //                "The text F is underlined."
         let result = preprocessor.process(input, 0).unwrap();
 
-        assert_eq!(result.text, "The text \u{FFFD} is underlined.");
+        assert_eq!(
+            result.text,
+            "The text \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} is underlined."
+        );
 
         // Verify passthrough was captured
         assert_eq!(result.passthroughs.len(), 1);
@@ -517,7 +570,7 @@ mod tests {
 
         assert_eq!(
             result.text,
-            "= Document Title\nHello \u{FFFD}World\u{FFFD} of \u{FFFD}Gemini\u{FFFD}"
+            "= Document Title\nHello \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}World\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} of \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}Gemini\u{FFFD}\u{FFFD}\u{FFFD}3\u{FFFD}\u{FFFD}\u{FFFD}"
         );
 
         // Verify passthrough was captured

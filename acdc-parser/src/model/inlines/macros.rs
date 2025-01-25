@@ -12,6 +12,22 @@ pub struct Pass {
     #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     pub substitutions: HashSet<Substitution>,
     pub location: Location,
+    #[serde(skip)]
+    pub kind: PassthroughKind,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum PassthroughKind {
+    Single,
+    Double,
+    Triple,
+    Macro,
+}
+
+impl Default for PassthroughKind {
+    fn default() -> Self {
+        PassthroughKind::Single
+    }
 }
 
 /// An `Icon` represents an inline icon in a document.
