@@ -15,10 +15,10 @@ use pest::{
 use tracing::instrument;
 
 use crate::{
-    error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
-    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
-    Menu, Monospace, Pass, Plain, Position, ProcessedContent, Raw, Rule, Subscript, Superscript,
-    Url,
+    error::Error, inline_preprocessor::ProcessedKind, AttributeValue, Autolink, Bold, Button,
+    DocumentAttributes, ElementAttributes, Highlight, Icon, Image, InlineMacro, InlineNode, Italic,
+    Keyboard, LineBreak, Link, Location, Menu, Monospace, Pass, Plain, Position, ProcessedContent,
+    Raw, Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -173,7 +173,14 @@ impl InlineNode {
                 unknown => unreachable!("{unknown:?}"),
             }
         }
-        Err(Error::Parse("no valid inline text found".to_string()))
+        Err(Error::Parse(format!(
+            "no valid inline text found{}",
+            if let Some(location) = parent_location {
+                format!(": {location}")
+            } else {
+                String::new()
+            }
+        )))
     }
 
     #[instrument(level = "trace")]
@@ -340,16 +347,36 @@ fn map_inline_location(
     // content that matches the location of the placeholder and return the
     // content of the passthrough, with updated location information
     if let Some(processed) = processed {
-        let effective_start = processed.source_map.map_position(location.absolute_start);
-        let matching_pass = processed
-            .passthroughs
-            .iter()
-            .find(|pass| effective_start == pass.location.absolute_start);
+        let effective_start = location.absolute_start;
+        let (matching_pass, passthroughs_before_count) = processed.passthroughs.iter().fold(
+            (None, 0),
+            |(matching_pass, passthroughs_before_count), pass| {
+                if pass.location.absolute_start < effective_start {
+                    (None, passthroughs_before_count + 1)
+                }
+                // We adjust this by multiplying the passthroughs_before_count by 3 because that's the
+                // length of the passthrough according to pest (len_utf8)
+                else if pass.location.absolute_start
+                    == effective_start + 3 * passthroughs_before_count
+                {
+                    (Some(pass), passthroughs_before_count)
+                } else {
+                    (matching_pass, passthroughs_before_count)
+                }
+            },
+        );
+        dbg!((effective_start, matching_pass));
         if let Some(pass) = matching_pass {
             let mapped_start = processed
                 .source_map
-                .map_position(pass.location.start.column);
-            let mapped_end = processed.source_map.map_position(pass.location.end.column);
+                .map_position(effective_start - passthroughs_before_count)
+                + 1
+                - passthroughs_before_count;
+            let mapped_end = processed
+                .source_map
+                .map_position(location.absolute_end - passthroughs_before_count - 1)
+                - 1
+                - passthroughs_before_count;
             let location = Location {
                 start: Position {
                     line: location.start.line,
@@ -363,32 +390,37 @@ fn map_inline_location(
                 absolute_end: pass.location.absolute_end,
             };
             return Some((pass.text.clone(), location));
-        } else if effective_start != location.absolute_start {
-            // If we're here, it means that the placeholder is not a passthrough
-            //
-            // We also have to calculate the delta in the column position and for that we
-            // have to do some trickery.  We must map_position of the effective_start
-            // (that's the mapped position of the absolute start) which might feel like a
-            // repeat but it's not. the effective start is the mapped position of the
-            // absolute start. What we want is to understand how much the effective start
-            // is shifted from the absolute start. We can then use this delta to adjust
-            // the column position of the location.
-            let mapping_to_calculate_delta = processed.source_map.map_position(effective_start);
-            let delta = mapping_to_calculate_delta - effective_start;
-            let location = Location {
-                start: Position {
-                    line: location.start.line,
-                    column: location.start.column + delta,
-                },
-                end: Position {
-                    line: location.end.line,
-                    column: location.end.column + delta,
-                },
-                absolute_start: processed.source_map.map_position(effective_start),
-                absolute_end: processed.source_map.map_position(location.absolute_end),
-            };
-            return Some((None, location));
         }
+
+        // If we're here, it means that the placeholder is not a passthrough
+        //
+        // We also have to calculate the delta in the column position and for that we
+        // have to do some trickery.  We must map_position of the effective_start
+        // (that's the mapped position of the absolute start) which might feel like a
+        // repeat but it's not. the effective start is the mapped position of the
+        // absolute start. What we want is to understand how much the effective start
+        // is shifted from the absolute start. We can then use this delta to adjust
+        // the column position of the location.
+        let mapping_to_calculate_delta = processed.source_map.map_position(effective_start);
+
+        let delta = if mapping_to_calculate_delta > effective_start {
+            mapping_to_calculate_delta - effective_start
+        } else {
+            effective_start - mapping_to_calculate_delta
+        };
+        let location = Location {
+            start: Position {
+                line: location.start.line,
+                column: location.start.column + delta,
+            },
+            end: Position {
+                line: location.end.line,
+                column: location.end.column + delta,
+            },
+            absolute_start: processed.source_map.map_position(effective_start),
+            absolute_end: processed.source_map.map_position(location.absolute_end),
+        };
+        return Some((None, location));
     }
     tracing::debug!(
         location = %location,
