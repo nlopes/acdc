@@ -225,5 +225,4 @@ fn substitution_text(text: &str) -> String {
         .replace(" -- ", "&thinsp;&mdash;&thinsp;")
         .replace(" --", "&thinsp;&mdash;")
         .replace("-- ", "&mdash;&thinsp;")
-        .replace("--", "&mdash;")
 }
