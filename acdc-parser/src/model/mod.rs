@@ -162,6 +162,8 @@ pub enum Block {
     Video(Video),
 
     // Internal only, please DO NOT USE - you shouldn't need to use.
+    #[doc(hidden)]
+    #[allow(private_interfaces)]
     _DiscreteHeaderSection(DiscreteHeaderSection),
 }
 
