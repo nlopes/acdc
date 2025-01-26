@@ -22,17 +22,19 @@ substitution_value = { (!("," | "[") ~ ANY)+ }
 pass_inline_text = { (!"]" ~ ANY)+ }
 
 bold_text_unconstrained = { PUSH("**") ~ (!"**" ~ ANY)+ ~ POP }
-bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ (!"**" ~ POP) }
 italic_text_unconstrained = { PUSH("__") ~ (!"__" ~ ANY)+ ~ POP }
-italic_text = { PUSH("_") ~ (!"_" ~ ANY)+ ~ (!"__" ~ POP) }
 monospace_text_unconstrained = { PUSH("``") ~ (!"``" ~ ANY)+ ~ POP }
-monospace_text = { PUSH("`") ~ (!"`" ~ ANY)+ ~ (!"``" ~ POP) }
 highlight_text_unconstrained = { PUSH("##") ~ (!"##" ~ ANY)+ ~ POP }
-highlight_text = { PUSH("#") ~ (!"#" ~ ANY)+ ~ (!"##" ~ POP) }
 subscript_text = { PUSH("~") ~ (!"~" ~ ANY)+ ~ POP }
 superscript_text = { PUSH("^") ~ (!"^" ~ ANY)+ ~ POP }
 curved_quotation_text = { PUSH("\"`") ~ (!"`\"" ~ ANY)+ ~ POP }
 curved_apostrophe_text = { PUSH("'`") ~ (!"`'" ~ ANY)+ ~ POP }
+
+// Constrained text
+bold_text = { PUSH("*") ~ (!"*" ~ ANY)+ ~ (!"**" ~ POP) }
+italic_text = { PUSH("_") ~ (!"_" ~ ANY)+ ~ (!"__" ~ POP) }
+monospace_text = { PUSH("`") ~ (!"`" ~ ANY)+ ~ (!"``" ~ POP) }
+highlight_text = { PUSH("#") ~ (!"#" ~ ANY)+ ~ (!"##" ~ POP) }
 
 inline_line_break = { " +" ~ NEWLINE }
 
@@ -103,10 +105,10 @@ non_plain_text = {
         italic_text_unconstrained |
         monospace_text_unconstrained |
         highlight_text_unconstrained |
-        bold_text |
-        italic_text |
-        monospace_text |
-        highlight_text |
+        // bold_text |
+        // italic_text |
+        // monospace_text |
+        // highlight_text |
         subscript_text |
         superscript_text |
         curved_quotation_text |
