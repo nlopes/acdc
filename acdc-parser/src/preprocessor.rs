@@ -710,23 +710,6 @@ impl Preprocessor {
             } else if line.starts_with(':') {
                 attribute::parse_line(&mut attributes, line.trim());
             }
-            if line.starts_with("----") {
-                let mut keep_lines = vec![line.to_string()];
-                let mut terminated = false;
-                // Skip the block
-                while let Some(next_line) = lines.peek() {
-                    if next_line.starts_with("----") {
-                        terminated = true;
-                        lines.next();
-                        break;
-                    }
-                    keep_lines.push((*next_line).to_string());
-                    lines.next();
-                }
-                if terminated {
-                    output.extend(keep_lines);
-                }
-            }
             // Taken from
             // https://github.com/asciidoctor/asciidoctor/blob/306111f480e2853ba59107336408de15253ca165/lib/asciidoctor/reader.rb#L604
             // while following the specs at
