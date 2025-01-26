@@ -331,7 +331,6 @@ pub(crate) fn get_content(
     let mut content = Vec::new();
     let len = pair.as_str().len();
     let token_length = if unconstrained { 2 } else { 1 };
-    dbg!((&len, &parent_location, &token_length));
     let parent_location = if let Some(location) = parent_location {
         let mut location = location.clone();
         location.absolute_end -= token_length * 2;
@@ -344,7 +343,6 @@ pub(crate) fn get_content(
         &pair.as_str()[token_length..len - token_length],
     ) {
         Ok(pairs) => {
-            dbg!((&parent_location, &pairs));
             for pair in pairs {
                 content.extend(parse_inlines(
                     pair,

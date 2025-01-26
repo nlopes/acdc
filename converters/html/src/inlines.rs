@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, LinkTarget, Pass,
-    PassthroughKind, Substitution, Url,
+    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, Pass, PassthroughKind,
+    Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -92,27 +92,15 @@ impl Render for Link {
         _processor: &Processor,
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
-        let target = match self.target {
-            LinkTarget::Url(ref url) => url.to_string(),
-            LinkTarget::Path(ref path) => path.to_string_lossy().to_string(),
-        };
         let text = self
-            .attributes
-            .iter()
-            .find_map(|(k, v)| {
-                // Link macros can only have one positional attribute, which is the text.
-                if *v == AttributeValue::None {
-                    Some(k)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(&target);
-
+            .text
+            .as_ref()
+            .map(|t| substitution_text(t))
+            .unwrap_or(self.target.clone());
         if options.inlines_basic {
             write!(w, "{text}")?;
         } else {
-            write!(w, "<a href=\"{target}\">{text}</a>",)?;
+            write!(w, "<a href=\"{}\">{text}</a>", self.target)?;
         }
         Ok(())
     }

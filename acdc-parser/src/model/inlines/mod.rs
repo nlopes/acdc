@@ -175,10 +175,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("location", &line_break.location)?;
             }
             InlineNode::Macro(macro_node) => {
-                todo!(
-                    "implement macro serialization for InlineNode: {:?}",
-                    macro_node
-                )
+                serialize_inline_macro::<S>(macro_node, &mut map)?;
             }
             InlineNode::_PlaceholderContent(placeholder) => {
                 unreachable!(
@@ -189,6 +186,72 @@ impl Serialize for InlineNode {
         }
         map.end()
     }
+}
+
+fn serialize_inline_macro<S>(
+    macro_node: &InlineMacro,
+    map: &mut S::SerializeMap,
+) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    match macro_node {
+        InlineMacro::Icon(icon) => {
+            map.serialize_entry("name", "icon")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("target", &icon.target)?;
+            map.serialize_entry("location", &icon.location)?;
+        }
+        InlineMacro::Image(image) => {
+            map.serialize_entry("name", "image")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("title", &image.title)?;
+            map.serialize_entry("target", &image.source)?;
+            map.serialize_entry("location", &image.location)?;
+        }
+        InlineMacro::Keyboard(keyboard) => {
+            map.serialize_entry("name", "keyboard")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("location", &keyboard.location)?;
+        }
+        InlineMacro::Button(button) => {
+            map.serialize_entry("name", "button")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("location", &button.location)?;
+        }
+        InlineMacro::Menu(menu) => {
+            map.serialize_entry("name", "menu")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("location", &menu.location)?;
+        }
+        InlineMacro::Url(url) => {
+            map.serialize_entry("name", "ref")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("variant", "url")?;
+            map.serialize_entry("target", &url.target)?;
+            map.serialize_entry("location", &url.location)?;
+            map.serialize_entry("attributes", &url.attributes)?;
+        }
+        InlineMacro::Link(link) => {
+            map.serialize_entry("name", "ref")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("variant", "link")?;
+            map.serialize_entry("target", &link.target)?;
+            map.serialize_entry("location", &link.location)?;
+            map.serialize_entry("attributes", &link.attributes)?;
+        }
+        InlineMacro::Autolink(autolink) => {
+            map.serialize_entry("name", "ref")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("variant", "autolink")?;
+            map.serialize_entry("target", &autolink.url)?;
+            map.serialize_entry("location", &autolink.location)?;
+        }
+        InlineMacro::Pass(_) => {
+            unimplemented!("passthrough serialization is not implemented because we only serialize to ASG what should be visible to the user")
+        }
+    }
+    Ok(())
 }
 
 impl<'de> Deserialize<'de> for InlineNode {
@@ -332,13 +395,23 @@ impl<'de> Deserialize<'de> for InlineNode {
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        // TODO(nlopes): need to deserialize the attributes (of which the first positional attribute is the text)!
+                        //
+                        // Also need to handle the other inline macros!
                         match my_variant.as_str() {
                             "url" => Ok(InlineNode::Macro(InlineMacro::Url(Url {
+                                text: None,
                                 attributes: ElementAttributes::default(),
                                 target: my_target,
                                 location: my_location,
                             }))),
-                            "link" => todo!("implement link deserialization"),
+                            "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
+                                text: None,
+                                attributes: ElementAttributes::default(),
+                                target: my_target,
+                                location: my_location,
+                            }))),
+
                             "autolink" => todo!("implement autolink deserialization"),
                             "pass" => todo!("implement pass deserialization"),
                             _ => {
