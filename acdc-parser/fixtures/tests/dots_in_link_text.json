@@ -1,0 +1,37 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "src": "link:/projects/markdown/basics.text"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This document is itself written using Markdown; you can ",
+          "location": [{"line": 3, "col": 1},{"line": 3, "col": 56}]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": "/projects/markdown/basics.text",
+          "location": [{"line": 1, "col": 57},{"line": 1, "col": 145}],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [{"line": 3, "col": 176},{"line": 3, "col": 176}]
+        }
+      ],
+      "location": [{"line": 3, "col": 1},{"line": 3, "col": 116}]
+    }
+  ],
+  "location": [{"line": 1, "col": 1},{"line": 3, "col": 116}]
+}

@@ -41,6 +41,10 @@ struct Args {
     /// input from stdin
     #[arg(long, conflicts_with = "files")]
     stdin: bool,
+
+    /// timing information
+    #[arg(long)]
+    timings: bool,
 }
 
 fn main() -> Result<()> {
@@ -61,6 +65,7 @@ fn main() -> Result<()> {
         doctype: args.doctype.clone(),
         safe_mode: args.safe_mode.clone(),
         source: Source::Files(args.files.clone()),
+        timings: args.timings,
     };
 
     if args.stdin {

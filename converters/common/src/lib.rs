@@ -39,6 +39,54 @@ pub struct Config {
     pub doctype: Doctype,
     pub safe_mode: SafeMode,
     pub source: Source,
+    pub timings: bool,
+}
+
+pub trait PrettyDuration {
+    /// Returns a human-readable string representation of the duration.
+    ///
+    /// - Automatically selects appropriate unit (ns, µs, ms, s)
+    /// - Rounds to 2 decimal places
+    /// - Strips trailing zeros
+    fn pretty_print(&self) -> String;
+
+    /// Returns a detailed timing string with specified precision
+    ///
+    /// # Arguments
+    /// * `precision` - Number of decimal places (0-9)
+    fn pretty_print_precise(&self, precision: u8) -> String;
+}
+
+impl PrettyDuration for std::time::Duration {
+    fn pretty_print(&self) -> String {
+        let nanos = self.as_nanos();
+        match nanos {
+            0..=999 => format!("{}ns", nanos),
+            1_000..=999_999 => format!("{:.2}µs", nanos as f64 / 1_000.0),
+            1_000_000..=999_999_999 => format!("{:.2}ms", nanos as f64 / 1_000_000.0),
+            _ => format!("{:.2}s", nanos as f64 / 1_000_000_000.0),
+        }
+        .trim_end_matches('0')
+        .trim_end_matches('.')
+        .to_string()
+    }
+
+    fn pretty_print_precise(&self, precision: u8) -> String {
+        let precision = precision.min(9);
+        let nanos = self.as_nanos();
+        match nanos {
+            0..=999 => format!("{}ns", nanos),
+            1_000..=999_999 => format!("{:.1$}µs", nanos as f64 / 1_000.0, precision as usize),
+            1_000_000..=999_999_999 => {
+                format!("{:.1$}ms", nanos as f64 / 1_000_000.0, precision as usize)
+            }
+            _ => format!(
+                "{:.1$}s",
+                nanos as f64 / 1_000_000_000.0,
+                precision as usize
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]

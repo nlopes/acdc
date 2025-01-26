@@ -1,0 +1,3 @@
+:src: link:/projects/markdown/basics.text
+
+This document is itself written using Markdown; you can {src}[see the source for it by adding \\'.text' to the URL].
