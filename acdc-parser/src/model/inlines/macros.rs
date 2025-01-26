@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -16,18 +16,13 @@ pub struct Pass {
     pub kind: PassthroughKind,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum PassthroughKind {
+    #[default]
     Single,
     Double,
     Triple,
     Macro,
-}
-
-impl Default for PassthroughKind {
-    fn default() -> Self {
-        PassthroughKind::Single
-    }
 }
 
 /// An `Icon` represents an inline icon in a document.
@@ -41,20 +36,22 @@ pub struct Icon {
 /// A `Link` represents an inline link in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Link {
-    pub target: LinkTarget,
+    // We don't serialize the text here because it's already serialized in the attributes
+    // (that's how it's represented in the ASG)
+    #[serde(skip_serializing)]
+    pub text: Option<String>,
+    pub target: String,
     pub attributes: ElementAttributes,
     pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum LinkTarget {
-    Url(String),
-    Path(PathBuf),
 }
 
 /// An `Url` represents an inline URL in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Url {
+    // We don't serialize the text here because it's already serialized in the attributes
+    // (that's how it's represented in the ASG)
+    #[serde(skip_serializing)]
+    pub text: Option<String>,
     pub target: String,
     pub attributes: ElementAttributes,
     pub location: Location,

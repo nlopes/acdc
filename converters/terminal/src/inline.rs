@@ -91,14 +91,7 @@ impl Render for acdc_parser::InlineNode {
 impl Render for acdc_parser::InlineMacro {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         match self {
-            acdc_parser::InlineMacro::Link(l) => match &l.target {
-                acdc_parser::LinkTarget::Url(url) => {
-                    write!(w, "{url}")?;
-                }
-                acdc_parser::LinkTarget::Path(path) => {
-                    write!(w, "{}", path.display())?;
-                }
-            },
+            acdc_parser::InlineMacro::Link(l) => write!(w, "{}", l.target)?,
             unknown => unimplemented!("GAH: {:?}", unknown),
         }
         Ok(())

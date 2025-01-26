@@ -52,8 +52,28 @@ menu_attrlist = _{
 menu_item = { (!("]" | " > ") ~ ANY)+ }
 
 autolink = { ("<" ~ url ~ ">") | url }
-url_macro = { url ~ attrlist }
-link_macro = { "link:" ~ (url | path) ~ attrlist }
+url_macro = { url ~ link_attrlist }
+link_macro = { "link:" ~ (url | path) ~ link_attrlist }
+
+// Slightly different than the usual attrlist because the first (and perhaps only) text will be the text of the link
+link_attrlist = _{
+    open_sb ~ (
+        link_title ~ ("," ~ link_attributes)? |
+        link_attributes?
+    ) ~ close_sb
+}
+
+link_title = {
+    quote ~ (!quote ~ ANY)+ ~ quote |
+    (!("," | close_sb | (ASCII+ ~ "=" ~ ASCII+)) ~ ANY)+
+}
+
+quote = _{ "\"" }
+
+link_attributes = _{
+    attribute ~ ("," ~ attribute)*
+}
+
 // TODO(nlopes): STEM - https://docs.asciidoctor.org/asciidoc/latest/stem/
 
 //soft_wrap = { " \\" ~ NEWLINE }
