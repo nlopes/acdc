@@ -1,4 +1,4 @@
 [,ruby]
 ----
-include::app.rb[]
+\include::app.rb[]
 ----

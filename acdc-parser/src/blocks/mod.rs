@@ -51,8 +51,6 @@ pub(crate) fn parse(
                 }
                 let (name, value) =
                     DocumentAttribute::parse(pair.clone().into_inner(), parent_attributes);
-                // TODO(nlopes): I don't think I need to store the document attributes as
-                // a block anymore
                 let attribute = DocumentAttribute {
                     name,
                     value,

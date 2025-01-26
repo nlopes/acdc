@@ -12,7 +12,7 @@ delimited_block = {
     )
 }
 
-comment_delimiter = {("/"{4,})}
+comment_delimiter = {"/"{4,}}
 example_delimiter = {"="{4,}}
 listing_delimiter = {"-"{4,}}
 literal_delimiter = {"."{4,}}

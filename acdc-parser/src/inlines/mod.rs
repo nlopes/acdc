@@ -47,7 +47,6 @@ impl InlineNode {
             let mapped_location =
                 map_inline_location(&location, processed, index, *last_index_seen)
                     .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
-            dbg!((&location, &pair, &mapped_location, &index));
             match rule {
                 Rule::plain_text | Rule::one_line_plain_text => {
                     let content = pair.as_str();
@@ -103,7 +102,6 @@ impl InlineNode {
                         Some(&mapped_location.1),
                         parent_attributes,
                     )?;
-                    dbg!(&content);
                     return Ok(InlineNode::BoldText(Bold {
                         role,
                         content,
@@ -397,7 +395,6 @@ fn map_inline_location2(
                 .source_map
                 .map_position(effective_start - 2 * passthroughs_before_count)
                 + 1;
-            dbg!(&location.absolute_end);
             let mapped_end = processed.source_map.map_position(location.absolute_end);
 
             let location = Location {
@@ -501,7 +498,6 @@ fn map_inline_location(
                 })
                 .map(|(_absolute_start, offset, _kind)| offset)
                 .sum();
-            dbg!(&attribute_total_offset);
             if let Some((_, offset, kind)) = processed
                 .source_map
                 .offsets
