@@ -17,11 +17,12 @@ impl Render for Admonition {
         writeln!(w, "<table>")?;
         writeln!(w, "<tr>")?;
         writeln!(w, "<td class=\"icon\">")?;
+        writeln!(w, "<div class=\"title\">{}</div>", self.variant)?;
+        writeln!(w, "</td>")?;
+        writeln!(w, "<td class=\"content\">")?;
         write!(w, "<div class=\"title\">")?;
         crate::inlines::render_inlines(&self.title, w, processor, options)?;
         writeln!(w, "</div>")?;
-        writeln!(w, "</td>")?;
-        writeln!(w, "<td class=\"content\">")?;
         for block in &self.blocks {
             block.render(w, processor, options)?;
         }
