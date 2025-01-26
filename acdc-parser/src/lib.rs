@@ -88,14 +88,7 @@ pub(crate) struct InnerPestParser;
 #[instrument(skip(reader))]
 pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error> {
     let input = Preprocessor.process_reader(reader)?;
-    tracing::trace!(?input, "post preprocessor");
-    match InnerPestParser::parse(Rule::document, &input) {
-        Ok(pairs) => Document::parse(pairs),
-        Err(e) => {
-            tracing::error!("error parsing document content: {e}");
-            Err(Error::Parse(e.to_string()))
-        }
-    }
+    parse_input(input)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -116,14 +109,7 @@ pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error>
 #[instrument]
 pub fn parse(input: &str) -> Result<Document, Error> {
     let input = Preprocessor.process(input)?;
-    tracing::trace!(?input, "post preprocessor");
-    match InnerPestParser::parse(Rule::document, &input) {
-        Ok(pairs) => Document::parse(pairs),
-        Err(e) => {
-            tracing::error!("error parsing document content: {e}");
-            Err(Error::Parse(e.to_string()))
-        }
-    }
+    parse_input(input)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -145,8 +131,14 @@ pub fn parse(input: &str) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P) -> Result<Document, Error> {
     let input = Preprocessor.process_file(file_path)?;
+    parse_input(input)
+}
+
+#[instrument]
+fn parse_input(input: String) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
-    match InnerPestParser::parse(Rule::document, &input) {
+    let pairs = InnerPestParser::parse(Rule::document, &input);
+    match pairs {
         Ok(pairs) => Document::parse(pairs),
         Err(e) => {
             tracing::error!("error parsing document content: {e}");
