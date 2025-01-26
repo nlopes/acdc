@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use acdc_converters_common::{Config, Processable, Source};
+use acdc_converters_common::{Config, PrettyDuration, Processable, Source};
 use acdc_parser::Document;
 
 #[derive(thiserror::Error, Debug)]
@@ -76,9 +76,40 @@ impl Processable for Processor {
         match &self.config.source {
             Source::Files(files) => {
                 for file in files {
+                    if self.config.timings {
+                        println!("Input file: {}", file.to_string_lossy());
+                    }
                     let html_path = file.with_extension("html");
                     tracing::debug!(source = ?file, destination = ?html_path, "processing file");
-                    self.to_file(&acdc_parser::parse_file(file)?, file, &html_path)?;
+
+                    // Read and parse the document
+                    let now = std::time::Instant::now();
+                    let mut total_elapsed = std::time::Duration::new(0, 0);
+                    let doc = acdc_parser::parse_file(file)?;
+                    let elapsed = now.elapsed();
+                    tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to read and parse source");
+                    total_elapsed += elapsed;
+                    if self.config.timings {
+                        println!(
+                            "  Time to read and parse source: {}",
+                            elapsed.pretty_print()
+                        );
+                    }
+
+                    // Convert the document
+                    let now = std::time::Instant::now();
+                    self.to_file(&doc, file, &html_path)?;
+                    let elapsed = now.elapsed();
+                    tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to convert document");
+                    total_elapsed += elapsed;
+                    tracing::debug!(time = total_elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "total time (read, parse and convert)");
+                    if self.config.timings {
+                        println!("  Time to convert document: {}", elapsed.pretty_print());
+                        println!(
+                            "  Total time (read, parse and convert): {}",
+                            total_elapsed.pretty_print()
+                        );
+                    }
                     println!("Generated HTML file: {}", html_path.to_string_lossy());
                 }
             }
