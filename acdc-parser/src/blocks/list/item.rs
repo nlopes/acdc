@@ -1,6 +1,6 @@
 use pest::{iterators::Pairs, Parser as _};
 
-use crate::{DocumentAttributes, Error, ListItem, Location, Rule};
+use crate::{DocumentAttributes, Error, InlinePreprocessor, ListItem, Location, ParserState, Rule};
 
 impl ListItem {
     #[tracing::instrument(level = "trace")]
@@ -32,9 +32,13 @@ impl ListItem {
                     let start_pos = pair.as_span().start_pos().pos();
 
                     // Run inline preprocessor before parsing inlines
-                    let mut preprocessor =
-                        crate::InlinePreprocessor::new(parent_attributes.clone());
-                    let processed = preprocessor.process(text, start_pos)?;
+                    let mut state = ParserState::new();
+                    state.set_initial_position(&location, start_pos);
+                    let processed = InlinePreprocessor::run(text, parent_attributes, &state)
+                        .map_err(|e| {
+                            tracing::error!("error processing list item: {}", e);
+                            Error::Parse(e.to_string())
+                        })?;
 
                     // Now parse the processed text
                     let mut pairs = crate::InnerPestParser::parse(Rule::inlines, &processed.text)

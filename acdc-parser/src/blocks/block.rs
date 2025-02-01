@@ -7,8 +7,8 @@ use crate::{
     blocks::list::parse_list, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
     AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
     DocumentAttributes, ElementAttributes, Error, Image, InlineNode, InlinePreprocessor,
-    InnerPestParser, Location, PageBreak, Paragraph, Rule, Section, TableOfContents, ThematicBreak,
-    Video,
+    InnerPestParser, Location, PageBreak, Paragraph, ParserState, Rule, Section, TableOfContents,
+    ThematicBreak, Video,
 };
 
 impl BlockExt for Block {
@@ -299,8 +299,14 @@ impl Block {
                     location.shift(parent_location);
 
                     // Run inline preprocessor before parsing inlines
-                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
-                    let processed = preprocessor.process(text, start_pos)?;
+                    let mut state = ParserState::new();
+                    state.set_initial_position(&location, start_pos);
+                    let processed = InlinePreprocessor::run(text, parent_attributes, &state)
+                        .map_err(|e| {
+                            tracing::error!("error processing block title: {}", e);
+                            Error::Parse(e.to_string())
+                        })?;
+
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;
 
