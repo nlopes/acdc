@@ -3,7 +3,7 @@ use pest::{iterators::Pair, Parser as _};
 use crate::{
     inlines::parse_inlines, model::DiscreteHeaderSection, Anchor, AttributeValue, Block,
     BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlinePreprocessor,
-    InnerPestParser, Location, Rule, Section,
+    InnerPestParser, Location, ParserState, Rule, Section,
 };
 
 // TODO(nlopes): this might be parser as part of the inner content of a delimited block
@@ -35,9 +35,17 @@ impl Section {
                 Rule::section_title => {
                     let mut inner_location = Location::from_pair(&inner_pair);
                     inner_location.shift(parent_location);
-                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
+                    let start_pos = inner_pair.as_span().start_pos().pos();
+
+                    // Run inline preprocessor before parsing inlines
+                    let mut state = ParserState::new();
+                    state.set_initial_position(&inner_location, start_pos);
                     let processed =
-                        preprocessor.process(inner_pair.as_str(), inner_pair.as_span().start())?;
+                        InlinePreprocessor::run(inner_pair.as_str(), parent_attributes, &state)
+                            .map_err(|e| {
+                                tracing::error!("error processing section title: {}", e);
+                                Error::Parse(e.to_string())
+                            })?;
 
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;

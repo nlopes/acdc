@@ -9,7 +9,7 @@ use tracing::instrument;
 use crate::{
     inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor, AttributeValue, Block,
     BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode, InlinePreprocessor,
-    InnerPestParser, Location, Paragraph, ProcessedContent, Rule,
+    InnerPestParser, Location, Paragraph, ParserState, ProcessedContent, Rule,
 };
 
 impl Paragraph {
@@ -39,9 +39,14 @@ impl Paragraph {
                     let text = pair.as_str();
                     let start_pos = pair.as_span().start_pos().pos();
 
+                    let mut state = ParserState::new();
+                    state.set_initial_position(&location, start_pos);
                     // Run inline preprocessor before parsing inlines
-                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
-                    let processed = preprocessor.process(text, start_pos)?;
+                    let processed = InlinePreprocessor::run(text, &parent_attributes, &state)
+                        .map_err(|e| {
+                            tracing::error!("error processing paragraph inlines: {}", e);
+                            Error::Parse(e.to_string())
+                        })?;
 
                     // Now parse the processed text
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
@@ -89,8 +94,13 @@ impl Paragraph {
                     location.shift(parent_location);
 
                     // Run inline preprocessor before parsing inlines
-                    let mut preprocessor = InlinePreprocessor::new(parent_attributes.clone());
-                    let processed = preprocessor.process(text, start_pos)?;
+                    let mut state = ParserState::new();
+                    state.set_initial_position(&location, start_pos);
+                    let processed = InlinePreprocessor::run(text, parent_attributes, &state)
+                        .map_err(|e| {
+                            tracing::error!("error processing paragraph inlines: {}", e);
+                            Error::Parse(e.to_string())
+                        })?;
 
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;

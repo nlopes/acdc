@@ -39,12 +39,12 @@ mod anchor;
 mod blocks;
 mod document;
 mod error;
-mod inline_preprocessor;
+pub(crate) mod grammar;
 mod inlines;
 mod model;
 mod preprocessor;
 
-pub(crate) use inline_preprocessor::{InlinePreprocessor, ProcessedContent};
+pub(crate) use grammar::{InlinePreprocessor, ParserState, ProcessedContent, ProcessedKind};
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
