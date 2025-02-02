@@ -17,8 +17,8 @@ use tracing::instrument;
 use crate::{
     error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
     Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
-    Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
-    Rule, Subscript, Superscript, Url,
+    Menu, Monospace, Pass, PassthroughKind, Plain, ProcessedContent, ProcessedKind, Raw, Rule,
+    Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -44,9 +44,8 @@ impl InlineNode {
                 index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
                 *last_index_seen = index;
             }
-            let mapped_location =
-                map_inline_location(&location, processed, index, *last_index_seen)
-                    .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
+            let mapped_location = map_inline_location(&location, processed, index, last_index_seen)
+                .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
             match rule {
                 Rule::plain_text | Rule::one_line_plain_text => {
                     let content = pair.as_str();
@@ -358,236 +357,41 @@ pub(crate) fn get_content(
     Ok(content)
 }
 
-fn map_inline_location2(
-    location: &Location,
-    processed: Option<&ProcessedContent>,
-    index: Option<usize>,
-) -> Option<(Option<String>, Location)> {
-    if let Some(processed) = processed {
-        let effective_start = location.absolute_start;
-        let (matching_pass, passthroughs_before_count) = processed.passthroughs.iter().fold(
-            (None, 0),
-            |(matching_pass, passthroughs_before_count), pass| {
-                if pass.location.absolute_start < effective_start {
-                    (None, passthroughs_before_count + 1)
-                }
-                // We adjust this by multiplying the passthroughs_before_count by 3 because that's the
-                // length of the passthrough according to pest (len_utf8)
-                else if pass.location.absolute_start
-                    == effective_start + 3 * passthroughs_before_count
-                    || pass.location.absolute_start == effective_start + 3
-                    || pass.location.absolute_start
-                        == effective_start
-                            + 3 * (if passthroughs_before_count > 0 {
-                                passthroughs_before_count - 1
-                            } else {
-                                passthroughs_before_count
-                            })
-                {
-                    (Some(pass), passthroughs_before_count)
-                } else {
-                    (matching_pass, passthroughs_before_count)
-                }
-            },
-        );
-        if let Some(pass) = matching_pass {
-            let mapped_start = processed
-                .source_map
-                .map_position(effective_start - 2 * passthroughs_before_count)
-                + 1;
-            let mapped_end = processed.source_map.map_position(location.absolute_end);
-
-            let location = Location {
-                start: Position {
-                    line: location.start.line,
-                    column: mapped_start,
-                },
-                end: Position {
-                    line: location.end.line,
-                    column: mapped_end,
-                },
-                absolute_start: pass.location.absolute_start,
-                absolute_end: pass.location.absolute_end,
-            };
-            return Some((pass.text.clone(), location.clone()));
-        }
-
-        // Add the following code to sort the location of the attributes
-        // if we're here and we're within the location of an attributes (per the source map having an entry for it) then, we need to adjust start and end columns
-        // to the original source location
-        //
-        // This is because the source map only maps the start and end columns of the attributes
-        // and not the content within the attributes
-        if let Some((_, offset, _)) =
-            processed
-                .source_map
-                .offsets
-                .iter()
-                .find(|(absolute_start, _offset, kind)| {
-                    *kind == ProcessedKind::Attribute && *absolute_start == location.absolute_start
-                })
-        {
-            let mut adjusted_location = location.clone();
-            let end = i32::try_from(adjusted_location.end.column).unwrap() - offset;
-            adjusted_location.end.column = usize::try_from(end).unwrap();
-
-            return Some((None, adjusted_location));
-        }
-
-        // If we're here, we're adjusting the location of plain text usually.
-        let mut adjusted_location = location.clone();
-
-        // Map positions back to the original source using the source map
-        adjusted_location.start.column = processed
-            .source_map
-            .map_position(adjusted_location.start.column);
-        adjusted_location.end.column = processed
-            .source_map
-            .map_position(adjusted_location.end.column);
-
-        // This feels like a hack but it makes no sense to have the end column be the same
-        // as the start column, so we adjust it by one. TODO(nlopes): Investigate why this is
-        // happening.
-        if adjusted_location.start.column == adjusted_location.end.column {
-            adjusted_location.end.column += 1;
-        }
-
-        // Adjust the absolute start and end positions to the original source
-        adjusted_location.absolute_start = processed
-            .source_map
-            .map_position(adjusted_location.absolute_start)
-            - 2 * passthroughs_before_count;
-        adjusted_location.absolute_end = processed
-            .source_map
-            .map_position(adjusted_location.absolute_end)
-            - 2 * passthroughs_before_count;
-        Some((None, adjusted_location))
-    } else {
-        None
-    }
-}
-
-#[instrument(level = "trace")]
-#[allow(clippy::too_many_arguments)]
 fn map_inline_location(
     location: &Location,
     processed: Option<&ProcessedContent>,
     index: Option<usize>,
-    last_index_seen: Option<usize>,
+    last_index_seen: &mut Option<usize>,
 ) -> Option<(Option<String>, Location)> {
-    match (processed, index) {
-        (Some(processed), Some(index)) => {
-            let item = processed
-                .passthroughs
-                .get(index)
-                .expect("passthrough index out of bounds");
-            Some((Some(item.text.clone().unwrap()), item.location.clone()))
+    if let Some(processed) = processed {
+        // First, if this location is inside an attribute replacement, collapse it.
+        if let Some(rep) = processed.source_map.replacements.iter().find(|rep| {
+            rep.kind == ProcessedKind::Attribute
+                && location.absolute_start >= rep.absolute_start
+                && location.absolute_start < rep.absolute_end
+        }) {
+            let new_location = Location {
+                // The start and end positions (line/column) might be left unchanged,
+                // or you might adjust them if you have a way to recalculate from the new offsets.
+                start: location.start.clone(),
+                end: location.end.clone(),
+                absolute_start: processed.source_map.map_position(location.absolute_start),
+                absolute_end: processed.source_map.map_position(location.absolute_end),
+            };
+            return Some((None, new_location));
         }
-        (Some(processed), None) => {
-            // If we get here, we might be looking at plaintext from an attribute we handled in the preprocessor.
-            // We need to adjust the location to the original source location.
-            // We can do this by looking at the source map and finding the offset for the location.
-            // We can then adjust the start and end columns by that offset.
 
-            let attribute_total_offset: i32 = processed
-                .source_map
-                .offsets
-                .iter()
-                .filter(|(absolute_start, _offset, kind)| {
-                    *kind == ProcessedKind::Attribute && *absolute_start < location.absolute_start
-                })
-                .map(|(_absolute_start, offset, _kind)| offset)
-                .sum();
-            if let Some((_, offset, kind)) = processed
-                .source_map
-                .offsets
-                .iter()
-                .find(|(absolute_start, _, _)| *absolute_start == location.absolute_start)
-            {
-                let start_location = processed.source_map.map_position(location.absolute_start);
-                let end_location = processed.source_map.map_position(location.absolute_end);
-                let end_column =
-                    i32::try_from(processed.source_map.map_position(location.end.column)).unwrap()
-                        - offset;
-                if *kind == ProcessedKind::Attribute {
-                    let location = Location {
-                        start: Position {
-                            line: location.start.line,
-                            column: location.start.column,
-                        },
-                        end: Position {
-                            line: location.end.line,
-                            column: usize::try_from(end_column).unwrap(),
-                        },
-                        absolute_start: start_location,
-                        absolute_end: end_location,
-                    };
-
-                    return Some((None, location));
-                }
-            } else if attribute_total_offset > 0 && last_index_seen.is_none() {
-                let location = Location {
-                    start: Position {
-                        line: location.start.line,
-                        column: usize::try_from(
-                            i32::try_from(location.start.column)
-                                .expect("location start column should be castable to i32")
-                                + attribute_total_offset,
-                        )
-                        .expect("location start column minus offset should be castable to usize"),
-                    },
-                    end: Position {
-                        line: location.end.line,
-                        column: usize::try_from(
-                            i32::try_from(location.end.column)
-                                .expect("location end column should be castable to i32")
-                                + attribute_total_offset,
-                        )
-                        .expect("location end column minus offset should be castable to usize"),
-                    },
-                    absolute_start: location.absolute_start,
-                    absolute_end: location.absolute_end,
-                };
-                return Some((None, location));
-            }
-            // using last_index_seen to get the last passthrough index - we can take its
-            // end location as the start location for this one. And the passthrough after
-            // this one can be used to get the end location.
-            if let Some(last_index_seen) = last_index_seen {
-                let item_before = processed
-                    .passthroughs
-                    .get(last_index_seen)
-                    .expect("passthrough index out of bounds");
-                let item_after = processed.passthroughs.get(last_index_seen + 1);
-                let absolute_start = item_before.location.absolute_end;
-                let start = item_before.location.end.column;
-                let absolute_end = if let Some(pass) = item_after {
-                    pass.location.absolute_start
-                } else {
-                    location.absolute_end
-                };
-                let end = if let Some(pass) = item_after {
-                    pass.location.start.column
-                } else {
-                    location.end.column
-                };
-                let location = Location {
-                    start: Position {
-                        line: location.start.line,
-                        column: start,
-                    },
-                    end: Position {
-                        line: location.end.line,
-                        column: end,
-                    },
-                    absolute_start,
-                    absolute_end,
-                };
-                Some((None, location))
-            } else {
-                None
-            }
-        }
-        _ => None,
+        // Otherwise, if this location is not inside an attribute replacement,
+        // adjust its absolute_start and absolute_end using map_position.
+        let adjusted_start = processed.source_map.map_position(location.absolute_start);
+        let adjusted_end = processed.source_map.map_position(location.absolute_end);
+        let new_location = Location {
+            start: location.start.clone(),
+            end: location.end.clone(),
+            absolute_start: adjusted_start,
+            absolute_end: adjusted_end,
+        };
+        return Some((None, new_location));
     }
+    None
 }

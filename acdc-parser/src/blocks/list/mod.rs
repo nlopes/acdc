@@ -5,8 +5,8 @@ mod simple;
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
-    inlines::parse_inlines, AttributeValue, Block, BlockMetadata, DescriptionList,
-    DocumentAttributes, ElementAttributes, Error, InlinePreprocessor, InnerPestParser, Location,
+    inline_preprocessing, inlines::parse_inlines, AttributeValue, Block, BlockMetadata,
+    DescriptionList, DocumentAttributes, ElementAttributes, Error, InnerPestParser, Location,
     ParserState, Rule, UnorderedList,
 };
 
@@ -40,8 +40,8 @@ pub(crate) fn parse_list(
                 // Run inline preprocessor before parsing inlines
                 let mut state = ParserState::new();
                 state.set_initial_position(&location, start_pos);
-                let processed =
-                    InlinePreprocessor::run(text, parent_attributes, &state).map_err(|e| {
+                let processed = inline_preprocessing::run(text, parent_attributes, &state)
+                    .map_err(|e| {
                         tracing::error!("error processing list title: {}", e);
                         Error::Parse(e.to_string())
                     })?;

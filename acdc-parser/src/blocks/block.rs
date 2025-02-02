@@ -4,9 +4,9 @@ use pest::{iterators::Pairs, Parser as _};
 use tracing::instrument;
 
 use crate::{
-    blocks::list::parse_list, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
-    AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DocumentAttributes, ElementAttributes, Error, Image, InlineNode, InlinePreprocessor,
+    blocks::list::parse_list, inline_preprocessing, inlines::parse_inlines, Admonition,
+    AdmonitionVariant, Anchor, AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock,
+    DelimitedBlockType, DocumentAttributes, ElementAttributes, Error, Image, InlineNode,
     InnerPestParser, Location, PageBreak, Paragraph, ParserState, Rule, Section, TableOfContents,
     ThematicBreak, Video,
 };
@@ -301,7 +301,7 @@ impl Block {
                     // Run inline preprocessor before parsing inlines
                     let mut state = ParserState::new();
                     state.set_initial_position(&location, start_pos);
-                    let processed = InlinePreprocessor::run(text, parent_attributes, &state)
+                    let processed = inline_preprocessing::run(text, parent_attributes, &state)
                         .map_err(|e| {
                             tracing::error!("error processing block title: {}", e);
                             Error::Parse(e.to_string())

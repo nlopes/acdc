@@ -7,8 +7,8 @@ use pest::{
 use tracing::instrument;
 
 use crate::{
-    inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor, AttributeValue, Block,
-    BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode, InlinePreprocessor,
+    inline_preprocessing, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
+    AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode,
     InnerPestParser, Location, Paragraph, ParserState, ProcessedContent, Rule,
 };
 
@@ -42,7 +42,7 @@ impl Paragraph {
                     let mut state = ParserState::new();
                     state.set_initial_position(&location, start_pos);
                     // Run inline preprocessor before parsing inlines
-                    let processed = InlinePreprocessor::run(text, &parent_attributes, &state)
+                    let processed = inline_preprocessing::run(text, parent_attributes, &state)
                         .map_err(|e| {
                             tracing::error!("error processing paragraph inlines: {}", e);
                             Error::Parse(e.to_string())
@@ -96,7 +96,7 @@ impl Paragraph {
                     // Run inline preprocessor before parsing inlines
                     let mut state = ParserState::new();
                     state.set_initial_position(&location, start_pos);
-                    let processed = InlinePreprocessor::run(text, parent_attributes, &state)
+                    let processed = inline_preprocessing::run(text, parent_attributes, &state)
                         .map_err(|e| {
                             tracing::error!("error processing paragraph inlines: {}", e);
                             Error::Parse(e.to_string())

@@ -1,8 +1,8 @@
 use pest::{iterators::Pair, Parser as _};
 
 use crate::{
-    inlines::parse_inlines, model::DiscreteHeaderSection, Anchor, AttributeValue, Block,
-    BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlinePreprocessor,
+    inline_preprocessing, inlines::parse_inlines, model::DiscreteHeaderSection, Anchor,
+    AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error,
     InnerPestParser, Location, ParserState, Rule, Section,
 };
 
@@ -41,11 +41,11 @@ impl Section {
                     let mut state = ParserState::new();
                     state.set_initial_position(&inner_location, start_pos);
                     let processed =
-                        InlinePreprocessor::run(inner_pair.as_str(), parent_attributes, &state)
+                        inline_preprocessing::run(inner_pair.as_str(), parent_attributes, &state)
                             .map_err(|e| {
-                                tracing::error!("error processing section title: {}", e);
-                                Error::Parse(e.to_string())
-                            })?;
+                            tracing::error!("error processing section title: {}", e);
+                            Error::Parse(e.to_string())
+                        })?;
 
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;

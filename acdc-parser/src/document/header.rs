@@ -2,8 +2,9 @@ use pest::{iterators::Pairs, Parser as _};
 use tracing::instrument;
 
 use crate::{
-    inlines::parse_inlines, AttributeValue, Author, DocumentAttribute, DocumentAttributes, Error,
-    Header, InlineNode, InlinePreprocessor, InnerPestParser, Location, ParserState, Plain, Rule,
+    inline_preprocessing, inlines::parse_inlines, AttributeValue, Author, DocumentAttribute,
+    DocumentAttributes, Error, Header, InlineNode, InnerPestParser, Location, ParserState, Plain,
+    Rule,
 };
 
 impl Header {
@@ -56,14 +57,14 @@ impl Header {
                                     state.set_initial_position(&title_location, start_pos);
                                     // Run inline preprocessor before parsing inlines
                                     let processed =
-                                        InlinePreprocessor::run(text, &parent_attributes, &state)
+                                        inline_preprocessing::run(text, parent_attributes, &state)
                                             .map_err(|e| {
-                                            tracing::error!(
-                                                "error processing document title: {}",
-                                                e
-                                            );
-                                            Error::Parse(e.to_string())
-                                        })?;
+                                                tracing::error!(
+                                                    "error processing document title: {}",
+                                                    e
+                                                );
+                                                Error::Parse(e.to_string())
+                                            })?;
 
                                     let mut pairs =
                                         InnerPestParser::parse(Rule::inlines, &processed.text)
