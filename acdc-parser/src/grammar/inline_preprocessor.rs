@@ -706,8 +706,6 @@ mod tests {
         assert_eq!(result.passthroughs[1].text.as_ref().unwrap(), "3");
         assert_eq!(result.passthroughs[2].text.as_ref().unwrap(), "4");
 
-        dbg!(&result);
-        dbg!(&result.text[0..8]);
         assert_eq!(result.source_map.map_position(2), 2);
         // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.
         assert_eq!(result.source_map.map_position(5), 4);
