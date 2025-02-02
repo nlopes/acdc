@@ -72,10 +72,6 @@ impl PositionTracker {
         }
     }
 
-    pub(crate) fn get_current_line(&self) -> usize {
-        self.line
-    }
-
     pub(crate) fn calculate_location_from_start_end(
         &mut self,
         start: Position,

@@ -25,10 +25,10 @@
               "name": "text",
               "type": "string",
               "value": "1.0",
-              "location": [{"line": 3,"col": 12},{"line": 3,"col": 16}]
+              "location": [{"line": 3,"col": 12},{"line": 3,"col": 14}]
             }
           ],
-          "location": [{"line": 3,"col": 12},{"line": 3,"col": 20}]
+          "location": [{"line": 3,"col": 12},{"line": 3,"col": 18}]
         },
         {
           "name": "text",

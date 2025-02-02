@@ -27,7 +27,7 @@
           "name": "text",
           "type": "string",
           "value": ".",
-          "location": [{"line": 3, "col": 176},{"line": 3, "col": 176}]
+          "location": [{"line": 3, "col": 146},{"line": 3, "col": 146}]
         }
       ],
       "location": [{"line": 3, "col": 1},{"line": 3, "col": 116}]

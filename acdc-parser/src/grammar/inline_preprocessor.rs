@@ -6,8 +6,8 @@ use std::{
 use peg::parser;
 
 use crate::{
-    grammar::PositionTracker, AttributeValue, DocumentAttributes, InlineNode, Location, Pass,
-    PassthroughKind, Position, Substitution,
+    grammar::PositionTracker, AttributeValue, DocumentAttributes, Location, Pass, PassthroughKind,
+    Position, Substitution,
 };
 
 // The parser state for the inline preprocessor.
@@ -44,21 +44,20 @@ impl ParserState {
 pub(crate) struct ProcessedContent {
     pub text: String,
     pub passthroughs: Vec<Pass>,
-    pub attributes: HashMap<usize, Location>,
     pub(crate) source_map: SourceMap,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Replacement {
+    pub absolute_start: usize,
+    pub absolute_end: usize,
+    pub processed_end: usize, // absolute_start + physical placeholder length
+    pub kind: ProcessedKind,
 }
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SourceMap {
-    /// List of offsets to apply to source positions
-    ///
-    /// Each entry is a tuple of:
-    /// (absolute start position, offset adjustment, kind)
-    ///
-    /// - absolute start position: the position in the original text where the offset should be applied
-    /// - offset adjustment: the amount we adjusted as part of the preprocessing
-    /// - kind: the kind of preprocessing applied
-    pub(crate) offsets: Vec<(usize, i32, ProcessedKind)>,
+    pub replacements: Vec<Replacement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,99 +67,97 @@ pub(crate) enum ProcessedKind {
 }
 
 impl SourceMap {
-    pub(crate) fn add_offset(&mut self, position: usize, offset: i32, kind: ProcessedKind) {
-        self.offsets.push((position, offset, kind));
-        self.offsets.sort_by_key(|k| k.0);
-
-        let mut merged = Vec::new();
-        let mut current_pos = 0;
-        let mut current_offset = 0;
-        let mut current_kind = None;
-
-        for (pos, offs, kind) in self.offsets.drain(..) {
-            if pos == current_pos {
-                current_offset += offs;
-                current_kind = Some(kind);
-            } else {
-                if current_offset != 0 {
-                    merged.push((current_pos, current_offset, current_kind.unwrap()));
-                }
-                current_pos = pos;
-                current_offset = offs;
-                current_kind = Some(kind);
-            }
-        }
-
-        if current_offset != 0 {
-            merged.push((current_pos, current_offset, current_kind.unwrap()));
-        }
-        self.offsets = merged;
+    /// Record a substitution.
+    /// - `absolute_start`: where in the processed text the placeholder was inserted.
+    /// - `absolute_end`: where in the original text the placeholder ends
+    /// - `processed_end`: where in the processed text the placeholder ends
+    /// - `physical_length`: the length of the inserted placeholder (in char count, not bytes)
+    pub(crate) fn add_replacement(
+        &mut self,
+        absolute_start: usize,
+        absolute_end: usize,
+        physical_length: usize,
+        kind: ProcessedKind,
+    ) {
+        self.replacements.push(Replacement {
+            absolute_start,
+            absolute_end,
+            processed_end: absolute_start + physical_length,
+            kind,
+        });
+        // Ensure replacements are sorted by where they occur in the processed text.
+        self.replacements.sort_by_key(|r| r.absolute_start);
     }
-
-    fn add_offset_orig(&mut self, position: usize, offset: i32, kind: ProcessedKind) {
-        // Sort and merge overlapping/adjacent offsets
-        self.offsets.push((position, offset, kind.clone()));
-        self.offsets.sort_by_key(|k| k.0);
-
-        let mut merged = Vec::new();
-        let mut current_pos = 0;
-        let mut current_offset = 0;
-        let mut current_kind = kind;
-
-        for (pos, offs, offset_kind) in self.offsets.drain(..) {
-            match pos.cmp(&current_pos) {
-                std::cmp::Ordering::Equal => {
-                    current_offset += offs;
-                }
-                std::cmp::Ordering::Greater => {
-                    if current_offset != 0 {
-                        merged.push((current_pos, current_offset, current_kind));
-                    }
-                    current_pos = pos;
-                    current_offset = offs;
-                    current_kind = offset_kind;
-                }
-                std::cmp::Ordering::Less => {
-                    // Skip overlapping offsets
-                    continue;
-                }
-            }
-        }
-
-        if current_offset != 0 {
-            merged.push((current_pos, current_offset, current_kind));
-        }
-        self.offsets = merged;
-    }
-
-    /// Map a source position back to its original location
+    /// Map a position in the processed text back to the original source.
     pub(crate) fn map_position(&self, pos: usize) -> usize {
-        let mut offset = 0;
+        let signed_pos = i32::try_from(pos).expect("could not convert pos to i32");
 
-        if pos <= self.offsets.first().map(|(p, _, _)| *p).unwrap_or_default() {
-            return pos;
-        }
+        // The adjustment is the total number of characters removed/added during preprocessing.
+        //
+        // For example, if we have a passthrough like `+a+`: the original text is 3 characters long,
+        // but the processed text is 7 characters long (FFF0FFF). So the adjustment is 7 - 3 = 4.
+        let mut adjustment: i32 = 0;
 
-        // Apply cumulative offsets up to this position
-        for (offset_pos, delta, _kind) in &self.offsets {
-            if pos <= *offset_pos {
+        for rep in &self.replacements {
+            let rep_absolute_start = i32::try_from(rep.absolute_start)
+                .expect("could not convert rep.absolute_start to i32");
+            let rep_absolute_end =
+                i32::try_from(rep.absolute_end).expect("could not convert rep.absolute_end to i32");
+            let rep_processed_end = i32::try_from(rep.processed_end)
+                .expect("could not convert rep.processed_end to i32");
+
+            // If our position is less than or equal to the start of the replacement, then
+            // we can break and return whatever is in adjusted (which is likely to be pos).
+            if signed_pos <= rep_absolute_start {
                 break;
             }
-            offset += -1 * delta;
+
+            // If this matches, we're within a passthrough, attribute or pass macro.
+            //
+            // This usually means we can simply return because it's "easy" to calculate
+            // the position.
+            if signed_pos < rep_processed_end {
+                // pos is within this replacement.
+                match rep.kind {
+                    ProcessedKind::Attribute => {
+                        // All inserted characters map to the left-most original character.
+                        return rep.absolute_start;
+                    }
+                    ProcessedKind::Passthrough => {
+                        if signed_pos >= rep_absolute_end {
+                            // if we're here, it means we need to return the end of the
+                            // passthrough (our position, even though within a passthrough
+                            // is at a position *after* the original end of the
+                            // passthrough
+                            return rep.absolute_end - 1;
+                        }
+
+                        // If we're here, it means we're within the passthrough and it's
+                        // safe to just subtract the adjustment.
+                        return usize::try_from(signed_pos - adjustment)
+                            .expect("could not convert back to usize within passthrough");
+                    }
+                }
+            }
+
+            // adjust the total of characters removed/added during preprocessing.
+            adjustment += rep_processed_end - rep_absolute_end;
         }
 
-        usize::try_from(i32::try_from(pos).unwrap_or_default() + offset).unwrap_or_default()
+        // If we're here, it means we're not within any replacement, so we can just
+        // subtract the adjustment.
+        usize::try_from(signed_pos - adjustment)
+            .expect("could not convert back to usize post all replacements")
     }
 }
 
 parser!(
-    pub(crate) grammar InlinePreprocessor(document_attributes: &DocumentAttributes, state: &ParserState) for str {
+    pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes, state: &ParserState) for str {
         pub rule run() -> ProcessedContent
             = content:inlines()+ {
                 ProcessedContent {
                     text: content.join(""),
                     passthroughs: state.passthroughs.borrow().clone(),
-                    attributes: state.attributes.borrow().clone(),
                     source_map: state.source_map.borrow().clone(),
                 }
             }
@@ -173,27 +170,22 @@ parser!(
             = start:position() "{" attribute_name:attribute_name() "}" {
                 let location = state.tracker.borrow_mut().calculate_location(start, attribute_name, 2);
                 let mut attributes = state.attributes.borrow_mut();
-                if let Some(value) = document_attributes.get(&attribute_name) {
-                    match value {
-                        AttributeValue::String(value) => {
-                            state.source_map.borrow_mut().add_offset(
-                                location.absolute_start,
-                                i32::try_from(value.len()).expect("failed to convert attribute value length to i32") - i32::try_from(location.absolute_end - location.absolute_start).expect("failed to convert attribute reference length to i32"),
-                                ProcessedKind::Attribute
-                            );
-                            attributes.insert(state.source_map.borrow().offsets.len(), location);
-                            value.to_string()
-                        },
-                        _ => {
-                            // TODO(nlopes): do we need to handle other types?
-                            // For non-string attributes, keep original text
-                            format!("{{{attribute_name}}}")
-                        }
+                match document_attributes.get(attribute_name) {
+                    Some(AttributeValue::String(value)) => {
+                        state.source_map.borrow_mut().add_replacement(
+                            location.absolute_start,
+                            location.absolute_end,
+                            value.chars().count(),
+                            ProcessedKind::Attribute,
+                        );
+                        attributes.insert(state.source_map.borrow().replacements.len(), location);
+                        value.to_string()
+                    },
+                    _ => {
+                        // TODO(nlopes): do we need to handle other types?
+                        // For non-string attributes, keep original text
+                        format!("{{{attribute_name}}}")
                     }
-                } else {
-                    // TODO(nlopes): do we need to handle other types?
-                    // For non-string attributes, keep original text
-                    format!("{{{attribute_name}}}")
                 }
             }
 
@@ -218,12 +210,13 @@ parser!(
                     kind: PassthroughKind::Single,
                 });
                 let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_offset(
+                let original_span = location.absolute_end - location.absolute_start;
+                state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
-                    i32::try_from(new_content.len()).expect("failed to convert attribute value length to i32") - i32::try_from(location.absolute_end - location.absolute_start).expect("failed to convert attribute reference length to i32"),
-                    ProcessedKind::Passthrough
+                    location.absolute_end,
+                    new_content.chars().count(),
+                    ProcessedKind::Passthrough,
                 );
-
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
                 new_content
             }
@@ -240,12 +233,13 @@ parser!(
                     kind: PassthroughKind::Double,
                 });
                 let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_offset(
+                let original_span = location.absolute_end - location.absolute_start;
+                state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
-                    i32::try_from(new_content.len()).expect("failed to convert attribute value length to i32") - i32::try_from(location.absolute_end - location.absolute_start).expect("failed to convert attribute reference length to i32"),
-                    ProcessedKind::Passthrough
+                    location.absolute_end,
+                    new_content.chars().count(),
+                    ProcessedKind::Passthrough,
                 );
-
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
                 new_content
             }
@@ -260,12 +254,13 @@ parser!(
                     kind: PassthroughKind::Triple,
                 });
                 let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_offset(
+                let original_span = location.absolute_end - location.absolute_start;
+                state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
-                    i32::try_from(new_content.len()).expect("failed to convert attribute value length to i32") - i32::try_from(location.absolute_end - location.absolute_start).expect("failed to convert attribute reference length to i32"),
-                    ProcessedKind::Passthrough
+                    location.absolute_end,
+                    new_content.chars().count(),
+                    ProcessedKind::Passthrough,
                 );
-
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
                 new_content
             }
@@ -274,21 +269,22 @@ parser!(
             = start:position() "pass:" substitutions:substitutions() "[" content:$([^']']*) "]" end:position!() {
                 let location = state.tracker.borrow_mut().calculate_location_from_start_end(start, end);
                 let content = if substitutions.contains(&Substitution::Attributes) {
-                    InlinePreprocessor::attribute_reference_substitutions(content, document_attributes, state).expect("failed to process attribute references inside pass macro")
+                    inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).expect("failed to process attribute references inside pass macro")
                 } else {
                     content.to_string()
                 };
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
-                    substitutions,
+                    substitutions: substitutions.clone(),
                     location: location.clone(),
                     kind: PassthroughKind::Macro,
                 });
                 let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_offset(
+                state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
-                    i32::try_from(content.len()).expect("failed to convert passthrough macro content length to i32") - i32::try_from(location.absolute_end - location.absolute_start).expect("failed to convert attribute reference length to i32"),
-                    ProcessedKind::Passthrough
+                    location.absolute_end,
+                    new_content.chars().count(),
+                    ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
                 new_content
@@ -296,7 +292,7 @@ parser!(
 
         rule substitutions() -> HashSet<Substitution>
             = subs:$(substitution_value() ** ",") {
-                subs.split(",").map(|s| Substitution::from(s.trim())).collect()
+                subs.split(',').map(|s| Substitution::from(s.trim())).collect()
             }
 
         rule substitution_value() -> &'input str
@@ -325,21 +321,11 @@ parser!(
 
         rule attribute_reference_content() -> String
             = "{" attribute_name:attribute_name() "}" {
-                if let Some(value) = document_attributes.get(&attribute_name) {
-                    match value {
-                        AttributeValue::String(value) => {
-                            value.to_string()
-                        },
-                        _ => {
-                            // TODO(nlopes): do we need to handle other types?
-                            // For non-string attributes, keep original text
-                            format!("{{{attribute_name}}}")
-                        }
-                    }
-                } else {
-                    // TODO(nlopes): do we need to handle other types?
-                    // For non-string attributes, keep original text
-                    format!("{{{attribute_name}}}")
+                match document_attributes.get(attribute_name) {
+                    Some(AttributeValue::String(value)) => value.to_string(),
+                        // TODO(nlopes): do we need to handle other types?
+                        // For non-string attributes, keep original text
+                    _ => format!("{{{attribute_name}}}"),
                 }
             }
 
@@ -391,7 +377,7 @@ mod tests {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "+hello+";
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -408,7 +394,7 @@ mod tests {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "++hello++";
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -423,7 +409,7 @@ mod tests {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "+++hello+++";
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -438,7 +424,7 @@ mod tests {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "+hello+ world+";
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} world+"
@@ -461,7 +447,7 @@ mod tests {
         //                 123456789012345678901234567890123456789012345678901234
         //                          1         2         3         4         5
         //                              ^^^^^^^^          ^^^^^^^^^^^^^^^^^
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
 
         // Verify processed text has placeholders
         assert_eq!(
@@ -501,7 +487,7 @@ mod tests {
         let state = setup_state();
         let input = "The {s}[syntax page] provides complete stuff.";
 
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
 
         assert_eq!(
             result.text,
@@ -509,11 +495,12 @@ mod tests {
         );
 
         // Check that source positions are mapped correctly
-        // Original:  "The {s}[syntax page]..."
-        //             01234567890123456789012
-        // Processed: "The link:/nonono[syntax page]..."
-        let pos = result.source_map.map_position(16); // Position after "{s}"
-        assert_eq!(pos, 7); // Should map to end of "link:/nonono"
+        // Original:  "The {s}[syntax page] provides complete stuff."
+        //             012345678901234567890123456789012345678901234567890123
+        // Processed: "The link:/nonono[syntax page] provides complete stuff."
+        assert_eq!(result.source_map.map_position(15), 4); // This is still within the attribute so map it to the beginning.
+        assert_eq!(result.source_map.map_position(16), 7); // This is after the attribute so map it to where it should be.
+        assert_eq!(result.source_map.map_position(30), 21); // This is the `p` from `provides`.
     }
 
     #[test]
@@ -524,9 +511,10 @@ mod tests {
         // Test block title with attribute reference
         let input = "Version {version} of {title}";
         //                 0123456789012345678901234567
+        //                 Version 1.0 of My Title
         //                 {version} -> 1.0 (-6 chars)
         //                 {title} -> My Title (+1 char)
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
 
         assert_eq!(result.text, "Version 1.0 of My Title");
 
@@ -534,15 +522,10 @@ mod tests {
         //             0123456789012345678901234567
         // Processed: "Version 1.0 of My Title"
 
-        // Verify position mapping:
-        // Position 8 in original (start of {version})
-        // should map to position 8 in processed (start of "1.0")
-        let pos = result.source_map.map_position(8);
-        assert_eq!(pos, 8); // Same position since it's before any changes
-
-        // Position 19 in original should map considering the change in length
-        let pos = result.source_map.map_position(15);
-        assert_eq!(pos, 21); // Maps to position in "of"
+        // Position 8 in original (start of {version}) should map to position 8 in
+        // processed (start of "1.0")
+        assert_eq!(result.source_map.map_position(8), 8);
+        assert_eq!(result.source_map.map_position(15), 21);
     }
 
     #[test]
@@ -555,7 +538,7 @@ mod tests {
         //                 0123456789012345678901234
         //                           ^
         //                           {s} expands to link:/nonono (+9 chars)
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
 
         assert_eq!(
             result.text,
@@ -584,7 +567,7 @@ mod tests {
 
         // Test passthrough containing attribute that references another attribute
         let input = "Here is a +special {nested2} value+ to test.";
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
 
         // Verify the passthrough preserved the unexpanded attribute
         assert_eq!(
@@ -614,7 +597,7 @@ mod tests {
         let input = "This is a test +\nwith a line break.";
         //                 012345678901234567890123456789012345678
         //                 0         1         2         3         4
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(result.text, "This is a test +\nwith a line break.");
 
         // Verify no passthroughs were captured
@@ -628,7 +611,7 @@ mod tests {
         let input = "= Document Title\nHello +<h1>+World+</h1>+ of +<u>+Gemini+</u>+";
         //                 012345678901234567890123456789012345678901234567890123456789012
         //                 0         1         2         3         4         5         6
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "= Document Title\nHello \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}World\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} of \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}Gemini\u{FFFD}\u{FFFD}\u{FFFD}3\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -675,8 +658,7 @@ mod tests {
         //                 0         1         2         3         4         5         6
         //                          ^start of pass        ^docname
         //                "The text FFF0FFF is underlined."
-        //                "the text <u>underline _test-doc_</u> is underlined."
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "The text \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} is underlined."
@@ -698,12 +680,8 @@ mod tests {
         assert_eq!(pass.location.absolute_start, 9); // Start of pass macro
         assert_eq!(pass.location.absolute_end, 47); // End of pass macro content including brackets
 
-        // Test position mapping
-        let pos = result.source_map.map_position(9); // Start of pass macro
-        assert_eq!(pos, 9); // Position unchanged before placeholder
-
-        let pos = result.source_map.map_position(24); // After pass macro
-        assert_eq!(pos, 35); // Position after placeholder
+        assert_eq!(result.source_map.map_position(9), 9); // Start of pass macro
+        assert_eq!(result.source_map.map_position(24), 55);
     }
 
     #[test]
@@ -715,9 +693,9 @@ mod tests {
         let input = "1 +2+, ++3++ {meh} and +++4+++ are all numbers.";
         //                 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456
         //                 0         1         2         3         4         5         6         7         8
-        //                 1 FFFFFFFFF0FFFFFFFFF, FFFFFFFFF1FFFFFFFFF 1.0 and FFFFFFFFF2FFFFFFFFF are all numbers.
+        //                 1 FFF0FFF, FFF1FFF 1.0 and FFF2FFF are all numbers.
 
-        let result = InlinePreprocessor::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
         assert_eq!(
             result.text,
             "1 \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}, \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} 1.0 and \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD} are all numbers."
@@ -729,8 +707,13 @@ mod tests {
         assert_eq!(result.passthroughs[2].text.as_ref().unwrap(), "4");
 
         dbg!(&result);
-
-        assert_eq!(result.source_map.map_position(3), 3);
-        assert_eq!(result.source_map.map_position(24), 3);
+        dbg!(&result.text[0..8]);
+        assert_eq!(result.source_map.map_position(2), 2);
+        // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.
+        assert_eq!(result.source_map.map_position(5), 4);
+        // 24 is the FFF in passthrough 2, therefore it should map to position 10
+        assert_eq!(result.source_map.map_position(24), 20);
+        // 48 is the n in "and", therefore it should map to position 19
+        assert_eq!(result.source_map.map_position(48), 44);
     }
 }

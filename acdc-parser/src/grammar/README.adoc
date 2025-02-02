@@ -1,0 +1,124 @@
+= Explanation of inline preprocessing
+
+== Inline structure
+
+* Regular text (such as a paragraph) may contain markup that is interpreted.
+* Markup is additional characters added to the content either to add semantics or to specify formatting; these characters are processor hints.
+* Markup is in the form of marked text, macros, or lookup references.
+* When regular text is interpreted, it produces a collection of nodes (i.e., `node*`) referred to as "inline nodes" or simply "inlines".
+ ** This can be a nested structure (some inlines are elements that may contain other inlines).
+* Inline parsing can be broken down into four general categories: text, spans (strong, emphasis, etc.), macros (extrapolated content), and replacements (attribute refs, typographic replacements, special characters, hard line breaks).
+* The parser will attempt to match designated inline syntax, such as a pair of span/formatting marks.
+* If syntax fails to match (such as when the parser encounters an unbalanced mark), the parser moves on to the next rule.
+* If no grammar rules can be matched in a run of characters, that text is treated as plain, uninterpreted text; no warning is issued by the processor.
+
+== Inline names
+
+* There are two types of inline nodes: inline and string
+* There are several inline names: text, charref, raw, span, ref, image, etc.
+* The variant further specializes the name: strong for span, xref for ref, etc.
+* The inline may also have a form to indicate how it is structured/expressed in the source (e.g., macro, unconstrained, etc.)
+* A non-element represents plain text, such as text, charref, raw, hard line break.
+* An inline element is an inline node with properties.
+* An inline element can be a leaf (e.g., image) or a non-leaf (e.g., span).
+  ** A non-leaf inline element contain inlines.
+* Span is a "run of markup"; specifically, it's enclosed/bounded text (we're migrating away from the term "quoted text").
+ ** In the grammar, we may refer to this as marked text; in node model, it's a span
+* Span and macro are elements, which means they can have attributes and, in many cases, inlines (children).
+* Properties of text: type=string, name=text, value=string?
+* Common properties of span: type=inline, name, variant, (source) form, attributes (includes id and roles)
+* Common properties of macro: type=inline, name, (source) form, attributes (includes ID and roles).
+ ** Refer to macros expressed using non-named syntax as a shorthand macro (or shorthand notation); still a macro, just not expressed that way
+* All formatted text is a span; but not all spans are formatted text
+* Not mandating a typing system, but the processor/converter has to be able to distinguish the context of different inlines.
+
+== From substitutions to inline parsing
+
+* One of the most problematic aspects of the AsciiDoc language is that it relies on search and replace for processing inlines.
+* This original processing method for inlines doesn't produce a tree and the interpretation is often coupled to and intertwined with the output format and the substitution order.
+* Not only does it cause many unexpected behaviors, it cannot be accurately described; it also makes it impossible to extract a structure, and the information it stores, from the document.
+* The spec is graduating from the use of substitutions to an inline parsing grammar.
+* In doing so, we will aim to match the behavior of the substitution model as closely as possible so existing content can be interpreted in the same way or, when that is not possible, interpreted in such a way that information is not lost.
+* The accepted inline parsing approach is described in  https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-5: Describe Inline Syntax using Formal Grammar].
+
+== Inline parsing phases
+
+* In order to achieve compatibility with the original substitution model, inline parsing will need to be done in two phases; see  https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-5: Describe Inline Syntax using Formal Grammar].
+
+=== Phase 1: Inline preprocessor parsing
+
+* In the first phase, passthrough content is identified and/or extracted and attribute references are expanded.
+** The simplest way to handle passthroughs are to extract them and leave a placeholder behind (guard or token); passthrough text must be restored to the location of the placeholder during second parsing phase.
+* An inline preprocessor is the only way to allow attribute references to introduce inline syntax in the way they can today.
+* The inline preprocessor must track the original positions of all characters so that inlines can be traced back to their source.
+* All characters introduced by an attribute reference should be attributed to the left-most position of the attribute reference (in other words, they don't occupy space).
+* Once the first phase is complete, the conversion from input text to a parse tree may begin.
+
+=== Phase 2: Inline parsing
+
+* In the second phase, the expanded input is parsed into a tree of inlines (the root of that tree is the parent of the top-level inlines).
+* The parser should track the location (start line and column, end line and column) of every inline node.
+** The parser must use the information provided by the inline preprocessor to map the node back to the location in the original source, not the expanded source.
+
+== Attribute references
+
+* The value of a document attribute is referenced using an attribute reference; the reference is to a document attribute.
+* An attribute reference has the form `+{name}+`, where `name` is the name of the attribute name.
+* The attribute reference is replaced by the value of the specified attribute by the inline parser (specifically the inline preprocessor).
+** No processing is done on the value when inserted; it is inserted as is.
+* An attribute reference is permitted anywhere that inline markup is interpreted.
+* If the document attribute is not set, the `attribute-missing` document attribute determines what to do.
+** Under normal operation, if the referenced attribute is missing (not set), the reference is dropped and a warning is issued.
+* Attribute references are processed by the inline preprocessor, only the input from an reference is visible
+
+== Passthroughs
+
+* Inline passthroughs have a similar purpose as block passthroughs, but for an inline context.
+* Inline passthroughs are processed by the inline preprocessor; thus they are not seen by the inline parser.
+** A protected guard or token indicates where a passthrough was post-inline preprocessing
+* Passthroughs are directives, even though their stuctural forms look similar to an inline macro and marked text.
+* Passthroughs are specified using the single plus, double plus, triple plus, and pass macro.
+* Passthroughs prevent text from being interpreted (including attribute references).
+* The triple plus and pass directive forms pass through text raw (no special character replacement in converter).
+* The single (constrained) and double (unconstrained) plus forms (marked pass) pass through text uninterpreted, but not raw (converter will apply special character replacement).
+* Nested passthroughs are forbidden / not recognized.
+
+== Example of inline preprocessing
+
+Let's take the following document as an example:
+
+----
+:meh: 1.0
+
+1 +2+, ++3++ {meh} and +++4+++ are all numbers.
+----
+
+Once preprocessing is done, we'll get back the following text:
+
+----
+1 \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}, \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} 1.0 and \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD} are all numbers.
+----
+
+NOTE: each +\u{FFFD}+ is 3 bytes long.
+
+We have an internal function that allows us to map a position to the original text.
+
+=== Example 1
+
+If we call `+map_position(0)+`, then the result should be `+0+`. We're at the start of the text.
+
+=== Example 2
+
+If we call `+map_position(2)+`, then the result should be `+2+`. We're at the start of a passthrough (single) so we're ok.
+
+If we call `+map_position(3)+`, then the result should be `+3+`. We're inside the passthrough (single) so we keep linearly mapping characters.
+
+If we call `+map_position(5)+`, then the result should be `+4+`. We're still inside the passthrough (single) but we're now at the comma in the original text (we're beyond the original place of the passthrough), therefore the result must be the last position of the passthrough in the original text.
+
+=== Example 3
+
+If we call `+map_position(24)+`, then the result should be `+8+`. We're inside the passthrough (double) but we're now two characters in, therefore we should map to two characters in in the original text, which is `+8+`, corresponding to the second `+++`.
+
+=== Example 4
+
+If we call `+map_position(44)+`, then the result should be `+13+`. We're inside the attribute reference so no matter where that is, we always map to the first position of the attribute reference in the original text, which in this case is `+13+`.
