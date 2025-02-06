@@ -36,7 +36,8 @@ italic_text = { PUSH("_") ~ (!"_" ~ ANY)+ ~ (!"__" ~ POP) }
 monospace_text = { PUSH("`") ~ (!"`" ~ ANY)+ ~ (!"``" ~ POP) }
 highlight_text = { PUSH("#") ~ (!"#" ~ ANY)+ ~ (!"##" ~ POP) }
 
-inline_line_break = { " +" ~ NEWLINE }
+inline_line_break_token = _{ inline_line_break ~ NEWLINE }
+inline_line_break = { " +" }
 
 image_inline = { "image:" ~ (url | path) ~ attrlist }
 icon_inline = { "icon:" ~ path ~ attrlist }
@@ -100,7 +101,7 @@ non_plain_text = {
     placeholder |
     (attrlist? ~ (
         footnote |
-        inline_line_break |
+        inline_line_break ~ NEWLINE |
         bold_text_unconstrained |
         italic_text_unconstrained |
         monospace_text_unconstrained |
