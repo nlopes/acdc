@@ -40,9 +40,10 @@ impl InlineNode {
             let mut index = None;
 
             if rule == Rule::placeholder {
-                let inner = pair.clone().into_inner().next().unwrap();
-                index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
-                *last_index_seen = index;
+                if let Some(inner) = pair.clone().into_inner().next() {
+                    index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
+                    *last_index_seen = index;
+                }
             }
             let mapped_location = map_inline_location(&location, processed)
                 .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
@@ -163,23 +164,25 @@ impl InlineNode {
                 | Rule::autolink
                 | Rule::pass_inline => return Self::parse_macro(pair),
                 Rule::placeholder => {
-                    let kind = processed
-                        .unwrap()
-                        .passthroughs
-                        .get(index.unwrap())
-                        .unwrap()
-                        .kind
-                        .clone();
-                    if kind == PassthroughKind::Single || kind == PassthroughKind::Double {
-                        return Ok(InlineNode::PlainText(Plain {
-                            content: mapped_location.0.unwrap_or_default(),
-                            location: mapped_location.1,
-                        }));
+                    if let Some(processed) = processed {
+                        if let Some(index) = index {
+                            if let Some(passthrough) = processed.passthroughs.get(index) {
+                                let kind = passthrough.kind.clone();
+                                if kind == PassthroughKind::Single
+                                    || kind == PassthroughKind::Double
+                                {
+                                    return Ok(InlineNode::PlainText(Plain {
+                                        content: mapped_location.0.unwrap_or_default(),
+                                        location: mapped_location.1,
+                                    }));
+                                }
+                                return Ok(InlineNode::RawText(Raw {
+                                    content: mapped_location.0.unwrap_or_default(),
+                                    location: mapped_location.1,
+                                }));
+                            }
+                        }
                     }
-                    return Ok(InlineNode::RawText(Raw {
-                        content: mapped_location.0.unwrap_or_default(),
-                        location: mapped_location.1,
-                    }));
                 }
                 Rule::role => role = Some(pair.as_str().to_string()),
                 Rule::inline_line_break | Rule::hard_wrap => {
@@ -364,13 +367,16 @@ fn map_inline_location(
     let processed = processed?;
     let mut adjustment = 0;
     let mut passthrough_index = 0;
-    let location_absolute_start = i32::try_from(location.absolute_start).unwrap();
+    let location_absolute_start = i32::try_from(location.absolute_start)
+        .expect("could not convert `absolute_start` position to i32");
 
     let mut previously_seen_rep_processed_end = 0;
 
     for rep in &processed.source_map.replacements {
-        let rep_absolute_start = i32::try_from(rep.absolute_start).unwrap();
-        let rep_processed_end = i32::try_from(rep.processed_end).unwrap();
+        let rep_absolute_start = i32::try_from(rep.absolute_start)
+            .expect("could not convert replacement `absolute_start` position to i32");
+        let rep_processed_end = i32::try_from(rep.processed_end)
+            .expect("could not convert replacement `processed_end` position to i32");
 
         let adjusted_absolute_start = location_absolute_start + adjustment;
 
@@ -400,9 +406,10 @@ fn map_inline_location(
                 adjustment -= 12;
             }
 
-            let adjusted_absolute_start_mapped = processed
-                .source_map
-                .map_position(usize::try_from(adjusted_absolute_start).unwrap());
+            let adjusted_absolute_start_mapped = processed.source_map.map_position(
+                usize::try_from(adjusted_absolute_start)
+                    .expect("could not convert `adjusted_absolute_start` to usize"),
+            );
 
             // If this is true, we went too far and need to adjust the adjustment back.
             if adjusted_absolute_start_mapped < rep.absolute_start {
@@ -457,9 +464,10 @@ fn map_inline_location(
     // Otherwise, if this location is not inside an attribute replacement,
     // adjust its absolute_start and absolute_end using map_position.
     let adjusted_absolute_start = location_absolute_start + adjustment;
-    let adjusted_absolute_start_mapped = processed
-        .source_map
-        .map_position(usize::try_from(adjusted_absolute_start).unwrap());
+    let adjusted_absolute_start_mapped = processed.source_map.map_position(
+        usize::try_from(adjusted_absolute_start)
+            .expect("could not convert `adjusted_absolute_start` to usize"),
+    );
     let location_start_column_mapped = processed.source_map.map_position(location.start.column);
     let new_location = Location {
         start: Position {
