@@ -1,9 +1,4 @@
-inlines = {
-    (
-        non_plain_text |
-        attrlist? ~ plain_text
-    )+
-}
+inlines = { inlines_inner }
 
 inlines_inner = _{
     (
