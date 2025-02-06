@@ -47,11 +47,9 @@ impl Paragraph {
                             tracing::error!("error processing paragraph inlines: {}", e);
                             Error::Parse(e.to_string())
                         })?;
-
                     // Now parse the processed text
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;
-
                     // We need to shift the location of the inlines so that they are
                     // correct.
                     location.shift(parent_location);

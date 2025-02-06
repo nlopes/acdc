@@ -17,8 +17,8 @@ use tracing::instrument;
 use crate::{
     error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
     Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
-    Menu, Monospace, Pass, PassthroughKind, Plain, ProcessedContent, ProcessedKind, Raw, Rule,
-    Subscript, Superscript, Url,
+    Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
+    Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -44,7 +44,7 @@ impl InlineNode {
                 index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
                 *last_index_seen = index;
             }
-            let mapped_location = map_inline_location(&location, processed, index, last_index_seen)
+            let mapped_location = map_inline_location(&location, processed)
                 .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
             match rule {
                 Rule::plain_text | Rule::one_line_plain_text => {
@@ -177,7 +177,7 @@ impl InlineNode {
                         }));
                     }
                     return Ok(InlineNode::RawText(Raw {
-                        content: pair.as_str().to_string(),
+                        content: mapped_location.0.unwrap_or_default(),
                         location: mapped_location.1,
                     }));
                 }
@@ -360,38 +360,119 @@ pub(crate) fn get_content(
 fn map_inline_location(
     location: &Location,
     processed: Option<&ProcessedContent>,
-    index: Option<usize>,
-    last_index_seen: &mut Option<usize>,
 ) -> Option<(Option<String>, Location)> {
-    if let Some(processed) = processed {
-        // First, if this location is inside an attribute replacement, collapse it.
-        if let Some(rep) = processed.source_map.replacements.iter().find(|rep| {
-            rep.kind == ProcessedKind::Attribute
-                && location.absolute_start >= rep.absolute_start
-                && location.absolute_start < rep.absolute_end
-        }) {
+    let processed = processed?;
+    let mut adjustment = 0;
+    let mut passthrough_index = 0;
+    let location_absolute_start = i32::try_from(location.absolute_start).unwrap();
+
+    let mut previously_seen_rep_processed_end = 0;
+
+    for rep in &processed.source_map.replacements {
+        let rep_absolute_start = i32::try_from(rep.absolute_start).unwrap();
+        let rep_processed_end = i32::try_from(rep.processed_end).unwrap();
+
+        let adjusted_absolute_start = location_absolute_start + adjustment;
+
+        // if this adjusted absolute start is negative, we are no longer in a valid
+        // situation, we can stop going through the replacements.
+        if adjusted_absolute_start < 0 {
+            break;
+        }
+
+        // if the adjusted absolute start is greater than the processed end of the last
+        // replacement, we can stop and calculate the new location for this location.
+        if previously_seen_rep_processed_end >= adjusted_absolute_start {
+            break;
+        }
+
+        if rep.kind == ProcessedKind::Passthrough {
+            // if we find a passthrough in this index, we need to adjust the location
+            let Some(passthrough) = processed.passthroughs.get(passthrough_index) else {
+                continue;
+            };
+            passthrough_index += 1;
+
+            // We do this because pest parses \u{FFFD} as a 3-byte character and we
+            // need to adjust the location accordingly. We use 3*\u{FFFD} on each side
+            // of a passthrough, therefore (3-1)*3*2 = 18.
+            if passthrough.kind != PassthroughKind::Macro {
+                adjustment -= 12;
+            }
+
+            let adjusted_absolute_start_mapped = processed
+                .source_map
+                .map_position(usize::try_from(adjusted_absolute_start).unwrap());
+
+            // If this is true, we went too far and need to adjust the adjustment back.
+            if adjusted_absolute_start_mapped < rep.absolute_start {
+                adjustment += 12;
+            }
+
+            // This means we are inside a passthrough, so we need to adjust the location
+            if adjusted_absolute_start_mapped >= rep.absolute_start
+                && adjusted_absolute_start_mapped < rep.absolute_end
+            {
+                let new_location = Location {
+                    start: Position {
+                        line: location.start.line,
+                        column: processed.source_map.map_position(location.start.column),
+                    },
+                    end: Position {
+                        line: location.end.line,
+                        column: processed.source_map.map_position(
+                            location.start.column + rep.absolute_end - rep.absolute_start,
+                        ),
+                    },
+                    absolute_start: rep.absolute_start,
+                    absolute_end: rep.absolute_end,
+                };
+                return Some((passthrough.text.clone(), new_location));
+            }
+        } else if adjusted_absolute_start >= rep_absolute_start
+            && adjusted_absolute_start < rep_processed_end
+        {
             let new_location = Location {
-                // The start and end positions (line/column) might be left unchanged,
-                // or you might adjust them if you have a way to recalculate from the new offsets.
-                start: location.start.clone(),
-                end: location.end.clone(),
-                absolute_start: processed.source_map.map_position(location.absolute_start),
-                absolute_end: processed.source_map.map_position(location.absolute_end),
+                start: Position {
+                    line: location.start.line,
+                    column: processed.source_map.map_position(location.start.column),
+                },
+                end: Position {
+                    line: location.end.line,
+                    column: processed.source_map.map_position(
+                        location.start.column + rep.absolute_end - rep.absolute_start,
+                    ),
+                },
+                absolute_start: rep.absolute_start,
+                absolute_end: rep.absolute_end,
             };
             return Some((None, new_location));
         }
 
-        // Otherwise, if this location is not inside an attribute replacement,
-        // adjust its absolute_start and absolute_end using map_position.
-        let adjusted_start = processed.source_map.map_position(location.absolute_start);
-        let adjusted_end = processed.source_map.map_position(location.absolute_end);
-        let new_location = Location {
-            start: location.start.clone(),
-            end: location.end.clone(),
-            absolute_start: adjusted_start,
-            absolute_end: adjusted_end,
-        };
-        return Some((None, new_location));
+        // We need to keep track of the processed end of the last replacement we saw
+        // to know when to stop going through the replacements.
+        previously_seen_rep_processed_end = rep_processed_end;
     }
-    None
+
+    // Otherwise, if this location is not inside an attribute replacement,
+    // adjust its absolute_start and absolute_end using map_position.
+    let adjusted_absolute_start = location_absolute_start + adjustment;
+    let adjusted_absolute_start_mapped = processed
+        .source_map
+        .map_position(usize::try_from(adjusted_absolute_start).unwrap());
+    let location_start_column_mapped = processed.source_map.map_position(location.start.column);
+    let new_location = Location {
+        start: Position {
+            line: location.start.line,
+            column: location_start_column_mapped,
+        },
+        end: Position {
+            line: location.end.line,
+            column: location_start_column_mapped + (location.end.column - location.start.column),
+        },
+        absolute_start: adjusted_absolute_start_mapped,
+        absolute_end: adjusted_absolute_start_mapped
+            + (location.absolute_end - location.absolute_start),
+    };
+    Some((None, new_location))
 }

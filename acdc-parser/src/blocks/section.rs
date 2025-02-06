@@ -46,10 +46,8 @@ impl Section {
                             tracing::error!("error processing section title: {}", e);
                             Error::Parse(e.to_string())
                         })?;
-
                     let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
                         .map_err(|e| Error::Parse(e.to_string()))?;
-
                     title = parse_inlines(
                         pairs.next().ok_or_else(|| {
                             tracing::error!("error parsing section title");
