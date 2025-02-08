@@ -41,6 +41,9 @@ pub enum Error {
 
     #[error("Unexpected block: {0}")]
     UnexpectedBlock(String),
+
+    #[error("Invalid ifeval directive")]
+    InvalidIfEvalDirectiveMismatchedTypes,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]

@@ -138,7 +138,7 @@ impl Preprocessor {
                         content.push_str(&format!("{next_line}\n"));
                         lines.next();
                     }
-                    if condition.is_true(&attributes, &mut content) {
+                    if condition.is_true(&attributes, &mut content)? {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
