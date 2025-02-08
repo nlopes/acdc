@@ -45,7 +45,7 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 ** **Advanced**
 ** [*] Offsets
 ** [ ] Tagged regions
-* [ ] Conditionals
+* [*] Conditionals
 ** [*] ifdef
 ** [*] ifndef
-** [ ] ifeval
+** [*] ifeval
