@@ -39,6 +39,7 @@ pub(crate) struct Include {
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
+    attributes: DocumentAttributes,
 }
 
 #[derive(Debug)]
@@ -54,10 +55,32 @@ pub(crate) enum Target {
 }
 
 peg::parser! {
-    grammar include_parser() for str {
-        pub(crate) rule include() -> (String, Vec<(String, String)>)
+    grammar include_parser(path: &std::path::Path, attributes: &DocumentAttributes) for str {
+        pub(crate) rule include() -> Result<Include, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
-                (target, attrs.unwrap_or_default())
+                let target_raw = target.substitute(HEADER, attributes);
+                let target =
+                    if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
+                        Target::Url(Url::parse(&target_raw)?)
+                    } else {
+                        Target::Path(PathBuf::from(target_raw))
+                    };
+
+                let mut include = Include {
+                    file_parent: path.to_path_buf(),
+                    target,
+                    level_offset: None,
+                    lines: Vec::new(),
+                    tags: Vec::new(),
+                    indent: None,
+                    encoding: None,
+                    opts: Vec::new(),
+                    attributes: attributes.clone(),
+                };
+                if let Some(attrs) = attrs {
+                    include.parse_attributes(attrs)?;
+                }
+                Ok(include)
             }
 
         rule target() -> String
@@ -131,43 +154,45 @@ impl LinesRange {
 }
 
 impl Include {
-    fn parse_attribute(&mut self, key: &str, value: &str) -> Result<(), Error> {
-        match key {
-            "leveloffset" => {
-                self.level_offset = Some(
-                    value
-                        .parse()
-                        .map_err(|_| Error::InvalidLevelOffset(value.to_string()))?,
-                );
-            }
-            "lines" => {
-                self.lines.extend(LinesRange::parse(value).map_err(|e| {
-                    tracing::error!(?value, "failed to parse lines attribute: {:?}", e);
-                    e
-                })?);
-            }
-            "tag" => {
-                self.tags.push(value.to_string());
-            }
-            "tags" => {
-                self.tags.extend(value.split(';').map(str::to_string));
-            }
-            "indent" => {
-                self.indent = Some(
-                    value
-                        .parse()
-                        .map_err(|_| Error::InvalidIndent(value.to_string()))?,
-                );
-            }
-            "encoding" => {
-                self.encoding = Some(value.to_string());
-            }
-            "opts" => {
-                self.opts.extend(value.split(',').map(str::to_string));
-            }
-            unknown => {
-                tracing::error!(?unknown, "unknown attribute key in include directive");
-                return Err(Error::InvalidIncludeDirective);
+    fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
+        for (key, value) in attributes {
+            match key.as_ref() {
+                "leveloffset" => {
+                    self.level_offset = Some(
+                        value
+                            .parse()
+                            .map_err(|_| Error::InvalidLevelOffset(value.to_string()))?,
+                    );
+                }
+                "lines" => {
+                    self.lines.extend(LinesRange::parse(&value).map_err(|e| {
+                        tracing::error!(?value, "failed to parse lines attribute: {:?}", e);
+                        e
+                    })?);
+                }
+                "tag" => {
+                    self.tags.push(value.to_string());
+                }
+                "tags" => {
+                    self.tags.extend(value.split(';').map(str::to_string));
+                }
+                "indent" => {
+                    self.indent = Some(
+                        value
+                            .parse()
+                            .map_err(|_| Error::InvalidIndent(value.to_string()))?,
+                    );
+                }
+                "encoding" => {
+                    self.encoding = Some(value.to_string());
+                }
+                "opts" => {
+                    self.opts.extend(value.split(',').map(str::to_string));
+                }
+                unknown => {
+                    tracing::error!(?unknown, "unknown attribute key in include directive");
+                    return Err(Error::InvalidIncludeDirective);
+                }
             }
         }
         Ok(())
@@ -178,37 +203,10 @@ impl Include {
         line: &str,
         attributes: &DocumentAttributes,
     ) -> Result<Self, Error> {
-        let mut include = Include {
-            file_parent: file_parent.to_path_buf(),
-            target: Target::Path(PathBuf::new()),
-            level_offset: None,
-            lines: Vec::new(),
-            tags: Vec::new(),
-            indent: None,
-            encoding: None,
-            opts: Vec::new(),
-        };
-
-        match include_parser::include(line) {
-            Ok((target_raw, attrs)) => {
-                let target_raw = target_raw.substitute(HEADER, attributes);
-                include.target =
-                    if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
-                        Target::Url(Url::parse(&target_raw)?)
-                    } else {
-                        Target::Path(PathBuf::from(target_raw))
-                    };
-
-                for (key, value) in attrs {
-                    include.parse_attribute(&key, &value)?;
-                }
-                Ok(include)
-            }
-            Err(e) => {
-                tracing::error!("Failed to parse include directive: {:?}", e);
-                Err(Error::InvalidIncludeDirective)
-            }
-        }
+        include_parser::include(line, file_parent, attributes).map_err(|e| {
+            tracing::error!(?line, "failed to parse include directive: {:?}", e);
+            Error::Parse(e.to_string())
+        })?
     }
 
     pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
@@ -305,7 +303,11 @@ impl Include {
                 }
             }
             Target::Url(_url) => {
-                todo!("need to fetch the URL and read its content");
+                if self.attributes.get("allow-uri-read").is_none() {
+                    tracing::warn!("URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line.");
+                    return Ok(lines);
+                }
+                todo!("URL includes are not supported yet");
             }
         }
         Ok(lines)
