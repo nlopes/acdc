@@ -1,4 +1,8 @@
-use crate::{error::Error, DocumentAttributes};
+use crate::{
+    error::Error,
+    model::{Substitute, HEADER},
+    DocumentAttributes,
+};
 
 #[derive(Debug)]
 pub(crate) enum Conditional {
@@ -29,7 +33,26 @@ pub(crate) struct Ifndef {
 
 #[derive(Debug)]
 pub(crate) struct Ifeval {
-    expression: String,
+    left: EvalValue,
+    operator: Operator,
+    right: EvalValue,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub(crate) enum EvalValue {
+    String(String),
+    Number(i64),
+    Boolean(bool),
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum Operator {
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
 }
 
 #[derive(Debug)]
@@ -68,9 +91,14 @@ peg::parser! {
             }
 
         rule ifeval() -> Conditional
-            = "ifeval::[" expression:content() "]" {
+            = "ifeval::[" left:eval_value() operator:operator() right:eval_value() "]" {
+
+                // We parse everything we get here as a string, then whoever gets this,
+                // should convert into the proper EvalValue
                 Conditional::Ifeval(Ifeval {
-                    expression,
+                    left: EvalValue::String(left),
+                    operator,
+                    right: EvalValue::String(right)
                 })
             }
 
@@ -85,6 +113,30 @@ peg::parser! {
         rule operation() -> Operation
             = "+" { Operation::And }
         / "," { Operation::Or }
+
+        rule eval_value() -> String
+            = n:$((!operator() ![']'] [_])+)  {
+                n.trim().to_string()
+                //let n = n.trim();
+                // if n.starts_with('\'') && n.ends_with('\'') || n.starts_with('"') && n.ends_with('"') {
+                //     n[1..n.len() - 1].to_string()
+                // } else {
+                //     n.to_string()
+                // }
+            }
+
+        rule operator() -> Operator
+            = op:$("==" / "!=" / "<=" / ">=" / "<" / ">") {
+                match op {
+                    "==" => Operator::Equal,
+                    "!=" => Operator::NotEqual,
+                    "<" => Operator::LessThan,
+                    ">" => Operator::GreaterThan,
+                    "<=" => Operator::LessThanOrEqual,
+                    ">=" => Operator::GreaterThanOrEqual,
+                    _ => unreachable!(),
+                }
+            }
 
         rule name_match() = (!['[' | ',' | '+'] [_])+
 
@@ -101,8 +153,12 @@ peg::parser! {
 }
 
 impl Conditional {
-    pub(crate) fn is_true(&self, attributes: &DocumentAttributes, content: &mut String) -> bool {
-        match self {
+    pub(crate) fn is_true(
+        &self,
+        attributes: &DocumentAttributes,
+        content: &mut String,
+    ) -> Result<bool, Error> {
+        Ok(match self {
             Conditional::Ifdef(ifdef) => {
                 let mut is_true = false;
                 if ifdef.attributes.is_empty() {
@@ -149,12 +205,13 @@ impl Conditional {
                 }
                 is_true
             }
-            Conditional::Ifeval(_ifeval) => todo!("ifeval conditional check"),
-        }
+            Conditional::Ifeval(ifeval) => ifeval.evaluate(attributes)?,
+        })
     }
 }
 
 impl Endif {
+    #[tracing::instrument(level = "trace")]
     pub(crate) fn closes(&self, conditional: &Conditional) -> bool {
         if let Some(attribute) = &self.attribute {
             match conditional {
@@ -164,6 +221,74 @@ impl Endif {
             }
         } else {
             true
+        }
+    }
+}
+
+impl Ifeval {
+    #[tracing::instrument(level = "trace")]
+    fn evaluate(&self, attributes: &DocumentAttributes) -> Result<bool, Error> {
+        let left = self.left.convert(attributes);
+        let right = self.right.convert(attributes);
+
+        // TOOD(nlopes): There are a few better ways to do this, but for now, this is
+        // fine. I'm just going for functionality.
+        match (&left, &right) {
+            (EvalValue::Number(_), EvalValue::Number(_))
+            | (EvalValue::Boolean(_), EvalValue::Boolean(_))
+            | (EvalValue::String(_), EvalValue::String(_)) => {}
+            _ => {
+                tracing::error!("cannot compare different types of values in ifeval directive");
+                return Err(Error::InvalidIfEvalDirectiveMismatchedTypes);
+            }
+        }
+
+        Ok(match self.operator {
+            Operator::Equal => left == right,
+            Operator::NotEqual => left != right,
+            Operator::LessThan => left < right,
+            Operator::GreaterThan => left > right,
+            Operator::LessThanOrEqual => left <= right,
+            Operator::GreaterThanOrEqual => left >= right,
+        })
+    }
+}
+
+impl EvalValue {
+    #[tracing::instrument(level = "trace")]
+    fn convert(&self, attributes: &DocumentAttributes) -> Self {
+        match self {
+            EvalValue::String(s) => {
+                // First we substitute any attributes in the string with their values
+                let s = s.substitute(HEADER, attributes);
+
+                // Now, we try to parse the string into a number or a boolean if
+                // possible. If not, we assume it's a string and return it as is.
+                if let Ok(value) = s.parse::<bool>() {
+                    EvalValue::Boolean(value)
+                } else if let Ok(value) = s.parse::<i64>() {
+                    EvalValue::Number(value)
+                } else {
+                    // If we're here, let's check if we can evaluate this as a math expression
+                    // and return the result as a number.
+                    //
+                    // If not, we return the string as is.
+                    if let Ok(value) = evalexpr::eval_int(&s) {
+                        EvalValue::Number(value)
+                    } else {
+                        let s = if s.starts_with('\'') && s.ends_with('\'')
+                            || s.starts_with('"') && s.ends_with('"')
+                        {
+                            s[1..s.len() - 1].to_string()
+                        } else {
+                            s.to_string()
+                        };
+
+                        EvalValue::String(s)
+                    }
+                }
+            }
+            value => value.clone(),
         }
     }
 }
@@ -251,12 +376,52 @@ mod tests {
     }
 
     #[test]
-    fn test_ifeval() {
+    fn test_ifeval_simple_math() {
         let line = "ifeval::[1 + 1 == 2]";
         let conditional = parse_line(line).unwrap();
-        match conditional {
+        match &conditional {
             Conditional::Ifeval(ifeval) => {
-                assert_eq!(ifeval.expression, "1 + 1 == 2");
+                assert_eq!(ifeval.left, EvalValue::String("1 + 1".to_string()));
+                assert_eq!(ifeval.operator, Operator::Equal);
+                assert_eq!(ifeval.right, EvalValue::String("2".to_string()));
+            }
+            _ => panic!("Expected Ifeval"),
+        }
+        assert!(conditional
+            .is_true(&DocumentAttributes::default(), &mut String::new())
+            .unwrap());
+    }
+
+    #[test]
+    fn test_ifeval_str_equality() {
+        let line = "ifeval::['ASDF' == ASDF]";
+        let conditional = parse_line(line).unwrap();
+        match &conditional {
+            Conditional::Ifeval(ifeval) => {
+                assert_eq!(ifeval.left, EvalValue::String("'ASDF'".to_string()));
+                assert_eq!(ifeval.operator, Operator::Equal);
+                assert_eq!(ifeval.right, EvalValue::String("ASDF".to_string()));
+            }
+            _ => panic!("Expected Ifeval"),
+        }
+        assert!(conditional
+            .is_true(&DocumentAttributes::default(), &mut String::new())
+            .unwrap());
+    }
+
+    #[test]
+    fn test_ifeval_greater_than_string_vs_number() {
+        let line = "ifeval::['1+1' >= 2]";
+        let conditional = parse_line(line).unwrap();
+        match &conditional {
+            Conditional::Ifeval(ifeval) => {
+                assert_eq!(ifeval.left, EvalValue::String("'1+1'".to_string()));
+                assert_eq!(ifeval.operator, Operator::GreaterThanOrEqual);
+                assert_eq!(ifeval.right, EvalValue::String("2".to_string()));
+                assert!(matches!(
+                    ifeval.evaluate(&DocumentAttributes::default()),
+                    Err(Error::InvalidIfEvalDirectiveMismatchedTypes)
+                ));
             }
             _ => panic!("Expected Ifeval"),
         }
