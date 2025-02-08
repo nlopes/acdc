@@ -41,7 +41,7 @@ pub(crate) struct Ifeval {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub(crate) enum EvalValue {
     String(String),
-    Number(i64),
+    Number(f64),
     Boolean(bool),
 }
 
@@ -117,12 +117,6 @@ peg::parser! {
         rule eval_value() -> String
             = n:$((!operator() ![']'] [_])+)  {
                 n.trim().to_string()
-                //let n = n.trim();
-                // if n.starts_with('\'') && n.ends_with('\'') || n.starts_with('"') && n.ends_with('"') {
-                //     n[1..n.len() - 1].to_string()
-                // } else {
-                //     n.to_string()
-                // }
             }
 
         rule operator() -> Operator
@@ -231,6 +225,8 @@ impl Ifeval {
         let left = self.left.convert(attributes);
         let right = self.right.convert(attributes);
 
+        dbg!((&left, &right));
+
         // TOOD(nlopes): There are a few better ways to do this, but for now, this is
         // fine. I'm just going for functionality.
         match (&left, &right) {
@@ -266,29 +262,44 @@ impl EvalValue {
                 // possible. If not, we assume it's a string and return it as is.
                 if let Ok(value) = s.parse::<bool>() {
                     EvalValue::Boolean(value)
-                } else if let Ok(value) = s.parse::<i64>() {
+                } else if let Ok(value) = s.parse::<f64>() {
                     EvalValue::Number(value)
                 } else {
                     // If we're here, let's check if we can evaluate this as a math expression
                     // and return the result as a number.
                     //
                     // If not, we return the string as is.
-                    if let Ok(value) = evalexpr::eval_int(&s) {
+                    if let Ok(value) = evalexpr::eval_float(&s) {
                         EvalValue::Number(value)
-                    } else {
-                        let s = if s.starts_with('\'') && s.ends_with('\'')
-                            || s.starts_with('"') && s.ends_with('"')
-                        {
-                            s[1..s.len() - 1].to_string()
+                    } else if let Ok(value) = evalexpr::eval_int(&s) {
+                        // We have to have this here because evalexpr::eval_float may
+                        // return an error if the parsed number is an integer.
+                        //
+                        // That means that if we don't get a flot, we try to parse an int.
+                        //
+                        // Because we store everything as a float, we have to convert the
+                        // int to a float.
+                        if let Ok(value) = format!("{value}").parse::<f64>() {
+                            EvalValue::Number(value)
                         } else {
-                            s.to_string()
-                        };
-
-                        EvalValue::String(s)
+                            tracing::error!(value, "failed to parse i64 as f64");
+                            EvalValue::String(Self::strip_quotes(s))
+                        }
+                    } else {
+                        EvalValue::String(Self::strip_quotes(s))
                     }
                 }
             }
             value => value.clone(),
+        }
+    }
+
+    #[tracing::instrument(level = "trace")]
+    fn strip_quotes(s: String) -> String {
+        if s.starts_with('\'') && s.ends_with('\'') {
+            s[1..s.len() - 1].to_string()
+        } else {
+            s.to_string()
         }
     }
 }
