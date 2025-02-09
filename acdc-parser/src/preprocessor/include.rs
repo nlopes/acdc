@@ -42,12 +42,26 @@ pub(crate) struct Include {
     attributes: DocumentAttributes,
 }
 
+/// A line range that an include may specify.
+///
+/// If the range contains `..` then it is a range of lines, if not, it is parsed as a
+/// single line.
+///
+/// There can be multiple of these in an include definition.
 #[derive(Debug)]
 enum LinesRange {
+    /// A single line
     Single(usize),
+
+    /// A range of lines
     Range(usize, isize),
 }
 
+/// The target of the include, which can be a filesystem path pointing to a file, or a
+/// url.
+///
+/// NOTE: Urls will only be fetched if the attribute `allow-uri-read` is set to `true` (or
+/// present).
 #[derive(Debug)]
 pub(crate) enum Target {
     Path(PathBuf),
@@ -221,7 +235,6 @@ impl Include {
                     tracing::error!(?path, "failed to process file: {:?}", e);
                     e
                 })?;
-                let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
                 if let Some(level_offset) = self.level_offset {
                     tracing::warn!(level_offset, "level offset is not supported yet");
                 }
@@ -240,6 +253,7 @@ impl Include {
                 // TODO(nlopes): this is so unoptimized, it isn't even funny but I'm
                 // trying to just get to a place of compatibility, then I can
                 // optimize.
+                let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
                 if self.lines.is_empty() {
                     lines.extend(content_lines);
                 } else {
@@ -247,7 +261,7 @@ impl Include {
                         match line {
                             LinesRange::Single(line_number) => {
                                 if *line_number < 1 {
-                                    // TODO(nlopes): Skip invalid line numbers or should we return an error?
+                                    // Skip invalid line numbers
                                     tracing::warn!(
                                         ?line_number,
                                         "invalid line number in include directive"
