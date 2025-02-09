@@ -223,6 +223,38 @@ impl Include {
         })?
     }
 
+    pub(crate) fn read_content_from_file(&self, file_path: &Path) -> Result<String, Error> {
+        if let Some(ext) = file_path.extension() {
+            // If the file is recognized as an AsciiDoc file (i.e., it has one of the
+            // following extensions: .asciidoc, .adoc, .ad, .asc, or .txt) additional
+            // normalization and processing is performed. First, all trailing whitespace
+            // and endlines are removed from each line and replaced with a Unix line feed.
+            // This normalization is important to how an AsciiDoc processor works. Next,
+            // the AsciiDoc processor runs the preprocessor on the lines, looking for and
+            // interpreting the following directives:
+            //
+            // * includes
+            //
+            // *preprocessor conditionals (e.g., ifdef)
+            //
+            // Running the preprocessor on the included content allows includes to be nested, thus
+            // provides lot of flexibility in constructing radically different documents with a single
+            // primary document and a few command line attributes.
+            if ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref()) {
+                return super::Preprocessor
+                    .process_file(file_path, Some(&self.attributes.clone()))
+                    .map_err(|e| {
+                        tracing::error!(path=?file_path, error=?e, "failed to process file");
+                        e
+                    });
+            }
+        }
+        Ok(std::fs::read_to_string(file_path).map_err(|e| {
+            tracing::error!(path=?file_path, error=?e, "failed to read file");
+            e
+        })?)
+    }
+
     pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
         // TODO(nlopes): need to read the file according to the properties of the include directive.
         //
@@ -231,10 +263,8 @@ impl Include {
         match &self.target {
             Target::Path(path) => {
                 let path = self.file_parent.join(path);
-                let content = super::Preprocessor.process_file(&path).map_err(|e| {
-                    tracing::error!(?path, "failed to process file: {:?}", e);
-                    e
-                })?;
+                let content = self.read_content_from_file(&path)?;
+
                 if let Some(level_offset) = self.level_offset {
                     tracing::warn!(level_offset, "level offset is not supported yet");
                 }
