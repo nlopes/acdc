@@ -87,7 +87,7 @@ pub(crate) struct InnerPestParser;
 /// This function returns an error if the content cannot be parsed.
 #[instrument(skip(reader))]
 pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error> {
-    let input = Preprocessor.process_reader(reader)?;
+    let input = Preprocessor.process_reader(reader, None)?;
     parse_input(input)
 }
 
@@ -108,7 +108,7 @@ pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error>
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str) -> Result<Document, Error> {
-    let input = Preprocessor.process(input)?;
+    let input = Preprocessor.process(input, None)?;
     parse_input(input)
 }
 
@@ -130,7 +130,7 @@ pub fn parse(input: &str) -> Result<Document, Error> {
 /// This function returns an error if the content cannot be parsed.
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P) -> Result<Document, Error> {
-    let input = Preprocessor.process_file(file_path)?;
+    let input = Preprocessor.process_file(file_path, None)?;
     parse_input(input)
 }
 

@@ -22,22 +22,34 @@ impl Preprocessor {
     }
 
     #[tracing::instrument(skip(reader))]
-    pub fn process_reader<R: std::io::Read>(&self, mut reader: R) -> Result<String, Error> {
+    pub(crate) fn process_reader<R: std::io::Read>(
+        &self,
+        mut reader: R,
+        attributes: Option<&DocumentAttributes>,
+    ) -> Result<String, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).map_err(|e| {
             tracing::error!("failed to read from reader: {:?}", e);
             e
         })?;
-        self.process(&input)
+        self.process(&input, attributes)
     }
 
     #[tracing::instrument]
-    pub fn process(&self, input: &str) -> Result<String, Error> {
-        self.process_either(input, None)
+    pub(crate) fn process(
+        &self,
+        input: &str,
+        attributes: Option<&DocumentAttributes>,
+    ) -> Result<String, Error> {
+        self.process_either(input, None, attributes)
     }
 
     #[tracing::instrument(skip(file_path))]
-    pub fn process_file<P: AsRef<Path>>(&self, file_path: P) -> Result<String, Error> {
+    pub(crate) fn process_file<P: AsRef<Path>>(
+        &self,
+        file_path: P,
+        attributes: Option<&DocumentAttributes>,
+    ) -> Result<String, Error> {
         let file_parent = file_path
             .as_ref()
             .parent()
@@ -51,13 +63,22 @@ impl Preprocessor {
             );
             e
         })?;
-        self.process_either(&input, Some(file_parent))
+        self.process_either(&input, Some(file_parent), attributes)
     }
 
     #[tracing::instrument]
-    fn process_either(&self, input: &str, file_parent: Option<&Path>) -> Result<String, Error> {
+    fn process_either(
+        &self,
+        input: &str,
+        file_parent: Option<&Path>,
+        attributes: Option<&DocumentAttributes>,
+    ) -> Result<String, Error> {
         let input = Preprocessor::normalize(input);
-        let mut attributes = DocumentAttributes::default();
+        let mut attributes = if let Some(attributes) = attributes {
+            attributes.clone()
+        } else {
+            DocumentAttributes::default()
+        };
         let mut output = Vec::new();
         let mut lines = input.lines().peekable();
         while let Some(line) = lines.next() {
@@ -178,7 +199,7 @@ ifdef::attribute[]
 content
 endif::[]
 ";
-        let output = Preprocessor.process(input).unwrap();
+        let output = Preprocessor.process(input, None).unwrap();
         assert_eq!(output, ":attribute: value\n\ncontent\n");
     }
 
@@ -189,7 +210,7 @@ endif::[]
 ifdef::asdf[]
 content
 endif::asdf[]";
-        let output = Preprocessor.process(input).unwrap();
+        let output = Preprocessor.process(input, None).unwrap();
         assert_eq!(output, ":asdf:\n\ncontent\n");
     }
 
@@ -198,7 +219,7 @@ endif::asdf[]";
         let input = "ifdef::asdf[]
 content
 endif::another[]";
-        let output = Preprocessor.process(input);
+        let output = Preprocessor.process(input, None);
         assert!(matches!(output, Err(Error::InvalidConditionalDirective)));
     }
 }
