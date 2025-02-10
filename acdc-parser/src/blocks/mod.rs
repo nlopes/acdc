@@ -10,10 +10,13 @@ mod video;
 
 use pest::iterators::Pairs;
 
-use crate::{Block, DocumentAttribute, DocumentAttributes, Error, Location, Rule, Section};
+use crate::{
+    Block, DocumentAttribute, DocumentAttributes, Error, Location, Options, Rule, Section,
+};
 
 pub(crate) fn parse(
     pairs: Pairs<Rule>,
+    options: &Options,
     parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Vec<Block>, Error> {
@@ -31,6 +34,7 @@ pub(crate) fn parse(
             Rule::blocks => {
                 blocks.extend(parse(
                     pair.into_inner(),
+                    options,
                     parent_location,
                     parent_attributes,
                 )?);
@@ -38,19 +42,25 @@ pub(crate) fn parse(
             Rule::block => {
                 blocks.push(Block::parse(
                     pair.into_inner(),
+                    options,
                     parent_location,
                     parent_attributes,
                 )?);
             }
             Rule::section => {
-                blocks.push(Section::parse(&pair, parent_location, parent_attributes)?);
+                blocks.push(Section::parse(
+                    &pair,
+                    options,
+                    parent_location,
+                    parent_attributes,
+                )?);
             }
             Rule::document_attribute => {
                 if parent_location.is_some() {
                     tracing::warn!("document attribute should account for parent_location");
                 }
                 let (name, value) =
-                    DocumentAttribute::parse(pair.clone().into_inner(), parent_attributes);
+                    DocumentAttribute::parse(pair.clone().into_inner(), options, parent_attributes);
                 let attribute = DocumentAttribute {
                     name,
                     value,

@@ -104,7 +104,7 @@ pub fn parse_from_reader<R: std::io::Read>(
     options: &Options,
 ) -> Result<Document, Error> {
     let input = Preprocessor.process_reader(reader, options)?;
-    parse_input(input)
+    parse_input(input, options)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -130,7 +130,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process(input, options)?;
-    parse_input(input)
+    parse_input(input, options)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -157,15 +157,15 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process_file(file_path, options)?;
-    parse_input(input)
+    parse_input(input, options)
 }
 
 #[instrument]
-fn parse_input(input: String) -> Result<Document, Error> {
+fn parse_input(input: String, options: &Options) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
     let pairs = InnerPestParser::parse(Rule::document, &input);
     match pairs {
-        Ok(pairs) => Document::parse(pairs),
+        Ok(pairs) => Document::parse(pairs, options),
         Err(e) => {
             tracing::error!("error parsing document content: {e}");
             Err(Error::Parse(e.to_string()))

@@ -3,7 +3,7 @@ use pest::{iterators::Pair, Parser as _};
 use crate::{
     inline_preprocessing, inlines::parse_inlines, model::DiscreteHeaderSection, Anchor,
     AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error,
-    InnerPestParser, Location, ParserState, Rule, Section,
+    InnerPestParser, Location, Options, ParserState, Rule, Section,
 };
 
 // TODO(nlopes): this might be parser as part of the inner content of a delimited block
@@ -15,6 +15,7 @@ impl Section {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn parse(
         pair: &Pair<Rule>,
+        options: &Options,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
@@ -74,6 +75,7 @@ impl Section {
                             Rule::section => {
                                 content.push(Section::parse(
                                     &pair,
+                                    options,
                                     parent_location,
                                     parent_attributes,
                                 )?);
@@ -81,6 +83,7 @@ impl Section {
                             Rule::block => {
                                 content.push(Block::parse(
                                     pair.into_inner(),
+                                    options,
                                     parent_location,
                                     parent_attributes,
                                 )?);
