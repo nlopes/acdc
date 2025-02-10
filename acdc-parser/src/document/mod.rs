@@ -7,13 +7,13 @@ mod validate;
 use pest::iterators::Pairs;
 use tracing::instrument;
 
-use crate::{blocks, Document, DocumentAttributes, Error, Header, Location, Rule};
+use crate::{blocks, Document, Error, Header, Location, Options, Rule};
 
 impl Document {
     #[instrument(level = "trace")]
-    pub(crate) fn parse(pairs: Pairs<Rule>) -> Result<Self, Error> {
+    pub(crate) fn parse(pairs: Pairs<Rule>, options: &Options) -> Result<Self, Error> {
         let mut document_header = None;
-        let mut attributes = DocumentAttributes::default();
+        let mut attributes = options.document_attributes.clone();
         let mut blocks = Vec::new();
         let mut location = Location::default();
 
@@ -27,10 +27,15 @@ impl Document {
             }
             match pair.as_rule() {
                 Rule::document_header => {
-                    document_header = Header::parse(pair.into_inner(), &mut attributes)?;
+                    document_header = Header::parse(pair.into_inner(), options, &mut attributes)?;
                 }
                 Rule::blocks => {
-                    blocks.extend(blocks::parse(pair.into_inner(), None, &mut attributes)?);
+                    blocks.extend(blocks::parse(
+                        pair.into_inner(),
+                        options,
+                        None,
+                        &mut attributes,
+                    )?);
                 }
                 Rule::comment | Rule::EOI => {}
                 unknown => unimplemented!("{:?}", unknown),

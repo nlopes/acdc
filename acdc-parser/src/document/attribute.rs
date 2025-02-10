@@ -1,10 +1,11 @@
 use pest::iterators::Pairs;
 
-use crate::{AttributeName, AttributeValue, DocumentAttribute, DocumentAttributes, Rule};
+use crate::{AttributeName, AttributeValue, DocumentAttribute, DocumentAttributes, Options, Rule};
 
 impl DocumentAttribute {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        options: &Options,
         parent_attributes: &mut DocumentAttributes,
     ) -> (AttributeName, AttributeValue) {
         let mut unset = false;
@@ -34,7 +35,13 @@ impl DocumentAttribute {
         } else {
             (name.to_string(), AttributeValue::Bool(true))
         };
-        parent_attributes.insert(name.clone(), value.clone());
+
+        // If we don't have this attribute in the options attributes, we add it.
+        if options.document_attributes.contains_key(&name) && !parent_attributes.contains_key(&name)
+            || !options.document_attributes.contains_key(&name)
+        {
+            parent_attributes.insert(name.clone(), value.clone());
+        }
         (name, value)
     }
 }

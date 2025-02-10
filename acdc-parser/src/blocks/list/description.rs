@@ -2,12 +2,13 @@ use pest::iterators::Pairs;
 
 use crate::{
     blocks, Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
-    DescriptionListItem, DocumentAttributes, Error, InlineNode, Location, Rule,
+    DescriptionListItem, DocumentAttributes, Error, InlineNode, Location, Options, Rule,
 };
 
 impl DescriptionList {
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        options: &Options,
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
         _parent_location: Option<&Location>,
@@ -40,6 +41,7 @@ impl DescriptionList {
                             Rule::blocks => {
                                 let description = blocks::parse(
                                     inner_pair.into_inner(),
+                                    options,
                                     Some(&location),
                                     parent_attributes,
                                 )?;
@@ -69,6 +71,7 @@ impl DescriptionList {
                                 // description list
                                 blocks.push(Block::parse(
                                     inner_pair.into_inner(),
+                                    options,
                                     Some(&location),
                                     parent_attributes,
                                 )?);

@@ -48,8 +48,13 @@ impl Document {
         self.0.is_empty()
     }
 
+    // Insert a new attribute into the document.
+    //
+    // NOTE: This will *NOT* overwrite an existing attribute with the same name.
     pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
-        self.0.insert(name, value);
+        if !self.contains_key(&name) {
+            self.0.insert(name, value);
+        }
     }
 
     #[must_use]
