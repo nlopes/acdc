@@ -1,7 +1,7 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
 use std::path::Path;
 
-use crate::{error::Error, DocumentAttributes};
+use crate::{error::Error, Options};
 
 mod attribute;
 mod conditional;
@@ -25,30 +25,26 @@ impl Preprocessor {
     pub(crate) fn process_reader<R: std::io::Read>(
         &self,
         mut reader: R,
-        attributes: Option<&DocumentAttributes>,
+        options: &Options,
     ) -> Result<String, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).map_err(|e| {
             tracing::error!("failed to read from reader: {:?}", e);
             e
         })?;
-        self.process(&input, attributes)
+        self.process(&input, options)
     }
 
     #[tracing::instrument]
-    pub(crate) fn process(
-        &self,
-        input: &str,
-        attributes: Option<&DocumentAttributes>,
-    ) -> Result<String, Error> {
-        self.process_either(input, None, attributes)
+    pub(crate) fn process(&self, input: &str, options: &Options) -> Result<String, Error> {
+        self.process_either(input, None, options)
     }
 
     #[tracing::instrument(skip(file_path))]
     pub(crate) fn process_file<P: AsRef<Path>>(
         &self,
         file_path: P,
-        attributes: Option<&DocumentAttributes>,
+        options: &Options,
     ) -> Result<String, Error> {
         let file_parent = file_path
             .as_ref()
@@ -63,7 +59,7 @@ impl Preprocessor {
             );
             e
         })?;
-        self.process_either(&input, Some(file_parent), attributes)
+        self.process_either(&input, Some(file_parent), options)
     }
 
     #[tracing::instrument]
@@ -71,14 +67,10 @@ impl Preprocessor {
         &self,
         input: &str,
         file_parent: Option<&Path>,
-        attributes: Option<&DocumentAttributes>,
+        options: &Options,
     ) -> Result<String, Error> {
         let input = Preprocessor::normalize(input);
-        let mut attributes = if let Some(attributes) = attributes {
-            attributes.clone()
-        } else {
-            DocumentAttributes::default()
-        };
+        let mut options = options.clone();
         let mut output = Vec::new();
         let mut lines = input.lines().peekable();
         while let Some(line) = lines.next() {
@@ -114,11 +106,11 @@ impl Preprocessor {
                         break;
                     }
                 }
-                attribute::parse_line(&mut attributes, attribute_content.as_str());
+                attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
                 output.push(attribute_content);
                 continue;
             } else if line.starts_with(':') {
-                attribute::parse_line(&mut attributes, line.trim());
+                attribute::parse_line(&mut options.document_attributes, line.trim());
             }
             // Taken from
             // https://github.com/asciidoctor/asciidoctor/blob/306111f480e2853ba59107336408de15253ca165/lib/asciidoctor/reader.rb#L604
@@ -159,13 +151,13 @@ impl Preprocessor {
                         content.push_str(&format!("{next_line}\n"));
                         lines.next();
                     }
-                    if condition.is_true(&attributes, &mut content)? {
+                    if condition.is_true(&options.document_attributes, &mut content)? {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
                     if let Some(file_parent) = file_parent {
                         // Parse the include directive
-                        let include = Include::parse(file_parent, line, &attributes)?;
+                        let include = Include::parse(file_parent, line, &options)?;
                         // Process the include directive
                         output.extend(include.lines()?);
                     } else {
@@ -193,33 +185,36 @@ mod tests {
 
     #[test]
     fn test_process() {
+        let options = Options::default();
         let input = ":attribute: value
 
 ifdef::attribute[]
 content
 endif::[]
 ";
-        let output = Preprocessor.process(input, None).unwrap();
+        let output = Preprocessor.process(input, &options).unwrap();
         assert_eq!(output, ":attribute: value\n\ncontent\n");
     }
 
     #[test]
     fn test_good_endif_directive() {
+        let options = Options::default();
         let input = ":asdf:
 
 ifdef::asdf[]
 content
 endif::asdf[]";
-        let output = Preprocessor.process(input, None).unwrap();
+        let output = Preprocessor.process(input, &options).unwrap();
         assert_eq!(output, ":asdf:\n\ncontent\n");
     }
 
     #[test]
     fn test_bad_endif_directive() {
+        let options = Options::default();
         let input = "ifdef::asdf[]
 content
 endif::another[]";
-        let output = Preprocessor.process(input, None);
+        let output = Preprocessor.process(input, &options);
         assert!(matches!(output, Err(Error::InvalidConditionalDirective)));
     }
 }

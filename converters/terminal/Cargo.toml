@@ -1,12 +1,13 @@
 [package]
 name = "acdc-terminal"
+description = "`cat` like converter for `AsciiDoc` documents"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description.workspace = true
 
 [dependencies]
 acdc-converters-common.workspace = true
+acdc-core.workspace = true
 acdc-parser.workspace = true
 clap.workspace = true
 comfy-table = "7.1.4"
