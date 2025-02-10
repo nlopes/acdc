@@ -36,8 +36,12 @@ struct Args {
     #[arg(long, value_enum, default_value_t = Doctype::Article)]
     doctype: Doctype,
 
+    /// set safe mode to safe
+    #[arg(long, conflicts_with = "safe_mode")]
+    safe: bool,
+
     /// safe mode to use when converting document
-    #[arg(long, value_enum, default_value_t = SafeMode::Unsafe)]
+    #[arg(short = 'S', long, value_enum, default_value_t = SafeMode::Unsafe)]
     safe_mode: SafeMode,
 
     /// input from stdin
@@ -68,6 +72,11 @@ fn main() -> Result<()> {
 
     let args = Args::parse();
     let document_attributes = build_attributes_map(&args.attributes);
+    let safe_mode = if args.safe {
+        SafeMode::Safe
+    } else {
+        args.safe_mode.clone()
+    };
 
     let mut options = Options {
         generator_metadata: GeneratorMetadata::new(
@@ -75,7 +84,7 @@ fn main() -> Result<()> {
             env!("CARGO_PKG_VERSION"),
         ),
         doctype: args.doctype.clone(),
-        safe_mode: args.safe_mode.clone(),
+        safe_mode,
         source: Source::Files(args.files.clone()),
         timings: args.timings,
         document_attributes,

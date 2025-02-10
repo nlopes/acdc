@@ -5,6 +5,7 @@ use std::{
     str::FromStr,
 };
 
+use acdc_core::SafeMode;
 use encoding_rs::{Encoding, UTF_8};
 use url::Url;
 
@@ -297,6 +298,10 @@ impl Include {
         let path = match &self.target {
             Target::Path(path) => self.file_parent.join(path),
             Target::Url(url) => {
+                if self.options.safe_mode > SafeMode::Server {
+                    tracing::warn!(safe_mode=?self.options.safe_mode, "URL includes are disabled by default. If you want to enable them, must run in `SERVER` mode or less.");
+                    return Ok(lines);
+                }
                 if self
                     .options
                     .document_attributes
