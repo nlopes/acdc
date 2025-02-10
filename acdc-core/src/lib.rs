@@ -24,11 +24,11 @@ impl std::fmt::Display for Doctype {
 }
 
 /// safe mode to use when converting document
-#[derive(Debug, Clone, ValueEnum, Default)]
+#[derive(Debug, Clone, ValueEnum, Default, PartialOrd, PartialEq)]
 pub enum SafeMode {
-    Safe,
     #[default]
-    Unsafe,
+    Unsafe = 0,
+    Safe,
     Server,
     Secure,
 }
