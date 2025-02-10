@@ -16,7 +16,8 @@
 /// the parser and write the output to `stdout`.
 use std::io::{self, BufReader, Write};
 
-use acdc_converters_common::{Config, Processable, Source};
+use acdc_converters_common::{Options, Processable};
+use acdc_core::Source;
 use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]
@@ -40,21 +41,21 @@ struct TckInput {
 
 #[derive(Debug)]
 pub struct Processor {
-    config: Config,
+    options: Options,
 }
 
 impl Processable for Processor {
-    type Config = Config;
+    type Options = Options;
     type Error = Error;
 
     #[must_use]
-    fn new(config: Config) -> Self {
-        Self { config }
+    fn new(options: Options) -> Self {
+        Self { options }
     }
 
     #[tracing::instrument]
     fn run(&self) -> Result<(), Error> {
-        if self.config.source != Source::Stdin {
+        if self.options.source != Source::Stdin {
             return Err(Error::Io(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "only stdin is supported",
@@ -68,7 +69,14 @@ impl Processable for Processor {
             r#type = tck_input.r#type,
             "processing TCK input",
         );
-        let doc = acdc_parser::parse(&tck_input.contents)?;
+
+        let options = acdc_parser::Options {
+            safe_mode: self.options.safe_mode.clone(),
+            timings: self.options.timings,
+            document_attributes: self.options.document_attributes.clone(),
+        };
+
+        let doc = acdc_parser::parse(&tck_input.contents, &options)?;
         let mut stdout = io::stdout();
         serde_json::to_writer(&stdout, &doc)?;
         stdout.flush()?;

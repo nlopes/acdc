@@ -19,6 +19,7 @@ impl Render for Block {
             Block::DelimitedBlock(d) => d.render(w, processor, options),
             Block::Section(s) => s.render(w, processor, options),
             Block::UnorderedList(u) => u.render(w, processor, options),
+            Block::DocumentAttribute(_) => Ok(()),
             unknown => todo!("rendering for block type: {:?}", unknown),
         }
     }

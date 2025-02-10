@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{Config, Doctype, GeneratorMetadata, Processable, SafeMode, Source};
+use acdc_converters_common::{GeneratorMetadata, Options, Processable};
+use acdc_core::{Doctype, SafeMode, Source};
+use acdc_parser::{AttributeValue, DocumentAttributes};
 use anyhow::Result;
-use clap::{Parser, ValueEnum};
+use clap::{ArgAction, Parser, ValueEnum};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -45,6 +47,15 @@ struct Args {
     /// timing information
     #[arg(long)]
     timings: bool,
+
+    /// attributes to pass to the backend
+    #[arg(
+        short = 'a',
+        long = "attribute",
+        value_name = "NAME[=VALUE | !]",
+        action = ArgAction::Append
+    )]
+    attributes: Vec<String>,
 }
 
 fn main() -> Result<()> {
@@ -56,8 +67,9 @@ fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
+    let document_attributes = build_attributes_map(&args.attributes);
 
-    let mut config = Config {
+    let mut options = Options {
         generator_metadata: GeneratorMetadata::new(
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_VERSION"),
@@ -66,27 +78,28 @@ fn main() -> Result<()> {
         safe_mode: args.safe_mode.clone(),
         source: Source::Files(args.files.clone()),
         timings: args.timings,
+        document_attributes,
     };
 
     if args.stdin {
         tracing::debug!("Reading from stdin");
-        config.source = Source::Stdin;
+        options.source = Source::Stdin;
     }
 
     match args.backend {
         Backend::Html => {
-            run_processor(&args, acdc_html::Processor::new(config))?;
+            run_processor(&args, acdc_html::Processor::new(options))?;
         }
 
         #[cfg(feature = "tck")]
         Backend::Tck => {
-            config.source = Source::Stdin;
-            acdc_tck::Processor::new(config).run()?;
+            options.source = Source::Stdin;
+            acdc_tck::Processor::new(options).run()?;
         }
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {
-            run_processor(&args, acdc_terminal::Processor::new(config))?;
+            run_processor(&args, acdc_terminal::Processor::new(options))?;
         }
     };
 
@@ -106,4 +119,19 @@ fn run_processor<P: Processable>(args: &Args, processor: P) -> Result<(), P::Err
     }
 
     Ok(())
+}
+
+fn build_attributes_map(values: &[String]) -> DocumentAttributes {
+    let mut map = DocumentAttributes::default();
+    for raw_attr in values {
+        let (name, val) = if let Some(stripped) = raw_attr.strip_suffix('!') {
+            (stripped.to_string(), AttributeValue::None)
+        } else if let Some((name, val)) = raw_attr.split_once('=') {
+            (name.to_string(), AttributeValue::String(val.to_string()))
+        } else {
+            (raw_attr.to_string(), AttributeValue::Bool(true))
+        };
+        map.insert(name, val);
+    }
+    map
 }

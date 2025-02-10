@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use acdc_converters_common::{Config, Processable, Source};
+use acdc_converters_common::{Options, Processable};
+use acdc_core::Source;
 use acdc_parser::Document;
 
 #[derive(thiserror::Error, Debug)]
@@ -35,34 +36,39 @@ trait Render {
 }
 
 pub struct Processor {
-    config: Config,
+    options: Options,
 }
 
 impl ToTerminal for Document {}
 
 impl Processable for Processor {
-    type Config = Config;
+    type Options = Options;
     type Error = Error;
 
     #[must_use]
-    fn new(config: Config) -> Self {
-        Self { config }
+    fn new(options: Options) -> Self {
+        Self { options }
     }
 
     fn run(&self) -> Result<(), Error> {
-        match &self.config.source {
+        let options = acdc_parser::Options {
+            safe_mode: self.options.safe_mode.clone(),
+            timings: self.options.timings,
+            document_attributes: self.options.document_attributes.clone(),
+        };
+        match &self.options.source {
             Source::Files(files) => {
                 for file in files {
-                    acdc_parser::parse_file(file)?.to_terminal()?;
+                    acdc_parser::parse_file(file, &options)?.to_terminal()?;
                 }
             }
             Source::String(content) => {
-                acdc_parser::parse(content)?.to_terminal()?;
+                acdc_parser::parse(content, &options)?.to_terminal()?;
             }
             Source::Stdin => {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
-                acdc_parser::parse_from_reader(&mut reader)?.to_terminal()?;
+                acdc_parser::parse_from_reader(&mut reader, &options)?.to_terminal()?;
             }
         }
 
@@ -70,19 +76,24 @@ impl Processable for Processor {
     }
 
     fn output(&self) -> Result<String, Self::Error> {
-        match &self.config.source {
+        let options = acdc_parser::Options {
+            safe_mode: self.options.safe_mode.clone(),
+            timings: self.options.timings,
+            document_attributes: self.options.document_attributes.clone(),
+        };
+        match &self.options.source {
             Source::Files(files) => {
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
                 for file in files {
-                    let doc = acdc_parser::parse_file(file)?;
+                    let doc = acdc_parser::parse_file(file, &options)?;
                     doc.render(&mut writer)?;
                 }
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
             }
             Source::String(content) => {
-                let doc = acdc_parser::parse(content)?;
+                let doc = acdc_parser::parse(content, &options)?;
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
                 doc.render(&mut writer)?;
@@ -92,7 +103,7 @@ impl Processable for Processor {
             Source::Stdin => {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
-                let doc = acdc_parser::parse_from_reader(&mut reader)?;
+                let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
                 doc.render(&mut writer)?;

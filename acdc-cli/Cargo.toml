@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 acdc-converters-common.workspace = true
+acdc-core.workspace = true
 acdc-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
 acdc-tck = { path = "../converters/tck", optional = true }

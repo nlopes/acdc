@@ -1,12 +1,13 @@
 [package]
 name = "acdc-html"
+description = "HTML converter"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description.workspace = true
 
 [dependencies]
 acdc-converters-common.workspace = true
+acdc-core.workspace = true
 acdc-parser.workspace = true
 chrono = "0.4.39"
 thiserror.workspace = true

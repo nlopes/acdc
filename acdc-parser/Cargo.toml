@@ -6,7 +6,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-acdc-converters-common.workspace = true
+acdc-core.workspace = true
 encoding_rs = "0.8"
 evalexpr = "12"
 peg = "0.8.4"

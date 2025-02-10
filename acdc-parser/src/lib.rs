@@ -31,6 +31,7 @@
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
 
+use acdc_core::SafeMode;
 use pest::Parser as _;
 use pest_derive::Parser;
 use tracing::instrument;
@@ -59,6 +60,13 @@ pub use model::{
     TableRow, ThematicBreak, UnorderedList, Url, Video, VideoSource,
 };
 
+#[derive(Debug, Clone, Default)]
+pub struct Options {
+    pub safe_mode: SafeMode,
+    pub timings: bool,
+    pub document_attributes: DocumentAttributes,
+}
+
 #[derive(Parser, Debug)]
 #[grammar = "../grammar/inlines.pest"]
 #[grammar = "../grammar/block.pest"]
@@ -79,15 +87,23 @@ pub(crate) struct InnerPestParser;
 /// use acdc_parser::parse_from_reader;
 /// use std::fs::File;
 ///
+/// let options = acdc_parser::Options {
+///     safe_mode: acdc_core::SafeMode::Unsafe,
+///     timings: false,
+///     document_attributes: acdc_parser::DocumentAttributes::default(),
+/// };
 /// let file = File::open("fixtures/samples/README.adoc").unwrap();
-/// let document = parse_from_reader(file).unwrap();
+/// let document = parse_from_reader(file, &options).unwrap();
 /// ```
 ///
 /// # Errors
 /// This function returns an error if the content cannot be parsed.
 #[instrument(skip(reader))]
-pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error> {
-    let input = Preprocessor.process_reader(reader, None)?;
+pub fn parse_from_reader<R: std::io::Read>(
+    reader: R,
+    options: &Options,
+) -> Result<Document, Error> {
+    let input = Preprocessor.process_reader(reader, options)?;
     parse_input(input)
 }
 
@@ -100,15 +116,20 @@ pub fn parse_from_reader<R: std::io::Read>(reader: R) -> Result<Document, Error>
 /// ```
 /// use acdc_parser::parse;
 ///
+/// let options = acdc_parser::Options {
+///     safe_mode: acdc_core::SafeMode::Unsafe,
+///     timings: false,
+///     document_attributes: acdc_parser::DocumentAttributes::default(),
+/// };
 /// let content = r#"= Document Title\n\nThis is a paragraph.\n\n== Section Title\n\nThis is a subsection."#;
-/// let document = parse(content).unwrap();
+/// let document = parse(content, &options).unwrap();
 /// ```
 ///
 /// # Errors
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
-pub fn parse(input: &str) -> Result<Document, Error> {
-    let input = Preprocessor.process(input, None)?;
+pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
+    let input = Preprocessor.process(input, options)?;
     parse_input(input)
 }
 
@@ -122,15 +143,20 @@ pub fn parse(input: &str) -> Result<Document, Error> {
 /// use acdc_parser::parse_file;
 /// use std::path::Path;
 ///
+/// let options = acdc_parser::Options {
+///     safe_mode: acdc_core::SafeMode::Unsafe,
+///     timings: false,
+///     document_attributes: acdc_parser::DocumentAttributes::default(),
+/// };
 /// let file_path = Path::new("fixtures/samples/README.adoc");
-/// let document = parse_file(file_path).unwrap();
+/// let document = parse_file(file_path, &options).unwrap();
 /// ```
 ///
 /// # Errors
 /// This function returns an error if the content cannot be parsed.
 #[instrument(skip(file_path))]
-pub fn parse_file<P: AsRef<Path>>(file_path: P) -> Result<Document, Error> {
-    let input = Preprocessor.process_file(file_path, None)?;
+pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
+    let input = Preprocessor.process_file(file_path, options)?;
     parse_input(input)
 }
 
@@ -156,12 +182,17 @@ mod tests {
     #[trace]
     fn for_each_file(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
         let test_file_path = path.with_extension("json");
+        let options = Options {
+            safe_mode: SafeMode::Unsafe,
+            timings: false,
+            document_attributes: DocumentAttributes::default(),
+        };
 
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
         if test_file_path.exists() {
             let test_file_contents = std::fs::read_to_string(test_file_path).unwrap();
-            match parse_file(path.clone()) {
+            match parse_file(&path, &options) {
                 Ok(result) => {
                     let result_str = serde_json::to_string(&result).unwrap();
                     let test: Document = serde_json::from_str(&test_file_contents).unwrap();

@@ -1,14 +1,12 @@
 [package]
-name = "acdc-converters-common"
+name = "acdc-core"
+description = "Shared set of data structures and types"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description.workspace = true
 
 [dependencies]
 clap.workspace = true
-acdc-parser = { path = "../../acdc-parser" }
-acdc-core.workspace = true
 
 [lints]
 workspace = true

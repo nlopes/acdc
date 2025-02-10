@@ -7,6 +7,7 @@ name = "acdc-cli"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
+ "acdc-core",
  "acdc-html",
  "acdc-parser",
  "acdc-tck",
@@ -23,6 +24,15 @@ dependencies = [
 name = "acdc-converters-common"
 version = "0.1.0"
 dependencies = [
+ "acdc-core",
+ "acdc-parser",
+ "clap",
+]
+
+[[package]]
+name = "acdc-core"
+version = "0.1.0"
+dependencies = [
  "clap",
 ]
 
@@ -31,6 +41,7 @@ name = "acdc-html"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
+ "acdc-core",
  "acdc-parser",
  "chrono",
  "thiserror",
@@ -41,7 +52,7 @@ dependencies = [
 name = "acdc-parser"
 version = "0.1.0"
 dependencies = [
- "acdc-converters-common",
+ "acdc-core",
  "encoding_rs",
  "evalexpr",
  "peg",
@@ -63,6 +74,7 @@ name = "acdc-tck"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
+ "acdc-core",
  "acdc-parser",
  "serde",
  "serde_json",
@@ -75,6 +87,7 @@ name = "acdc-terminal"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
+ "acdc-core",
  "acdc-parser",
  "clap",
  "comfy-table",
