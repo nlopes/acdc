@@ -121,5 +121,5 @@ one_line_plain_text = {
 }
 
 plain_text = {
-    (&(!(NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+
+    (&(!(NEWLINE ~ EOI | NEWLINE{2,} | EOI | non_plain_text)) ~ ANY)+
 }
