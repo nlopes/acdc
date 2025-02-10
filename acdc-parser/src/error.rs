@@ -44,6 +44,16 @@ pub enum Error {
 
     #[error("Invalid ifeval directive")]
     InvalidIfEvalDirectiveMismatchedTypes,
+
+    #[error("Unknown encoding: {0}")]
+    UnknownEncoding(String),
+
+    #[error("Unrecognized encoding in file: {0}")]
+    UnrecognizedEncodingInFile(String),
+
+    #[error("Unable to retrieve HTTP response: {0}")]
+    #[serde(skip_deserializing)]
+    HttpRequest(#[from] reqwest::Error),
 }
 
 #[derive(Debug, PartialEq, Deserialize)]

@@ -1,14 +1,17 @@
 use std::{
+    fs::File,
+    io,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
+use encoding_rs::{Encoding, UTF_8};
 use url::Url;
 
 use crate::{
     error::Error,
     model::{Substitute, HEADER},
-    DocumentAttributes,
+    DocumentAttributes, Preprocessor,
 };
 
 /**
@@ -34,7 +37,7 @@ pub(crate) struct Include {
     file_parent: PathBuf,
     target: Target,
     level_offset: Option<isize>,
-    lines: Vec<LinesRange>,
+    line_range: Vec<LinesRange>,
     tags: Vec<String>,
     indent: Option<usize>,
     encoding: Option<String>,
@@ -84,7 +87,7 @@ peg::parser! {
                     file_parent: path.to_path_buf(),
                     target,
                     level_offset: None,
-                    lines: Vec::new(),
+                    line_range: Vec::new(),
                     tags: Vec::new(),
                     indent: None,
                     encoding: None,
@@ -179,10 +182,11 @@ impl Include {
                     );
                 }
                 "lines" => {
-                    self.lines.extend(LinesRange::parse(&value).map_err(|e| {
-                        tracing::error!(?value, "failed to parse lines attribute: {:?}", e);
-                        e
-                    })?);
+                    self.line_range
+                        .extend(LinesRange::parse(&value).map_err(|e| {
+                            tracing::error!(?value, "failed to parse lines attribute: {:?}", e);
+                            e
+                        })?);
                 }
                 "tag" => {
                     self.tags.push(value.to_string());
@@ -224,6 +228,7 @@ impl Include {
     }
 
     pub(crate) fn read_content_from_file(&self, file_path: &Path) -> Result<String, Error> {
+        let content = self.decode_file(file_path)?;
         if let Some(ext) = file_path.extension() {
             // If the file is recognized as an AsciiDoc file (i.e., it has one of the
             // following extensions: .asciidoc, .adoc, .ad, .asc, or .txt) additional
@@ -235,123 +240,171 @@ impl Include {
             //
             // * includes
             //
-            // *preprocessor conditionals (e.g., ifdef)
+            // * preprocessor conditionals (e.g., ifdef)
             //
             // Running the preprocessor on the included content allows includes to be nested, thus
             // provides lot of flexibility in constructing radically different documents with a single
             // primary document and a few command line attributes.
             if ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref()) {
                 return super::Preprocessor
-                    .process_file(file_path, Some(&self.attributes.clone()))
+                    .process(&content, Some(&self.attributes.clone()))
                     .map_err(|e| {
                         tracing::error!(path=?file_path, error=?e, "failed to process file");
                         e
                     });
             }
         }
-        Ok(std::fs::read_to_string(file_path).map_err(|e| {
-            tracing::error!(path=?file_path, error=?e, "failed to read file");
-            e
-        })?)
+
+        // If we're here, we still need to normalize the content.
+        Ok(Preprocessor::normalize(&content))
+    }
+
+    fn decode_file(&self, file_path: &Path) -> Result<String, Error> {
+        let bytes = std::fs::read(file_path)?;
+
+        // If there was an encoding specified, then we try to decode the entire file as that.
+        if let Some(enc_label) = &self.encoding {
+            if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {
+                let (cow, _, had_errors) = encoding.decode(&bytes);
+                if had_errors {
+                    tracing::error!("decoding encountered errors");
+                }
+                return Ok(cow.into_owned());
+            }
+            return Err(Error::UnknownEncoding(enc_label.to_string()));
+        }
+
+        // If no encoding specified, first check for UTF-8 BOM (EF BB BF)
+        if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+            // Skip the first 3 bytes (the BOM) and decode as UTF-8
+            let (cow, _, had_errors) = UTF_8.decode(&bytes[3..]);
+            if had_errors {
+                tracing::error!("UTF-8 decoding (with BOM) encountered errors");
+            }
+            return Ok(cow.into_owned());
+        }
+
+        // If no BOM, try decoding as UTF-8 directly
+        let (cow, _, had_errors) = UTF_8.decode(&bytes);
+        if !had_errors {
+            return Ok(cow.into_owned());
+        }
+
+        // If you get here, the file is not valid UTF-8 (and no BOM).
+        Err(Error::UnrecognizedEncodingInFile(
+            file_path.to_path_buf().display().to_string(),
+        ))
     }
 
     pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
-        // TODO(nlopes): need to read the file according to the properties of the include directive.
-        //
-        // Right now, this is a simplified version that reads the file as is.
         let mut lines = Vec::new();
-        match &self.target {
-            Target::Path(path) => {
-                let path = self.file_parent.join(path);
-                let content = self.read_content_from_file(&path)?;
-
-                if let Some(level_offset) = self.level_offset {
-                    tracing::warn!(level_offset, "level offset is not supported yet");
-                }
-                if !self.tags.is_empty() {
-                    tracing::warn!(tags = ?self.tags, "tags are not supported yet");
-                }
-                if let Some(indent) = self.indent {
-                    tracing::warn!(indent, "indent is not supported yet");
-                }
-                if let Some(encoding) = &self.encoding {
-                    tracing::warn!(encoding, "encoding is not supported yet");
-                }
-                if !self.opts.is_empty() {
-                    tracing::warn!(opts = ?self.opts, "opts are not supported yet");
-                }
-                // TODO(nlopes): this is so unoptimized, it isn't even funny but I'm
-                // trying to just get to a place of compatibility, then I can
-                // optimize.
-                let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
-                if self.lines.is_empty() {
-                    lines.extend(content_lines);
-                } else {
-                    for line in &self.lines {
-                        match line {
-                            LinesRange::Single(line_number) => {
-                                if *line_number < 1 {
-                                    // Skip invalid line numbers
-                                    tracing::warn!(
-                                        ?line_number,
-                                        "invalid line number in include directive"
-                                    );
-                                    continue;
-                                }
-                                let line_number = line_number - 1;
-                                if line_number < content_lines.len() {
-                                    lines.push(content_lines[line_number].clone());
-                                }
-                            }
-                            LinesRange::Range(start, end) => {
-                                let raw_size = content_lines.len();
-                                if *start < 1 {
-                                    // Skip invalid line numbers
-                                    tracing::warn!(
-                                        ?start,
-                                        "invalid start line number in include directive"
-                                    );
-                                    continue;
-                                }
-                                let start = *start - 1;
-                                let end = if *end == -1 {
-                                    raw_size
-                                } else if *end > 0 {
-                                    match (*end - 1).try_into() {
-                                        Ok(end) => end,
-                                        Err(e) => {
-                                            tracing::error!(
-                                                ?end,
-                                                "failed to cast end line number to usize: {:?}",
-                                                e
-                                            );
-                                            continue;
-                                        }
-                                    }
-                                } else {
-                                    // Skip invalid line numbers
-                                    tracing::error!(
-                                        ?end,
-                                        "invalid end line number in include directive"
-                                    );
-                                    continue;
-                                };
-                                if start < raw_size && end < raw_size {
-                                    for line in &content_lines[start..=end] {
-                                        lines.push(line.clone());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Target::Url(_url) => {
+        let path = match &self.target {
+            Target::Path(path) => self.file_parent.join(path),
+            Target::Url(url) => {
                 if self.attributes.get("allow-uri-read").is_none() {
                     tracing::warn!("URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line.");
                     return Ok(lines);
                 }
-                todo!("URL includes are not supported yet");
+                let mut temp_path = std::env::temp_dir();
+                if let Some(file_name) = url.path_segments().and_then(std::iter::Iterator::last) {
+                    temp_path.push(file_name);
+                } else {
+                    tracing::error!(url=?url, "failed to extract file name from URL");
+                    return Ok(lines);
+                }
+
+                let mut response = reqwest::blocking::get(url.clone())?;
+                // Create and write to the file
+                let mut file = File::create(&temp_path)?;
+                io::copy(&mut response, &mut file)?;
+                tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
+                temp_path
+            }
+        };
+        // If the path doesn't exist, we still need to return an empty list of
+        // lines because we never want to fail parsing the doc because of an
+        // include directive.
+        if !path.exists() {
+            // If the include is not optional, we log a warning though!
+            if !self.opts.contains(&"optional".to_string()) {
+                tracing::warn!(
+                    path=?path,
+                    "file is missing - include directive won't be processed"
+                );
+            }
+            return Ok(lines);
+        }
+        let content = self.read_content_from_file(&path)?;
+
+        if let Some(level_offset) = self.level_offset {
+            tracing::warn!(level_offset, "level offset is not supported yet");
+        }
+        if !self.tags.is_empty() {
+            tracing::warn!(tags = ?self.tags, "tags are not supported yet");
+        }
+        if let Some(indent) = self.indent {
+            tracing::warn!(indent, "indent is not supported yet");
+        }
+        // TODO(nlopes): this is so unoptimized, it isn't even funny but I'm
+        // trying to just get to a place of compatibility, then I can
+        // optimize.
+        let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
+        if self.line_range.is_empty() {
+            lines.extend(content_lines);
+        } else {
+            for line in &self.line_range {
+                match line {
+                    LinesRange::Single(line_number) => {
+                        if *line_number < 1 {
+                            // Skip invalid line numbers
+                            tracing::warn!(
+                                ?line_number,
+                                "invalid line number in include directive"
+                            );
+                            continue;
+                        }
+                        let line_number = line_number - 1;
+                        if line_number < content_lines.len() {
+                            lines.push(content_lines[line_number].clone());
+                        }
+                    }
+                    LinesRange::Range(start, end) => {
+                        let raw_size = content_lines.len();
+                        if *start < 1 {
+                            // Skip invalid line numbers
+                            tracing::warn!(
+                                ?start,
+                                "invalid start line number in include directive"
+                            );
+                            continue;
+                        }
+                        let start = *start - 1;
+                        let end = if *end == -1 {
+                            raw_size
+                        } else if *end > 0 {
+                            match (*end - 1).try_into() {
+                                Ok(end) => end,
+                                Err(e) => {
+                                    tracing::error!(
+                                        ?end,
+                                        "failed to cast end line number to usize: {:?}",
+                                        e
+                                    );
+                                    continue;
+                                }
+                            }
+                        } else {
+                            // Skip invalid line numbers
+                            tracing::error!(?end, "invalid end line number in include directive");
+                            continue;
+                        };
+                        if start < raw_size && end < raw_size {
+                            for line in &content_lines[start..=end] {
+                                lines.push(line.clone());
+                            }
+                        }
+                    }
+                }
             }
         }
         Ok(lines)
@@ -383,7 +436,7 @@ mod tests {
 
         assert_eq!(include.level_offset, Some(1));
         assert_eq!(include.tags, vec!["example"]);
-        assert!(!include.lines.is_empty());
+        assert!(!include.line_range.is_empty());
     }
 
     #[test]
