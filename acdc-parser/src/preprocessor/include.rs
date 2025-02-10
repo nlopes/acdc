@@ -11,7 +11,7 @@ use url::Url;
 use crate::{
     error::Error,
     model::{Substitute, HEADER},
-    DocumentAttributes, Preprocessor,
+    Options, Preprocessor,
 };
 
 /**
@@ -42,7 +42,7 @@ pub(crate) struct Include {
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
-    attributes: DocumentAttributes,
+    options: Options,
 }
 
 /// A line range that an include may specify.
@@ -72,10 +72,10 @@ pub(crate) enum Target {
 }
 
 peg::parser! {
-    grammar include_parser(path: &std::path::Path, attributes: &DocumentAttributes) for str {
+    grammar include_parser(path: &std::path::Path, options: &Options) for str {
         pub(crate) rule include() -> Result<Include, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
-                let target_raw = target.substitute(HEADER, attributes);
+                let target_raw = target.substitute(HEADER, &options.document_attributes);
                 let target =
                     if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
                         Target::Url(Url::parse(&target_raw)?)
@@ -92,7 +92,7 @@ peg::parser! {
                     indent: None,
                     encoding: None,
                     opts: Vec::new(),
-                    attributes: attributes.clone(),
+                    options: options.clone()
                 };
                 if let Some(attrs) = attrs {
                     include.parse_attributes(attrs)?;
@@ -216,12 +216,8 @@ impl Include {
         Ok(())
     }
 
-    pub(crate) fn parse(
-        file_parent: &Path,
-        line: &str,
-        attributes: &DocumentAttributes,
-    ) -> Result<Self, Error> {
-        include_parser::include(line, file_parent, attributes).map_err(|e| {
+    pub(crate) fn parse(file_parent: &Path, line: &str, options: &Options) -> Result<Self, Error> {
+        include_parser::include(line, file_parent, options).map_err(|e| {
             tracing::error!(?line, "failed to parse include directive: {:?}", e);
             Error::Parse(e.to_string())
         })?
@@ -247,7 +243,7 @@ impl Include {
             // primary document and a few command line attributes.
             if ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref()) {
                 return super::Preprocessor
-                    .process(&content, Some(&self.attributes.clone()))
+                    .process(&content, &self.options)
                     .map_err(|e| {
                         tracing::error!(path=?file_path, error=?e, "failed to process file");
                         e
@@ -301,7 +297,12 @@ impl Include {
         let path = match &self.target {
             Target::Path(path) => self.file_parent.join(path),
             Target::Url(url) => {
-                if self.attributes.get("allow-uri-read").is_none() {
+                if self
+                    .options
+                    .document_attributes
+                    .get("allow-uri-read")
+                    .is_none()
+                {
                     tracing::warn!("URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line.");
                     return Ok(lines);
                 }
@@ -352,62 +353,64 @@ impl Include {
         if self.line_range.is_empty() {
             lines.extend(content_lines);
         } else {
-            for line in &self.line_range {
-                match line {
-                    LinesRange::Single(line_number) => {
-                        if *line_number < 1 {
-                            // Skip invalid line numbers
-                            tracing::warn!(
-                                ?line_number,
-                                "invalid line number in include directive"
-                            );
-                            continue;
-                        }
-                        let line_number = line_number - 1;
-                        if line_number < content_lines.len() {
-                            lines.push(content_lines[line_number].clone());
-                        }
+            self.extend_lines_with_ranges(&content_lines, &mut lines);
+        }
+        Ok(lines)
+    }
+
+    pub(crate) fn extend_lines_with_ranges(
+        &self,
+        content_lines: &[String],
+        lines: &mut Vec<String>,
+    ) {
+        for line in &self.line_range {
+            match line {
+                LinesRange::Single(line_number) => {
+                    if *line_number < 1 {
+                        // Skip invalid line numbers
+                        tracing::warn!(?line_number, "invalid line number in include directive");
+                        continue;
                     }
-                    LinesRange::Range(start, end) => {
-                        let raw_size = content_lines.len();
-                        if *start < 1 {
-                            // Skip invalid line numbers
-                            tracing::warn!(
-                                ?start,
-                                "invalid start line number in include directive"
-                            );
-                            continue;
+                    let line_number = line_number - 1;
+                    if line_number < content_lines.len() {
+                        lines.push(content_lines[line_number].clone());
+                    }
+                }
+                LinesRange::Range(start, end) => {
+                    let raw_size = content_lines.len();
+                    if *start < 1 {
+                        // Skip invalid line numbers
+                        tracing::warn!(?start, "invalid start line number in include directive");
+                        continue;
+                    }
+                    let start = *start - 1;
+                    let end = if *end == -1 {
+                        raw_size
+                    } else if *end > 0 {
+                        match (*end - 1).try_into() {
+                            Ok(end) => end,
+                            Err(e) => {
+                                tracing::error!(
+                                    ?end,
+                                    "failed to cast end line number to usize: {:?}",
+                                    e
+                                );
+                                continue;
+                            }
                         }
-                        let start = *start - 1;
-                        let end = if *end == -1 {
-                            raw_size
-                        } else if *end > 0 {
-                            match (*end - 1).try_into() {
-                                Ok(end) => end,
-                                Err(e) => {
-                                    tracing::error!(
-                                        ?end,
-                                        "failed to cast end line number to usize: {:?}",
-                                        e
-                                    );
-                                    continue;
-                                }
-                            }
-                        } else {
-                            // Skip invalid line numbers
-                            tracing::error!(?end, "invalid end line number in include directive");
-                            continue;
-                        };
-                        if start < raw_size && end < raw_size {
-                            for line in &content_lines[start..=end] {
-                                lines.push(line.clone());
-                            }
+                    } else {
+                        // Skip invalid line numbers
+                        tracing::error!(?end, "invalid end line number in include directive");
+                        continue;
+                    };
+                    if start < raw_size && end < raw_size {
+                        for line in &content_lines[start..=end] {
+                            lines.push(line.clone());
                         }
                     }
                 }
             }
         }
-        Ok(lines)
     }
 }
 
@@ -420,7 +423,8 @@ mod tests {
     fn test_parse_simple_include() {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[]";
-        let include = Include::parse(&path, line, &DocumentAttributes::default()).unwrap();
+        let options = Options::default();
+        let include = Include::parse(&path, line, &options).unwrap();
 
         match include.target {
             Target::Path(p) => assert_eq!(p, PathBuf::from("target.adoc")),
@@ -432,7 +436,8 @@ mod tests {
     fn test_parse_include_with_attributes() {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[leveloffset=+1,lines=1..5,tag=example]";
-        let include = Include::parse(&path, line, &DocumentAttributes::default()).unwrap();
+        let options = Options::default();
+        let include = Include::parse(&path, line, &options).unwrap();
 
         assert_eq!(include.level_offset, Some(1));
         assert_eq!(include.tags, vec!["example"]);
@@ -443,7 +448,8 @@ mod tests {
     fn test_parse_include_with_url() {
         let path = PathBuf::from("/tmp");
         let line = "include::https://example.com/doc.adoc[]";
-        let include = Include::parse(&path, line, &DocumentAttributes::default()).unwrap();
+        let options = Options::default();
+        let include = Include::parse(&path, line, &options).unwrap();
 
         match include.target {
             Target::Url(url) => assert_eq!(url.as_str(), "https://example.com/doc.adoc"),
@@ -455,7 +461,8 @@ mod tests {
     fn test_parse_quoted_attributes() {
         let path = PathBuf::from("/tmp");
         let line = r#"include::target.adoc[tag="example code",encoding="utf-8"]"#;
-        let include = Include::parse(&path, line, &DocumentAttributes::default()).unwrap();
+        let options = Options::default();
+        let include = Include::parse(&path, line, &options).unwrap();
 
         assert_eq!(include.tags, vec!["example code"]);
         assert_eq!(include.encoding, Some("utf-8".to_string()));

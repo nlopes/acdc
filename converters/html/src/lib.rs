@@ -3,7 +3,8 @@ use std::{
     path::Path,
 };
 
-use acdc_converters_common::{Config, PrettyDuration, Processable, Source};
+use acdc_converters_common::{Options, PrettyDuration, Processable};
+use acdc_core::Source;
 use acdc_parser::Document;
 
 #[derive(thiserror::Error, Debug)]
@@ -19,7 +20,7 @@ pub enum Error {
 }
 
 pub struct Processor {
-    config: Config,
+    options: Options,
 }
 
 impl Processor {
@@ -64,19 +65,25 @@ trait Render {
 }
 
 impl Processable for Processor {
-    type Config = Config;
+    type Options = Options;
     type Error = Error;
 
     #[must_use]
-    fn new(config: Config) -> Self {
-        Self { config }
+    fn new(options: Options) -> Self {
+        Self { options }
     }
 
     fn run(&self) -> Result<(), Self::Error> {
-        match &self.config.source {
+        let options = acdc_parser::Options {
+            safe_mode: self.options.safe_mode.clone(),
+            timings: self.options.timings,
+            document_attributes: self.options.document_attributes.clone(),
+        };
+
+        match &self.options.source {
             Source::Files(files) => {
                 for file in files {
-                    if self.config.timings {
+                    if self.options.timings {
                         println!("Input file: {}", file.to_string_lossy());
                     }
                     let html_path = file.with_extension("html");
@@ -85,11 +92,11 @@ impl Processable for Processor {
                     // Read and parse the document
                     let now = std::time::Instant::now();
                     let mut total_elapsed = std::time::Duration::new(0, 0);
-                    let doc = acdc_parser::parse_file(file)?;
+                    let doc = acdc_parser::parse_file(file, &options)?;
                     let elapsed = now.elapsed();
                     tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to read and parse source");
                     total_elapsed += elapsed;
-                    if self.config.timings {
+                    if self.options.timings {
                         println!(
                             "  Time to read and parse source: {}",
                             elapsed.pretty_print()
@@ -103,7 +110,7 @@ impl Processable for Processor {
                     tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to convert document");
                     total_elapsed += elapsed;
                     tracing::debug!(time = total_elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "total time (read, parse and convert)");
-                    if self.config.timings {
+                    if self.options.timings {
                         println!("  Time to convert document: {}", elapsed.pretty_print());
                         println!(
                             "  Total time (read, parse and convert): {}",
@@ -124,32 +131,45 @@ impl Processable for Processor {
     }
 
     fn output(&self) -> Result<String, Self::Error> {
-        let mut options = RenderOptions {
+        let mut render_options = RenderOptions {
             ..RenderOptions::default()
         };
-        match &self.config.source {
+        let options = acdc_parser::Options {
+            safe_mode: self.options.safe_mode.clone(),
+            timings: self.options.timings,
+            document_attributes: self.options.document_attributes.clone(),
+        };
+        match &self.options.source {
             Source::Files(files) => {
                 let mut buffer = Vec::new();
                 for file in files {
-                    options.last_updated = std::fs::metadata(file)?
+                    render_options.last_updated = std::fs::metadata(file)?
                         .modified()
                         .ok()
                         .map(chrono::DateTime::from);
-                    acdc_parser::parse_file(file)?.render(&mut buffer, self, &options)?;
+                    acdc_parser::parse_file(file, &options)?.render(
+                        &mut buffer,
+                        self,
+                        &render_options,
+                    )?;
                 }
                 Ok(String::from_utf8(buffer)?)
             }
             Source::String(content) => {
                 let mut buffer = Vec::new();
-                acdc_parser::parse(content)?.render(&mut buffer, self, &options)?;
+                acdc_parser::parse(content, &options)?.render(
+                    &mut buffer,
+                    self,
+                    &render_options,
+                )?;
                 Ok(String::from_utf8(buffer)?)
             }
             Source::Stdin => {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
-                let doc = acdc_parser::parse_from_reader(&mut reader)?;
+                let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
                 let mut buffer = Vec::new();
-                doc.render(&mut buffer, self, &options)?;
+                doc.render(&mut buffer, self, &render_options)?;
                 Ok(String::from_utf8(buffer)?)
             }
         }

@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "acdc-cli",
+  "acdc-core",
   "acdc-parser",
   "converters/common",
   "converters/html",
@@ -17,6 +18,7 @@ description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
 acdc-converters-common = { path = "./converters/common" }
+acdc-core = { path = "./acdc-core" }
 acdc-parser = { path = "./acdc-parser" }
 clap = { version = "4.5.29", features = ["derive"] }
 pretty_assertions = "1.4"

@@ -1,12 +1,13 @@
 [package]
 name = "acdc-tck"
+description = "TCK mode converter for validation against the `AsciiDoc` TCK suite"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-description.workspace = true
 
 [dependencies]
 acdc-converters-common.workspace = true
+acdc-core.workspace = true
 acdc-parser.workspace = true
 serde.workspace = true
 serde_json.workspace = true

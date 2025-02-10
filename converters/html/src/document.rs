@@ -24,7 +24,7 @@ impl Render for Document {
         writeln!(
             w,
             "<meta name=\"generator\" content=\"{}\">",
-            processor.config.generator_metadata
+            processor.options.generator_metadata
         )?;
         if let Some(header) = &self.header {
             header.render(
@@ -41,7 +41,7 @@ impl Render for Document {
         writeln!(w, "{}", include_str!("../static/asciidoctor.css"))?;
         writeln!(w, "</style>")?;
         writeln!(w, "</head>")?;
-        writeln!(w, "<body class=\"{}\">", processor.config.doctype)?;
+        writeln!(w, "<body class=\"{}\">", processor.options.doctype)?;
         writeln!(w, "<div id=\"header\">")?;
         if let Some(header) = &self.header {
             if !header.title.is_empty() {
