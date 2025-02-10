@@ -3,14 +3,15 @@ use tracing::instrument;
 
 use crate::{
     inline_preprocessing, inlines::parse_inlines, AttributeValue, Author, DocumentAttribute,
-    DocumentAttributes, Error, Header, InlineNode, InnerPestParser, Location, ParserState, Plain,
-    Rule,
+    DocumentAttributes, Error, Header, InlineNode, InnerPestParser, Location, Options, ParserState,
+    Plain, Rule,
 };
 
 impl Header {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        options: &Options,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Option<Self>, Error> {
         let mut title = Vec::new();
@@ -116,9 +117,8 @@ impl Header {
                     }
                 }
                 Rule::document_attribute => {
-                    let (name, value) =
-                        DocumentAttribute::parse(pair.into_inner(), parent_attributes);
-                    parent_attributes.insert(name, value);
+                    let (_, _) =
+                        DocumentAttribute::parse(pair.into_inner(), options, parent_attributes);
                 }
                 unknown => unreachable!("{:?}", unknown),
             }

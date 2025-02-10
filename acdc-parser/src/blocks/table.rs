@@ -1,13 +1,14 @@
 use pest::iterators::Pair;
 
 use crate::{
-    AttributeValue, BlockMetadata, DocumentAttributes, ElementAttributes, Error, Location, Rule,
-    Table, TableColumn, TableRow,
+    AttributeValue, BlockMetadata, DocumentAttributes, ElementAttributes, Error, Location, Options,
+    Rule, Table, TableColumn, TableRow,
 };
 
 impl Table {
     pub(crate) fn parse(
         pair: &Pair<Rule>,
+        options: &Options,
         metadata: &BlockMetadata,
         attributes: &ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
@@ -54,7 +55,7 @@ impl Table {
             let columns = row
                 .iter()
                 .filter(|cell| !cell.is_empty())
-                .map(|cell| parse_table_cell(cell, parent_attributes))
+                .map(|cell| parse_table_cell(cell, options, parent_attributes))
                 .collect::<Result<Vec<_>, _>>()?;
 
             // validate that if we have ncols we have the same number of columns in each row
@@ -147,13 +148,19 @@ impl Table {
 
 fn parse_table_cell(
     text: &str,
+    options: &Options,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<TableColumn, Error> {
     use pest::Parser as _;
 
     let parse = crate::InnerPestParser::parse(Rule::block, text)
         .map_err(|e| Error::Parse(format!("error parsing table cell: {e}")))?;
-    let content = crate::blocks::parse(parse, Some(&Location::default()), parent_attributes)?;
+    let content = crate::blocks::parse(
+        parse,
+        options,
+        Some(&Location::default()),
+        parent_attributes,
+    )?;
 
     Ok(TableColumn { content })
 }

@@ -7,13 +7,14 @@ use pest::{iterators::Pairs, Parser as _};
 use crate::{
     inline_preprocessing, inlines::parse_inlines, AttributeValue, Block, BlockMetadata,
     DescriptionList, DocumentAttributes, ElementAttributes, Error, InnerPestParser, Location,
-    ParserState, Rule, UnorderedList,
+    Options, ParserState, Rule, UnorderedList,
 };
 
 use super::block::BlockExt;
 
 pub(crate) fn parse_list(
     pairs: Pairs<Rule>,
+    options: &Options,
     parent_location: Option<&Location>,
     parent_attributes: &mut DocumentAttributes,
 ) -> Result<Block, Error> {
@@ -90,6 +91,7 @@ pub(crate) fn parse_list(
             Rule::description_list => {
                 block = DescriptionList::parse(
                     pair.into_inner(),
+                    options,
                     title.clone(),
                     metadata.clone(),
                     parent_location,

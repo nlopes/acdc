@@ -2,13 +2,15 @@ use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     blocks, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
-    ElementAttributes, Error, InlineNode, InnerPestParser, Location, Plain, Raw, Rule, Table,
+    ElementAttributes, Error, InlineNode, InnerPestParser, Location, Options, Plain, Raw, Rule,
+    Table,
 };
 
 impl DelimitedBlock {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        options: &Options,
         title: Vec<InlineNode>,
         metadata: &BlockMetadata,
         attributes: &ElementAttributes,
@@ -76,6 +78,7 @@ impl DelimitedBlock {
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedExample(blocks::parse(
                         pairs,
+                        options,
                         Some(&location),
                         parent_attributes,
                     )?);
@@ -105,6 +108,7 @@ impl DelimitedBlock {
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedQuote(blocks::parse(
                         pairs,
+                        options,
                         Some(&location),
                         parent_attributes,
                     )?);
@@ -130,6 +134,7 @@ impl DelimitedBlock {
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedOpen(blocks::parse(
                         pairs,
+                        options,
                         Some(&location),
                         parent_attributes,
                     )?);
@@ -141,6 +146,7 @@ impl DelimitedBlock {
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;
                     inner = DelimitedBlockType::DelimitedSidebar(blocks::parse(
                         pairs,
+                        options,
                         Some(&location),
                         parent_attributes,
                     )?);
@@ -148,6 +154,7 @@ impl DelimitedBlock {
                 Rule::delimited_table => {
                     inner = DelimitedBlockType::DelimitedTable(Table::parse(
                         &pair,
+                        options,
                         metadata,
                         attributes,
                         parent_attributes,

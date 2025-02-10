@@ -7,8 +7,8 @@ use crate::{
     blocks::list::parse_list, inline_preprocessing, inlines::parse_inlines, Admonition,
     AdmonitionVariant, Anchor, AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock,
     DelimitedBlockType, DocumentAttributes, ElementAttributes, Error, Image, InlineNode,
-    InnerPestParser, Location, PageBreak, Paragraph, ParserState, Rule, Section, TableOfContents,
-    ThematicBreak, Video,
+    InnerPestParser, Location, Options, PageBreak, Paragraph, ParserState, Rule, Section,
+    TableOfContents, ThematicBreak, Video,
 };
 
 impl BlockExt for Block {
@@ -168,6 +168,7 @@ impl Block {
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
+        options: &Options,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {
@@ -195,10 +196,13 @@ impl Block {
 
             match pair.as_rule() {
                 Rule::anchor => anchors.push(Anchor::parse(pair.into_inner())),
-                Rule::section => block = Section::parse(&pair, parent_location, parent_attributes)?,
+                Rule::section => {
+                    block = Section::parse(&pair, options, parent_location, parent_attributes)?;
+                }
                 Rule::delimited_block => {
                     let delimited_block = DelimitedBlock::parse(
                         pair.into_inner(),
+                        options,
                         title.clone(),
                         &metadata,
                         &attributes,
@@ -240,7 +244,12 @@ impl Block {
                     }
                 }
                 Rule::list => {
-                    block = parse_list(pair.into_inner(), parent_location, parent_attributes)?;
+                    block = parse_list(
+                        pair.into_inner(),
+                        options,
+                        parent_location,
+                        parent_attributes,
+                    )?;
                 }
                 Rule::image_block => {
                     block = Image::parse(
