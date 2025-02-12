@@ -18,7 +18,7 @@ description = "A suite of tools for AsciiDoc documents"
 [workspace.dependencies]
 acdc-converters-common = { path = "./converters/common" }
 acdc-parser = { path = "./acdc-parser" }
-clap = { version = "4.5.28", features = ["derive"] }
+clap = { version = "4.5.29", features = ["derive"] }
 pretty_assertions = "1.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
