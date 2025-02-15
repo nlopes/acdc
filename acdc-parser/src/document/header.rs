@@ -3,8 +3,8 @@ use tracing::instrument;
 
 use crate::{
     inline_preprocessing, inlines::parse_inlines, AttributeValue, Author, DocumentAttribute,
-    DocumentAttributes, Error, Header, InlineNode, InnerPestParser, Location, Options, ParserState,
-    Plain, Rule,
+    DocumentAttributes, Error, Header, InlineNode, InlinePreprocessorParserState, InnerPestParser,
+    Location, Options, Plain, Rule,
 };
 
 impl Header {
@@ -54,7 +54,7 @@ impl Header {
                                     let text = inner_pair.as_str();
                                     let start_pos = inner_pair.as_span().start_pos().pos();
 
-                                    let mut state = ParserState::new();
+                                    let mut state = InlinePreprocessorParserState::new();
                                     state.set_initial_position(&title_location, start_pos);
                                     // Run inline preprocessor before parsing inlines
                                     let processed =

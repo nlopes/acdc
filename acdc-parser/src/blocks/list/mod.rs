@@ -6,8 +6,8 @@ use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
     inline_preprocessing, inlines::parse_inlines, AttributeValue, Block, BlockMetadata,
-    DescriptionList, DocumentAttributes, ElementAttributes, Error, InnerPestParser, Location,
-    Options, ParserState, Rule, UnorderedList,
+    DescriptionList, DocumentAttributes, ElementAttributes, Error, InlinePreprocessorParserState,
+    InnerPestParser, Location, Options, Rule, UnorderedList,
 };
 
 use super::block::BlockExt;
@@ -39,7 +39,7 @@ pub(crate) fn parse_list(
                 location.shift(parent_location);
 
                 // Run inline preprocessor before parsing inlines
-                let mut state = ParserState::new();
+                let mut state = InlinePreprocessorParserState::new();
                 state.set_initial_position(&location, start_pos);
                 let processed = inline_preprocessing::run(text, parent_attributes, &state)
                     .map_err(|e| {
