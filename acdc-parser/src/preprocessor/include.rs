@@ -345,9 +345,6 @@ impl Include {
         if let Some(level_offset) = self.level_offset {
             tracing::warn!(level_offset, "level offset is not supported yet");
         }
-        if !self.tags.is_empty() {
-            tracing::warn!(tags = ?self.tags, "tags are not supported yet");
-        }
         if let Some(indent) = self.indent {
             tracing::warn!(indent, "indent is not supported yet");
         }
@@ -355,6 +352,10 @@ impl Include {
         // trying to just get to a place of compatibility, then I can
         // optimize.
         let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
+        if !self.tags.is_empty() {
+            tracing::warn!(tags = ?self.tags, "tags are not supported yet");
+        }
+
         if self.line_range.is_empty() {
             lines.extend(content_lines);
         } else {
