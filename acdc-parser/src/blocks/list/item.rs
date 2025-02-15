@@ -1,7 +1,8 @@
 use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
-    inline_preprocessing, DocumentAttributes, Error, ListItem, Location, ParserState, Rule,
+    inline_preprocessing, DocumentAttributes, Error, InlinePreprocessorParserState, ListItem,
+    Location, Rule,
 };
 
 impl ListItem {
@@ -34,7 +35,7 @@ impl ListItem {
                     let start_pos = pair.as_span().start_pos().pos();
 
                     // Run inline preprocessor before parsing inlines
-                    let mut state = ParserState::new();
+                    let mut state = InlinePreprocessorParserState::new();
                     state.set_initial_position(&location, start_pos);
                     let processed = inline_preprocessing::run(text, parent_attributes, &state)
                         .map_err(|e| {

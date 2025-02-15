@@ -45,7 +45,9 @@ mod inlines;
 mod model;
 mod preprocessor;
 
-pub(crate) use grammar::{inline_preprocessing, ParserState, ProcessedContent, ProcessedKind};
+pub(crate) use grammar::{
+    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent, ProcessedKind,
+};
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};

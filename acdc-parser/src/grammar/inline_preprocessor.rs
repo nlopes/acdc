@@ -14,7 +14,7 @@ use crate::{
 //
 // It should use internal mutability to allow the parser to modify the state.
 #[derive(Debug)]
-pub(crate) struct ParserState {
+pub(crate) struct InlinePreprocessorParserState {
     pub(crate) pass_found_count: Cell<usize>,
     pub(crate) passthroughs: RefCell<Vec<Pass>>,
     pub(crate) attributes: RefCell<HashMap<usize, Location>>,
@@ -22,7 +22,7 @@ pub(crate) struct ParserState {
     pub(crate) source_map: RefCell<SourceMap>,
 }
 
-impl ParserState {
+impl InlinePreprocessorParserState {
     pub(crate) fn new() -> Self {
         Self {
             pass_found_count: Cell::new(0),
@@ -152,7 +152,7 @@ impl SourceMap {
 }
 
 parser!(
-    pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes, state: &ParserState) for str {
+    pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes, state: &InlinePreprocessorParserState) for str {
         pub rule run() -> ProcessedContent
             = content:inlines()+ {
                 ProcessedContent {
@@ -362,8 +362,8 @@ mod tests {
         attributes
     }
 
-    fn setup_state() -> ParserState {
-        ParserState {
+    fn setup_state() -> InlinePreprocessorParserState {
+        InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),

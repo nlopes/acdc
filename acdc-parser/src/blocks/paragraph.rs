@@ -9,7 +9,7 @@ use tracing::instrument;
 use crate::{
     inline_preprocessing, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
     AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode,
-    InnerPestParser, Location, Paragraph, ParserState, ProcessedContent, Rule,
+    InlinePreprocessorParserState, InnerPestParser, Location, Paragraph, ProcessedContent, Rule,
 };
 
 impl Paragraph {
@@ -39,7 +39,7 @@ impl Paragraph {
                     let text = pair.as_str();
                     let start_pos = pair.as_span().start_pos().pos();
 
-                    let mut state = ParserState::new();
+                    let mut state = InlinePreprocessorParserState::new();
                     state.set_initial_position(&location, start_pos);
                     // Run inline preprocessor before parsing inlines
                     let processed = inline_preprocessing::run(text, parent_attributes, &state)
@@ -92,7 +92,7 @@ impl Paragraph {
                     location.shift(parent_location);
 
                     // Run inline preprocessor before parsing inlines
-                    let mut state = ParserState::new();
+                    let mut state = InlinePreprocessorParserState::new();
                     state.set_initial_position(&location, start_pos);
                     let processed = inline_preprocessing::run(text, parent_attributes, &state)
                         .map_err(|e| {
