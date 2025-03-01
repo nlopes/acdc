@@ -9,6 +9,10 @@ pub enum Error {
     #[error("Parsing error: {0}")]
     Parse(String),
 
+    #[error("Parsing error: {0}")]
+    #[serde(skip_deserializing)]
+    ParseGrammar(#[from] peg::error::ParseError<peg::str::LineCol>),
+
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
     NestedSectionLevelMismatch(Detail, SectionLevel, SectionLevel),
 

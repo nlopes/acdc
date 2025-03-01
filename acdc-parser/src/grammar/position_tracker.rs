@@ -8,6 +8,12 @@ pub(crate) struct PositionTracker {
     offset: usize,
 }
 
+impl Default for PositionTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PositionTracker {
     #[must_use]
     pub(crate) fn new() -> Self {
