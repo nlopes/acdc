@@ -26,7 +26,8 @@
 //!
 //! This is a subsection."#;
 //!
-//! let document = parse(content).unwrap();
+//! let options = acdc_parser::Options::default();
+//! let document = parse(content, &options).unwrap();
 //!
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
