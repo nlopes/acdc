@@ -225,8 +225,6 @@ impl Ifeval {
         let left = self.left.convert(attributes);
         let right = self.right.convert(attributes);
 
-        dbg!((&left, &right));
-
         // TOOD(nlopes): There are a few better ways to do this, but for now, this is
         // fine. I'm just going for functionality.
         match (&left, &right) {
