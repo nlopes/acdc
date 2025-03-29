@@ -183,7 +183,7 @@ mod tests {
 
     #[rstest::rstest]
     #[trace]
-    fn for_each_file(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
+    fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
         let test_file_path = path.with_extension("json");
         let options = Options {
             safe_mode: SafeMode::Unsafe,
