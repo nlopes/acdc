@@ -1,0 +1,5 @@
+# This is a document
+:toc: macro
+
+[astyle#myid.admin,options="read,write"]
+toc::[]

@@ -1,0 +1,86 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "This is a document",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 11
+      }
+    ]
+  },
+  "attributes": {
+    "toc": "macro"
+  },
+  "blocks": [
+    {
+      "name": "toc",
+      "type": "block",
+      "metadata": {
+        "attributes": {},
+        "roles": [
+          "admin"
+        ],
+        "options": [
+          "read",
+          "write"
+        ],
+        "style": "astyle",
+        "id": {
+          "id": "myid",
+          "location": [
+            {
+              "line": 4,
+              "col": 9
+            },
+            {
+              "line": 4,
+              "col": 13
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 8
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 7
+    }
+  ]
+}

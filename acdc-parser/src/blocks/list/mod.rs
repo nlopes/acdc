@@ -65,7 +65,7 @@ pub(crate) fn parse_list(
                     pair.into_inner(),
                     title.clone(),
                     metadata.clone(),
-                    attributes.clone(),
+                    &attributes,
                     parent_location,
                     parent_attributes,
                 )?;

@@ -1,0 +1,1 @@
+Malformed patterns: pass:q[<del>**</del>] empty and pass:q[<del>*unclosed bold</del>] and pass:q[<del>no*space*here</del>] cases.

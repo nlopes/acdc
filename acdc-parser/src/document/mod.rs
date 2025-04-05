@@ -2,7 +2,7 @@ mod attribute;
 mod author;
 mod header;
 mod tree_builder;
-mod validate;
+pub(crate) mod validate;
 
 use pest::iterators::Pairs;
 use tracing::instrument;

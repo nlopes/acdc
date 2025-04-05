@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use serde::{
-    Deserialize, Serialize,
     de::Deserializer,
     ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -65,6 +65,17 @@ impl Document {
     #[must_use]
     pub fn contains_key(&self, name: &str) -> bool {
         self.0.contains_key(name)
+    }
+
+    // Remove an attribute from the document.
+    pub fn remove<K: AsRef<str> + std::cmp::Ord + ?Sized>(
+        &mut self,
+        name: &K,
+    ) -> Option<AttributeValue>
+    where
+        AttributeName: std::borrow::Borrow<K>,
+    {
+        self.0.remove(name)
     }
 }
 

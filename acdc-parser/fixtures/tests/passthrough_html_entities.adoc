@@ -1,0 +1,1 @@
+HTML entities: pass:q[<del>&amp;*bold*&amp;</del>] and pass:q[<del>&lt;*emphasis*&gt;</del>] with entities.

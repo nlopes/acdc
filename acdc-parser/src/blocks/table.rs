@@ -55,17 +55,17 @@ impl Table {
             let columns = row
                 .iter()
                 .filter(|cell| !cell.is_empty())
-                .map(|cell| parse_table_cell(cell, options, parent_attributes))
+                .map(|cell| Self::parse_table_cell(cell, options, parent_attributes))
                 .collect::<Result<Vec<_>, _>>()?;
 
             // validate that if we have ncols we have the same number of columns in each row
-            if let Some(ncols) = ncols {
-                if columns.len() != ncols {
-                    return Err(Error::Parse(format!(
-                        "expected table row with {ncols} columns, found {} columns",
-                        columns.len()
-                    )));
-                }
+            if let Some(ncols) = ncols
+                && columns.len() != ncols
+            {
+                return Err(Error::Parse(format!(
+                    "expected table row with {ncols} columns, found {} columns",
+                    columns.len()
+                )));
             }
 
             // if we have a header, we need to add the columns we have to the header
@@ -93,7 +93,11 @@ impl Table {
         })
     }
 
-    fn parse_rows(text: &str, separator: &str, has_header: &mut bool) -> Vec<Vec<String>> {
+    pub(crate) fn parse_rows(
+        text: &str,
+        separator: &str,
+        has_header: &mut bool,
+    ) -> Vec<Vec<String>> {
         let mut location = Location::default();
 
         let mut rows = Vec::new();
@@ -144,23 +148,102 @@ impl Table {
         }
         rows
     }
-}
 
-fn parse_table_cell(
-    text: &str,
-    options: &Options,
-    parent_attributes: &mut DocumentAttributes,
-) -> Result<TableColumn, Error> {
-    use pest::Parser as _;
+    pub(crate) fn parse_rows_with_positions(
+        text: &str,
+        separator: &str,
+        has_header: &mut bool,
+        base_offset: usize,
+    ) -> Vec<Vec<(String, usize, usize)>> {
+        let mut rows = Vec::new();
+        let mut current_offset = base_offset;
+        let lines: Vec<&str> = text.lines().collect();
+        let mut i = 0;
 
-    let parse = crate::InnerPestParser::parse(Rule::block, text)
-        .map_err(|e| Error::Parse(format!("error parsing table cell: {e}")))?;
-    let content = crate::blocks::parse(
-        parse,
-        options,
-        Some(&Location::default()),
-        parent_attributes,
-    )?;
+        while i < lines.len() {
+            let line = lines[i].trim_end();
 
-    Ok(TableColumn { content })
+            // If we are in the first row and it is empty, we should not have a header
+            if i == 0 && line.is_empty() {
+                *has_header = false;
+                current_offset += line.len() + 1;
+                i += 1;
+                continue;
+            }
+
+            // If we're at index 1 and it's empty, then we have a header
+            if i == 1 && line.is_empty() {
+                *has_header = true;
+            }
+
+            // Collect lines for this row (until we hit an empty line or end)
+            let mut row_lines = Vec::new();
+            let row_start_offset = current_offset;
+
+            while i < lines.len() && !lines[i].trim_end().is_empty() {
+                row_lines.push(lines[i].trim_end());
+                current_offset += lines[i].len() + 1; // +1 for newline
+                i += 1;
+            }
+
+            if !row_lines.is_empty() {
+                let columns =
+                    Self::parse_row_with_positions(&row_lines, separator, row_start_offset);
+                rows.push(columns);
+            }
+
+            // Skip empty lines
+            while i < lines.len() && lines[i].trim_end().is_empty() {
+                current_offset += lines[i].len() + 1;
+                i += 1;
+            }
+        }
+
+        rows
+    }
+
+    fn parse_row_with_positions(
+        row_lines: &[&str],
+        separator: &str,
+        row_start_offset: usize,
+    ) -> Vec<(String, usize, usize)> {
+        let mut columns = Vec::new();
+        let mut current_offset = row_start_offset;
+
+        for line in row_lines {
+            if let Some(cell_content_with_spaces) = line.strip_prefix(separator) {
+                let cell_content = cell_content_with_spaces.trim();
+
+                // Find where the actual content starts (after separator and leading spaces)
+                let leading_spaces =
+                    cell_content_with_spaces.len() - cell_content_with_spaces.trim_start().len();
+                let cell_start = current_offset + separator.len() + leading_spaces;
+                let cell_end = cell_start + cell_content.len() - 1; // -1 for inclusive end
+
+                columns.push((cell_content.to_string(), cell_start, cell_end));
+            }
+            current_offset += line.len() + 1; // +1 for newline
+        }
+
+        columns
+    }
+
+    pub(crate) fn parse_table_cell(
+        text: &str,
+        options: &Options,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<TableColumn, Error> {
+        use pest::Parser as _;
+
+        let parse = crate::InnerPestParser::parse(Rule::block, text)
+            .map_err(|e| Error::Parse(format!("error parsing table cell: {e}")))?;
+        let content = crate::blocks::parse(
+            parse,
+            options,
+            Some(&Location::default()),
+            parent_attributes,
+        )?;
+
+        Ok(TableColumn { content })
+    }
 }

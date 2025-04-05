@@ -1,0 +1,3 @@
+image::sunset.jpg[alt=Sunset,width=300,height=400]
+
+image::mountain.png[alt=Mountain,width=500,height=600]

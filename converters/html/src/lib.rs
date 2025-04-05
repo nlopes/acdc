@@ -31,14 +31,11 @@ impl Processor {
         path: P,
     ) -> Result<(), crate::Error> {
         let mut file = std::fs::File::create(path)?;
-        let mut writer = BufWriter::new(&mut file);
         let options = RenderOptions {
-            last_updated: std::fs::metadata(original)?
-                .modified()
-                .ok()
-                .map(chrono::DateTime::from),
+            last_updated: file.metadata()?.modified().ok().map(chrono::DateTime::from),
             ..RenderOptions::default()
         };
+        let mut writer = BufWriter::new(&mut file);
         doc.render(&mut writer, self, &options)?;
         writer.flush()?;
         Ok(())
@@ -68,7 +65,6 @@ impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
-    #[must_use]
     fn new(options: Options) -> Self {
         Self { options }
     }

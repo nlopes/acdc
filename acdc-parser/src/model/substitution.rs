@@ -20,7 +20,6 @@ pub enum Substitution {
 impl From<&str> for Substitution {
     fn from(value: &str) -> Self {
         match value {
-            "specialchars" | "c" => Substitution::SpecialChars,
             "attributes" | "a" => Substitution::Attributes,
             "replacements" | "r" => Substitution::Replacements,
             "macros" | "m" => Substitution::Macros,
@@ -29,6 +28,7 @@ impl From<&str> for Substitution {
             "verbatim" | "v" => Substitution::Verbatim,
             "quotes" | "q" => Substitution::Quotes,
             "callouts" => Substitution::Callouts,
+            "specialchars" | "c" | "" => Substitution::SpecialChars, // Empty substitution list defaults to special chars
             unknown => unimplemented!("{unknown:?}"),
         }
     }

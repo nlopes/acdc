@@ -1,0 +1,1 @@
+Escaped asterisks: pass:q[<del>\*not bold\*</del>] and mixed pass:q[<del>\*escaped\* *bold*</del>] patterns.

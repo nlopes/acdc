@@ -1,0 +1,1 @@
+{"name":"document","type":"block","blocks":[{"name":"paragraph","type":"block","inlines":[{"name":"icon","type":"inline","target":{"type":"path","value":"star.svg"},"attributes":{"title":"Favorite item"},"location":[{"line":1,"col":1},{"line":1,"col":34}]}],"location":[{"line":1,"col":1},{"line":1,"col":34}]}],"location":[{"line":1,"col":1},{"line":1,"col":34}]}

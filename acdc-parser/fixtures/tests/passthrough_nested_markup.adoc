@@ -1,0 +1,1 @@
+Nested markup: pass:q[<del>*bold _italic_*</del>] and pass:q[<del>_italic *bold*_</del>] combinations.

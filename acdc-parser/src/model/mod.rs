@@ -2,9 +2,9 @@
 use std::str::FromStr;
 
 use serde::{
-    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
 };
 
 use crate::Error;
@@ -35,7 +35,7 @@ pub struct Document {
     pub location: Location,
 }
 
-type Subtitle = String;
+type Subtitle = Vec<InlineNode>;
 
 /// A `Header` represents the header of a document.
 ///
@@ -110,6 +110,8 @@ impl<'de> Deserialize<'de> for OptionalAttributeValue {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
     pub attributes: ElementAttributes,
+    #[serde(default, skip_serializing)]
+    pub positional_attributes: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -123,6 +125,12 @@ pub struct BlockMetadata {
 }
 
 impl BlockMetadata {
+    pub fn move_positional_attributes_to_attributes(&mut self) {
+        for positional_attribute in self.positional_attributes.drain(..) {
+            self.attributes
+                .insert(positional_attribute, AttributeValue::None);
+        }
+    }
     pub fn set_attributes(&mut self, attributes: ElementAttributes) {
         self.attributes = attributes;
     }
@@ -135,6 +143,7 @@ impl BlockMetadata {
             && self.id.is_none()
             && self.anchors.is_empty()
             && self.attributes.is_empty()
+            && self.positional_attributes.is_empty()
     }
 }
 
@@ -231,7 +240,7 @@ pub struct PageBreak {
 pub struct Audio {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    pub source: AudioSource,
+    pub source: Source,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -243,7 +252,7 @@ pub struct Video {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub sources: Vec<VideoSource>,
+    pub sources: Vec<Source>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -254,7 +263,7 @@ pub struct Video {
 pub struct Image {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    pub source: ImageSource,
+    pub source: Source,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -263,30 +272,53 @@ pub struct Image {
 /// A `TableOfContents` represents a table of contents block.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct TableOfContents {
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
+    pub metadata: BlockMetadata,
     pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum AudioSource {
-    Path(String),
-    Url(String),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum VideoSource {
-    Path(String),
-    Url(String),
 }
 
 // TODO(nlopes): this should use instead
 //
 // - Path(std::path::PathBuf)
 // - Url(url::Url)
+// - Name(String) - used for example in menu macros or icon names
 //
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum ImageSource {
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "lowercase")]
+pub enum Source {
     Path(String),
     Url(String),
+    Name(String),
+}
+
+impl FromStr for Source {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if value.starts_with("http://")
+            || value.starts_with("https://")
+            || value.starts_with("ftp://")
+            || value.starts_with("irc://")
+            || value.starts_with("mailto:")
+        {
+            // TODO(nlopes): we should use url::Url::parse here and return a Result
+            Ok(Source::Url(value.to_string()))
+        } else if value.contains('/') || value.contains('\\') {
+            Ok(Source::Path(value.to_string()))
+        } else {
+            Ok(Source::Name(value.to_string()))
+        }
+    }
+}
+
+impl std::fmt::Display for Source {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Source::Path(path) => write!(f, "{path}"),
+            Source::Url(url) => write!(f, "{url}"),
+            Source::Name(name) => write!(f, "{name}"),
+        }
+    }
 }
 
 /// A `DescriptionList` represents a description list in a document.
@@ -339,13 +371,20 @@ pub struct OrderedList {
 }
 pub type ListLevel = u8;
 
+/// A `ListItemCheckedStatus` represents the checked status of a list item.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ListItemCheckedStatus {
+    Checked,
+    Unchecked,
+}
+
 /// A `ListItem` represents a list item in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ListItem {
     // TODO(nlopes): missing anchors
     pub level: ListLevel,
     pub marker: String,
-    pub checked: Option<bool>,
+    pub checked: Option<ListItemCheckedStatus>,
     pub content: Vec<InlineNode>,
     pub location: Location,
 }
@@ -374,14 +413,11 @@ pub struct DelimitedBlock {
 }
 
 /// An `Admonition` represents an admonition in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Admonition {
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub variant: AdmonitionVariant,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<Block>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub location: Location,
 }
@@ -492,6 +528,54 @@ pub struct Section {
     pub location: Location,
 }
 
+impl Serialize for Admonition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "admonition")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", &self.variant)?;
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+
+        if !self.blocks.is_empty() {
+            state.serialize_entry("blocks", &self.blocks)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for Source {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        match self {
+            Source::Path(path) => {
+                state.serialize_entry("type", "path")?;
+                state.serialize_entry("value", path)?;
+            }
+            Source::Url(url) => {
+                state.serialize_entry("type", "url")?;
+                state.serialize_entry("value", url)?;
+            }
+            Source::Name(url) => {
+                state.serialize_entry("type", "name")?;
+                state.serialize_entry("value", url)?;
+            }
+        }
+        state.end()
+    }
+}
+
 impl Serialize for Document {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -556,6 +640,9 @@ impl Serialize for DelimitedBlock {
             | DelimitedBlockType::DelimitedPass(inner)
             | DelimitedBlockType::DelimitedVerse(inner) => {
                 state.serialize_entry("inlines", &inner)?;
+            }
+            DelimitedBlockType::DelimitedTable(inner) => {
+                state.serialize_entry("content", &inner)?;
             }
             inner => {
                 state.serialize_entry("blocks", &inner)?;
@@ -696,6 +783,7 @@ impl<'de> Deserialize<'de> for Block {
                 let mut my_ref_text = None;
                 let mut my_form = None;
                 let mut my_target = None;
+                let mut my_sources = None;
                 let mut my_variant = None;
                 let mut my_anchors = None;
                 let mut my_marker = None;
@@ -731,6 +819,12 @@ impl<'de> Deserialize<'de> for Block {
                                 return Err(de::Error::duplicate_field("target"));
                             }
                             my_target = Some(map.next_value::<String>()?);
+                        }
+                        "sources" => {
+                            if my_sources.is_some() {
+                                return Err(de::Error::duplicate_field("sources"));
+                            }
+                            my_sources = Some(map.next_value::<serde_json::Value>()?);
                         }
                         "delimiter" => {
                             if my_delimiter.is_some() {
@@ -868,7 +962,7 @@ impl<'de> Deserialize<'de> for Block {
                         Ok(Block::Image(Image {
                             title: my_title,
                             // TODO(nlopes): this should be figured out if url or path
-                            source: ImageSource::Path(
+                            source: Source::Path(
                                 my_target.ok_or_else(|| de::Error::missing_field("target"))?,
                             ),
                             metadata: my_metadata,
@@ -882,7 +976,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         Ok(Block::Audio(Audio {
                             title: my_title,
-                            source: AudioSource::Path(
+                            source: Source::Path(
                                 my_target.ok_or_else(|| de::Error::missing_field("target"))?,
                             ),
                             metadata: my_metadata,
@@ -890,15 +984,39 @@ impl<'de> Deserialize<'de> for Block {
                         }))
                     }
                     ("video", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "macro" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
+                        // Handle both simplified format with "target" and full format with "sources"
+                        let sources = if let Some(sources_value) = my_sources {
+                            match sources_value {
+                                serde_json::Value::Array(a) => {
+                                    a.into_iter()
+                                        .map(|v| {
+                                            let obj = v.as_object().ok_or_else(|| de::Error::custom("source must be an object"))?;
+                                            let source_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("path");
+                                            let value = obj.get("value").and_then(|v| v.as_str())
+                                                .ok_or_else(|| de::Error::custom("source value must be a string"))?;
+                                            match source_type {
+                                                "path" => Ok(Source::Path(value.to_string())),
+                                                "url" => Ok(Source::Url(value.to_string())),
+                                                _ => Err(de::Error::custom(format!("unexpected source type: {source_type}"))),
+                                            }
+                                        })
+                                        .collect::<Result<Vec<Source>, _>>()?
+                                }
+                                _ => return Err(de::Error::custom("sources must be an array")),
+                            }
+                        } else {
+                            // Fallback to simplified format with target
+                            let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                            if my_form != "macro" {
+                                return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                            }
+                            vec![Source::Path(
+                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
+                            )]
+                        };
                         Ok(Block::Video(Video {
                             title: my_title,
-                            sources: vec![VideoSource::Path(
-                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
-                            )],
+                            sources,
                             metadata: my_metadata,
                             location: my_location,
                         }))
@@ -1195,6 +1313,10 @@ impl<'de> Deserialize<'de> for Block {
                             location: my_location,
                         }))
                     }
+                    ("toc", "block") => Ok(Block::TableOfContents(TableOfContents {
+                        metadata: my_metadata,
+                        location: my_location,
+                    })),
                     _ => Err(de::Error::custom(format!(
                         "unexpected name/type combination: {my_name}/{my_type}",
                     ))),
@@ -1296,8 +1418,13 @@ impl<'de> Deserialize<'de> for ListItem {
                 let level =
                     ListLevel::try_from(ListItem::parse_depth_from_marker(&my_marker).unwrap_or(1))
                         .map_err(de::Error::custom)?;
-                let my_checked = my_checked.unwrap_or(None);
-
+                let my_checked = my_checked.unwrap_or(Some(false)).map(|c| {
+                    if c {
+                        ListItemCheckedStatus::Checked
+                    } else {
+                        ListItemCheckedStatus::Unchecked
+                    }
+                });
                 Ok(ListItem {
                     marker: my_marker,
                     content: my_principal,

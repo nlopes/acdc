@@ -1,0 +1,1 @@
+Complex boundaries: pass:q[<del>*bold*text*more*</del>] and pass:q[<del>text*notbold*</del>] and pass:q[<del>*bold*.</del>] patterns.
