@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ElementAttributes, Location, Substitution};
+use crate::{ElementAttributes, InlineNode, Location, Source, Substitution};
 
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub enum PassthroughKind {
 /// An `Icon` represents an inline icon in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Icon {
-    pub target: String,
+    pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
 }
@@ -40,7 +40,7 @@ pub struct Link {
     // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
     pub text: Option<String>,
-    pub target: String,
+    pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
 }
@@ -51,8 +51,8 @@ pub struct Url {
     // We don't serialize the text here because it's already serialized in the attributes
     // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
-    pub text: Option<String>,
-    pub target: String,
+    pub text: Vec<InlineNode>,
+    pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
 }
@@ -86,6 +86,6 @@ pub type Key = String;
 /// An `Autolink` represents an inline autolink in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Autolink {
-    pub url: String,
+    pub url: Source,
     pub location: Location,
 }

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use pest::{Parser as _, iterators::Pairs};
+use pest::{Parser as _, iterators::{Pair, Pairs}};
 use tracing::instrument;
 
 use crate::{
@@ -164,7 +164,271 @@ impl std::fmt::Display for Block {
     }
 }
 
+/// Parameters for delimited block parsing
+struct DelimitedBlockParams<'a> {
+    options: &'a Options,
+    title: Vec<InlineNode>,
+    metadata: &'a BlockMetadata,
+    attributes: &'a ElementAttributes,
+    parent_location: Option<&'a Location>,
+    parent_attributes: &'a mut DocumentAttributes,
+    location: &'a Location,
+}
+
 impl Block {
+    /// Parse a block title from a title rule
+    fn parse_block_title(
+        pair: &Pair<Rule>,
+        parent_location: Option<&Location>,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Result<Vec<InlineNode>, Error> {
+        let text = pair.as_str();
+        let start_pos = pair.as_span().start_pos().pos();
+        let mut location = Location::from_pair(pair);
+        location.shift(parent_location);
+
+        // Run inline preprocessor before parsing inlines
+        let mut state = InlinePreprocessorParserState::new();
+        state.set_initial_position(&location, start_pos);
+        let processed = inline_preprocessing::run(text, parent_attributes, &state)
+            .map_err(|e| {
+                tracing::error!("error processing block title: {}", e);
+                Error::Parse(e.to_string())
+            })?;
+
+        let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
+            .map_err(|e| Error::Parse(e.to_string()))?;
+
+        parse_inlines(
+            pairs.next().ok_or_else(|| {
+                tracing::error!("error parsing block title");
+                Error::Parse("error parsing block title".to_string())
+            })?,
+            Some(&processed),
+            Some(&location),
+            parent_attributes,
+        )
+    }
+
+    /// Handle delimited block parsing with admonition support
+    fn parse_delimited_block_with_admonition(
+        pair: Pair<Rule>,
+        params: DelimitedBlockParams,
+        block: &mut Block,
+    ) -> Result<(), Error> {
+        let delimited_block = DelimitedBlock::parse(
+            pair.into_inner(),
+            params.options,
+            params.title,
+            params.metadata,
+            params.attributes,
+            params.parent_location,
+            params.parent_attributes,
+        )?;
+
+        if block.is_admonition() {
+            if let Block::DelimitedBlock(maybe_example_block) = delimited_block {
+                if let DelimitedBlockType::DelimitedExample(blocks) = maybe_example_block.inner {
+                    block.set_admonition_blocks(blocks);
+                    // Need to set location here because we might have a
+                    // parent location and therefore the check at the return
+                    // point of this function fails.
+                    block.set_location(params.location.clone());
+                }
+            } else {
+                tracing::warn!(
+                    "admonition block with non-example delimited block, skipping"
+                );
+            }
+        } else {
+            *block = delimited_block;
+        }
+        Ok(())
+    }
+
+    /// Handle paragraph parsing with admonition support
+    fn parse_paragraph_with_admonition(
+        pair: Pair<Rule>,
+        metadata: &mut BlockMetadata,
+        attributes: &mut ElementAttributes,
+        parent_location: Option<&Location>,
+        parent_attributes: &mut DocumentAttributes,
+        block: &mut Block,
+    ) -> Result<(), Error> {
+        let paragraph = Paragraph::parse(
+            pair,
+            metadata,
+            attributes,
+            parent_location,
+            parent_attributes,
+        )?;
+
+        if block.is_admonition() {
+            block.set_admonition_blocks(vec![paragraph]);
+        } else {
+            *block = paragraph;
+        }
+        Ok(())
+    }
+
+    /// Parse media blocks (image, audio, video)
+    fn parse_media_block(
+        rule: Rule,
+        pair: Pair<Rule>,
+        metadata: &mut BlockMetadata,
+        attributes: &mut ElementAttributes,
+        parent_attributes: &mut DocumentAttributes,
+    ) -> Block {
+        match rule {
+            Rule::image_block => Image::parse(
+                pair.into_inner(),
+                metadata,
+                attributes,
+                parent_attributes,
+            ),
+            Rule::audio_block => Audio::parse(
+                pair.into_inner(),
+                metadata,
+                attributes,
+                parent_attributes,
+            ),
+            Rule::video_block => Video::parse(
+                pair.into_inner(),
+                metadata,
+                attributes,
+                parent_attributes,
+            ),
+            _ => unreachable!("parse_media_block called with non-media rule: {rule:?}"),
+        }
+    }
+
+    /// Handle ID and block style ID rules
+    fn handle_id_rule(
+        pair: &Pair<Rule>,
+        metadata: &mut BlockMetadata,
+        location: &Location,
+    ) {
+        if metadata.id.is_some() {
+            tracing::warn!(
+                id = pair.as_str(),
+                "block already has an id, ignoring this one"
+            );
+            return;
+        }
+        let anchor = Anchor {
+            id: pair.as_str().to_string(),
+            location: location.clone(),
+            ..Default::default()
+        };
+        metadata.anchors.push(anchor.clone());
+        metadata.id = Some(anchor);
+    }
+
+    /// Handle break blocks (thematic and page breaks)
+    fn parse_break_block(rule: Rule, anchors: Vec<Anchor>, title: Vec<InlineNode>, metadata: BlockMetadata, location: Location) -> Block {
+        match rule {
+            Rule::thematic_break_block => Block::ThematicBreak(ThematicBreak {
+                anchors,
+                title,
+                location,
+            }),
+            Rule::page_break_block => Block::PageBreak(PageBreak {
+                title,
+                metadata,
+                location,
+            }),
+            _ => unreachable!("parse_break_block called with non-break rule: {rule:?}"),
+        }
+    }
+
+    /// Handle positional attribute value parsing with admonition support
+    fn handle_positional_attribute(
+        pair: &Pair<Rule>,
+        attributes: &mut ElementAttributes,
+        metadata: &mut BlockMetadata,
+        style_found: bool,
+        title: &[InlineNode],
+        location: &Location,
+        block: &mut Block,
+    ) -> Result<(), Error> {
+        let value = pair.as_str().to_string();
+        if value.is_empty() {
+            return Ok(());
+        }
+
+        // if we have a positional attribute and it is the first one, then it's the style
+        if metadata.style.is_none() && !style_found {
+            if AdmonitionVariant::from_str(&value).is_ok() {
+                *block = Block::Admonition(Admonition {
+                    metadata: metadata.clone(),
+                    title: title.to_vec(),
+                    blocks: Vec::new(),
+                    location: location.clone(),
+                    variant: AdmonitionVariant::from_str(&value)?,
+                });
+            } else {
+                metadata.style = Some(value);
+            }
+        } else {
+            attributes.insert(value, AttributeValue::None);
+        }
+        Ok(())
+    }
+
+    /// Finalize block with location, anchors, metadata, attributes, and title
+    fn finalize_block(
+        block: &mut Block,
+        parent_location: Option<&Location>,
+        location: Location,
+        anchors: Vec<Anchor>,
+        metadata: BlockMetadata,
+        attributes: ElementAttributes,
+        title: Vec<InlineNode>,
+    ) {
+        // If we have a block that does not have a parent_location set, then we want to
+        // set the location to surround everything we've found.
+        if parent_location.is_none() {
+            block.set_location(location);
+        }
+        block.set_anchors(anchors);
+        block.set_metadata(metadata);
+        block.set_attributes(attributes);
+        if !title.is_empty() {
+            block.set_title(title);
+        }
+    }
+
+    /// Handle simple metadata rules (option, role, `empty_style`)
+    fn handle_simple_metadata_rules(rule: Rule, pair: &Pair<Rule>, metadata: &mut BlockMetadata, style_found: &mut bool) {
+        match rule {
+            Rule::option => metadata.options.push(pair.as_str().to_string()),
+            Rule::role => metadata.roles.push(pair.as_str().to_string()),
+            Rule::empty_style => *style_found = true,
+            _ => {}
+        }
+    }
+    #[must_use]
+    pub fn location(&self) -> &Location {
+        match self {
+            Block::TableOfContents(toc) => &toc.location,
+            Block::Admonition(admonition) => &admonition.location,
+            Block::DiscreteHeader(header) => &header.location,
+            Block::DocumentAttribute(attr) => &attr.location,
+            Block::ThematicBreak(br) => &br.location,
+            Block::PageBreak(br) => &br.location,
+            Block::UnorderedList(list) => &list.location,
+            Block::OrderedList(list) => &list.location,
+            Block::DescriptionList(list) => &list.location,
+            Block::Section(section) => &section.location,
+            Block::DelimitedBlock(block) => &block.location,
+            Block::Paragraph(paragraph) => &paragraph.location,
+            Block::Image(image) => &image.location,
+            Block::Audio(audio) => &audio.location,
+            Block::Video(video) => &video.location,
+            Block::_DiscreteHeaderSection(section) => &section.location,
+        }
+    }
+
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
@@ -200,48 +464,26 @@ impl Block {
                     block = Section::parse(&pair, options, parent_location, parent_attributes)?;
                 }
                 Rule::delimited_block => {
-                    let delimited_block = DelimitedBlock::parse(
-                        pair.into_inner(),
+                    let params = DelimitedBlockParams {
                         options,
-                        title.clone(),
-                        &metadata,
-                        &attributes,
+                        title: title.clone(),
+                        metadata: &metadata,
+                        attributes: &attributes,
                         parent_location,
                         parent_attributes,
-                    )?;
-                    if block.is_admonition() {
-                        if let Block::DelimitedBlock(maybe_example_block) = delimited_block {
-                            if let DelimitedBlockType::DelimitedExample(blocks) =
-                                maybe_example_block.inner
-                            {
-                                block.set_admonition_blocks(blocks);
-                                // Need to set location here because we might have a
-                                // parent location and therefore the check at the return
-                                // point of this function fails.
-                                block.set_location(location.clone());
-                            }
-                        } else {
-                            tracing::warn!(
-                                "admonition block with non-example delimited block, skipping"
-                            );
-                        }
-                    } else {
-                        block = delimited_block;
-                    }
+                        location: &location,
+                    };
+                    Self::parse_delimited_block_with_admonition(pair, params, &mut block)?;
                 }
                 Rule::paragraph => {
-                    let paragraph = Paragraph::parse(
+                    Self::parse_paragraph_with_admonition(
                         pair,
                         &mut metadata,
                         &mut attributes,
                         parent_location,
                         parent_attributes,
+                        &mut block,
                     )?;
-                    if block.is_admonition() {
-                        block.set_admonition_blocks(vec![paragraph]);
-                    } else {
-                        block = paragraph;
-                    }
                 }
                 Rule::list => {
                     block = parse_list(
@@ -252,16 +494,18 @@ impl Block {
                     )?;
                 }
                 Rule::image_block => {
-                    block = Image::parse(
-                        pair.into_inner(),
+                    block = Self::parse_media_block(
+                        Rule::image_block,
+                        pair,
                         &mut metadata,
                         &mut attributes,
                         parent_attributes,
                     );
                 }
                 Rule::audio_block => {
-                    block = Audio::parse(
-                        pair.into_inner(),
+                    block = Self::parse_media_block(
+                        Rule::audio_block,
+                        pair,
                         &mut metadata,
                         &mut attributes,
                         parent_attributes,
@@ -269,102 +513,36 @@ impl Block {
                 }
                 Rule::toc_block => {
                     block = Block::TableOfContents(TableOfContents {
+                        metadata: metadata.clone(),
                         location: location.clone(),
                     });
                 }
                 Rule::video_block => {
-                    block = Video::parse(
-                        pair.into_inner(),
+                    block = Self::parse_media_block(
+                        Rule::video_block,
+                        pair,
                         &mut metadata,
                         &mut attributes,
                         parent_attributes,
                     );
                 }
-                Rule::option => metadata.options.push(pair.as_str().to_string()),
-                Rule::role => metadata.roles.push(pair.as_str().to_string()),
-                Rule::id | Rule::block_style_id => {
-                    if metadata.id.is_some() {
-                        tracing::warn!(
-                            id = pair.as_str(),
-                            "block already has an id, ignoring this one"
-                        );
-                        continue;
-                    }
-                    let anchor = Anchor {
-                        id: pair.as_str().to_string(),
-                        location: location.clone(),
-                        ..Default::default()
-                    };
-                    metadata.anchors.push(anchor.clone());
-                    metadata.id = Some(anchor);
+                Rule::option | Rule::role | Rule::empty_style => {
+                    Self::handle_simple_metadata_rules(pair.as_rule(), &pair, &mut metadata, &mut style_found);
                 }
-                Rule::empty_style => {
-                    style_found = true;
+                Rule::id | Rule::block_style_id => {
+                    Self::handle_id_rule(&pair, &mut metadata, &location);
                 }
                 Rule::title => {
-                    let text = pair.as_str();
-                    let start_pos = pair.as_span().start_pos().pos();
-                    let mut location = Location::from_pair(&pair);
-                    location.shift(parent_location);
-
-                    // Run inline preprocessor before parsing inlines
-                    let mut state = InlinePreprocessorParserState::new();
-                    state.set_initial_position(&location, start_pos);
-                    let processed = inline_preprocessing::run(text, parent_attributes, &state)
-                        .map_err(|e| {
-                            tracing::error!("error processing block title: {}", e);
-                            Error::Parse(e.to_string())
-                        })?;
-
-                    let mut pairs = InnerPestParser::parse(Rule::inlines, &processed.text)
-                        .map_err(|e| Error::Parse(e.to_string()))?;
-
-                    title = parse_inlines(
-                        pairs.next().ok_or_else(|| {
-                            tracing::error!("error parsing block title");
-                            Error::Parse("error parsing block title".to_string())
-                        })?,
-                        Some(&processed),
-                        Some(&location),
-                        parent_attributes,
-                    )?;
+                    title = Self::parse_block_title(&pair, parent_location, parent_attributes)?;
                 }
                 Rule::thematic_break_block => {
-                    let thematic_break = ThematicBreak {
-                        anchors: anchors.clone(),
-                        title: title.clone(),
-                        location: location.clone(),
-                    };
-                    block = Block::ThematicBreak(thematic_break);
+                    block = Self::parse_break_block(Rule::thematic_break_block, anchors.clone(), title.clone(), metadata.clone(), location.clone());
                 }
                 Rule::page_break_block => {
-                    block = Block::PageBreak(PageBreak {
-                        title: title.clone(),
-                        metadata: metadata.clone(),
-                        location: location.clone(),
-                    });
+                    block = Self::parse_break_block(Rule::page_break_block, anchors.clone(), title.clone(), metadata.clone(), location.clone());
                 }
                 Rule::positional_attribute_value => {
-                    let value = pair.as_str().to_string();
-                    if !value.is_empty() {
-                        // if we have a positional attribute and it is the first one, then
-                        // it's the style
-                        if metadata.style.is_none() && !style_found {
-                            if AdmonitionVariant::from_str(&value).is_ok() {
-                                block = Block::Admonition(Admonition {
-                                    metadata: metadata.clone(),
-                                    title: title.clone(),
-                                    blocks: Vec::new(),
-                                    location: location.clone(),
-                                    variant: AdmonitionVariant::from_str(&value)?,
-                                });
-                            } else {
-                                metadata.style = Some(value);
-                            }
-                        } else {
-                            attributes.insert(value, AttributeValue::None);
-                        }
-                    }
+                    Self::handle_positional_attribute(&pair, &mut attributes, &mut metadata, style_found, &title, &location, &mut block)?;
                 }
                 Rule::named_attribute => {
                     Self::parse_named_attribute(pair.into_inner(), &mut attributes, &mut metadata);
@@ -374,18 +552,7 @@ impl Block {
             }
         }
 
-        // If we have a block that does not have a parent_location set, then we want to
-        // set the location to surround everything we've found.
-        if parent_location.is_none() {
-            block.set_location(location);
-        }
-        block.set_anchors(anchors);
-        block.set_metadata(metadata);
-        block.set_attributes(attributes);
-        if !title.is_empty() {
-            block.set_title(title);
-        }
-
+        Self::finalize_block(&mut block, parent_location, location, anchors, metadata, attributes, title);
         Ok(block)
     }
 

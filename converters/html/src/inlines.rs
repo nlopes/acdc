@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, Pass, PassthroughKind,
+    AttributeValue, Image, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Source,
     Substitution, Url,
 };
 
@@ -46,6 +46,17 @@ impl Render for InlineNode {
                     write!(w, "</em>")?;
                 }
             }
+            InlineNode::HighlightText(i) => {
+                if !options.inlines_basic {
+                    write!(w, "<mark>")?;
+                }
+                for inline in &i.content {
+                    inline.render(w, processor, options)?;
+                }
+                if !options.inlines_basic {
+                    write!(w, "</mark>")?;
+                }
+            }
             InlineNode::MonospaceText(m) => {
                 if !options.inlines_basic {
                     write!(w, "<code>")?;
@@ -56,6 +67,23 @@ impl Render for InlineNode {
                 if !options.inlines_basic {
                     write!(w, "</code>")?;
                 }
+            }
+            InlineNode::CurvedQuotationText(c) => {
+                write!(w, "&ldquo;")?;
+                for inline in &c.content {
+                    inline.render(w, processor, options)?;
+                }
+                write!(w, "&rdquo;")?;
+            }
+            InlineNode::CurvedApostropheText(c) => {
+                write!(w, "&lsquo;")?;
+                for inline in &c.content {
+                    inline.render(w, processor, options)?;
+                }
+                write!(w, "&rsquo;")?;
+            }
+            InlineNode::StandaloneCurvedApostrophe(_) => {
+                write!(w, "&rsquo;")?;
             }
             InlineNode::Macro(m) => m.render(w, processor, options)?,
             unknown => todo!("inlines: {:?}", unknown),
@@ -96,7 +124,7 @@ impl Render for Link {
             .text
             .as_ref()
             .map(|t| substitution_text(t))
-            .unwrap_or(self.target.clone());
+            .unwrap_or(format!("{}", self.target));
         if options.inlines_basic {
             write!(w, "{text}")?;
         } else {
@@ -126,7 +154,8 @@ impl Render for Url {
                     None
                 }
             })
-            .unwrap_or(&self.target);
+            .unwrap_or(&format!("{}", self.target))
+            .to_string();
 
         if options.inlines_basic {
             write!(w, "{text}")?;
@@ -150,8 +179,9 @@ impl Render for Image {
             w,
             "<img src=\"{}\"",
             match &self.source {
-                ImageSource::Url(url) => url,
-                ImageSource::Path(path) => path,
+                Source::Url(url) => url,
+                Source::Path(path) => path,
+                Source::Name(name) => name,
             }
         )?;
         if !self.title.is_empty() {

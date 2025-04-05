@@ -1,0 +1,191 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Other markup: <del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "code",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "code",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 28
+                },
+                {
+                  "line": 1,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 27
+            },
+            {
+              "line": 1,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 33
+            },
+            {
+              "line": 1,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "subscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "subscript",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 39
+                },
+                {
+                  "line": 1,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 38
+            },
+            {
+              "line": 1,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 49
+            },
+            {
+              "line": 1,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "superscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "superscript",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 55
+                },
+                {
+                  "line": 1,
+                  "col": 66
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 54
+            },
+            {
+              "line": 1,
+              "col": 67
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "</del> within passthrough.",
+          "location": [
+            {
+              "line": 1,
+              "col": 67
+            },
+            {
+              "line": 1,
+              "col": 93
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 93
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 93
+    }
+  ]
+}

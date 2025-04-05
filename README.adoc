@@ -11,3 +11,9 @@ Users will likely want to look at `link:./acdc-cli[acdc-cli]`.
 - `link:./acdc-cli[acdc-cli]` - `AsciiDoc` processor
 - `link:./acdc-parser[acdc-parser]` - `AsciiDoc` parser library
 - `link:./converters[converters]` - collection of `AsciiDoc` converters
+
+## Validating AST against harness
+
+```shell
+node harness/bin/asciidoc-tck.js cli -c '../../personal/acdc/target/debug/acdc --stdin --backend tck'
+```

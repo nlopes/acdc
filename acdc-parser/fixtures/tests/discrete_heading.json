@@ -1,0 +1,79 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "heading",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A Discrete Heading",
+          "location": [
+            {
+              "line": 2,
+              "col": 4
+            },
+            {
+              "line": 2,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A paragraph",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 11
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 11
+    }
+  ]
+}

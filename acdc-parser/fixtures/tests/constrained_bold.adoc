@@ -1,0 +1,15 @@
+This paragraph has *constrained bold* text that requires word boundaries.
+
+It works at the *beginning* and at the *end*.
+
+But not in the*middle*of words without boundaries.
+
+**Unconstrained bold with *nested constrained bold* inside**.
+
+Edge cases: *word*.punctuation and *word*,comma and *word*!exclamation.
+
+Multiple words: *multiple word bold phrase* with spaces.
+
+Mixed: *bold* and _italic_ together.
+
+Nested with italic: **Unconstrained bold with _nested constrained italic_ inside**.

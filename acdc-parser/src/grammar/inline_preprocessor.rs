@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::{HashMap, HashSet},
+    collections::HashMap,
 };
 
 use peg::parser;
@@ -153,6 +153,8 @@ impl SourceMap {
 
 parser!(
     pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes, state: &InlinePreprocessorParserState) for str {
+        use std::collections::HashSet;
+
         pub rule run() -> ProcessedContent
             = content:inlines()+ {
                 ProcessedContent {
@@ -292,7 +294,11 @@ parser!(
 
         rule substitutions() -> HashSet<Substitution>
             = subs:$(substitution_value() ** ",") {
-                subs.split(',').map(|s| Substitution::from(s.trim())).collect()
+                if subs.is_empty() {
+                    HashSet::new()
+                } else {
+                    subs.split(',').map(|s| Substitution::from(s.trim())).collect()
+                }
             }
 
         rule substitution_value() -> &'input str

@@ -1,0 +1,1 @@
+pass:q[*bold* _italic_ `mono` #highlight#] text.

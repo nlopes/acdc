@@ -1,0 +1,95 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Escaped asterisks: <del>\\*not bold\\*</del> and mixed <del>\\*escaped\\* ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 86
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 87
+                },
+                {
+                  "line": 1,
+                  "col": 91
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 86
+            },
+            {
+              "line": 1,
+              "col": 92
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "</del> patterns.",
+          "location": [
+            {
+              "line": 1,
+              "col": 92
+            },
+            {
+              "line": 1,
+              "col": 108
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 108
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 108
+    }
+  ]
+}

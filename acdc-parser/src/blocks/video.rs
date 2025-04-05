@@ -3,7 +3,7 @@ use tracing::instrument;
 
 use crate::{
     AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Location, Rule,
-    Video, VideoSource,
+    Source, Video,
 };
 
 impl Video {
@@ -31,9 +31,9 @@ impl Video {
                     for pair in pair.into_inner() {
                         match pair.as_rule() {
                             Rule::path => {
-                                sources.push(VideoSource::Path(pair.as_str().to_string()));
+                                sources.push(Source::Path(pair.as_str().to_string()));
                             }
-                            Rule::url => sources.push(VideoSource::Url(pair.as_str().to_string())),
+                            Rule::url => sources.push(Source::Url(pair.as_str().to_string())),
                             Rule::named_attribute => {
                                 Block::parse_named_attribute(
                                     pair.into_inner(),

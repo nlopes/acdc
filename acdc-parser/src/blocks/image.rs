@@ -5,7 +5,7 @@ use tracing::instrument;
 
 use crate::{
     Anchor, AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Image,
-    ImageSource, Location, Rule,
+    Location, Rule, Source,
 };
 
 impl Image {
@@ -16,7 +16,7 @@ impl Image {
         attributes: &mut ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
-        let mut source = ImageSource::Path(String::new());
+        let mut source = Source::Path(String::new());
         let mut location = Location::default();
 
         let len = pairs.clone().count();
@@ -56,7 +56,7 @@ impl Image {
         pairs: Pairs<Rule>,
         metadata: &mut BlockMetadata,
         attributes: &mut ElementAttributes,
-        source: &mut ImageSource,
+        source: &mut Source,
     ) {
         let mut attribute_idx = 0;
         let mut attribute_mapping = HashMap::new();
@@ -66,8 +66,8 @@ impl Image {
 
         for pair in pairs {
             match pair.as_rule() {
-                Rule::path => *source = ImageSource::Path(pair.as_str().to_string()),
-                Rule::url => *source = ImageSource::Url(pair.as_str().to_string()),
+                Rule::path => *source = Source::Path(pair.as_str().to_string()),
+                Rule::url => *source = Source::Url(pair.as_str().to_string()),
                 Rule::named_attribute => {
                     Block::parse_named_attribute(pair.into_inner(), attributes, metadata);
                 }

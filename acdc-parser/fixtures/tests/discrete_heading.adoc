@@ -1,0 +1,4 @@
+[discrete]
+== A Discrete Heading
+
+A paragraph

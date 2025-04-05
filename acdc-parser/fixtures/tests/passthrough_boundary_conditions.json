@@ -1,0 +1,95 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Complex boundaries: <del>*bold*text*more*</del> and <del>text*notbold*</del> and <del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 110
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 111
+                },
+                {
+                  "line": 1,
+                  "col": 115
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 110
+            },
+            {
+              "line": 1,
+              "col": 116
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".</del> patterns.",
+          "location": [
+            {
+              "line": 1,
+              "col": 116
+            },
+            {
+              "line": 1,
+              "col": 133
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 133
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 133
+    }
+  ]
+}

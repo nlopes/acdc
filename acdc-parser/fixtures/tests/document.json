@@ -1,0 +1,67 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [
+          {
+            "line": 2,
+            "col": 3
+          },
+          {
+            "line": 2,
+            "col": 16
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "Lorn_Kismet",
+        "middlename": "R.",
+        "lastname": "Lee",
+        "initials": "LRL",
+        "address": "kismet@asciidoctor.org"
+      },
+      {
+        "firstname": "Norberto",
+        "middlename": "M.",
+        "lastname": "Lopes",
+        "initials": "NML",
+        "address": "nlopesml@gmail.com"
+      }
+    ],
+    "location": [
+      {
+        "line": 2,
+        "col": 1
+      },
+      {
+        "line": 7,
+        "col": 34
+      }
+    ]
+  },
+  "attributes": {
+    "description": "The document's description.",
+    "revdate": "01-09-2024",
+    "revnumber": "v2.9",
+    "revremark": "Fall incarnation",
+    "sectanchors": true,
+    "url-repo": "https://my-git-repo.com"
+  },
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 34
+    }
+  ]
+}

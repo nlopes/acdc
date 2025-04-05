@@ -1,8 +1,8 @@
 use pest::{Parser as _, iterators::Pairs};
 
 use crate::{
-    DocumentAttributes, Error, InlinePreprocessorParserState, ListItem, Location, Rule,
-    inline_preprocessing,
+    DocumentAttributes, Error, InlinePreprocessorParserState, ListItem, ListItemCheckedStatus,
+    Location, Rule, inline_preprocessing,
 };
 
 impl ListItem {
@@ -65,8 +65,8 @@ impl ListItem {
                         Error::Parse(format!("error with list level depth: {e}"))
                     })?;
                 }
-                Rule::checklist_item_checked => checked = Some(true),
-                Rule::checklist_item_unchecked => checked = Some(false),
+                Rule::checklist_item_checked => checked = Some(ListItemCheckedStatus::Checked),
+                Rule::checklist_item_unchecked => checked = Some(ListItemCheckedStatus::Unchecked),
                 Rule::EOI | Rule::comment => {}
                 unknown => unreachable!("{unknown:?}"),
             }

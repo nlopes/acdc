@@ -1,0 +1,143 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Text with ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "curved_quotation",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "quotes",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 13
+                },
+                {
+                  "line": 1,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 11
+            },
+            {
+              "line": 1,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 21
+            },
+            {
+              "line": 1,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "curved_apostrophe",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "apostrophes",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 28
+                },
+                {
+                  "line": 1,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 26
+            },
+            {
+              "line": 1,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " together.",
+          "location": [
+            {
+              "line": 1,
+              "col": 41
+            },
+            {
+              "line": 1,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 50
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 50
+    }
+  ]
+}

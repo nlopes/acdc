@@ -8,16 +8,16 @@
       "form": "delimited",
       "delimiter": "|===",
       "metadata": {
+        "attributes": {
+          "cols": "\"1,1\""
+        },
         "roles": [
           "name-of-role"
         ],
         "options": [
           "header",
           "footer"
-        ],
-        "attributes": {
-          "cols": "\"1,1\""
-        }
+        ]
       },
       "content": {
         "header": {
@@ -34,24 +34,24 @@
                       "value": "Cell in column 1, row 1",
                       "location": [
                         {
-                          "line": 1,
-                          "col": 1
+                          "line": 5,
+                          "col": 2
                         },
                         {
-                          "line": 1,
-                          "col": 23
+                          "line": 5,
+                          "col": 24
                         }
                       ]
                     }
                   ],
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 5,
+                      "col": 2
                     },
                     {
-                      "line": 1,
-                      "col": 23
+                      "line": 5,
+                      "col": 24
                     }
                   ]
                 }
@@ -69,24 +69,24 @@
                       "value": "Cell in column 2, row 1",
                       "location": [
                         {
-                          "line": 1,
-                          "col": 1
+                          "line": 6,
+                          "col": 2
                         },
                         {
-                          "line": 1,
-                          "col": 23
+                          "line": 6,
+                          "col": 24
                         }
                       ]
                     }
                   ],
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 6,
+                      "col": 2
                     },
                     {
-                      "line": 1,
-                      "col": 23
+                      "line": 6,
+                      "col": 24
                     }
                   ]
                 }
@@ -108,24 +108,24 @@
                       "value": "Cell in column 1, row 4",
                       "location": [
                         {
-                          "line": 1,
-                          "col": 1
+                          "line": 15,
+                          "col": 2
                         },
                         {
-                          "line": 1,
-                          "col": 23
+                          "line": 15,
+                          "col": 24
                         }
                       ]
                     }
                   ],
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 15,
+                      "col": 2
                     },
                     {
-                      "line": 1,
-                      "col": 23
+                      "line": 15,
+                      "col": 24
                     }
                   ]
                 }
@@ -143,24 +143,24 @@
                       "value": "Cell in column 2, row 4",
                       "location": [
                         {
-                          "line": 1,
-                          "col": 1
+                          "line": 16,
+                          "col": 2
                         },
                         {
-                          "line": 1,
-                          "col": 23
+                          "line": 16,
+                          "col": 24
                         }
                       ]
                     }
                   ],
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 16,
+                      "col": 2
                     },
                     {
-                      "line": 1,
-                      "col": 23
+                      "line": 16,
+                      "col": 24
                     }
                   ]
                 }
@@ -183,24 +183,24 @@
                         "value": "Cell in column 1, row 2",
                         "location": [
                           {
-                            "line": 1,
-                            "col": 1
+                            "line": 9,
+                            "col": 2
                           },
                           {
-                            "line": 1,
-                            "col": 23
+                            "line": 9,
+                            "col": 24
                           }
                         ]
                       }
                     ],
                     "location": [
                       {
-                        "line": 1,
-                        "col": 1
+                        "line": 9,
+                        "col": 2
                       },
                       {
-                        "line": 1,
-                        "col": 23
+                        "line": 9,
+                        "col": 24
                       }
                     ]
                   }
@@ -218,24 +218,24 @@
                         "value": "Cell in column 2, row 2",
                         "location": [
                           {
-                            "line": 1,
-                            "col": 1
+                            "line": 10,
+                            "col": 2
                           },
                           {
-                            "line": 1,
-                            "col": 23
+                            "line": 10,
+                            "col": 24
                           }
                         ]
                       }
                     ],
                     "location": [
                       {
-                        "line": 1,
-                        "col": 1
+                        "line": 10,
+                        "col": 2
                       },
                       {
-                        "line": 1,
-                        "col": 23
+                        "line": 10,
+                        "col": 24
                       }
                     ]
                   }
@@ -257,24 +257,24 @@
                         "value": "Cell in column 1, row 3",
                         "location": [
                           {
-                            "line": 1,
-                            "col": 1
+                            "line": 12,
+                            "col": 2
                           },
                           {
-                            "line": 1,
-                            "col": 23
+                            "line": 12,
+                            "col": 24
                           }
                         ]
                       }
                     ],
                     "location": [
                       {
-                        "line": 1,
-                        "col": 1
+                        "line": 12,
+                        "col": 2
                       },
                       {
-                        "line": 1,
-                        "col": 23
+                        "line": 12,
+                        "col": 24
                       }
                     ]
                   }
@@ -292,24 +292,24 @@
                         "value": "Cell in column 2, row 3",
                         "location": [
                           {
-                            "line": 1,
-                            "col": 1
+                            "line": 13,
+                            "col": 2
                           },
                           {
-                            "line": 1,
-                            "col": 23
+                            "line": 13,
+                            "col": 24
                           }
                         ]
                       }
                     ],
                     "location": [
                       {
-                        "line": 1,
-                        "col": 1
+                        "line": 13,
+                        "col": 2
                       },
                       {
-                        "line": 1,
-                        "col": 23
+                        "line": 13,
+                        "col": 24
                       }
                     ]
                   }
@@ -320,12 +320,12 @@
         ],
         "location": [
           {
-            "line": 0,
-            "col": 0
+            "line": 4,
+            "col": 1
           },
           {
-            "line": 0,
-            "col": 0
+            "line": 17,
+            "col": 4
           }
         ]
       },
@@ -349,10 +349,10 @@
       "location": [
         {
           "line": 1,
-          "col": 2
+          "col": 1
         },
         {
-          "line": 16,
+          "line": 17,
           "col": 4
         }
       ]
@@ -364,7 +364,7 @@
       "col": 1
     },
     {
-      "line": 16,
+      "line": 17,
       "col": 4
     }
   ]

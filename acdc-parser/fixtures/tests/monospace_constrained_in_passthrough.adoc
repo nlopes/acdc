@@ -1,0 +1,1 @@
+Code example pass:q[Use `function()` to call] it.

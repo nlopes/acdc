@@ -1,0 +1,5 @@
+Visit https://example.com[Example Website] for more information.
+
+You can also check https://github.com/anthropics/claude-code[Claude Code on GitHub,role=external] or https://docs.anthropic.com[Anthropic Documentation].
+
+Here's a URL with attributes: https://rust-lang.org[The Rust Programming Language,title=Official Rust docs,target=_blank].

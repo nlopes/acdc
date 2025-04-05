@@ -169,10 +169,8 @@ impl Conditional {
                         .iter()
                         .all(|attr| attributes.contains_key(attr));
                 }
-                if is_true {
-                    if let Some(if_content) = &ifdef.content {
-                        content.clone_from(if_content);
-                    }
+                if is_true && let Some(if_content) = &ifdef.content {
+                    content.clone_from(if_content);
                 }
                 is_true
             }
@@ -192,10 +190,8 @@ impl Conditional {
                         .iter()
                         .all(|attr| attributes.contains_key(attr));
                 }
-                if is_true {
-                    if let Some(if_content) = &ifndef.content {
-                        content.clone_from(if_content);
-                    }
+                if is_true && let Some(if_content) = &ifndef.content {
+                    content.clone_from(if_content);
                 }
                 is_true
             }
@@ -281,10 +277,10 @@ impl EvalValue {
                             EvalValue::Number(value)
                         } else {
                             tracing::error!(value, "failed to parse i64 as f64");
-                            EvalValue::String(Self::strip_quotes(s))
+                            EvalValue::String(Self::strip_quotes(&s))
                         }
                     } else {
-                        EvalValue::String(Self::strip_quotes(s))
+                        EvalValue::String(Self::strip_quotes(&s))
                     }
                 }
             }
@@ -293,7 +289,7 @@ impl EvalValue {
     }
 
     #[tracing::instrument(level = "trace")]
-    fn strip_quotes(s: String) -> String {
+    fn strip_quotes(s: &str) -> String {
         if s.starts_with('\'') && s.ends_with('\'') {
             s[1..s.len() - 1].to_string()
         } else {

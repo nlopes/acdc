@@ -1,0 +1,95 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "E = mc",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "superscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "2",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 8
+                },
+                {
+                  "line": 1,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 7
+            },
+            {
+              "line": 1,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " is Einstein's formula.",
+          "location": [
+            {
+              "line": 1,
+              "col": 10
+            },
+            {
+              "line": 1,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 32
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 32
+    }
+  ]
+}

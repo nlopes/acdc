@@ -1,0 +1,1 @@
+Unconstrained bold: pass:q[<del>**unconstrained bold**</del>] and mixed pass:q[<del>*constrained* **unconstrained**</del>] patterns.

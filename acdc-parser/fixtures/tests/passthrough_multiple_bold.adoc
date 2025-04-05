@@ -1,0 +1,1 @@
+Multiple bold patterns: pass:q[<del>*first* and *second*</del>] in one passthrough.

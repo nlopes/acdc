@@ -19,9 +19,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
-          "target": "/projects/markdown/basics.text",
-          "location": [{"line": 1, "col": 57},{"line": 1, "col": 145}],
-          "attributes": {}
+          "target": {
+            "type": "path",
+            "value": "/projects/markdown/basics.text"
+          },
+          "location": [{"line": 1, "col": 57},{"line": 1, "col": 145}]
         },
         {
           "name": "text",

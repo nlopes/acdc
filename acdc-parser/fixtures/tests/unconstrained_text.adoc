@@ -1,0 +1,13 @@
+This paragraph demonstrates **strong unconstrained** formatting.
+
+It also shows __emphasis unconstrained__ formatting.
+
+Mixed formatting: **unconstrained strong with __nested unconstrained emphasis__**.
+
+Word boundaries: **every**where and __any__where.
+
+Special cases: ** not bold either ** when spaces surround.
+
+Edge case: text**bold**moretext and text__italic__moretext.
+
+Quotes and symbols: "**quoted unconstrained**" and '__quoted emphasis__'.

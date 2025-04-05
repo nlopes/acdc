@@ -91,18 +91,17 @@ impl DelimitedBlock {
                     })]);
                 }
                 Rule::delimited_quote => {
-                    if let Some(ref verse) = metadata.style {
-                        if verse == "verse" {
-                            // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
-                            inner =
-                                DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(
-                                    Plain {
-                                        location: location.clone(),
-                                        content: text.clone(),
-                                    },
-                                )]);
-                            continue;
-                        }
+                    if let Some(ref verse) = metadata.style
+                        && verse == "verse"
+                    {
+                        // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
+                        inner = DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(
+                            Plain {
+                                location: location.clone(),
+                                content: text.clone(),
+                            },
+                        )]);
+                        continue;
                     }
                     let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;

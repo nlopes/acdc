@@ -1,0 +1,239 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Formula ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "E",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 17
+                },
+                {
+                  "line": 1,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 16
+            },
+            {
+              "line": 1,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " = ",
+          "location": [
+            {
+              "line": 1,
+              "col": 19
+            },
+            {
+              "line": 1,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "m",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 23
+                },
+                {
+                  "line": 1,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 22
+            },
+            {
+              "line": 1,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " × *c",
+          "location": [
+            {
+              "line": 1,
+              "col": 25
+            },
+            {
+              "line": 1,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "superscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "2",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 32
+                },
+                {
+                  "line": 1,
+                  "col": 33
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 31
+            },
+            {
+              "line": 1,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "^ and molecule H",
+          "location": [
+            {
+              "line": 1,
+              "col": 34
+            },
+            {
+              "line": 1,
+              "col": 58
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "subscript",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "2",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 59
+                },
+                {
+                  "line": 1,
+                  "col": 60
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 58
+            },
+            {
+              "line": 1,
+              "col": 61
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "O.",
+          "location": [
+            {
+              "line": 1,
+              "col": 61
+            },
+            {
+              "line": 1,
+              "col": 63
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 63
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 63
+    }
+  ]
+}

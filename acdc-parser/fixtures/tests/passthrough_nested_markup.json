@@ -1,0 +1,143 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Nested markup: <del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold _italic_",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 29
+                },
+                {
+                  "line": 1,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 28
+            },
+            {
+              "line": 1,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "</del> and <del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 43
+            },
+            {
+              "line": 1,
+              "col": 67
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "emphasis",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "italic *bold*",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 68
+                },
+                {
+                  "line": 1,
+                  "col": 81
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 67
+            },
+            {
+              "line": 1,
+              "col": 82
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "</del> combinations.",
+          "location": [
+            {
+              "line": 1,
+              "col": 82
+            },
+            {
+              "line": 1,
+              "col": 102
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 102
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 102
+    }
+  ]
+}

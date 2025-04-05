@@ -86,49 +86,49 @@ fn render_body_header<W: Write>(
     options: &RenderOptions,
 ) -> Result<(), crate::Error> {
     writeln!(w, "<div id=\"header\">")?;
-    if let Some(header) = &document.header {
-        if !header.title.is_empty() {
-            write!(w, "<h1>")?;
-            crate::inlines::render_inlines(&header.title, w, processor, options)?;
-            writeln!(w, "</h1>")?;
-            writeln!(w, "<div class=\"details\">")?;
-            if !header.authors.is_empty() {
-                for (i, author) in header.authors.iter().enumerate() {
+    if let Some(header) = &document.header
+        && !header.title.is_empty()
+    {
+        write!(w, "<h1>")?;
+        crate::inlines::render_inlines(&header.title, w, processor, options)?;
+        writeln!(w, "</h1>")?;
+        writeln!(w, "<div class=\"details\">")?;
+        if !header.authors.is_empty() {
+            for (i, author) in header.authors.iter().enumerate() {
+                writeln!(
+                    w,
+                    "<span id=\"author{}\" class=\"author\">",
+                    if i > 0 {
+                        format!("{}", i + 1)
+                    } else {
+                        String::new()
+                    }
+                )?;
+                write!(w, "{} ", author.first_name)?;
+                if let Some(middle_name) = &author.middle_name {
+                    write!(w, "{middle_name} ")?;
+                }
+                write!(w, "{}", author.last_name)?;
+                writeln!(w, "</span>")?;
+                writeln!(w, "<br>")?;
+                if let Some(email) = &author.email {
                     writeln!(
                         w,
-                        "<span id=\"author{}\" class=\"author\">",
+                        "<span id=\"email{}\" class=\"email\">",
                         if i > 0 {
                             format!("{}", i + 1)
                         } else {
                             String::new()
                         }
                     )?;
-                    write!(w, "{} ", author.first_name)?;
-                    if let Some(middle_name) = &author.middle_name {
-                        write!(w, "{middle_name} ")?;
-                    }
-                    write!(w, "{}", author.last_name)?;
+
+                    writeln!(w, "<a href=\"mailto:{email}\">{email}</a>")?;
                     writeln!(w, "</span>")?;
                     writeln!(w, "<br>")?;
-                    if let Some(email) = &author.email {
-                        writeln!(
-                            w,
-                            "<span id=\"email{}\" class=\"email\">",
-                            if i > 0 {
-                                format!("{}", i + 1)
-                            } else {
-                                String::new()
-                            }
-                        )?;
-
-                        writeln!(w, "<a href=\"mailto:{email}\">{email}</a>")?;
-                        writeln!(w, "</span>")?;
-                        writeln!(w, "<br>")?;
-                    }
                 }
             }
-            writeln!(w, "</div>")?;
         }
+        writeln!(w, "</div>")?;
     }
     writeln!(w, "</div>")?;
     Ok(())

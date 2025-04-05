@@ -1,6 +1,7 @@
 #![deny(clippy::pedantic)]
 #![warn(clippy::all)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(dead_code)]
 //! `AsciiDoc` parser.
 //!
 //! This module provides a parser for the `AsciiDoc` markup language. The parser is
@@ -47,20 +48,21 @@ mod model;
 mod preprocessor;
 
 pub(crate) use grammar::{
-    InlinePreprocessorParserState, ProcessedContent, ProcessedKind, inline_preprocessing,
+    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent, ProcessedKind,
 };
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, AudioSource,
-    Author, Autolink, Block, BlockMetadata, Bold, Button, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image,
-    ImageSource, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, Location,
-    Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position,
-    Raw, Role, Section, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents,
-    TableRow, ThematicBreak, UnorderedList, Url, Video, VideoSource,
+    Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
+    Block, BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DescriptionListDescription, DescriptionListItem,
+    DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Form,
+    Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link,
+    ListItem, ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak, Paragraph,
+    Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source, StandaloneCurvedApostrophe,
+    Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
+    ThematicBreak, UnorderedList, Url, Video,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -107,7 +109,7 @@ pub fn parse_from_reader<R: std::io::Read>(
     options: &Options,
 ) -> Result<Document, Error> {
     let input = Preprocessor.process_reader(reader, options)?;
-    parse_input(input, options)
+    parse_input(&input, options)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -133,7 +135,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process(input, options)?;
-    parse_input(input, options)
+    parse_input(&input, options)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -160,15 +162,30 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process_file(file_path, options)?;
-    parse_input(input, options)
+    parse_input(&input, options)
 }
 
 #[instrument]
-fn parse_input(input: String, options: &Options) -> Result<Document, Error> {
+fn parse_input_old(input: &str, options: &Options) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
-    let pairs = InnerPestParser::parse(Rule::document, &input);
+    let pairs = InnerPestParser::parse(Rule::document, input);
     match pairs {
         Ok(pairs) => Document::parse(pairs, options),
+        Err(e) => {
+            tracing::error!("error parsing document content: {e}");
+            Err(Error::Parse(e.to_string()))
+        }
+    }
+}
+
+#[instrument]
+fn parse_input(input: &str, options: &Options) -> Result<Document, Error> {
+    tracing::trace!(?input, "post preprocessor");
+    let mut state = grammar::ParserState::new(input);
+    state.document_attributes = options.document_attributes.clone();
+    state.options = options.clone();
+    match grammar::document_parser::document(input, &mut state) {
+        Ok(doc) => doc,
         Err(e) => {
             tracing::error!("error parsing document content: {e}");
             Err(Error::Parse(e.to_string()))
@@ -182,7 +199,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[rstest::rstest]
-    #[trace]
+    #[tracing_test::traced_test]
     fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
         let test_file_path = path.with_extension("json");
         let options = Options {
@@ -212,88 +229,48 @@ mod tests {
         }
     }
 
-    //     #[test]
-    //     #[tracing_test::traced_test]
-    //     fn test_something() {
-    //         let result = parse("
-    // = Test Document
-    // :docname: test-doc
-    // :version: 2.0
-    // :nested1: {version}
-    // :nested2: {nested1}
-    // :url: https://example.org
-
-    // // Basic paragraph with attribute
-    // This is {docname} version {version}.
-
-    // // Paragraph with nested attributes
-    // The document is at version {nested2} right now.
-
-    // // Basic passthrough tests
-    // Here is some +*escaped bold*+ and ++**more escaped**++.
-
-    // // Pass macro variations
-    // Look at pass:q[*quoted*] vs pass:a[{docname}] and pass:q,a[_{docname}_].
-
-    // // Complex pass macro with HTML and attributes
-    // The text pass:q,a[<u>My doc *{docname}* v{version}</u>] is underlined.
-
-    // // Test attributes in links
-    // Check {url}[the main site] for more.
-    // The {url}[site] has more info.
-
-    // // Complex nesting test
-    // See pass:a[version *{nested2}*] details at +https://link.to/{docname}+ or pass:q,a[this **{url}[{docname}]**].
-
-    // // Multiple attributes in one line
-    // Project {docname} v{version} by pass:a[{author}].",
-    //             )
-    //             .unwrap();
-    //         dbg!(&result);
-    //         panic!();
-    //     }
-
-    //     #[test]
-    //     #[tracing_test::traced_test]
-    //     fn test_something() {
-    //         let result = parse(
-    //             ":norberto: meh
-    // :asdf: something + \\
-    // or other {norberto}
-    // :app-name: pass:q[MyApp^2^]
-
-    // == Section **Title**
-
-    // First: {asdf}
-
-    // :asdf: another thing {asdf}
-
-    // Second: {asdf}
-
-    // {app-name}
-
-    // Click image:pause.png[title=Pause **for** stuff] when you need a break.
-
-    // .Something other meh
-    // Ok here we go, a paragraph.
-
-    // .Mint
-    // [sidebar]
-    // Mint has visions of global conquest.
-    // If you don't plant it in a container, it will take over your garden.
-    // ",
-    //         )
-    //         .unwrap();
-    //         dbg!(&result);
-    //         panic!();
-    //     }
+    // #[test]
+    // #[tracing_test::traced_test]
+    // fn test_something() {
+    //     let options = Options {
+    //         safe_mode: SafeMode::Unsafe,
+    //         timings: false,
+    //         document_attributes: DocumentAttributes::default(),
+    //     };
+    //     let result = parse(
+    //         "Setext-style headers for +<h1>+ and +<h2>+ are created by",
+    //         &options,
+    //     )
+    //     .unwrap();
+    //     dbg!(&result);
+    //     assert!(matches!(
+    //         &result.blocks[0],
+    //         Block::Paragraph(Paragraph { content, .. }) if matches!(&content[0], InlineNode::PlainText(Plain { content, location }) if content.starts_with("Setext-style headers for <h1> and <h2> are created by") && location.start.line == 1 && location.end.line == 1 && location.start.column == 1 && location.end.column == 58)
+    //     ));
+    // }
+    //
+    // #[test]
+    // #[tracing_test::traced_test]
+    // fn test_something() {
+    //     let options = Options {
+    //         safe_mode: SafeMode::Unsafe,
+    //         timings: false,
+    //         document_attributes: DocumentAttributes::default(),
+    //     };
+    //     let result = parse_file("../test_something1.adoc", &options).unwrap();
+    //     dbg!(&result);
+    //     panic!();
+    // }
 
     // #[test]
     // #[tracing_test::traced_test]
     // fn test_mdbasics_adoc() {
-    //     let result = PestParser
-    //         .parse_file("fixtures/samples/mdbasics/mdbasics.adoc")
-    //         .unwrap();
+    //     let options = Options {
+    //         safe_mode: SafeMode::Unsafe,
+    //         timings: false,
+    //         document_attributes: DocumentAttributes::default(),
+    //     };
+    //     let result = parse_file("fixtures/samples/mdbasics/mdbasics.adoc", &options).unwrap();
     //     dbg!(&result);
     //     panic!()
     // }

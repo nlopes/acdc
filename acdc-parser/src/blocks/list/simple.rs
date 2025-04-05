@@ -12,7 +12,7 @@ impl Block {
         pairs: Pairs<Rule>,
         title: Vec<InlineNode>,
         metadata: BlockMetadata,
-        attributes: ElementAttributes,
+        attributes: &ElementAttributes,
         parent_location: Option<&Location>,
         parent_attributes: &mut DocumentAttributes,
     ) -> Result<Block, Error> {

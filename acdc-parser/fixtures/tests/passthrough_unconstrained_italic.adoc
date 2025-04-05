@@ -1,0 +1,1 @@
+Unconstrained italic: pass:q[<del>__unconstrained italic__</del>] and mixed pass:q[<del>_constrained_ __unconstrained__</del>] patterns.

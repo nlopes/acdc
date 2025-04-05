@@ -1,0 +1,1 @@
+{"name":"document","type":"block","blocks":[{"name":"video","type":"block","sources":[{"type":"path","value":"Video1ID"},{"type":"path","value":"Video2ID"},{"type":"path","value":"Video3ID"}],"metadata":{"attributes":{"youtube":true}},"location":[{"line":1,"col":1},{"line":1,"col":42}]}],"location":[{"line":1,"col":1},{"line":1,"col":42}]}

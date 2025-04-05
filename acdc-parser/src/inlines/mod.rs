@@ -9,16 +9,16 @@ mod pass;
 mod url;
 
 use pest::{
-    Parser as _,
     iterators::{Pair, Pairs},
+    Parser as _,
 };
 use tracing::instrument;
 
 use crate::{
-    AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes, Highlight, Icon,
-    Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location, Menu, Monospace,
-    Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw, Rule, Subscript,
-    Superscript, Url, error::Error,
+    error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
+    Form, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
+    Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
+    Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -36,18 +36,18 @@ impl InlineNode {
             let mut location = Location::from_pair(&pair);
             location.shift_inline(parent_location);
 
-            let rule = pair.as_rule();
+            let parse_rule = pair.as_rule();
             let mut index = None;
 
-            if rule == Rule::placeholder {
-                if let Some(inner) = pair.clone().into_inner().next() {
-                    index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
-                    *last_index_seen = index;
-                }
+            if parse_rule == Rule::placeholder
+                && let Some(inner) = pair.clone().into_inner().next()
+            {
+                index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
+                *last_index_seen = index;
             }
             let mapped_location = map_inline_location(&location, processed)
                 .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
-            match rule {
+            match parse_rule {
                 Rule::plain_text | Rule::one_line_plain_text => {
                     let content = pair.as_str();
                     let content = content
@@ -72,6 +72,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::HighlightText(Highlight {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location,
                     }));
@@ -88,6 +89,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::ItalicText(Italic {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location,
                     }));
@@ -104,6 +106,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::BoldText(Bold {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location: mapped_location.1,
                     }));
@@ -120,6 +123,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::MonospaceText(Monospace {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location,
                     }));
@@ -135,6 +139,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::SubscriptText(Subscript {
                         role,
+                        form: Form::Unconstrained, // Subscript is typically unconstrained
                         content,
                         location,
                     }));
@@ -150,6 +155,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::SuperscriptText(Superscript {
                         role,
+                        form: Form::Unconstrained, // Superscript is typically unconstrained
                         content,
                         location,
                     }));
@@ -164,24 +170,21 @@ impl InlineNode {
                 | Rule::autolink
                 | Rule::pass_inline => return Self::parse_macro(pair),
                 Rule::placeholder => {
-                    if let Some(processed) = processed {
-                        if let Some(index) = index {
-                            if let Some(passthrough) = processed.passthroughs.get(index) {
-                                let kind = passthrough.kind.clone();
-                                if kind == PassthroughKind::Single
-                                    || kind == PassthroughKind::Double
-                                {
-                                    return Ok(InlineNode::PlainText(Plain {
-                                        content: mapped_location.0.unwrap_or_default(),
-                                        location: mapped_location.1,
-                                    }));
-                                }
-                                return Ok(InlineNode::RawText(Raw {
-                                    content: mapped_location.0.unwrap_or_default(),
-                                    location: mapped_location.1,
-                                }));
-                            }
+                    if let Some(processed) = processed
+                        && let Some(index) = index
+                        && let Some(passthrough) = processed.passthroughs.get(index)
+                    {
+                        let kind = passthrough.kind.clone();
+                        if kind == PassthroughKind::Single || kind == PassthroughKind::Double {
+                            return Ok(InlineNode::PlainText(Plain {
+                                content: mapped_location.0.unwrap_or_default(),
+                                location: mapped_location.1,
+                            }));
                         }
+                        return Ok(InlineNode::RawText(Raw {
+                            content: mapped_location.0.unwrap_or_default(),
+                            location: mapped_location.1,
+                        }));
                     }
                 }
                 Rule::role => role = Some(pair.as_str().to_string()),
@@ -360,7 +363,7 @@ pub(crate) fn get_content(
     Ok(content)
 }
 
-fn map_inline_location(
+pub(crate) fn map_inline_location(
     location: &Location,
     processed: Option<&ProcessedContent>,
 ) -> Option<(Option<String>, Location)> {

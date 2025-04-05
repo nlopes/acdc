@@ -5,6 +5,8 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
+use acdc_parser::{ListItem, ListItemCheckedStatus, UnorderedList};
+
 use crate::Render;
 
 /*
@@ -15,7 +17,7 @@ use crate::Render;
    pub location: Location,
 */
 
-impl Render for acdc_parser::UnorderedList {
+impl Render for UnorderedList {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         if !self.title.is_empty() {
             let mut inner = std::io::BufWriter::new(Vec::new());
@@ -36,12 +38,12 @@ impl Render for acdc_parser::UnorderedList {
     }
 }
 
-impl Render for acdc_parser::ListItem {
+impl Render for ListItem {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         write!(w, "{}", self.marker)?;
-        if let Some(checked) = self.checked {
+        if let Some(checked) = &self.checked {
             write!(w, " ")?;
-            if checked {
+            if checked == &ListItemCheckedStatus::Checked {
                 w.queue(PrintStyledContent("✔".bold()))?;
             } else {
                 w.queue(PrintStyledContent("✘".bold()))?;
