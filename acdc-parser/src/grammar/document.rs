@@ -1,18 +1,36 @@
 use crate::{
-    AttributeValue, Author, Block, BlockMetadata, Document, DocumentAttribute, DocumentAttributes,
-    Error, Header, InlineNode, Location, Plain, Section, TableOfContents, grammar::PositionTracker,
+    Anchor, AttributeValue, Author, Block, BlockMetadata, DiscreteHeaderSection, Document,
+    DocumentAttribute, DocumentAttributes, ElementAttributes, Error, Header, InlineNode, Location,
+    Plain, Section, TableOfContents, grammar::PositionTracker,
 };
 
 #[derive(Debug, Default)]
 pub(crate) struct ParserState {
-    document_attributes: DocumentAttributes,
-    tracker: PositionTracker,
+    pub(crate) document_attributes: DocumentAttributes,
+    pub(crate) tracker: PositionTracker,
 }
 
 #[derive(Debug)]
 struct Position {
     offset: usize,
     position: crate::Position,
+}
+
+#[derive(Debug)]
+// Used purely in the grammar to break down the block metadata lines into its different
+// types.
+enum BlockMetadataLine {
+    Anchor(Anchor),
+    Attributes((bool, BlockMetadata)),
+    Title(String),
+}
+
+#[derive(Debug)]
+// Used purely inside the grammar
+enum BlockStyle {
+    Id(String),
+    Role(String),
+    Option(String),
 }
 
 peg::parser! {
@@ -144,15 +162,24 @@ peg::parser! {
         pub(crate) rule revision() -> ()
             = start:position!() number:$("v"? digits() ** ".") date:revdate()? remark:revremark()? end:position!() {
                 state.tracker.advance_by(end - start);
-                dbg!(number);
-                dbg!(date);
-                dbg!(remark);
-                state.document_attributes.insert("revnumber".to_string(), AttributeValue::String(number.to_string()));
+                if state.document_attributes.contains_key("revnumber") {
+                    tracing::warn!("Revision number found in revision line but ignoring due to being set through attribute entries.");
+                } else {
+                    state.document_attributes.insert("revnumber".to_string(), AttributeValue::String(number.to_string()));
+                }
                 if let Some(date) = date {
-                    state.document_attributes.insert("revdate".to_string(), AttributeValue::String(date.to_string()));
+                    if state.document_attributes.contains_key("revdate") {
+                        tracing::warn!("Revision date found in revision line but ignoring due to being set through attribute entries.");
+                    } else {
+                        state.document_attributes.insert("revdate".to_string(), AttributeValue::String(date.to_string()));
+                    }
                 }
                 if let Some(remark) = remark {
-                    state.document_attributes.insert("revremark".to_string(), AttributeValue::String(remark.to_string()));
+                    if state.document_attributes.contains_key("revremark") {
+                        tracing::warn!("Revision remark found in revision line but ignoring due to being set through attribute entries.");
+                    } else {
+                        state.document_attributes.insert("revremark".to_string(), AttributeValue::String(remark.to_string()));
+                    }
                 }
             }
 
@@ -174,7 +201,9 @@ peg::parser! {
             state.document_attributes.insert(key.to_string(), value);
         }
 
-        pub(crate) rule block() -> Block = block:(document_attribute_block() / section() / block_generic()) {
+        pub(crate) rule block() -> Block
+            = block:(document_attribute_block() / section() / block_generic())
+        {
             block
         }
 
@@ -195,15 +224,98 @@ peg::parser! {
             }
 
         pub(crate) rule section() -> Block
-            = "== " title:$([^'\n']+) eol() {
-                Block::Section(Section{
-                    level: 1,
-                    title: vec![],
-                    metadata: BlockMetadata::default(),
-                    content: vec![],
-                    location: Location::default()
+            = start:position() block_metadata:block_metadata() eol()
+            section_level:section_level() ws()
+            title_start:position() title:section_title() title_end:position() eol()*<2,2>
+            content:section_content()* end:position() {
+                let level = section_level.len() as u8;
+                let location = Location {
+                    absolute_start: start.offset,
+                    absolute_end: end.offset,
+                    start: start.position,
+                    end: end.position
+                };
+                // TODO(nlopes): what do I do with metadata_title?!?
+                let (discrete, metadata, metadata_title) = block_metadata;
+
+                // Create a simple title with plain text
+                let title_node = InlineNode::PlainText(Plain {
+                    content: title,
+                    location: Location {
+                        absolute_start: title_start.offset,
+                        absolute_end: title_end.offset,
+                        start: title_start.position,
+                        end: title_end.position
+                    }
+                });
+
+                if discrete {
+                    return Block::_DiscreteHeaderSection(DiscreteHeaderSection {
+                        anchors: metadata.anchors,
+                        title: vec![title_node],
+                        level,
+                        location,
+                        content: vec![],
+                    });
+                }
+                Block::Section(Section {
+                    metadata,
+                    title: vec![title_node],
+                    level,
+                    content: vec![], // Simplified - we're ignoring actual content parsing
+                    location
                 })
             }
+
+        rule block_metadata() -> (bool, BlockMetadata, Option<String>)
+            = lines:(
+                anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
+                / attr:attributes_line() { BlockMetadataLine::Attributes(attr) }
+                / title:title_line() { BlockMetadataLine::Title(title) }
+            )* {
+                let mut metadata = BlockMetadata::default();
+                let mut discrete = false;
+                let mut title = None;
+
+                for value in lines {
+                    match value {
+                        BlockMetadataLine::Anchor(value) => metadata.anchors.push(value),
+                        BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
+                            discrete = attr_discrete;
+                            metadata.id = attr_metadata.id;
+                            metadata.style = attr_metadata.style;
+                            metadata.roles = attr_metadata.roles;
+                            metadata.options = attr_metadata.options;
+                            metadata.attributes = attr_metadata.attributes;
+                        },
+                        BlockMetadataLine::Title(value) => title = Some(value),
+                        _ => unreachable!(),
+                    };
+                }
+
+                (discrete, metadata, title)
+            }
+
+        rule title_line() -> String
+            = period() title:$([^'\n']*) eol() {
+                state.tracker.advance(title);
+                title.to_string()
+            }
+
+        rule section_level() -> String
+            = level:$(("=" / "#")*<1,6>) {
+                state.tracker.advance(level);
+                level.to_string()
+            }
+
+        rule section_title() -> String
+            = title:$([^'\n']*) {
+                state.tracker.advance(title);
+                title.to_string()
+            }
+
+        rule section_content() -> Vec<Block>
+            = b:block() eol() { vec![b] }
 
         pub(crate) rule block_generic() -> Block
             = "::toc::" eol() {
@@ -211,6 +323,198 @@ peg::parser! {
                     location: Location::default()
                 })
             }
+
+        rule anchor() -> Anchor
+            = result:(
+                start:position() double_open_sb() id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) double_close_sb() eol() end:position() {
+                state.tracker.advance(id);
+                state.tracker.advance(reftext);
+                (start, id, Some(reftext), end)
+            } /
+            start:position() double_open_sb() id:$([^']' | ',' | ']']+) double_close_sb() eol() end:position() {
+                state.tracker.advance(id);
+                (start, id, None, end)
+            } /
+            start:position() open_sb() "#" id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) close_sb() eol() end:position() {
+                state.tracker.advance("#");
+                state.tracker.advance(id);
+                state.tracker.advance(reftext);
+                (start, id, Some(reftext), end)
+            } /
+            start:position() open_sb() "#" id:$([^']' | ',' | ']']+) close_sb() eol() end:position() {
+                state.tracker.advance("#");
+                state.tracker.advance(id);
+                (start, id, None, end)
+            }) {
+                let (start, id, reftext, end) = result;
+                Anchor {
+                    id: id.to_string(),
+                    xreflabel: reftext.map(ToString::to_string),
+                    location: Location {
+                        absolute_start: start.offset,
+                        absolute_end: end.offset,
+                        start: start.position,
+                        end: end.position
+                    }
+                }
+            }
+
+        rule attributes_line() -> (bool, BlockMetadata)
+            = start:position() open_sb() content:(
+                // The case in which we keep the style empty
+                comma() attributes:(attribute() ** comma()) {
+                    (true, false, None, attributes)
+                } /
+                // The case in which there is a block style and other attributes
+                style:block_style() comma() attributes:(attribute() ++ comma()) {
+                    (false, true, Some(style), attributes)
+                } /
+                // The case in which there is a block style and no other attributes
+                style:block_style() {
+                    (false, true, Some(style), vec![])
+                } /
+                // The case in which there are only attributes
+                attributes:(attribute() ** comma()) {
+                    (false, false, None, attributes)
+                })
+            close_sb() eol() end:position() {
+                state.tracker.advance_by(end.offset - start.offset);
+                let mut discrete = false;
+                let mut style_found = false;
+                let (empty, has_style, maybe_style, attributes) = content;
+                let mut metadata = BlockMetadata::default();
+                if let Some((maybe_attribute, id, roles, options)) = maybe_style {
+                    if let Some(attribute_name) = maybe_attribute {
+                        if attribute_name == "discrete" {
+                            discrete = true;
+                        }
+
+                        if metadata.style.is_none() && !has_style {
+                            metadata.style = Some(attribute_name);
+                            style_found = true;
+                        } else {
+                            metadata.attributes.insert(attribute_name, AttributeValue::None);
+                        }
+                    }
+                    metadata.id = id;
+                    for role in roles {
+                        metadata.roles.push(role);
+                    }
+                    for option in options {
+                        metadata.options.push(option);
+                    }
+                }
+                for (k, v) in attributes {
+                    metadata.attributes.insert(k.to_string(), v);
+                }
+                (discrete, metadata)
+            }
+
+        // TODO(nlopes): This should return Vec<InlineNode>
+        // Once I implement inlines_inner, I can come back here and fix.
+        rule block_title() -> String
+            = start:position() "." !['.' | ' '] title:$([^'\n']*) eol() end:position() {
+                state.tracker.advance_by(end.offset - start.offset);
+                title.to_string()
+            }
+
+        rule open_sb() = "[" { state.tracker.advance_by(1); }
+        rule close_sb() = "]" { state.tracker.advance_by(1); }
+        // This could be a double open_sb but this way we don't call advance_by twice
+        rule double_open_sb() = "[[" { state.tracker.advance_by(2); }
+        rule double_close_sb() = "]]" { state.tracker.advance_by(2); }
+        rule comma() = "," { state.tracker.advance_by(1); }
+        rule period() = "." { state.tracker.advance_by(1); }
+
+
+        rule empty_style() = ""
+        rule role() -> String = s:$(!(","/ "]" / "#" / "." / "%") [_]+) { s.to_string() }
+        rule option() -> String = s:$("\\\"" / (!"\"" / "," / "]" / "#" / "." / "%" / [_])+) { s.to_string() }
+
+        rule attribute_name() -> String = s:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { s.to_string() }
+
+        rule attribute() -> Option<(String, AttributeValue)>
+            = named_attribute() / positional_attribute_value()
+
+        // Add a simple ID rule
+        rule id() -> String
+            = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
+
+        rule named_attribute() -> Option<(String, AttributeValue)>
+            = "id" "=" id:id() { Some(("id".to_string(), AttributeValue::String(id))) }
+            / "role" "=" role:role() { Some(("role".to_string(), AttributeValue::String(role))) }
+            / ("options" / "opts") "=" opts:((("\"" option_val:option() ("," option2:option() { option2 })* "\"") / option_val:option()) { option_val })
+              { Some(("options".to_string(), AttributeValue::String(opts))) }
+            / name:attribute_name() "=" value:named_attribute_value()
+              { Some((name, AttributeValue::String(value))) }
+
+        // The block style is a positional attribute that is used to set the style of a block element.
+        //
+        // It has an optional "style", followed by the attribute shorthands.
+        //
+        // # - ID
+        // . - role
+        // % - option
+        //
+        // Each shorthand entry is placed directly adjacent to previous one, starting
+        // immediately after the optional block style. The order of the entries does not
+        // matter, except for the style, which must come first.
+        rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
+            = start:position() attribute:positional_attribute_value()? shorthands:(
+                "#" id:block_style_id() { BlockStyle::Id(id)}
+                / "." role:role() { BlockStyle::Role(role)}
+                / "%" option:option() { BlockStyle::Option(option)}
+            )* end:position() {
+                let mut maybe_anchor = None;
+                let mut roles = Vec::new();
+                let mut options = Vec::new();
+                for shorthand in shorthands {
+                    match shorthand {
+                        BlockStyle::Id(id) => maybe_anchor = Some(Anchor {
+                            id,
+                            xreflabel: None,
+                            location: Location {
+                                absolute_start: start.offset,
+                                absolute_end: end.offset,
+                                start: start.position.clone(),
+                                end: end.position.clone()
+                            }
+                        }),
+                        BlockStyle::Role(role) => roles.push(role),
+                        BlockStyle::Option(option) => options.push(option),
+                        _ => unreachable!()
+                    };
+                }
+                (attribute, maybe_anchor, roles, options)
+            }
+
+        rule id_start_char() = ['A'..='Z' | 'a'..='z' | '_']
+
+        rule block_style_id() -> String = s:$(id_start_char() block_style_id_subsequent_char()*) { s.to_string() }
+
+        rule block_style_id_subsequent_char() =
+            ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-']
+
+        rule named_attribute_value() -> String
+            = "\"" inner:inner_attribute_value() "\"" { inner }
+            / s:$((!(","/ "]") [_])+) { s.to_string() }
+
+        rule positional_attribute_value() -> String
+            = s:$((!("\"" / "," / "]" / "#" / "." / "%") [_])
+                 (!("\"" / "," / "]" / "#" / "%" / "=" / ".") [_])*)
+        {
+            state.tracker.advance(s);
+            s.to_string()
+        }
+
+        rule inner_attribute_value() -> String
+            = s:$(("\\\"" / (!"\"" [_]))*) { s.to_string() }
+
+        pub rule url() -> String = proto:proto() "://" path:path() { format!("{}{}{}", proto, "://", path) }
+
+        rule proto() -> String = s:$("https" / "http" / "ftp" / "irc" / "mailto") { s.to_string() }
+
+        pub rule path() -> String = s:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+) { s.to_string() }
 
         rule digits() = ['0'..='9']+
 
