@@ -164,11 +164,27 @@ pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Doc
 }
 
 #[instrument]
-fn parse_input(input: String, options: &Options) -> Result<Document, Error> {
+fn parse_input_old(input: String, options: &Options) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
     let pairs = InnerPestParser::parse(Rule::document, &input);
     match pairs {
         Ok(pairs) => Document::parse(pairs, options),
+        Err(e) => {
+            tracing::error!("error parsing document content: {e}");
+            Err(Error::Parse(e.to_string()))
+        }
+    }
+}
+
+#[instrument]
+fn parse_input(input: String, options: &Options) -> Result<Document, Error> {
+    tracing::trace!(?input, "post preprocessor");
+    let mut state = grammar::ParserState {
+        document_attributes: options.document_attributes.clone(),
+        ..Default::default()
+    };
+    match grammar::document_parser::document(&input, &mut state) {
+        Ok(doc) => doc,
         Err(e) => {
             tracing::error!("error parsing document content: {e}");
             Err(Error::Parse(e.to_string()))
