@@ -1,7 +1,7 @@
 use pest::iterators::Pairs;
 use tracing::instrument;
 
-use crate::{model::Anchor, Rule};
+use crate::{Rule, model::Anchor};
 
 impl Anchor {
     #[instrument(level = "trace")]

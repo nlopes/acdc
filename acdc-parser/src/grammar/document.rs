@@ -1,7 +1,6 @@
 use crate::{
-    grammar::PositionTracker, AttributeValue, Author, Block, BlockMetadata, Document,
-    DocumentAttribute, DocumentAttributes, Error, Header, InlineNode, Location, Plain, Section,
-    TableOfContents,
+    AttributeValue, Author, Block, BlockMetadata, Document, DocumentAttribute, DocumentAttributes,
+    Error, Header, InlineNode, Location, Plain, Section, TableOfContents, grammar::PositionTracker,
 };
 
 #[derive(Debug, Default)]

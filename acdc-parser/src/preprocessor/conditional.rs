@@ -1,7 +1,7 @@
 use crate::{
-    error::Error,
-    model::{Substitute, HEADER},
     DocumentAttributes,
+    error::Error,
+    model::{HEADER, Substitute},
 };
 
 #[derive(Debug)]
@@ -396,9 +396,11 @@ mod tests {
             }
             _ => panic!("Expected Ifeval"),
         }
-        assert!(conditional
-            .is_true(&DocumentAttributes::default(), &mut String::new())
-            .unwrap());
+        assert!(
+            conditional
+                .is_true(&DocumentAttributes::default(), &mut String::new())
+                .unwrap()
+        );
     }
 
     #[test]
@@ -413,9 +415,11 @@ mod tests {
             }
             _ => panic!("Expected Ifeval"),
         }
-        assert!(conditional
-            .is_true(&DocumentAttributes::default(), &mut String::new())
-            .unwrap());
+        assert!(
+            conditional
+                .is_true(&DocumentAttributes::default(), &mut String::new())
+                .unwrap()
+        );
     }
 
     #[test]

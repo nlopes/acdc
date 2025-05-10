@@ -59,7 +59,7 @@ impl Render for InlineNode {
             }
             InlineNode::Macro(m) => m.render(w, processor, options)?,
             unknown => todo!("inlines: {:?}", unknown),
-        };
+        }
         Ok(())
     }
 }

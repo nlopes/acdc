@@ -1,7 +1,7 @@
 use pest::iterators::Pairs;
 use tracing::instrument;
 
-use crate::{model::Author, Rule};
+use crate::{Rule, model::Author};
 
 impl Author {
     #[instrument(level = "trace")]

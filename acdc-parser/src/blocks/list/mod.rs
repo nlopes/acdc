@@ -2,12 +2,12 @@ mod description;
 mod item;
 mod simple;
 
-use pest::{iterators::Pairs, Parser as _};
+use pest::{Parser as _, iterators::Pairs};
 
 use crate::{
-    inline_preprocessing, inlines::parse_inlines, AttributeValue, Block, BlockMetadata,
-    DescriptionList, DocumentAttributes, ElementAttributes, Error, InlinePreprocessorParserState,
-    InnerPestParser, Location, Options, Rule, UnorderedList,
+    AttributeValue, Block, BlockMetadata, DescriptionList, DocumentAttributes, ElementAttributes,
+    Error, InlinePreprocessorParserState, InnerPestParser, Location, Options, Rule, UnorderedList,
+    inline_preprocessing, inlines::parse_inlines,
 };
 
 use super::block::BlockExt;

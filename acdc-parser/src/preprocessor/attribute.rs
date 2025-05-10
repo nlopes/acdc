@@ -1,6 +1,6 @@
 use crate::{
-    model::{Substitute, HEADER},
     AttributeValue, DocumentAttributes,
+    model::{HEADER, Substitute},
 };
 
 peg::parser! {

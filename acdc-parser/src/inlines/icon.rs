@@ -1,8 +1,8 @@
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{AttributeValue, ElementAttributes, Icon, Location},
     Rule,
+    model::{AttributeValue, ElementAttributes, Icon, Location},
 };
 
 impl Icon {

@@ -1,8 +1,8 @@
-use pest::{iterators::Pairs, Parser as _};
+use pest::{Parser as _, iterators::Pairs};
 
 use crate::{
-    inline_preprocessing, DocumentAttributes, Error, InlinePreprocessorParserState, ListItem,
-    Location, Rule,
+    DocumentAttributes, Error, InlinePreprocessorParserState, ListItem, Location, Rule,
+    inline_preprocessing,
 };
 
 impl ListItem {
