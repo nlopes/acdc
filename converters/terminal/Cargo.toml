@@ -11,7 +11,7 @@ acdc-core.workspace = true
 acdc-parser.workspace = true
 clap.workspace = true
 comfy-table = "7.1.4"
-crossterm = "0.28.1"
+crossterm = "0.29.0"
 thiserror.workspace = true
 tracing.workspace = true
 
