@@ -1,7 +1,8 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
+use std::fmt::Write as _;
 use std::path::Path;
 
-use crate::{error::Error, Options};
+use crate::{Options, error::Error};
 
 mod attribute;
 mod conditional;
@@ -148,7 +149,7 @@ impl Preprocessor {
                             lines.next();
                             break;
                         }
-                        content.push_str(&format!("{next_line}\n"));
+                        let _ = writeln!(content, "{next_line}");
                         lines.next();
                     }
                     if condition.is_true(&options.document_attributes, &mut content)? {
