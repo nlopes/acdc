@@ -404,8 +404,10 @@ peg::parser! {
                         metadata.options.push(option);
                     }
                 }
-                for (k, v) in attributes {
-                    metadata.attributes.insert(k.to_string(), v);
+                for maybe_attribute in attributes {
+                    if let Some((k, v)) = maybe_attribute {
+                        metadata.attributes.insert(k.to_string(), v);
+                    }
                 }
                 (discrete, metadata)
             }
