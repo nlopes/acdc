@@ -85,7 +85,7 @@ impl Image {
                 }
                 Rule::open_sb | Rule::close_sb => {}
                 unknown => unreachable!("{unknown:?}"),
-            };
+            }
         }
     }
 }
