@@ -10,9 +10,9 @@ use encoding_rs::{Encoding, UTF_8};
 use url::Url;
 
 use crate::{
-    error::Error,
-    model::{Substitute, HEADER},
     Options, Preprocessor,
+    error::Error,
+    model::{HEADER, Substitute},
 };
 
 /**
@@ -308,7 +308,9 @@ impl Include {
                     .get("allow-uri-read")
                     .is_none()
                 {
-                    tracing::warn!("URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line.");
+                    tracing::warn!(
+                        "URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line."
+                    );
                     return Ok(lines);
                 }
                 let mut temp_path = std::env::temp_dir();

@@ -1,10 +1,10 @@
-use pest::{iterators::Pairs, Parser as _};
+use pest::{Parser as _, iterators::Pairs};
 use tracing::instrument;
 
 use crate::{
-    inline_preprocessing, inlines::parse_inlines, AttributeValue, Author, DocumentAttribute,
-    DocumentAttributes, Error, Header, InlineNode, InlinePreprocessorParserState, InnerPestParser,
-    Location, Options, Plain, Rule,
+    AttributeValue, Author, DocumentAttribute, DocumentAttributes, Error, Header, InlineNode,
+    InlinePreprocessorParserState, InnerPestParser, Location, Options, Plain, Rule,
+    inline_preprocessing, inlines::parse_inlines,
 };
 
 impl Header {

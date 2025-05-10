@@ -15,79 +15,9 @@ impl Render for Document {
     ) -> Result<(), Self::Error> {
         writeln!(w, "<!DOCTYPE html>")?;
         writeln!(w, "<html>")?;
-        writeln!(w, "<head>")?;
-        writeln!(w, "<meta charset=\"utf-8\">")?;
-        writeln!(
-            w,
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-        )?;
-        writeln!(
-            w,
-            "<meta name=\"generator\" content=\"{}\">",
-            processor.options.generator_metadata
-        )?;
-        if let Some(header) = &self.header {
-            header.render(
-                w,
-                processor,
-                &RenderOptions {
-                    inlines_basic: true,
-                    ..*options
-                },
-            )?;
-        }
-        writeln!(w, "<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700\">")?;
-        writeln!(w, "<style>")?;
-        writeln!(w, "{}", include_str!("../static/asciidoctor.css"))?;
-        writeln!(w, "</style>")?;
-        writeln!(w, "</head>")?;
+        render_head(self, w, processor, options)?;
         writeln!(w, "<body class=\"{}\">", processor.options.doctype)?;
-        writeln!(w, "<div id=\"header\">")?;
-        if let Some(header) = &self.header {
-            if !header.title.is_empty() {
-                write!(w, "<h1>")?;
-                crate::inlines::render_inlines(&header.title, w, processor, options)?;
-                writeln!(w, "</h1>")?;
-                writeln!(w, "<div class=\"details\">")?;
-                if !header.authors.is_empty() {
-                    for (i, author) in header.authors.iter().enumerate() {
-                        writeln!(
-                            w,
-                            "<span id=\"author{}\" class=\"author\">",
-                            if i > 0 {
-                                format!("{}", i + 1)
-                            } else {
-                                String::new()
-                            }
-                        )?;
-                        write!(w, "{} ", author.first_name)?;
-                        if let Some(middle_name) = &author.middle_name {
-                            write!(w, "{middle_name} ")?;
-                        }
-                        write!(w, "{}", author.last_name)?;
-                        writeln!(w, "</span>")?;
-                        writeln!(w, "<br>")?;
-                        if let Some(email) = &author.email {
-                            writeln!(
-                                w,
-                                "<span id=\"email{}\" class=\"email\">",
-                                if i > 0 {
-                                    format!("{}", i + 1)
-                                } else {
-                                    String::new()
-                                }
-                            )?;
-
-                            writeln!(w, "<a href=\"mailto:{email}\">{email}</a>")?;
-                            writeln!(w, "</span>")?;
-                            writeln!(w, "<br>")?;
-                        }
-                    }
-                }
-                writeln!(w, "</div>")?;
-            }
-        }
-        writeln!(w, "</div>")?;
+        render_body_header(self, w, processor, options)?;
         writeln!(w, "<div id=\"content\">")?;
         let mut blocks = self.blocks.clone();
         let preamble = find_preamble(&mut blocks);
@@ -104,17 +34,115 @@ impl Render for Document {
             block.render(w, processor, options)?;
         }
         writeln!(w, "</div>")?;
-        writeln!(w, "<div id=\"footer\">")?;
-        writeln!(w, "<div id=\"footer-text\">")?;
-        if let Some(last_updated) = options.last_updated {
-            writeln!(w, "Last updated {}", last_updated.format("%F %T %Z"))?;
-        }
-        writeln!(w, "</div>")?;
-        writeln!(w, "</div>")?;
+        render_body_footer(w, options)?;
         writeln!(w, "</body>")?;
         writeln!(w, "</html>")?;
         Ok(())
     }
+}
+
+fn render_head<W: Write>(
+    document: &Document,
+    w: &mut W,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), crate::Error> {
+    writeln!(w, "<head>")?;
+    writeln!(w, "<meta charset=\"utf-8\">")?;
+    writeln!(
+        w,
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    )?;
+    writeln!(
+        w,
+        "<meta name=\"generator\" content=\"{}\">",
+        processor.options.generator_metadata
+    )?;
+    if let Some(header) = &document.header {
+        header.render(
+            w,
+            processor,
+            &RenderOptions {
+                inlines_basic: true,
+                ..*options
+            },
+        )?;
+    }
+    writeln!(
+        w,
+        "<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700\">"
+    )?;
+    writeln!(w, "<style>")?;
+    writeln!(w, "{}", include_str!("../static/asciidoctor.css"))?;
+    writeln!(w, "</style>")?;
+    writeln!(w, "</head>")?;
+    Ok(())
+}
+
+fn render_body_header<W: Write>(
+    document: &Document,
+    w: &mut W,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), crate::Error> {
+    writeln!(w, "<div id=\"header\">")?;
+    if let Some(header) = &document.header {
+        if !header.title.is_empty() {
+            write!(w, "<h1>")?;
+            crate::inlines::render_inlines(&header.title, w, processor, options)?;
+            writeln!(w, "</h1>")?;
+            writeln!(w, "<div class=\"details\">")?;
+            if !header.authors.is_empty() {
+                for (i, author) in header.authors.iter().enumerate() {
+                    writeln!(
+                        w,
+                        "<span id=\"author{}\" class=\"author\">",
+                        if i > 0 {
+                            format!("{}", i + 1)
+                        } else {
+                            String::new()
+                        }
+                    )?;
+                    write!(w, "{} ", author.first_name)?;
+                    if let Some(middle_name) = &author.middle_name {
+                        write!(w, "{middle_name} ")?;
+                    }
+                    write!(w, "{}", author.last_name)?;
+                    writeln!(w, "</span>")?;
+                    writeln!(w, "<br>")?;
+                    if let Some(email) = &author.email {
+                        writeln!(
+                            w,
+                            "<span id=\"email{}\" class=\"email\">",
+                            if i > 0 {
+                                format!("{}", i + 1)
+                            } else {
+                                String::new()
+                            }
+                        )?;
+
+                        writeln!(w, "<a href=\"mailto:{email}\">{email}</a>")?;
+                        writeln!(w, "</span>")?;
+                        writeln!(w, "<br>")?;
+                    }
+                }
+            }
+            writeln!(w, "</div>")?;
+        }
+    }
+    writeln!(w, "</div>")?;
+    Ok(())
+}
+
+fn render_body_footer<W: Write>(w: &mut W, options: &RenderOptions) -> Result<(), crate::Error> {
+    writeln!(w, "<div id=\"footer\">")?;
+    writeln!(w, "<div id=\"footer-text\">")?;
+    if let Some(last_updated) = options.last_updated {
+        writeln!(w, "Last updated {}", last_updated.format("%F %T %Z"))?;
+    }
+    writeln!(w, "</div>")?;
+    writeln!(w, "</div>")?;
+    Ok(())
 }
 
 fn find_preamble(blocks: &mut Vec<Block>) -> Option<Vec<Block>> {

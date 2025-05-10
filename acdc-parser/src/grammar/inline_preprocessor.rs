@@ -6,8 +6,8 @@ use std::{
 use peg::parser;
 
 use crate::{
-    grammar::PositionTracker, AttributeValue, DocumentAttributes, Location, Pass, PassthroughKind,
-    Position, Substitution,
+    AttributeValue, DocumentAttributes, Location, Pass, PassthroughKind, Position, Substitution,
+    grammar::PositionTracker,
 };
 
 // The parser state for the inline preprocessor.
@@ -628,18 +628,22 @@ mod tests {
         assert_eq!(second_pass.text.as_ref().unwrap(), "</h1>");
 
         // Verify substitutions were captured
-        assert!(first_pass
-            .substitutions
-            .contains(&Substitution::SpecialChars));
+        assert!(
+            first_pass
+                .substitutions
+                .contains(&Substitution::SpecialChars)
+        );
 
         // Check positions
         assert_eq!(first_pass.location.absolute_start, 23); // Start of pass macro
         assert_eq!(first_pass.location.absolute_end, 29); // End of pass macro content including brackets
 
         // Verify substitutions were captured
-        assert!(second_pass
-            .substitutions
-            .contains(&Substitution::SpecialChars));
+        assert!(
+            second_pass
+                .substitutions
+                .contains(&Substitution::SpecialChars)
+        );
 
         // Check positions
         assert_eq!(second_pass.location.absolute_start, 34); // Start of pass macro

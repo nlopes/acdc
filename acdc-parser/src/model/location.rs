@@ -1,7 +1,7 @@
 use serde::{
+    Deserialize, Serialize,
     de::{SeqAccess, Visitor},
     ser::{SerializeSeq, Serializer},
-    Deserialize, Serialize,
 };
 
 /// A `Location` represents a location in a document.

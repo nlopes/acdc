@@ -1,15 +1,16 @@
 use std::{collections::HashMap, str::FromStr};
 
 use pest::{
-    iterators::{Pair, Pairs},
     Parser,
+    iterators::{Pair, Pairs},
 };
 use tracing::instrument;
 
 use crate::{
-    inline_preprocessing, inlines::parse_inlines, Admonition, AdmonitionVariant, Anchor,
-    AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error, InlineNode,
-    InlinePreprocessorParserState, InnerPestParser, Location, Paragraph, ProcessedContent, Rule,
+    Admonition, AdmonitionVariant, Anchor, AttributeValue, Block, BlockMetadata,
+    DocumentAttributes, ElementAttributes, Error, InlineNode, InlinePreprocessorParserState,
+    InnerPestParser, Location, Paragraph, ProcessedContent, Rule, inline_preprocessing,
+    inlines::parse_inlines,
 };
 
 impl Paragraph {

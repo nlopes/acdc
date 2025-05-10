@@ -7,7 +7,7 @@ mod validate;
 use pest::iterators::Pairs;
 use tracing::instrument;
 
-use crate::{blocks, Document, Error, Header, Location, Options, Rule};
+use crate::{Document, Error, Header, Location, Options, Rule, blocks};
 
 impl Document {
     #[instrument(level = "trace")]

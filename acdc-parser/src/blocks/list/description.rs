@@ -1,8 +1,8 @@
 use pest::iterators::Pairs;
 
 use crate::{
-    blocks, Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription,
-    DescriptionListItem, DocumentAttributes, Error, InlineNode, Location, Options, Rule,
+    Anchor, Block, BlockMetadata, DescriptionList, DescriptionListDescription, DescriptionListItem,
+    DocumentAttributes, Error, InlineNode, Location, Options, Rule, blocks,
 };
 
 impl DescriptionList {

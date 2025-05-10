@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use crossterm::{
-    style::{Print, PrintStyledContent, Stylize},
     QueueableCommand,
+    style::{Print, PrintStyledContent, Stylize},
 };
 
 use crate::Render;

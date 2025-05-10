@@ -1,7 +1,7 @@
 use serde::{
+    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
-    Deserialize, Serialize,
 };
 
 mod macros;
@@ -248,7 +248,9 @@ where
             map.serialize_entry("location", &autolink.location)?;
         }
         InlineMacro::Pass(_) => {
-            unimplemented!("passthrough serialization is not implemented because we only serialize to ASG what should be visible to the user")
+            unimplemented!(
+                "passthrough serialization is not implemented because we only serialize to ASG what should be visible to the user"
+            )
         }
     }
     Ok(())

@@ -1,8 +1,8 @@
 use pest::iterators::Pairs;
 
 use crate::{
-    model::{AttributeValue, ElementAttributes, Location, Url},
     Rule,
+    model::{AttributeValue, ElementAttributes, Location, Url},
 };
 
 impl Url {
