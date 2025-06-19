@@ -11,7 +11,7 @@ encoding_rs = "0.8"
 evalexpr = "12"
 peg = "0.8"
 pest = "2.8"
-pest_derive = "2.7"
+pest_derive = "2.8"
 reqwest = { version = "0.12", features = ["blocking"] }
 serde.workspace = true
 serde_json.workspace = true
