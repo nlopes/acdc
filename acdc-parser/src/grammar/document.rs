@@ -1,7 +1,7 @@
 use crate::{
-    Anchor, AttributeValue, Author, Block, BlockMetadata, DiscreteHeaderSection, Document,
-    DocumentAttribute, DocumentAttributes, ElementAttributes, Error, Header, InlineNode, Location,
-    Plain, Section, TableOfContents, grammar::PositionTracker,
+    Anchor, AttributeValue, Author, Block, BlockMetadata, Document, DocumentAttribute,
+    DocumentAttributes, ElementAttributes, Error, Header, InlineNode, Location, Plain, Section,
+    TableOfContents, grammar::PositionTracker, model::DiscreteHeaderSection,
 };
 
 #[derive(Debug, Default)]
@@ -431,24 +431,36 @@ peg::parser! {
 
         rule empty_style() = ""
         rule role() -> String = s:$(!(","/ "]" / "#" / "." / "%") [_]+) { s.to_string() }
-        rule option() -> String = s:$("\\\"" / (!"\"" / "," / "]" / "#" / "." / "%" / [_])+) { s.to_string() }
+        rule option() -> String = s:$("\\\"" / !("\"" / "," / "]" / "#" / "." / "%") [_]+) { s.to_string() }
 
         rule attribute_name() -> String = s:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { s.to_string() }
 
         rule attribute() -> Option<(String, AttributeValue)>
-            = named_attribute() / positional_attribute_value()
+            = att:named_attribute() { att }
+              / att:positional_attribute_value() {
+                  Some((att, AttributeValue::None))
+              }
 
         // Add a simple ID rule
         rule id() -> String
             = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
 
+        // TODO(nlopes): this should instead return an enum
+        //
+        // TODO(nlopes): This is also missing the case when we have multiple options in
+        // quotes separated by commas (the below doesn't work but is illustrative):
+        //
+        // / ("options" / "opts") "=" "\"" opts:(option() ** ",")+ "\""
+        //   { Some(("options".to_string(), AttributeValue::String(opts))) }
         rule named_attribute() -> Option<(String, AttributeValue)>
-            = "id" "=" id:id() { Some(("id".to_string(), AttributeValue::String(id))) }
-            / "role" "=" role:role() { Some(("role".to_string(), AttributeValue::String(role))) }
-            / ("options" / "opts") "=" opts:((("\"" option_val:option() ("," option2:option() { option2 })* "\"") / option_val:option()) { option_val })
-              { Some(("options".to_string(), AttributeValue::String(opts))) }
-            / name:attribute_name() "=" value:named_attribute_value()
-              { Some((name, AttributeValue::String(value))) }
+            = "id" "=" id:id()
+                { Some(("id".to_string(), AttributeValue::String(id))) }
+              / "role" "=" role:role()
+                { Some(("role".to_string(), AttributeValue::String(role))) }
+              / ("options" / "opts") "=" option:option()
+                { Some(("options".to_string(), AttributeValue::String(option))) }
+              / name:attribute_name() "=" value:named_attribute_value()
+                { Some((name, AttributeValue::String(value))) }
 
         // The block style is a positional attribute that is used to set the style of a block element.
         //
