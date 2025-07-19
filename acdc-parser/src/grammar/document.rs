@@ -33,6 +33,16 @@ enum BlockStyle {
     Option(String),
 }
 
+/// Generate initials from first, optional middle, and last name parts
+fn generate_initials(first: &str, middle: Option<&str>, last: &str) -> String {
+    let first_initial = first.chars().next().unwrap_or_default().to_string();
+    let middle_initial = middle
+        .map(|m| m.chars().next().unwrap_or_default().to_string())
+        .unwrap_or_default();
+    let last_initial = last.chars().next().unwrap_or_default().to_string();
+    first_initial + &middle_initial + &last_initial
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         pub(crate) rule document() -> Result<Document, Error>
@@ -116,49 +126,55 @@ peg::parser! {
                 authors
             }
 
+        /// Parse an author in various formats:
+        /// - "First Middle Last <email>"
+        /// - "First Last <email>"
+        /// - "First <email>"
+        /// - "First Last"
         pub(crate) rule author() -> Author
-            = author_first_name:name_part() ws()+ author_middle_name:name_part() ws()+ author_last_name:$(name_part() ** ws()) ws()* "<" author_email:$([^'>']*) ">" {
-                state.tracker.advance_by(2); // skip the "<" and ">"
-                state.tracker.advance(author_email);
+            = name:author_name() email:author_email()? {
+                let mut author = name;
+                if let Some(email_addr) = email {
+                    state.tracker.advance_by(2); // skip the "<" and ">"
+                    state.tracker.advance(email_addr);
+                    author.email = Some(email_addr.to_string());
+                }
+                author
+            }
+
+        /// Parse author name in format: "First [Middle] Last" or just "First"
+        rule author_name() -> Author
+            = first:name_part() ws()+ middle:name_part() ws()+ last:$(name_part() ** ws()) {
                 Author {
-                    first_name: author_first_name.to_string(),
-                    middle_name: Some(author_middle_name.to_string()),
-                    last_name: author_last_name.to_string(),
-                    initials: author_first_name.chars().next().unwrap_or_default().to_string() + &author_middle_name.chars().next().unwrap_or_default().to_string() + &author_last_name.chars().next().unwrap_or_default().to_string(),
-                    email: Some(author_email.to_string()),
+                    first_name: first.to_string(),
+                    middle_name: Some(middle.to_string()),
+                    last_name: last.to_string(),
+                    initials: generate_initials(first, Some(middle), last),
+                    email: None,
                 }
             }
-        / author_first_name:name_part() ws()+ author_last_name:name_part() ws()* "<" author_email:$([^'>']*) ">" {
-            state.tracker.advance_by(2); // skip the "<" and ">"
-            state.tracker.advance(author_email);
-            Author {
-                first_name: author_first_name.to_string(),
-                middle_name: None,
-                last_name: author_last_name.to_string(),
-                initials: author_first_name.chars().next().unwrap_or_default().to_string() + &author_last_name.chars().next().unwrap_or_default().to_string(),
-                email: Some(author_email.to_string()),
+            / first:name_part() ws()+ last:name_part() {
+                Author {
+                    first_name: first.to_string(),
+                    middle_name: None,
+                    last_name: last.to_string(),
+                    initials: generate_initials(first, None, last),
+                    email: None,
+                }
             }
-        }
-        / author_first_name:name_part() ws()* "<" author_email:$([^'>']*) ">" {
-            state.tracker.advance_by(2); // skip the "<" and ">"
-            state.tracker.advance(author_email);
-            Author {
-                first_name: author_first_name.to_string(),
-                middle_name: None,
-                last_name: String::new(),
-                initials: author_first_name.chars().next().unwrap_or_default().to_string(),
-                email: Some(author_email.to_string()),
+            / first:name_part() {
+                Author {
+                    first_name: first.to_string(),
+                    middle_name: None,
+                    last_name: String::new(),
+                    initials: generate_initials(first, None, ""),
+                    email: None,
+                }
             }
-        }
-        / author_first_name:name_part() ws()+ author_last_name:name_part() {
-            Author {
-                first_name: author_first_name.to_string(),
-                last_name: author_last_name.to_string(),
-                middle_name: None,
-                initials: author_first_name.chars().next().unwrap_or_default().to_string() + &author_last_name.chars().next().unwrap_or_default().to_string(),
-                email: None,
-            }
-        }
+
+        /// Parse email address in format: " <email@domain>"
+        rule author_email() -> &'input str
+            = ws()* "<" email:$([^'>']*) ">" { email }
 
         rule name_part() -> &'input str
             = name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+ ("_" ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+)*) {
@@ -428,7 +444,6 @@ peg::parser! {
 
         rule open_sb() = "[" { state.tracker.advance_by(1); }
         rule close_sb() = "]" { state.tracker.advance_by(1); }
-        // This could be a double open_sb but this way we don't call advance_by twice
         rule double_open_sb() = "[[" { state.tracker.advance_by(2); }
         rule double_close_sb() = "]]" { state.tracker.advance_by(2); }
         rule comma() = "," { state.tracker.advance_by(1); }
