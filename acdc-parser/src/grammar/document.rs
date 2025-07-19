@@ -139,7 +139,7 @@ peg::parser! {
             }
 
         pub(crate) rule document_title() -> Vec<InlineNode>
-            = document_title_token() ws() start:position() title:$([^'\n']*) {
+            = document_title_token() whitespace() start:position() title:$([^'\n']*) {
                 let location = state.tracker.calculate_location(start.position, title, 0);
                 vec![InlineNode::PlainText(Plain {
                     content: title.to_string(),
@@ -155,7 +155,7 @@ peg::parser! {
             }
 
         pub(crate) rule authors() -> Vec<Author>
-            = authors:(author() ** (";" ws()*)) {
+            = authors:(author() ** (";" whitespace()*)) {
                 authors
             }
 
@@ -177,7 +177,7 @@ peg::parser! {
 
         /// Parse author name in format: "First [Middle] Last" or just "First"
         rule author_name() -> Author
-            = first:name_part() ws()+ middle:name_part() ws()+ last:$(name_part() ** ws()) {
+            = first:name_part() whitespace()+ middle:name_part() whitespace()+ last:$(name_part() ** whitespace()) {
                 Author {
                     first_name: first.to_string(),
                     middle_name: Some(middle.to_string()),
@@ -186,7 +186,7 @@ peg::parser! {
                     email: None,
                 }
             }
-            / first:name_part() ws()+ last:name_part() {
+            / first:name_part() whitespace()+ last:name_part() {
                 Author {
                     first_name: first.to_string(),
                     middle_name: None,
@@ -207,7 +207,7 @@ peg::parser! {
 
         /// Parse email address in format: " <email@domain>"
         rule author_email() -> &'input str
-            = ws()* "<" email:$([^'>']*) ">" { email }
+            = whitespace()* "<" email:$([^'>']*) ">" { email }
 
         rule name_part() -> &'input str
             = name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+ ("_" ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+)*) {
@@ -216,7 +216,7 @@ peg::parser! {
             }
 
         pub(crate) rule revision() -> ()
-            = start:position!() number:$("v"? digits() ** ".") date:revdate()? remark:revremark()? end:position!() {
+            = start:position!() number:$("v"? digits() ** ".") date:revision_date()? remark:revision_remark()? end:position!() {
                 state.tracker.advance_by(end - start);
                 let revision_info = RevisionInfo {
                     number: number.to_string(),
@@ -226,12 +226,12 @@ peg::parser! {
                 process_revision_info(revision_info, &mut state.document_attributes);
             }
 
-        rule revdate() -> &'input str
+        rule revision_date() -> &'input str
             = ", " date:$([^ (':'|'\n')]+) {
                 date
             }
 
-        rule revremark() -> &'input str
+        rule revision_remark() -> &'input str
             = ": " remark:$([^'\n']+) {
                 remark
             }
@@ -268,7 +268,7 @@ peg::parser! {
 
         pub(crate) rule section() -> Block
             = start:position() block_metadata:block_metadata() eol()
-            section_level:section_level() ws()
+            section_level:section_level() whitespace()
             title_start:position() title:section_title() title_end:position() eol()*<2,2>
             content:section_content()* end:position() {
                 let level = section_level.len().try_into().unwrap_or(0);
@@ -370,22 +370,22 @@ peg::parser! {
 
         rule anchor() -> Anchor
             = result:(
-                start:position() double_open_sb() id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) double_close_sb() eol() end:position() {
+                start:position() double_open_square_bracket() id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() eol() end:position() {
                 state.tracker.advance(id);
                 state.tracker.advance(reftext);
                 (start, id, Some(reftext), end)
             } /
-            start:position() double_open_sb() id:$([^']' | ',' | ']']+) double_close_sb() eol() end:position() {
+            start:position() double_open_square_bracket() id:$([^']' | ',' | ']']+) double_close_square_bracket() eol() end:position() {
                 state.tracker.advance(id);
                 (start, id, None, end)
             } /
-            start:position() open_sb() "#" id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) close_sb() eol() end:position() {
+            start:position() open_square_bracket() "#" id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() eol() end:position() {
                 state.tracker.advance("#");
                 state.tracker.advance(id);
                 state.tracker.advance(reftext);
                 (start, id, Some(reftext), end)
             } /
-            start:position() open_sb() "#" id:$([^']' | ',' | ']']+) close_sb() eol() end:position() {
+            start:position() open_square_bracket() "#" id:$([^']' | ',' | ']']+) close_square_bracket() eol() end:position() {
                 state.tracker.advance("#");
                 state.tracker.advance(id);
                 (start, id, None, end)
@@ -404,7 +404,7 @@ peg::parser! {
             }
 
         rule attributes_line() -> (bool, BlockMetadata)
-            = start:position() open_sb() content:(
+            = start:position() open_square_bracket() content:(
                 // The case in which we keep the style empty
                 comma() attributes:(attribute() ** comma()) {
                     (true, false, None, attributes)
@@ -421,7 +421,7 @@ peg::parser! {
                 attributes:(attribute() ** comma()) {
                     (false, false, None, attributes)
                 })
-            close_sb() eol() end:position() {
+            close_square_bracket() eol() end:position() {
                 state.tracker.advance_by(end.offset - start.offset);
                 let mut discrete = false;
                 let mut style_found = false;
@@ -462,10 +462,10 @@ peg::parser! {
                 title.to_string()
             }
 
-        rule open_sb() = "[" { state.tracker.advance_by(1); }
-        rule close_sb() = "]" { state.tracker.advance_by(1); }
-        rule double_open_sb() = "[[" { state.tracker.advance_by(2); }
-        rule double_close_sb() = "]]" { state.tracker.advance_by(2); }
+        rule open_square_bracket() = "[" { state.tracker.advance_by(1); }
+        rule close_square_bracket() = "]" { state.tracker.advance_by(1); }
+        rule double_open_square_bracket() = "[[" { state.tracker.advance_by(2); }
+        rule double_close_square_bracket() = "]]" { state.tracker.advance_by(2); }
         rule comma() = "," { state.tracker.advance_by(1); }
         rule period() = "." { state.tracker.advance_by(1); }
 
@@ -615,7 +615,7 @@ peg::parser! {
                 }
             }
 
-        rule ws() = quiet!{
+        rule whitespace() = quiet!{
             c:$(" " / "\t") { state.tracker.advance(c); }
         }
 
