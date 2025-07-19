@@ -19,7 +19,7 @@ impl PositionTracker {
     pub(crate) fn new() -> Self {
         Self {
             line: 1,
-            column: 1,
+            column: 0,
             offset: 0,
         }
     }
@@ -46,7 +46,7 @@ impl PositionTracker {
         for c in s.chars() {
             if c == '\n' {
                 self.line += 1;
-                self.column = 1;
+                self.column = 0;
             } else {
                 self.column += 1;
             }

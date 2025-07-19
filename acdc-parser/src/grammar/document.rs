@@ -1,7 +1,7 @@
 use crate::{
-    Anchor, AttributeValue, Author, Block, BlockMetadata, Document, DocumentAttribute,
-    DocumentAttributes, ElementAttributes, Error, Header, InlineNode, Location, Plain, Section,
-    TableOfContents, grammar::PositionTracker, model::DiscreteHeaderSection,
+    grammar::PositionTracker, model::DiscreteHeaderSection, Anchor, AttributeValue, Author, Block,
+    BlockMetadata, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Error,
+    Header, InlineNode, Location, Plain, Section, TableOfContents,
 };
 
 #[derive(Debug, Default)]
@@ -228,7 +228,7 @@ peg::parser! {
             section_level:section_level() ws()
             title_start:position() title:section_title() title_end:position() eol()*<2,2>
             content:section_content()* end:position() {
-                let level = section_level.len() as u8;
+                let level = section_level.len().try_into().unwrap_or(0);
                 let location = Location {
                     absolute_start: start.offset,
                     absolute_end: end.offset,
@@ -250,6 +250,7 @@ peg::parser! {
                 });
 
                 if discrete {
+                    #[allow(clippy::used_underscore_items)]
                     return Block::_DiscreteHeaderSection(DiscreteHeaderSection {
                         anchors: metadata.anchors,
                         title: vec![title_node],
@@ -290,7 +291,7 @@ peg::parser! {
                         },
                         BlockMetadataLine::Title(value) => title = Some(value),
                         _ => unreachable!(),
-                    };
+                    }
                 }
 
                 (discrete, metadata, title)
@@ -404,10 +405,8 @@ peg::parser! {
                         metadata.options.push(option);
                     }
                 }
-                for maybe_attribute in attributes {
-                    if let Some((k, v)) = maybe_attribute {
-                        metadata.attributes.insert(k.to_string(), v);
-                    }
+                for (k, v) in attributes.into_iter().flatten() {
+                    metadata.attributes.insert(k.to_string(), v);
                 }
                 (discrete, metadata)
             }
@@ -497,7 +496,7 @@ peg::parser! {
                         BlockStyle::Role(role) => roles.push(role),
                         BlockStyle::Option(option) => options.push(option),
                         _ => unreachable!()
-                    };
+                    }
                 }
                 (attribute, maybe_anchor, roles, options)
             }
