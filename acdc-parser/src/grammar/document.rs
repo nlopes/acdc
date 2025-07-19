@@ -33,6 +33,14 @@ enum BlockStyle {
     Option(String),
 }
 
+#[derive(Debug)]
+// Parsed revision information
+struct RevisionInfo {
+    number: String,
+    date: Option<String>,
+    remark: Option<String>,
+}
+
 /// Generate initials from first, optional middle, and last name parts
 fn generate_initials(first: &str, middle: Option<&str>, last: &str) -> String {
     let first_initial = first.chars().next().unwrap_or_default().to_string();
@@ -41,6 +49,31 @@ fn generate_initials(first: &str, middle: Option<&str>, last: &str) -> String {
         .unwrap_or_default();
     let last_initial = last.chars().next().unwrap_or_default().to_string();
     first_initial + &middle_initial + &last_initial
+}
+
+/// Process revision info and insert into document attributes
+fn process_revision_info(revision_info: RevisionInfo, document_attributes: &mut DocumentAttributes) {
+    if document_attributes.contains_key("revnumber") {
+        tracing::warn!("Revision number found in revision line but ignoring due to being set through attribute entries.");
+    } else {
+        document_attributes.insert("revnumber".to_string(), AttributeValue::String(revision_info.number));
+    }
+    
+    if let Some(date) = revision_info.date {
+        if document_attributes.contains_key("revdate") {
+            tracing::warn!("Revision date found in revision line but ignoring due to being set through attribute entries.");
+        } else {
+            document_attributes.insert("revdate".to_string(), AttributeValue::String(date));
+        }
+    }
+    
+    if let Some(remark) = revision_info.remark {
+        if document_attributes.contains_key("revremark") {
+            tracing::warn!("Revision remark found in revision line but ignoring due to being set through attribute entries.");
+        } else {
+            document_attributes.insert("revremark".to_string(), AttributeValue::String(remark));
+        }
+    }
 }
 
 peg::parser! {
@@ -185,25 +218,12 @@ peg::parser! {
         pub(crate) rule revision() -> ()
             = start:position!() number:$("v"? digits() ** ".") date:revdate()? remark:revremark()? end:position!() {
                 state.tracker.advance_by(end - start);
-                if state.document_attributes.contains_key("revnumber") {
-                    tracing::warn!("Revision number found in revision line but ignoring due to being set through attribute entries.");
-                } else {
-                    state.document_attributes.insert("revnumber".to_string(), AttributeValue::String(number.to_string()));
-                }
-                if let Some(date) = date {
-                    if state.document_attributes.contains_key("revdate") {
-                        tracing::warn!("Revision date found in revision line but ignoring due to being set through attribute entries.");
-                    } else {
-                        state.document_attributes.insert("revdate".to_string(), AttributeValue::String(date.to_string()));
-                    }
-                }
-                if let Some(remark) = remark {
-                    if state.document_attributes.contains_key("revremark") {
-                        tracing::warn!("Revision remark found in revision line but ignoring due to being set through attribute entries.");
-                    } else {
-                        state.document_attributes.insert("revremark".to_string(), AttributeValue::String(remark.to_string()));
-                    }
-                }
+                let revision_info = RevisionInfo {
+                    number: number.to_string(),
+                    date: date.map(ToString::to_string),
+                    remark: remark.map(ToString::to_string),
+                };
+                process_revision_info(revision_info, &mut state.document_attributes);
             }
 
         rule revdate() -> &'input str
@@ -326,10 +346,10 @@ peg::parser! {
                 title.to_string()
             }
 
-        rule section_level() -> String
+        rule section_level() -> &'input str
             = level:$(("=" / "#")*<1,6>) {
                 state.tracker.advance(level);
-                level.to_string()
+                level
             }
 
         rule section_title() -> String
@@ -454,7 +474,7 @@ peg::parser! {
         rule role() -> String = s:$(!(","/ "]" / "#" / "." / "%") [_]+) { s.to_string() }
         rule option() -> String = s:$("\\\"" / !("\"" / "," / "]" / "#" / "." / "%") [_]+) { s.to_string() }
 
-        rule attribute_name() -> String = s:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { s.to_string() }
+        rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
         rule attribute() -> Option<(String, AttributeValue)>
             = att:named_attribute() { att }
@@ -481,7 +501,7 @@ peg::parser! {
               / ("options" / "opts") "=" option:option()
                 { Some(("options".to_string(), AttributeValue::String(option))) }
               / name:attribute_name() "=" value:named_attribute_value()
-                { Some((name, AttributeValue::String(value))) }
+                { Some((name.to_string(), AttributeValue::String(value))) }
 
         // The block style is a positional attribute that is used to set the style of a block element.
         //
@@ -496,7 +516,7 @@ peg::parser! {
         // matter, except for the style, which must come first.
         rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
             = start:position() attribute:positional_attribute_value()? shorthands:(
-                "#" id:block_style_id() { BlockStyle::Id(id)}
+                "#" id:block_style_id() { BlockStyle::Id(id.to_string())}
                 / "." role:role() { BlockStyle::Role(role)}
                 / "%" option:option() { BlockStyle::Option(option)}
             )* end:position() {
@@ -525,7 +545,7 @@ peg::parser! {
 
         rule id_start_char() = ['A'..='Z' | 'a'..='z' | '_']
 
-        rule block_style_id() -> String = s:$(id_start_char() block_style_id_subsequent_char()*) { s.to_string() }
+        rule block_style_id() -> &'input str = $(id_start_char() block_style_id_subsequent_char()*)
 
         rule block_style_id_subsequent_char() =
             ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-']
@@ -547,9 +567,9 @@ peg::parser! {
 
         pub rule url() -> String = proto:proto() "://" path:path() { format!("{}{}{}", proto, "://", path) }
 
-        rule proto() -> String = s:$("https" / "http" / "ftp" / "irc" / "mailto") { s.to_string() }
+        rule proto() -> &'input str = $("https" / "http" / "ftp" / "irc" / "mailto")
 
-        pub rule path() -> String = s:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+) { s.to_string() }
+        pub rule path() -> &'input str = $(['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+)
 
         rule digits() = ['0'..='9']+
 
