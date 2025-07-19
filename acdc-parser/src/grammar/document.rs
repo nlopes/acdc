@@ -44,8 +44,15 @@ peg::parser! {
                     location: Location {
                         absolute_start: start.offset,
                         absolute_end: end.offset,
-                        start: start.position,
-                        end: end.position
+                        // The start position is the start of the document, but if the end offset is 0, we set it to 0
+                        start: if end.offset == 0 { crate::Position{
+                            column: 0,
+                            .. start.position
+                        }} else {start.position},
+                        end: if end.offset == 0 { crate::Position{
+                            column: 0,
+                            .. end.position
+                        }} else {end.position},
                     },
                     attributes: state.document_attributes.clone(),
                     ..Document::default()
@@ -97,7 +104,7 @@ peg::parser! {
                 })]
             }
 
-        rule document_title_token() = ("=" / "#") { state.tracker.advance_by(1); }
+        rule document_title_token() = t:$("=" / "#") { state.tracker.advance(t); }
 
         rule authors_and_revision() -> Vec<Author>
             = authors:authors() (eol() revision())? {
@@ -592,6 +599,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_document() {
         let input = "// this comment line is ignored
 = Document Title
@@ -604,7 +612,6 @@ v2.9, 01-09-2024: Fall incarnation
         let result = document_parser::document(input, &mut state)
             .unwrap()
             .unwrap();
-        dbg!(&result);
         let header = result.header.unwrap();
         assert_eq!(header.title.len(), 1);
         assert_eq!(
@@ -670,6 +677,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_authors() {
         let input =
             "Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
@@ -690,6 +698,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_author() {
         let input = "Norberto M. Lopes supa dough <nlopesml@gmail.com>";
         let mut state = ParserState::default();
@@ -702,6 +711,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_revision_full() {
         let input = "v2.9, 01-09-2024: Fall incarnation";
         let mut state = ParserState::default();
@@ -721,6 +731,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_revision_with_date_no_remark() {
         let input = "v2.9, 01-09-2024";
         let mut state = ParserState::default();
@@ -737,6 +748,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_revision_no_date_with_remark() {
         let input = "v2.9: Fall incarnation";
         let mut state = ParserState::default();
@@ -753,6 +765,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_revision_no_date_no_remark() {
         let input = "v2.9";
         let mut state = ParserState::default();
@@ -766,6 +779,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_document_comment_start() {
         let input = "// this comment line is ignored";
         let mut state = ParserState::default();
@@ -784,6 +798,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_document_title() {
         let input = "= Document Title";
         let mut state = ParserState::default();
@@ -807,6 +822,7 @@ v2.9, 01-09-2024: Fall incarnation
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_header_with_title_and_authors() {
         let input = "= Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";

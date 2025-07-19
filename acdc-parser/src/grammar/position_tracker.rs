@@ -19,7 +19,7 @@ impl PositionTracker {
     pub(crate) fn new() -> Self {
         Self {
             line: 1,
-            column: 0,
+            column: 1,
             offset: 0,
         }
     }
@@ -30,6 +30,7 @@ impl PositionTracker {
         self.offset = absolute_offset;
     }
 
+    #[tracing::instrument(level = "debug")]
     pub(crate) fn get_position(&self) -> Position {
         Position {
             line: self.line,
@@ -43,10 +44,11 @@ impl PositionTracker {
 
     // TODO(nlopes): check if `#[inline(always)]` will help
     pub(crate) fn advance(&mut self, s: &str) {
+        // TODO(nlopes): we need a better way to handle this due to unicode characters.
         for c in s.chars() {
             if c == '\n' {
                 self.line += 1;
-                self.column = 0;
+                self.column = 1;
             } else {
                 self.column += 1;
             }
