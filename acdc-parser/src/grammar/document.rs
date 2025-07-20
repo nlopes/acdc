@@ -1,7 +1,9 @@
 use crate::{
-    grammar::LineMap, model::DiscreteHeaderSection, Anchor, AttributeValue, Audio, Author, Block,
-    BlockMetadata, Document, DocumentAttribute, DocumentAttributes, Error, Header, Image,
-    InlineNode, Location, Plain, Section, Source, TableOfContents, Video,
+    grammar::LineMap, model::DiscreteHeaderSection, Admonition, AdmonitionVariant, Anchor,
+    AttributeValue, Audio, Author, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
+    Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, Location,
+    PageBreak, Paragraph, Plain, Raw, Section, Source, Table, TableOfContents, ThematicBreak,
+    Video,
 };
 
 #[derive(Debug)]
@@ -127,15 +129,28 @@ const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
+        use std::str::FromStr;
+
         pub(crate) rule document() -> Result<Document, Error>
-            = start:position() empty_or_comment()* header:header() empty_or_comment()* blocks:block()* end:position() {
+            = start:position() empty_or_comment()* header:header() empty_or_comment()* blocks:(block() ** (eol()*<2,2>)) end:position() (eol()* / ![_]) {
+                // For documents that end with text content (like body-only), adjust the end position
+                let document_end_offset = if blocks.is_empty() {
+                    end.offset
+                } else {
+                    // If the last block is a paragraph with only text content, use its end position
+                    match blocks.last().unwrap() {
+                        Block::Paragraph(_) | Block::Admonition(_) => end.offset.saturating_sub(1),
+                        _ => end.offset,
+                    }
+                };
+
                 Ok(Document {
                     name: "document".to_string(),
                     r#type: "block".to_string(),
                     header,
                     location: Location {
                         absolute_start: start.offset,
-                        absolute_end: end.offset,
+                        absolute_end: document_end_offset,
                         // The start position is the start of the document, but if the end offset is 0, we set it to 0
                         start: if end.offset == 0 { crate::Position{
                             column: 0,
@@ -144,7 +159,9 @@ peg::parser! {
                         end: if end.offset == 0 { crate::Position{
                             column: 0,
                             .. end.position
-                        }} else {end.position},
+                        }} else {
+                            state.line_map.offset_to_position(document_end_offset)
+                        },
                     },
                     attributes: state.document_attributes.clone(),
                     blocks,
@@ -189,7 +206,7 @@ peg::parser! {
         pub(crate) rule document_title() -> Vec<InlineNode>
             = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {
-            let location = state.create_location(start, end);
+            let location = state.create_location(start, end.saturating_sub(1));
             vec![InlineNode::PlainText(Plain {
                 content: title.to_string(),
                 location,
@@ -289,7 +306,7 @@ peg::parser! {
         }
 
         pub(crate) rule block() -> Block
-            = block:(document_attribute_block() / section() / block_generic()) eol()*
+            = block:(document_attribute_block() / section() / block_generic())
         {
             block
         }
@@ -388,13 +405,418 @@ peg::parser! {
 
         pub(crate) rule block_generic() -> Block
             = start:position!() block_metadata:block_metadata() block_type:(
-                toc:toc(start, &block_metadata) { toc }
+                delimited_block:delimited_block(start, &block_metadata) { delimited_block }
                 / image:image(start, &block_metadata) { image }
                 / audio:audio(start, &block_metadata) { audio }
                 / video:video(start, &block_metadata) { video }
-            ) &eol() {
+                / toc:toc(start, &block_metadata) { toc }
+                / thematic_break:thematic_break(start, &block_metadata) { thematic_break }
+                / page_break:page_break(start, &block_metadata) { page_break }
+                / list:list(start, &block_metadata) { list }
+                / paragraph:paragraph(start, &block_metadata) { paragraph }
+            ) {
                 block_type
             }
+
+        // TODO(nlopes): Implement delimited blocks
+        rule delimited_block(
+            start: usize,
+            block_details: &(bool, BlockMetadata, Option<String>),
+        ) -> Block
+            = comment_block(start, block_details)
+            / example_block(start, block_details)
+            / listing_block(start, block_details)
+            / literal_block(start, block_details)
+            / open_block(start, block_details)
+            / sidebar_block(start, block_details)
+            / table_block(start, block_details)
+            / pass_block(start, block_details)
+            / quote_block(start, block_details)
+
+        // Delimiter recognition rules
+        rule comment_delimiter() -> &'input str = delim:$("/"*<4,>) { delim }
+        rule example_delimiter() -> &'input str = delim:$("="*<4,>) { delim }
+        rule listing_delimiter() -> &'input str = delim:$("-"*<4,>) { delim }
+        rule literal_delimiter() -> &'input str = delim:$("."*<4,>) { delim }
+        rule open_delimiter() -> &'input str = delim:$("-"*<2,> / "~"*<4,>) { delim }
+        rule sidebar_delimiter() -> &'input str = delim:$("*"*<4,>) { delim }
+        rule table_delimiter() -> &'input str = delim:$((['|' | ',' | ':' | '!'] "="*<3,>)) { delim }
+        rule pass_delimiter() -> &'input str = delim:$("+"*<4,>) { delim }
+        rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
+
+        rule until_comment_delimiter() -> &'input str
+            = content:$((!("\n" comment_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_example_delimiter() -> &'input str
+            = content:$((!("\n" example_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_listing_delimiter() -> &'input str
+            = content:$((!("\n" listing_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_literal_delimiter() -> &'input str
+            = content:$((!("\n" literal_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_open_delimiter() -> &'input str
+            = content:$((!("\n" open_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_sidebar_delimiter() -> &'input str
+            = content:$((!("\n" sidebar_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_table_delimiter() -> &'input str
+            = content:$((!("\n" table_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_pass_delimiter() -> &'input str
+            = content:$((!("\n" pass_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule until_quote_delimiter() -> &'input str
+            = content:$((!("\n" quote_delimiter()) [_])*)
+        {
+            content
+        }
+
+        // Individual delimited block rules
+        rule example_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:example_delimiter() eol()
+              content_start:position!() content:until_example_delimiter() content_end:position!()
+              eol() close_delim:example_delimiter() end:position!()
+        {?
+            tracing::info!(%content, "Parsing example block");
+            // Ensure the opening and closing delimiters match
+            if open_delim != close_delim {
+                return Err("mismatched example delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+
+            // Parse content as blocks with proper positioning
+            let blocks = if !content.trim().is_empty() {
+                let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+                vec![Block::Paragraph(Paragraph {
+                    content: vec![InlineNode::PlainText(Plain {
+                        content: content.to_string(),
+                        location: content_location.clone(),
+                    })],
+                    metadata: BlockMetadata::default(),
+                    title: Vec::new(),
+                    location: content_location,
+                })]
+            } else {
+                Vec::new()
+            };
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedExample(blocks),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule comment_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:comment_delimiter() eol()
+            content_start:position!() content:until_comment_delimiter() content_end:position!()
+            eol() close_delim:comment_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched comment delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+            let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
+                    content: content.to_string(),
+                    location: content_location,
+                })]),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule listing_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:listing_delimiter() eol()
+            content_start:position!() content:until_listing_delimiter() content_end:position!()
+            eol() close_delim:listing_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched listing delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+            let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::PlainText(Plain {
+                    content: content.to_string(),
+                    location: content_location,
+                })]),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule literal_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:literal_delimiter() eol()
+            content_start:position!() content:until_literal_delimiter() content_end:position!()
+            eol() close_delim:literal_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched literal delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+            let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedLiteral(vec![InlineNode::PlainText(Plain {
+                    content: content.to_string(),
+                    location: content_location,
+                })]),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule open_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:open_delimiter() eol()
+            content_start:position!() content:until_open_delimiter() content_end:position!()
+            eol() close_delim:open_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched open delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+
+            let blocks = if !content.trim().is_empty() {
+                let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+                vec![Block::Paragraph(Paragraph {
+                    content: vec![InlineNode::PlainText(Plain {
+                        content: content.to_string(),
+                        location: content_location.clone(),
+                    })],
+                    metadata: BlockMetadata::default(),
+                    title: Vec::new(),
+                    location: content_location.clone(),
+                })]
+            } else {
+                Vec::new()
+            };
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedOpen(blocks),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule sidebar_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:sidebar_delimiter() eol()
+            content_start:position!() content:until_sidebar_delimiter() content_end:position!()
+            eol() close_delim:sidebar_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched sidebar delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+
+            let blocks = if !content.trim().is_empty() {
+                let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+                vec![Block::Paragraph(Paragraph {
+                    content: vec![InlineNode::PlainText(Plain {
+                        content: content.to_string(),
+                        location: content_location.clone(),
+                    })],
+                    metadata: BlockMetadata::default(),
+                    title: Vec::new(),
+                    location: content_location.clone(),
+                })]
+            } else {
+                Vec::new()
+            };
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedSidebar(blocks),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule table_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:table_delimiter() eol()
+            content_start:position!() content:until_table_delimiter() content_end:position!()
+            eol() close_delim:table_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched table delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+            let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+
+            let table = Table {
+                header: None,
+                footer: None,
+                rows: Vec::new(),
+                location: content_location.clone(),
+            };
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedTable(table),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule pass_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:pass_delimiter() eol()
+            content_start:position!() content:until_pass_delimiter() content_end:position!()
+            eol() close_delim:pass_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched pass delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+            let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
+                    content: content.to_string(),
+                    location: content_location,
+                })]),
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
+
+        rule quote_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = open_delim:quote_delimiter() eol()
+            content_start:position!() content:until_quote_delimiter() content_end:position!()
+            eol() close_delim:quote_delimiter() end:position!()
+        {?
+            if open_delim != close_delim {
+                return Err("mismatched quote delimiters");
+            }
+            let (_discrete, metadata, title) = block_details;
+            let location = state.create_location(start, end.saturating_sub(1));
+            let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+
+            let inner = if let Some(ref style) = metadata.style {
+                if style == "verse" {
+                    DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(Plain {
+                        content: content.to_string(),
+                        location: content_location.clone(),
+                    })])
+                } else {
+                    let blocks = if !content.trim().is_empty() {
+                        vec![Block::Paragraph(Paragraph {
+                            content: vec![InlineNode::PlainText(Plain {
+                                content: content.to_string(),
+                                location: content_location.clone(),
+                            })],
+                            metadata: BlockMetadata::default(),
+                            title: Vec::new(),
+                            location: content_location.clone(),
+                        })]
+                    } else {
+                        Vec::new()
+                    };
+                    DelimitedBlockType::DelimitedQuote(blocks)
+                }
+            } else {
+                let blocks = if !content.trim().is_empty() {
+                    vec![Block::Paragraph(Paragraph {
+                        content: vec![InlineNode::PlainText(Plain {
+                            content: content.to_string(),
+                            location: content_location.clone(),
+                        })],
+                        metadata: BlockMetadata::default(),
+                        title: Vec::new(),
+                        location: content_location.clone(),
+                    })]
+                } else {
+                    Vec::new()
+                };
+                DelimitedBlockType::DelimitedQuote(blocks)
+            };
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner,
+                title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                    content: t.clone(),
+                    location: location.clone(),
+                })]).unwrap_or_default(),
+                location,
+            }))
+        }
 
         rule toc(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
             = "toc::[]" end:position!()
@@ -444,6 +866,94 @@ peg::parser! {
                 metadata: metadata.clone(),
                 location: state.create_location(start, end),
             })
+        }
+
+        rule thematic_break(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = ("'''"
+               // Below are the markdown-style thematic breaks
+               / "---"
+               / "- - -"
+               / "***"
+               / "* * *"
+            ) end:position!()
+        {
+            tracing::info!("Found thematic break block");
+            let (_discrete, metadata, _title) = block_details;
+            Block::ThematicBreak(ThematicBreak {
+                anchors: metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
+                title: Vec::new(), // TODO(nlopes): Handle thematic break titles
+                location: state.create_location(start, end),
+            })
+        }
+
+        rule page_break(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = "<<<" end:position!()
+        {
+            tracing::info!("Found page break block");
+            let (_discrete, metadata, _title) = block_details;
+            Block::PageBreak(PageBreak {
+                title: Vec::new(), // TODO(nlopes): Handle page break titles
+                metadata: metadata.clone(),
+                location: state.create_location(start, end),
+            })
+        }
+
+        rule list(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = "list::" items:(list_item() ** comma()) end:position!()
+        {
+            unimplemented!("list blocks are not yet implemented");
+        }
+
+        rule list_item() -> String
+            = item:$([^',' | '\n']+)
+        {
+            item.to_string()
+        }
+
+        rule paragraph(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = admonition:admonition()? content_start:position!() content:$([^'\n']+) end:position!()
+        {?
+            let (_discrete, metadata, _title) = block_details;
+            if let Some(variant) = admonition {
+                let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
+                    tracing::error!(%variant, "invalid admonition variant");
+                    return Err("invalid admonition variant");
+                };
+                tracing::info!(%variant, "found admonition block with variant");
+                Ok(Block::Admonition(Admonition{
+                    metadata: metadata.clone(),
+                    title: Vec::new(), // TODO(nlopes): Handle admonition titles
+                    blocks: vec![Block::Paragraph(Paragraph {
+                        content: vec![InlineNode::PlainText(Plain {
+                            content: content.to_string(),
+                            location: state.create_location(content_start, end.saturating_sub(1)),
+                        })],
+                        metadata: metadata.clone(),
+                        title: Vec::new(), // TODO(nlopes): Handle paragraph titles
+                        location: state.create_location(start, end.saturating_sub(1)),
+                    })],
+                    location: state.create_location(start, end.saturating_sub(1)),
+                    variant,
+
+                }))
+            } else {
+                tracing::info!("Found paragraph block");
+                Ok(Block::Paragraph(Paragraph {
+                    content: vec![InlineNode::PlainText(Plain {
+                        content: content.to_string(),
+                        location: state.create_location(content_start, end.saturating_sub(1)),
+                    })],
+                    metadata: metadata.clone(),
+                    title: Vec::new(), // TODO(nlopes): Handle paragraph titles
+                    location: state.create_location(start, end.saturating_sub(1)),
+                }))
+            }
+        }
+
+        rule admonition() -> String
+            = variant:$("NOTE" / "WARNING" / "TIP" / "IMPORTANT" / "CAUTION") ": "
+        {
+            variant.to_string()
         }
 
         rule anchor() -> Anchor
@@ -774,11 +1284,11 @@ v2.9, 01-09-2024: Fall incarnation
                 content: "Document Title".to_string(),
                 location: Location {
                     absolute_start: 34,
-                    absolute_end: 48,
+                    absolute_end: 47,
                     start: crate::Position { line: 2, column: 3 },
                     end: crate::Position {
                         line: 2,
-                        column: 17
+                        column: 16
                     },
                 }
             })
@@ -964,11 +1474,11 @@ v2.9, 01-09-2024: Fall incarnation
                 content: "Document Title".to_string(),
                 location: Location {
                     absolute_start: 2,
-                    absolute_end: 16,
+                    absolute_end: 15,
                     start: crate::Position { line: 1, column: 3 },
                     end: crate::Position {
                         line: 1,
-                        column: 17
+                        column: 16
                     },
                 }
             })
@@ -989,11 +1499,11 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 content: "Document Title".to_string(),
                 location: Location {
                     absolute_start: 2,
-                    absolute_end: 16,
+                    absolute_end: 15,
                     start: crate::Position { line: 1, column: 3 },
                     end: crate::Position {
                         line: 1,
-                        column: 17
+                        column: 16
                     },
                 }
             })
@@ -1207,5 +1717,98 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                                           Source::Path("Video3ID".to_string())]
                  && video.metadata.attributes.get("youtube") == Some(&AttributeValue::Bool(true))
         );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_with_page_breaks() {
+        let input = "# a document with page breaks\n\n<<<\n\nThis is a new page.\n\n- - -\n\nAnd finally, the end.\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 4);
+        matches!(&result.blocks[0], Block::PageBreak(page_break)
+                 if page_break.location.absolute_start == 34
+                 && page_break.location.absolute_end == 36
+        );
+        matches!(&result.blocks[1], Block::Paragraph(paragraph)
+                 if paragraph.location.absolute_start == 38
+                 && paragraph.location.absolute_end == 60
+        );
+        matches!(&result.blocks[2], Block::ThematicBreak(thematic_break)
+                 if thematic_break.location.absolute_start == 62
+                 && thematic_break.location.absolute_end == 64
+        );
+        matches!(&result.blocks[3], Block::Paragraph(paragraph)
+                 if paragraph.location.absolute_start == 66
+                 && paragraph.location.absolute_end == 90
+        );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_with_admonition() {
+        let input = "IMPORTANT: This is an important message.\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 1);
+        matches!(&result.blocks[0], Block::Admonition(admonition)
+                 if admonition.variant == AdmonitionVariant::Important
+                 && admonition.blocks == vec![Block::Paragraph(Paragraph {
+                     metadata: BlockMetadata {
+                         anchors: vec![],
+                         id: None,
+                         style: None,
+                         roles: vec![],
+                         options: vec![],
+                         attributes: DocumentAttributes::default()
+                     },
+                     title: vec![],
+                     content: vec![InlineNode::PlainText(Plain {
+                         content: "This is an important message.".to_string(),
+                         location: Location {
+                             absolute_start: 11,
+                             absolute_end: 41,
+                             start: crate::Position { line: 1, column: 12 },
+                             end: crate::Position { line: 1, column: 42 }
+                         }
+                     })],
+                     location: Location {
+                         absolute_start: 11,
+                         absolute_end: 41,
+                         start: crate::Position { line: 1, column: 1 },
+                         end: crate::Position { line: 1, column: 42 }
+                     }
+                 })]
+        );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_delimited_example() {
+        let input = "====\nThis is a delimited example.\n====\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        dbg!(result);
+        panic!("This test is not yet implemented");
+        // assert_eq!(result.blocks.len(), 1);
+        // matches!(&result.blocks[0], DelimitedBlockType::DelimitedExample(delimited_example)
+        //          if delimited_example.content == vec![InlineNode::PlainText(Plain {
+        //              content: "This is a delimited example.".to_string(),
+        //              location: Location {
+        //                  absolute_start: 6,
+        //                  absolute_end: 35,
+        //                  start: crate::Position { line: 1, column: 7 },
+        //                  end: crate::Position { line: 1, column: 36 }
+        //              }
+        //          })]
+        //          && delimited_example.location.absolute_start == 0
+        //          && delimited_example.location.absolute_end == 39
+        // );
     }
 }

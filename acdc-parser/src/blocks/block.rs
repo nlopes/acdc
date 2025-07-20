@@ -165,6 +165,27 @@ impl std::fmt::Display for Block {
 }
 
 impl Block {
+    pub fn location(&self) -> &Location {
+        match self {
+            Block::TableOfContents(toc) => &toc.location,
+            Block::Admonition(admonition) => &admonition.location,
+            Block::DiscreteHeader(header) => &header.location,
+            Block::DocumentAttribute(attr) => &attr.location,
+            Block::ThematicBreak(br) => &br.location,
+            Block::PageBreak(br) => &br.location,
+            Block::UnorderedList(list) => &list.location,
+            Block::OrderedList(list) => &list.location,
+            Block::DescriptionList(list) => &list.location,
+            Block::Section(section) => &section.location,
+            Block::DelimitedBlock(block) => &block.location,
+            Block::Paragraph(paragraph) => &paragraph.location,
+            Block::Image(image) => &image.location,
+            Block::Audio(audio) => &audio.location,
+            Block::Video(video) => &video.location,
+            Block::_DiscreteHeaderSection(section) => &section.location,
+        }
+    }
+
     #[instrument(level = "trace")]
     pub(crate) fn parse(
         pairs: Pairs<Rule>,
