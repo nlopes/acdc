@@ -41,6 +41,15 @@ struct RevisionInfo {
     remark: Option<String>,
 }
 
+fn calculate_wrapped_location(start: Position, end: Position) -> Location {
+    Location {
+        absolute_start: start.offset,
+        absolute_end: end.offset,
+        start: start.position,
+        end: end.position,
+    }
+}
+
 /// Generate initials from first, optional middle, and last name parts
 fn generate_initials(first: &str, middle: Option<&str>, last: &str) -> String {
     let first_initial = first.chars().next().unwrap_or_default().to_string();
@@ -52,29 +61,45 @@ fn generate_initials(first: &str, middle: Option<&str>, last: &str) -> String {
 }
 
 /// Process revision info and insert into document attributes
-fn process_revision_info(revision_info: RevisionInfo, document_attributes: &mut DocumentAttributes) {
+fn process_revision_info(
+    revision_info: RevisionInfo,
+    document_attributes: &mut DocumentAttributes,
+) {
     if document_attributes.contains_key("revnumber") {
-        tracing::warn!("Revision number found in revision line but ignoring due to being set through attribute entries.");
+        tracing::warn!(
+            "Revision number found in revision line but ignoring due to being set through attribute entries."
+        );
     } else {
-        document_attributes.insert("revnumber".to_string(), AttributeValue::String(revision_info.number));
+        document_attributes.insert(
+            "revnumber".to_string(),
+            AttributeValue::String(revision_info.number),
+        );
     }
-    
+
     if let Some(date) = revision_info.date {
         if document_attributes.contains_key("revdate") {
-            tracing::warn!("Revision date found in revision line but ignoring due to being set through attribute entries.");
+            tracing::warn!(
+                "Revision date found in revision line but ignoring due to being set through attribute entries."
+            );
         } else {
             document_attributes.insert("revdate".to_string(), AttributeValue::String(date));
         }
     }
-    
+
     if let Some(remark) = revision_info.remark {
         if document_attributes.contains_key("revremark") {
-            tracing::warn!("Revision remark found in revision line but ignoring due to being set through attribute entries.");
+            tracing::warn!(
+                "Revision remark found in revision line but ignoring due to being set through attribute entries."
+            );
         } else {
             document_attributes.insert("revremark".to_string(), AttributeValue::String(remark));
         }
     }
 }
+
+const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
+const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
+const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
@@ -98,7 +123,7 @@ peg::parser! {
                         }} else {end.position},
                     },
                     attributes: state.document_attributes.clone(),
-                    ..Document::default()
+                    blocks,
                 })
             }
 
@@ -126,26 +151,31 @@ peg::parser! {
                         location
                     })
                 } else {
+                    tracing::info!("No title or authors found in the document header.");
                     None
                 }
             }
 
-        pub(crate) rule title_authors() -> (Vec<InlineNode>, Vec<Author>) =
-            title:document_title() eol() authors:authors_and_revision() (eol() / ![_]) {
-                (title, authors)
-            }
-            / title:document_title() eol() {
-                (title, vec![])
-            }
+        pub(crate) rule title_authors() -> (Vec<InlineNode>, Vec<Author>)
+            = start:position() title:document_title() eol() authors:authors_and_revision() (eol() / ![_])
+        {
+            tracing::info!("Found title and authors in the document header.");
+            (title, authors)
+        }
+        / title:document_title() eol() {
+            tracing::info!("Found title in the document header without authors.");
+            (title, vec![])
+        }
 
         pub(crate) rule document_title() -> Vec<InlineNode>
-            = document_title_token() whitespace() start:position() title:$([^'\n']*) {
-                let location = state.tracker.calculate_location(start.position, title, 0);
-                vec![InlineNode::PlainText(Plain {
-                    content: title.to_string(),
-                    location,
-                })]
-            }
+            = document_title_token() whitespace() start:position() title:$([^'\n']*)
+        {
+            let location = state.tracker.calculate_location(start.position, title, 0);
+            vec![InlineNode::PlainText(Plain {
+                content: title.to_string(),
+                location,
+            })]
+        }
 
         rule document_title_token() = t:$("=" / "#") { state.tracker.advance(t); }
 
@@ -361,12 +391,22 @@ peg::parser! {
         rule section_content() -> Vec<Block>
             = b:block() eol() { vec![b] }
 
-        pub(crate) rule block_generic() -> Block
-            = "::toc::" eol() {
-                Block::TableOfContents(TableOfContents {
-                    location: Location::default()
-                })
+        pub(crate) rule block_generic() -> Block = start:position() block_type:(
+            "toc::[]" { "toc" }
+            / "generic" { "generic" }
+        ) end:position() eol() {
+            state.tracker.advance_by(end.offset - start.offset);
+            match block_type {
+                "toc" => {
+                    Block::TableOfContents(TableOfContents {
+                        location: calculate_wrapped_location(start, end),
+                    })
+                }
+                _ => {
+                    todo!("Unsupported block type: {}", block_type);
+                }
             }
+        }
 
         rule anchor() -> Anchor
             = result:(
@@ -403,25 +443,36 @@ peg::parser! {
                 }
             }
 
-        rule attributes_line() -> (bool, BlockMetadata)
+        pub(crate) rule attributes_line() -> (bool, BlockMetadata)
+            = start:position() attributes:attributes() end:position() eol() {
+                state.tracker.advance_by(end.offset - start.offset);
+                let (discrete, metadata) = attributes;
+                (discrete, metadata)
+            }
+
+        pub(crate) rule attributes() -> (bool, BlockMetadata)
             = start:position() open_square_bracket() content:(
                 // The case in which we keep the style empty
                 comma() attributes:(attribute() ** comma()) {
+                    tracing::info!("Found empty style with attributes");
                     (true, false, None, attributes)
                 } /
                 // The case in which there is a block style and other attributes
                 style:block_style() comma() attributes:(attribute() ++ comma()) {
+                    tracing::info!("Found block style with attributes: {:?}", style);
                     (false, true, Some(style), attributes)
                 } /
                 // The case in which there is a block style and no other attributes
                 style:block_style() {
+                    tracing::info!("Found block style: {:?}", style);
                     (false, true, Some(style), vec![])
                 } /
                 // The case in which there are only attributes
                 attributes:(attribute() ** comma()) {
+                    tracing::info!("Found attributes: {:?}", attributes);
                     (false, false, None, attributes)
                 })
-            close_square_bracket() eol() end:position() {
+            close_square_bracket() end:position() {
                 state.tracker.advance_by(end.offset - start.offset);
                 let mut discrete = false;
                 let mut style_found = false;
@@ -431,9 +482,7 @@ peg::parser! {
                     if let Some(attribute_name) = maybe_attribute {
                         if attribute_name == "discrete" {
                             discrete = true;
-                        }
-
-                        if metadata.style.is_none() && !has_style {
+                        } else if metadata.style.is_none() && has_style {
                             metadata.style = Some(attribute_name);
                             style_found = true;
                         } else {
@@ -449,7 +498,40 @@ peg::parser! {
                     }
                 }
                 for (k, v) in attributes.into_iter().flatten() {
-                    metadata.attributes.insert(k.to_string(), v);
+                    if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() {
+                        metadata.id = Some(Anchor {
+                            id: v.to_string(),
+                            xreflabel: None,
+                            location: Location {
+                                absolute_start: start.offset,
+                                absolute_end: end.offset,
+                                start: start.position.clone(),
+                                end: end.position.clone()
+                            }
+                        });
+                    } else if let AttributeValue::String(v) = v {
+                        let values = if v.starts_with('"') && v.ends_with('"') {
+                            // Remove the quotes from the value, split by commas, and trim whitespace
+                            v[1..v.len()-1].split(',').map(|s| s.trim().to_string()).collect()
+                        } else {
+                            vec![v]
+                        };
+                        if k == RESERVED_NAMED_ATTRIBUTE_ROLE {
+                            for v in values {
+                                metadata.roles.push(v);
+                            }
+                        } else if k == RESERVED_NAMED_ATTRIBUTE_OPTIONS {
+                            for v in values {
+                                metadata.options.push(v);
+                            }
+                        } else {
+                            for v in values {
+                                metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
+                            }
+                        }
+                    } else {
+                        tracing::warn!("Unexpected attribute value type: {:?}", v);
+                    }
                 }
                 (discrete, metadata)
             }
@@ -471,12 +553,20 @@ peg::parser! {
 
 
         rule empty_style() = ""
-        rule role() -> String = s:$(!(","/ "]" / "#" / "." / "%") [_]+) { s.to_string() }
-        rule option() -> String = s:$("\\\"" / !("\"" / "," / "]" / "#" / "." / "%") [_]+) { s.to_string() }
+        rule role() -> &'input str = $([^ ',' | ']' | '#' | '.' | '%']+)
+
+        // The option rule is used to parse options in the form of "option=value" or
+        // "%option" (we don't capture the % here).
+        //
+        // The option can be a single word or a quoted string. If it is a quoted string,
+        // it can contain commas, which we then look for and extract the options in the
+        // `attributs()` rule.
+        rule option() -> &'input str =
+            $(("\"" [^'"' | ']' | '#' | '.' | '%']+ "\"") / ([^'"' | ',' | ']' | '#' | '.' | '%']+))
 
         rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
-        rule attribute() -> Option<(String, AttributeValue)>
+        pub(crate) rule attribute() -> Option<(String, AttributeValue)>
             = att:named_attribute() { att }
               / att:positional_attribute_value() {
                   Some((att, AttributeValue::None))
@@ -487,19 +577,13 @@ peg::parser! {
             = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
 
         // TODO(nlopes): this should instead return an enum
-        //
-        // TODO(nlopes): This is also missing the case when we have multiple options in
-        // quotes separated by commas (the below doesn't work but is illustrative):
-        //
-        // / ("options" / "opts") "=" "\"" opts:(option() ** ",")+ "\""
-        //   { Some(("options".to_string(), AttributeValue::String(opts))) }
         rule named_attribute() -> Option<(String, AttributeValue)>
             = "id" "=" id:id()
-                { Some(("id".to_string(), AttributeValue::String(id))) }
-              / "role" "=" role:role()
-                { Some(("role".to_string(), AttributeValue::String(role))) }
+                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id))) }
+              / ("role" / "roles") "=" role:role()
+                { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(role.to_string()))) }
               / ("options" / "opts") "=" option:option()
-                { Some(("options".to_string(), AttributeValue::String(option))) }
+                { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()))) }
               / name:attribute_name() "=" value:named_attribute_value()
                 { Some((name.to_string(), AttributeValue::String(value))) }
 
@@ -514,12 +598,29 @@ peg::parser! {
         // Each shorthand entry is placed directly adjacent to previous one, starting
         // immediately after the optional block style. The order of the entries does not
         // matter, except for the style, which must come first.
-        rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
-            = start:position() attribute:positional_attribute_value()? shorthands:(
-                "#" id:block_style_id() { BlockStyle::Id(id.to_string())}
-                / "." role:role() { BlockStyle::Role(role)}
-                / "%" option:option() { BlockStyle::Option(option)}
-            )* end:position() {
+        pub(crate) rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
+            = start:position() content:(
+                style:positional_attribute_value() shorthands:(
+                    "#" id:block_style_id() { BlockStyle::Id(id.to_string())}
+                    / "." role:role() { BlockStyle::Role(role.to_string())}
+                    / "%" option:option() { BlockStyle::Option(option.to_string())}
+                )+ {
+                    (Some(style), shorthands)
+                } /
+                style:positional_attribute_value() {
+                    (Some(style), Vec::new())
+                } /
+                shorthands:(
+                    "#" id:block_style_id() { BlockStyle::Id(id.to_string())}
+                    / "." role:role() { BlockStyle::Role(role.to_string())}
+                    / "%" option:option() { BlockStyle::Option(option.to_string())}
+                )+ {
+                    (None, shorthands)
+               }
+            )
+            end:position() {
+                let (style, shorthands) = content;
+                state.tracker.advance_by(end.offset - start.offset);
                 let mut maybe_anchor = None;
                 let mut roles = Vec::new();
                 let mut options = Vec::new();
@@ -540,7 +641,7 @@ peg::parser! {
                         _ => unreachable!()
                     }
                 }
-                (attribute, maybe_anchor, roles, options)
+                (style, maybe_anchor, roles, options)
             }
 
         rule id_start_char() = ['A'..='Z' | 'a'..='z' | '_']
@@ -556,8 +657,9 @@ peg::parser! {
 
         rule positional_attribute_value() -> String
             = s:$((!("\"" / "," / "]" / "#" / "." / "%") [_])
-                 (!("\"" / "," / "]" / "#" / "%" / "=" / ".") [_])*)
+                 (!("\"" / "," / "]" / "#" / "%" / "=" / ".") [_])* !"=")
         {
+            tracing::debug!("Found positional attribute value: {}", s);
             state.tracker.advance(s);
             s.to_string()
         }
@@ -615,9 +717,7 @@ peg::parser! {
                 }
             }
 
-        rule whitespace() = quiet!{
-            c:$(" " / "\t") { state.tracker.advance(c); }
-        }
+        rule whitespace() = quiet!{ (" " / "\t") { state.tracker.advance_by(1); }}
 
         rule position() -> Position = {
             Position {
@@ -896,5 +996,124 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             result.authors[1].email,
             Some("nlopesml@gmail.com".to_string())
         );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_empty_attribute_list() {
+        let input = "[]";
+        let mut state = ParserState::default();
+        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        assert_eq!(discrete, false); // Not discrete
+        assert_eq!(metadata.id, None);
+        assert_eq!(metadata.style, None);
+        assert!(metadata.roles.is_empty());
+        assert!(metadata.options.is_empty());
+        assert!(metadata.attributes.is_empty());
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_empty_attribute_list_with_discrete() {
+        let input = "[discrete]";
+        let mut state = ParserState::default();
+        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        assert!(discrete); // Should be discrete
+        assert_eq!(metadata.id, None);
+        assert_eq!(metadata.style, None);
+        assert!(metadata.roles.is_empty());
+        assert!(metadata.options.is_empty());
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_attribute_with_id() {
+        let input = "[id=my-id,role=admin,options=read,options=write]";
+        let mut state = ParserState::default();
+        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        assert_eq!(discrete, false); // Not discrete
+        assert_eq!(
+            metadata.id,
+            Some(Anchor {
+                id: "my-id".to_string(),
+                xreflabel: None,
+                location: Location {
+                    absolute_start: 0,
+                    absolute_end: 5,
+                    start: crate::Position { line: 1, column: 1 },
+                    end: crate::Position { line: 1, column: 6 }
+                }
+            })
+        );
+        assert_eq!(metadata.style, None);
+        assert!(metadata.roles.contains(&"admin".to_string()));
+        assert!(metadata.options.contains(&"read".to_string()));
+        assert!(metadata.options.contains(&"write".to_string()));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_attribute_with_id_mixed() {
+        let input = "[astyle#myid.admin,options=read,options=write]";
+        let mut state = ParserState::default();
+        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        assert_eq!(discrete, false); // Not discrete
+        assert_eq!(
+            metadata.id,
+            Some(Anchor {
+                id: "myid".to_string(),
+                xreflabel: None,
+                location: Location {
+                    absolute_start: 1,
+                    absolute_end: 7,
+                    start: crate::Position { line: 1, column: 2 },
+                    end: crate::Position { line: 1, column: 8 }
+                }
+            })
+        );
+        assert_eq!(metadata.style, Some("astyle".to_string()));
+        assert!(metadata.roles.contains(&"admin".to_string()));
+        assert!(metadata.options.contains(&"read".to_string()));
+        assert!(metadata.options.contains(&"write".to_string()));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_attribute_with_id_mixed_with_quotes() {
+        let input = "[astyle#myid.admin,options=\"read,write\"]";
+        let mut state = ParserState::default();
+        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        assert_eq!(discrete, false); // Not discrete
+        assert_eq!(
+            metadata.id,
+            Some(Anchor {
+                id: "myid".to_string(),
+                xreflabel: None,
+                location: Location {
+                    absolute_start: 1,
+                    absolute_end: 7,
+                    start: crate::Position { line: 1, column: 2 },
+                    end: crate::Position { line: 1, column: 8 }
+                }
+            })
+        );
+        assert_eq!(metadata.style, Some("astyle".to_string()));
+        assert!(metadata.roles.contains(&"admin".to_string()));
+        assert!(metadata.options.contains(&"read".to_string()));
+        assert!(metadata.options.contains(&"write".to_string()));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_with_toc_block() {
+        let input = "# This is a document\n:toc: macro\n\ntoc::[]\n";
+        let mut state = ParserState::default();
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        dbg!(&result);
+        let blocks = result.blocks;
+        dbg!(&blocks);
+        panic!("Test not fully implemented yet");
     }
 }
