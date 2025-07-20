@@ -231,7 +231,7 @@ pub struct PageBreak {
 pub struct Audio {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    pub source: AudioSource,
+    pub source: Source,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -243,7 +243,7 @@ pub struct Video {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub sources: Vec<VideoSource>,
+    pub sources: Vec<Source>,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -254,7 +254,7 @@ pub struct Video {
 pub struct Image {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    pub source: ImageSource,
+    pub source: Source,
     #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -263,19 +263,9 @@ pub struct Image {
 /// A `TableOfContents` represents a table of contents block.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct TableOfContents {
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
+    pub metadata: BlockMetadata,
     pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum AudioSource {
-    Path(String),
-    Url(String),
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum VideoSource {
-    Path(String),
-    Url(String),
 }
 
 // TODO(nlopes): this should use instead
@@ -284,7 +274,7 @@ pub enum VideoSource {
 // - Url(url::Url)
 //
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum ImageSource {
+pub enum Source {
     Path(String),
     Url(String),
 }
@@ -868,7 +858,7 @@ impl<'de> Deserialize<'de> for Block {
                         Ok(Block::Image(Image {
                             title: my_title,
                             // TODO(nlopes): this should be figured out if url or path
-                            source: ImageSource::Path(
+                            source: Source::Path(
                                 my_target.ok_or_else(|| de::Error::missing_field("target"))?,
                             ),
                             metadata: my_metadata,
@@ -882,7 +872,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         Ok(Block::Audio(Audio {
                             title: my_title,
-                            source: AudioSource::Path(
+                            source: Source::Path(
                                 my_target.ok_or_else(|| de::Error::missing_field("target"))?,
                             ),
                             metadata: my_metadata,
@@ -896,7 +886,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         Ok(Block::Video(Video {
                             title: my_title,
-                            sources: vec![VideoSource::Path(
+                            sources: vec![Source::Path(
                                 my_target.ok_or_else(|| de::Error::missing_field("target"))?,
                             )],
                             metadata: my_metadata,

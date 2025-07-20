@@ -53,14 +53,14 @@ use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
-    Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, AudioSource,
-    Author, Autolink, Block, BlockMetadata, Bold, Button, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image,
-    ImageSource, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, Location,
-    Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position,
-    Raw, Role, Section, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents,
-    TableRow, ThematicBreak, UnorderedList, Url, Video, VideoSource,
+    Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
+    Block, BlockMetadata, Bold, Button, DelimitedBlock, DelimitedBlockType, DescriptionList,
+    DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
+    DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image, InlineMacro, InlineNode,
+    Italic, Keyboard, LineBreak, Link, ListItem, Location, Menu, Monospace, OrderedList, PageBreak,
+    Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source, Subscript,
+    Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak,
+    UnorderedList, Url, Video,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -179,10 +179,8 @@ fn parse_input_old(input: String, options: &Options) -> Result<Document, Error> 
 #[instrument]
 fn parse_input(input: String, options: &Options) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
-    let mut state = grammar::ParserState {
-        document_attributes: options.document_attributes.clone(),
-        ..Default::default()
-    };
+    let mut state = grammar::ParserState::new(&input);
+    state.document_attributes = options.document_attributes.clone();
     match grammar::document_parser::document(&input, &mut state) {
         Ok(doc) => doc,
         Err(e) => {

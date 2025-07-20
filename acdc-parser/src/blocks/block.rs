@@ -1,14 +1,14 @@
 use std::str::FromStr;
 
-use pest::{Parser as _, iterators::Pairs};
+use pest::{iterators::Pairs, Parser as _};
 use tracing::instrument;
 
 use crate::{
-    Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Block, BlockMetadata,
-    DelimitedBlock, DelimitedBlockType, DocumentAttributes, ElementAttributes, Error, Image,
-    InlineNode, InlinePreprocessorParserState, InnerPestParser, Location, Options, PageBreak,
-    Paragraph, Rule, Section, TableOfContents, ThematicBreak, Video, blocks::list::parse_list,
-    inline_preprocessing, inlines::parse_inlines,
+    blocks::list::parse_list, inline_preprocessing, inlines::parse_inlines, Admonition,
+    AdmonitionVariant, Anchor, AttributeValue, Audio, Block, BlockMetadata, DelimitedBlock,
+    DelimitedBlockType, DocumentAttributes, ElementAttributes, Error, Image, InlineNode,
+    InlinePreprocessorParserState, InnerPestParser, Location, Options, PageBreak, Paragraph, Rule,
+    Section, TableOfContents, ThematicBreak, Video,
 };
 
 impl BlockExt for Block {
@@ -269,6 +269,7 @@ impl Block {
                 }
                 Rule::toc_block => {
                     block = Block::TableOfContents(TableOfContents {
+                        metadata: metadata.clone(),
                         location: location.clone(),
                     });
                 }

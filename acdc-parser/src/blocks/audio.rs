@@ -2,7 +2,7 @@ use pest::iterators::Pairs;
 use tracing::instrument;
 
 use crate::{
-    Audio, AudioSource, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Location, Rule,
+    Audio, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Location, Rule, Source,
 };
 
 impl Audio {
@@ -13,7 +13,7 @@ impl Audio {
         attributes: &mut ElementAttributes,
         parent_attributes: &mut DocumentAttributes,
     ) -> Block {
-        let mut source = AudioSource::Path(String::new());
+        let mut source = Source::Path(String::new());
         let mut location = Location::default();
 
         let len = pairs.clone().count();
@@ -28,8 +28,8 @@ impl Audio {
                 Rule::audio => {
                     for pair in pair.into_inner() {
                         match pair.as_rule() {
-                            Rule::path => source = AudioSource::Path(pair.as_str().to_string()),
-                            Rule::url => source = AudioSource::Url(pair.as_str().to_string()),
+                            Rule::path => source = Source::Path(pair.as_str().to_string()),
+                            Rule::url => source = Source::Url(pair.as_str().to_string()),
                             Rule::named_attribute => {
                                 Block::parse_named_attribute(
                                     pair.into_inner(),

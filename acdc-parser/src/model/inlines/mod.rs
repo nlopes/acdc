@@ -1,7 +1,7 @@
 use serde::{
-    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
 };
 
 mod macros;
@@ -10,7 +10,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{BlockMetadata, ElementAttributes, Image, ImageSource, Location};
+use crate::{BlockMetadata, ElementAttributes, Image, Location, Source};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -382,7 +382,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
                         Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
                             title: my_title,
-                            source: ImageSource::Path(my_target),
+                            source: Source::Path(my_target),
                             metadata: BlockMetadata::default(),
                             location: my_location,
                         }))))

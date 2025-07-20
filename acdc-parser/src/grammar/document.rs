@@ -1,17 +1,50 @@
 use crate::{
-    grammar::PositionTracker, model::DiscreteHeaderSection, Anchor, AttributeValue, Author, Block,
-    BlockMetadata, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Error,
-    Header, InlineNode, Location, Plain, Section, TableOfContents,
+    grammar::LineMap, model::DiscreteHeaderSection, Anchor, AttributeValue, Audio, Author, Block,
+    BlockMetadata, Document, DocumentAttribute, DocumentAttributes, Error, Header, Image,
+    InlineNode, Location, Plain, Section, Source, TableOfContents, Video,
 };
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct ParserState {
     pub(crate) document_attributes: DocumentAttributes,
-    pub(crate) tracker: PositionTracker,
+    pub(crate) line_map: LineMap,
+}
+
+impl ParserState {
+    pub(crate) fn new(input: &str) -> Self {
+        Self {
+            document_attributes: DocumentAttributes::default(),
+            line_map: LineMap::new(input),
+        }
+    }
+
+    /// Create a Location from raw byte offsets
+    pub(crate) fn create_location(&self, start: usize, end: usize) -> Location {
+        Location {
+            absolute_start: start,
+            absolute_end: end,
+            start: self.line_map.offset_to_position(start),
+            end: self.line_map.offset_to_position(end),
+        }
+    }
+
+    /// Create a Location from Position structs (which contain both offset and position)
+    pub(crate) fn create_location_from_positions(
+        &self,
+        start: &Position,
+        end: &Position,
+    ) -> Location {
+        Location {
+            absolute_start: start.offset,
+            absolute_end: end.offset,
+            start: start.position.clone(),
+            end: end.position.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
-struct Position {
+pub(crate) struct Position {
     offset: usize,
     position: crate::Position,
 }
@@ -28,7 +61,7 @@ enum BlockMetadataLine {
 #[derive(Debug)]
 // Used purely inside the grammar
 enum BlockStyle {
-    Id(String),
+    Id(String, Option<(usize, usize)>),
     Role(String),
     Option(String),
 }
@@ -39,15 +72,6 @@ struct RevisionInfo {
     number: String,
     date: Option<String>,
     remark: Option<String>,
-}
-
-fn calculate_wrapped_location(start: Position, end: Position) -> Location {
-    Location {
-        absolute_start: start.offset,
-        absolute_end: end.offset,
-        start: start.position,
-        end: end.position,
-    }
 }
 
 /// Generate initials from first, optional middle, and last name parts
@@ -138,12 +162,7 @@ peg::parser! {
             comment()*
             end:position() {
                 if let Some((title, authors)) = title_authors {
-                    let location = Location {
-                        absolute_start: start.offset,
-                        absolute_end: end.offset,
-                        start: start.position,
-                        end: end.position
-                    };
+                    let location = state.create_location_from_positions(&start, &end);
                     Some(Header {
                         title,
                         subtitle: None,
@@ -168,16 +187,16 @@ peg::parser! {
         }
 
         pub(crate) rule document_title() -> Vec<InlineNode>
-            = document_title_token() whitespace() start:position() title:$([^'\n']*)
+            = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {
-            let location = state.tracker.calculate_location(start.position, title, 0);
+            let location = state.create_location(start, end);
             vec![InlineNode::PlainText(Plain {
                 content: title.to_string(),
                 location,
             })]
         }
 
-        rule document_title_token() = t:$("=" / "#") { state.tracker.advance(t); }
+        rule document_title_token() = "=" / "#"
 
         rule authors_and_revision() -> Vec<Author>
             = authors:authors() (eol() revision())? {
@@ -198,8 +217,6 @@ peg::parser! {
             = name:author_name() email:author_email()? {
                 let mut author = name;
                 if let Some(email_addr) = email {
-                    state.tracker.advance_by(2); // skip the "<" and ">"
-                    state.tracker.advance(email_addr);
                     author.email = Some(email_addr.to_string());
                 }
                 author
@@ -241,13 +258,11 @@ peg::parser! {
 
         rule name_part() -> &'input str
             = name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+ ("_" ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+)*) {
-                state.tracker.advance(name);
                 name
             }
 
         pub(crate) rule revision() -> ()
-            = start:position!() number:$("v"? digits() ** ".") date:revision_date()? remark:revision_remark()? end:position!() {
-                state.tracker.advance_by(end - start);
+            = number:$("v"? digits() ** ".") date:revision_date()? remark:revision_remark()? {
                 let revision_info = RevisionInfo {
                     number: number.to_string(),
                     date: date.map(ToString::to_string),
@@ -267,59 +282,42 @@ peg::parser! {
             }
 
         rule document_attribute() -> ()
-            = start:position!() att:document_attribute_match() end:position!()
+            = att:document_attribute_match()
         {
-            state.tracker.advance_by(end - start);
             let (key, value) = att;
             state.document_attributes.insert(key.to_string(), value);
         }
 
         pub(crate) rule block() -> Block
-            = block:(document_attribute_block() / section() / block_generic())
+            = block:(document_attribute_block() / section() / block_generic()) eol()*
         {
             block
         }
 
         pub(crate) rule document_attribute_block() -> Block
-            = start:position() att:document_attribute_match() end:position() {
-                state.tracker.advance_by(end.offset - start.offset);
+            = start:position!() att:document_attribute_match() end:position!() {
                 let (key, value) = att;
                 Block::DocumentAttribute(DocumentAttribute {
                     name: key.to_string(),
                     value,
-                    location: Location {
-                        absolute_start: start.offset,
-                        absolute_end: end.offset,
-                        start: start.position,
-                        end: end.position
-                    }
+                    location: state.create_location(start, end)
                 })
             }
 
         pub(crate) rule section() -> Block
-            = start:position() block_metadata:block_metadata() eol()
+            = start:position() block_metadata:block_metadata()
             section_level:section_level() whitespace()
             title_start:position() title:section_title() title_end:position() eol()*<2,2>
             content:section_content()* end:position() {
                 let level = section_level.len().try_into().unwrap_or(0);
-                let location = Location {
-                    absolute_start: start.offset,
-                    absolute_end: end.offset,
-                    start: start.position,
-                    end: end.position
-                };
+                let location = state.create_location_from_positions(&start, &end);
                 // TODO(nlopes): what do I do with metadata_title?!?
                 let (discrete, metadata, metadata_title) = block_metadata;
 
                 // Create a simple title with plain text
                 let title_node = InlineNode::PlainText(Plain {
                     content: title,
-                    location: Location {
-                        absolute_start: title_start.offset,
-                        absolute_end: title_end.offset,
-                        start: title_start.position,
-                        end: title_end.position
-                    }
+                    location: state.create_location_from_positions(&title_start, &title_end)
                 });
 
                 if discrete {
@@ -372,86 +370,112 @@ peg::parser! {
 
         rule title_line() -> String
             = period() title:$([^'\n']*) eol() {
-                state.tracker.advance(title);
                 title.to_string()
             }
 
         rule section_level() -> &'input str
             = level:$(("=" / "#")*<1,6>) {
-                state.tracker.advance(level);
                 level
             }
 
         rule section_title() -> String
             = title:$([^'\n']*) {
-                state.tracker.advance(title);
                 title.to_string()
             }
 
         rule section_content() -> Vec<Block>
-            = b:block() eol() { vec![b] }
+            = b:block() &eol() { vec![b] }
 
-        pub(crate) rule block_generic() -> Block = start:position() block_type:(
-            "toc::[]" { "toc" }
-            / "generic" { "generic" }
-        ) end:position() eol() {
-            state.tracker.advance_by(end.offset - start.offset);
-            match block_type {
-                "toc" => {
-                    Block::TableOfContents(TableOfContents {
-                        location: calculate_wrapped_location(start, end),
-                    })
-                }
-                _ => {
-                    todo!("Unsupported block type: {}", block_type);
-                }
+        pub(crate) rule block_generic() -> Block
+            = start:position!() block_metadata:block_metadata() block_type:(
+                toc:toc(start, &block_metadata) { toc }
+                / image:image(start, &block_metadata) { image }
+                / audio:audio(start, &block_metadata) { audio }
+                / video:video(start, &block_metadata) { video }
+            ) &eol() {
+                block_type
             }
+
+        rule toc(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = "toc::[]" end:position!()
+        {
+            let (_discrete, metadata, _title) = block_details;
+            tracing::info!("Found Table of Contents block");
+            Block::TableOfContents(TableOfContents {
+                metadata: metadata.clone(),
+                location: state.create_location(start, end),
+            })
+        }
+
+        rule image(start: usize, _block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = "image::" source:source() attributes:attributes() end:position!()
+        {
+            let (_discrete, metadata) = attributes;
+            Block::Image(Image {
+                title: Vec::new(), // TODO(nlopes): Handle image titles
+                source,
+                metadata: metadata.clone(),
+                location: state.create_location(start, end),
+            })
+        }
+
+        rule audio(start: usize, _block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = "audio::" source:source() attributes:attributes() end:position!()
+        {
+            let (_discrete, metadata) = attributes;
+            Block::Audio(Audio {
+                title: Vec::new(), // TODO(nlopes): Handle audio titles
+                source,
+                metadata: metadata.clone(),
+                location: state.create_location(start, end),
+            })
+        }
+
+        // The video block is similar to the audio and image blocks, but it supports
+        // multiple sources. This is for example to allow passing multiple youtube video
+        // ids to form a playlist.
+        rule video(start: usize, _block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
+        {
+            let (_discrete, metadata) = attributes;
+            Block::Video(Video {
+                title: Vec::new(), // TODO(nlopes): Handle video titles
+                sources,
+                metadata: metadata.clone(),
+                location: state.create_location(start, end),
+            })
         }
 
         rule anchor() -> Anchor
             = result:(
-                start:position() double_open_square_bracket() id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() eol() end:position() {
-                state.tracker.advance(id);
-                state.tracker.advance(reftext);
+                start:position!() double_open_square_bracket() id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() eol() end:position!() {
                 (start, id, Some(reftext), end)
             } /
-            start:position() double_open_square_bracket() id:$([^']' | ',' | ']']+) double_close_square_bracket() eol() end:position() {
-                state.tracker.advance(id);
+            start:position!() double_open_square_bracket() id:$([^']' | ',' | ']']+) double_close_square_bracket() eol() end:position!() {
                 (start, id, None, end)
             } /
-            start:position() open_square_bracket() "#" id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() eol() end:position() {
-                state.tracker.advance("#");
-                state.tracker.advance(id);
-                state.tracker.advance(reftext);
+            start:position!() open_square_bracket() "#" id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() eol() end:position!() {
                 (start, id, Some(reftext), end)
             } /
-            start:position() open_square_bracket() "#" id:$([^']' | ',' | ']']+) close_square_bracket() eol() end:position() {
-                state.tracker.advance("#");
-                state.tracker.advance(id);
+            start:position!() open_square_bracket() "#" id:$([^']' | ',' | ']']+) close_square_bracket() eol() end:position!() {
                 (start, id, None, end)
             }) {
                 let (start, id, reftext, end) = result;
                 Anchor {
                     id: id.to_string(),
                     xreflabel: reftext.map(ToString::to_string),
-                    location: Location {
-                        absolute_start: start.offset,
-                        absolute_end: end.offset,
-                        start: start.position,
-                        end: end.position
-                    }
+                    location: state.create_location(start, end)
                 }
             }
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
-            = start:position() attributes:attributes() end:position() eol() {
-                state.tracker.advance_by(end.offset - start.offset);
+            = attributes:attributes() eol() {
                 let (discrete, metadata) = attributes;
                 (discrete, metadata)
             }
 
         pub(crate) rule attributes() -> (bool, BlockMetadata)
-            = start:position() open_square_bracket() content:(
+            = start:position!() open_square_bracket() content:(
                 // The case in which we keep the style empty
                 comma() attributes:(attribute() ** comma()) {
                     tracing::info!("Found empty style with attributes");
@@ -472,8 +496,7 @@ peg::parser! {
                     tracing::info!("Found attributes: {:?}", attributes);
                     (false, false, None, attributes)
                 })
-            close_square_bracket() end:position() {
-                state.tracker.advance_by(end.offset - start.offset);
+            close_square_bracket() end:position!() {
                 let mut discrete = false;
                 let mut style_found = false;
                 let (empty, has_style, maybe_style, attributes) = content;
@@ -497,17 +520,13 @@ peg::parser! {
                         metadata.options.push(option);
                     }
                 }
-                for (k, v) in attributes.into_iter().flatten() {
+                for (k, v, pos) in attributes.into_iter().flatten() {
                     if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() {
+                        let (id_start, id_end) = pos.unwrap_or((start, end));
                         metadata.id = Some(Anchor {
                             id: v.to_string(),
                             xreflabel: None,
-                            location: Location {
-                                absolute_start: start.offset,
-                                absolute_end: end.offset,
-                                start: start.position.clone(),
-                                end: end.position.clone()
-                            }
+                            location: state.create_location(id_start, id_end)
                         });
                     } else if let AttributeValue::String(v) = v {
                         let values = if v.starts_with('"') && v.ends_with('"') {
@@ -539,19 +558,16 @@ peg::parser! {
         // TODO(nlopes): This should return Vec<InlineNode>
         // Once I implement inlines_inner, I can come back here and fix.
         rule block_title() -> String
-            = start:position() "." !['.' | ' '] title:$([^'\n']*) eol() end:position() {
-                state.tracker.advance_by(end.offset - start.offset);
+            = "." !['.' | ' '] title:$([^'\n']*) eol() {
                 title.to_string()
             }
 
-        rule open_square_bracket() = "[" { state.tracker.advance_by(1); }
-        rule close_square_bracket() = "]" { state.tracker.advance_by(1); }
-        rule double_open_square_bracket() = "[[" { state.tracker.advance_by(2); }
-        rule double_close_square_bracket() = "]]" { state.tracker.advance_by(2); }
-        rule comma() = "," { state.tracker.advance_by(1); }
-        rule period() = "." { state.tracker.advance_by(1); }
-
-
+        rule open_square_bracket() = "["
+        rule close_square_bracket() = "]"
+        rule double_open_square_bracket() = "[["
+        rule double_close_square_bracket() = "]]"
+        rule comma() = ","
+        rule period() = "."
         rule empty_style() = ""
         rule role() -> &'input str = $([^ ',' | ']' | '#' | '.' | '%']+)
 
@@ -566,10 +582,10 @@ peg::parser! {
 
         rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
-        pub(crate) rule attribute() -> Option<(String, AttributeValue)>
+        pub(crate) rule attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = att:named_attribute() { att }
               / att:positional_attribute_value() {
-                  Some((att, AttributeValue::None))
+                  Some((att, AttributeValue::None, None))
               }
 
         // Add a simple ID rule
@@ -577,15 +593,15 @@ peg::parser! {
             = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
 
         // TODO(nlopes): this should instead return an enum
-        rule named_attribute() -> Option<(String, AttributeValue)>
-            = "id" "=" id:id()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id))) }
+        rule named_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
+            = "id" "=" start:position!() id:id() end:position!()
+                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id), Some((start, end)))) }
               / ("role" / "roles") "=" role:role()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(role.to_string()))) }
+                { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(role.to_string()), None)) }
               / ("options" / "opts") "=" option:option()
-                { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()))) }
+                { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()), None)) }
               / name:attribute_name() "=" value:named_attribute_value()
-                { Some((name.to_string(), AttributeValue::String(value))) }
+                { Some((name.to_string(), AttributeValue::String(value), None)) }
 
         // The block style is a positional attribute that is used to set the style of a block element.
         //
@@ -599,9 +615,9 @@ peg::parser! {
         // immediately after the optional block style. The order of the entries does not
         // matter, except for the style, which must come first.
         pub(crate) rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
-            = start:position() content:(
+            = start:position!() content:(
                 style:positional_attribute_value() shorthands:(
-                    "#" id:block_style_id() { BlockStyle::Id(id.to_string())}
+                    "#" id_start:position!() id:block_style_id() id_end:position!() { BlockStyle::Id(id.to_string(), Some((id_start, id_end)))}
                     / "." role:role() { BlockStyle::Role(role.to_string())}
                     / "%" option:option() { BlockStyle::Option(option.to_string())}
                 )+ {
@@ -611,34 +627,30 @@ peg::parser! {
                     (Some(style), Vec::new())
                 } /
                 shorthands:(
-                    "#" id:block_style_id() { BlockStyle::Id(id.to_string())}
+                    "#" id_start:position!() id:block_style_id() id_end:position!() { BlockStyle::Id(id.to_string(), Some((id_start, id_end)))}
                     / "." role:role() { BlockStyle::Role(role.to_string())}
                     / "%" option:option() { BlockStyle::Option(option.to_string())}
                 )+ {
                     (None, shorthands)
                }
             )
-            end:position() {
+            end:position!() {
                 let (style, shorthands) = content;
-                state.tracker.advance_by(end.offset - start.offset);
                 let mut maybe_anchor = None;
                 let mut roles = Vec::new();
                 let mut options = Vec::new();
                 for shorthand in shorthands {
                     match shorthand {
-                        BlockStyle::Id(id) => maybe_anchor = Some(Anchor {
-                            id,
-                            xreflabel: None,
-                            location: Location {
-                                absolute_start: start.offset,
-                                absolute_end: end.offset,
-                                start: start.position.clone(),
-                                end: end.position.clone()
-                            }
-                        }),
+                        BlockStyle::Id(id, pos) => {
+                            let (id_start, id_end) = pos.unwrap_or((start, end));
+                            maybe_anchor = Some(Anchor {
+                                id,
+                                xreflabel: None,
+                                location: state.create_location(id_start, id_end)
+                            });
+                        },
                         BlockStyle::Role(role) => roles.push(role),
                         BlockStyle::Option(option) => options.push(option),
-                        _ => unreachable!()
                     }
                 }
                 (style, maybe_anchor, roles, options)
@@ -660,7 +672,6 @@ peg::parser! {
                  (!("\"" / "," / "]" / "#" / "%" / "=" / ".") [_])* !"=")
         {
             tracing::debug!("Found positional attribute value: {}", s);
-            state.tracker.advance(s);
             s.to_string()
         }
 
@@ -673,13 +684,21 @@ peg::parser! {
 
         pub rule path() -> &'input str = $(['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+)
 
+        pub rule source() -> Source
+            = source:
+        (
+            u:url() { Source::Url(u.to_string()) }
+            / p:path() { Source::Path(p.to_string()) }
+        )
+        { source }
+
         rule digits() = ['0'..='9']+
 
-        rule eol() = quiet!{ "\n" { state.tracker.advance("\n"); } }
+        rule eol() = quiet!{ "\n" }
 
         rule empty_or_comment() = quiet!{ eol() / comment() }
 
-        rule comment() = quiet!{ c:$("//" [^'\n']+ "\n"?) { state.tracker.advance(c); } }
+        rule comment() = quiet!{ "//" [^'\n']+ "\n"? }
 
         rule document_attribute_match() -> (&'input str, AttributeValue) = ":"
             key:("!" key:$([^':']+) {
@@ -717,12 +736,12 @@ peg::parser! {
                 }
             }
 
-        rule whitespace() = quiet!{ (" " / "\t") { state.tracker.advance_by(1); }}
+        rule whitespace() = quiet!{ " " / "\t" }
 
-        rule position() -> Position = {
+        rule position() -> Position = offset:position!() {
             Position {
-                offset: state.tracker.get_offset(),
-                position: state.tracker.get_position()
+                offset,
+                position: state.line_map.offset_to_position(offset)
             }
         }
 
@@ -743,7 +762,7 @@ v2.9, 01-09-2024: Fall incarnation
 :description: The document's description.
 :sectanchors:
 :url-repo: https://my-git-repo.com";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let result = document_parser::document(input, &mut state)
             .unwrap()
             .unwrap();
@@ -816,7 +835,7 @@ v2.9, 01-09-2024: Fall incarnation
     fn test_authors() {
         let input =
             "Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let result = document_parser::authors(input, &mut state).unwrap();
 
         assert_eq!(result.len(), 2);
@@ -836,7 +855,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_author() {
         let input = "Norberto M. Lopes supa dough <nlopesml@gmail.com>";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let result = document_parser::author(input, &mut state).unwrap();
         assert_eq!(result.first_name, "Norberto");
         assert_eq!(result.middle_name, Some("M.".to_string()));
@@ -849,7 +868,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_full() {
         let input = "v2.9, 01-09-2024: Fall incarnation";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         document_parser::revision(input, &mut state).unwrap();
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -869,7 +888,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_with_date_no_remark() {
         let input = "v2.9, 01-09-2024";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         document_parser::revision(input, &mut state).unwrap();
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -886,7 +905,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_no_date_with_remark() {
         let input = "v2.9: Fall incarnation";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         document_parser::revision(input, &mut state).unwrap();
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -903,7 +922,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_no_date_no_remark() {
         let input = "v2.9";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         document_parser::revision(input, &mut state).unwrap();
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -917,7 +936,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_document_comment_start() {
         let input = "// this comment line is ignored";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let result = document_parser::document(input, &mut state)
             .unwrap()
             .unwrap();
@@ -936,7 +955,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_document_title() {
         let input = "= Document Title";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let result = document_parser::document_title(input, &mut state).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(
@@ -961,7 +980,7 @@ v2.9, 01-09-2024: Fall incarnation
     fn test_header_with_title_and_authors() {
         let input = "= Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let result = document_parser::header(input, &mut state).unwrap().unwrap();
         assert_eq!(result.title.len(), 1);
         assert_eq!(
@@ -1002,7 +1021,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_empty_attribute_list() {
         let input = "[]";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
         assert_eq!(discrete, false); // Not discrete
         assert_eq!(metadata.id, None);
@@ -1016,7 +1035,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_empty_attribute_list_with_discrete() {
         let input = "[discrete]";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
         assert!(discrete); // Should be discrete
         assert_eq!(metadata.id, None);
@@ -1029,7 +1048,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_attribute_with_id() {
         let input = "[id=my-id,role=admin,options=read,options=write]";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
         assert_eq!(discrete, false); // Not discrete
         assert_eq!(
@@ -1038,10 +1057,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 id: "my-id".to_string(),
                 xreflabel: None,
                 location: Location {
-                    absolute_start: 0,
-                    absolute_end: 5,
-                    start: crate::Position { line: 1, column: 1 },
-                    end: crate::Position { line: 1, column: 6 }
+                    absolute_start: 4,
+                    absolute_end: 9,
+                    start: crate::Position { line: 1, column: 5 },
+                    end: crate::Position {
+                        line: 1,
+                        column: 10
+                    }
                 }
             })
         );
@@ -1055,7 +1077,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_attribute_with_id_mixed() {
         let input = "[astyle#myid.admin,options=read,options=write]";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
         assert_eq!(discrete, false); // Not discrete
         assert_eq!(
@@ -1064,10 +1086,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 id: "myid".to_string(),
                 xreflabel: None,
                 location: Location {
-                    absolute_start: 1,
-                    absolute_end: 7,
-                    start: crate::Position { line: 1, column: 2 },
-                    end: crate::Position { line: 1, column: 8 }
+                    absolute_start: 8,
+                    absolute_end: 12,
+                    start: crate::Position { line: 1, column: 9 },
+                    end: crate::Position {
+                        line: 1,
+                        column: 13
+                    }
                 }
             })
         );
@@ -1081,7 +1106,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_attribute_with_id_mixed_with_quotes() {
         let input = "[astyle#myid.admin,options=\"read,write\"]";
-        let mut state = ParserState::default();
+        let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
         assert_eq!(discrete, false); // Not discrete
         assert_eq!(
@@ -1090,10 +1115,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 id: "myid".to_string(),
                 xreflabel: None,
                 location: Location {
-                    absolute_start: 1,
-                    absolute_end: 7,
-                    start: crate::Position { line: 1, column: 2 },
-                    end: crate::Position { line: 1, column: 8 }
+                    absolute_start: 8,
+                    absolute_end: 12,
+                    start: crate::Position { line: 1, column: 9 },
+                    end: crate::Position {
+                        line: 1,
+                        column: 13
+                    }
                 }
             })
         );
@@ -1106,14 +1134,78 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[test]
     #[tracing_test::traced_test]
     fn test_document_with_toc_block() {
-        let input = "# This is a document\n:toc: macro\n\ntoc::[]\n";
-        let mut state = ParserState::default();
+        let input = "# This is a document\n:toc: macro\n\n[astyle#myid.admin,options=\"read,write\"]\ntoc::[]\n";
+        let mut state = ParserState::new(input);
         let result = document_parser::document(input, &mut state)
             .unwrap()
             .unwrap();
-        dbg!(&result);
-        let blocks = result.blocks;
-        dbg!(&blocks);
-        panic!("Test not fully implemented yet");
+
+        // Verify that we have a table of contents block
+        assert_eq!(result.blocks.len(), 1);
+        match &result.blocks[0] {
+            Block::TableOfContents(toc) => {
+                assert_eq!(toc.location.absolute_start, 34);
+                assert_eq!(toc.location.absolute_end, 82);
+            }
+            _ => panic!("Expected TableOfContents block"),
+        }
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_with_image_block() {
+        let input = "image::sunset.jpg[alt=Sunset,width=300,height=400]\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        // Verify that we have a table of contents block
+        assert_eq!(result.blocks.len(), 1);
+        matches!(&result.blocks[0], Block::Image(image)
+                 if image.source == Source::Path("sunset.jpg".to_string())
+                 && image.metadata.attributes.get("alt") == Some(&AttributeValue::String("Sunset".to_string()))
+                 && image.metadata.attributes.get("width") == Some(&AttributeValue::String("300".to_string()))
+                 && image.metadata.attributes.get("height") == Some(&AttributeValue::String("400".to_string()))
+        );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_with_two_image_blocks() {
+        let input = "image::sunset.jpg[alt=Sunset,width=300,height=400]\n\nimage::mountain.png[alt=Mountain,width=500,height=600]\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 2);
+        matches!(&result.blocks[0], Block::Image(image)
+                 if image.source == Source::Path("sunset.jpg".to_string())
+                 && image.metadata.attributes.get("alt") == Some(&AttributeValue::String("Sunset".to_string()))
+                 && image.metadata.attributes.get("width") == Some(&AttributeValue::String("300".to_string()))
+                 && image.metadata.attributes.get("height") == Some(&AttributeValue::String("400".to_string()))
+        );
+        matches!(&result.blocks[1], Block::Image(image)
+                 if image.source == Source::Path("mountain.png".to_string())
+                 && image.metadata.attributes.get("alt") == Some(&AttributeValue::String("Mountain".to_string()))
+                 && image.metadata.attributes.get("width") == Some(&AttributeValue::String("500".to_string()))
+                 && image.metadata.attributes.get("height") == Some(&AttributeValue::String("600".to_string()))
+        );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_with_two_video_ids() {
+        let input = "video::Video1ID,Video2ID,Video3ID[youtube]\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 1);
+        matches!(&result.blocks[0], Block::Video(video)
+                 if video.sources == vec![Source::Path("Video1ID".to_string()),
+                                          Source::Path("Video2ID".to_string()),
+                                          Source::Path("Video3ID".to_string())]
+                 && video.metadata.attributes.get("youtube") == Some(&AttributeValue::Bool(true))
+        );
     }
 }

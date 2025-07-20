@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Image, ImageSource, InlineMacro, InlineNode, Link, Pass, PassthroughKind,
+    AttributeValue, Image, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Source,
     Substitution, Url,
 };
 
@@ -150,8 +150,8 @@ impl Render for Image {
             w,
             "<img src=\"{}\"",
             match &self.source {
-                ImageSource::Url(url) => url,
-                ImageSource::Path(path) => path,
+                Source::Url(url) => url,
+                Source::Path(path) => path,
             }
         )?;
         if !self.title.is_empty() {
