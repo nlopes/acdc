@@ -196,7 +196,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[rstest::rstest]
-    #[trace]
+    #[tracing_test::traced_test]
     fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
         let test_file_path = path.with_extension("json");
         let options = Options {

@@ -1,9 +1,9 @@
 use crate::{
     grammar::LineMap, model::DiscreteHeaderSection, Admonition, AdmonitionVariant, Anchor,
     AttributeValue, Audio, Author, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, Location,
-    PageBreak, Paragraph, Plain, Raw, Section, Source, Table, TableOfContents, ThematicBreak,
-    Video,
+    Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, ListItem,
+    Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Section, Source, Table,
+    TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 #[derive(Debug)]
@@ -61,11 +61,18 @@ enum BlockMetadataLine {
 }
 
 #[derive(Debug)]
-// Used purely inside the grammar
+// Used purely inside the grammar to represent the style of a block
 enum BlockStyle {
     Id(String, Option<(usize, usize)>),
     Role(String),
     Option(String),
+}
+
+#[derive(Debug)]
+// Used purely inside the grammar to represent the status of a checklist item
+enum ChecklistStatus {
+    Checked,
+    Unchecked,
 }
 
 #[derive(Debug)]
@@ -132,7 +139,7 @@ peg::parser! {
         use std::str::FromStr;
 
         pub(crate) rule document() -> Result<Document, Error>
-            = start:position() empty_or_comment()* header:header() empty_or_comment()* blocks:(block() ** (eol()*<2,2>)) end:position() (eol()* / ![_]) {
+            = start:position() empty_or_comment()* header:header() empty_or_comment()* blocks:blocks() end:position() (eol()* / ![_]) {
                 // For documents that end with text content (like body-only), adjust the end position
                 let document_end_offset = if blocks.is_empty() {
                     end.offset
@@ -305,6 +312,11 @@ peg::parser! {
             state.document_attributes.insert(key.to_string(), value);
         }
 
+        pub(crate) rule blocks() -> Vec<Block>
+            = blocks:(block() ** (eol()*<2,2>)) {
+                blocks
+            }
+
         pub(crate) rule block() -> Block
             = block:(document_attribute_block() / section() / block_generic())
         {
@@ -450,10 +462,13 @@ peg::parser! {
             content
         }
 
-        rule until_example_delimiter() -> &'input str
-            = content:$((!("\n" example_delimiter()) [_])*)
-        {
-            content
+        rule until_example_delimiter() -> Vec<Block>
+            = content:$((!(&("\n" example_delimiter())) [_])*)
+        {?
+            Ok(document_parser::blocks(content, state).map_err(|e| {
+                tracing::error!(?e, "error parsing example block content");
+                "mismatched example delimiters"
+            })?)
         }
 
         rule until_listing_delimiter() -> &'input str
@@ -501,10 +516,11 @@ peg::parser! {
         // Individual delimited block rules
         rule example_block(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
             = open_delim:example_delimiter() eol()
-              content_start:position!() content:until_example_delimiter() content_end:position!()
+              content_start:position!() content:blocks() content_end:position!()
               eol() close_delim:example_delimiter() end:position!()
         {?
-            tracing::info!(%content, "Parsing example block");
+            tracing::info!(?block_details, ?content, "Parsing example block");
+
             // Ensure the opening and closing delimiters match
             if open_delim != close_delim {
                 return Err("mismatched example delimiters");
@@ -513,25 +529,42 @@ peg::parser! {
             let location = state.create_location(start, end.saturating_sub(1));
 
             // Parse content as blocks with proper positioning
-            let blocks = if !content.trim().is_empty() {
-                let content_location = state.create_location(content_start, content_end.saturating_sub(1));
-                vec![Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(Plain {
-                        content: content.to_string(),
-                        location: content_location.clone(),
-                    })],
-                    metadata: BlockMetadata::default(),
-                    title: Vec::new(),
-                    location: content_location,
-                })]
-            } else {
-                Vec::new()
-            };
+            // let blocks = if content.trim().is_empty() {
+            //     Vec::new()
+            // } else {
+            //     let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+            //     vec![Block::Paragraph(Paragraph {
+            //         content: vec![InlineNode::PlainText(Plain {
+            //             content: content.to_string(),
+            //             location: content_location.clone(),
+            //         })],
+            //         metadata: BlockMetadata::default(),
+            //         title: Vec::new(),
+            //         location: content_location,
+            //     })]
+            // };
 
+            // We want to detect if this is an admonition block. We do that by checking if
+            // we have a style that matches an admonition variant.
+            if let Some(ref style) = metadata.style {
+                if let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
+                    tracing::debug!("Detected admonition block with variant: {:?}", admonition_variant);
+                    return Ok(Block::Admonition(Admonition {
+                        variant: admonition_variant,
+                        blocks: content,
+                        metadata: metadata.clone(),
+                        title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
+                            content: t.clone(),
+                            location: location.clone(),
+                        })]).unwrap_or_default(),
+                        location,
+                    }));
+                }
+            }
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedExample(blocks),
+                inner: DelimitedBlockType::DelimitedExample(content),
                 title: title.as_ref().map(|t| vec![InlineNode::PlainText(Plain {
                     content: t.clone(),
                     location: location.clone(),
@@ -899,19 +932,55 @@ peg::parser! {
         }
 
         rule list(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
-            = "list::" items:(list_item() ** comma()) end:position!()
-        {
-            unimplemented!("list blocks are not yet implemented");
+            = unordered_list(start, block_details) / ordered_list(start, block_details)
+
+        rule unordered_list(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = marker:&($("*"+ / "-")) items:(unordered_list_item() eol()+)+ end:position!()
+        {?
+            tracing::info!(%marker, ?items, "Found unordered list block");
+            let (_discrete, metadata, _title) = block_details;
+            Ok(Block::UnorderedList(UnorderedList {
+                title: Vec::new(), // TODO(nlopes): Handle list item titles
+                metadata: metadata.clone(),
+                items: Vec::<ListItem>::new(), // TODO(nlopes): Handle list items
+                marker: String::new(), // TODO(nlopes): Handle list item markers
+                location: state.create_location(start, end.saturating_sub(1)),
+            }))
         }
 
-        rule list_item() -> String
-            = item:$([^',' | '\n']+)
-        {
-            item.to_string()
+        rule ordered_list(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
+            = marker:&(digits()? ".") items:(ordered_list_item() eol()+)+ end:position!()
+        {?
+            tracing::info!(?marker, ?items, "Found ordered list block");
+            let (_discrete, metadata, _title) = block_details;
+            Ok(Block::OrderedList(OrderedList {
+                title: Vec::new(), // TODO(nlopes): Handle list item titles
+                metadata: metadata.clone(),
+                items: Vec::<ListItem>::new(), // TODO(nlopes): Handle list items
+                marker: String::new(), // TODO(nlopes): Handle list item markers
+                location: state.create_location(start, end.saturating_sub(1)),
+            }))
         }
+
+        rule unordered_list_item() -> ListItem
+            = marker:$("*"+ / "-") whitespace() (checklist_item:checklist_item() whitespace())? list_item:$(eol() / ![_])
+        {?
+            tracing::info!(%list_item, %marker, "Found unordered list item");
+            unimplemented!("Unordered list items are not yet implemented");
+        }
+
+        rule ordered_list_item() -> ListItem
+            = marker:$(digits()? ".") whitespace() (checklist_item:checklist_item() whitespace())? list_item:$(eol() / ![_])
+        {?
+            tracing::info!(%list_item, %marker, "Found ordered list item");
+            unimplemented!("Ordered list items are not yet implemented");
+        }
+
+        rule checklist_item() -> ChecklistStatus
+            = ("[x]" / "[X]" / "[*]") { ChecklistStatus::Checked } / "[ ]" { ChecklistStatus::Unchecked }
 
         rule paragraph(start: usize, block_details: &(bool, BlockMetadata, Option<String>)) -> Block
-            = admonition:admonition()? content_start:position!() content:$([^'\n']+) end:position!()
+            = admonition:admonition()? content_start:position!() content:$((!(eol()+ / ![_] / example_delimiter() / list(start, block_details)) [_])+) end:position!()
         {?
             let (_discrete, metadata, _title) = block_details;
             if let Some(variant) = admonition {
@@ -937,7 +1006,7 @@ peg::parser! {
 
                 }))
             } else {
-                tracing::info!("Found paragraph block");
+                tracing::info!(?content, "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {
                     content: vec![InlineNode::PlainText(Plain {
                         content: content.to_string(),
