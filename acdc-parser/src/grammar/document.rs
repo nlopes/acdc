@@ -206,7 +206,7 @@ peg::parser! {
         }
 
         pub(crate) rule title_authors() -> (Vec<InlineNode>, Vec<Author>)
-            = start:position() title:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
+            = title:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
         {
             tracing::info!(?title, ?authors, "Found title and authors in the document header.");
             (title, authors)
@@ -1043,7 +1043,7 @@ peg::parser! {
         }
 
         rule paragraph(start: usize, block_details: &(bool, BlockMetadata, Option<(String, Location)>)) -> Block
-            = admonition:admonition()? content_start:position!() content:$((!(eol()+ / ![_] / example_delimiter() / list(start, block_details)) [_])+) end:position!()
+            = admonition:admonition()? content_start:position() content:$((!(eol()+ / ![_] / example_delimiter() / list(start, block_details)) [_])+) end:position!()
         {?
             let (_discrete, metadata, _title_data) = block_details;
 
@@ -1057,15 +1057,33 @@ peg::parser! {
                     tracing::error!(?e, "failed to preprocess inline content in paragraph block");
                     "failed to preprocess inline content in paragraph block"
                 })?;
-            tracing::info!(?processed, "processed inline content in paragraph block");
-            // XXX: currently working here - need to implement inline parsing
+            tracing::info!(?inline_state, ?processed, "processed inline content in paragraph block");
             let mut state = ParserState::new(&processed.text);
+
             let content = document_parser::inlines(&processed.text, &mut state, start).map_err(|e| {
                 tracing::error!(?e, "failed to parse inlines in paragraph block");
                 "failed to parse inlines in paragraph block"
             })?;
-            tracing::info!(?content, "parsed inlines in paragraph block");
-
+            tracing::info!(?location, ?content, ?start, "parsed inlines in paragraph block");
+            // XXX: currently working here - need to implement inline parsing correctly specifically adjusting the locations!
+         let content = content.into_iter().map(|inline| {
+             let mut inline_location = inline.location();
+             inline_location.absolute_start += start - 1;
+             inline_location.absolute_end += start - 1;
+             inline_location.start.line += content_start.position.line - 1;
+             inline_location.end.line += content_start.position.line - 1;
+             inline_location.start.column -= start;
+             //inline_location.end.column -= start;
+            match inline {
+                InlineNode::PlainText(plain) => {
+                    InlineNode::PlainText(Plain {
+                        content: plain.content,
+                        location: inline_location,
+                    })
+                }
+                _ => inline,
+            }
+        }).collect::<Vec<_>>();
             if let Some(variant) = admonition {
                 let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
@@ -1354,7 +1372,7 @@ peg::parser! {
 
         rule newline_or_comment() = quiet!{ eol() / comment() }
 
-        rule comment() = quiet!{ "//" [^'\n']+ }
+        rule comment() = quiet!{ "//" [^'\n']+ eol()? }
 
         rule document_attribute_match() -> (&'input str, AttributeValue) = ":"
             key:("!" key:$([^':']+) {
