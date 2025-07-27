@@ -329,13 +329,20 @@ pub struct OrderedList {
 }
 pub type ListLevel = u8;
 
+/// A `ListItemCheckedStatus` represents the checked status of a list item.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ListItemCheckedStatus {
+    Checked,
+    Unchecked,
+}
+
 /// A `ListItem` represents a list item in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ListItem {
     // TODO(nlopes): missing anchors
     pub level: ListLevel,
     pub marker: String,
-    pub checked: Option<bool>,
+    pub checked: Option<ListItemCheckedStatus>,
     pub content: Vec<InlineNode>,
     pub location: Location,
 }
@@ -1286,8 +1293,13 @@ impl<'de> Deserialize<'de> for ListItem {
                 let level =
                     ListLevel::try_from(ListItem::parse_depth_from_marker(&my_marker).unwrap_or(1))
                         .map_err(de::Error::custom)?;
-                let my_checked = my_checked.unwrap_or(None);
-
+                let my_checked = my_checked.unwrap_or(Some(false)).map(|c| {
+                    if c {
+                        ListItemCheckedStatus::Checked
+                    } else {
+                        ListItemCheckedStatus::Unchecked
+                    }
+                });
                 Ok(ListItem {
                     marker: my_marker,
                     content: my_principal,

@@ -57,10 +57,10 @@ pub use model::{
     Block, BlockMetadata, Bold, Button, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
     DocumentAttributes, ElementAttributes, Header, Highlight, Icon, Image, InlineMacro, InlineNode,
-    Italic, Keyboard, LineBreak, Link, ListItem, Location, Menu, Monospace, OrderedList, PageBreak,
-    Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source, Subscript,
-    Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak,
-    UnorderedList, Url, Video,
+    Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace,
+    OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section,
+    Source, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
+    ThematicBreak, UnorderedList, Url, Video,
 };
 
 #[derive(Debug, Clone, Default)]

@@ -165,6 +165,7 @@ impl std::fmt::Display for Block {
 }
 
 impl Block {
+    #[must_use]
     pub fn location(&self) -> &Location {
         match self {
             Block::TableOfContents(toc) => &toc.location,
