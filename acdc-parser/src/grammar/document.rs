@@ -1949,4 +1949,26 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                  })]
         );
     }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_regular_paragraph() {
+        let input = "This is a regular paragraph.\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 1);
+        matches!(&result.blocks[0], Block::Paragraph(paragraph)
+                 if paragraph.content == vec![InlineNode::PlainText(Plain {
+                     content: "This is a regular paragraph.".to_string(),
+                     location: Location {
+                         absolute_start: 0,
+                         absolute_end: 30,
+                         start: crate::Position { line: 1, column: 1 },
+                         end: crate::Position { line: 1, column: 31 }
+                     }
+                 })]
+        );
+    }
 }
