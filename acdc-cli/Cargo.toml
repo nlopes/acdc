@@ -16,7 +16,7 @@ acdc-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
 acdc-tck = { path = "../converters/tck", optional = true }
 acdc-terminal = { path = "../converters/terminal", optional = true }
-anyhow = "1.0.98"
+anyhow = "1.0.99"
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
