@@ -59,13 +59,13 @@ impl Table {
                 .collect::<Result<Vec<_>, _>>()?;
 
             // validate that if we have ncols we have the same number of columns in each row
-            if let Some(ncols) = ncols {
-                if columns.len() != ncols {
-                    return Err(Error::Parse(format!(
-                        "expected table row with {ncols} columns, found {} columns",
-                        columns.len()
-                    )));
-                }
+            if let Some(ncols) = ncols
+                && columns.len() != ncols
+            {
+                return Err(Error::Parse(format!(
+                    "expected table row with {ncols} columns, found {} columns",
+                    columns.len()
+                )));
             }
 
             // if we have a header, we need to add the columns we have to the header

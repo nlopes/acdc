@@ -1,7 +1,7 @@
 use crate::{
-    DocumentAttributes,
     error::Error,
-    model::{HEADER, Substitute},
+    model::{Substitute, HEADER},
+    DocumentAttributes,
 };
 
 #[derive(Debug)]
@@ -169,10 +169,8 @@ impl Conditional {
                         .iter()
                         .all(|attr| attributes.contains_key(attr));
                 }
-                if is_true {
-                    if let Some(if_content) = &ifdef.content {
-                        content.clone_from(if_content);
-                    }
+                if is_true && let Some(if_content) = &ifdef.content {
+                    content.clone_from(if_content);
                 }
                 is_true
             }
@@ -192,10 +190,8 @@ impl Conditional {
                         .iter()
                         .all(|attr| attributes.contains_key(attr));
                 }
-                if is_true {
-                    if let Some(if_content) = &ifndef.content {
-                        content.clone_from(if_content);
-                    }
+                if is_true && let Some(if_content) = &ifndef.content {
+                    content.clone_from(if_content);
                 }
                 is_true
             }
@@ -396,11 +392,9 @@ mod tests {
             }
             _ => panic!("Expected Ifeval"),
         }
-        assert!(
-            conditional
-                .is_true(&DocumentAttributes::default(), &mut String::new())
-                .unwrap()
-        );
+        assert!(conditional
+            .is_true(&DocumentAttributes::default(), &mut String::new())
+            .unwrap());
     }
 
     #[test]
@@ -415,11 +409,9 @@ mod tests {
             }
             _ => panic!("Expected Ifeval"),
         }
-        assert!(
-            conditional
-                .is_true(&DocumentAttributes::default(), &mut String::new())
-                .unwrap()
-        );
+        assert!(conditional
+            .is_true(&DocumentAttributes::default(), &mut String::new())
+            .unwrap());
     }
 
     #[test]

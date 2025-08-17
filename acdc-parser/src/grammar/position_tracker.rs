@@ -235,13 +235,11 @@ mod tests {
 
             assert_eq!(
                 line_map_pos.line, tracker_pos.line,
-                "Line mismatch at offset {}",
-                i
+                "Line mismatch at offset {i}",
             );
             assert_eq!(
                 line_map_pos.column, tracker_pos.column,
-                "Column mismatch at offset {}",
-                i
+                "Column mismatch at offset {i}",
             );
         }
     }

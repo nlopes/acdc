@@ -1,6 +1,7 @@
 #![deny(clippy::pedantic)]
 #![warn(clippy::all)]
 #![allow(clippy::module_name_repetitions)]
+#![allow(dead_code)]
 //! `AsciiDoc` parser.
 //!
 //! This module provides a parser for the `AsciiDoc` markup language. The parser is

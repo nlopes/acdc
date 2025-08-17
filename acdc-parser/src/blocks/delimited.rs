@@ -1,9 +1,9 @@
-use pest::{Parser as _, iterators::Pairs};
+use pest::{iterators::Pairs, Parser as _};
 
 use crate::{
-    Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
+    blocks, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
     ElementAttributes, Error, InlineNode, InnerPestParser, Location, Options, Plain, Raw, Rule,
-    Table, blocks,
+    Table,
 };
 
 impl DelimitedBlock {
@@ -91,18 +91,17 @@ impl DelimitedBlock {
                     })]);
                 }
                 Rule::delimited_quote => {
-                    if let Some(ref verse) = metadata.style {
-                        if verse == "verse" {
-                            // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
-                            inner =
-                                DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(
-                                    Plain {
-                                        location: location.clone(),
-                                        content: text.clone(),
-                                    },
-                                )]);
-                            continue;
-                        }
+                    if let Some(ref verse) = metadata.style
+                        && verse == "verse"
+                    {
+                        // IMPORTANT(nlopes): this assumes only one string in the verse, I'm not 100% sure this is a fact.
+                        inner = DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(
+                            Plain {
+                                location: location.clone(),
+                                content: text.clone(),
+                            },
+                        )]);
+                        continue;
                     }
                     let pairs = InnerPestParser::parse(Rule::blocks, text.as_str())
                         .map_err(|e| Error::Parse(format!("error parsing section content: {e}")))?;

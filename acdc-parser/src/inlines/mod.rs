@@ -9,16 +9,16 @@ mod pass;
 mod url;
 
 use pest::{
-    Parser as _,
     iterators::{Pair, Pairs},
+    Parser as _,
 };
 use tracing::instrument;
 
 use crate::{
-    AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes, Highlight, Icon,
-    Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location, Menu, Monospace,
-    Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw, Rule, Subscript,
-    Superscript, Url, error::Error,
+    error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
+    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
+    Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
+    Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -39,11 +39,11 @@ impl InlineNode {
             let rule = pair.as_rule();
             let mut index = None;
 
-            if rule == Rule::placeholder {
-                if let Some(inner) = pair.clone().into_inner().next() {
-                    index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
-                    *last_index_seen = index;
-                }
+            if rule == Rule::placeholder
+                && let Some(inner) = pair.clone().into_inner().next()
+            {
+                index = Some(inner.as_str().parse::<usize>().unwrap_or_default());
+                *last_index_seen = index;
             }
             let mapped_location = map_inline_location(&location, processed)
                 .unwrap_or((Some(pair.as_str().to_string()), location.clone()));
@@ -164,24 +164,21 @@ impl InlineNode {
                 | Rule::autolink
                 | Rule::pass_inline => return Self::parse_macro(pair),
                 Rule::placeholder => {
-                    if let Some(processed) = processed {
-                        if let Some(index) = index {
-                            if let Some(passthrough) = processed.passthroughs.get(index) {
-                                let kind = passthrough.kind.clone();
-                                if kind == PassthroughKind::Single
-                                    || kind == PassthroughKind::Double
-                                {
-                                    return Ok(InlineNode::PlainText(Plain {
-                                        content: mapped_location.0.unwrap_or_default(),
-                                        location: mapped_location.1,
-                                    }));
-                                }
-                                return Ok(InlineNode::RawText(Raw {
-                                    content: mapped_location.0.unwrap_or_default(),
-                                    location: mapped_location.1,
-                                }));
-                            }
+                    if let Some(processed) = processed
+                        && let Some(index) = index
+                        && let Some(passthrough) = processed.passthroughs.get(index)
+                    {
+                        let kind = passthrough.kind.clone();
+                        if kind == PassthroughKind::Single || kind == PassthroughKind::Double {
+                            return Ok(InlineNode::PlainText(Plain {
+                                content: mapped_location.0.unwrap_or_default(),
+                                location: mapped_location.1,
+                            }));
                         }
+                        return Ok(InlineNode::RawText(Raw {
+                            content: mapped_location.0.unwrap_or_default(),
+                            location: mapped_location.1,
+                        }));
                     }
                 }
                 Rule::role => role = Some(pair.as_str().to_string()),

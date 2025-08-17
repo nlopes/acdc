@@ -553,8 +553,8 @@ peg::parser! {
 
             // We want to detect if this is an admonition block. We do that by checking if
             // we have a style that matches an admonition variant.
-            if let Some(ref style) = metadata.style {
-                if let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
+            if let Some(ref style) = metadata.style &&
+             let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
                     tracing::debug!("Detected admonition block with variant: {:?}", admonition_variant);
                     let mut metadata = metadata.clone();
                     metadata.style = None; // Clear style to avoid confusion
@@ -566,7 +566,6 @@ peg::parser! {
                         location,
                     }));
                 }
-            }
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
@@ -932,7 +931,7 @@ peg::parser! {
         {?
             tracing::info!(?content, "Found unordered list block");
             let (_discrete, metadata, _title_data) = block_details;
-            let end = content.last().map_or(end, |(_, item_end)| item_end.clone());
+            let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, end)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
@@ -950,7 +949,7 @@ peg::parser! {
         {?
             tracing::info!(?content, "Found ordered list block");
             let (_discrete, metadata, _title_data) = block_details;
-            let end = content.last().map_or(end, |(_, item_end)| item_end.clone());
+            let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
@@ -1068,8 +1067,8 @@ peg::parser! {
             // XXX: currently working here - need to implement inline parsing correctly specifically adjusting the locations!
          let content = content.into_iter().map(|inline| {
              let mut inline_location = inline.location();
-             inline_location.absolute_start += start - 1;
-             inline_location.absolute_end += start - 1;
+             inline_location.absolute_start += if start > 0 { start - 1 } else {start};
+             inline_location.absolute_end += if start > 0 {start - 1} else {start};
              inline_location.start.line += content_start.position.line - 1;
              inline_location.end.line += content_start.position.line - 1;
              inline_location.start.column -= start;
@@ -1697,7 +1696,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let input = "[]";
         let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
-        assert_eq!(discrete, false); // Not discrete
+        assert!(!discrete); // Not discrete
         assert_eq!(metadata.id, None);
         assert_eq!(metadata.style, None);
         assert!(metadata.roles.is_empty());
@@ -1724,7 +1723,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let input = "[id=my-id,role=admin,options=read,options=write]";
         let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
-        assert_eq!(discrete, false); // Not discrete
+        assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
             Some(Anchor {
@@ -1753,7 +1752,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let input = "[astyle#myid.admin,options=read,options=write]";
         let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
-        assert_eq!(discrete, false); // Not discrete
+        assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
             Some(Anchor {
@@ -1782,7 +1781,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let input = "[astyle#myid.admin,options=\"read,write\"]";
         let mut state = ParserState::new(input);
         let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
-        assert_eq!(discrete, false); // Not discrete
+        assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
             Some(Anchor {
