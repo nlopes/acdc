@@ -1,12 +1,12 @@
 use crate::{
-    grammar::LineMap,
-    inline_preprocessing,
-    model::{DiscreteHeaderSection, ListLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata,
     DelimitedBlock, DelimitedBlockType, Document, DocumentAttribute, DocumentAttributes, Error,
     Header, Image, InlineNode, InlinePreprocessorParserState, Italic, LineBreak, ListItem,
     ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Section,
     Source, Table, TableOfContents, ThematicBreak, UnorderedList, Video,
+    grammar::LineMap,
+    inline_preprocessing,
+    model::{DiscreteHeaderSection, ListLevel},
 };
 
 #[derive(Debug)]
@@ -181,18 +181,16 @@ peg::parser! {
 
         pub(crate) rule header() -> Option<Header>
             = start:position!()
-            comment()*
-            (document_attribute() (eol() / ![_] / comment()))*
-            comment()*
-            title_authors:(title_authors:title_authors() eol() { title_authors })?
-            comment()*
-            (document_attribute() (eol() / ![_] / comment()))*
-            comment()*
+            ((document_attribute() / comment()) (eol() / ![_]))*
+            title_authors:(title_authors:title_authors() { title_authors })?
+            (eol() (document_attribute() / comment()))*
             end:position!()
             (eol()*<,2> / ![_])
         {
             if let Some((title, authors)) = title_authors {
-                let location = state.create_location(start, end);
+                let mut location = state.create_location(start, end);
+                location.absolute_end = location.absolute_end.saturating_sub(1);
+                location.end.column = location.end.column.saturating_sub(1);
                 Some(Header {
                     title,
                     subtitle: None,
@@ -312,7 +310,7 @@ peg::parser! {
             }
 
         rule document_attribute() -> ()
-            = att:document_attribute_match()
+        = att:document_attribute_match() (&eol() / ![_])
         {
             tracing::info!(?att, "Found document attribute in the document header");
             let (key, value) = att;
@@ -879,6 +877,15 @@ peg::parser! {
             = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
         {
             let (_discrete, metadata) = attributes;
+            let mut metadata = metadata.clone();
+            if let Some(style) = metadata.style.as_ref() {
+                if style == "youtube" || style == "vimeo" {
+                    tracing::debug!(?metadata, "transforming video metadata style into attribute");
+                    metadata.attributes.insert(style.to_string(), AttributeValue::Bool(true));
+                } else {
+                    tracing::warn!(?style, "found video block with unsupported style");
+                }
+            }
             Block::Video(Video {
                 title: Vec::new(), // TODO(nlopes): Handle video titles
                 sources,
@@ -1046,43 +1053,46 @@ peg::parser! {
         {?
             let (_discrete, metadata, _title_data) = block_details;
 
+            let initial_location  = state.create_location(start, end.saturating_sub(1));
             // parse the inline content - this needs to be handed over to the inline preprocessing
             let mut inline_state = InlinePreprocessorParserState::new();
-            let location = state.create_location(start, end.saturating_sub(1));
-            inline_state.set_initial_position(&location, start);
+
+            // We adjust the start and end positions to account for the content start offset
+            let location = state.create_location(content_start.offset, end.saturating_sub(1));
+            inline_state.set_initial_position(&location, content_start.offset);
+
+            tracing::info!(?location, ?start, ?content_start, ?end, "paragraph block - before inline preprocessing run");
 
             let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)
                 .map_err(|e| {
                     tracing::error!(?e, "failed to preprocess inline content in paragraph block");
                     "failed to preprocess inline content in paragraph block"
                 })?;
-            tracing::info!(?inline_state, ?processed, "processed inline content in paragraph block");
             let mut state = ParserState::new(&processed.text);
-
-            let content = document_parser::inlines(&processed.text, &mut state, start).map_err(|e| {
+            tracing::info!(?inline_state, ?processed, ?state, "processed inline content in paragraph block");
+            let content = document_parser::inlines(&processed.text, &mut state, 0).map_err(|e| {
                 tracing::error!(?e, "failed to parse inlines in paragraph block");
                 "failed to parse inlines in paragraph block"
             })?;
             tracing::info!(?location, ?content, ?start, "parsed inlines in paragraph block");
-            // XXX: currently working here - need to implement inline parsing correctly specifically adjusting the locations!
-         let content = content.into_iter().map(|inline| {
-             let mut inline_location = inline.location();
-             inline_location.absolute_start += if start > 0 { start - 1 } else {start};
-             inline_location.absolute_end += if start > 0 {start - 1} else {start};
-             inline_location.start.line += content_start.position.line - 1;
-             inline_location.end.line += content_start.position.line - 1;
-             inline_location.start.column -= start;
-             //inline_location.end.column -= start;
-            match inline {
-                InlineNode::PlainText(plain) => {
-                    InlineNode::PlainText(Plain {
-                        content: plain.content,
-                        location: inline_location,
-                    })
+            let content = content.into_iter().map(|inline| {
+                let mut inline_location = inline.location();
+                inline_location.shift_inline(Some(&location));
+                tracing::debug!(?inline_location, "adjusted inline location in paragraph block");
+                // XXX: currently working here - need to adjust the inline location due to
+                // the preprocessing therefore specifically what I need to call is
+                // `map_inline_location` to adjust the inline locations as found in
+                // `../inlines/mod.rs:360`.
+                match inline {
+                    InlineNode::PlainText(plain) => {
+                        InlineNode::PlainText(Plain {
+                            content: plain.content,
+                            location: inline_location,
+                        })
+                    }
+                    _ => inline,
                 }
-                _ => inline,
-            }
-        }).collect::<Vec<_>>();
+            }).collect::<Vec<_>>();
             if let Some(variant) = admonition {
                 let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
@@ -1096,7 +1106,7 @@ peg::parser! {
                         content,
                         metadata: metadata.clone(),
                         title: Vec::new(), // TODO(nlopes): Handle paragraph titles
-                        location: state.create_location(start, end.saturating_sub(1)),
+                        location: state.create_location(content_start.offset+start, end.saturating_sub(1)),
                     })],
                     location: state.create_location(start, end.saturating_sub(1)),
                     variant,
@@ -1369,9 +1379,9 @@ peg::parser! {
 
         rule eol() = quiet!{ "\n" }
 
-        rule newline_or_comment() = quiet!{ eol() / comment() }
+        rule newline_or_comment() = quiet!{ eol() / (comment() (eol() / ![_])) }
 
-        rule comment() = quiet!{ "//" [^'\n']+ eol()? }
+        rule comment() = quiet!{ "//" [^'\n']+ (&eol() / ![_]) }
 
         rule document_attribute_match() -> (&'input str, AttributeValue) = ":"
             key:("!" key:$([^':']+) {
@@ -1814,8 +1824,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap();
 
         // Verify that we have a table of contents block
-        assert_eq!(result.blocks.len(), 1);
-        match &result.blocks[0] {
+        assert_eq!(result.blocks.len(), 2);
+        match &result.blocks[1] {
             Block::TableOfContents(toc) => {
                 assert_eq!(toc.location.absolute_start, 34);
                 assert_eq!(toc.location.absolute_end, 82);
@@ -1834,12 +1844,12 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap();
         // Verify that we have a table of contents block
         assert_eq!(result.blocks.len(), 1);
-        matches!(&result.blocks[0], Block::Image(image)
+        assert!(matches!(&result.blocks[0], Block::Image(image)
                  if image.source == Source::Path("sunset.jpg".to_string())
                  && image.metadata.attributes.get("alt") == Some(&AttributeValue::String("Sunset".to_string()))
                  && image.metadata.attributes.get("width") == Some(&AttributeValue::String("300".to_string()))
                  && image.metadata.attributes.get("height") == Some(&AttributeValue::String("400".to_string()))
-        );
+        ));
     }
 
     #[test]
@@ -1851,18 +1861,18 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 2);
-        matches!(&result.blocks[0], Block::Image(image)
+        assert!(matches!(&result.blocks[0], Block::Image(image)
                  if image.source == Source::Path("sunset.jpg".to_string())
                  && image.metadata.attributes.get("alt") == Some(&AttributeValue::String("Sunset".to_string()))
                  && image.metadata.attributes.get("width") == Some(&AttributeValue::String("300".to_string()))
                  && image.metadata.attributes.get("height") == Some(&AttributeValue::String("400".to_string()))
-        );
-        matches!(&result.blocks[1], Block::Image(image)
+        ));
+        assert!(matches!(&result.blocks[1], Block::Image(image)
                  if image.source == Source::Path("mountain.png".to_string())
                  && image.metadata.attributes.get("alt") == Some(&AttributeValue::String("Mountain".to_string()))
                  && image.metadata.attributes.get("width") == Some(&AttributeValue::String("500".to_string()))
                  && image.metadata.attributes.get("height") == Some(&AttributeValue::String("600".to_string()))
-        );
+        ));
     }
 
     #[test]
@@ -1874,12 +1884,12 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 1);
-        matches!(&result.blocks[0], Block::Video(video)
+        assert!(matches!(&result.blocks[0], Block::Video(video)
                  if video.sources == vec![Source::Path("Video1ID".to_string()),
                                           Source::Path("Video2ID".to_string()),
                                           Source::Path("Video3ID".to_string())]
                  && video.metadata.attributes.get("youtube") == Some(&AttributeValue::Bool(true))
-        );
+        ));
     }
 
     #[test]
@@ -1891,22 +1901,24 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 4);
-        matches!(&result.blocks[0], Block::PageBreak(page_break)
-                 if page_break.location.absolute_start == 34
-                 && page_break.location.absolute_end == 36
+        assert!(matches!(&result.blocks[0], Block::PageBreak(page_break)
+                 if page_break.location.absolute_start == 31
+                 && page_break.location.absolute_end == 34
+        ));
+        assert!(matches!(&result.blocks[1], Block::Paragraph(paragraph)
+                 if paragraph.location.absolute_start == 36
+                 && paragraph.location.absolute_end == 54
+        ));
+        assert!(
+            matches!(&result.blocks[2], Block::ThematicBreak(thematic_break)
+                     if thematic_break.location.absolute_start == 57
+                     && thematic_break.location.absolute_end == 62
+            )
         );
-        matches!(&result.blocks[1], Block::Paragraph(paragraph)
-                 if paragraph.location.absolute_start == 38
-                 && paragraph.location.absolute_end == 60
-        );
-        matches!(&result.blocks[2], Block::ThematicBreak(thematic_break)
-                 if thematic_break.location.absolute_start == 62
-                 && thematic_break.location.absolute_end == 64
-        );
-        matches!(&result.blocks[3], Block::Paragraph(paragraph)
-                 if paragraph.location.absolute_start == 66
-                 && paragraph.location.absolute_end == 90
-        );
+        assert!(matches!(&result.blocks[3], Block::Paragraph(paragraph)
+                 if paragraph.location.absolute_start == 64
+                 && paragraph.location.absolute_end == 84
+        ));
     }
 
     #[test]
@@ -1918,7 +1930,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 1);
-        matches!(&result.blocks[0], Block::Admonition(admonition)
+        dbg!(&result.blocks[0]);
+        assert!(matches!(&result.blocks[0], Block::Admonition(admonition)
                  if admonition.variant == AdmonitionVariant::Important
                  && admonition.blocks == vec![Block::Paragraph(Paragraph {
                      metadata: BlockMetadata {
@@ -1934,18 +1947,30 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                          content: "This is an important message.".to_string(),
                          location: Location {
                              absolute_start: 11,
-                             absolute_end: 41,
+                             absolute_end: 39,
                              start: crate::Position { line: 1, column: 12 },
-                             end: crate::Position { line: 1, column: 42 }
+                             end: crate::Position { line: 1, column: 40 }
                          }
                      })],
                      location: Location {
                          absolute_start: 11,
-                         absolute_end: 41,
-                         start: crate::Position { line: 1, column: 1 },
-                         end: crate::Position { line: 1, column: 42 }
+                         absolute_end: 39,
+                         start: crate::Position { line: 1, column: 12 },
+                         end: crate::Position { line: 1, column: 40 }
                      }
                  })]
+        ));
+        assert_eq!(
+            result.location,
+            Location {
+                absolute_start: 0,
+                absolute_end: 39,
+                start: crate::Position { line: 1, column: 1 },
+                end: crate::Position {
+                    line: 1,
+                    column: 40
+                }
+            }
         );
     }
 
@@ -1958,16 +1983,50 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 1);
-        matches!(&result.blocks[0], Block::Paragraph(paragraph)
+        assert!(matches!(&result.blocks[0], Block::Paragraph(paragraph)
                  if paragraph.content == vec![InlineNode::PlainText(Plain {
                      content: "This is a regular paragraph.".to_string(),
                      location: Location {
                          absolute_start: 0,
-                         absolute_end: 30,
+                         absolute_end: 27,
                          start: crate::Position { line: 1, column: 1 },
-                         end: crate::Position { line: 1, column: 31 }
+                         end: crate::Position { line: 1, column: 28 }
                      }
                  })]
-        );
+        ));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_two_regular_paragraphs() {
+        let input = "This is a regular paragraph.\n\nAnd another paragraph.";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 2);
+        dbg!(&result.blocks[0]);
+        assert!(matches!(&result.blocks[0], Block::Paragraph(paragraph)
+        if paragraph.content == vec![InlineNode::PlainText(Plain {
+            content: "This is a regular paragraph.".to_string(),
+            location: Location {
+                absolute_start: 0,
+                absolute_end: 27,
+                start: crate::Position { line: 1, column: 1 },
+                end: crate::Position { line: 1, column: 28 }
+            }
+        })]));
+        dbg!(&result.blocks[1]);
+        assert!(matches!(&result.blocks[1], Block::Paragraph(paragraph)
+            if paragraph.content == vec![InlineNode::PlainText(Plain {
+                content: "And another paragraph.".to_string(),
+                location: Location {
+                    absolute_start: 30,
+                    absolute_end: 51,
+                    start: crate::Position { line: 3, column: 1 },
+                    end: crate::Position { line: 3, column: 22 }
+                }
+            })]
+        ));
     }
 }

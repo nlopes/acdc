@@ -9,16 +9,16 @@ mod pass;
 mod url;
 
 use pest::{
-    iterators::{Pair, Pairs},
     Parser as _,
+    iterators::{Pair, Pairs},
 };
 use tracing::instrument;
 
 use crate::{
-    error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
-    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
-    Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
-    Rule, Subscript, Superscript, Url,
+    AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes, Highlight, Icon,
+    Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location, Menu, Monospace,
+    Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw, Rule, Subscript,
+    Superscript, Url, error::Error,
 };
 
 impl InlineNode {

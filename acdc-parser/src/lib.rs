@@ -48,7 +48,7 @@ mod model;
 mod preprocessor;
 
 pub(crate) use grammar::{
-    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent, ProcessedKind,
+    InlinePreprocessorParserState, ProcessedContent, ProcessedKind, inline_preprocessing,
 };
 use preprocessor::Preprocessor;
 

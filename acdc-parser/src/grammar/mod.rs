@@ -2,8 +2,8 @@ mod document;
 mod inline_preprocessor;
 mod position_tracker;
 
-pub(crate) use document::{document_parser, ParserState};
+pub(crate) use document::{ParserState, document_parser};
 pub(crate) use inline_preprocessor::{
-    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent, ProcessedKind,
+    InlinePreprocessorParserState, ProcessedContent, ProcessedKind, inline_preprocessing,
 };
 pub(crate) use position_tracker::{LineMap, PositionTracker};

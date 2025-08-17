@@ -2,9 +2,9 @@
 use std::str::FromStr;
 
 use serde::{
+    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
-    Deserialize, Serialize,
 };
 
 use crate::Error;

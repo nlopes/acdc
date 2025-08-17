@@ -1,9 +1,9 @@
-use pest::{iterators::Pairs, Parser as _};
+use pest::{Parser as _, iterators::Pairs};
 
 use crate::{
-    blocks, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
+    Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
     ElementAttributes, Error, InlineNode, InnerPestParser, Location, Options, Plain, Raw, Rule,
-    Table,
+    Table, blocks,
 };
 
 impl DelimitedBlock {
