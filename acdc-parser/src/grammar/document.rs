@@ -1,12 +1,13 @@
 use crate::{
+    grammar::LineMap,
+    inline_preprocessing,
+    inlines::map_inline_location,
+    model::{DiscreteHeaderSection, ListLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata,
     DelimitedBlock, DelimitedBlockType, Document, DocumentAttribute, DocumentAttributes, Error,
     Header, Image, InlineNode, InlinePreprocessorParserState, Italic, LineBreak, ListItem,
     ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Section,
     Source, Table, TableOfContents, ThematicBreak, UnorderedList, Video,
-    grammar::LineMap,
-    inline_preprocessing,
-    model::{DiscreteHeaderSection, ListLevel},
 };
 
 #[derive(Debug)]
@@ -166,7 +167,9 @@ peg::parser! {
                         start: if end.offset == 0 { crate::Position{
                             column: 0,
                             .. start.position
-                        }} else {start.position},
+                        }} else {
+                            start.position
+                        },
                         end: if end.offset == 0 { crate::Position{
                             column: 0,
                             .. end.position
@@ -1083,11 +1086,20 @@ peg::parser! {
                 // the preprocessing therefore specifically what I need to call is
                 // `map_inline_location` to adjust the inline locations as found in
                 // `../inlines/mod.rs:360`.
+                let mapped_location = map_inline_location(&inline_location, Some(&processed)).unwrap_or((Some("Norberto".to_string()), inline_location.clone()));
+                tracing::info!(?mapped_location, ?inline_location, "mapped inline location in paragraph block");
                 match inline {
                     InlineNode::PlainText(plain) => {
                         InlineNode::PlainText(Plain {
                             content: plain.content,
-                            location: inline_location,
+                            location: mapped_location.1,
+                        })
+                    }
+                    InlineNode::ItalicText(italic) => {
+                        InlineNode::ItalicText(Italic {
+                            content: italic.content,
+                            role: italic.role,
+                            location: mapped_location.1,
                         })
                     }
                     _ => inline,
@@ -1113,12 +1125,12 @@ peg::parser! {
 
                 }))
             } else {
-                tracing::info!(?content, "found paragraph block");
+                tracing::info!(?content, ?location, "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {
                     content,
                     metadata: metadata.clone(),
                     title: Vec::new(), // TODO(nlopes): Handle paragraph titles
-                    location: state.create_location(start, end.saturating_sub(1)),
+                    location,
                 }))
             }
         }
@@ -1930,7 +1942,6 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 1);
-        dbg!(&result.blocks[0]);
         assert!(matches!(&result.blocks[0], Block::Admonition(admonition)
                  if admonition.variant == AdmonitionVariant::Important
                  && admonition.blocks == vec![Block::Paragraph(Paragraph {
@@ -2005,7 +2016,6 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 2);
-        dbg!(&result.blocks[0]);
         assert!(matches!(&result.blocks[0], Block::Paragraph(paragraph)
         if paragraph.content == vec![InlineNode::PlainText(Plain {
             content: "This is a regular paragraph.".to_string(),
@@ -2016,7 +2026,6 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 end: crate::Position { line: 1, column: 28 }
             }
         })]));
-        dbg!(&result.blocks[1]);
         assert!(matches!(&result.blocks[1], Block::Paragraph(paragraph)
             if paragraph.content == vec![InlineNode::PlainText(Plain {
                 content: "And another paragraph.".to_string(),

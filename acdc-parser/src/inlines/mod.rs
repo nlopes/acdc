@@ -9,16 +9,16 @@ mod pass;
 mod url;
 
 use pest::{
-    Parser as _,
     iterators::{Pair, Pairs},
+    Parser as _,
 };
 use tracing::instrument;
 
 use crate::{
-    AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes, Highlight, Icon,
-    Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location, Menu, Monospace,
-    Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw, Rule, Subscript,
-    Superscript, Url, error::Error,
+    error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
+    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
+    Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
+    Rule, Subscript, Superscript, Url,
 };
 
 impl InlineNode {
@@ -357,7 +357,7 @@ pub(crate) fn get_content(
     Ok(content)
 }
 
-fn map_inline_location(
+pub(crate) fn map_inline_location(
     location: &Location,
     processed: Option<&ProcessedContent>,
 ) -> Option<(Option<String>, Location)> {
