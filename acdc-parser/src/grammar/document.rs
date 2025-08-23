@@ -347,10 +347,38 @@ peg::parser! {
             }
 
         pub(crate) rule block() -> Block
-            = block:(document_attribute_block() / section() / block_generic())
+        = block:(document_attribute_block() / &"[discrete" dh:discrete_header() { dh } / section() / block_generic())
         {
             block
         }
+
+        rule discrete_header() -> Block
+        = start:position!() block_metadata:block_metadata()
+        section_level:section_level() whitespace()
+        title_start:position!() title:section_title() title_end:position!() end:position!() &eol()*<2,2>
+        {
+            let (discrete, metadata, metadata_title) = block_metadata;
+            tracing::info!(?metadata, ?metadata_title, ?title, ?title_start, ?title_end, "parsing discrete header block");
+
+            let level = section_level.len().try_into().unwrap_or(1) - 1;
+            let location = state.create_location(start, end.saturating_sub(1));
+
+            // Create a simple title with plain text
+            let title_node = InlineNode::PlainText(Plain {
+                content: title,
+                location: state.create_location(title_start, title_end.saturating_sub(1)),
+            });
+
+            #[allow(clippy::used_underscore_items)]
+            Block::_DiscreteHeaderSection(DiscreteHeaderSection {
+                anchors: metadata.anchors,
+                title: vec![title_node],
+                level,
+                location,
+                content: Vec::new(),
+            })
+        }
+
 
         pub(crate) rule document_attribute_block() -> Block
             = start:position!() att:document_attribute_match() end:position!() {
@@ -365,7 +393,7 @@ peg::parser! {
         pub(crate) rule section() -> Block
             = start:position!() block_metadata:block_metadata()
             section_level:section_level() whitespace()
-            title_start:position!() title:section_title() title_end:position!() eol()*<2,2>
+            title_start:position!() title:section_title() title_end:position!() &eol()*<2,2>
             content:section_content()* end:position!() {
                 // TODO(nlopes): what do I do with metadata_title?!?
                 let (discrete, metadata, metadata_title) = block_metadata;
@@ -380,16 +408,17 @@ peg::parser! {
                     location: state.create_location(title_start, title_end.saturating_sub(1)),
                 });
 
-                if discrete {
-                    #[allow(clippy::used_underscore_items)]
-                    return Block::_DiscreteHeaderSection(DiscreteHeaderSection {
-                        anchors: metadata.anchors,
-                        title: vec![title_node],
-                        level,
-                        location,
-                        content: vec![],
-                    });
-                }
+                // if discrete {
+                //     dbg!(&content);
+                //     #[allow(clippy::used_underscore_items)]
+                //     return Block::_DiscreteHeaderSection(DiscreteHeaderSection {
+                //         anchors: metadata.anchors,
+                //         title: vec![title_node],
+                //         level,
+                //         location,
+                //         content: content[0].clone(),
+                //     });
+                // }
                 Block::Section(Section {
                     metadata,
                     title: vec![title_node],
@@ -495,49 +524,49 @@ peg::parser! {
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
 
         rule until_comment_delimiter() -> &'input str
-            = content:$((!("\n" comment_delimiter()) [_])*)
+            = content:$((!(eol() comment_delimiter()) [_])*)
         {
             content
         }
 
         rule until_listing_delimiter() -> &'input str
-            = content:$((!("\n" listing_delimiter()) [_])*)
+            = content:$((!(eol() listing_delimiter()) [_])*)
         {
             content
         }
 
         rule until_literal_delimiter() -> &'input str
-            = content:$((!("\n" literal_delimiter()) [_])*)
+            = content:$((!(eol() literal_delimiter()) [_])*)
         {
             content
         }
 
         rule until_open_delimiter() -> &'input str
-            = content:$((!("\n" open_delimiter()) [_])*)
+        = content:$((!(eol() open_delimiter()) [_])*)
         {
             content
         }
 
         rule until_sidebar_delimiter() -> &'input str
-            = content:$((!("\n" sidebar_delimiter()) [_])*)
+            = content:$((!(eol() sidebar_delimiter()) [_])*)
         {
             content
         }
 
         rule until_table_delimiter() -> &'input str
-            = content:$((!("\n" table_delimiter()) [_])*)
+            = content:$((!(eol() table_delimiter()) [_])*)
         {
             content
         }
 
         rule until_pass_delimiter() -> &'input str
-            = content:$((!("\n" pass_delimiter()) [_])*)
+            = content:$((!(eol() pass_delimiter()) [_])*)
         {
             content
         }
 
         rule until_quote_delimiter() -> &'input str
-            = content:$((!("\n" quote_delimiter()) [_])*)
+            = content:$((!(eol() quote_delimiter()) [_])*)
         {
             content
         }
@@ -723,16 +752,21 @@ peg::parser! {
             let blocks = if content.trim().is_empty() {
                 Vec::new()
             } else {
-                let content_location = state.create_location(content_start, content_end.saturating_sub(1));
-                vec![Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(Plain {
-                        content: content.to_string(),
-                        location: content_location.clone(),
-                    })],
-                    metadata: BlockMetadata::default(),
-                    title: Vec::new(), // TODO(nlopes): Handle paragraph titles
-                    location: content_location.clone(),
-                })]
+                dbg!(&content);
+                document_parser::blocks(content, state).unwrap_or_else(|e| {
+                    tracing::error!("Error parsing sidebar content as blocks: {}", e);
+                    Vec::new()
+                })
+                // let content_location = state.create_location(content_start, content_end.saturating_sub(1));
+                // vec![Block::Paragraph(Paragraph {
+                //     content: vec![InlineNode::PlainText(Plain {
+                //         content: content.to_string(),
+                //         location: content_location.clone(),
+                //     })],
+                //     metadata: BlockMetadata::default(),
+                //     title: Vec::new(), // TODO(nlopes): Handle paragraph titles
+                //     location: content_location.clone(),
+                // })]
             };
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
@@ -1273,15 +1307,15 @@ peg::parser! {
                 let mut style_found = false;
                 let (empty, has_style, maybe_style, attributes) = content;
                 let mut metadata = BlockMetadata::default();
-                if let Some((maybe_attribute, id, roles, options)) = maybe_style {
-                    if let Some(attribute_name) = maybe_attribute {
-                        if attribute_name == "discrete" {
+                if let Some((maybe_style_name, id, roles, options)) = maybe_style {
+                    if let Some(style_name) = maybe_style_name {
+                        if style_name == "discrete" {
                             discrete = true;
                         } else if metadata.style.is_none() && has_style {
-                            metadata.style = Some(attribute_name);
+                            metadata.style = Some(style_name);
                             style_found = true;
                         } else {
-                            metadata.attributes.insert(attribute_name, AttributeValue::None);
+                            metadata.attributes.insert(style_name, AttributeValue::None);
                         }
                     }
                     metadata.id = id;
@@ -2144,6 +2178,43 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     absolute_end: 51,
                     start: crate::Position { line: 3, column: 1 },
                     end: crate::Position { line: 3, column: 22 }
+                }
+            })]
+        ));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_discrete_heading() {
+        let input = "[discrete]\n== A Discrete Heading\n\nA paragraph";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.blocks.len(), 2);
+        assert!(
+            matches!(&result.blocks[0], Block::_DiscreteHeaderSection(heading)
+                     if heading.level == 1
+                     && heading.title == vec![InlineNode::PlainText(Plain {
+                         content: "A Discrete Heading".to_string(),
+                         location: Location {
+                             absolute_start: 14,
+                             absolute_end: 31,
+                             start: crate::Position { line: 2, column: 4 },
+                             end: crate::Position { line: 2, column: 21 }
+                         }
+                     })]
+            )
+        );
+        dbg!(&result.blocks[1]);
+        assert!(matches!(&result.blocks[1], Block::Paragraph(paragraph)
+            if paragraph.content == vec![InlineNode::PlainText(Plain {
+                content: "A paragraph".to_string(),
+                location: Location {
+                    absolute_start: 34,
+                    absolute_end: 44,
+                    start: crate::Position { line: 4, column: 1 },
+                    end: crate::Position { line: 4, column: 11 }
                 }
             })]
         ));
