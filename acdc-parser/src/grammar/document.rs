@@ -853,6 +853,11 @@ peg::parser! {
             = "image::" source:source() attributes:attributes() end:position!()
         {
             let (_discrete, metadata) = attributes;
+            let mut metadata = metadata.clone();
+            if let Some(style) = metadata.style {
+                metadata.style = None; // Clear style to avoid confusion
+                metadata.attributes.insert("alt".to_string(), AttributeValue::String(style.clone()));
+            }
             Block::Image(Image {
                 title: Vec::new(), // TODO(nlopes): Handle image titles
                 source,
