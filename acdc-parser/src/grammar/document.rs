@@ -1010,7 +1010,7 @@ peg::parser! {
         }
 
         pub(crate) rule inlines(start: usize) -> Vec<InlineNode>
-            = inlines:(non_plain_text(start) / plain_text(start))+ {
+            = inlines:(non_plain_text(start) / plain_text())+ {
                 tracing::info!(?inlines, "Found inlines");
                 inlines
             }
@@ -1033,26 +1033,28 @@ peg::parser! {
         }
 
         rule italic_text_unconstrained(start: usize) -> InlineNode
-            = "__" italic_text:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
+            = start_pos:position!() "__" content_start:position!() italic_text:$((!(eol() / ![_] / "__") [_])+) content_end:position!() "__" end_pos:position!()
         {
             tracing::info!(?italic_text, "Found unconstrained italic text inline");
             InlineNode::ItalicText(Italic {
                 content: vec![InlineNode::PlainText(Plain {
                     content: italic_text.to_string(),
-                    location: state.create_location(start, end.saturating_sub(1)),
+                    // Inner PlainText should only span the inner content, not the delimiters
+                    location: state.create_location(content_start, content_end.saturating_sub(1)),
                 })],
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
-                location: state.create_location(start, end.saturating_sub(1)),
+                // The italic span should cover the full range including delimiters
+                location: state.create_location(start_pos, end_pos.saturating_sub(1)),
             })
         }
 
-        rule plain_text(start: usize) -> InlineNode
-            = attributes:attributes()? content:$((!(eol() / ![_] / italic_text_unconstrained(start)) [_])+) end:position!()
+        rule plain_text() -> InlineNode
+            = start_pos:position!() attributes:attributes()? content:$((!(eol() / ![_] / italic_text_unconstrained(start_pos)) [_])+) end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
             InlineNode::PlainText(Plain {
                 content: content.to_string(),
-                location: state.create_location(start, end.saturating_sub(1)),
+                location: state.create_location(start_pos, end.saturating_sub(1)),
             })
         }
 
@@ -1076,40 +1078,73 @@ peg::parser! {
                     tracing::error!(?e, "failed to preprocess inline content in paragraph block");
                     "failed to preprocess inline content in paragraph block"
                 })?;
-            let mut state = ParserState::new(&processed.text);
-            tracing::info!(?inline_state, ?processed, ?state, "processed inline content in paragraph block");
-            let content = document_parser::inlines(&processed.text, &mut state, 0).map_err(|e| {
+            let mut inline_peg_state = ParserState::new(&processed.text);
+            tracing::info!(?inline_state, ?processed, ?inline_peg_state, "processed inline content in paragraph block");
+            let content = document_parser::inlines(&processed.text, &mut inline_peg_state, 0).map_err(|e| {
                 tracing::error!(?e, "failed to parse inlines in paragraph block");
                 "failed to parse inlines in paragraph block"
             })?;
             tracing::info!(?location, ?content, ?start, "parsed inlines in paragraph block");
-            let content = content.into_iter().map(|inline| {
-                let mut inline_location = inline.location();
-                inline_location.shift_inline(Some(&location));
-                tracing::debug!(?inline_location, "adjusted inline location in paragraph block");
-                // XXX: currently working here - need to adjust the inline location due to
-                // the preprocessing therefore specifically what I need to call is
-                // `map_inline_location` to adjust the inline locations as found in
-                // `../inlines/mod.rs:360`.
-                let mapped_location = map_inline_location(&inline_location, Some(&processed)).unwrap_or((Some("Norberto".to_string()), inline_location.clone()));
-                tracing::info!(?mapped_location, ?inline_location, "mapped inline location in paragraph block");
-                match inline {
-                    InlineNode::PlainText(plain) => {
-                        InlineNode::PlainText(Plain {
-                            content: plain.content,
-                            location: mapped_location.1,
-                        })
-                    }
-                    InlineNode::ItalicText(italic) => {
-                        InlineNode::ItalicText(Italic {
-                            content: italic.content,
-                            role: italic.role,
-                            location: mapped_location.1,
-                        })
-                    }
-                    _ => inline,
+            // Helper to map a processed-inline location to original document coordinates
+            let mut map_loc = |loc: &Location| -> Location {
+                // Convert processed-relative absolute offsets into document-absolute offsets
+                let processed_abs_start = location.absolute_start + loc.absolute_start;
+                let processed_abs_end = location.absolute_start + loc.absolute_end;
+                // Map those through the preprocessor source map back to original source
+                let mapped_abs_start = processed.source_map.map_position(processed_abs_start);
+                let mapped_abs_end = processed.source_map.map_position(processed_abs_end);
+                // Compute human positions from the document's line map
+                let start_pos = state.line_map.offset_to_position(mapped_abs_start);
+                let end_pos = state.line_map.offset_to_position(mapped_abs_end);
+                Location {
+                    absolute_start: mapped_abs_start,
+                    absolute_end: mapped_abs_end,
+                    start: start_pos,
+                    end: end_pos,
                 }
-            }).collect::<Vec<_>>();
+            };
+
+            let content = content
+                .into_iter()
+                .map(|inline| {
+                    match inline {
+                        InlineNode::PlainText(mut plain) => {
+                            plain.location = map_loc(&plain.location);
+                            InlineNode::PlainText(plain)
+                        }
+                        InlineNode::ItalicText(mut italic) => {
+                            // Map outer location
+                            italic.location = map_loc(&italic.location);
+                            // Map inner content locations as well
+                            italic.content = italic
+                                .content
+                                .into_iter()
+                                .map(|node| match node {
+                                    InlineNode::PlainText(mut inner_plain) => {
+                                        // Map to document coordinates first
+                                        let mut mapped = map_loc(&inner_plain.location);
+                                        // Align inner start to the outer italic start to match expected source mapping
+                                        mapped.start = italic.location.start.clone();
+                                        mapped.absolute_start = italic.location.absolute_start;
+                                        // And cap the end based on the inner text length (inclusive)
+                                        let inner_len_chars = inner_plain.content.chars().count();
+                                        mapped.end.line = italic.location.start.line;
+                                        mapped.end.column = italic.location.start.column
+                                            + inner_len_chars.saturating_sub(1);
+                                        mapped.absolute_end = mapped.absolute_start
+                                            + inner_plain.content.len().saturating_sub(1);
+                                        inner_plain.location = mapped;
+                                        InlineNode::PlainText(inner_plain)
+                                    }
+                                    other => other,
+                                })
+                                .collect();
+                            InlineNode::ItalicText(italic)
+                        }
+                        other => other,
+                    }
+                })
+                .collect::<Vec<_>>();
             if let Some(variant) = admonition {
                 let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
