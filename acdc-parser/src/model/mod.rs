@@ -2,9 +2,9 @@
 use std::str::FromStr;
 
 use serde::{
-    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
 };
 
 use crate::Error;
@@ -35,7 +35,7 @@ pub struct Document {
     pub location: Location,
 }
 
-type Subtitle = String;
+type Subtitle = Vec<InlineNode>;
 
 /// A `Header` represents the header of a document.
 ///
@@ -110,6 +110,8 @@ impl<'de> Deserialize<'de> for OptionalAttributeValue {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
     pub attributes: ElementAttributes,
+    #[serde(default, skip_serializing)]
+    pub positional_attributes: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

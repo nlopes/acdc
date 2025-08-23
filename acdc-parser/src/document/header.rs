@@ -1,10 +1,10 @@
-use pest::{Parser as _, iterators::Pairs};
+use pest::{iterators::Pairs, Parser as _};
 use tracing::instrument;
 
 use crate::{
-    AttributeValue, Author, DocumentAttribute, DocumentAttributes, Error, Header, InlineNode,
-    InlinePreprocessorParserState, InnerPestParser, Location, Options, Plain, Rule,
-    inline_preprocessing, inlines::parse_inlines,
+    inline_preprocessing, inlines::parse_inlines, AttributeValue, Author, DocumentAttribute,
+    DocumentAttributes, Error, Header, InlineNode, InlinePreprocessorParserState, InnerPestParser,
+    Location, Options, Plain, Rule,
 };
 
 impl Header {
@@ -37,8 +37,12 @@ impl Header {
                                 // andsetting title to everything before the last colon and
                                 // subtitle to everything after the last colon
                                 if let Some(colon_index) = title_content.rfind(':') {
-                                    subtitle =
-                                        Some(title_content[colon_index + 1..].trim().to_string());
+                                    subtitle = Some(vec![InlineNode::PlainText(Plain {
+                                        content: title_content[colon_index + 1..]
+                                            .trim()
+                                            .to_string(),
+                                        location: Location::from_pair(&inner_pair),
+                                    })]);
                                     // TODO(nlopes): none of this is necessary if I parse
                                     // subtitle in the grammar
                                     //

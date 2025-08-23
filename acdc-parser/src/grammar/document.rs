@@ -143,8 +143,11 @@ peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
 
+        // We ignore empty lines before we set the start position of the document because
+        // the asciidoc document should not consider empty lines at the beginning or end
+        // of the file.
         pub(crate) rule document() -> Result<Document, Error>
-            = start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks() end:position() (eol()* / ![_]) {
+        = eol()* start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks() end:position() (eol()* / ![_]) {
                 // For documents that end with text content (like body-only), adjust the end position
                 let document_end_offset = if blocks.is_empty() {
                     end.offset
@@ -190,13 +193,13 @@ peg::parser! {
             end:position!()
             (eol()*<,2> / ![_])
         {
-            if let Some((title, authors)) = title_authors {
+            if let Some((title, subtitle, authors)) = title_authors {
                 let mut location = state.create_location(start, end);
                 location.absolute_end = location.absolute_end.saturating_sub(1);
                 location.end.column = location.end.column.saturating_sub(1);
                 Some(Header {
                     title,
-                    subtitle: None,
+                    subtitle,
                     authors,
                     location
                 })
@@ -206,25 +209,39 @@ peg::parser! {
             }
         }
 
-        pub(crate) rule title_authors() -> (Vec<InlineNode>, Vec<Author>)
-            = title:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
+        pub(crate) rule title_authors() -> (Vec<InlineNode>, Option<Vec<InlineNode>>, Vec<Author>)
+        = title_and_subtitle:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
         {
-            tracing::info!(?title, ?authors, "Found title and authors in the document header.");
-            (title, authors)
+            let (title, subtitle) = title_and_subtitle;
+            tracing::info!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
+            (title, subtitle, authors)
         }
-        / title:document_title() eol() {
-            tracing::info!(?title, "Found title in the document header without authors.");
-            (title, vec![])
+        / title_and_subtitle:document_title() &eol() {
+            let (title, subtitle) = title_and_subtitle;
+            tracing::info!(?title, ?subtitle, "Found title in the document header without authors.");
+            (title, subtitle, vec![])
         }
 
-        pub(crate) rule document_title() -> Vec<InlineNode>
-            = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
+        pub(crate) rule document_title() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
+        = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {
-            let location = state.create_location(start, end.saturating_sub(1));
-            vec![InlineNode::PlainText(Plain {
-                content: title.to_string(),
-                location,
-            })]
+            let mut subtitle = None;
+            let mut title_end = end;
+            if let Some(subtitle_start) = title.rfind(':') {
+                title_end = start+subtitle_start;
+                subtitle = Some(vec![InlineNode::PlainText(Plain {
+                    content: title[subtitle_start + 1..].trim().to_string(),
+                    location: state.create_location(
+                        title_end + 1,
+                        end.saturating_sub(1),
+                    ),
+                })]);
+            }
+            let title_location = state.create_location(start, title_end.saturating_sub(1));
+            (vec![InlineNode::PlainText(Plain {
+                content: title[..title_end - start].trim().to_string(),
+                location: title_location,
+            })], subtitle)
         }
 
         rule document_title_token() = "=" / "#"
@@ -299,6 +316,10 @@ peg::parser! {
                     date: date.map(ToString::to_string),
                     remark: remark.map(ToString::to_string),
                 };
+                if revision_info.number.is_empty() {
+                    // No revision number found, nothing to do
+                    return;
+                }
                 process_revision_info(revision_info, &mut state.document_attributes);
             }
 
@@ -858,11 +879,18 @@ peg::parser! {
                 metadata.style = None; // Clear style to avoid confusion
                 metadata.attributes.insert("alt".to_string(), AttributeValue::String(style.clone()));
             }
+            if let Some(width) = metadata.positional_attributes.get(0) {
+                metadata.attributes.insert("width".to_string(), AttributeValue::String(width.clone()));
+            }
+            if let Some(height) = metadata.positional_attributes.get(1) {
+                metadata.attributes.insert("height".to_string(), AttributeValue::String(height.clone()));
+            }
             Block::Image(Image {
                 title: Vec::new(), // TODO(nlopes): Handle image titles
                 source,
                 metadata: metadata.clone(),
-                location: state.create_location(start, end),
+                location: state.create_location(start, end.saturating_sub(1)),
+
             })
         }
 
@@ -874,7 +902,7 @@ peg::parser! {
                 title: Vec::new(), // TODO(nlopes): Handle audio titles
                 source,
                 metadata: metadata.clone(),
-                location: state.create_location(start, end),
+                location: state.create_location(start, end.saturating_sub(1)),
             })
         }
 
@@ -886,19 +914,28 @@ peg::parser! {
         {
             let (_discrete, metadata) = attributes;
             let mut metadata = metadata.clone();
-            if let Some(style) = metadata.style.as_ref() {
+            if let Some(style) = metadata.style {
+                metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
                     tracing::debug!(?metadata, "transforming video metadata style into attribute");
                     metadata.attributes.insert(style.to_string(), AttributeValue::Bool(true));
                 } else {
-                    tracing::warn!(?style, "found video block with unsupported style");
+                    // assume poster
+                    tracing::debug!(?metadata, "transforming video metadata style into attribute, assuming poster");
+                    metadata.attributes.insert("poster".to_string(), AttributeValue::String(style.clone()));
                 }
+            }
+            if let Some(width) = metadata.positional_attributes.get(0) {
+                metadata.attributes.insert("width".to_string(), AttributeValue::String(width.clone()));
+            }
+            if let Some(height) = metadata.positional_attributes.get(1) {
+                metadata.attributes.insert("height".to_string(), AttributeValue::String(height.clone()));
             }
             Block::Video(Video {
                 title: Vec::new(), // TODO(nlopes): Handle video titles
                 sources,
                 metadata: metadata.clone(),
-                location: state.create_location(start, end),
+                location: state.create_location(start, end.saturating_sub(1)),
             })
         }
 
@@ -1049,7 +1086,7 @@ peg::parser! {
         }
 
         rule plain_text() -> InlineNode
-            = start_pos:position!() attributes:attributes()? content:$((!(eol() / ![_] / italic_text_unconstrained(start_pos)) [_])+) end:position!()
+        = start_pos:position!() attributes:attributes()? content:$((!(eol()*<2,> / ![_] / italic_text_unconstrained(start_pos)) [_])+) end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
             InlineNode::PlainText(Plain {
@@ -1059,7 +1096,7 @@ peg::parser! {
         }
 
         rule paragraph(start: usize, block_details: &(bool, BlockMetadata, Option<(String, Location)>)) -> Block
-            = admonition:admonition()? content_start:position() content:$((!(eol()+ / ![_] / example_delimiter() / list(start, block_details)) [_])+) end:position!()
+        = admonition:admonition()? content_start:position() content:$((!(eol()*<2,> / eol()* ![_] / example_delimiter() / list(start, block_details)) [_])+) end:position!()
         {?
             let (_discrete, metadata, _title_data) = block_details;
 
@@ -1255,7 +1292,7 @@ peg::parser! {
                         metadata.options.push(option);
                     }
                 }
-                for (k, v, pos) in attributes.into_iter().flatten() {
+                for (i, (k, v, pos)) in attributes.into_iter().flatten().enumerate() {
                     if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() {
                         let (id_start, id_end) = pos.unwrap_or((start, end));
                         metadata.id = Some(Anchor {
@@ -1283,7 +1320,8 @@ peg::parser! {
                                 metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
                             }
                         }
-                    } else {
+                    } else if v == AttributeValue::None && pos.is_none() {
+                        metadata.positional_attributes.push(k);
                         tracing::warn!("Unexpected attribute value type: {:?}", v);
                     }
                 }
@@ -1692,9 +1730,9 @@ v2.9, 01-09-2024: Fall incarnation
         let input = "= Document Title";
         let mut state = ParserState::new(input);
         let result = document_parser::document_title(input, &mut state).unwrap();
-        assert_eq!(result.len(), 1);
+        assert_eq!(result.0.len(), 1);
         assert_eq!(
-            result[0],
+            result.0[0],
             InlineNode::PlainText(Plain {
                 content: "Document Title".to_string(),
                 location: Location {
@@ -1707,6 +1745,46 @@ v2.9, 01-09-2024: Fall incarnation
                     },
                 }
             })
+        );
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_document_title_and_subtitle() {
+        let input = "= Document Title: And a subtitle";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document_title(input, &mut state).unwrap();
+        assert_eq!(
+            result,
+            (
+                vec![InlineNode::PlainText(Plain {
+                    content: "Document Title".to_string(),
+                    location: Location {
+                        absolute_start: 2,
+                        absolute_end: 15,
+                        start: crate::Position { line: 1, column: 3 },
+                        end: crate::Position {
+                            line: 1,
+                            column: 16
+                        },
+                    }
+                })],
+                Some(vec![InlineNode::PlainText(Plain {
+                    content: "And a subtitle".to_string(),
+                    location: Location {
+                        absolute_start: 17,
+                        absolute_end: 31,
+                        start: crate::Position {
+                            line: 1,
+                            column: 18
+                        },
+                        end: crate::Position {
+                            line: 1,
+                            column: 32
+                        },
+                    }
+                })])
+            )
         );
     }
 
@@ -1874,10 +1952,9 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let result = document_parser::document(input, &mut state)
             .unwrap()
             .unwrap();
-
         // Verify that we have a table of contents block
-        assert_eq!(result.blocks.len(), 2);
-        match &result.blocks[1] {
+        assert_eq!(result.blocks.len(), 1);
+        match &result.blocks[0] {
             Block::TableOfContents(toc) => {
                 assert_eq!(toc.location.absolute_start, 34);
                 assert_eq!(toc.location.absolute_end, 82);
@@ -1985,14 +2062,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(matches!(&result.blocks[0], Block::Admonition(admonition)
                  if admonition.variant == AdmonitionVariant::Important
                  && admonition.blocks == vec![Block::Paragraph(Paragraph {
-                     metadata: BlockMetadata {
-                         anchors: vec![],
-                         id: None,
-                         style: None,
-                         roles: vec![],
-                         options: vec![],
-                         attributes: DocumentAttributes::default()
-                     },
+                     metadata: BlockMetadata::default(),
                      title: vec![],
                      content: vec![InlineNode::PlainText(Plain {
                          content: "This is an important message.".to_string(),

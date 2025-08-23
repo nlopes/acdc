@@ -6,11 +6,28 @@
       {
         "name": "text",
         "type": "string",
-        "value": "Document Title: this is not the subtitle: this is the subtitle",
+        "value": "Document Title: this is not the subtitle",
         "location": [
           {
             "line": 3,
             "col": 3
+          },
+          {
+            "line": 3,
+            "col": 42
+          }
+        ]
+      }
+    ],
+    "subtitle": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "this is the subtitle",
+        "location": [
+          {
+            "line": 3,
+            "col": 44
           },
           {
             "line": 3,
@@ -19,7 +36,6 @@
         ]
       }
     ],
-    "subtitle": "this is the subtitle",
     "location": [
       {
         "line": 3,
