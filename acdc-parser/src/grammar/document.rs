@@ -33,16 +33,6 @@ impl ParserState {
             end: self.line_map.offset_to_position(end),
         }
     }
-
-    /// Create a Location from Position structs (which contain both offset and position)
-    pub(crate) fn create_location_from_positions(start: &Position, end: &Position) -> Location {
-        Location {
-            absolute_start: start.offset,
-            absolute_end: end.offset,
-            start: start.position.clone(),
-            end: end.position.clone(),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -192,15 +182,17 @@ fn parse_inlines(processed: &ProcessedContent) -> Result<Vec<InlineNode>, &'stat
     })
 }
 
-#[tracing::instrument(skip_all, fields(?location, ?processed, ?content))]
+#[tracing::instrument(skip_all, fields(location=?location, processed=?processed, content=?content))]
 fn map_inline_locations(
     state: &ParserState,
     processed: &ProcessedContent,
     content: &Vec<InlineNode>,
     location: &Location,
 ) -> Vec<InlineNode> {
+    tracing::info!(?location, "mapping inline locations");
     // Helper to map a processed-inline location to original document coordinates
     let map_loc = |loc: &Location| -> Location {
+        tracing::info!(?location, ?loc, "mapping inline location");
         // Convert processed-relative absolute offsets into document-absolute offsets
         let processed_abs_start = location.absolute_start + loc.absolute_start;
         let processed_abs_end = location.absolute_start + loc.absolute_end;
@@ -226,12 +218,12 @@ fn map_inline_locations(
                     content: plain.content.clone(),
                     location: map_loc(&plain.location),
                 }),
-                InlineNode::ItalicText(italic) => {
-                    let mut italic = italic.clone();
+                InlineNode::ItalicText(unconstrained_text) => {
+                    let mut unconstrained_text = unconstrained_text.clone();
                     // Map outer location
-                    italic.location = map_loc(&italic.location);
+                    unconstrained_text.location = map_loc(&unconstrained_text.location);
                     // Map inner content locations as well
-                    italic.content = italic
+                    unconstrained_text.content = unconstrained_text
                         .content
                         .into_iter()
                         .map(|node| match node {
@@ -239,12 +231,12 @@ fn map_inline_locations(
                                 // Map to document coordinates first
                                 let mut mapped = map_loc(&inner_plain.location);
                                 // Align inner start to the outer italic start to match expected source mapping
-                                mapped.start = italic.location.start.clone();
-                                mapped.absolute_start = italic.location.absolute_start;
+                                mapped.start = unconstrained_text.location.start.clone();
+                                mapped.absolute_start = unconstrained_text.location.absolute_start;
                                 // And cap the end based on the inner text length (inclusive)
                                 let inner_len_chars = inner_plain.content.chars().count();
-                                mapped.end.line = italic.location.start.line;
-                                mapped.end.column = italic.location.start.column
+                                mapped.end.line = unconstrained_text.location.start.line;
+                                mapped.end.column = unconstrained_text.location.start.column
                                     + inner_len_chars.saturating_sub(1);
                                 mapped.absolute_end = mapped.absolute_start
                                     + inner_plain.content.len().saturating_sub(1);
@@ -254,7 +246,37 @@ fn map_inline_locations(
                             other => other,
                         })
                         .collect();
-                    InlineNode::ItalicText(italic.clone())
+                    InlineNode::ItalicText(unconstrained_text.clone())
+                }
+                InlineNode::BoldText(unconstrained_text) => {
+                    let mut unconstrained_text = unconstrained_text.clone();
+                    // Map outer location
+                    unconstrained_text.location = map_loc(&unconstrained_text.location);
+                    // Map inner content locations as well
+                    unconstrained_text.content = unconstrained_text
+                        .content
+                        .into_iter()
+                        .map(|node| match node {
+                            InlineNode::PlainText(mut inner_plain) => {
+                                // Map to document coordinates first
+                                let mut mapped = map_loc(&inner_plain.location);
+                                // Align inner start to the outer italic start to match expected source mapping
+                                mapped.start = unconstrained_text.location.start.clone();
+                                mapped.absolute_start = unconstrained_text.location.absolute_start;
+                                // And cap the end based on the inner text length (inclusive)
+                                let inner_len_chars = inner_plain.content.chars().count();
+                                mapped.end.line = unconstrained_text.location.start.line;
+                                mapped.end.column = unconstrained_text.location.start.column
+                                    + inner_len_chars.saturating_sub(1);
+                                mapped.absolute_end = mapped.absolute_start
+                                    + inner_plain.content.len().saturating_sub(1);
+                                inner_plain.location = mapped;
+                                InlineNode::PlainText(inner_plain)
+                            }
+                            other => other,
+                        })
+                        .collect();
+                    InlineNode::BoldText(unconstrained_text.clone())
                 }
                 other => other.clone(),
             }
@@ -605,7 +627,7 @@ peg::parser! {
         rule section_title(start: usize, offset: usize) -> Vec<InlineNode>
         = title_start:position() title:$([^'\n']*) end:position!()
         {?
-            dbg!(&title, &title_start, &start, &end, &offset);
+            tracing::info!(?title, ?title_start, start, ?end, offset, "Found section title");
             let (content, _) = process_inlines(&state, start, &title_start, end, offset, title)?;
             Ok(content)
         }
@@ -1301,7 +1323,7 @@ peg::parser! {
         rule plain_text(offset: usize) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
-        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset) / italic_text_unconstrained(start_pos)) [_])+)
+        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset) / bold_text_unconstrained(start_pos) / italic_text_unconstrained(start_pos)) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
