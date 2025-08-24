@@ -34,7 +34,7 @@
           "name": "text",
           "type": "string",
           "value": " Release Notes",
-          "location": [{"line": 3,"col": 19},{"line": 3,"col": 32}]
+          "location": [{"line": 3,"col": 21},{"line": 3,"col": 34}]
         }
       ],
       "level": 1,

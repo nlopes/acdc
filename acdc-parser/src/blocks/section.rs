@@ -1,9 +1,9 @@
-use pest::{Parser as _, iterators::Pair};
+use pest::{iterators::Pair, Parser as _};
 
 use crate::{
-    Anchor, AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error,
+    inline_preprocessing, inlines::parse_inlines, model::DiscreteHeaderSection, Anchor,
+    AttributeValue, Block, BlockMetadata, DocumentAttributes, ElementAttributes, Error,
     InlinePreprocessorParserState, InnerPestParser, Location, Options, Rule, Section,
-    inline_preprocessing, inlines::parse_inlines, model::DiscreteHeaderSection,
 };
 
 // TODO(nlopes): this might be parser as part of the inner content of a delimited block

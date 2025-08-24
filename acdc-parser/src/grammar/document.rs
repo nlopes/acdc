@@ -1,14 +1,13 @@
 use crate::{
     grammar::LineMap,
     inline_preprocessing,
-    inlines::map_inline_location,
     model::{ListLevel, SectionLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata,
-    DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute,
+    Bold, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute,
     DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
     InlinePreprocessorParserState, Italic, LineBreak, Link, ListItem, ListItemCheckedStatus,
-    Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Section, Source, Table,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Location, OrderedList, PageBreak, Paragraph, Plain, ProcessedContent, Raw, Section, Source,
+    Table, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 #[derive(Debug)]
@@ -145,6 +144,140 @@ fn process_revision_info(
             document_attributes.insert("revremark".to_string(), AttributeValue::String(remark));
         }
     }
+}
+
+#[tracing::instrument(skip_all, fields(?state, start, ?content_start, end, offset, ?content))]
+fn preprocess_inline_content(
+    state: &ParserState,
+    start: usize,
+    content_start: &Position,
+    end: usize,
+    offset: usize,
+    content: &str,
+) -> Result<(Location, Location, ProcessedContent), &'static str> {
+    // Create initial location for the entire content before inline processing
+    let initial_location = state.create_location(start + offset, (end + offset).saturating_sub(1));
+    // parse the inline content - this needs to be handed over to the inline preprocessing
+    let mut inline_state = InlinePreprocessorParserState::new();
+
+    // We adjust the start and end positions to account for the content start offset
+    let location = state.create_location(
+        content_start.offset + offset,
+        (end + offset).saturating_sub(1),
+    );
+    inline_state.set_initial_position(&location, content_start.offset + offset);
+    tracing::info!(
+        ?inline_state,
+        ?location,
+        ?offset,
+        ?content_start,
+        ?end,
+        "before inline preprocessing run"
+    );
+
+    let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)
+        .map_err(|e| {
+        tracing::error!(?e, "failed to preprocess inline content");
+        "failed to preprocess inline content"
+    })?;
+    Ok((initial_location, location, processed))
+}
+
+#[tracing::instrument(skip_all, fields(processed=?processed))]
+fn parse_inlines(processed: &ProcessedContent) -> Result<Vec<InlineNode>, &'static str> {
+    let mut inline_peg_state = ParserState::new(&processed.text);
+    document_parser::inlines(&processed.text, &mut inline_peg_state, 0).map_err(|e| {
+        tracing::error!(?e, "failed to parse inlines");
+        "failed to parse inlines"
+    })
+}
+
+#[tracing::instrument(skip_all, fields(?location, ?processed, ?content))]
+fn map_inline_locations(
+    state: &ParserState,
+    processed: &ProcessedContent,
+    content: &Vec<InlineNode>,
+    location: &Location,
+) -> Vec<InlineNode> {
+    // Helper to map a processed-inline location to original document coordinates
+    let map_loc = |loc: &Location| -> Location {
+        // Convert processed-relative absolute offsets into document-absolute offsets
+        let processed_abs_start = location.absolute_start + loc.absolute_start;
+        let processed_abs_end = location.absolute_start + loc.absolute_end;
+        // Map those through the preprocessor source map back to original source
+        let mapped_abs_start = processed.source_map.map_position(processed_abs_start);
+        let mapped_abs_end = processed.source_map.map_position(processed_abs_end);
+        // Compute human positions from the document's line map
+        let start_pos = state.line_map.offset_to_position(mapped_abs_start);
+        let end_pos = state.line_map.offset_to_position(mapped_abs_end);
+        Location {
+            absolute_start: mapped_abs_start,
+            absolute_end: mapped_abs_end,
+            start: start_pos,
+            end: end_pos,
+        }
+    };
+
+    content
+        .into_iter()
+        .map(|inline| {
+            match inline {
+                InlineNode::PlainText(plain) => InlineNode::PlainText(Plain {
+                    content: plain.content.clone(),
+                    location: map_loc(&plain.location),
+                }),
+                InlineNode::ItalicText(italic) => {
+                    let mut italic = italic.clone();
+                    // Map outer location
+                    italic.location = map_loc(&italic.location);
+                    // Map inner content locations as well
+                    italic.content = italic
+                        .content
+                        .into_iter()
+                        .map(|node| match node {
+                            InlineNode::PlainText(mut inner_plain) => {
+                                // Map to document coordinates first
+                                let mut mapped = map_loc(&inner_plain.location);
+                                // Align inner start to the outer italic start to match expected source mapping
+                                mapped.start = italic.location.start.clone();
+                                mapped.absolute_start = italic.location.absolute_start;
+                                // And cap the end based on the inner text length (inclusive)
+                                let inner_len_chars = inner_plain.content.chars().count();
+                                mapped.end.line = italic.location.start.line;
+                                mapped.end.column = italic.location.start.column
+                                    + inner_len_chars.saturating_sub(1);
+                                mapped.absolute_end = mapped.absolute_start
+                                    + inner_plain.content.len().saturating_sub(1);
+                                inner_plain.location = mapped;
+                                InlineNode::PlainText(inner_plain)
+                            }
+                            other => other,
+                        })
+                        .collect();
+                    InlineNode::ItalicText(italic.clone())
+                }
+                other => other.clone(),
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
+/// Process inlines
+#[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
+fn process_inlines(
+    state: &ParserState,
+    start: usize,
+    content_start: &Position,
+    end: usize,
+    offset: usize,
+    content: &str,
+) -> Result<(Vec<InlineNode>, Location), &'static str> {
+    // Preprocess the inline content first
+    let (initial_location, location, processed) =
+        preprocess_inline_content(state, start, content_start, end, offset, content)?;
+    let content = parse_inlines(&processed)?;
+    let content = map_inline_locations(state, &processed, &content, &location);
+    Ok((content, initial_location))
 }
 
 const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
@@ -371,22 +504,16 @@ peg::parser! {
         rule discrete_header(offset: usize) -> Block
         = start:position!() block_metadata:block_metadata(None)
         section_level:section_level() whitespace()
-        title_start:position!() title:section_title() title_end:position!() end:position!() &eol()*<2,2>
+        title_start:position!() title:section_title(start, offset) title_end:position!() end:position!() &eol()*<2,2>
         {
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
             let level = section_level.1;
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
 
-            // Create a simple title with plain text
-            let title_node = InlineNode::PlainText(Plain {
-                content: title,
-                location: state.create_location(title_start+offset, (title_end+offset).saturating_sub(1)),
-            });
-
             Block::DiscreteHeader(DiscreteHeader {
                 anchors: block_metadata.metadata.anchors,
-                title: vec![title_node],
+                title,
                 level,
                 location,
             })
@@ -406,7 +533,7 @@ peg::parser! {
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Block
         = start:position!() block_metadata:block_metadata(parent_section_level)
         section_level:section_level() whitespace()
-        title_start:position!() title:section_title() title_end:position!() &eol()*<2,2>
+        title_start:position!() title:section_title(start, offset) title_end:position!() &eol()*<2,2>
         content:section_content(offset, Some(section_level.1))* end:position!()
         {
             tracing::info!(?offset, ?block_metadata, ?title, ?title_start, ?title_end, "parsing section block");
@@ -414,15 +541,9 @@ peg::parser! {
             let level = section_level.1;
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
 
-            // Create a simple title with plain text
-            let title_node = InlineNode::PlainText(Plain {
-                content: title,
-                location: state.create_location(title_start+offset, (title_end+offset).saturating_sub(1)),
-            });
-
             Block::Section(Section {
                 metadata: block_metadata.metadata,
-                title: vec![title_node],
+                title,
                 level,
                 content: content[0].clone(),
                 location
@@ -481,10 +602,13 @@ peg::parser! {
                 (level, level.len().try_into().unwrap_or(1)-1)
             }
 
-        rule section_title() -> String
-            = title:$([^'\n']*) {
-                title.to_string()
-            }
+        rule section_title(start: usize, offset: usize) -> Vec<InlineNode>
+        = title_start:position() title:$([^'\n']*) end:position!()
+        {?
+            dbg!(&title, &title_start, &start, &end, &offset);
+            let (content, _) = process_inlines(&state, start, &title_start, end, offset, title)?;
+            Ok(content)
+        }
 
         rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Vec<Block>
         = blocks:block(offset, parent_section_level)+
@@ -1101,6 +1225,7 @@ peg::parser! {
              */
             / link_macro:link_macro(offset) { link_macro }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
+            / bold_text_unconstrained:bold_text_unconstrained(offset) { bold_text_unconstrained }
             / italic_text_unconstrained:italic_text_unconstrained(offset) { italic_text_unconstrained }
             ) {
                 inline
@@ -1149,20 +1274,28 @@ peg::parser! {
             })))
         }
 
-        rule italic_text_unconstrained(offset: usize) -> InlineNode
-            = start_pos:position!() "__" content_start:position!() italic_text:$((!(eol() / ![_] / "__") [_])+) content_end:position!() "__" end_pos:position!()
-        {
-            tracing::info!(?italic_text, "Found unconstrained italic text inline");
-            InlineNode::ItalicText(Italic {
-                content: vec![InlineNode::PlainText(Plain {
-                    content: italic_text.to_string(),
-                    // Inner PlainText should only span the inner content, not the delimiters
-                    location: state.create_location(content_start+offset, (content_end+offset).saturating_sub(1)),
-                })],
+        rule bold_text_unconstrained(offset: usize) -> InlineNode
+            = start:position() "**" content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
+        {?
+            tracing::info!(?start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
+            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content)?;
+            Ok(InlineNode::BoldText(Bold {
+                content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
-                // The italic span should cover the full range including delimiters
-                location: state.create_location(start_pos+offset, (end_pos+offset).saturating_sub(1)),
-            })
+                location,
+            }))
+        }
+
+        rule italic_text_unconstrained(offset: usize) -> InlineNode
+            = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
+        {?
+            tracing::info!(?offset, ?content, "Found unconstrained italic text inline");
+            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content)?;
+            Ok(InlineNode::ItalicText(Italic {
+                content,
+                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                location,
+            }))
         }
 
         rule plain_text(offset: usize) -> InlineNode
@@ -1189,23 +1322,7 @@ peg::parser! {
         ) [_])+)
         end:position!()
         {?
-            let initial_location  = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            // parse the inline content - this needs to be handed over to the inline preprocessing
-            let mut inline_state = InlinePreprocessorParserState::new();
-
-            // We adjust the start and end positions to account for the content start offset
-            let location = state.create_location(content_start.offset+offset, (end+offset).saturating_sub(1));
-            inline_state.set_initial_position(&location, content_start.offset+offset);
-
-            tracing::info!(?location, ?offset, ?content_start, ?end, "paragraph block - before inline preprocessing run");
-
-            let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)
-                .map_err(|e| {
-                    tracing::error!(?e, "failed to preprocess inline content in paragraph block");
-                    "failed to preprocess inline content in paragraph block"
-                })?;
-
-            let mut inline_peg_state = ParserState::new(&processed.text);
+            let (initial_location, location, processed) = preprocess_inline_content(state, start, &content_start, end, offset, content)?;
             if processed.text.starts_with(' ') {
                 tracing::debug!(?processed, "preprocessed inline content starts with a space - switching to literal block");
                 let mut metadata = block_metadata.metadata.clone();
@@ -1221,72 +1338,9 @@ peg::parser! {
                     location: initial_location,
                 }));
             }
-            tracing::info!(?inline_state, ?processed, ?inline_peg_state, "processed inline content in paragraph block");
-            let content = document_parser::inlines(&processed.text, &mut inline_peg_state, 0).map_err(|e| {
-                tracing::error!(?e, "failed to parse inlines in paragraph block");
-                "failed to parse inlines in paragraph block"
-            })?;
-            tracing::info!(?location, ?content, ?offset, "parsed inlines in paragraph block");
-            // Helper to map a processed-inline location to original document coordinates
-            let mut map_loc = |loc: &Location| -> Location {
-                // Convert processed-relative absolute offsets into document-absolute offsets
-                let processed_abs_start = location.absolute_start + loc.absolute_start;
-                let processed_abs_end = location.absolute_start + loc.absolute_end;
-                // Map those through the preprocessor source map back to original source
-                let mapped_abs_start = processed.source_map.map_position(processed_abs_start);
-                let mapped_abs_end = processed.source_map.map_position(processed_abs_end);
-                // Compute human positions from the document's line map
-                let start_pos = state.line_map.offset_to_position(mapped_abs_start);
-                let end_pos = state.line_map.offset_to_position(mapped_abs_end);
-                Location {
-                    absolute_start: mapped_abs_start,
-                    absolute_end: mapped_abs_end,
-                    start: start_pos,
-                    end: end_pos,
-                }
-            };
+            let content = parse_inlines(&processed)?;
+            let content = map_inline_locations(state, &processed, &content, &location);
 
-            let content = content
-                .into_iter()
-                .map(|inline| {
-                    match inline {
-                        InlineNode::PlainText(mut plain) => {
-                            plain.location = map_loc(&plain.location);
-                            InlineNode::PlainText(plain)
-                        }
-                        InlineNode::ItalicText(mut italic) => {
-                            // Map outer location
-                            italic.location = map_loc(&italic.location);
-                            // Map inner content locations as well
-                            italic.content = italic
-                                .content
-                                .into_iter()
-                                .map(|node| match node {
-                                    InlineNode::PlainText(mut inner_plain) => {
-                                        // Map to document coordinates first
-                                        let mut mapped = map_loc(&inner_plain.location);
-                                        // Align inner start to the outer italic start to match expected source mapping
-                                        mapped.start = italic.location.start.clone();
-                                        mapped.absolute_start = italic.location.absolute_start;
-                                        // And cap the end based on the inner text length (inclusive)
-                                        let inner_len_chars = inner_plain.content.chars().count();
-                                        mapped.end.line = italic.location.start.line;
-                                        mapped.end.column = italic.location.start.column
-                                            + inner_len_chars.saturating_sub(1);
-                                        mapped.absolute_end = mapped.absolute_start
-                                            + inner_plain.content.len().saturating_sub(1);
-                                        inner_plain.location = mapped;
-                                        InlineNode::PlainText(inner_plain)
-                                    }
-                                    other => other,
-                                })
-                                .collect();
-                            InlineNode::ItalicText(italic)
-                        }
-                        other => other,
-                    }
-                })
-                .collect::<Vec<_>>();
             if let Some(variant) = admonition {
                 let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
@@ -1354,23 +1408,23 @@ peg::parser! {
         pub(crate) rule attributes() -> (bool, BlockMetadata)
             = start:position!() open_square_bracket() content:(
                 // The case in which we keep the style empty
-                comma() attributes:(attribute() ** comma()) {
-                    tracing::info!("Found empty style with attributes");
+                attributes:(comma() att:attribute() { att })+ {
+                    tracing::info!(?attributes, "Found empty style with attributes");
                     (true, false, None, attributes)
                 } /
                 // The case in which there is a block style and other attributes
-                style:block_style() comma() attributes:(attribute() ++ comma()) {
-                    tracing::info!("Found block style with attributes: {:?}", style);
+                style:block_style() attributes:(comma() att:attribute() { att })+ {
+                    tracing::info!(?style, ?attributes, "Found block style with attributes");
                     (false, true, Some(style), attributes)
                 } /
                 // The case in which there is a block style and no other attributes
                 style:block_style() {
-                    tracing::info!("Found block style: {:?}", style);
+                    tracing::info!(?style, "Found block style");
                     (false, true, Some(style), vec![])
                 } /
                 // The case in which there are only attributes
-                attributes:(attribute() ** comma()) {
-                    tracing::info!("Found attributes: {:?}", attributes);
+                attributes:(att:attribute() comma()? { att })* {
+                    tracing::info!(?attributes, "Found attributes");
                     (false, false, None, attributes)
                 })
             close_square_bracket() end:position!() {
@@ -1405,7 +1459,9 @@ peg::parser! {
                             xreflabel: None,
                             location: state.create_location(id_start, id_end)
                         });
-                    } else if let AttributeValue::String(v) = v {
+                    } else if (k == RESERVED_NAMED_ATTRIBUTE_ROLE || k == RESERVED_NAMED_ATTRIBUTE_OPTIONS) && let AttributeValue::String(v) = v {
+                        // When the key is "role" or "options", we need to handle the case
+                        // where the value is a quoted, comma-separated list of values.
                         let values = if v.starts_with('"') && v.ends_with('"') {
                             // Remove the quotes from the value, split by commas, and trim whitespace
                             v[1..v.len()-1].split(',').map(|s| s.trim().to_string()).collect()
@@ -1425,6 +1481,8 @@ peg::parser! {
                                 metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
                             }
                         }
+                    } else if let AttributeValue::String(v) = v {
+                        metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
                     } else if v == AttributeValue::None && pos.is_none() {
                         metadata.positional_attributes.push(k);
                         tracing::warn!("Unexpected attribute value type: {:?}", v);
@@ -1454,7 +1512,7 @@ peg::parser! {
         //
         // The option can be a single word or a quoted string. If it is a quoted string,
         // it can contain commas, which we then look for and extract the options in the
-        // `attributs()` rule.
+        // `attributes()` rule.
         rule option() -> &'input str =
             $(("\"" [^'"' | ']' | '#' | '.' | '%']+ "\"") / ([^'"' | ',' | ']' | '#' | '.' | '%']+))
 
@@ -1542,19 +1600,26 @@ peg::parser! {
             ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-']
 
         rule named_attribute_value() -> String
-            = "\"" inner:inner_attribute_value() "\"" { inner }
-            / s:$((!(","/ "]") [_])+) { s.to_string() }
+        = &"\"" inner:inner_attribute_value()
+        {
+            tracing::info!("Found named attribute value (inner): {}", inner);
+            inner.to_string()
+        }
+        / s:$([^(',' | '"' | ']')]+)
+        {
+            tracing::info!("Found named attribute value: {}", s);
+            s.to_string()
+        }
 
         rule positional_attribute_value() -> String
-            = s:$((!("\"" / "," / "]" / "#" / "." / "%") [_])
-                 (!("\"" / "," / "]" / "#" / "%" / "=" / ".") [_])* !"=")
+        = s:$([^('"' | ',' | ']' | '#' | '.' | '%' | '=')]+ !"=")
         {
             tracing::debug!("Found positional attribute value: {}", s);
             s.to_string()
         }
 
         rule inner_attribute_value() -> String
-            = s:$(("\\\"" / (!"\"" [_]))*) { s.to_string() }
+        = s:$("\"" [^('"' | ']')]* "\"") { s.to_string() }
 
         pub rule url() -> String = proto:proto() "://" path:path() { format!("{}{}{}", proto, "://", path) }
 
