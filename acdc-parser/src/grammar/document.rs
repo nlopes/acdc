@@ -47,7 +47,7 @@ pub(crate) struct Position {
 enum BlockMetadataLine {
     Anchor(Anchor),
     Attributes((bool, BlockMetadata)),
-    Title(String, Location),
+    Title(Vec<InlineNode>),
 }
 
 #[derive(Debug)]
@@ -55,7 +55,7 @@ enum BlockMetadataLine {
 struct BlockParsingMetadata {
     discrete: bool,
     metadata: BlockMetadata,
-    title_info: Option<(String, Location)>,
+    title: Vec<InlineNode>,
     parent_section_level: Option<SectionLevel>,
 }
 
@@ -73,20 +73,6 @@ struct RevisionInfo {
     number: String,
     date: Option<String>,
     remark: Option<String>,
-}
-
-impl BlockParsingMetadata {
-    /// Get the title nodes from the title data, if available
-    fn get_title_nodes(&self) -> Vec<InlineNode> {
-        if let Some((title, location)) = &self.title_info {
-            vec![InlineNode::PlainText(Plain {
-                content: title.to_string(),
-                location: location.clone(),
-            })]
-        } else {
-            vec![]
-        }
-    }
 }
 
 /// Generate initials from first, optional middle, and last name parts
@@ -646,7 +632,7 @@ peg::parser! {
         }
 
         rule discrete_header(offset: usize) -> Block
-        = start:position!() block_metadata:block_metadata(None)
+        = start:position!() block_metadata:block_metadata(offset, None)
         section_level:section_level() whitespace()
         title_start:position!() title:section_title(start, offset) title_end:position!() end:position!() &eol()*<2,2>
         {
@@ -675,7 +661,7 @@ peg::parser! {
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Block
-        = start:position!() block_metadata:block_metadata(parent_section_level)
+        = start:position!() block_metadata:block_metadata(offset, parent_section_level)
         section_level:section_level() whitespace()
         title_start:position!() title:section_title(start, offset) title_end:position!() &eol()*<2,2>
         content:section_content(offset, Some(section_level.1))* end:position!()
@@ -694,16 +680,16 @@ peg::parser! {
             })
         }
 
-        rule block_metadata(parent_section_level: Option<SectionLevel>) -> BlockParsingMetadata
+        rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> BlockParsingMetadata
         = lines:(
             anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
             / attr:attributes_line() { BlockMetadataLine::Attributes(attr) }
-            / data:title_line() { BlockMetadataLine::Title(data.0, data.1) }
+            / title:title_line(offset) { BlockMetadataLine::Title(title) }
         )*
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
-            let mut title = None;
+            let mut title = Vec::new();
 
             for value in lines {
                 match value {
@@ -717,8 +703,8 @@ peg::parser! {
                         metadata.attributes = attr_metadata.attributes;
                         metadata.positional_attributes = attr_metadata.positional_attributes;
                     },
-                    BlockMetadataLine::Title(value, location) => {
-                        title = Some((value, location));
+                    BlockMetadataLine::Title(inner) => {
+                        title = inner;
                     }
                     _ => unreachable!(),
                 }
@@ -726,7 +712,7 @@ peg::parser! {
             BlockParsingMetadata {
                 discrete,
                 metadata,
-                title_info: title,
+                title,
                 parent_section_level,
             }
         }
@@ -734,17 +720,19 @@ peg::parser! {
         // A title line can be a simple title or a section title
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
-        rule title_line() -> (String, Location)
-            = period() start:position!() &(!whitespace()) title:$([^'\n']*) end:position!() eol() {
-                let location = state.create_location(start, end.saturating_sub(1));
-                tracing::info!(?title, ?start, ?end, ?location, "Found title line in block metadata");
-                (title.to_string(), location)
-            }
+        rule title_line(offset: usize) -> Vec<InlineNode>
+        = period() start:position() &(!whitespace()) title:$([^'\n']*) end:position!() eol()
+        {?
+            tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
+            let (title, _) = process_inlines(&state, start.offset, &start, end, offset, &title)?;
+            Ok(title)
+        }
 
         rule section_level() -> (&'input str, SectionLevel)
-            = level:$(("=" / "#")*<1,6>) {
-                (level, level.len().try_into().unwrap_or(1)-1)
-            }
+        = level:$(("=" / "#")*<1,6>)
+        {
+            (level, level.len().try_into().unwrap_or(1)-1)
+        }
 
         rule section_title(start: usize, offset: usize) -> Vec<InlineNode>
         = title_start:position() title:$([^'\n']*) end:position!()
@@ -761,7 +749,7 @@ peg::parser! {
         }
 
         pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Block
-            = start:position!() block_metadata:block_metadata(parent_section_level) block:(
+        = start:position!() block_metadata:block_metadata(offset, parent_section_level) block:(
                 delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
                 / image:image(start, offset, &block_metadata) { image }
                 / audio:audio(start, offset, &block_metadata) { audio }
@@ -908,7 +896,6 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -919,8 +906,6 @@ peg::parser! {
                 })
             };
 
-            dbg!(&block_metadata);
-            dbg!(&blocks);
             // We want to detect if this is an admonition block. We do that by checking if
             // we have a style that matches an admonition variant.
             if let Some(ref style) = block_metadata.metadata.style &&
@@ -932,7 +917,7 @@ peg::parser! {
                     variant: admonition_variant,
                     blocks,
                     metadata,
-                    title,
+                    title: block_metadata.title.clone(),
                     location,
                 }));
             }
@@ -941,7 +926,7 @@ peg::parser! {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedExample(blocks),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -959,7 +944,6 @@ peg::parser! {
 
             let location = state.create_location((start+offset), (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
@@ -968,7 +952,7 @@ peg::parser! {
                     content: content.to_string(),
                     location: content_location,
                 })]),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -985,7 +969,6 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
@@ -994,7 +977,7 @@ peg::parser! {
                     content: content.to_string(),
                     location: content_location,
                 })]),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1011,7 +994,6 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
@@ -1020,7 +1002,7 @@ peg::parser! {
                     content: content.to_string(),
                     location: content_location,
                 })]),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1036,7 +1018,6 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -1057,7 +1038,7 @@ peg::parser! {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedOpen(blocks),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1075,7 +1056,6 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -1090,7 +1070,7 @@ peg::parser! {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedSidebar(blocks),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1107,7 +1087,6 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             let table = Table {
                 header: None,
@@ -1120,7 +1099,7 @@ peg::parser! {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedTable(table),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1137,7 +1116,6 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
@@ -1146,7 +1124,7 @@ peg::parser! {
                     content: content.to_string(),
                     location: content_location,
                 })]),
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1163,7 +1141,6 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-            let title = block_metadata.get_title_nodes();
 
             let inner = if let Some(ref style) = metadata.style {
                 if style == "verse" {
@@ -1208,7 +1185,7 @@ peg::parser! {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner,
-                title,
+                title: block_metadata.title.clone(),
                 location,
             }))
         }
@@ -1321,10 +1298,9 @@ peg::parser! {
             tracing::info!("Found page break block");
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let title = block_metadata.get_title_nodes();
 
             Block::PageBreak(PageBreak {
-                title,
+                title: block_metadata.title.clone(),
                 metadata,
                 location: state.create_location(start+offset, end+offset),
             })
@@ -1346,7 +1322,7 @@ peg::parser! {
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::UnorderedList(UnorderedList {
-                title: Vec::new(), // TODO(nlopes): Handle list item titles
+                title: block_metadata.title.clone(),
                 metadata: block_metadata.metadata.clone(),
                 items,
                 marker,
@@ -1363,7 +1339,7 @@ peg::parser! {
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::OrderedList(OrderedList {
-                title: Vec::new(), // TODO(nlopes): Handle list item titles
+                title: block_metadata.title.clone(),
                 metadata: block_metadata.metadata.clone(),
                 items,
                 marker,
