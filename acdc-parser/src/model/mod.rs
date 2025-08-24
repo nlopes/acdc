@@ -125,6 +125,12 @@ pub struct BlockMetadata {
 }
 
 impl BlockMetadata {
+    pub fn move_positional_attributes_to_attributes(&mut self) {
+        for positional_attribute in self.positional_attributes.drain(..) {
+            self.attributes
+                .insert(positional_attribute, AttributeValue::None);
+        }
+    }
     pub fn set_attributes(&mut self, attributes: ElementAttributes) {
         self.attributes = attributes;
     }
@@ -137,6 +143,7 @@ impl BlockMetadata {
             && self.id.is_none()
             && self.anchors.is_empty()
             && self.attributes.is_empty()
+            && self.positional_attributes.is_empty()
     }
 }
 

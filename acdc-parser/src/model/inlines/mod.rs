@@ -1,7 +1,7 @@
 use serde::{
-    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
+    Deserialize, Serialize,
 };
 
 mod macros;
@@ -410,7 +410,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
                                 text: None,
                                 attributes: ElementAttributes::default(),
-                                target: my_target,
+                                target: Source::Path(my_target),
                                 location: my_location,
                             }))),
 

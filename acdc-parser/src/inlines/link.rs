@@ -1,18 +1,18 @@
 use pest::iterators::Pairs;
 
 use crate::{
+    model::{AttributeValue, ElementAttributes, Link, Location, Source},
     Rule,
-    model::{AttributeValue, ElementAttributes, Link, Location},
 };
 
 impl Link {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
         let mut text = None;
-        let mut target = String::new();
+        let mut target = Source::Path(String::new());
         let mut attributes = ElementAttributes::default();
         for pair in pairs {
             match pair.as_rule() {
-                Rule::url | Rule::path => target = pair.as_str().to_string(),
+                Rule::url | Rule::path => target = Source::Path(pair.as_str().to_string()),
                 Rule::named_attribute => {
                     super::parse_named_attribute(pair.into_inner(), &mut attributes);
                 }

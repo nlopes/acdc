@@ -48,7 +48,7 @@ mod model;
 mod preprocessor;
 
 pub(crate) use grammar::{
-    InlinePreprocessorParserState, ProcessedContent, ProcessedKind, inline_preprocessing,
+    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent, ProcessedKind,
 };
 use preprocessor::Preprocessor;
 
@@ -161,6 +161,7 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process_file(file_path, options)?;
+    dbg!(&input);
     parse_input(input, options)
 }
 

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ElementAttributes, Location, Substitution};
+use crate::{ElementAttributes, Location, Source, Substitution};
 
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ pub struct Link {
     // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
     pub text: Option<String>,
-    pub target: String,
+    pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
 }
