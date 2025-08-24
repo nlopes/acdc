@@ -6,7 +6,6 @@
       "name": "admonition",
       "type": "block",
       "variant": "important",
-      "delimited": " ",
       "title": [
         {
           "name": "text",

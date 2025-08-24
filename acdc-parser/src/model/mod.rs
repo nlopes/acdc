@@ -380,14 +380,11 @@ pub struct DelimitedBlock {
 }
 
 /// An `Admonition` represents an admonition in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Admonition {
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub variant: AdmonitionVariant,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<Block>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub location: Location,
 }
@@ -496,6 +493,30 @@ pub struct Section {
     pub level: SectionLevel,
     pub content: Vec<Block>,
     pub location: Location,
+}
+
+impl Serialize for Admonition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "admonition")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", &self.variant)?;
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+
+        if !self.blocks.is_empty() {
+            state.serialize_entry("blocks", &self.blocks)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
 }
 
 impl Serialize for Document {

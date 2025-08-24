@@ -182,6 +182,181 @@ fn parse_inlines(processed: &ProcessedContent) -> Result<Vec<InlineNode>, &'stat
     })
 }
 
+/// Location mapping coordinate transformations during inline processing.
+///
+/// # Location Mapping Overview
+///
+/// The inline parser operates on preprocessed text that may have undergone attribute
+/// substitutions and other transformations. This creates a complex coordinate mapping problem:
+///
+/// 1. **Original document coordinates**: Character positions in the raw AsciiDoc source
+/// 2. **Preprocessed coordinates**: Character positions after attribute substitution/processing
+/// 3. **Parsed inline coordinates**: Relative positions within the preprocessed content
+///
+/// ## Coordinate Transformation Pipeline
+///
+/// ```
+/// Original:      "{greeting} _world_!"
+/// Preprocessed:  "hello _world_!"
+/// Parsed inline: ["hello ", ItalicText("world"), "!"]
+/// ```
+///
+/// The mapping process:
+/// 1. Take parsed inline locations (relative to preprocessed text)
+/// 2. Convert to preprocessed absolute coordinates
+/// 3. Use source map to find original document coordinates
+/// 4. Convert to human-readable line/column positions
+///
+/// ## Special Cases
+///
+/// **Attribute Substitutions**: When `{greeting}` becomes `hello`, the location mapping
+/// may collapse to a single point. We detect this and expand the location to cover the
+/// full original attribute span for better error reporting and IDE support.
+///
+/// **Nested Content**: Formatted text like `**{greeting}**` requires mapping both the
+/// outer formatting markers and inner content locations correctly.
+/// Map a single location from preprocessed coordinates to original document coordinates.
+///
+/// This is the core coordinate transformation that:
+/// 1. Converts preprocessed-relative offsets to document-absolute offsets
+/// 2. Uses the preprocessor source map to find original positions
+/// 3. Computes human-readable line/column positions
+fn create_location_mapper<'a>(
+    state: &'a ParserState,
+    processed: &'a ProcessedContent,
+    base_location: &'a Location,
+) -> Box<dyn Fn(&Location) -> Location + 'a> {
+    Box::new(move |loc: &Location| -> Location {
+        tracing::info!(?base_location, ?loc, "mapping inline location");
+
+        // Convert processed-relative absolute offsets into document-absolute offsets
+        let processed_abs_start = base_location.absolute_start + loc.absolute_start;
+        let processed_abs_end = base_location.absolute_start + loc.absolute_end;
+
+        // Map those through the preprocessor source map back to original source
+        let mapped_abs_start = processed.source_map.map_position(processed_abs_start);
+        let mapped_abs_end = processed.source_map.map_position(processed_abs_end);
+
+        // Compute human positions from the document's line map
+        let start_pos = state.line_map.offset_to_position(mapped_abs_start);
+        let end_pos = state.line_map.offset_to_position(mapped_abs_end);
+
+        Location {
+            absolute_start: mapped_abs_start,
+            absolute_end: mapped_abs_end,
+            start: start_pos,
+            end: end_pos,
+        }
+    })
+}
+
+/// Apply attribute substitution location extension if needed.
+///
+/// When attribute substitutions collapse locations to a single point (e.g., `{attr}` -> `value`),
+/// we need to extend the location back to cover the original attribute span for better UX.
+fn extend_attribute_location_if_needed(
+    state: &ParserState,
+    processed: &ProcessedContent,
+    mut location: Location,
+) -> Location {
+    // Check if location is collapsed and we have attribute replacements to consider
+    if location.absolute_start == location.absolute_end
+        && !processed.source_map.replacements.is_empty()
+    {
+        // Find the attribute replacement that contains this collapsed location
+        if let Some(attr_replacement) = processed.source_map.replacements.iter().find(|rep| {
+            rep.kind == crate::grammar::inline_preprocessor::ProcessedKind::Attribute
+                && location.absolute_start >= rep.absolute_start
+                && location.absolute_start < rep.processed_end
+        }) {
+            tracing::debug!(from=?location, to=?attr_replacement,
+                "Extending collapsed location to full attribute span",
+            );
+
+            // Extend location to cover the full original attribute
+            let start_pos = state
+                .line_map
+                .offset_to_position(attr_replacement.absolute_start);
+            let end_pos = state
+                .line_map
+                .offset_to_position(attr_replacement.absolute_end);
+            location = Location {
+                absolute_start: attr_replacement.absolute_start,
+                absolute_end: attr_replacement.absolute_end,
+                start: start_pos,
+                end: end_pos,
+            };
+        }
+    }
+    location
+}
+
+/// Map locations for inner content within formatted text (bold, italic, etc.).
+///
+/// This handles the complex case where formatted text contains nested content that may
+/// include attribute substitutions requiring location extension.
+fn map_inner_content_locations(
+    content: Vec<InlineNode>,
+    map_loc: &dyn Fn(&Location) -> Location,
+    state: &ParserState,
+    processed: &ProcessedContent,
+) -> Vec<InlineNode> {
+    content
+        .into_iter()
+        .map(|node| match node {
+            InlineNode::PlainText(mut inner_plain) => {
+                // Map to document coordinates first
+                let mapped = map_loc(&inner_plain.location);
+                // Apply attribute location extension if needed
+                inner_plain.location =
+                    extend_attribute_location_if_needed(state, processed, mapped);
+                InlineNode::PlainText(inner_plain)
+            }
+            other => other,
+        })
+        .collect()
+}
+
+/// Map locations for formatted text nodes (bold, italic, etc.).
+///
+/// This handles both the outer formatting location and any inner content locations,
+/// with special handling for attribute substitutions.
+fn map_formatted_text_locations<T>(
+    mut formatted_text: T,
+    map_loc: &dyn Fn(&Location) -> Location,
+    state: &ParserState,
+    processed: &ProcessedContent,
+    get_location: impl Fn(&T) -> &Location,
+    set_location: impl Fn(&mut T, Location),
+    get_content: impl Fn(&T) -> &Vec<InlineNode>,
+    set_content: impl Fn(&mut T, Vec<InlineNode>),
+) -> T {
+    // Map outer location with attribute extension
+    let mapped_outer = map_loc(get_location(&formatted_text));
+    let extended_location = extend_attribute_location_if_needed(state, processed, mapped_outer);
+    set_location(&mut formatted_text, extended_location);
+
+    // Map inner content locations
+    let mapped_content = map_inner_content_locations(
+        get_content(&formatted_text).clone(),
+        map_loc,
+        state,
+        processed,
+    );
+    set_content(&mut formatted_text, mapped_content);
+
+    formatted_text
+}
+
+/// Map inline node locations from preprocessed coordinates to original document coordinates.
+///
+/// This is the main entry point for location mapping during inline processing. It handles
+/// the complex coordinate transformations needed to map parsed inline content back to
+/// original document positions while accounting for preprocessing changes like attribute
+/// substitutions.
+///
+/// See the module-level documentation for a detailed explanation of the coordinate
+/// transformation pipeline and special cases.
 #[tracing::instrument(skip_all, fields(location=?location, processed=?processed, content=?content))]
 fn map_inline_locations(
     state: &ParserState,
@@ -190,96 +365,43 @@ fn map_inline_locations(
     location: &Location,
 ) -> Vec<InlineNode> {
     tracing::info!(?location, "mapping inline locations");
-    // Helper to map a processed-inline location to original document coordinates
-    let map_loc = |loc: &Location| -> Location {
-        tracing::info!(?location, ?loc, "mapping inline location");
-        // Convert processed-relative absolute offsets into document-absolute offsets
-        let processed_abs_start = location.absolute_start + loc.absolute_start;
-        let processed_abs_end = location.absolute_start + loc.absolute_end;
-        // Map those through the preprocessor source map back to original source
-        let mapped_abs_start = processed.source_map.map_position(processed_abs_start);
-        let mapped_abs_end = processed.source_map.map_position(processed_abs_end);
-        // Compute human positions from the document's line map
-        let start_pos = state.line_map.offset_to_position(mapped_abs_start);
-        let end_pos = state.line_map.offset_to_position(mapped_abs_end);
-        Location {
-            absolute_start: mapped_abs_start,
-            absolute_end: mapped_abs_end,
-            start: start_pos,
-            end: end_pos,
-        }
-    };
+
+    let map_loc = create_location_mapper(state, processed, location);
 
     content
         .into_iter()
-        .map(|inline| {
-            match inline {
-                InlineNode::PlainText(plain) => InlineNode::PlainText(Plain {
-                    content: plain.content.clone(),
-                    location: map_loc(&plain.location),
-                }),
-                InlineNode::ItalicText(unconstrained_text) => {
-                    let mut unconstrained_text = unconstrained_text.clone();
-                    // Map outer location
-                    unconstrained_text.location = map_loc(&unconstrained_text.location);
-                    // Map inner content locations as well
-                    unconstrained_text.content = unconstrained_text
-                        .content
-                        .into_iter()
-                        .map(|node| match node {
-                            InlineNode::PlainText(mut inner_plain) => {
-                                // Map to document coordinates first
-                                let mut mapped = map_loc(&inner_plain.location);
-                                // Align inner start to the outer italic start to match expected source mapping
-                                mapped.start = unconstrained_text.location.start.clone();
-                                mapped.absolute_start = unconstrained_text.location.absolute_start;
-                                // And cap the end based on the inner text length (inclusive)
-                                let inner_len_chars = inner_plain.content.chars().count();
-                                mapped.end.line = unconstrained_text.location.start.line;
-                                mapped.end.column = unconstrained_text.location.start.column
-                                    + inner_len_chars.saturating_sub(1);
-                                mapped.absolute_end = mapped.absolute_start
-                                    + inner_plain.content.len().saturating_sub(1);
-                                inner_plain.location = mapped;
-                                InlineNode::PlainText(inner_plain)
-                            }
-                            other => other,
-                        })
-                        .collect();
-                    InlineNode::ItalicText(unconstrained_text.clone())
-                }
-                InlineNode::BoldText(unconstrained_text) => {
-                    let mut unconstrained_text = unconstrained_text.clone();
-                    // Map outer location
-                    unconstrained_text.location = map_loc(&unconstrained_text.location);
-                    // Map inner content locations as well
-                    unconstrained_text.content = unconstrained_text
-                        .content
-                        .into_iter()
-                        .map(|node| match node {
-                            InlineNode::PlainText(mut inner_plain) => {
-                                // Map to document coordinates first
-                                let mut mapped = map_loc(&inner_plain.location);
-                                // Align inner start to the outer italic start to match expected source mapping
-                                mapped.start = unconstrained_text.location.start.clone();
-                                mapped.absolute_start = unconstrained_text.location.absolute_start;
-                                // And cap the end based on the inner text length (inclusive)
-                                let inner_len_chars = inner_plain.content.chars().count();
-                                mapped.end.line = unconstrained_text.location.start.line;
-                                mapped.end.column = unconstrained_text.location.start.column
-                                    + inner_len_chars.saturating_sub(1);
-                                mapped.absolute_end = mapped.absolute_start
-                                    + inner_plain.content.len().saturating_sub(1);
-                                inner_plain.location = mapped;
-                                InlineNode::PlainText(inner_plain)
-                            }
-                            other => other,
-                        })
-                        .collect();
-                    InlineNode::BoldText(unconstrained_text.clone())
-                }
-                other => other.clone(),
+        .map(|inline| match inline {
+            InlineNode::PlainText(plain) => InlineNode::PlainText(Plain {
+                content: plain.content.clone(),
+                location: map_loc(&plain.location),
+            }),
+            InlineNode::ItalicText(italic_text) => {
+                let mapped = map_formatted_text_locations(
+                    italic_text.clone(),
+                    map_loc.as_ref(),
+                    state,
+                    processed,
+                    |t| &t.location,
+                    |t, loc| t.location = loc,
+                    |t| &t.content,
+                    |t, content| t.content = content,
+                );
+                InlineNode::ItalicText(mapped)
             }
+            InlineNode::BoldText(bold_text) => {
+                let mapped = map_formatted_text_locations(
+                    bold_text.clone(),
+                    map_loc.as_ref(),
+                    state,
+                    processed,
+                    |t| &t.location,
+                    |t, loc| t.location = loc,
+                    |t| &t.content,
+                    |t, content| t.content = content,
+                );
+                InlineNode::BoldText(mapped)
+            }
+            other => other.clone(),
         })
         .collect::<Vec<_>>()
 }
@@ -686,6 +808,12 @@ peg::parser! {
             content
         }
 
+        rule until_example_delimiter() -> &'input str
+            = content:$((!(eol() example_delimiter()) [_])*)
+        {
+            content
+        }
+
         rule until_listing_delimiter() -> &'input str
             = content:$((!(eol() listing_delimiter()) [_])*)
         {
@@ -728,40 +856,91 @@ peg::parser! {
             content
         }
 
-        // Individual delimited block rules
+        // // Individual delimited block rules
+        // rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        // = open_delim:example_delimiter() eol()
+        // content_start:position!() content:blocks(offset, block_metadata.parent_section_level) content_end:position!()
+        // eol() close_delim:example_delimiter() end:position!()
+        // {?
+        //     tracing::info!(?block_metadata, ?content, "Parsing example block");
+
+        //     // Ensure the opening and closing delimiters match
+        //     if open_delim != close_delim {
+        //         return Err("mismatched example delimiters");
+        //     }
+        //     let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+        //     let title = block_metadata.get_title_nodes();
+
+        //     // We want to detect if this is an admonition block. We do that by checking if
+        //     // we have a style that matches an admonition variant.
+        //     if let Some(ref style) = block_metadata.metadata.style &&
+        //      let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
+        //             tracing::debug!("Detected admonition block with variant: {:?}", admonition_variant);
+        //             let mut metadata = block_metadata.metadata.clone();
+        //             metadata.style = None; // Clear style to avoid confusion
+        //             return Ok(Block::Admonition(Admonition {
+        //                 variant: admonition_variant,
+        //                 blocks: content,
+        //                 metadata,
+        //                 title,
+        //                 location,
+        //             }));
+        //         }
+        //     Ok(Block::DelimitedBlock(DelimitedBlock {
+        //         metadata: block_metadata.metadata.clone(),
+        //         delimiter: open_delim.to_string(),
+        //         inner: DelimitedBlockType::DelimitedExample(content),
+        //         title,
+        //         location,
+        //     }))
+        // }
+
         rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
         = open_delim:example_delimiter() eol()
-        content_start:position!() content:blocks(offset, block_metadata.parent_section_level) content_end:position!()
+        content_start:position!() content:until_example_delimiter() content_end:position!()
         eol() close_delim:example_delimiter() end:position!()
         {?
-            tracing::info!(?block_metadata, ?content, "Parsing example block");
+            tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
-            // Ensure the opening and closing delimiters match
             if open_delim != close_delim {
                 return Err("mismatched example delimiters");
             }
+            let mut metadata = block_metadata.metadata.clone();
+            metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let title = block_metadata.get_title_nodes();
 
+            let blocks = if content.trim().is_empty() {
+                Vec::new()
+            } else {
+                document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                    tracing::error!("Error parsing example content as blocks: {}", e);
+                    Vec::new()
+                })
+            };
+
+            dbg!(&block_metadata);
+            dbg!(&blocks);
             // We want to detect if this is an admonition block. We do that by checking if
             // we have a style that matches an admonition variant.
             if let Some(ref style) = block_metadata.metadata.style &&
-             let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
-                    tracing::debug!("Detected admonition block with variant: {:?}", admonition_variant);
-                    let mut metadata = block_metadata.metadata.clone();
-                    metadata.style = None; // Clear style to avoid confusion
-                    return Ok(Block::Admonition(Admonition {
-                        variant: admonition_variant,
-                        blocks: content,
-                        metadata,
-                        title,
-                        location,
-                    }));
-                }
+            let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
+                tracing::debug!(?admonition_variant, "Detected admonition block with variant");
+                let mut metadata = block_metadata.metadata.clone();
+                metadata.style = None; // Clear style to avoid confusion
+                return Ok(Block::Admonition(Admonition {
+                    variant: admonition_variant,
+                    blocks,
+                    metadata,
+                    title,
+                    location,
+                }));
+            }
+
             Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: block_metadata.metadata.clone(),
+                metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedExample(content),
+                inner: DelimitedBlockType::DelimitedExample(blocks),
                 title,
                 location,
             }))
@@ -1159,7 +1338,7 @@ peg::parser! {
         rule ordered_list_marker() -> &'input str = $(digits()? "."+)
 
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
-        = &(unordered_list_marker() whitespace()) content:(list_item()++ (eol()*<1,2>)) end:position!()
+        = &(unordered_list_marker() whitespace()) content:list_item(offset)+ end:position!()
         {?
             tracing::info!(?content, "Found unordered list block");
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
@@ -1176,7 +1355,7 @@ peg::parser! {
         }
 
         rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
-        = &(ordered_list_marker() whitespace()) content:(list_item() ++ (eol()*<1,2>)) end:position!()
+        = &(ordered_list_marker() whitespace()) content:list_item(offset)+ end:position!()
         {?
             tracing::info!(?content, "Found ordered list block");
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
@@ -1192,29 +1371,27 @@ peg::parser! {
             }))
         }
 
-        rule list_item() -> (ListItem, usize)
-            = start:position!()
-              marker:(unordered_list_marker() / ordered_list_marker())
-              whitespace()
-              checked:checklist_item()?
-              list_content_start:position!()
-              list_item:$((!(eol() / ![_]) [_])+)
-              end:position!() &(eol()*<1,2> / ![_])
+        rule list_item(offset: usize) -> (ListItem, usize)
+        = start:position!()
+        marker:(unordered_list_marker() / ordered_list_marker())
+        whitespace()
+        checked:checklist_item()?
+        list_content_start:position()
+        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker())) / ![_]) [_])+)
+        end:position!() (eol()+ / ![_])
         {?
+            tracing::info!(%list_item, %marker, ?checked, "found list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1)).map_err(|_| "could not parse depth from marker")?;
+            let (content, _) = process_inlines(&state, start, &list_content_start, end, offset, list_item)?;
             let end = end.saturating_sub(1);
 
-            tracing::info!(%list_item, %marker, ?checked, %level, "found list item");
 
             Ok((ListItem {
-                content: vec![InlineNode::PlainText(Plain {
-                    content: list_item.to_string(), // TODO(nlopes): Handle item content
-                    location: state.create_location(list_content_start, end),
-                })],
+                content,
                 level,
                 marker: marker.to_string(),
                 checked,
-                location: state.create_location(start, end),
+                location: state.create_location(start+offset, end+offset),
             }, end))
         }
 
