@@ -1,17 +1,17 @@
 use pest::iterators::Pairs;
 
 use crate::{
-    Rule,
     model::{AttributeValue, ElementAttributes, Icon, Location},
+    Rule, Source,
 };
 
 impl Icon {
     pub(crate) fn parse_inline(pairs: Pairs<Rule>, location: Location) -> Self {
-        let mut path = String::new();
+        let mut target = Source::Path(String::new());
         let mut attributes = ElementAttributes::default();
         for pair in pairs {
             match pair.as_rule() {
-                Rule::path => path = pair.as_str().to_string(),
+                Rule::path => target = Source::Path(pair.as_str().to_string()),
                 Rule::named_attribute => {
                     super::parse_named_attribute(pair.into_inner(), &mut attributes);
                 }
@@ -23,7 +23,7 @@ impl Icon {
             }
         }
         Self {
-            target: path,
+            target,
             attributes,
             location,
         }

@@ -53,7 +53,7 @@ enum BlockMetadataLine {
     Title(Vec<InlineNode>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 // Used purely in the grammar to represent the parsed block details
 struct BlockParsingMetadata {
     discrete: bool,
@@ -173,13 +173,17 @@ fn preprocess_inline_content(
     Ok((initial_location, location, processed))
 }
 
-#[tracing::instrument(skip_all, fields(processed=?processed))]
-fn parse_inlines(processed: &ProcessedContent) -> Result<Vec<InlineNode>, Error> {
+#[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
+fn parse_inlines(
+    processed: &ProcessedContent,
+    block_metadata: &BlockParsingMetadata,
+) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
     Ok(document_parser::inlines(
         &processed.text,
         &mut inline_peg_state,
         0,
+        block_metadata,
     )?)
 }
 
@@ -411,6 +415,7 @@ fn map_inline_locations(
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
 fn process_inlines(
     state: &ParserState,
+    block_metadata: &BlockParsingMetadata,
     start: usize,
     content_start: &Position,
     end: usize,
@@ -420,7 +425,7 @@ fn process_inlines(
     // Preprocess the inline content first
     let (initial_location, location, processed) =
         preprocess_inline_content(state, start, content_start, end, offset, content)?;
-    let content = parse_inlines(&processed)?;
+    let content = parse_inlines(&processed, block_metadata)?;
     let content = map_inline_locations(state, &processed, &content, &location);
     Ok((content, initial_location))
 }
@@ -669,7 +674,7 @@ peg::parser! {
         rule discrete_header(offset: usize) -> Result<Block, Error>
         = start:position!() block_metadata:block_metadata(offset, None)
         section_level:section_level(offset, None) whitespace()
-        title_start:position!() title:section_title(start, offset) title_end:position!() end:position!() &eol()*<2,2>
+        title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() end:position!() &eol()*<2,2>
         {
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
@@ -701,7 +706,7 @@ peg::parser! {
         section_level:section_level(offset, parent_section_level)
         section_level_end:position!()
         whitespace()
-        title_start:position!() title:section_title(start, offset) title_end:position!() &eol()*<2,2>
+        title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() &eol()*<2,2>
         content:section_content(offset, Some(section_level.1+1))? end:position!()
         {
             tracing::info!(?offset, ?block_metadata, ?title, ?title_start, ?title_end, "parsing section block");
@@ -787,7 +792,8 @@ peg::parser! {
         = period() start:position() &(!whitespace()) title:$([^'\n']*) end:position!() eol()
         {?
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
-            let (title, _) = process_inlines(&state, start.offset, &start, end, offset, &title).unwrap();
+            let block_metadata = BlockParsingMetadata::default();
+            let (title, _) = process_inlines(&state, &block_metadata, start.offset, &start, end, offset, &title).unwrap();
             Ok(title)
         }
 
@@ -797,11 +803,11 @@ peg::parser! {
             (level, level.len().try_into().unwrap_or(1)-1)
         }
 
-        rule section_title(start: usize, offset: usize) -> Vec<InlineNode>
+        rule section_title(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
         = title_start:position() title:$([^'\n']*) end:position!()
         {?
             tracing::info!(?title, ?title_start, start, ?end, offset, "Found section title");
-            let (content, _) = process_inlines(&state, start, &title_start, end, offset, title).unwrap();
+            let (content, _) = process_inlines(&state, block_metadata, start, &title_start, end, offset, title).unwrap();
             Ok(content)
         }
 
@@ -1280,7 +1286,7 @@ peg::parser! {
         }
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = "toc::[]" end:position!()
+        = "toc::[]" end:position!()
         {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -1292,7 +1298,7 @@ peg::parser! {
         }
 
         rule image(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = "image::" source:source() attributes:attributes() end:position!()
+        = "image::" source:source() attributes:attributes() end:position!()
         {
             let (_discrete, metadata) = attributes;
             let mut metadata = metadata.clone();
@@ -1403,7 +1409,7 @@ peg::parser! {
         rule ordered_list_marker() -> &'input str = $(digits()? "."+)
 
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = &(unordered_list_marker() whitespace()) content:list_item(offset)+ end:position!()
+        = &(unordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
             tracing::info!(?content, "Found unordered list block");
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
@@ -1420,7 +1426,7 @@ peg::parser! {
         }
 
         rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = &(ordered_list_marker() whitespace()) content:list_item(offset)+ end:position!()
+        = &(ordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
             tracing::info!(?content, "Found ordered list block");
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
@@ -1436,7 +1442,7 @@ peg::parser! {
             }))
         }
 
-        rule list_item(offset: usize) -> (ListItem, usize)
+        rule list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> (ListItem, usize)
         = start:position!()
         marker:(unordered_list_marker() / ordered_list_marker())
         whitespace()
@@ -1447,7 +1453,7 @@ peg::parser! {
         {?
             tracing::info!(%list_item, %marker, ?checked, "found list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1)).map_err(|_| "could not parse depth from marker")?;
-            let (content, _) = process_inlines(&state, start, &list_content_start, end, offset, list_item).unwrap();
+            let (content, _) = process_inlines(&state, block_metadata, start, &list_content_start, end, offset, list_item).unwrap();
             let end = end.saturating_sub(1);
 
 
@@ -1466,17 +1472,20 @@ peg::parser! {
             checked
         }
 
-        pub(crate) rule inlines(offset: usize) -> Vec<InlineNode>
-            = inlines:(non_plain_text(offset) / plain_text(offset))+ {
-                tracing::info!(?offset, ?inlines, "Found inlines");
-                inlines
-            }
+        pub(crate) rule inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
+        = inlines:(
+            non_plain_text(offset, block_metadata)
+            / plain_text(offset, block_metadata))+
+        {
+            tracing::info!(?offset, ?inlines, "Found inlines");
+            inlines
+        }
 
-        rule non_plain_text(offset: usize) -> InlineNode
+        rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(
             hard_wrap:hard_wrap(offset) { hard_wrap }
+            / image:inline_image(offset, block_metadata) { image }
             /*
-            image_inline |
             icon_inline |
             keyboard_inline |
             btn_inline |
@@ -1489,8 +1498,8 @@ peg::parser! {
              */
             / link_macro:link_macro(offset) { link_macro }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
-            / bold_text_unconstrained:bold_text_unconstrained(offset) { bold_text_unconstrained }
-            / italic_text_unconstrained:italic_text_unconstrained(offset) { italic_text_unconstrained }
+            / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
+            / italic_text_unconstrained:italic_text_unconstrained(offset, block_metadata) { italic_text_unconstrained }
             ) {
                 inline
             }
@@ -1511,6 +1520,39 @@ peg::parser! {
             InlineNode::LineBreak(LineBreak {
                 location: state.create_location((start+offset), (end + offset).saturating_sub(1)),
             })
+        }
+
+        rule inline_image(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position() "image:" source:source() attributes:attributes() end:position!()
+        {
+            let (_discrete, metadata) = attributes;
+            let mut metadata = metadata.clone();
+            let mut title = Vec::new();
+            if let Some(style) = metadata.style {
+                metadata.style = None; // Clear style to avoid confusion
+                metadata.attributes.insert("alt".to_string(), AttributeValue::String(style.clone()));
+            }
+            if metadata.positional_attributes.len() >= 2 {
+                metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
+            }
+            if metadata.positional_attributes.len() >= 1 {
+                metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
+            }
+            metadata.move_positional_attributes_to_attributes();
+            if let Some(AttributeValue::String(content)) = metadata.attributes.get("title") {
+                dbg!(&content);
+                title = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
+                dbg!(&title);
+                //metadata.attributes.remove("title");
+            }
+
+            InlineNode::Macro(InlineMacro::Image(Box::new(Image {
+                title,
+                source,
+                metadata: metadata.clone(),
+                location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
+
+            })))
         }
 
         rule link_macro(offset: usize) -> InlineNode
@@ -1538,11 +1580,11 @@ peg::parser! {
             })))
         }
 
-        rule bold_text_unconstrained(offset: usize) -> InlineNode
+        rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "**" content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
             tracing::info!(?start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
-            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content).unwrap();
+            let (content, location) = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap();
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1550,11 +1592,11 @@ peg::parser! {
             }))
         }
 
-        rule italic_text_unconstrained(offset: usize) -> InlineNode
+        rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
             tracing::info!(?offset, ?content, "Found unconstrained italic text inline");
-            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content).unwrap();
+            let (content, location) = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap();
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1562,10 +1604,10 @@ peg::parser! {
             }))
         }
 
-        rule plain_text(offset: usize) -> InlineNode
+        rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
-        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset) / bold_text_unconstrained(start_pos) / italic_text_unconstrained(start_pos)) [_])+)
+        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset, block_metadata) / bold_text_unconstrained(start_pos, block_metadata) / italic_text_unconstrained(start_pos, block_metadata)) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
@@ -1583,7 +1625,7 @@ peg::parser! {
             / eol()* ![_]
             / eol() example_delimiter()
             / eol() list(start, offset, block_metadata)
-            / eol()* section_level(offset, None)
+            / eol()* &(section_level(offset, None) (whitespace() / eol() / ![_]))
         ) [_])+)
         end:position!()
         {
@@ -1603,7 +1645,7 @@ peg::parser! {
                     location: initial_location,
                 }));
             }
-            let content = parse_inlines(&processed)?;
+            let content = parse_inlines(&processed, block_metadata)?;
             let content = map_inline_locations(state, &processed, &content, &location);
 
             if let Some(variant) = admonition {
@@ -1644,16 +1686,16 @@ peg::parser! {
 
         rule anchor() -> Anchor
             = result:(
-                start:position!() double_open_square_bracket() id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() eol() end:position!() {
+                start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() eol() end:position!() {
                 (start, id, Some(reftext), end)
             } /
-            start:position!() double_open_square_bracket() id:$([^']' | ',' | ']']+) double_close_square_bracket() eol() end:position!() {
+            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) double_close_square_bracket() eol() end:position!() {
                 (start, id, None, end)
             } /
-            start:position!() open_square_bracket() "#" id:$([^']' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() eol() end:position!() {
+            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() eol() end:position!() {
                 (start, id, Some(reftext), end)
             } /
-            start:position!() open_square_bracket() "#" id:$([^']' | ',' | ']']+) close_square_bracket() eol() end:position!() {
+            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) close_square_bracket() eol() end:position!() {
                 (start, id, None, end)
             }) {
                 let (start, id, reftext, end) = result;
@@ -1770,7 +1812,7 @@ peg::parser! {
         rule comma() = ","
         rule period() = "."
         rule empty_style() = ""
-        rule role() -> &'input str = $([^ ',' | ']' | '#' | '.' | '%']+)
+        rule role() -> &'input str = $([^(',' | ']' | '#' | '.' | '%')]+)
 
         // The option rule is used to parse options in the form of "option=value" or
         // "%option" (we don't capture the % here).
@@ -1779,7 +1821,7 @@ peg::parser! {
         // it can contain commas, which we then look for and extract the options in the
         // `attributes()` rule.
         rule option() -> &'input str =
-            $(("\"" [^'"' | ']' | '#' | '.' | '%']+ "\"") / ([^'"' | ',' | ']' | '#' | '.' | '%']+))
+        $(("\"" [^('"' | ']' | '#' | '.' | '%')]+ "\"") / ([^('"' | ',' | ']' | '#' | '.' | '%')]+))
 
         rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
@@ -1824,7 +1866,8 @@ peg::parser! {
                 )+ {
                     (Some(style), shorthands)
                 } /
-                style:positional_attribute_value() {
+                style:positional_attribute_value() !"=" {
+                    tracing::info!(%style, "Found block style without shorthands");
                     (Some(style), Vec::new())
                 } /
                 shorthands:(
@@ -1867,19 +1910,19 @@ peg::parser! {
         rule named_attribute_value() -> String
         = &"\"" inner:inner_attribute_value()
         {
-            tracing::info!("Found named attribute value (inner): {}", inner);
+            tracing::debug!(%inner, "Found named attribute value (inner)");
             inner.to_string()
         }
         / s:$([^(',' | '"' | ']')]+)
         {
-            tracing::info!("Found named attribute value: {}", s);
+            tracing::debug!(%s, "Found named attribute value");
             s.to_string()
         }
 
         rule positional_attribute_value() -> String
-        = s:$([^('"' | ',' | ']' | '#' | '.' | '%' | '=')]+ !"=")
+        = s:$([^('"' | ',' | ']' | '#' | '.' | '%' | '=')]+)
         {
-            tracing::debug!("Found positional attribute value: {}", s);
+            tracing::debug!(%s, "Found positional attribute value");
             s.to_string()
         }
 

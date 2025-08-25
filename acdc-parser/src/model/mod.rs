@@ -281,11 +281,34 @@ pub struct TableOfContents {
 //
 // - Path(std::path::PathBuf)
 // - Url(url::Url)
+// - Name(String) - used for example in menu macros or icon names
 //
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "lowercase")]
 pub enum Source {
     Path(String),
     Url(String),
+    Name(String),
+}
+
+impl FromStr for Source {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if value.starts_with("http://")
+            || value.starts_with("https://")
+            || value.starts_with("ftp://")
+            || value.starts_with("irc://")
+            || value.starts_with("mailto:")
+        {
+            // TODO(nlopes): we should use url::Url::parse here and return a Result
+            Ok(Source::Url(value.to_string()))
+        } else if value.contains('/') || value.contains('\\') {
+            Ok(Source::Path(value.to_string()))
+        } else {
+            Ok(Source::Name(value.to_string()))
+        }
+    }
 }
 
 impl std::fmt::Display for Source {
@@ -293,6 +316,7 @@ impl std::fmt::Display for Source {
         match self {
             Source::Path(path) => write!(f, "{path}"),
             Source::Url(url) => write!(f, "{url}"),
+            Source::Name(name) => write!(f, "{name}"),
         }
     }
 }
@@ -524,6 +548,30 @@ impl Serialize for Admonition {
             state.serialize_entry("blocks", &self.blocks)?;
         }
         state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for Source {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        match self {
+            Source::Path(path) => {
+                state.serialize_entry("type", "path")?;
+                state.serialize_entry("value", path)?;
+            }
+            Source::Url(url) => {
+                state.serialize_entry("type", "url")?;
+                state.serialize_entry("value", url)?;
+            }
+            Source::Name(url) => {
+                state.serialize_entry("type", "name")?;
+                state.serialize_entry("value", url)?;
+            }
+        }
         state.end()
     }
 }

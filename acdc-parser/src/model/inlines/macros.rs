@@ -28,7 +28,7 @@ pub enum PassthroughKind {
 /// An `Icon` represents an inline icon in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Icon {
-    pub target: String,
+    pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
 }
@@ -52,7 +52,7 @@ pub struct Url {
     // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
     pub text: Option<String>,
-    pub target: String,
+    pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
 }
@@ -67,7 +67,7 @@ pub struct Button {
 /// A `Menu` represents an inline menu in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Menu {
-    pub target: String,
+    pub target: Source,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<String>,
     pub location: Location,
@@ -86,6 +86,6 @@ pub type Key = String;
 /// An `Autolink` represents an inline autolink in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Autolink {
-    pub url: String,
+    pub url: Source,
     pub location: Location,
 }

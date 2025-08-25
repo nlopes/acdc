@@ -321,13 +321,14 @@ impl<'de> Deserialize<'de> for InlineNode {
                             if my_title.is_some() {
                                 return Err(de::Error::duplicate_field("title"));
                             }
-                            my_title = Some(map.next_value()?);
+                            my_title = Some(map.next_value::<Vec<InlineNode>>()?);
+                            //my_title = Some(map.next_value()?);
                         }
                         "target" => {
                             if my_target.is_some() {
                                 return Err(de::Error::duplicate_field("target"));
                             }
-                            my_target = Some(map.next_value()?);
+                            my_target = Some(map.next_value::<Source>()?);
                         }
                         "inlines" => {
                             if my_inlines.is_some() {
@@ -382,7 +383,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
                         Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
                             title: my_title,
-                            source: Source::Path(my_target),
+                            source: my_target,
                             metadata: BlockMetadata::default(),
                             location: my_location,
                         }))))
@@ -410,7 +411,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
                                 text: None,
                                 attributes: ElementAttributes::default(),
-                                target: Source::Path(my_target),
+                                target: my_target,
                                 location: my_location,
                             }))),
 
