@@ -1,4 +1,5 @@
 use crate::{
+    error::Detail,
     grammar::LineMap,
     inline_preprocessing,
     model::{ListLevel, SectionLevel},
@@ -84,6 +85,7 @@ pub(crate) fn parse_table_cell(
     parent_section_level: Option<SectionLevel>,
 ) -> TableColumn {
     let content = document_parser::blocks(content, state, cell_start_offset, parent_section_level)
+        .expect("valid blocks inside table cell")
         .unwrap_or_else(|_e| {
             //TODO(nlopes): tracing::error!(e, "Error parsing table cell content as blocks");
             Vec::new()
@@ -146,7 +148,7 @@ fn preprocess_inline_content(
     end: usize,
     offset: usize,
     content: &str,
-) -> Result<(Location, Location, ProcessedContent), &'static str> {
+) -> Result<(Location, Location, ProcessedContent), Error> {
     // Create initial location for the entire content before inline processing
     let initial_location = state.create_location(start + offset, (end + offset).saturating_sub(1));
     // parse the inline content - this needs to be handed over to the inline preprocessing
@@ -167,21 +169,18 @@ fn preprocess_inline_content(
         "before inline preprocessing run"
     );
 
-    let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)
-        .map_err(|e| {
-        tracing::error!(?e, "failed to preprocess inline content");
-        "failed to preprocess inline content"
-    })?;
+    let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)?;
     Ok((initial_location, location, processed))
 }
 
 #[tracing::instrument(skip_all, fields(processed=?processed))]
-fn parse_inlines(processed: &ProcessedContent) -> Result<Vec<InlineNode>, &'static str> {
+fn parse_inlines(processed: &ProcessedContent) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
-    document_parser::inlines(&processed.text, &mut inline_peg_state, 0).map_err(|e| {
-        tracing::error!(?e, "failed to parse inlines");
-        "failed to parse inlines"
-    })
+    Ok(document_parser::inlines(
+        &processed.text,
+        &mut inline_peg_state,
+        0,
+    )?)
 }
 
 /// Location mapping coordinate transformations during inline processing.
@@ -417,7 +416,7 @@ fn process_inlines(
     end: usize,
     offset: usize,
     content: &str,
-) -> Result<(Vec<InlineNode>, Location), &'static str> {
+) -> Result<(Vec<InlineNode>, Location), Error> {
     // Preprocess the inline content first
     let (initial_location, location, processed) =
         preprocess_inline_content(state, start, content_start, end, offset, content)?;
@@ -439,6 +438,7 @@ peg::parser! {
         // of the file.
         pub(crate) rule document() -> Result<Document, Error>
         = eol()* start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks(0, None) end:position() (eol()* / ![_]) {
+            let blocks = blocks?;
                 // For documents that end with text content (like body-only), adjust the end position
                 let document_end_offset = if blocks.is_empty() {
                     end.offset.saturating_sub(1)
@@ -632,24 +632,25 @@ peg::parser! {
             state.document_attributes.insert(key.to_string(), value);
         }
 
-        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Vec<Block>
-        = blocks:(block(offset, parent_section_level) ** (eol()*<2,> / ![_])) {
-            blocks
+        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
+        = blocks:(block(offset, parent_section_level) ** (eol()*<2,> / ![_]))
+        {
+            blocks.into_iter().map(|b| b).collect::<Result<Vec<_>, Error>>()
         }
 
-        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Block
+        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = eol()* block:(
             document_attribute_block(offset) /
             &"[discrete" dh:discrete_header(offset) { dh } /
             section(offset, parent_section_level) /
             block_generic(offset, parent_section_level))
         {
-            block
+            Ok(block?)
         }
 
-        rule discrete_header(offset: usize) -> Block
+        rule discrete_header(offset: usize) -> Result<Block, Error>
         = start:position!() block_metadata:block_metadata(offset, None)
-        section_level:section_level() whitespace()
+        section_level:section_level(offset, None) whitespace()
         title_start:position!() title:section_title(start, offset) title_end:position!() end:position!() &eol()*<2,2>
         {
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
@@ -657,43 +658,71 @@ peg::parser! {
             let level = section_level.1;
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
 
-            Block::DiscreteHeader(DiscreteHeader {
+            Ok(Block::DiscreteHeader(DiscreteHeader {
                 anchors: block_metadata.metadata.anchors,
                 title,
                 level,
                 location,
-            })
+            }))
         }
 
-        pub(crate) rule document_attribute_block(offset: usize) -> Block
+        pub(crate) rule document_attribute_block(offset: usize) -> Result<Block, Error>
         = start:position!() att:document_attribute_match() end:position!()
         {
             let (key, value) = att;
-            Block::DocumentAttribute(DocumentAttribute {
+            Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.to_string(),
                 value,
                 location: state.create_location(start+offset, end+offset)
-            })
+            }))
         }
 
-        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Block
+        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!() block_metadata:block_metadata(offset, parent_section_level)
-        section_level:section_level() whitespace()
+        section_level_start:position!()
+        section_level:section_level(offset, parent_section_level)
+        section_level_end:position!()
+        whitespace()
         title_start:position!() title:section_title(start, offset) title_end:position!() &eol()*<2,2>
-        content:section_content(offset, Some(section_level.1))* end:position!()
+        content:section_content(offset, Some(section_level.1+1))? end:position!()
         {
             tracing::info!(?offset, ?block_metadata, ?title, ?title_start, ?title_end, "parsing section block");
+
+            // Validate section level against parent section level if any is provided
+            if let Some(parent_level) = parent_section_level {
+                if section_level.1+1 <= parent_level {
+                    return Err(Error::NestedSectionLevelMismatch(
+                        Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
+                        section_level.1+1,
+                        parent_level + 1,
+                    ));
+                } else if section_level.1+1 > parent_level + 1 {
+                    return Err(Error::NestedSectionLevelMismatch(
+                        Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
+                        section_level.1+1,
+                        parent_level + 1,
+                    ));
+                } else if section_level.1+1 > 6 {
+                    // Maximum section level is 6 - this should be a different error entirely
+                    return Err(Error::NestedSectionLevelMismatch(
+                        Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
+                        section_level.1+1,
+                        parent_level + 1,
+                    ));
+                }
+            }
 
             let level = section_level.1;
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
 
-            Block::Section(Section {
+
+            Ok(Block::Section(Section {
                 metadata: block_metadata.metadata,
                 title,
                 level,
-                content: content[0].clone(),
+                content: content.unwrap_or(Ok(Vec::new()))?,
                 location
-            })
+            }))
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> BlockParsingMetadata
@@ -740,12 +769,12 @@ peg::parser! {
         = period() start:position() &(!whitespace()) title:$([^'\n']*) end:position!() eol()
         {?
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
-            let (title, _) = process_inlines(&state, start.offset, &start, end, offset, &title)?;
+            let (title, _) = process_inlines(&state, start.offset, &start, end, offset, &title).unwrap();
             Ok(title)
         }
 
-        rule section_level() -> (&'input str, SectionLevel)
-        = level:$(("=" / "#")*<1,6>)
+        rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
+        = start:position() level:$(("=" / "#")*<1,6>) end:position!()
         {
             (level, level.len().try_into().unwrap_or(1)-1)
         }
@@ -754,17 +783,14 @@ peg::parser! {
         = title_start:position() title:$([^'\n']*) end:position!()
         {?
             tracing::info!(?title, ?title_start, start, ?end, offset, "Found section title");
-            let (content, _) = process_inlines(&state, start, &title_start, end, offset, title)?;
+            let (content, _) = process_inlines(&state, start, &title_start, end, offset, title).unwrap();
             Ok(content)
         }
 
-        rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Vec<Block>
-        = blocks:block(offset, parent_section_level)+
-        {
-            blocks
-        }
+        rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
+        = blocks(offset, parent_section_level)
 
-        pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Block
+        pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!() block_metadata:block_metadata(offset, parent_section_level) block:(
                 delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
                 / image:image(start, offset, &block_metadata) { image }
@@ -784,7 +810,7 @@ peg::parser! {
             start: usize,
             offset: usize,
             block_metadata: &BlockParsingMetadata,
-        ) -> Block
+        ) -> Result<Block, Error>
         = comment_block(start, offset, block_metadata)
         / example_block(start, offset, block_metadata)
         / listing_block(start, offset, block_metadata)
@@ -860,15 +886,15 @@ peg::parser! {
             content
         }
 
-        rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = open_delim:example_delimiter() eol()
         content_start:position!() content:until_example_delimiter() content_end:position!()
         eol() close_delim:example_delimiter() end:position!()
-        {?
+        {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
             if open_delim != close_delim {
-                return Err("mismatched example delimiters");
+                return Err(Error::MismatchedDelimiters("example".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -879,8 +905,8 @@ peg::parser! {
             } else {
                 document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
                     tracing::error!("Error parsing example content as blocks: {}", e);
-                    Vec::new()
-                })
+                    Ok(Vec::new())
+                })?
             };
 
             // We want to detect if this is an admonition block. We do that by checking if
@@ -908,13 +934,13 @@ peg::parser! {
             }))
         }
 
-        rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:comment_delimiter() eol()
             content_start:position!() content:until_comment_delimiter() content_end:position!()
             eol() close_delim:comment_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched comment delimiters");
+                return Err(Error::MismatchedDelimiters("comment".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -934,13 +960,13 @@ peg::parser! {
             }))
         }
 
-        rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:listing_delimiter() eol()
             content_start:position!() content:until_listing_delimiter() content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched listing delimiters");
+                return Err(Error::MismatchedDelimiters("listing".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -959,13 +985,13 @@ peg::parser! {
             }))
         }
 
-        pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = open_delim:literal_delimiter() eol()
         content_start:position!() content:until_literal_delimiter() content_end:position!()
         eol() close_delim:literal_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched literal delimiters");
+                return Err(Error::MismatchedDelimiters("literal".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -984,13 +1010,13 @@ peg::parser! {
             }))
         }
 
-        rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:open_delimiter() eol()
             content_start:position!() content:until_open_delimiter() content_end:position!()
             eol() close_delim:open_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched open delimiters");
+                return Err(Error::MismatchedDelimiters("open".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -1020,15 +1046,15 @@ peg::parser! {
             }))
         }
 
-        rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:sidebar_delimiter() eol()
             content_start:position!() content:until_sidebar_delimiter() content_end:position!()
             eol() close_delim:sidebar_delimiter() end:position!()
-        {?
+        {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
             if open_delim != close_delim {
-                return Err("mismatched sidebar delimiters");
+                return Err(Error::MismatchedDelimiters("sidebar".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -1039,8 +1065,8 @@ peg::parser! {
             } else {
                 document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
                     tracing::error!("Error parsing sidebar content as blocks: {}", e);
-                    Vec::new()
-                })
+                    Ok(Vec::new())
+                })?
             };
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
@@ -1052,13 +1078,13 @@ peg::parser! {
             }))
         }
 
-        rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = table_start:position!() open_delim:table_delimiter() eol()
         content_start:position!() content:until_table_delimiter() content_end:position!()
         eol() close_delim:table_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched table delimiters");
+                return Err(Error::MismatchedDelimiters("table".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -1113,7 +1139,7 @@ peg::parser! {
                 if let Some(ncols) = ncols
                 && columns.len() != ncols
                 {
-                    return Err("column length does not match cols attribute");
+                    return Err(Error::InvalidTableColumnLength(columns.len(), ncols));
                 }
 
                 // if we have a header, we need to add the columns we have to the header
@@ -1149,13 +1175,13 @@ peg::parser! {
             }))
         }
 
-        rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:pass_delimiter() eol()
             content_start:position!() content:until_pass_delimiter() content_end:position!()
             eol() close_delim:pass_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched pass delimiters");
+                return Err(Error::MismatchedDelimiters("pass".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -1174,13 +1200,13 @@ peg::parser! {
             }))
         }
 
-        rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:quote_delimiter() eol()
             content_start:position!() content:until_quote_delimiter() content_end:position!()
             eol() close_delim:quote_delimiter() end:position!()
-        {?
+        {
             if open_delim != close_delim {
-                return Err("mismatched quote delimiters");
+                return Err(Error::MismatchedDelimiters("quote".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -1235,19 +1261,19 @@ peg::parser! {
             }))
         }
 
-        rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = "toc::[]" end:position!()
         {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             tracing::info!("Found Table of Contents block");
-            Block::TableOfContents(TableOfContents {
+            Ok(Block::TableOfContents(TableOfContents {
                 metadata: metadata.clone(),
                 location: state.create_location(start+offset, end+offset),
-            })
+            }))
         }
 
-        rule image(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Block
+        rule image(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = "image::" source:source() attributes:attributes() end:position!()
         {
             let (_discrete, metadata) = attributes;
@@ -1263,34 +1289,34 @@ peg::parser! {
                 metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
-            Block::Image(Image {
+            Ok(Block::Image(Image {
                 title: Vec::new(), // TODO(nlopes): Handle image titles
                 source,
                 metadata: metadata.clone(),
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
 
-            })
+            }))
         }
 
-        rule audio(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Block
-            = "audio::" source:source() attributes:attributes() end:position!()
+        rule audio(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = "audio::" source:source() attributes:attributes() end:position!()
         {
             let (_discrete, metadata) = attributes;
             let mut metadata = metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            Block::Audio(Audio {
+            Ok(Block::Audio(Audio {
                 title: Vec::new(), // TODO(nlopes): Handle audio titles
                 source,
                 metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
-            })
+            }))
         }
 
         // The video block is similar to the audio and image blocks, but it supports
         // multiple sources. This is for example to allow passing multiple youtube video
         // ids to form a playlist.
-        rule video(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Block
-            = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
+        rule video(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
         {
             let (_discrete, metadata) = attributes;
             let mut metadata = metadata.clone();
@@ -1312,15 +1338,15 @@ peg::parser! {
                 metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
-            Block::Video(Video {
+            Ok(Block::Video(Video {
                 title: Vec::new(), // TODO(nlopes): Handle video titles
                 sources,
                 metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
-            })
+            }))
         }
 
-        rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = ("'''"
                // Below are the markdown-style thematic breaks
                / "---"
@@ -1330,37 +1356,37 @@ peg::parser! {
             ) end:position!()
         {
             tracing::info!("Found thematic break block");
-            Block::ThematicBreak(ThematicBreak {
+            Ok(Block::ThematicBreak(ThematicBreak {
                 anchors: block_metadata.metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
                 title: Vec::new(), // TODO(nlopes): Handle thematic break titles
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
-            })
+            }))
         }
 
-        rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = "<<<" end:position!() &eol()*<2,2>
         {
             tracing::info!("Found page break block");
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
-            Block::PageBreak(PageBreak {
+            Ok(Block::PageBreak(PageBreak {
                 title: block_metadata.title.clone(),
                 metadata,
                 location: state.create_location(start+offset, end+offset),
-            })
+            }))
         }
 
-        rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = unordered_list(start, offset, block_metadata) / ordered_list(start, offset, block_metadata)
 
         rule unordered_list_marker() -> &'input str = $("*"+ / "-")
 
         rule ordered_list_marker() -> &'input str = $(digits()? "."+)
 
-        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = &(unordered_list_marker() whitespace()) content:list_item(offset)+ end:position!()
-        {?
+        {
             tracing::info!(?content, "Found unordered list block");
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, end)| item).collect();
@@ -1375,9 +1401,9 @@ peg::parser! {
             }))
         }
 
-        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = &(ordered_list_marker() whitespace()) content:list_item(offset)+ end:position!()
-        {?
+        {
             tracing::info!(?content, "Found ordered list block");
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
@@ -1403,7 +1429,7 @@ peg::parser! {
         {?
             tracing::info!(%list_item, %marker, ?checked, "found list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1)).map_err(|_| "could not parse depth from marker")?;
-            let (content, _) = process_inlines(&state, start, &list_content_start, end, offset, list_item)?;
+            let (content, _) = process_inlines(&state, start, &list_content_start, end, offset, list_item).unwrap();
             let end = end.saturating_sub(1);
 
 
@@ -1498,7 +1524,7 @@ peg::parser! {
             = start:position() "**" content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
             tracing::info!(?start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
-            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content)?;
+            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content).unwrap();
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1510,7 +1536,7 @@ peg::parser! {
             = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
             tracing::info!(?offset, ?content, "Found unconstrained italic text inline");
-            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content)?;
+            let (content, location) = process_inlines(&state, start.offset, &start, end, offset, content).unwrap();
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1531,7 +1557,7 @@ peg::parser! {
             })
         }
 
-        rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
+        rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = admonition:admonition()?
         content_start:position()
         content:$((!(
@@ -1541,7 +1567,7 @@ peg::parser! {
             / eol() list(start, offset, block_metadata)
         ) [_])+)
         end:position!()
-        {?
+        {
             let (initial_location, location, processed) = preprocess_inline_content(state, start, &content_start, end, offset, content)?;
             if processed.text.starts_with(' ') {
                 tracing::debug!(?processed, "preprocessed inline content starts with a space - switching to literal block");
@@ -1564,7 +1590,7 @@ peg::parser! {
             if let Some(variant) = admonition {
                 let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
-                    return Err("invalid admonition variant");
+                    return Err(Error::InvalidAdmonitionVariant(variant) );
                 };
                 tracing::info!(%variant, "found admonition block with variant");
                 Ok(Block::Admonition(Admonition{

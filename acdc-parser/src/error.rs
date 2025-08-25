@@ -16,6 +16,15 @@ pub enum Error {
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
     NestedSectionLevelMismatch(Detail, SectionLevel, SectionLevel),
 
+    #[error("table row has {0} columns, expected {1}")]
+    InvalidTableColumnLength(usize, usize),
+
+    #[error("mismatched delimiters: {0}")]
+    MismatchedDelimiters(String),
+
+    #[error("Invalid admonition variant: {0}")]
+    InvalidAdmonitionVariant(String),
+
     #[error("Invalid conditional directive")]
     InvalidConditionalDirective,
 
