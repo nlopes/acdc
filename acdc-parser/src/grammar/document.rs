@@ -766,7 +766,7 @@ peg::parser! {
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
         rule title_line(offset: usize) -> Vec<InlineNode>
-        = period() start:position() &(!whitespace()) title:$([^'\n']*) end:position!() eol()
+        = period() start:position() &(!(whitespace() / period())) title:$([^'\n']*) end:position!() eol()
         {?
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();

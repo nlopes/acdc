@@ -228,100 +228,28 @@ mod tests {
         }
     }
 
-    //     #[test]
-    //     #[tracing_test::traced_test]
-    //     fn test_something1() {
-    //         let options = Options {
-    //             safe_mode: SafeMode::Unsafe,
-    //             timings: false,
-    //             document_attributes: DocumentAttributes::default(),
-    //         };
-    //         let result = parse("
-    //     = Test Document
-    //     :docname: test-doc
-    //     :version: 2.0
-    //     :nested1: {version}
-    //     :nested2: {nested1}
-    //     :url: https://example.org
-
-    //     // Basic paragraph with attribute
-    //     This is {docname} version {version}.
-
-    //     // Paragraph with nested attributes
-    //     The document is at version {nested2} right now.
-
-    //     // Basic passthrough tests
-    //     Here is some +*escaped bold*+ and ++**more escaped**++.
-
-    //     // Pass macro variations
-    //     Look at pass:q[*quoted*] vs pass:a[{docname}] and pass:q,a[_{docname}_].
-
-    //     // Complex pass macro with HTML and attributes
-    //     The text pass:q,a[<u>My doc *{docname}* v{version}</u>] is underlined.
-
-    //     // Test attributes in links
-    //     Check {url}[the main site] for more.
-    //     The {url}[site] has more info.
-
-    //     // Complex nesting test
-    //     See pass:a[version *{nested2}*] details at +https://link.to/{docname}+ or pass:q,a[this **{url}[{docname}]**].
-
-    //     // Multiple attributes in one line
-    //     Project {docname} v{version} by pass:a[{author}].",
-    //             &options
-    //         )
-    //                 .unwrap();
-    //         dbg!(&result);
-    //         panic!();
-    //     }
-
-    //     #[test]
-    //     #[tracing_test::traced_test]
-    //     fn test_something2() {
-    //         let options = Options {
-    //             safe_mode: SafeMode::Unsafe,
-    //             timings: false,
-    //             document_attributes: DocumentAttributes::default(),
-    //         };
-    //         let result = parse(
-    //             ":norberto: meh
-    // :asdf: something + \\
-    // or other {norberto}
-    // :app-name: pass:q[MyApp^2^]
-
-    // == Section **Title**
-
-    // First: {asdf}
-
-    // :asdf: another thing {asdf}
-
-    // Second: {asdf}
-
-    // {app-name}
-
-    // Click image:pause.png[title=Pause **for** stuff] when you need a break.
-
-    // .Something other meh
-    // Ok here we go, a paragraph.
-
-    // .Mint
-    // [sidebar]
-    // Mint has visions of global conquest.
-    // If you don't plant it in a container, it will take over your garden.
-    // ",
-    //             &options,
-    //         )
-    //         .unwrap();
-    //         dbg!(&result);
-    //         panic!();
-    //     }
+    // #[test]
+    // #[tracing_test::traced_test]
+    // fn test_something() {
+    //     let options = Options {
+    //         safe_mode: SafeMode::Unsafe,
+    //         timings: false,
+    //         document_attributes: DocumentAttributes::default(),
+    //     };
+    //     let result = parse_file("../test_something1.adoc", &options).unwrap();
+    //     dbg!(&result);
+    //     panic!();
+    // }
 
     // #[test]
     // #[tracing_test::traced_test]
     // fn test_mdbasics_adoc() {
-    //     let result = PestParser
-    //         .parse_file("fixtures/samples/mdbasics/mdbasics.adoc")
-    //         .unwrap();
+    //     let options = Options {
+    //         safe_mode: SafeMode::Unsafe,
+    //         timings: false,
+    //         document_attributes: DocumentAttributes::default(),
+    //     };
+    //     let result = parse_file("fixtures/samples/mdbasics/mdbasics.adoc", &options).unwrap();
     //     dbg!(&result);
     //     panic!()
     // }
