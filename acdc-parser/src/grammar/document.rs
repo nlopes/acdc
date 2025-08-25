@@ -638,14 +638,32 @@ peg::parser! {
             blocks.into_iter().map(|b| b).collect::<Result<Vec<_>, Error>>()
         }
 
+
         pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = eol()* block:(
             document_attribute_block(offset) /
             &"[discrete" dh:discrete_header(offset) { dh } /
-            section(offset, parent_section_level) /
-            block_generic(offset, parent_section_level))
+            !same_or_higher_level_section(offset, parent_section_level) section:section(offset, parent_section_level) { section } /
+            block_generic(offset, parent_section_level)
+        )
         {
             Ok(block?)
+        }
+
+        // Check if the upcoming content is a section at same or higher level (which should not be parsed as content)
+        rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
+        = level:section_level(offset, parent_section_level)
+        {?
+            if let Some(parent_level) = parent_section_level {
+                let upcoming_level = level.1 + 1; // Convert to 1-based
+                if upcoming_level <= parent_level {
+                    Ok(()) // This IS a same or higher level section, so the negative lookahead will fail
+                } else {
+                    Err("not a same or higher level section")
+                }
+            } else {
+                Err("no parent section level to compare")
+            }
         }
 
         rule discrete_header(offset: usize) -> Result<Block, Error>
@@ -1565,6 +1583,7 @@ peg::parser! {
             / eol()* ![_]
             / eol() example_delimiter()
             / eol() list(start, offset, block_metadata)
+            / eol()* section_level(offset, None)
         ) [_])+)
         end:position!()
         {
@@ -1911,7 +1930,6 @@ peg::parser! {
                 (key, AttributeValue::Bool(false))
             } else if let Some(value) = maybe_value {
                 let value = value.join("");
-                dbg!(&value);
                 // if it's not unset, and we have a value, set it to that
                 // e.g: :background-color: #fff
 
@@ -2452,7 +2470,6 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 4);
-        dbg!(&result.blocks[0]);
         assert!(matches!(&result.blocks[0], Block::PageBreak(page_break)
                  if page_break.location.absolute_start == 31
                  && page_break.location.absolute_end == 34
@@ -2581,7 +2598,6 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             .unwrap()
             .unwrap();
         assert_eq!(result.blocks.len(), 2);
-        dbg!(&result.blocks[0]);
         assert!(matches!(&result.blocks[0], Block::DiscreteHeader(heading)
                  if heading.level == 1
                  && heading.title == vec![InlineNode::PlainText(Plain {
@@ -2594,7 +2610,6 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                      }
                  })]
         ));
-        dbg!(&result.blocks[1]);
         assert!(matches!(&result.blocks[1], Block::Paragraph(paragraph)
             if paragraph.content == vec![InlineNode::PlainText(Plain {
                 content: "A paragraph".to_string(),
