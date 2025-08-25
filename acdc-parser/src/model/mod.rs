@@ -288,6 +288,15 @@ pub enum Source {
     Url(String),
 }
 
+impl std::fmt::Display for Source {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Source::Path(path) => write!(f, "{path}"),
+            Source::Url(url) => write!(f, "{url}"),
+        }
+    }
+}
+
 /// A `DescriptionList` represents a description list in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DescriptionList {

@@ -96,7 +96,7 @@ impl Render for Link {
             .text
             .as_ref()
             .map(|t| substitution_text(t))
-            .unwrap_or(self.target.clone());
+            .unwrap_or(format!("{}", self.target));
         if options.inlines_basic {
             write!(w, "{text}")?;
         } else {
