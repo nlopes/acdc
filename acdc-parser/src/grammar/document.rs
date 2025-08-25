@@ -1610,23 +1610,56 @@ peg::parser! {
             })))
         }
 
+        /// Parse link macros with custom attribute handling.
+        ///
+        /// Link macros have the format: `link:target[text,attr1=value1,attr2=value2]`
+        ///
+        /// ## Why Custom Parsing is Required
+        ///
+        /// Link attributes cannot use the generic `attributes()` rule because:
+        ///
+        /// 1. **Different Character Rules**: Link text can contain single quotes (`'`) and other
+        ///    characters that are treated as delimiters in block attributes. For example:
+        ///    - `link:file.adoc[see the 'quoted' text]` - single quotes are valid in link text
+        ///
+        /// 2. **Text vs Attributes**: The first element in link brackets is display text,
+        ///    not an attribute. Block attributes expect all content to be attribute
+        ///    definitions or block style.
+        ///
+        /// 3. **Delimiter Precedence**: In links, commas separate text from attributes, while in
+        ///    block attributes, the first positional value is treated as a style/role.
+        ///
+        /// ## Parsing Strategy
+        ///
+        /// 1. **Try text + attributes**: `link_title()` followed by comma-separated attributes
+        /// 2. **Fallback to attributes only**: If no valid title is found, parse as pure attributes
+        ///
+        /// The `link_title()` rule handles both quoted (`"text"`) and unquoted text, stopping at:
+        /// - Commas (indicating start of attributes)
+        /// - Closing brackets (end of link)
+        /// - Attribute patterns (`name=value`)
+        ///
+        /// This approach isolates link parsing from block attribute parsing, preventing
+        /// regressions in other parts of the parser while correctly handling edge cases
+        /// like quotes, special characters, and mixed content.
         rule link_macro(offset: usize) -> InlineNode
-        = start:position!() "link:" target:source()
-        // "["
-        // content:(
-        //     title:link_title() attributes:("," ++ attribute()) { (Some(title), attributes) }
-        //     / title:link_title() { (Some(title), vec![]) }
-        //     / attributes:(attribute() ** comma()) { (None, attributes) }
-        // )
-        // "]"
-        attributes:attributes()
-        end:position!()
+        = start:position!() "link:" target:source() "[" content:(
+            title:link_title() attributes:("," att:attribute() { att })* {
+                (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
+            } /
+            attributes:(att:attribute() comma()? { att })* {
+                (None, attributes.into_iter().flatten().collect::<Vec<_>>())
+            }
+        ) "]" end:position!()
         {?
-            tracing::info!(?target, ?attributes, "Found link macro inline");
-            let (_discrete, metadata) = attributes;
-            let mut metadata = metadata.clone();
-            let text = metadata.style.clone();
-            metadata.style = None; // Clear style to avoid confusion
+            tracing::info!(?target, ?content, "Found link macro inline");
+            let (text, attributes) = content;
+            let mut metadata = BlockMetadata::default();
+            for (k, v, _pos) in attributes {
+                if let AttributeValue::String(v) = v {
+                    metadata.attributes.insert(k, AttributeValue::String(v));
+                }
+            }
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
                 text,
                 target,
@@ -1634,6 +1667,26 @@ peg::parser! {
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
             })))
         }
+
+        /// Parse link title text with proper quote and delimiter handling.
+        ///
+        /// Supports two formats:
+        /// 1. **Quoted text**: `"any text including 'quotes' and ,commas"`
+        /// 2. **Unquoted text**: `any text until , or ] or name=value`
+        ///
+        /// Unlike block attributes, link titles can contain:
+        /// - Single quotes: `link:file[see the 'source' code]`
+        /// - Periods: `link:file[version 1.2.3 notes]`
+        /// - Hash symbols: `link:file[C# programming guide]`
+        /// - Other special characters that would terminate block attribute parsing
+        ///
+        /// The unquoted parsing stops at:
+        /// - `,` (start of attributes)
+        /// - `]` (end of link)
+        /// - `name=` patterns (attribute definitions)
+        rule link_title() -> String
+        = "\"" title:$((!"\"" [_])*) "\"" { title.to_string() }
+        / title:$((!(("," / "]") / (attribute_name() "=")) [_])+) { title.to_string() }
 
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "**" content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
