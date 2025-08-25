@@ -68,8 +68,14 @@ impl Document {
     }
 
     // Remove an attribute from the document.
-    pub fn remove(&mut self, name: AttributeName) -> Option<AttributeValue> {
-        self.0.remove(&name)
+    pub fn remove<K: AsRef<str> + std::cmp::Ord + ?Sized>(
+        &mut self,
+        name: &K,
+    ) -> Option<AttributeValue>
+    where
+        AttributeName: std::borrow::Borrow<K>,
+    {
+        self.0.remove(name)
     }
 }
 

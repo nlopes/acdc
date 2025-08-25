@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 use crate::{
     error::Detail,
     grammar::LineMap,
@@ -194,7 +195,7 @@ fn parse_inlines(
 /// The inline parser operates on preprocessed text that may have undergone attribute
 /// substitutions and other transformations. This creates a complex coordinate mapping problem:
 ///
-/// 1. **Original document coordinates**: Character positions in the raw AsciiDoc source
+/// 1. **Original document coordinates**: Character positions in the raw `AsciiDoc` source
 /// 2. **Preprocessed coordinates**: Character positions after attribute substitution/processing
 /// 3. **Parsed inline coordinates**: Relative positions within the preprocessed content
 ///
@@ -374,7 +375,7 @@ fn map_inline_locations(
     let map_loc = create_location_mapper(state, processed, location);
 
     content
-        .into_iter()
+        .iter()
         .map(|inline| match inline {
             InlineNode::PlainText(plain) => InlineNode::PlainText(Plain {
                 content: plain.content.clone(),
@@ -444,42 +445,32 @@ peg::parser! {
         pub(crate) rule document() -> Result<Document, Error>
         = eol()* start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks(0, None) end:position() (eol()* / ![_]) {
             let blocks = blocks?;
-                // For documents that end with text content (like body-only), adjust the end position
-                let document_end_offset = if blocks.is_empty() {
-                    end.offset.saturating_sub(1)
-                } else {
-                    // If the last block is a paragraph with only text content, use its end position
-                    match blocks.last().unwrap() {
-                        Block::Paragraph(_) | Block::Admonition(_) => end.offset.saturating_sub(1),
-                        _ => end.offset.saturating_sub(1),
-                    }
-                };
-
-                Ok(Document {
-                    name: "document".to_string(),
-                    r#type: "block".to_string(),
-                    header,
-                    location: Location {
-                        absolute_start: start.offset,
-                        absolute_end: document_end_offset,
-                        // The start position is the start of the document, but if the end offset is 0, we set it to 0
-                        start: if end.offset == 0 { crate::Position{
-                            column: 0,
-                            .. start.position
-                        }} else {
-                            start.position
-                        },
-                        end: if end.offset == 0 { crate::Position{
-                            column: 0,
-                            .. end.position
-                        }} else {
-                            state.line_map.offset_to_position(document_end_offset)
-                        },
+            let document_end_offset = end.offset.saturating_sub(1);
+            Ok(Document {
+                name: "document".to_string(),
+                r#type: "block".to_string(),
+                header,
+                location: Location {
+                    absolute_start: start.offset,
+                    absolute_end: document_end_offset,
+                    // The start position is the start of the document, but if the end offset is 0, we set it to 0
+                    start: if end.offset == 0 { crate::Position{
+                        column: 0,
+                        .. start.position
+                    }} else {
+                        start.position
                     },
-                    attributes: state.document_attributes.clone(),
-                    blocks,
-                })
-            }
+                    end: if end.offset == 0 { crate::Position{
+                        column: 0,
+                        .. end.position
+                    }} else {
+                        state.line_map.offset_to_position(document_end_offset)
+                    },
+                },
+                attributes: state.document_attributes.clone(),
+                blocks,
+            })
+        }
 
         pub(crate) rule header() -> Option<Header>
             = start:position!()
@@ -640,7 +631,7 @@ peg::parser! {
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
         = blocks:(block(offset, parent_section_level) ** (eol()*<2,> / ![_]))
         {
-            blocks.into_iter().map(|b| b).collect::<Result<Vec<_>, Error>>()
+            blocks.into_iter().collect::<Result<Vec<_>, Error>>()
         }
 
 
@@ -652,7 +643,7 @@ peg::parser! {
             block_generic(offset, parent_section_level)
         )
         {
-            Ok(block?)
+            block
         }
 
         // Check if the upcoming content is a section at same or higher level (which should not be parsed as content)
@@ -712,27 +703,13 @@ peg::parser! {
             tracing::info!(?offset, ?block_metadata, ?title, ?title_start, ?title_end, "parsing section block");
 
             // Validate section level against parent section level if any is provided
-            if let Some(parent_level) = parent_section_level {
-                if section_level.1+1 <= parent_level {
+            if let Some(parent_level) = parent_section_level && (
+                section_level.1 < parent_level  || section_level.1+1 > parent_level+1 || section_level.1 > 5) {
                     return Err(Error::NestedSectionLevelMismatch(
                         Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
                         section_level.1+1,
                         parent_level + 1,
                     ));
-                } else if section_level.1+1 > parent_level + 1 {
-                    return Err(Error::NestedSectionLevelMismatch(
-                        Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
-                        section_level.1+1,
-                        parent_level + 1,
-                    ));
-                } else if section_level.1+1 > 6 {
-                    // Maximum section level is 6 - this should be a different error entirely
-                    return Err(Error::NestedSectionLevelMismatch(
-                        Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
-                        section_level.1+1,
-                        parent_level + 1,
-                    ));
-                }
             }
 
             let level = section_level.1;
@@ -793,7 +770,7 @@ peg::parser! {
         {?
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
-            let (title, _) = process_inlines(&state, &block_metadata, start.offset, &start, end, offset, &title).unwrap();
+            let (title, _) = process_inlines(state, &block_metadata, start.offset, &start, end, offset, title).unwrap();
             Ok(title)
         }
 
@@ -807,7 +784,7 @@ peg::parser! {
         = title_start:position() title:$([^'\n']*) end:position!()
         {?
             tracing::info!(?title, ?title_start, start, ?end, offset, "Found section title");
-            let (content, _) = process_inlines(&state, block_metadata, start, &title_start, end, offset, title).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start, &title_start, end, offset, title).unwrap();
             Ok(content)
         }
 
@@ -1309,7 +1286,7 @@ peg::parser! {
             if metadata.positional_attributes.len() >= 2 {
                 metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
             }
-            if metadata.positional_attributes.len() >= 1 {
+            if !metadata.positional_attributes.is_empty() {
                 metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
@@ -1358,7 +1335,7 @@ peg::parser! {
             if metadata.positional_attributes.len() >= 2 {
                 metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
             }
-            if metadata.positional_attributes.len() >= 1 {
+            if !metadata.positional_attributes.is_empty() {
                 metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
@@ -1453,7 +1430,7 @@ peg::parser! {
         {?
             tracing::info!(%list_item, %marker, ?checked, "found list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1)).map_err(|_| "could not parse depth from marker")?;
-            let (content, _) = process_inlines(&state, block_metadata, start, &list_content_start, end, offset, list_item).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start, &list_content_start, end, offset, list_item).unwrap();
             let end = end.saturating_sub(1);
 
 
@@ -1535,15 +1512,13 @@ peg::parser! {
             if metadata.positional_attributes.len() >= 2 {
                 metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
             }
-            if metadata.positional_attributes.len() >= 1 {
+            if !metadata.positional_attributes.is_empty() {
                 metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
             if let Some(AttributeValue::String(content)) = metadata.attributes.get("title") {
-                dbg!(&content);
-                title = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
-                dbg!(&title);
-                metadata.attributes.remove("title".to_string());
+                title = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
+                metadata.attributes.remove("title");
             }
 
             InlineNode::Macro(InlineMacro::Image(Box::new(Image {

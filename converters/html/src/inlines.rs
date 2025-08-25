@@ -126,7 +126,8 @@ impl Render for Url {
                     None
                 }
             })
-            .unwrap_or(&self.target);
+            .unwrap_or(&format!("{}", self.target))
+            .to_string();
 
         if options.inlines_basic {
             write!(w, "{text}")?;
@@ -152,6 +153,7 @@ impl Render for Image {
             match &self.source {
                 Source::Url(url) => url,
                 Source::Path(path) => path,
+                Source::Name(name) => name,
             }
         )?;
         if !self.title.is_empty() {

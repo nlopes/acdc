@@ -211,8 +211,7 @@ impl Table {
         let mut current_offset = row_start_offset;
 
         for line in row_lines {
-            if line.starts_with(separator) {
-                let cell_content_with_spaces = &line[separator.len()..];
+            if let Some(cell_content_with_spaces) = line.strip_prefix(separator) {
                 let cell_content = cell_content_with_spaces.trim();
 
                 // Find where the actual content starts (after separator and leading spaces)
