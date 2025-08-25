@@ -1543,7 +1543,7 @@ peg::parser! {
                 dbg!(&content);
                 title = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
                 dbg!(&title);
-                //metadata.attributes.remove("title");
+                metadata.attributes.remove("title".to_string());
             }
 
             InlineNode::Macro(InlineMacro::Image(Box::new(Image {
@@ -1584,7 +1584,7 @@ peg::parser! {
             = start:position() "**" content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
             tracing::info!(?start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
-            let (content, location) = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap();
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1596,7 +1596,7 @@ peg::parser! {
             = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
             tracing::info!(?offset, ?content, "Found unconstrained italic text inline");
-            let (content, location) = process_inlines(&state, block_metadata, start.offset, &start, end, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap();
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
