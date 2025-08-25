@@ -6,19 +6,21 @@ use crate::{
     Bold, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute,
     DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
     InlinePreprocessorParserState, Italic, LineBreak, Link, ListItem, ListItemCheckedStatus,
-    Location, OrderedList, PageBreak, Paragraph, Plain, ProcessedContent, Raw, Section, Source,
-    Table, TableOfContents, ThematicBreak, UnorderedList, Video,
+    Location, Options, OrderedList, PageBreak, Paragraph, Plain, ProcessedContent, Raw, Section,
+    Source, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, UnorderedList, Video,
 };
 
 #[derive(Debug)]
 pub(crate) struct ParserState {
     pub(crate) document_attributes: DocumentAttributes,
     pub(crate) line_map: LineMap,
+    pub(crate) options: Options,
 }
 
 impl ParserState {
     pub(crate) fn new(input: &str) -> Self {
         Self {
+            options: Options::default(),
             document_attributes: DocumentAttributes::default(),
             line_map: LineMap::new(input),
         }
@@ -73,6 +75,20 @@ struct RevisionInfo {
     number: String,
     date: Option<String>,
     remark: Option<String>,
+}
+
+pub(crate) fn parse_table_cell(
+    content: &str,
+    state: &mut ParserState,
+    cell_start_offset: usize,
+    parent_section_level: Option<SectionLevel>,
+) -> TableColumn {
+    let content = document_parser::blocks(content, state, cell_start_offset, parent_section_level)
+        .unwrap_or_else(|_e| {
+            //TODO(nlopes): tracing::error!(e, "Error parsing table cell content as blocks");
+            Vec::new()
+        });
+    TableColumn { content }
 }
 
 /// Generate initials from first, optional middle, and last name parts
@@ -698,8 +714,8 @@ peg::parser! {
                         discrete = attr_discrete;
                         metadata.id = attr_metadata.id;
                         metadata.style = attr_metadata.style;
-                        metadata.roles = attr_metadata.roles;
-                        metadata.options = attr_metadata.options;
+                        metadata.roles.extend(attr_metadata.roles);
+                        metadata.options.extend(attr_metadata.options);
                         metadata.attributes = attr_metadata.attributes;
                         metadata.positional_attributes = attr_metadata.positional_attributes;
                     },
@@ -843,45 +859,6 @@ peg::parser! {
         {
             content
         }
-
-        // // Individual delimited block rules
-        // rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
-        // = open_delim:example_delimiter() eol()
-        // content_start:position!() content:blocks(offset, block_metadata.parent_section_level) content_end:position!()
-        // eol() close_delim:example_delimiter() end:position!()
-        // {?
-        //     tracing::info!(?block_metadata, ?content, "Parsing example block");
-
-        //     // Ensure the opening and closing delimiters match
-        //     if open_delim != close_delim {
-        //         return Err("mismatched example delimiters");
-        //     }
-        //     let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-        //     let title = block_metadata.get_title_nodes();
-
-        //     // We want to detect if this is an admonition block. We do that by checking if
-        //     // we have a style that matches an admonition variant.
-        //     if let Some(ref style) = block_metadata.metadata.style &&
-        //      let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
-        //             tracing::debug!("Detected admonition block with variant: {:?}", admonition_variant);
-        //             let mut metadata = block_metadata.metadata.clone();
-        //             metadata.style = None; // Clear style to avoid confusion
-        //             return Ok(Block::Admonition(Admonition {
-        //                 variant: admonition_variant,
-        //                 blocks: content,
-        //                 metadata,
-        //                 title,
-        //                 location,
-        //             }));
-        //         }
-        //     Ok(Block::DelimitedBlock(DelimitedBlock {
-        //         metadata: block_metadata.metadata.clone(),
-        //         delimiter: open_delim.to_string(),
-        //         inner: DelimitedBlockType::DelimitedExample(content),
-        //         title,
-        //         location,
-        //     }))
-        // }
 
         rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
         = open_delim:example_delimiter() eol()
@@ -1076,9 +1053,9 @@ peg::parser! {
         }
 
         rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Block
-            = open_delim:table_delimiter() eol()
-            content_start:position!() content:until_table_delimiter() content_end:position!()
-            eol() close_delim:table_delimiter() end:position!()
+        = table_start:position!() open_delim:table_delimiter() eol()
+        content_start:position!() content:until_table_delimiter() content_end:position!()
+        eol() close_delim:table_delimiter() end:position!()
         {?
             if open_delim != close_delim {
                 return Err("mismatched table delimiters");
@@ -1086,13 +1063,81 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let table_location = state.create_location(table_start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
 
+            let separator = if let Some(AttributeValue::String(sep)) = block_metadata.metadata.attributes.get("separator") {
+                sep.clone()
+            } else {
+                let mut separator = "|".to_string();
+                if let Some(AttributeValue::String(format)) = block_metadata.metadata.attributes.get("format") {
+                    separator = match format.as_str() {
+                        "csv" => ",".to_string(),
+                        "dsv" => ":".to_string(),
+                        "tsv" => "\t".to_string(),
+                        format => unimplemented!("unkown table format: {format}"),
+                    };
+                }
+                separator
+            };
+
+            let ncols = if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
+                Some(cols.split(',').count())
+            } else {
+                None
+            };
+
+            // Set this to true if the user mandates it!
+            let mut has_header = block_metadata.metadata.options.contains(&String::from("header"));
+            let raw_rows = Table::parse_rows_with_positions(content, &separator, &mut has_header, content_start+offset);
+
+            // If the user forces a noheader, we should not have a header, so after we've
+            // tried to figure out if there are any headers, we should set it to false one
+            // last time.
+            if block_metadata.metadata.options.contains(&String::from("noheader")) {
+                has_header = false;
+            }
+            let has_footer = block_metadata.metadata.options.contains(&String::from("footer"));
+
+            let mut header = None;
+            let mut footer = None;
+            let mut rows = Vec::new();
+
+            for (i, row) in raw_rows.iter().enumerate() {
+                let columns = row
+                .iter()
+                .filter(|(cell, _, _)| !cell.is_empty())
+                .map(|(cell, start, _end)| parse_table_cell(cell, state, *start, block_metadata.parent_section_level))
+                .collect::<Vec<_>>();
+                // validate that if we have ncols we have the same number of columns in each row
+                if let Some(ncols) = ncols
+                && columns.len() != ncols
+                {
+                    return Err("column length does not match cols attribute");
+                }
+
+                // if we have a header, we need to add the columns we have to the header
+                if has_header {
+                    header = Some(TableRow { columns });
+                    has_header = false;
+                    continue;
+                }
+
+                // if we have a footer, we need to add the columns we have to the footer
+                if has_footer && i == raw_rows.len() - 1 {
+                    footer = Some(TableRow { columns });
+                    continue;
+                }
+
+                // if we get here, these columns are a row
+                rows.push(TableRow { columns });
+            }
+
             let table = Table {
-                header: None,
-                footer: None,
-                rows: Vec::new(),
-                location: content_location.clone(),
+                header,
+                footer,
+                rows,
+                location: table_location.clone(),
             };
 
             Ok(Block::DelimitedBlock(DelimitedBlock {

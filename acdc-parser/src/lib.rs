@@ -182,6 +182,7 @@ fn parse_input(input: String, options: &Options) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
     let mut state = grammar::ParserState::new(&input);
     state.document_attributes = options.document_attributes.clone();
+    state.options = options.clone();
     match grammar::document_parser::document(&input, &mut state) {
         Ok(doc) => doc,
         Err(e) => {

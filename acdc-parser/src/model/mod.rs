@@ -584,6 +584,9 @@ impl Serialize for DelimitedBlock {
             | DelimitedBlockType::DelimitedVerse(inner) => {
                 state.serialize_entry("inlines", &inner)?;
             }
+            DelimitedBlockType::DelimitedTable(inner) => {
+                state.serialize_entry("content", &inner)?;
+            }
             inner => {
                 state.serialize_entry("blocks", &inner)?;
             }
