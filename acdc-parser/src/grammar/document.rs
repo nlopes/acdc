@@ -303,16 +303,22 @@ fn extend_attribute_location_if_needed(
 /// include attribute substitutions requiring location extension.
 fn map_inner_content_locations(
     content: Vec<InlineNode>,
-    map_loc: &dyn Fn(&Location) -> Location,
+    _map_loc: &dyn Fn(&Location) -> Location,
     state: &ParserState,
     processed: &ProcessedContent,
+    _base_location: &Location,
 ) -> Vec<InlineNode> {
     content
         .into_iter()
         .map(|node| match node {
             InlineNode::PlainText(mut inner_plain) => {
-                // Map to document coordinates first
-                let mapped = map_loc(&inner_plain.location);
+                // Replace passthrough placeholders in the content
+                let original_content = &inner_plain.content;
+                let content = replace_passthrough_placeholders(original_content, processed);
+                inner_plain.content = content;
+
+                // Map to document coordinates first (use normal location mapping for inner content)
+                let mapped = _map_loc(&inner_plain.location);
                 // Apply attribute location extension if needed
                 inner_plain.location =
                     extend_attribute_location_if_needed(state, processed, mapped);
@@ -332,6 +338,7 @@ fn map_formatted_text_locations<T>(
     map_loc: &dyn Fn(&Location) -> Location,
     state: &ParserState,
     processed: &ProcessedContent,
+    base_location: &Location,
     get_location: impl Fn(&T) -> &Location,
     set_location: impl Fn(&mut T, Location),
     get_content: impl Fn(&T) -> &Vec<InlineNode>,
@@ -348,10 +355,61 @@ fn map_formatted_text_locations<T>(
         map_loc,
         state,
         processed,
+        base_location,
     );
     set_content(&mut formatted_text, mapped_content);
 
     formatted_text
+}
+
+/// Replace all passthrough placeholders in content with their actual text.
+///
+/// This function processes the content string and replaces all passthrough placeholders
+/// (like ���0��� and ���1���) with their corresponding content from the passthroughs list.
+fn replace_passthrough_placeholders(content: &str, processed: &ProcessedContent) -> String {
+    let mut result = content.to_string();
+
+    // Replace each passthrough placeholder with its content
+    for (index, passthrough) in processed.passthroughs.iter().enumerate() {
+        let placeholder = format!("���{}���", index);
+        if let Some(text) = &passthrough.text {
+            result = result.replace(&placeholder, text);
+        }
+    }
+
+    result
+}
+
+/// Create a location that maps back to original source coordinates when content has been
+/// modified by passthrough replacement.
+///
+/// When we replace passthrough placeholders with their content, we need to map the location
+/// back to the original source text coordinates rather than the preprocessed coordinates.
+fn create_original_source_location(
+    plain_content: &str,
+    plain_location: &Location,
+    processed: &ProcessedContent,
+    base_location: &Location,
+) -> Location {
+    // Check if this PlainText content actually contains passthrough placeholders
+    let contains_passthroughs = !processed.passthroughs.is_empty()
+        && processed.passthroughs.iter().enumerate().any(|(index, _)| {
+            let placeholder = format!("���{}���", index);
+            plain_content.contains(&placeholder)
+        });
+
+    if contains_passthroughs {
+        // For a PlainText that contains passthrough placeholders and spans the entire content,
+        // we should map back to the original source location
+        if plain_location.absolute_start == 0 {
+            // Use the base location which represents the original source coordinates
+            return base_location.clone();
+        }
+    }
+
+    // For other cases, use the existing location mapping
+    // This is a fallback - in practice we might need more sophisticated logic here
+    plain_location.clone()
 }
 
 /// Map inline node locations from preprocessed coordinates to original document coordinates.
@@ -377,16 +435,37 @@ fn map_inline_locations(
     content
         .iter()
         .map(|inline| match inline {
-            InlineNode::PlainText(plain) => InlineNode::PlainText(Plain {
-                content: plain.content.clone(),
-                location: map_loc(&plain.location),
-            }),
+            InlineNode::PlainText(plain) => {
+                // Replace passthrough placeholders in the content
+                let original_content = &plain.content;
+                let content = replace_passthrough_placeholders(original_content, processed);
+
+                // Only use special location mapping if we actually replaced passthroughs
+                let corrected_location = if content == *original_content {
+                    // No passthrough replacement, use normal location mapping
+                    map_loc(&plain.location)
+                } else {
+                    // Content was changed by passthrough replacement, use base location
+                    create_original_source_location(
+                        original_content,
+                        &plain.location,
+                        processed,
+                        location,
+                    )
+                };
+
+                InlineNode::PlainText(Plain {
+                    content,
+                    location: corrected_location,
+                })
+            }
             InlineNode::ItalicText(italic_text) => {
                 let mapped = map_formatted_text_locations(
                     italic_text.clone(),
                     map_loc.as_ref(),
                     state,
                     processed,
+                    location,
                     |t| &t.location,
                     |t, loc| t.location = loc,
                     |t| &t.content,
@@ -400,6 +479,7 @@ fn map_inline_locations(
                     map_loc.as_ref(),
                     state,
                     processed,
+                    location,
                     |t| &t.location,
                     |t, loc| t.location = loc,
                     |t| &t.content,
@@ -1631,7 +1711,7 @@ peg::parser! {
                 tracing::info!(%variant, "found admonition block with variant");
                 Ok(Block::Admonition(Admonition{
                     metadata: block_metadata.metadata.clone(),
-                    title: Vec::new(), // TODO(nlopes): Handle admonition titles
+                    title: block_metadata.title.clone(),
                     blocks: vec![Block::Paragraph(Paragraph {
                         content,
                         metadata: block_metadata.metadata.clone(),
@@ -1895,7 +1975,7 @@ peg::parser! {
         }
 
         rule positional_attribute_value() -> String
-        = s:$([^('"' | ',' | ']' | '#' | '.' | '%' | '=')]+)
+        = s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
         {
             tracing::debug!(%s, "Found positional attribute value");
             s.to_string()
