@@ -4,9 +4,9 @@ use crate::{
     grammar::LineMap,
     inline_preprocessing,
     model::{ListLevel, SectionLevel},
-    Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata,
-    Bold, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute,
-    DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
+    Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
+    BlockMetadata, Bold, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document,
+    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
     InlinePreprocessorParserState, Italic, LineBreak, Link, ListItem, ListItemCheckedStatus,
     Location, Options, OrderedList, PageBreak, Paragraph, Plain, ProcessedContent, Raw, Section,
     Source, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, UnorderedList, Video,
@@ -17,6 +17,7 @@ pub(crate) struct ParserState {
     pub(crate) document_attributes: DocumentAttributes,
     pub(crate) line_map: LineMap,
     pub(crate) options: Options,
+    pub(crate) input: String, // TODO(nlopes): this should be a &str
 }
 
 impl ParserState {
@@ -25,6 +26,7 @@ impl ParserState {
             options: Options::default(),
             document_attributes: DocumentAttributes::default(),
             line_map: LineMap::new(input),
+            input: input.to_string(),
         }
     }
 
@@ -1554,12 +1556,29 @@ peg::parser! {
             placeholder |
              */
             / link_macro:link_macro(offset) { link_macro }
+            / inline_autolink:inline_autolink(offset) { inline_autolink }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
             / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
             / italic_text_unconstrained:italic_text_unconstrained(offset, block_metadata) { italic_text_unconstrained }
+            / italic_text_constrained:italic_text_constrained(offset, block_metadata) { italic_text_constrained }
             ) {
                 inline
             }
+
+        rule inline_autolink(offset: usize) -> InlineNode
+        = start:position!()
+        url:(
+            "<" url:url() ">" { url }
+            / url:url() { url }
+        )
+        end:position!()
+        {
+            tracing::info!(?url, "Found autolink inline");
+            InlineNode::Macro(InlineMacro::Autolink(Autolink {
+                url: Source::Url(url),
+                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+            }))
+        }
 
         rule inline_line_break(offset: usize) -> InlineNode
         = start:position!() " +" end:position!() eol()
@@ -1700,6 +1719,27 @@ peg::parser! {
             }))
         }
 
+        rule italic_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position() "_" content:$([^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ [^(' ' | '\t' | '\n')]) "_"
+          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        {?
+
+            let before_pos = if start.offset > 0 { start.offset - 1 } else { 0 };
+            let before_pos = before_pos.try_into().unwrap_or(0);
+            dbg!(&state.input.chars().nth(before_pos));
+            panic!("stop here");
+            tracing::info!(?offset, ?content, "Found constrained italic text inline");
+            let (content, location) = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap();
+            Ok(InlineNode::ItalicText(Italic {
+                content,
+                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                location,
+            }))
+        }
+
+        rule italic_text_constrained_match() -> ()
+        = [' ' | '\t' | '\n' | '_'] "_" [^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ "_" ([' ' | '\t' | '_' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+
         rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
@@ -1715,7 +1755,7 @@ peg::parser! {
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
-        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset, block_metadata) / bold_text_unconstrained(start_pos, block_metadata) / italic_text_unconstrained(start_pos, block_metadata)) [_])+)
+        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset, block_metadata) / bold_text_unconstrained(start_pos, block_metadata) / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match()) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
