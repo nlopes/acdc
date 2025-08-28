@@ -7,11 +7,20 @@ use crate::{Location, Role};
 
 use super::InlineNode;
 
+/// The form of an inline formatting element (how it was expressed in the source)
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Form {
+    Constrained,
+    Unconstrained,
+}
+
 /// A `Subscript` represents a subscript section of text in a document.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Subscript {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -22,6 +31,7 @@ pub struct Subscript {
 pub struct Superscript {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -32,6 +42,7 @@ pub struct Superscript {
 pub struct Monospace {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -42,6 +53,7 @@ pub struct Monospace {
 pub struct Highlight {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -52,6 +64,7 @@ pub struct Highlight {
 pub struct Bold {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -62,6 +75,7 @@ pub struct Bold {
 pub struct Italic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
     pub location: Location,
@@ -145,7 +159,7 @@ impl Serialize for Italic {
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "emphasis")?;
-        state.serialize_entry("form", "constrained")?;
+        state.serialize_entry("form", &self.form)?;
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -161,7 +175,7 @@ impl Serialize for Superscript {
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "superscript")?;
-        state.serialize_entry("form", "unconstrained")?;
+        state.serialize_entry("form", &self.form)?;
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -177,7 +191,7 @@ impl Serialize for Subscript {
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "subscript")?;
-        state.serialize_entry("form", "unconstrained")?;
+        state.serialize_entry("form", &self.form)?;
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()

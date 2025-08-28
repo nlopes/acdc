@@ -6,7 +6,7 @@ use crate::{
     model::{ListLevel, SectionLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
+    DocumentAttribute, DocumentAttributes, Error, Form, Header, Image, InlineMacro, InlineNode,
     InlinePreprocessorParserState, Italic, LineBreak, Link, ListItem, ListItemCheckedStatus,
     Location, Options, OrderedList, PageBreak, Paragraph, Plain, ProcessedContent, Raw, Section,
     Source, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, UnorderedList, Video,
@@ -1715,6 +1715,7 @@ peg::parser! {
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                form: Form::Unconstrained,
                 location,
             }))
         }
@@ -1741,6 +1742,7 @@ peg::parser! {
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                form: Form::Constrained,
                 location,
             }))
         }
@@ -1767,6 +1769,7 @@ peg::parser! {
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                form: Form::Unconstrained,
                 location,
             }))
         }

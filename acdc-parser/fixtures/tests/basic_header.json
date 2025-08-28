@@ -51,7 +51,7 @@
           "name": "span",
           "type": "inline",
           "variant": "emphasis",
-          "form": "constrained",
+          "form": "unconstrained",
           "inlines": [
             {
               "name": "text",

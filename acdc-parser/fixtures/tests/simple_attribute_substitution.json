@@ -19,7 +19,7 @@
           "name": "span",
           "type": "inline",
           "variant": "strong",
-          "form": "constrained",
+          "form": "unconstrained",
           "inlines": [
             {
               "name": "text",

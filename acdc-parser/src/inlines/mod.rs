@@ -16,7 +16,7 @@ use tracing::instrument;
 
 use crate::{
     error::Error, AttributeValue, Autolink, Bold, Button, DocumentAttributes, ElementAttributes,
-    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
+    Form, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
     Menu, Monospace, Pass, PassthroughKind, Plain, Position, ProcessedContent, ProcessedKind, Raw,
     Rule, Subscript, Superscript, Url,
 };
@@ -72,6 +72,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::HighlightText(Highlight {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location,
                     }));
@@ -88,6 +89,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::ItalicText(Italic {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location,
                     }));
@@ -104,6 +106,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::BoldText(Bold {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location: mapped_location.1,
                     }));
@@ -120,6 +123,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::MonospaceText(Monospace {
                         role,
+                        form: if unconstrained { Form::Unconstrained } else { Form::Constrained },
                         content,
                         location,
                     }));
@@ -135,6 +139,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::SubscriptText(Subscript {
                         role,
+                        form: Form::Unconstrained, // Subscript is typically unconstrained
                         content,
                         location,
                     }));
@@ -150,6 +155,7 @@ impl InlineNode {
                     )?;
                     return Ok(InlineNode::SuperscriptText(Superscript {
                         role,
+                        form: Form::Unconstrained, // Superscript is typically unconstrained
                         content,
                         location,
                     }));

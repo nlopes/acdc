@@ -108,7 +108,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "span")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", "mark")?;
-                map.serialize_entry("form", "constrained")?;
+                map.serialize_entry("form", &highlight.form)?;
                 if let Some(role) = &highlight.role {
                     map.serialize_entry("role", role)?;
                 }
@@ -119,7 +119,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "span")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", "emphasis")?;
-                map.serialize_entry("form", "constrained")?;
+                map.serialize_entry("form", &italic.form)?;
                 if let Some(role) = &italic.role {
                     map.serialize_entry("role", role)?;
                 }
@@ -130,7 +130,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "span")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", "strong")?;
-                map.serialize_entry("form", "constrained")?;
+                map.serialize_entry("form", &bold.form)?;
                 if let Some(role) = &bold.role {
                     map.serialize_entry("role", role)?;
                 }
@@ -141,6 +141,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "span")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", "code")?;
+                map.serialize_entry("form", &monospace.form)?;
                 if let Some(role) = &monospace.role {
                     map.serialize_entry("role", role)?;
                 }
@@ -151,7 +152,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "span")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", "subscript")?;
-                map.serialize_entry("form", "constrained")?;
+                map.serialize_entry("form", &subscript.form)?;
                 if let Some(role) = &subscript.role {
                     map.serialize_entry("role", role)?;
                 }
@@ -162,7 +163,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "span")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", "superscript")?;
-                map.serialize_entry("form", "constrained")?;
+                map.serialize_entry("form", &superscript.form)?;
                 if let Some(role) = &superscript.role {
                     map.serialize_entry("role", role)?;
                 }
@@ -279,6 +280,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_type = None;
                 let mut my_value = None;
                 let mut my_variant = None;
+                let mut my_form = None;
                 let mut my_location = None;
                 let mut my_inlines = None;
                 let mut my_title = None;
@@ -330,6 +332,11 @@ impl<'de> Deserialize<'de> for InlineNode {
                             }
                             my_target = Some(map.next_value::<Source>()?);
                         }
+                        "form" => {
+                            if my_form.is_some() {
+                                return Err(de::Error::duplicate_field("form"));
+                            }
+                            my_form = Some(map.next_value::<Form>()?);                        }
                         "inlines" => {
                             if my_inlines.is_some() {
                                 return Err(de::Error::duplicate_field("inlines"));
@@ -431,31 +438,37 @@ impl<'de> Deserialize<'de> for InlineNode {
                         match my_variant.as_str() {
                             "strong" => Ok(InlineNode::BoldText(Bold {
                                 role: None,
+                                form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "emphasis" => Ok(InlineNode::ItalicText(Italic {
                                 role: None,
+                                form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "code" => Ok(InlineNode::MonospaceText(Monospace {
                                 role: None,
+                                form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "mark" => Ok(InlineNode::HighlightText(Highlight {
                                 role: None,
+                                form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "subscript" => Ok(InlineNode::SubscriptText(Subscript {
                                 role: None,
+                                form: my_form.unwrap_or(Form::Unconstrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "superscript" => Ok(InlineNode::SuperscriptText(Superscript {
                                 role: None,
+                                form: my_form.unwrap_or(Form::Unconstrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
