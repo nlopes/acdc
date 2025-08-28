@@ -1720,16 +1720,24 @@ peg::parser! {
         }
 
         rule italic_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position() "_" content:$([^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ [^(' ' | '\t' | '\n')]) "_"
+        = start:position!() content_start:position() "_" content:$([^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ [^(' ' | '\t' | '\n')]) "_"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
         {?
+            // Check if we're at start of input OR preceded by word boundary character
+            let absolute_pos = start + offset;
+            let valid_boundary = absolute_pos == 0 || {
+              let prev_char_pos = absolute_pos.saturating_sub(1);
+              state.input.chars().nth(prev_char_pos).map_or(true, |c| {
+                matches!(c, ' ' | '\t' | '\n' | '\r')
+              })
+            };
 
-            let before_pos = if start.offset > 0 { start.offset - 1 } else { 0 };
-            let before_pos = before_pos.try_into().unwrap_or(0);
-            dbg!(&state.input.chars().nth(before_pos));
-            panic!("stop here");
+            if !valid_boundary {
+                return Err("invalid word boundary for constrained italic");
+            }
+
             tracing::info!(?offset, ?content, "Found constrained italic text inline");
-            let (content, location) = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, start, &content_start, end, offset, content).unwrap();
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1738,7 +1746,18 @@ peg::parser! {
         }
 
         rule italic_text_constrained_match() -> ()
-        = [' ' | '\t' | '\n' | '_'] "_" [^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ "_" ([' ' | '\t' | '_' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        = pos:position!() "_" [^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ [^(' ' | '\t' | '\n')] "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        {?
+            // Check if we're at start OR preceded by word boundary (no underscore)
+            let valid_boundary = pos == 0 || {
+              let prev_char_pos = pos.saturating_sub(1);
+              state.input.chars().nth(prev_char_pos).map_or(true, |c| {
+                matches!(c, ' ' | '\t' | '\n' | '\r')
+              })
+            };
+
+            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+        }
 
         rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
