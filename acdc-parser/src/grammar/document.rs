@@ -326,6 +326,36 @@ fn map_inner_content_locations(
                     extend_attribute_location_if_needed(state, processed, mapped);
                 InlineNode::PlainText(inner_plain)
             }
+            InlineNode::ItalicText(italic_text) => {
+                // Handle nested italic text by recursively mapping its locations
+                let mapped = map_formatted_text_locations(
+                    italic_text,
+                    _map_loc,
+                    state,
+                    processed,
+                    _base_location,
+                    |t| &t.location,
+                    |t, loc| t.location = loc,
+                    |t| &t.content,
+                    |t, content| t.content = content,
+                );
+                InlineNode::ItalicText(mapped)
+            }
+            InlineNode::BoldText(bold_text) => {
+                // Handle nested bold text by recursively mapping its locations
+                let mapped = map_formatted_text_locations(
+                    bold_text,
+                    _map_loc,
+                    state,
+                    processed,
+                    _base_location,
+                    |t| &t.location,
+                    |t, loc| t.location = loc,
+                    |t| &t.content,
+                    |t, content| t.content = content,
+                );
+                InlineNode::BoldText(mapped)
+            }
             other => other,
         })
         .collect()
@@ -1708,15 +1738,15 @@ peg::parser! {
         / title:$((!(("," / "]") / (attribute_name() "=")) [_])+) { title.to_string() }
 
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "**" content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
+            = start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
-            tracing::info!(?start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
-            let (content, location) = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap();
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
                 form: Form::Unconstrained,
-                location,
+                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
@@ -1762,15 +1792,15 @@ peg::parser! {
         }
 
         rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "__" content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
+            = start:position() "__" content_start:position() content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
-            tracing::info!(?offset, ?content, "Found unconstrained italic text inline");
-            let (content, location) = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap();
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained italic text inline");
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
                 form: Form::Unconstrained,
-                location,
+                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
         }
 

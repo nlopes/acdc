@@ -57,7 +57,7 @@
               "name": "text",
               "type": "string",
               "value": "body",
-              "location": [{"line": 9,"col": 14},{"line": 9,"col": 17}]
+              "location": [{"line": 9,"col": 16},{"line": 9,"col": 19}]
             }
           ],
           "location": [{"line": 9,"col": 14},{"line": 9,"col": 21}]
