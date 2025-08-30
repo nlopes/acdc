@@ -1,0 +1,13 @@
+This paragraph has _constrained italic_ text that requires word boundaries.
+
+It works at the _beginning_ and at the _end_.
+
+But not in the_middle_of words without boundaries.
+
+**Unconstrained bold with _nested constrained italic_ inside**.
+
+Edge cases: _word_.punctuation and _word_,comma and _word_!exclamation.
+
+Multiple words: _multiple word italic phrase_ with spaces.
+
+Mixed: _italic_ and **bold** together.

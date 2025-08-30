@@ -57,11 +57,11 @@ pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
     Block, BlockMetadata, Bold, Button, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListDescription, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
-    DocumentAttributes, ElementAttributes, Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode,
-    Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace,
-    OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section,
-    Source, Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
-    ThematicBreak, UnorderedList, Url, Video,
+    DocumentAttributes, ElementAttributes, Form, Header, Highlight, Icon, Image, InlineMacro,
+    InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu,
+    Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw,
+    Role, Section, Source, Subscript, Substitution, Superscript, Table, TableColumn,
+    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
 };
 
 #[derive(Debug, Clone, Default)]

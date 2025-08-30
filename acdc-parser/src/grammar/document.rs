@@ -1751,7 +1751,7 @@ peg::parser! {
         }
 
         rule italic_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position!() content_start:position() "_" content:$([^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ [^(' ' | '\t' | '\n')]) "_"
+        = start:position!() content_start:position() "_" content:$([^('_' | ' ' | '\t' | '\n')] [^'_']*) "_"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
         {?
             // Check if we're at start of input OR preceded by word boundary character
@@ -1778,7 +1778,7 @@ peg::parser! {
         }
 
         rule italic_text_constrained_match() -> ()
-        = pos:position!() "_" [^(' ' | '\t' | '\n' | '_')] (!(eol() / ![_] / "_") [_])+ [^(' ' | '\t' | '\n')] "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        = pos:position!() "_" [^('_' | ' ' | '\t' | '\n')] [^'_']* "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no underscore)
             let valid_boundary = pos == 0 || {
