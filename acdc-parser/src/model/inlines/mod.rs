@@ -201,6 +201,9 @@ where
             map.serialize_entry("name", "icon")?;
             map.serialize_entry("type", "inline")?;
             map.serialize_entry("target", &icon.target)?;
+            if !icon.attributes.is_empty() {
+                map.serialize_entry("attributes", &icon.attributes)?;
+            }
             map.serialize_entry("location", &icon.location)?;
         }
         InlineMacro::Image(image) => {
@@ -285,8 +288,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_inlines = None;
                 let mut my_title = None;
                 let mut my_target = None;
-
-                // TODO(nlopes): need to deserialize the attributes!
+                let mut my_attributes = None;
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
                         "name" => {
@@ -343,6 +345,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                             }
                             my_inlines = Some(map.next_value::<Vec<InlineNode>>()?);
                         }
+                        "attributes" => {
+                            if my_attributes.is_some() {
+                                return Err(de::Error::duplicate_field("attributes"));
+                            }
+                            my_attributes = Some(map.next_value::<ElementAttributes>()?);
+                        }
                         _ => {
                             // Ignore any other fields
                             let _ = map.next_value::<de::IgnoredAny>()?;
@@ -379,7 +387,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
                         Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
-                            attributes: ElementAttributes::default(),
+                            attributes: my_attributes.unwrap_or_default(),
                             target: my_target,
                             location: my_location,
                         })))

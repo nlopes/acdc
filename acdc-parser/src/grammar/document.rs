@@ -6,10 +6,11 @@ use crate::{
     model::{ListLevel, SectionLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Error, Form, Header, Image, InlineMacro, InlineNode,
-    InlinePreprocessorParserState, Italic, LineBreak, Link, ListItem, ListItemCheckedStatus,
-    Location, Options, OrderedList, PageBreak, Paragraph, Plain, ProcessedContent, Raw, Section,
-    Source, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, UnorderedList, Video,
+    DocumentAttribute, DocumentAttributes, Error, Form, Header, Icon, Image, InlineMacro,
+    InlineNode, InlinePreprocessorParserState, Italic, LineBreak, Link, ListItem,
+    ListItemCheckedStatus, Location, Options, OrderedList, PageBreak, Paragraph, Plain,
+    ProcessedContent, Raw, Section, Source, Table, TableColumn, TableOfContents, TableRow,
+    ThematicBreak, UnorderedList, Video,
 };
 
 #[derive(Debug)]
@@ -1574,8 +1575,8 @@ peg::parser! {
         = inline:(
             hard_wrap:hard_wrap(offset) { hard_wrap }
             / image:inline_image(offset, block_metadata) { image }
+            / icon:inline_icon(offset, block_metadata) { icon }
             /*
-            icon_inline |
             keyboard_inline |
             btn_inline |
             menu_inline |
@@ -1627,6 +1628,20 @@ peg::parser! {
             InlineNode::LineBreak(LineBreak {
                 location: state.create_location((start+offset), (end + offset).saturating_sub(1)),
             })
+        }
+
+        rule inline_icon(offset: usize, _block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position() "icon:" source:source() attributes:attributes() end:position!()
+        {
+            let (_discrete, metadata) = attributes;
+            let mut metadata = metadata.clone();
+            metadata.move_positional_attributes_to_attributes();
+            InlineNode::Macro(InlineMacro::Icon(Icon {
+                target: source,
+                attributes: metadata.attributes.clone(),
+                location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
+
+            }))
         }
 
         rule inline_image(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode

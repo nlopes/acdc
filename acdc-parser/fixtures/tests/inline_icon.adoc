@@ -1,0 +1,1 @@
+icon:star.svg[title=Favorite item]
