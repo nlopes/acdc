@@ -1589,6 +1589,7 @@ peg::parser! {
             / inline_autolink:inline_autolink(offset) { inline_autolink }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
             / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
+            / bold_text_constrained:bold_text_constrained(offset, block_metadata) { bold_text_constrained }
             / italic_text_unconstrained:italic_text_unconstrained(offset, block_metadata) { italic_text_unconstrained }
             / italic_text_constrained:italic_text_constrained(offset, block_metadata) { italic_text_constrained }
             ) {
@@ -1750,6 +1751,33 @@ peg::parser! {
             }))
         }
 
+        rule bold_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position!() content_start:position() "*" content:$([^('*' | ' ' | '\t' | '\n')] [^'*']*) "*"
+          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        {?
+            // Check if we're at start of input OR preceded by word boundary character
+            let absolute_pos = start + offset;
+            let valid_boundary = absolute_pos == 0 || {
+              let prev_char_pos = absolute_pos.saturating_sub(1);
+              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
+                matches!(c, ' ' | '\t' | '\n' | '\r')
+              })
+            };
+
+            if !valid_boundary {
+                return Err("invalid word boundary for constrained bold");
+            }
+
+            tracing::info!(?offset, ?content, "Found constrained bold text inline");
+            let (content, location) = process_inlines(state, block_metadata, start, &content_start, end, offset, content).unwrap();
+            Ok(InlineNode::BoldText(Bold {
+                content,
+                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                form: Form::Constrained,
+                location,
+            }))
+        }
+
         rule italic_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position!() content_start:position() "_" content:$([^('_' | ' ' | '\t' | '\n')] [^'_']*) "_"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
@@ -1775,6 +1803,20 @@ peg::parser! {
                 form: Form::Constrained,
                 location,
             }))
+        }
+
+        rule bold_text_constrained_match() -> ()
+        = pos:position!() "*" [^('*' | ' ' | '\t' | '\n')] [^'*']* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        {?
+            // Check if we're at start OR preceded by word boundary (no asterisk)
+            let valid_boundary = pos == 0 || {
+              let prev_char_pos = pos.saturating_sub(1);
+              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
+                matches!(c, ' ' | '\t' | '\n' | '\r')
+              })
+            };
+
+            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
         }
 
         rule italic_text_constrained_match() -> ()
@@ -1807,7 +1849,7 @@ peg::parser! {
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
-        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset, block_metadata) / bold_text_unconstrained(start_pos, block_metadata) / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match()) [_])+)
+        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset, block_metadata) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match()) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
