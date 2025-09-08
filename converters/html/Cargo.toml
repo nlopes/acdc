@@ -9,7 +9,7 @@ authors.workspace = true
 acdc-converters-common.workspace = true
 acdc-core.workspace = true
 acdc-parser.workspace = true
-chrono = "0.4.41"
+chrono = "0.4.42"
 thiserror.workspace = true
 tracing.workspace = true
 
