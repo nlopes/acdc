@@ -6,7 +6,7 @@ use acdc_parser::{AttributeValue, DocumentAttributes};
 use anyhow::Result;
 use clap::{ArgAction, Parser, ValueEnum};
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Debug, ValueEnum, Clone)]
 enum Backend {

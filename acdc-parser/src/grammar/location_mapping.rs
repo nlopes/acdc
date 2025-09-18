@@ -1,6 +1,4 @@
-use crate::{
-    InlineNode, Location, Plain, ProcessedContent,
-};
+use crate::{InlineNode, Location, Plain, ProcessedContent};
 
 use super::document::ParserState;
 
@@ -19,11 +17,8 @@ pub(crate) fn map_bold_text_locations(
 ) -> crate::Bold {
     // Map outer location with attribute extension
     let mapped_outer = map_loc(&bold_text.location);
-    let extended_location = extend_attribute_location_if_needed(
-        mapping_ctx.state,
-        mapping_ctx.processed,
-        mapped_outer
-    );
+    let extended_location =
+        extend_attribute_location_if_needed(mapping_ctx.state, mapping_ctx.processed, mapped_outer);
     bold_text.location = extended_location;
 
     // Map inner content locations
@@ -47,11 +42,8 @@ pub(crate) fn map_italic_text_locations(
 ) -> crate::Italic {
     // Map outer location with attribute extension
     let mapped_outer = map_loc(&italic_text.location);
-    let extended_location = extend_attribute_location_if_needed(
-        mapping_ctx.state,
-        mapping_ctx.processed,
-        mapped_outer
-    );
+    let extended_location =
+        extend_attribute_location_if_needed(mapping_ctx.state, mapping_ctx.processed, mapped_outer);
     italic_text.location = extended_location;
 
     // Map inner content locations
@@ -192,7 +184,10 @@ pub(crate) fn map_inner_content_locations(
         .map(|node| match node {
             InlineNode::PlainText(mut inner_plain) => {
                 // Replace passthrough placeholders in the content
-                let content = super::passthrough_processing::replace_passthrough_placeholders(&inner_plain.content, processed);
+                let content = super::passthrough_processing::replace_passthrough_placeholders(
+                    &inner_plain.content,
+                    processed,
+                );
                 inner_plain.content = content;
 
                 // Map to document coordinates first (use normal location mapping for inner content)
@@ -209,11 +204,7 @@ pub(crate) fn map_inner_content_locations(
                     processed,
                     base_location,
                 };
-                let mapped = map_italic_text_locations(
-                    italic_text,
-                    map_loc,
-                    &mapping_ctx,
-                );
+                let mapped = map_italic_text_locations(italic_text, map_loc, &mapping_ctx);
                 InlineNode::ItalicText(mapped)
             }
             InlineNode::BoldText(bold_text) => {
@@ -223,18 +214,13 @@ pub(crate) fn map_inner_content_locations(
                     processed,
                     base_location,
                 };
-                let mapped = map_bold_text_locations(
-                    bold_text,
-                    map_loc,
-                    &mapping_ctx,
-                );
+                let mapped = map_bold_text_locations(bold_text, map_loc, &mapping_ctx);
                 InlineNode::BoldText(mapped)
             }
             other => other,
         })
         .collect()
 }
-
 
 /// Remap the location of an inline node to final document coordinates
 pub(crate) fn remap_inline_node_location(node: &mut InlineNode, base_offset: usize) {

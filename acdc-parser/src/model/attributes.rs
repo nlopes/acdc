@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use serde::{
+    Deserialize, Serialize,
     de::Deserializer,
     ser::{SerializeMap, Serializer},
-    Deserialize, Serialize,
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]

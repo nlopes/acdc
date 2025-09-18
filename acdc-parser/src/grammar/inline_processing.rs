@@ -1,9 +1,9 @@
 use crate::{
-    inline_preprocessing, Error, InlineNode, InlinePreprocessorParserState, Location,
-    ProcessedContent,
+    Error, InlineNode, InlinePreprocessorParserState, Location, ProcessedContent,
+    inline_preprocessing,
 };
 
-use super::document::{document_parser, BlockParsingMetadata, ParserState, Position};
+use super::document::{BlockParsingMetadata, ParserState, Position, document_parser};
 
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
 pub(crate) fn preprocess_inline_content(
@@ -67,6 +67,7 @@ pub(crate) fn process_inlines(
     let (initial_location, location, processed) =
         preprocess_inline_content(state, start, content_start, end, offset, content)?;
     let content = parse_inlines(&processed, block_metadata)?;
-    let content = super::location_mapping::map_inline_locations(state, &processed, &content, &location);
+    let content =
+        super::location_mapping::map_inline_locations(state, &processed, &content, &location);
     Ok((content, initial_location))
 }

@@ -1,7 +1,7 @@
 use serde::{
+    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
-    Deserialize, Serialize,
 };
 
 mod macros;
@@ -475,7 +475,9 @@ impl<'de> Deserialize<'de> for InlineNode {
                         //
                         //
                         match my_variant.as_str() {
-                            "url" => todo!("implement url deserialization - this uses variant 'link' as well so need to be differentiated"),
+                            "url" => todo!(
+                                "implement url deserialization - this uses variant 'link' as well so need to be differentiated"
+                            ),
                             "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
                                 text: None,
                                 attributes: my_attributes.unwrap_or_default(),

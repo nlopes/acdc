@@ -2,9 +2,9 @@
 use std::str::FromStr;
 
 use serde::{
+    Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
-    Deserialize, Serialize,
 };
 
 use crate::Error;
@@ -987,28 +987,41 @@ impl<'de> Deserialize<'de> for Block {
                         // Handle both simplified format with "target" and full format with "sources"
                         let sources = if let Some(sources_value) = my_sources {
                             match sources_value {
-                                serde_json::Value::Array(a) => {
-                                    a.into_iter()
-                                        .map(|v| {
-                                            let obj = v.as_object().ok_or_else(|| de::Error::custom("source must be an object"))?;
-                                            let source_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("path");
-                                            let value = obj.get("value").and_then(|v| v.as_str())
-                                                .ok_or_else(|| de::Error::custom("source value must be a string"))?;
-                                            match source_type {
-                                                "path" => Ok(Source::Path(value.to_string())),
-                                                "url" => Ok(Source::Url(value.to_string())),
-                                                _ => Err(de::Error::custom(format!("unexpected source type: {source_type}"))),
-                                            }
-                                        })
-                                        .collect::<Result<Vec<Source>, _>>()?
-                                }
+                                serde_json::Value::Array(a) => a
+                                    .into_iter()
+                                    .map(|v| {
+                                        let obj = v.as_object().ok_or_else(|| {
+                                            de::Error::custom("source must be an object")
+                                        })?;
+                                        let source_type = obj
+                                            .get("type")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("path");
+                                        let value = obj
+                                            .get("value")
+                                            .and_then(|v| v.as_str())
+                                            .ok_or_else(|| {
+                                                de::Error::custom("source value must be a string")
+                                            })?;
+                                        match source_type {
+                                            "path" => Ok(Source::Path(value.to_string())),
+                                            "url" => Ok(Source::Url(value.to_string())),
+                                            _ => Err(de::Error::custom(format!(
+                                                "unexpected source type: {source_type}"
+                                            ))),
+                                        }
+                                    })
+                                    .collect::<Result<Vec<Source>, _>>()?,
                                 _ => return Err(de::Error::custom("sources must be an array")),
                             }
                         } else {
                             // Fallback to simplified format with target
-                            let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                            let my_form =
+                                my_form.ok_or_else(|| de::Error::missing_field("form"))?;
                             if my_form != "macro" {
-                                return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                                return Err(de::Error::custom(format!(
+                                    "unexpected form: {my_form}"
+                                )));
                             }
                             vec![Source::Path(
                                 my_target.ok_or_else(|| de::Error::missing_field("target"))?,
