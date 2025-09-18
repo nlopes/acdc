@@ -1,16 +1,15 @@
-use crate::{
-    InlineNode, Location, Pass, Plain, ProcessedContent, Substitution,
-};
+use crate::{InlineNode, Location, Pass, Plain, ProcessedContent, Substitution};
 
 use super::{
     document::ParserState,
     location_mapping::remap_inline_node_location,
     markup_patterns::{
-        find_constrained_bold_pattern, find_curved_apostrophe_pattern, find_curved_quotation_pattern,
-        find_highlight_constrained_pattern, find_highlight_unconstrained_pattern,
-        find_italic_pattern, find_monospace_constrained_pattern, find_monospace_unconstrained_pattern,
+        MarkupMatch, find_constrained_bold_pattern, find_curved_apostrophe_pattern,
+        find_curved_quotation_pattern, find_highlight_constrained_pattern,
+        find_highlight_unconstrained_pattern, find_italic_pattern,
+        find_monospace_constrained_pattern, find_monospace_unconstrained_pattern,
         find_subscript_pattern, find_superscript_pattern, find_unconstrained_bold_pattern,
-        find_unconstrained_italic_pattern, MarkupMatch,
+        find_unconstrained_italic_pattern,
     },
 };
 use crate::{
@@ -545,7 +544,10 @@ pub(crate) fn merge_adjacent_plain_text_nodes(nodes: Vec<InlineNode>) -> Vec<Inl
     result
 }
 
-pub(crate) fn replace_passthrough_placeholders(content: &str, processed: &ProcessedContent) -> String {
+pub(crate) fn replace_passthrough_placeholders(
+    content: &str,
+    processed: &ProcessedContent,
+) -> String {
     let mut result = content.to_string();
 
     // Replace each passthrough placeholder with its content

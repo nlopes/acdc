@@ -1,6 +1,6 @@
 use serde::{
-    ser::{SerializeMap, Serializer},
     Deserialize, Serialize,
+    ser::{SerializeMap, Serializer},
 };
 
 use crate::{Location, Role};

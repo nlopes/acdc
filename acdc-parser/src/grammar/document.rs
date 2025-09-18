@@ -1,13 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 use crate::{
-    error::Detail,
-    grammar::{
-        author_revision::{generate_initials, process_revision_info, RevisionInfo},
-        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
-        location_mapping::map_inline_locations,
-        LineMap,
-    },
-    model::{ListLevel, SectionLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
@@ -16,6 +8,14 @@ use crate::{
     PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
     StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
     TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
+    error::Detail,
+    grammar::{
+        LineMap,
+        author_revision::{RevisionInfo, generate_initials, process_revision_info},
+        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
+        location_mapping::map_inline_locations,
+    },
+    model::{ListLevel, SectionLevel},
 };
 
 #[derive(Debug)]
@@ -2508,5 +2508,4 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(metadata.options.contains(&"read".to_string()));
         assert!(metadata.options.contains(&"write".to_string()));
     }
-
 }
