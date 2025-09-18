@@ -7,8 +7,8 @@ mod markup_patterns;
 mod passthrough_processing;
 mod position_tracker;
 
-pub(crate) use document::{ParserState, document_parser};
+pub(crate) use document::{document_parser, ParserState};
 pub(crate) use inline_preprocessor::{
-    InlinePreprocessorParserState, ProcessedContent, ProcessedKind, inline_preprocessing,
+    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent,
 };
 pub(crate) use position_tracker::{LineMap, PositionTracker};

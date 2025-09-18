@@ -5,7 +5,7 @@
 //! `AsciiDoc` parser.
 //!
 //! This module provides a parser for the `AsciiDoc` markup language. The parser is
-//! implemented using the `pest` parser generator.
+//! implemented using the `peg` parser generator.
 //!
 //! # Quick Start
 //!
@@ -34,22 +34,15 @@
 use std::{path::Path, string::ToString};
 
 use acdc_core::SafeMode;
-use pest::Parser as _;
-use pest_derive::Parser;
 use tracing::instrument;
 
-mod anchor;
 mod blocks;
-mod document;
 mod error;
 pub(crate) mod grammar;
-mod inlines;
 mod model;
 mod preprocessor;
 
-pub(crate) use grammar::{
-    inline_preprocessing, InlinePreprocessorParserState, ProcessedContent, ProcessedKind,
-};
+pub(crate) use grammar::{inline_preprocessing, InlinePreprocessorParserState, ProcessedContent};
 use preprocessor::Preprocessor;
 
 pub use error::{Detail as ErrorDetail, Error};
@@ -71,16 +64,6 @@ pub struct Options {
     pub timings: bool,
     pub document_attributes: DocumentAttributes,
 }
-
-#[derive(Parser, Debug)]
-#[grammar = "../grammar/inlines.pest"]
-#[grammar = "../grammar/block.pest"]
-#[grammar = "../grammar/core.pest"]
-#[grammar = "../grammar/list.pest"]
-#[grammar = "../grammar/delimited.pest"]
-#[grammar = "../grammar/document.pest"]
-#[grammar = "../grammar/asciidoc.pest"]
-pub(crate) struct InnerPestParser;
 
 /// Parse `AsciiDoc` content from a reader.
 ///
@@ -126,7 +109,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 ///     timings: false,
 ///     document_attributes: acdc_parser::DocumentAttributes::default(),
 /// };
-/// let content = r#"= Document Title\n\nThis is a paragraph.\n\n== Section Title\n\nThis is a subsection."#;
+/// let content = "= Document Title\n\nThis is a paragraph.\n\n== Section Title\n\nThis is a subsection.";
 /// let document = parse(content, &options).unwrap();
 /// ```
 ///
@@ -163,19 +146,6 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process_file(file_path, options)?;
     parse_input(&input, options)
-}
-
-#[instrument]
-fn parse_input_old(input: &str, options: &Options) -> Result<Document, Error> {
-    tracing::trace!(?input, "post preprocessor");
-    let pairs = InnerPestParser::parse(Rule::document, input);
-    match pairs {
-        Ok(pairs) => Document::parse(pairs, options),
-        Err(e) => {
-            tracing::error!("error parsing document content: {e}");
-            Err(Error::Parse(e.to_string()))
-        }
-    }
 }
 
 #[instrument]

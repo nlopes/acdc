@@ -6,7 +6,7 @@ use acdc_parser::{AttributeValue, DocumentAttributes};
 use anyhow::Result;
 use clap::{ArgAction, Parser, ValueEnum};
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{fmt, EnvFilter};
 
 #[derive(Debug, ValueEnum, Clone)]
 enum Backend {
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
 
     match args.backend {
         Backend::Html => {
-            run_processor(&args, acdc_html::Processor::new(options))?;
+            run_processor(&args, &acdc_html::Processor::new(options))?;
         }
 
         #[cfg(feature = "tck")]
@@ -108,7 +108,7 @@ fn main() -> Result<()> {
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {
-            run_processor(&args, acdc_terminal::Processor::new(options))?;
+            run_processor(&args, &acdc_terminal::Processor::new(options))?;
         }
     }
 
@@ -116,7 +116,7 @@ fn main() -> Result<()> {
 }
 
 #[tracing::instrument(skip(processor))]
-fn run_processor<P: Processable>(args: &Args, processor: P) -> Result<(), P::Error> {
+fn run_processor<P: Processable>(args: &Args, processor: &P) -> Result<(), P::Error> {
     if args.stdin {
         let output = processor.output()?;
         println!("{output}");

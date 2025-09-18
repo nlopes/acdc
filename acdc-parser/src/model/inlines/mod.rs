@@ -50,7 +50,9 @@ impl InlineNode {
             InlineNode::SubscriptText(subscript) => subscript.location.clone(),
             InlineNode::SuperscriptText(superscript) => superscript.location.clone(),
             InlineNode::CurvedQuotationText(curved_quotation) => curved_quotation.location.clone(),
-            InlineNode::CurvedApostropheText(curved_apostrophe) => curved_apostrophe.location.clone(),
+            InlineNode::CurvedApostropheText(curved_apostrophe) => {
+                curved_apostrophe.location.clone()
+            }
             InlineNode::StandaloneCurvedApostrophe(standalone) => standalone.location.clone(),
             InlineNode::LineBreak(line_break) => line_break.location.clone(),
             InlineNode::Macro(macro_node) => match macro_node {
@@ -91,6 +93,7 @@ pub enum InlineMacro {
 }
 
 impl Serialize for InlineNode {
+    #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -417,9 +420,11 @@ impl<'de> Deserialize<'de> for InlineNode {
                             location: my_location,
                         }))
                     }
-                    ("curved_apostrophe", "string") => Ok(InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-                        location: my_location,
-                    })),
+                    ("curved_apostrophe", "string") => Ok(InlineNode::StandaloneCurvedApostrophe(
+                        StandaloneCurvedApostrophe {
+                            location: my_location,
+                        },
+                    )),
                     ("icon", "inline") => {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
@@ -445,7 +450,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             keys: vec![], // Simplified deserialization, keys not stored in fixture format
                             location: my_location,
                         })))
-                    },
+                    }
                     ("btn" | "button", "inline") => {
                         Ok(InlineNode::Macro(InlineMacro::Button(Button {
                             label: String::new(), // Simplified deserialization, label not stored in fixture format
@@ -458,7 +463,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                             items: vec![],
                             location: my_location,
                         })))
-                    },
+                    }
                     ("ref", "inline") => {
                         let my_variant =
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
@@ -528,18 +533,22 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 content: my_inlines,
                                 location: my_location,
                             })),
-                            "curved_quotation" => Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
-                                role: None,
-                                form: my_form.unwrap_or(Form::Unconstrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "curved_apostrophe" => Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
-                                role: None,
-                                form: my_form.unwrap_or(Form::Unconstrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
+                            "curved_quotation" => {
+                                Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
+                                    role: None,
+                                    form: my_form.unwrap_or(Form::Unconstrained),
+                                    content: my_inlines,
+                                    location: my_location,
+                                }))
+                            }
+                            "curved_apostrophe" => {
+                                Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
+                                    role: None,
+                                    form: my_form.unwrap_or(Form::Unconstrained),
+                                    content: my_inlines,
+                                    location: my_location,
+                                }))
+                            }
                             _ => {
                                 tracing::error!(variant = %my_variant, "invalid inline node variant");
                                 Err(de::Error::custom("invalid inline node variant"))
