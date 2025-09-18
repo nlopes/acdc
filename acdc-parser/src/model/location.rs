@@ -1,7 +1,7 @@
 use serde::{
-    Deserialize, Serialize,
     de::{SeqAccess, Visitor},
     ser::{SerializeSeq, Serializer},
+    Deserialize, Serialize,
 };
 
 /// A `Location` represents a location in a document.
@@ -19,30 +19,6 @@ pub struct Location {
 }
 
 impl Location {
-    #[must_use]
-    pub fn from_pair<R: pest::RuleType>(pair: &pest::iterators::Pair<R>) -> Self {
-        let mut location = Location::default();
-        let start = pair.as_span().start_pos();
-        let end = pair.as_span().end_pos();
-        location.set_start_from_pos(&start);
-        location.set_end_from_pos(&end);
-        location
-    }
-
-    pub fn set_start_from_pos(&mut self, start: &pest::Position) {
-        let (line, column) = start.line_col();
-        self.absolute_start = start.pos();
-        self.start.line = line;
-        self.start.column = column;
-    }
-
-    pub fn set_end_from_pos(&mut self, end: &pest::Position) {
-        let (line, column) = end.line_col();
-        self.absolute_end = end.pos();
-        self.end.line = line;
-        self.end.column = column - 1;
-    }
-
     /// Shift the start and end positions of the location by the parent location.
     ///
     /// This is super useful to adjust the location of a block that is inside another

@@ -1,8 +1,0 @@
-document = _{
-  SOI ~
-  (NEWLINE | comment)* ~
-  (document_header ~ (NEWLINE|EOI))? ~
-  blocks? ~
-  (NEWLINE | comment)* ~
-  EOI
-}
