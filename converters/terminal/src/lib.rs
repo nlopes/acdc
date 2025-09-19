@@ -45,7 +45,6 @@ impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
-    #[must_use]
     fn new(options: Options) -> Self {
         Self { options }
     }

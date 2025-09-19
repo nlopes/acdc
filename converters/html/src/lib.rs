@@ -27,7 +27,7 @@ impl Processor {
     fn to_file<P: AsRef<Path>>(
         &self,
         doc: &Document,
-        original: P,
+        _original: P,
         path: P,
     ) -> Result<(), crate::Error> {
         let mut file = std::fs::File::create(path)?;
