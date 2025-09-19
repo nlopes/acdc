@@ -1,13 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 use crate::{
-    error::Detail,
-    grammar::{
-        author_revision::{generate_initials, process_revision_info, RevisionInfo},
-        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
-        location_mapping::map_inline_locations,
-        LineMap,
-    },
-    model::{ListLevel, SectionLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
@@ -16,6 +8,14 @@ use crate::{
     PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
     StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
     TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
+    error::Detail,
+    grammar::{
+        LineMap,
+        author_revision::{RevisionInfo, generate_initials, process_revision_info},
+        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
+        location_mapping::map_inline_locations,
+    },
+    model::{ListLevel, SectionLevel},
 };
 
 #[derive(Debug)]
@@ -512,6 +512,7 @@ peg::parser! {
         rule sidebar_delimiter() -> &'input str = delim:$("*"*<4,>) { delim }
         rule table_delimiter() -> &'input str = delim:$((['|' | ',' | ':' | '!'] "="*<3,>)) { delim }
         rule pass_delimiter() -> &'input str = delim:$("+"*<4,>) { delim }
+        rule markdown_code_delimiter() -> &'input str = delim:$("`"*<3,>) { delim }
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
 
         rule until_comment_delimiter() -> &'input str
@@ -566,6 +567,18 @@ peg::parser! {
             = content:$((!(eol() quote_delimiter()) [_])*)
         {
             content
+        }
+
+        rule until_markdown_code_delimiter() -> &'input str
+            = content:$((!(eol() markdown_code_delimiter()) [_])*)
+        {
+            content
+        }
+
+        rule markdown_language() -> &'input str
+            = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+)
+        {
+            lang
         }
 
         rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -643,6 +656,10 @@ peg::parser! {
         }
 
         rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+            = traditional_listing_block(start, offset, block_metadata)
+            / markdown_listing_block(start, offset, block_metadata)
+
+        rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:listing_delimiter() eol()
             content_start:position!() content:until_listing_delimiter() content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
@@ -651,6 +668,37 @@ peg::parser! {
                 return Err(Error::MismatchedDelimiters("listing".to_string()));
             }
             let mut metadata = block_metadata.metadata.clone();
+            metadata.move_positional_attributes_to_attributes();
+            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata: metadata.clone(),
+                delimiter: open_delim.to_string(),
+                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::PlainText(Plain {
+                    content: content.to_string(),
+                    location: content_location,
+                })]),
+                title: block_metadata.title.clone(),
+                location,
+            }))
+        }
+
+        rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+            = open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
+            content_start:position!() content:until_markdown_code_delimiter() content_end:position!()
+            eol() close_delim:markdown_code_delimiter() end:position!()
+        {
+            if open_delim != close_delim {
+                return Err(Error::MismatchedDelimiters("listing".to_string()));
+            }
+            let mut metadata = block_metadata.metadata.clone();
+
+            // If we captured a language, add it as a positional attribute
+            if let Some(language) = lang {
+                metadata.positional_attributes.insert(0, language.to_string());
+            }
+
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));

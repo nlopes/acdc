@@ -1,0 +1,219 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Traditional AsciiDoc format:",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 28
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "require 'sinatra'\nget '/hi' do\n  \"Hello World!\"\nend",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 3
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "ruby": null
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "New Markdown format:",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "```",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "require 'sinatra'\nget '/hi' do\n  \"Hello World!\"\nend",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 3
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "ruby": null
+        }
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 3
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Markdown without language:",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "```",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "plain code block\nwithout language",
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 3
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 25,
+      "col": 3
+    }
+  ]
+}

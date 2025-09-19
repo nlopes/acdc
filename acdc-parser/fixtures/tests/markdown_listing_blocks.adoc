@@ -1,0 +1,25 @@
+Traditional AsciiDoc format:
+
+[source,ruby]
+----
+require 'sinatra'
+get '/hi' do
+  "Hello World!"
+end
+----
+
+New Markdown format:
+
+```ruby
+require 'sinatra'
+get '/hi' do
+  "Hello World!"
+end
+```
+
+Markdown without language:
+
+```
+plain code block
+without language
+```
