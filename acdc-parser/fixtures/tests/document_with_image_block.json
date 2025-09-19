@@ -7,6 +7,35 @@
       "type": "block",
       "form": "macro",
       "target": "sunset.jpg",
+      "title": [
+        {
+          "name":"text",
+          "type":"string",
+          "value":"A ",
+          "location":[{"line":1,"col":2},{"line":1,"col":3}]
+        },
+        {
+          "name":"span",
+          "type":"inline",
+          "variant":"strong",
+          "form":"constrained",
+          "inlines":[
+            {
+              "name":"text",
+              "type":"string",
+              "value":"beautiful",
+              "location":[{"line":1,"col":4},{"line":1,"col":12}]
+            }
+          ],
+          "location":[{"line":1,"col":4},{"line":1,"col":14}]
+        },
+        {
+          "name":"text",
+          "type":"string",
+          "value":" sunset",
+          "location":[{"line":1,"col":15},{"line":1,"col":21}]
+        }
+      ],
       "metadata": {
         "attributes": {
           "alt": "Sunset",
@@ -20,7 +49,7 @@
           "col": 1
         },
         {
-          "line": 1,
+          "line": 2,
           "col": 50
         }
       ]
@@ -32,7 +61,7 @@
       "col": 1
     },
     {
-      "line": 1,
+      "line": 2,
       "col": 50
     }
   ]
