@@ -69,6 +69,7 @@ pub(crate) struct BlockParsingMetadata {
     pub(crate) metadata: BlockMetadata,
     title: Vec<InlineNode>,
     parent_section_level: Option<SectionLevel>,
+    pub(crate) attribute_positions: std::collections::HashMap<String, (usize, usize)>,
 }
 
 #[derive(Debug)]
@@ -422,6 +423,7 @@ peg::parser! {
                 metadata,
                 title,
                 parent_section_level,
+                attribute_positions: std::collections::HashMap::new(),
             }
         }
 
@@ -1007,10 +1009,10 @@ peg::parser! {
             }))
         }
 
-        rule image(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "image::" source:source() attributes:attributes() end:position!()
         {
-            let (_discrete, metadata) = attributes;
+            let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
@@ -1024,7 +1026,7 @@ peg::parser! {
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
-                title: Vec::new(), // TODO(nlopes): Handle image titles
+                title: block_metadata.title.clone(),
                 source,
                 metadata: metadata.clone(),
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
@@ -1032,14 +1034,14 @@ peg::parser! {
             }))
         }
 
-        rule audio(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "audio::" source:source() attributes:attributes() end:position!()
         {
-            let (_discrete, metadata) = attributes;
+            let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Audio(Audio {
-                title: Vec::new(), // TODO(nlopes): Handle audio titles
+                title: block_metadata.title.clone(),
                 source,
                 metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
@@ -1049,10 +1051,10 @@ peg::parser! {
         // The video block is similar to the audio and image blocks, but it supports
         // multiple sources. This is for example to allow passing multiple youtube video
         // ids to form a playlist.
-        rule video(start: usize, offset: usize, _block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
         {
-            let (_discrete, metadata) = attributes;
+            let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
             if let Some(style) = metadata.style {
                 metadata.style = None;
@@ -1073,7 +1075,7 @@ peg::parser! {
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
-                title: Vec::new(), // TODO(nlopes): Handle video titles
+                title: block_metadata.title.clone(),
                 sources,
                 metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
@@ -1361,7 +1363,7 @@ peg::parser! {
         rule inline_icon(offset: usize, _block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position() "icon:" source:source() attributes:attributes() end:position!()
         {
-            let (_discrete, metadata) = attributes;
+            let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             InlineNode::Macro(InlineMacro::Icon(Icon {
@@ -1375,7 +1377,7 @@ peg::parser! {
         rule inline_image(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position() "image:" source:source() attributes:attributes() end:position!()
         {
-            let (_discrete, metadata) = attributes;
+            let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
             let mut title = Vec::new();
             if let Some(style) = metadata.style {
@@ -1390,7 +1392,17 @@ peg::parser! {
             }
             metadata.move_positional_attributes_to_attributes();
             if let Some(AttributeValue::String(content)) = metadata.attributes.get("title") {
-                title = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
+                if let Some((title_start, title_end)) = title_position {
+                    // Use the captured position from the named_attribute rule
+                    let title_start_pos = Position {
+                        offset: title_start,
+                        position: state.line_map.offset_to_position(title_start),
+                    };
+                    title = process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content).unwrap().0;
+                } else {
+                    // Fallback to the old behavior if we don't have the position
+                    title = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
+                }
                 metadata.attributes.remove("title");
             }
 
@@ -1871,11 +1883,11 @@ peg::parser! {
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
             = attributes:attributes() eol() {
-                let (discrete, metadata) = attributes;
+                let (discrete, metadata, _title_position) = attributes;
                 (discrete, metadata)
             }
 
-        pub(crate) rule attributes() -> (bool, BlockMetadata)
+        pub(crate) rule attributes() -> (bool, BlockMetadata, Option<(usize, usize)>)
             = start:position!() open_square_bracket() content:(
                 // The case in which we keep the style empty
                 attributes:(comma() att:attribute() { att })+ {
@@ -1921,6 +1933,7 @@ peg::parser! {
                         metadata.options.push(option);
                     }
                 }
+                let mut title_position = None;
                 for (i, (k, v, pos)) in attributes.into_iter().flatten().enumerate() {
                     if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() {
                         let (id_start, id_end) = pos.unwrap_or((start, end));
@@ -1952,13 +1965,21 @@ peg::parser! {
                             }
                         }
                     } else if let AttributeValue::String(v) = v {
+                        // We special case the "title" attribute to capture its position.
+                        // An example where this is needed is in the inline image macro.
+                        //
+                        // I really don't like how this flows and one day I'll probably
+                        // refactor this.
+                        if k == "title" && let Some(title_pos) = pos {
+                            title_position = Some(title_pos);
+                        }
                         metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
                     } else if v == AttributeValue::None && pos.is_none() {
                         metadata.positional_attributes.push(k);
                         tracing::warn!("Unexpected attribute value type: {:?}", v);
                     }
                 }
-                (discrete, metadata)
+                (discrete, metadata, title_position)
             }
 
         rule open_square_bracket() = "["
@@ -1999,8 +2020,8 @@ peg::parser! {
                 { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(role.to_string()), None)) }
               / ("options" / "opts") "=" option:option()
                 { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()), None)) }
-              / name:attribute_name() "=" value:named_attribute_value()
-                { Some((name.to_string(), AttributeValue::String(value), None)) }
+              / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
+                { Some((name.to_string(), AttributeValue::String(value), Some((start, end)))) }
 
         // The block style is a positional attribute that is used to set the style of a block element.
         //
@@ -2454,7 +2475,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_document_empty_attribute_list() {
         let input = "[]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) =
+            document_parser::attributes(input, &mut state).unwrap();
         assert!(!discrete); // Not discrete
         assert_eq!(metadata.id, None);
         assert_eq!(metadata.style, None);
@@ -2468,7 +2490,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_document_empty_attribute_list_with_discrete() {
         let input = "[discrete]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) =
+            document_parser::attributes(input, &mut state).unwrap();
         assert!(discrete); // Should be discrete
         assert_eq!(metadata.id, None);
         assert_eq!(metadata.style, None);
@@ -2481,7 +2504,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_document_attribute_with_id() {
         let input = "[id=my-id,role=admin,options=read,options=write]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) =
+            document_parser::attributes(input, &mut state).unwrap();
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
@@ -2510,7 +2534,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_document_attribute_with_id_mixed() {
         let input = "[astyle#myid.admin,options=read,options=write]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) =
+            document_parser::attributes(input, &mut state).unwrap();
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
@@ -2539,7 +2564,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_document_attribute_with_id_mixed_with_quotes() {
         let input = "[astyle#myid.admin,options=\"read,write\"]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata) = document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) =
+            document_parser::attributes(input, &mut state).unwrap();
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,

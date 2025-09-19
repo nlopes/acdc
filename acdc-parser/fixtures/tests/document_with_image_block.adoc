@@ -1,1 +1,2 @@
+.A *beautiful* sunset
 image::sunset.jpg[alt=Sunset,width=300,height=400]
