@@ -1,5 +1,13 @@
 #![allow(clippy::too_many_arguments)]
 use crate::{
+    error::Detail,
+    grammar::{
+        author_revision::{generate_initials, process_revision_info, RevisionInfo},
+        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
+        location_mapping::map_inline_locations,
+        LineMap,
+    },
+    model::{ListLevel, SectionLevel},
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
@@ -8,14 +16,6 @@ use crate::{
     PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
     StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
     TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
-    error::Detail,
-    grammar::{
-        LineMap,
-        author_revision::{RevisionInfo, generate_initials, process_revision_info},
-        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
-        location_mapping::map_inline_locations,
-    },
-    model::{ListLevel, SectionLevel},
 };
 
 #[derive(Debug)]
@@ -292,7 +292,7 @@ peg::parser! {
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
-        = blocks:(block(offset, parent_section_level) ** (eol()*<2,> / ![_]))
+        = blocks:block(offset, parent_section_level)*
         {
             blocks.into_iter().collect::<Result<Vec<_>, Error>>()
         }
@@ -470,7 +470,7 @@ peg::parser! {
         }
 
         rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
-        = blocks(offset, parent_section_level)
+        = blocks(offset, parent_section_level) / { Ok(vec![]) }
 
         pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!() block_metadata:block_metadata(offset, parent_section_level) block:(
@@ -668,9 +668,13 @@ peg::parser! {
         }
 
         pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = open_delim:literal_delimiter() eol()
+        =
+        open_delim:literal_delimiter()
+        eol()
         content_start:position!() content:until_literal_delimiter() content_end:position!()
-        eol() close_delim:literal_delimiter() end:position!()
+        eol()
+        close_delim:literal_delimiter()
+        end:position!()
         {
             if open_delim != close_delim {
                 return Err(Error::MismatchedDelimiters("literal".to_string()));
@@ -1066,6 +1070,8 @@ peg::parser! {
 
         rule ordered_list_marker() -> &'input str = $(digits()? "."+)
 
+        rule section_level_marker() -> &'input str = $(("=" / "#")+)
+
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = &(unordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
@@ -1106,7 +1112,7 @@ peg::parser! {
         whitespace()
         checked:checklist_item()?
         list_content_start:position()
-        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker())) / ![_]) [_])+)
+        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / section_level_marker())) / ![_]) [_])+)
         end:position!() (eol()+ / ![_])
         {?
             tracing::info!(%list_item, %marker, ?checked, "found list item");
