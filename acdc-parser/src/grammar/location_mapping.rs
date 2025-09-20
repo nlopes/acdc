@@ -4,204 +4,13 @@ use crate::{
     Monospace, Plain, ProcessedContent, StandaloneCurvedApostrophe, Subscript, Superscript,
 };
 
-use super::document::ParserState;
+use super::{document::ParserState, marked_text::WithLocationMappingContext};
 
 /// Context for location mapping operations
 pub(crate) struct LocationMappingContext<'a> {
     pub state: &'a ParserState,
     pub processed: &'a ProcessedContent,
     pub base_location: &'a Location,
-}
-
-/// Trait for formatted inline elements that have form, content, and location
-pub(crate) trait FormattedInline {
-    fn location(&self) -> &Location;
-    fn location_mut(&mut self) -> &mut Location;
-    fn content(&self) -> &Vec<InlineNode>;
-    fn content_mut(&mut self) -> &mut Vec<InlineNode>;
-    fn form(&self) -> &Form;
-}
-
-// Implementations for all formatted inline types
-impl FormattedInline for Bold {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for Italic {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for Monospace {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for Highlight {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for Subscript {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for Superscript {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for CurvedQuotation {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-impl FormattedInline for CurvedApostrophe {
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
-    fn content(&self) -> &Vec<InlineNode> {
-        &self.content
-    }
-    fn content_mut(&mut self) -> &mut Vec<InlineNode> {
-        &mut self.content
-    }
-    fn form(&self) -> &Form {
-        &self.form
-    }
-}
-
-/// Generic function for mapping formatted inline locations with form-awareness
-pub(crate) fn map_formatted_inline_locations<T: FormattedInline>(
-    mut inline: T,
-    mapping_ctx: &LocationMappingContext,
-) -> T {
-    // Get the form first to avoid borrowing issues
-    let form = inline.form().clone();
-    let content = inline.content().clone();
-    let location = inline.location().clone();
-
-    // Create a form-aware location mapper - this provides more accurate location mapping!
-    let map_loc = create_location_mapper(
-        mapping_ctx.state,
-        mapping_ctx.processed,
-        mapping_ctx.base_location,
-        Some(&form), // Pass the form information for precise mapping
-    );
-
-    // Map outer location with attribute extension
-    let mapped_outer = map_loc(&location);
-    let extended_location =
-        extend_attribute_location_if_needed(mapping_ctx.state, mapping_ctx.processed, mapped_outer);
-    *inline.location_mut() = extended_location;
-
-    // Map inner content locations
-    let mapped_content = map_inner_content_locations(
-        content,
-        map_loc.as_ref(),
-        mapping_ctx.state,
-        mapping_ctx.processed,
-        mapping_ctx.base_location,
-    );
-    *inline.content_mut() = mapped_content;
-
-    inline
 }
 
 /// Location mapping coordinate transformations during inline processing.
@@ -410,102 +219,52 @@ pub(crate) fn map_inner_content_locations(
                     processed,
                     base_location,
                 };
-                marked_text.map_formatted_inline_locations(&mapping_ctx)
+                marked_text.with_location_mapping_context(&mapping_ctx)
             }
             other => other,
         })
         .collect()
 }
 
+/// Helper macro to remap locations for simple nodes (`PlainText`, etc.)
+macro_rules! remap_simple_location {
+    ($node:expr, $base_offset:expr) => {{
+        $node.location.absolute_start += $base_offset;
+        $node.location.absolute_end += $base_offset;
+        $node.location.start.column += $base_offset;
+        $node.location.end.column += $base_offset;
+    }};
+}
+
+/// Helper macro to remap locations for formatted nodes with content
+macro_rules! remap_formatted_location {
+    ($node:expr, $base_offset:expr) => {{
+        remap_simple_location!($node, $base_offset);
+        // Recursively remap nested content
+        for nested_node in &mut $node.content {
+            remap_inline_node_location(nested_node, $base_offset);
+        }
+    }};
+}
+
 /// Remap the location of an inline node to final document coordinates
 pub(crate) fn remap_inline_node_location(node: &mut InlineNode, base_offset: usize) {
     match node {
-        InlineNode::PlainText(plain) => {
-            plain.location.absolute_start += base_offset;
-            plain.location.absolute_end += base_offset;
-            plain.location.start.column += base_offset;
-            plain.location.end.column += base_offset;
-        }
-        InlineNode::BoldText(bold) => {
-            bold.location.absolute_start += base_offset;
-            bold.location.absolute_end += base_offset;
-            bold.location.start.column += base_offset;
-            bold.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut bold.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
-        }
-        InlineNode::ItalicText(italic) => {
-            italic.location.absolute_start += base_offset;
-            italic.location.absolute_end += base_offset;
-            italic.location.start.column += base_offset;
-            italic.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut italic.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
-        }
+        InlineNode::PlainText(plain) => remap_simple_location!(plain, base_offset),
+        InlineNode::BoldText(bold) => remap_formatted_location!(bold, base_offset),
+        InlineNode::ItalicText(italic) => remap_formatted_location!(italic, base_offset),
         InlineNode::SuperscriptText(superscript) => {
-            superscript.location.absolute_start += base_offset;
-            superscript.location.absolute_end += base_offset;
-            superscript.location.start.column += base_offset;
-            superscript.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut superscript.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
+            remap_formatted_location!(superscript, base_offset);
         }
-        InlineNode::SubscriptText(subscript) => {
-            subscript.location.absolute_start += base_offset;
-            subscript.location.absolute_end += base_offset;
-            subscript.location.start.column += base_offset;
-            subscript.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut subscript.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
-        }
+        InlineNode::SubscriptText(subscript) => remap_formatted_location!(subscript, base_offset),
         InlineNode::CurvedQuotationText(curved_quotation) => {
-            curved_quotation.location.absolute_start += base_offset;
-            curved_quotation.location.absolute_end += base_offset;
-            curved_quotation.location.start.column += base_offset;
-            curved_quotation.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut curved_quotation.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
+            remap_formatted_location!(curved_quotation, base_offset);
         }
         InlineNode::CurvedApostropheText(curved_apostrophe) => {
-            curved_apostrophe.location.absolute_start += base_offset;
-            curved_apostrophe.location.absolute_end += base_offset;
-            curved_apostrophe.location.start.column += base_offset;
-            curved_apostrophe.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut curved_apostrophe.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
+            remap_formatted_location!(curved_apostrophe, base_offset);
         }
-        InlineNode::MonospaceText(monospace) => {
-            monospace.location.absolute_start += base_offset;
-            monospace.location.absolute_end += base_offset;
-            monospace.location.start.column += base_offset;
-            monospace.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut monospace.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
-        }
-        InlineNode::HighlightText(highlight) => {
-            highlight.location.absolute_start += base_offset;
-            highlight.location.absolute_end += base_offset;
-            highlight.location.start.column += base_offset;
-            highlight.location.end.column += base_offset;
-            // Recursively remap nested content
-            for nested_node in &mut highlight.content {
-                remap_inline_node_location(nested_node, base_offset);
-            }
-        }
+        InlineNode::MonospaceText(monospace) => remap_formatted_location!(monospace, base_offset),
+        InlineNode::HighlightText(highlight) => remap_formatted_location!(highlight, base_offset),
         // Add other inline node types as needed
         _ => {}
     }
@@ -616,7 +375,7 @@ pub(crate) fn map_inline_locations(
                     processed,
                     base_location: location,
                 };
-                vec![marked_text.clone().map_formatted_inline_locations(&mapping_ctx)]
+                vec![marked_text.clone().with_location_mapping_context(&mapping_ctx)]
             }
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
                 let mut mapped_standalone = standalone.clone();

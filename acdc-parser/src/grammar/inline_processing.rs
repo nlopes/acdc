@@ -53,6 +53,10 @@ pub(crate) fn parse_inlines(
 }
 
 /// Process inlines
+///
+/// This function processes inline content by first preprocessing it and then parsing it
+/// into inline nodes. Then, it maps the locations of the parsed inline nodes back to their
+/// original positions in the source.
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
 pub(crate) fn process_inlines(
     state: &ParserState,

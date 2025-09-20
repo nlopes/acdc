@@ -10,9 +10,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{BlockMetadata, ElementAttributes, Image, Location, Source};
-
-use crate::grammar::{LocationMappingContext, map_formatted_inline_locations};
+use crate::{BlockMetadata, ElementAttributes, Image, Source};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -34,86 +32,6 @@ pub enum InlineNode {
     StandaloneCurvedApostrophe(StandaloneCurvedApostrophe),
     LineBreak(LineBreak),
     Macro(InlineMacro),
-
-    // Internal use only - DO NOT USE unless you're inside the parser
-    _PlaceholderContent(PlaceholderContent),
-}
-
-impl InlineNode {
-    #[must_use]
-    pub(crate) fn map_formatted_inline_locations(
-        self,
-        mapping_context: &LocationMappingContext,
-    ) -> InlineNode {
-        match self {
-            InlineNode::BoldText(bold) => {
-                InlineNode::BoldText(map_formatted_inline_locations(bold, mapping_context))
-            }
-            InlineNode::ItalicText(italic) => {
-                InlineNode::ItalicText(map_formatted_inline_locations(italic, mapping_context))
-            }
-            InlineNode::MonospaceText(monospace) => InlineNode::MonospaceText(
-                map_formatted_inline_locations(monospace, mapping_context),
-            ),
-            InlineNode::HighlightText(highlight) => InlineNode::HighlightText(
-                map_formatted_inline_locations(highlight, mapping_context),
-            ),
-            InlineNode::SubscriptText(subscript) => InlineNode::SubscriptText(
-                map_formatted_inline_locations(subscript, mapping_context),
-            ),
-            InlineNode::SuperscriptText(superscript) => InlineNode::SuperscriptText(
-                map_formatted_inline_locations(superscript, mapping_context),
-            ),
-            InlineNode::CurvedQuotationText(curved_quotation) => InlineNode::CurvedQuotationText(
-                map_formatted_inline_locations(curved_quotation, mapping_context),
-            ),
-            InlineNode::CurvedApostropheText(curved_apostrophe) => {
-                InlineNode::CurvedApostropheText(map_formatted_inline_locations(
-                    curved_apostrophe,
-                    mapping_context,
-                ))
-            }
-            _ => unimplemented!("mapping locations is only implemented for formatted inline nodes"),
-        }
-    }
-
-    #[must_use]
-    pub fn location(&self) -> Location {
-        match self {
-            InlineNode::PlainText(plain) => plain.location.clone(),
-            InlineNode::RawText(raw) => raw.location.clone(),
-            InlineNode::BoldText(bold) => bold.location.clone(),
-            InlineNode::ItalicText(italic) => italic.location.clone(),
-            InlineNode::MonospaceText(monospace) => monospace.location.clone(),
-            InlineNode::HighlightText(highlight) => highlight.location.clone(),
-            InlineNode::SubscriptText(subscript) => subscript.location.clone(),
-            InlineNode::SuperscriptText(superscript) => superscript.location.clone(),
-            InlineNode::CurvedQuotationText(curved_quotation) => curved_quotation.location.clone(),
-            InlineNode::CurvedApostropheText(curved_apostrophe) => {
-                curved_apostrophe.location.clone()
-            }
-            InlineNode::StandaloneCurvedApostrophe(standalone) => standalone.location.clone(),
-            InlineNode::LineBreak(line_break) => line_break.location.clone(),
-            InlineNode::Macro(macro_node) => match macro_node {
-                InlineMacro::Icon(icon) => icon.location.clone(),
-                InlineMacro::Image(image) => image.location.clone(),
-                InlineMacro::Keyboard(keyboard) => keyboard.location.clone(),
-                InlineMacro::Button(button) => button.location.clone(),
-                InlineMacro::Menu(menu) => menu.location.clone(),
-                InlineMacro::Url(url) => url.location.clone(),
-                InlineMacro::Link(link) => link.location.clone(),
-                InlineMacro::Autolink(autolink) => autolink.location.clone(),
-                InlineMacro::Pass(pass) => pass.location.clone(),
-            },
-            InlineNode::_PlaceholderContent(placeholder) => placeholder.location.clone(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct PlaceholderContent {
-    pub(crate) content: Pass,
-    pub(crate) location: crate::Location,
 }
 
 /// An `InlineMacro` represents an inline macro in a document.
@@ -252,12 +170,6 @@ impl Serialize for InlineNode {
             }
             InlineNode::Macro(macro_node) => {
                 serialize_inline_macro::<S>(macro_node, &mut map)?;
-            }
-            InlineNode::_PlaceholderContent(placeholder) => {
-                unreachable!(
-                    "PlaceholderContent must not be serialized: {:?}",
-                    placeholder
-                )
             }
         }
         map.end()
