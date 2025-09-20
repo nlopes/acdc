@@ -41,9 +41,11 @@ pub(crate) fn preprocess_inline_content(
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
 pub(crate) fn parse_inlines(
     processed: &ProcessedContent,
+    document_attributes: &crate::DocumentAttributes,
     block_metadata: &BlockParsingMetadata,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
+    inline_peg_state.document_attributes = document_attributes.clone();
     Ok(document_parser::inlines(
         &processed.text,
         &mut inline_peg_state,
@@ -70,7 +72,7 @@ pub(crate) fn process_inlines(
     // Preprocess the inline content first
     let (initial_location, location, processed) =
         preprocess_inline_content(state, start, content_start, end, offset, content)?;
-    let content = parse_inlines(&processed, block_metadata)?;
+    let content = parse_inlines(&processed, &state.document_attributes, block_metadata)?;
     let content =
         super::location_mapping::map_inline_locations(state, &processed, &content, &location);
     Ok((content, initial_location))
