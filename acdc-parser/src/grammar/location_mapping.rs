@@ -1,4 +1,8 @@
-use crate::{InlineNode, Location, Plain, ProcessedContent};
+#[allow(unused_imports)]
+use crate::{
+    Bold, CurvedApostrophe, CurvedQuotation, Form, Highlight, InlineNode, Italic, Location,
+    Monospace, Plain, ProcessedContent, StandaloneCurvedApostrophe, Subscript, Superscript
+};
 
 use super::document::ParserState;
 
@@ -9,54 +13,115 @@ pub(crate) struct LocationMappingContext<'a> {
     pub base_location: &'a Location,
 }
 
-/// Map formatted text locations for Bold text
-pub(crate) fn map_bold_text_locations(
-    mut bold_text: crate::Bold,
-    map_loc: &dyn Fn(&Location) -> Location,
-    mapping_ctx: &LocationMappingContext,
-) -> crate::Bold {
-    // Map outer location with attribute extension
-    let mapped_outer = map_loc(&bold_text.location);
-    let extended_location =
-        extend_attribute_location_if_needed(mapping_ctx.state, mapping_ctx.processed, mapped_outer);
-    bold_text.location = extended_location;
-
-    // Map inner content locations
-    let mapped_content = map_inner_content_locations(
-        bold_text.content.clone(),
-        map_loc,
-        mapping_ctx.state,
-        mapping_ctx.processed,
-        mapping_ctx.base_location,
-    );
-    bold_text.content = mapped_content;
-
-    bold_text
+/// Trait for formatted inline elements that have form, content, and location
+pub(crate) trait FormattedInline {
+    fn location(&self) -> &Location;
+    fn location_mut(&mut self) -> &mut Location;
+    fn content(&self) -> &Vec<InlineNode>;
+    fn content_mut(&mut self) -> &mut Vec<InlineNode>;
+    fn form(&self) -> &Form;
 }
 
-/// Map formatted text locations for Italic text
-pub(crate) fn map_italic_text_locations(
-    mut italic_text: crate::Italic,
-    map_loc: &dyn Fn(&Location) -> Location,
+// Implementations for all formatted inline types
+impl FormattedInline for Bold {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for Italic {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for Monospace {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for Highlight {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for Subscript {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for Superscript {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for CurvedQuotation {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+impl FormattedInline for CurvedApostrophe {
+    fn location(&self) -> &Location { &self.location }
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn content(&self) -> &Vec<InlineNode> { &self.content }
+    fn content_mut(&mut self) -> &mut Vec<InlineNode> { &mut self.content }
+    fn form(&self) -> &Form { &self.form }
+}
+
+/// Generic function for mapping formatted inline locations with form-awareness
+pub(crate) fn map_formatted_inline_locations<T: FormattedInline>(
+    mut inline: T,
     mapping_ctx: &LocationMappingContext,
-) -> crate::Italic {
+) -> T {
+    // Get the form first to avoid borrowing issues
+    let form = inline.form().clone();
+    let content = inline.content().clone();
+    let location = inline.location().clone();
+
+    // Create a form-aware location mapper - this provides more accurate location mapping!
+    let map_loc = create_location_mapper(
+        mapping_ctx.state,
+        mapping_ctx.processed,
+        mapping_ctx.base_location,
+        Some(&form), // Pass the form information for precise mapping
+    );
+
     // Map outer location with attribute extension
-    let mapped_outer = map_loc(&italic_text.location);
+    let mapped_outer = map_loc(&location);
     let extended_location =
         extend_attribute_location_if_needed(mapping_ctx.state, mapping_ctx.processed, mapped_outer);
-    italic_text.location = extended_location;
+    *inline.location_mut() = extended_location;
 
     // Map inner content locations
     let mapped_content = map_inner_content_locations(
-        italic_text.content.clone(),
-        map_loc,
+        content,
+        map_loc.as_ref(),
         mapping_ctx.state,
         mapping_ctx.processed,
         mapping_ctx.base_location,
     );
-    italic_text.content = mapped_content;
+    *inline.content_mut() = mapped_content;
 
-    italic_text
+    inline
 }
 
 /// Location mapping coordinate transformations during inline processing.
@@ -102,6 +167,7 @@ pub(crate) fn create_location_mapper<'a>(
     state: &'a ParserState,
     processed: &'a ProcessedContent,
     base_location: &'a Location,
+    form: Option<&'a Form>,
 ) -> Box<dyn Fn(&Location) -> Location + 'a> {
     Box::new(move |loc: &Location| -> Location {
         tracing::info!(?base_location, ?loc, "mapping inline location");
@@ -115,10 +181,17 @@ pub(crate) fn create_location_mapper<'a>(
             if loc.absolute_start == 0 && base_location.absolute_start < base_location.absolute_end
             {
                 // Special case: single character inside constrained formatting like "*s*"
-                // Only apply this if the base_location is short (indicating we're inside a specific span like bold text)
-                let base_length = base_location.absolute_end - base_location.absolute_start;
-                if base_length <= 5 {
-                    // "*s*" has length 3, give some wiggle room for other short spans
+                // Check if this is constrained formatting (which has single-character delimiters)
+                let is_constrained_single_char = if let Some(form) = form {
+                    matches!(form, Form::Constrained)
+                } else {
+                    // Fallback: use magic number for backward compatibility
+                    let base_length = base_location.absolute_end - base_location.absolute_start;
+                    base_length <= 5
+                };
+
+                if is_constrained_single_char {
+                    // "*s*" has length 3, constrained formatting uses single delimiters
                     // The "s" should be at position 1-2, not 0-0
                     processed_abs_start = base_location.absolute_start + 1;
                     processed_abs_end = base_location.absolute_start + 2;
@@ -145,9 +218,16 @@ pub(crate) fn create_location_mapper<'a>(
             && loc.absolute_start == 0
             && base_location.absolute_start < base_location.absolute_end;
         if is_single_char_fix {
-            // Only apply this for very short base_location spans (like "*s*" which is 3 chars)
-            let base_length = base_location.absolute_end - base_location.absolute_start;
-            if base_length <= 5 {
+            // Check if this is constrained formatting (which has single-character delimiters)
+            let is_constrained_single_char = if let Some(form) = form {
+                matches!(form, Form::Constrained)
+            } else {
+                // Fallback: use magic number for backward compatibility
+                let base_length = base_location.absolute_end - base_location.absolute_start;
+                base_length <= 5
+            };
+
+            if is_constrained_single_char {
                 end_pos.column = start_pos.column;
             }
         }
@@ -244,7 +324,7 @@ pub(crate) fn map_inner_content_locations(
                     processed,
                     base_location,
                 };
-                let mapped = map_italic_text_locations(italic_text, map_loc, &mapping_ctx);
+                let mapped = map_formatted_inline_locations(italic_text, &mapping_ctx);
                 InlineNode::ItalicText(mapped)
             }
             InlineNode::BoldText(bold_text) => {
@@ -254,8 +334,68 @@ pub(crate) fn map_inner_content_locations(
                     processed,
                     base_location,
                 };
-                let mapped = map_bold_text_locations(bold_text, map_loc, &mapping_ctx);
+                let mapped = map_formatted_inline_locations(bold_text, &mapping_ctx);
                 InlineNode::BoldText(mapped)
+            }
+            InlineNode::MonospaceText(monospace_text) => {
+                // Handle nested monospace text by recursively mapping its locations
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location,
+                };
+                let mapped = map_formatted_inline_locations(monospace_text, &mapping_ctx);
+                InlineNode::MonospaceText(mapped)
+            }
+            InlineNode::HighlightText(highlight_text) => {
+                // Handle nested highlight text by recursively mapping its locations
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location,
+                };
+                let mapped = map_formatted_inline_locations(highlight_text, &mapping_ctx);
+                InlineNode::HighlightText(mapped)
+            }
+            InlineNode::SubscriptText(subscript_text) => {
+                // Handle nested subscript text by recursively mapping its locations
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location,
+                };
+                let mapped = map_formatted_inline_locations(subscript_text, &mapping_ctx);
+                InlineNode::SubscriptText(mapped)
+            }
+            InlineNode::SuperscriptText(superscript_text) => {
+                // Handle nested superscript text by recursively mapping its locations
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location,
+                };
+                let mapped = map_formatted_inline_locations(superscript_text, &mapping_ctx);
+                InlineNode::SuperscriptText(mapped)
+            }
+            InlineNode::CurvedQuotationText(curved_quotation_text) => {
+                // Handle nested curved quotation text by recursively mapping its locations
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location,
+                };
+                let mapped = map_formatted_inline_locations(curved_quotation_text, &mapping_ctx);
+                InlineNode::CurvedQuotationText(mapped)
+            }
+            InlineNode::CurvedApostropheText(curved_apostrophe_text) => {
+                // Handle nested curved apostrophe text by recursively mapping its locations
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location,
+                };
+                let mapped = map_formatted_inline_locations(curved_apostrophe_text, &mapping_ctx);
+                InlineNode::CurvedApostropheText(mapped)
             }
             other => other,
         })
@@ -406,7 +546,7 @@ pub(crate) fn map_inline_locations(
 ) -> Vec<InlineNode> {
     tracing::info!(?location, "mapping inline locations");
 
-    let map_loc = create_location_mapper(state, processed, location);
+    let map_loc = create_location_mapper(state, processed, location, None);
 
     content
         .iter()
@@ -454,11 +594,7 @@ pub(crate) fn map_inline_locations(
                     processed,
                     base_location: location,
                 };
-                let mapped = map_italic_text_locations(
-                    italic_text.clone(),
-                    map_loc.as_ref(),
-                    &mapping_ctx,
-                );
+                let mapped = map_formatted_inline_locations(italic_text.clone(), &mapping_ctx);
                 vec![InlineNode::ItalicText(mapped)]
             }
             InlineNode::BoldText(bold_text) => {
@@ -467,12 +603,67 @@ pub(crate) fn map_inline_locations(
                     processed,
                     base_location: location,
                 };
-                let mapped = map_bold_text_locations(
-                    bold_text.clone(),
-                    map_loc.as_ref(),
-                    &mapping_ctx,
-                );
+                let mapped = map_formatted_inline_locations(bold_text.clone(), &mapping_ctx);
                 vec![InlineNode::BoldText(mapped)]
+            }
+            InlineNode::MonospaceText(monospace_text) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                let mapped = map_formatted_inline_locations(monospace_text.clone(), &mapping_ctx);
+                vec![InlineNode::MonospaceText(mapped)]
+            }
+            InlineNode::HighlightText(highlight_text) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                let mapped = map_formatted_inline_locations(highlight_text.clone(), &mapping_ctx);
+                vec![InlineNode::HighlightText(mapped)]
+            }
+            InlineNode::SubscriptText(subscript_text) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                let mapped = map_formatted_inline_locations(subscript_text.clone(), &mapping_ctx);
+                vec![InlineNode::SubscriptText(mapped)]
+            }
+            InlineNode::SuperscriptText(superscript_text) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                let mapped = map_formatted_inline_locations(superscript_text.clone(), &mapping_ctx);
+                vec![InlineNode::SuperscriptText(mapped)]
+            }
+            InlineNode::CurvedQuotationText(curved_quotation_text) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                let mapped = map_formatted_inline_locations(curved_quotation_text.clone(), &mapping_ctx);
+                vec![InlineNode::CurvedQuotationText(mapped)]
+            }
+            InlineNode::CurvedApostropheText(curved_apostrophe_text) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                let mapped = map_formatted_inline_locations(curved_apostrophe_text.clone(), &mapping_ctx);
+                vec![InlineNode::CurvedApostropheText(mapped)]
+            }
+            InlineNode::StandaloneCurvedApostrophe(standalone) => {
+                let mut mapped_standalone = standalone.clone();
+                mapped_standalone.location = map_loc(&standalone.location);
+                vec![InlineNode::StandaloneCurvedApostrophe(mapped_standalone)]
             }
             other => vec![other.clone()],
         })

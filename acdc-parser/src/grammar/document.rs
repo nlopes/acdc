@@ -1525,12 +1525,16 @@ peg::parser! {
             }
 
             tracing::info!(?offset, ?content, "Found constrained bold text inline");
-            let (content, location) = process_inlines(state, block_metadata, start, &content_start, end, offset, content).unwrap();
+            let adjusted_content_start = Position {
+                offset: content_start.offset + 1,
+                position: content_start.position,
+            };
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
                 form: Form::Constrained,
-                location,
+                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
@@ -1552,12 +1556,16 @@ peg::parser! {
             }
 
             tracing::info!(?offset, ?content, "Found constrained italic text inline");
-            let (content, location) = process_inlines(state, block_metadata, start, &content_start, end, offset, content).unwrap();
+            let adjusted_content_start = Position {
+                offset: content_start.offset + 1,
+                position: content_start.position,
+            };
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
                 form: Form::Constrained,
-                location,
+                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
@@ -1631,12 +1639,16 @@ peg::parser! {
                 return Err("monospace must be at word boundary");
             }
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found constrained monospace text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).unwrap();
+            let adjusted_content_start = Position {
+                offset: content_start.offset + 1,
+                position: content_start.position,
+            };
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
                 form: Form::Constrained,
-                location,
+                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
@@ -1687,12 +1699,16 @@ peg::parser! {
                 return Err("highlight must be at word boundary");
             }
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found constrained highlight text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).unwrap();
+            let adjusted_content_start = Position {
+                offset: content_start.offset + 1,
+                position: content_start.position,
+            };
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
                 form: Form::Constrained,
-                location,
+                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 

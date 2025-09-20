@@ -63,24 +63,24 @@
               "value": "with",
               "location": [
                 {
-                  "line": 1,
-                  "col": 11
+                  "line": 3,
+                  "col": 15
                 },
                 {
-                  "line": 1,
-                  "col": 14
+                  "line": 3,
+                  "col": 18
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 1,
-              "col": 11
+              "line": 3,
+              "col": 14
             },
             {
-              "line": 1,
-              "col": 15
+              "line": 3,
+              "col": 19
             }
           ]
         },
@@ -149,11 +149,11 @@
                   "value": "What kind of charm?",
                   "location": [
                     {
-                      "line": 1,
+                      "line": 7,
                       "col": 3
                     },
                     {
-                      "line": 1,
+                      "line": 7,
                       "col": 21
                     }
                   ]
@@ -161,11 +161,11 @@
               ],
               "location": [
                 {
-                  "line": 1,
+                  "line": 7,
                   "col": 1
                 },
                 {
-                  "line": 1,
+                  "line": 7,
                   "col": 23
                 }
               ]
@@ -213,11 +213,11 @@
                   "value": "What kind of charm?",
                   "location": [
                     {
-                      "line": 1,
+                      "line": 9,
                       "col": 3
                     },
                     {
-                      "line": 1,
+                      "line": 9,
                       "col": 21
                     }
                   ]
@@ -225,11 +225,11 @@
               ],
               "location": [
                 {
-                  "line": 1,
+                  "line": 9,
                   "col": 1
                 },
                 {
-                  "line": 1,
+                  "line": 9,
                   "col": 23
                 }
               ]
@@ -285,11 +285,11 @@
               "type": "string",
               "location": [
                 {
-                  "line": 1,
+                  "line": 11,
                   "col": 42
                 },
                 {
-                  "line": 1,
+                  "line": 11,
                   "col": 43
                 }
               ]
@@ -314,11 +314,11 @@
               "type": "string",
               "location": [
                 {
-                  "line": 5,
+                  "line": 15,
                   "col": 15
                 },
                 {
-                  "line": 5,
+                  "line": 15,
                   "col": 16
                 }
               ]
@@ -366,11 +366,11 @@
                   "value": "npm",
                   "location": [
                     {
-                      "line": 1,
+                      "line": 17,
                       "col": 3
                     },
                     {
-                      "line": 1,
+                      "line": 17,
                       "col": 5
                     }
                   ]
@@ -378,11 +378,11 @@
               ],
               "location": [
                 {
-                  "line": 1,
+                  "line": 17,
                   "col": 1
                 },
                 {
-                  "line": 1,
+                  "line": 17,
                   "col": 7
                 }
               ]
@@ -392,11 +392,11 @@
               "type": "string",
               "location": [
                 {
-                  "line": 1,
+                  "line": 17,
                   "col": 8
                 },
                 {
-                  "line": 1,
+                  "line": 17,
                   "col": 9
                 }
               ]
@@ -459,11 +459,11 @@
                   "value": "std::vector",
                   "location": [
                     {
-                      "line": 1,
+                      "line": 19,
                       "col": 5
                     },
                     {
-                      "line": 1,
+                      "line": 19,
                       "col": 15
                     }
                   ]
@@ -471,11 +471,11 @@
               ],
               "location": [
                 {
-                  "line": 1,
+                  "line": 19,
                   "col": 3
                 },
                 {
-                  "line": 1,
+                  "line": 19,
                   "col": 17
                 }
               ]
@@ -485,11 +485,11 @@
               "type": "string",
               "location": [
                 {
-                  "line": 1,
+                  "line": 19,
                   "col": 18
                 },
                 {
-                  "line": 1,
+                  "line": 19,
                   "col": 19
                 }
               ]
