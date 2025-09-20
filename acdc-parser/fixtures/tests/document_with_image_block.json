@@ -24,7 +24,7 @@
               "name":"text",
               "type":"string",
               "value":"beautiful",
-              "location":[{"line":1,"col":4},{"line":1,"col":12}]
+              "location":[{"line":1,"col":5},{"line":1,"col":13}]
             }
           ],
           "location":[{"line":1,"col":4},{"line":1,"col":14}]
