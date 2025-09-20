@@ -67,6 +67,10 @@ pub enum Error {
     #[error("Unable to retrieve HTTP response: {0}")]
     #[serde(skip_deserializing)]
     HttpRequest(#[from] reqwest::Error),
+
+    #[error("Could not convert from int: {0}")]
+    #[serde(skip_deserializing)]
+    TryFromIntError(#[from] std::num::TryFromIntError),
 }
 
 #[derive(Debug, PartialEq, Deserialize)]

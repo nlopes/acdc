@@ -23,7 +23,7 @@ pub(crate) struct ParserState {
     pub(crate) document_attributes: DocumentAttributes,
     pub(crate) line_map: LineMap,
     pub(crate) options: Options,
-    pub(crate) input: String, // TODO(nlopes): this should be a &str
+    pub(crate) input: String,
 }
 
 impl ParserState {
@@ -327,10 +327,18 @@ peg::parser! {
         }
 
         rule discrete_header(offset: usize) -> Result<Block, Error>
-        = start:position!() block_metadata:block_metadata(offset, None)
+        = start:position!()
+        block_metadata:(bm:block_metadata(offset, None)
+            {
+                bm.map_err(|e| {
+                    tracing::error!(?e, "error parsing block metadata");
+                }).expect("block metadata errored out")
+            }
+        )
         section_level:section_level(offset, None) whitespace()
         title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() end:position!() &eol()*<2,2>
         {
+            let title = title?;
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
             let level = section_level.1;
@@ -356,7 +364,14 @@ peg::parser! {
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
-        = start:position!() block_metadata:block_metadata(offset, parent_section_level)
+        = start:position!()
+        block_metadata:(bm:block_metadata(offset, parent_section_level)
+            {
+                bm.map_err(|e| {
+                    tracing::error!(?e, "error parsing block metadata");
+                }).expect("block metadata errored out")
+            }
+        )
         section_level_start:position!()
         section_level:section_level(offset, parent_section_level)
         section_level_end:position!()
@@ -364,6 +379,7 @@ peg::parser! {
         title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() &eol()*<2,2>
         content:section_content(offset, Some(section_level.1+1))? end:position!()
         {
+            let title = title?;
             tracing::info!(?offset, ?block_metadata, ?title, ?title_start, ?title_end, "parsing section block");
 
             // Validate section level against parent section level if any is provided
@@ -389,11 +405,11 @@ peg::parser! {
             }))
         }
 
-        rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> BlockParsingMetadata
+        rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata, Error>
         = lines:(
-            anchor:anchor() { BlockMetadataLine::Anchor(anchor) }
-            / attr:attributes_line() { BlockMetadataLine::Attributes(attr) }
-            / title:title_line(offset) { BlockMetadataLine::Title(title) }
+            anchor:anchor() { Ok::<BlockMetadataLine, Error>(BlockMetadataLine::Anchor(anchor)) }
+            / attr:attributes_line() { Ok(BlockMetadataLine::Attributes(attr)) }
+            / title:title_line(offset) { Ok(BlockMetadataLine::Title(title?)) }
         )*
         {
             let mut metadata = BlockMetadata::default();
@@ -401,6 +417,7 @@ peg::parser! {
             let mut title = Vec::new();
 
             for value in lines {
+                let value = value?;
                 match value {
                     BlockMetadataLine::Anchor(value) => metadata.anchors.push(value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
@@ -418,24 +435,24 @@ peg::parser! {
                     _ => unreachable!(),
                 }
             }
-            BlockParsingMetadata {
+            Ok(BlockParsingMetadata {
                 discrete,
                 metadata,
                 title,
                 parent_section_level,
                 attribute_positions: std::collections::HashMap::new(),
-            }
+            })
         }
 
         // A title line can be a simple title or a section title
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
-        rule title_line(offset: usize) -> Vec<InlineNode>
+        rule title_line(offset: usize) -> Result<Vec<InlineNode>, Error>
         = period() start:position() &(!(whitespace() / period())) title:$([^'\n']*) end:position!() eol()
-        {?
+        {
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
-            let (title, _) = process_inlines(state, &block_metadata, start.offset, &start, end, offset, title).unwrap();
+            let (title, _) = process_inlines(state, &block_metadata, start.offset, &start, end, offset, title)?;
             Ok(title)
         }
 
@@ -463,11 +480,11 @@ peg::parser! {
             Ok((level, level.len().try_into().unwrap_or(1)-1))
         }
 
-        rule section_title(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
+        rule section_title(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<InlineNode>, Error>
         = title_start:position() title:$([^'\n']*) end:position!()
-        {?
+        {
             tracing::info!(?title, ?title_start, start, ?end, offset, "Found section title");
-            let (content, _) = process_inlines(state, block_metadata, start, &title_start, end, offset, title).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start, &title_start, end, offset, title)?;
             Ok(content)
         }
 
@@ -475,20 +492,27 @@ peg::parser! {
         = blocks(offset, parent_section_level) / { Ok(vec![]) }
 
         pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
-        = start:position!() block_metadata:block_metadata(offset, parent_section_level) block:(
-                delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
-                / image:image(start, offset, &block_metadata) { image }
-                / audio:audio(start, offset, &block_metadata) { audio }
-                / video:video(start, offset, &block_metadata) { video }
-                / toc:toc(start, offset, &block_metadata) { toc }
-                / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break }
-                / page_break:page_break(start, offset, &block_metadata) { page_break }
-                / list:list(start, offset, &block_metadata) { list }
-                / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
-            ) {
-                tracing::info!(?block_metadata, ?block, "parsing generic block");
-                block
+        = start:position!()
+        block_metadata:(bm:block_metadata(offset, parent_section_level)
+            {
+                bm.map_err(|e| {
+                    tracing::error!(?e, "error parsing block metadata");
+                }).expect("block metadata errored out")
             }
+        )
+        block:(
+            delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
+            / image:image(start, offset, &block_metadata) { image }
+            / audio:audio(start, offset, &block_metadata) { audio }
+            / video:video(start, offset, &block_metadata) { video }
+            / toc:toc(start, offset, &block_metadata) { toc }
+            / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break }
+            / page_break:page_break(start, offset, &block_metadata) { page_break }
+            / list:list(start, offset, &block_metadata) { list }
+            / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
+        ) {
+            block
+        }
 
         rule delimited_block(
             start: usize,
@@ -1126,6 +1150,10 @@ peg::parser! {
         = &(unordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
             tracing::info!(?content, "Found unordered list block");
+            // TODO(nlopes): this is very very inneficient and silly - right now I'm just
+            // trying to remove all .unwraps so this is fine. Will come back to this once
+            // I'm going for optimisations.
+            let content: Vec<_> = content.into_iter().collect::<Result<_, Error>>()?;
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, end)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
@@ -1143,6 +1171,10 @@ peg::parser! {
         = &(ordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
             tracing::info!(?content, "Found ordered list block");
+            // TODO(nlopes): this is very very inneficient and silly - right now I'm just
+            // trying to remove all .unwraps so this is fine. Will come back to this once
+            // I'm going for optimisations.
+            let content: Vec<_> = content.into_iter().collect::<Result<_, Error>>()?;
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
@@ -1156,7 +1188,7 @@ peg::parser! {
             }))
         }
 
-        rule list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> (ListItem, usize)
+        rule list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
         = start:position!()
         marker:(unordered_list_marker() / ordered_list_marker())
         whitespace()
@@ -1164,10 +1196,10 @@ peg::parser! {
         list_content_start:position()
         list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / section_level_marker())) / ![_]) [_])+)
         end:position!() (eol()+ / ![_])
-        {?
+        {
             tracing::info!(%list_item, %marker, ?checked, "found list item");
-            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1)).map_err(|_| "could not parse depth from marker")?;
-            let (content, _) = process_inlines(state, block_metadata, start, &list_content_start, end, offset, list_item).unwrap();
+            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
+            let (content, _) = process_inlines(state, block_metadata, start, &list_content_start, end, offset, list_item)?;
             let end = end.saturating_sub(1);
 
 
@@ -1315,7 +1347,9 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines(state, block_metadata, start.offset, &start, end, offset, &text).unwrap().0
+                process_inlines(state, block_metadata, start.offset, &start, end, offset, &text).map_err(|e| {
+                    tracing::error!(?e, "could not process url macro text");
+                }).expect("could not process url macro text").0
             } else {
                 vec![]
             };
@@ -1376,7 +1410,7 @@ peg::parser! {
 
         rule inline_image(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position() "image:" source:source() attributes:attributes() end:position!()
-        {
+        {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
             let mut title = Vec::new();
@@ -1398,21 +1432,21 @@ peg::parser! {
                         offset: title_start,
                         position: state.line_map.offset_to_position(title_start),
                     };
-                    title = process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content).unwrap().0;
-                } else {
-                    // Fallback to the old behavior if we don't have the position
-                    title = process_inlines(state, block_metadata, start.offset, &start, end, offset, content).unwrap().0;
+                    title = process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content).map_err(|e| {
+                        tracing::error!(?e, "could not process title in inline image macro");
+                        "could not process title in inline image macro"
+                    })?.0;
                 }
                 metadata.attributes.remove("title");
             }
 
-            InlineNode::Macro(InlineMacro::Image(Box::new(Image {
+            Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
                 title,
                 source,
                 metadata: metadata.clone(),
                 location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
 
-            })))
+            }))))
         }
 
         /// Parse link macros with custom attribute handling.
@@ -1497,7 +1531,10 @@ peg::parser! {
             = start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process unconstrained bold text content");
+                "could not process unconstrained bold text content"
+            })?;
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1529,7 +1566,11 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process constrained bold text content");
+                "could not process constrained bold text content"
+            })?;
+
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1560,7 +1601,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process constrained italic text content");
+                "could not process constrained italic text content"
+            })?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1601,7 +1645,10 @@ peg::parser! {
             = start:position() "__" content_start:position() content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained italic text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process unconstrained italic text content");
+                "could not process unconstrained italic text content"
+            })?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1614,7 +1661,10 @@ peg::parser! {
             = start:position() "``" content_start:position() content:$((!(eol() / ![_] / "``") [_])+) "``" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained monospace text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process unconstrained monospace text content");
+                "could not process unconstrained monospace text content"
+            })?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1643,7 +1693,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process constrained monospace text content");
+                "could not process constrained monospace text content"
+            })?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1673,7 +1726,10 @@ peg::parser! {
             = start:position() "##" content_start:position() content:$((!(eol() / ![_] / "##") [_])+) "##" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained highlight text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process unconstrained highlight text content");
+                "could not process unconstrained highlight text content"
+            })?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1703,7 +1759,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).unwrap();
+            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process constrained highlight text content");
+                "could not process constrained highlight text content"
+            })?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role: None, // TODO(nlopes): Handle roles (come from attributes list)
@@ -1734,7 +1793,10 @@ peg::parser! {
             = start:position() "^" content_start:position() content:$([^('^' | ' ' | '\t' | '\n')]+) "^" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found superscript text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process superscript text content");
+                "could not process superscript text content"
+            })?;
             Ok(InlineNode::SuperscriptText(Superscript {
                 content,
                 role: None,
@@ -1748,7 +1810,10 @@ peg::parser! {
             = start:position() "~" content_start:position() content:$([^('~' | ' ' | '\t' | '\n')]+) "~" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found subscript text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process subscript text content");
+                "could not process subscript text content"
+            })?;
             Ok(InlineNode::SubscriptText(Subscript {
                 content,
                 role: None,
@@ -1762,7 +1827,10 @@ peg::parser! {
             = start:position() "\"`" content_start:position() content:$((!("`\"") [_])+) "`\"" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found curved quotation text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process curved quotation text content");
+                "could not process curved quotation text content"
+            })?;
             Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
                 content,
                 role: None,
@@ -1776,7 +1844,10 @@ peg::parser! {
             = start:position() "'`" content_start:position() content:$((!("`'") [_])+) "`'" end:position!()
         {?
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found curved apostrophe text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).unwrap();
+            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
+                tracing::error!(?e, "could not process curved apostrophe text content");
+                "could not process curved apostrophe text content"
+            })?;
             Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
                 content,
                 role: None,
