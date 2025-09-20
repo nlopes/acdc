@@ -1832,7 +1832,7 @@ peg::parser! {
                         location,
                     })],
                     metadata,
-                    title: Vec::new(), // TODO(nlopes): Handle paragraph titles
+                    title: block_metadata.title.clone(),
                     location: initial_location,
                 }));
             }
