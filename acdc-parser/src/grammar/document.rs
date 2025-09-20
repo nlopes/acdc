@@ -138,9 +138,9 @@ peg::parser! {
 
         pub(crate) rule header() -> Option<Header>
             = start:position!()
-            ((document_attribute() / comment()) (eol() / ![_]))*
+            ((document_attribute() / comment()) (eol()+ / ![_]))*
             title_authors:(title_authors:title_authors() { title_authors })?
-            (eol() (document_attribute() / comment()))*
+            (eol()+ (document_attribute() / comment()))*
             end:position!()
             (eol()*<,2> / ![_])
         {
@@ -356,6 +356,7 @@ peg::parser! {
         = start:position!() att:document_attribute_match() end:position!()
         {
             let (key, value) = att;
+            state.document_attributes.insert(key.to_string(), value.clone());
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.to_string(),
                 value,
@@ -1907,7 +1908,7 @@ peg::parser! {
                     location: initial_location,
                 }));
             }
-            let content = parse_inlines(&processed, block_metadata)?;
+            let content = parse_inlines(&processed, &state.document_attributes, block_metadata)?;
             let content = map_inline_locations(state, &processed, &content, &location);
 
             if let Some(variant) = admonition {
