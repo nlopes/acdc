@@ -12,6 +12,8 @@ pub use text::*;
 
 use crate::{BlockMetadata, ElementAttributes, Image, Location, Source};
 
+use crate::grammar::{LocationMappingContext, map_formatted_inline_locations};
+
 /// An `InlineNode` represents an inline node in a document.
 ///
 /// An inline node is a structural element in a document that can contain other inline
@@ -38,6 +40,43 @@ pub enum InlineNode {
 }
 
 impl InlineNode {
+    #[must_use]
+    pub(crate) fn map_formatted_inline_locations(
+        self,
+        mapping_context: &LocationMappingContext,
+    ) -> InlineNode {
+        match self {
+            InlineNode::BoldText(bold) => {
+                InlineNode::BoldText(map_formatted_inline_locations(bold, mapping_context))
+            }
+            InlineNode::ItalicText(italic) => {
+                InlineNode::ItalicText(map_formatted_inline_locations(italic, mapping_context))
+            }
+            InlineNode::MonospaceText(monospace) => InlineNode::MonospaceText(
+                map_formatted_inline_locations(monospace, mapping_context),
+            ),
+            InlineNode::HighlightText(highlight) => InlineNode::HighlightText(
+                map_formatted_inline_locations(highlight, mapping_context),
+            ),
+            InlineNode::SubscriptText(subscript) => InlineNode::SubscriptText(
+                map_formatted_inline_locations(subscript, mapping_context),
+            ),
+            InlineNode::SuperscriptText(superscript) => InlineNode::SuperscriptText(
+                map_formatted_inline_locations(superscript, mapping_context),
+            ),
+            InlineNode::CurvedQuotationText(curved_quotation) => InlineNode::CurvedQuotationText(
+                map_formatted_inline_locations(curved_quotation, mapping_context),
+            ),
+            InlineNode::CurvedApostropheText(curved_apostrophe) => {
+                InlineNode::CurvedApostropheText(map_formatted_inline_locations(
+                    curved_apostrophe,
+                    mapping_context,
+                ))
+            }
+            _ => unimplemented!("mapping locations is only implemented for formatted inline nodes"),
+        }
+    }
+
     #[must_use]
     pub fn location(&self) -> Location {
         match self {
