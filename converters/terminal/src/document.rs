@@ -39,8 +39,21 @@ impl Render for acdc_parser::Document {
 impl Render for acdc_parser::Header {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         for node in &self.title {
-            node.render(w)?;
+            // Collect title content for styling
+            let mut title_buffer = std::io::BufWriter::new(Vec::new());
+            node.render(&mut title_buffer)?;
+            title_buffer.flush()?;
+            let title_content = String::from_utf8(title_buffer.get_ref().clone())
+                .map_err(|e| {
+                    tracing::error!(?e, "Failed to convert document title to UTF-8 string");
+                    e
+                })
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            w.queue(PrintStyledContent(title_content.bold().underlined()))?;
         }
+
         if !self.authors.is_empty() {
             w.queue(PrintStyledContent("by ".italic()))?;
             // Join the authors with commas, except for the last one, using a functional approach
@@ -113,7 +126,7 @@ mod tests {
         doc.blocks = vec![];
         let mut buffer = Vec::new();
         doc.render(&mut buffer).unwrap();
-        assert_eq!(buffer, b"Title\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
+        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
     }
 
     #[test]
