@@ -25,6 +25,18 @@ pub enum PassthroughKind {
     Macro,
 }
 
+/// A `Footnote` represents an inline footnote in a document.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Footnote {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content: Vec<InlineNode>,
+    #[serde(skip)]
+    pub number: u32,
+    pub location: Location,
+}
+
 /// An `Icon` represents an inline icon in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Icon {

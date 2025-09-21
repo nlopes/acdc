@@ -1,0 +1,5 @@
+= Simple Test
+
+This has a footnotefootnote:[Simple footnote content].
+
+Another foo footnote:naff[A *naff* footnote].

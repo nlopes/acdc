@@ -3,9 +3,9 @@ use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
-    Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak,
-    Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, Options, OrderedList,
-    PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
+    Footnote, Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
+    LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, Options,
+    OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
     StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
     TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
     error::Detail,
@@ -26,6 +26,52 @@ pub(crate) struct ParserState {
     pub(crate) line_map: LineMap,
     pub(crate) options: Options,
     pub(crate) input: String,
+    pub(crate) footnote_tracker: FootnoteTracker,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct FootnoteTracker {
+    /// All registered footnotes in the order they were encountered.
+    pub(crate) footnotes: Vec<Footnote>,
+    /// The last assigned footnote number (starts at 1)
+    last_footnote_position: u32,
+    /// Map of named footnote IDs to their assigned numbers
+    ///
+    /// This helps ensure that named footnotes are only assigned a number once and reused.
+    /// If it's an anonymous footnote (no ID), it always gets a new number.
+    named_footnote_numbers: std::collections::HashMap<String, u32>,
+}
+
+impl FootnoteTracker {
+    pub(crate) fn new() -> Self {
+        Self {
+            footnotes: Vec::new(),
+            last_footnote_position: 1,
+            named_footnote_numbers: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Register a footnote and assign it a number, but only if not already processed
+    #[tracing::instrument(skip_all, fields(?footnote))]
+    pub(crate) fn push(&mut self, footnote: &mut Footnote) {
+        if let Some(id) = &footnote.id {
+            if let Some(&existing_number) = self.named_footnote_numbers.get(id) {
+                footnote.number = existing_number;
+            } else {
+                let number = self.last_footnote_position;
+                self.named_footnote_numbers.insert(id.clone(), number);
+                footnote.number = number;
+                self.footnotes.push(footnote.clone());
+                self.last_footnote_position += 1;
+            }
+        } else {
+            // Anonymous footnote
+            let number = self.last_footnote_position;
+            footnote.number = number;
+            self.footnotes.push(footnote.clone());
+            self.last_footnote_position += 1;
+        }
+    }
 }
 
 impl ParserState {
@@ -35,6 +81,7 @@ impl ParserState {
             document_attributes: DocumentAttributes::default(),
             line_map: LineMap::new(input),
             input: input.to_string(),
+            footnote_tracker: FootnoteTracker::new(),
         }
     }
 
@@ -135,6 +182,7 @@ peg::parser! {
                 },
                 attributes: state.document_attributes.clone(),
                 blocks,
+                footnotes: state.footnote_tracker.footnotes.clone(),
             })
         }
 
@@ -1239,6 +1287,7 @@ peg::parser! {
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(
             hard_wrap:hard_wrap(offset) { hard_wrap }
+            / &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
             / image:inline_image(offset, block_metadata) { image }
             / icon:inline_icon(offset, block_metadata) { icon }
             / keyboard:inline_keyboard(offset) { keyboard }
@@ -1265,6 +1314,42 @@ peg::parser! {
             ) {
                 inline
             }
+
+        rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = footnote_match:footnote_match(offset, block_metadata)
+        {?
+            let (start, id, content_start, content_str, end) = footnote_match;
+
+            tracing::info!(?id, content = %content_str, "Found footnote inline");
+            let (content, _) = process_inlines(state, block_metadata, content_start.offset, &content_start, end, offset, &content_str).map_err(|e| {
+                tracing::error!(?e, "could not process footnote content");
+                "could not process footnote content"
+            })?;
+
+            let mut footnote = Footnote {
+                id: id.clone(),
+                content,
+                number: 0, // Will be set by register_footnote
+                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+            };
+            state.footnote_tracker.push(&mut footnote);
+
+            Ok(InlineNode::Macro(InlineMacro::Footnote(footnote)))
+        }
+
+        rule footnote_match(offset: usize, block_metadata: &BlockParsingMetadata) -> (usize, Option<String>, Position, String, usize)
+        = start:position!()
+        "footnote:"
+        id:id()?
+        "["
+        content_start:position()
+        content:$([^']']+)
+        "]"
+        end:position!()
+        {
+            (start, id, content_start, content.to_string(), end)
+
+        }
 
         rule inline_pass(offset: usize) -> InlineNode
         = start:position!()
@@ -1879,7 +1964,7 @@ peg::parser! {
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
-        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / non_plain_text(offset, block_metadata) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
+        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
@@ -1917,7 +2002,7 @@ peg::parser! {
                     location: initial_location,
                 }));
             }
-            let content = parse_inlines(&processed, &state.document_attributes, block_metadata)?;
+            let content = parse_inlines(&processed, state, block_metadata)?;
             let content = map_inline_locations(state, &processed, &content, &location);
 
             if let Some(variant) = admonition {
