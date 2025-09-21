@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{InlineMacro, InlineNode};
+use acdc_parser::{Footnote, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -95,8 +95,32 @@ impl Render for InlineMacro {
             InlineMacro::Link(l) => write!(w, "{}", l.target)?,
             InlineMacro::Url(u) => write!(w, "{}", u.target)?,
             InlineMacro::Autolink(a) => write!(w, "{}", a.url)?,
+            InlineMacro::Footnote(footnote) => {
+                // Render footnote as superscript number in terminal
+                // For terminal output, we'll show [n] format since true superscript is limited
+                w.queue(PrintStyledContent(
+                    format!("[{}]", footnote.number).cyan().bold(),
+                ))?;
+            }
             unknown => todo!("{unknown:?}"),
         }
+        Ok(())
+    }
+}
+
+impl Render for Footnote {
+    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+        // Render footnote entry: [n] footnote content
+        w.queue(PrintStyledContent(
+            format!("[{}]", self.number).cyan().bold(),
+        ))?;
+        write!(w, " ")?;
+
+        // Render the footnote content
+        for node in &self.content {
+            node.render(w)?;
+        }
+
         Ok(())
     }
 }
