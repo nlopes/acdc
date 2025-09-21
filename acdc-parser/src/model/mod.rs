@@ -154,10 +154,10 @@ impl BlockMetadata {
         self.roles.extend(other.roles.clone());
         self.options.extend(other.options.clone());
         if self.style.is_none() {
-            self.style = other.style.clone();
+            self.style.clone_from(&other.style);
         }
         if self.id.is_none() {
-            self.id = other.id.clone();
+            self.id.clone_from(&other.id);
         }
         self.anchors.extend(other.anchors.clone());
     }

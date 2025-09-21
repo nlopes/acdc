@@ -17,11 +17,11 @@ impl Render for Image {
         write!(w, "<div class=\"content\">")?;
         let link = self.metadata.attributes.get("link");
         if let Some(link) = link {
-            write!(w, "<a class=\"image\" href=\"{}\">", link)?;
+            write!(w, "<a class=\"image\" href=\"{link}\">")?;
         }
         write!(w, "<img src=\"{}\"", self.source)?;
         if let Some(alt) = self.metadata.attributes.get("alt") {
-            write!(w, " alt=\"{}\"", alt)?;
+            write!(w, " alt=\"{alt}\"")?;
         } else {
             // If no alt text is provided, take the filename without the extension, and
             // then use spaces instead of dashes and underscores for the alt text
