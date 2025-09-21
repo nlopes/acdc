@@ -145,6 +145,22 @@ impl BlockMetadata {
             && self.attributes.is_empty()
             && self.positional_attributes.is_empty()
     }
+
+    #[tracing::instrument(level = "debug")]
+    pub fn merge(&mut self, other: &BlockMetadata) {
+        self.attributes.merge(other.attributes.clone());
+        self.positional_attributes
+            .extend(other.positional_attributes.clone());
+        self.roles.extend(other.roles.clone());
+        self.options.extend(other.options.clone());
+        if self.style.is_none() {
+            self.style = other.style.clone();
+        }
+        if self.id.is_none() {
+            self.id = other.id.clone();
+        }
+        self.anchors.extend(other.anchors.clone());
+    }
 }
 
 /// A `Block` represents a block in a document.
@@ -289,6 +305,17 @@ pub enum Source {
     Path(String),
     Url(String),
     Name(String),
+}
+
+impl Source {
+    #[must_use]
+    pub fn get_filename(&self) -> Option<&str> {
+        match self {
+            Source::Path(path) => path.rsplit('/').next().or_else(|| path.rsplit('\\').next()),
+            Source::Url(url) => url.rsplit('/').next(),
+            Source::Name(name) => Some(name.as_str()),
+        }
+    }
 }
 
 impl FromStr for Source {
