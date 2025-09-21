@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{Author, Block, Document, Header};
+use acdc_parser::{Author, Block, Document, Footnote, Header};
 
 use crate::{Processor, Render, RenderOptions};
 
@@ -34,6 +34,11 @@ impl Render for Document {
             block.render(w, processor, options)?;
         }
         writeln!(w, "</div>")?;
+
+        // Render footnotes if any exist
+        if !self.footnotes.is_empty() {
+            render_footnotes(&self.footnotes, w, processor, options)?;
+        }
         render_body_footer(w, options)?;
         writeln!(w, "</body>")?;
         writeln!(w, "</html>")?;
@@ -201,4 +206,23 @@ impl Render for Author {
         writeln!(w, "\">")?;
         Ok(())
     }
+}
+
+fn render_footnotes<W: Write>(
+    footnotes: &[Footnote],
+    w: &mut W,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), crate::Error> {
+    writeln!(w, "<div id=\"footnotes\">")?;
+    writeln!(w, "<hr>")?;
+    for footnote in footnotes {
+        let number = footnote.number;
+        writeln!(w, "<div class=\"footnote\" id=\"_footnotedef_{number}\">")?;
+        write!(w, "<a href=\"#_footnoteref_{number}\">{number}</a>. ")?;
+        crate::inlines::render_inlines(&footnote.content, w, processor, options)?;
+        writeln!(w, "</div>")?;
+    }
+    writeln!(w, "</div>")?;
+    Ok(())
 }

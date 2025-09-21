@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution, Url,
+    AttributeValue, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution,
+    Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -105,6 +106,7 @@ impl Render for InlineMacro {
             InlineMacro::Image(i) => i.render(w, processor, options),
             InlineMacro::Pass(p) => p.render(w, processor, options),
             InlineMacro::Url(u) => u.render(w, processor, options),
+            InlineMacro::Footnote(f) => f.render(w, processor, options),
             unknown => todo!("inline macro: {:?}", unknown),
         }
     }
@@ -199,6 +201,34 @@ pub(crate) fn render_inlines(
         inline.render(w, processor, options)?;
     }
     Ok(())
+}
+
+impl Render for Footnote {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        if options.inlines_basic {
+            // In basic mode, just render the content
+            write!(w, "[{}]", self.number)?;
+        } else {
+            let number = self.number;
+            write!(w, "<sup class=\"footnote\"")?;
+            if let Some(id) = &self.id {
+                write!(w, " id=\"_footnote_{id}\"")?;
+            }
+            write!(
+                w,
+                ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+            )?;
+            return Ok(());
+        }
+        Ok(())
+    }
 }
 
 fn substitution_text(text: &str) -> String {
