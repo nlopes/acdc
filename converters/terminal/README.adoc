@@ -24,6 +24,18 @@ Here's a simple table.
 
 image::images/table.adoc.png["Table Example"]
 
+## Image Rendering
+
+If we can detect your terminal supports images, we'll render the image, assuming you have
+your `TERM` set up correctly.
+
+If you're using Ghostty or Kitty for example (and you're not overriding your `TERM`) you
+might have it set up to something that allows us to detect support for the right protocol.
+
+```
+TERM=xterm-kitty
+```
+
 ## TODO
 
 - [ ] Add `syntect` for syntax highlighting in literal code blocks

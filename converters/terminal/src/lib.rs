@@ -116,6 +116,7 @@ impl Processable for Processor {
 mod block;
 mod delimited;
 mod document;
+mod image;
 mod inline;
 mod list;
 mod paragraph;

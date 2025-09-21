@@ -9,6 +9,7 @@ impl Render for acdc_parser::Block {
             acdc_parser::Block::DelimitedBlock(d) => d.render(w),
             acdc_parser::Block::Section(s) => s.render(w),
             acdc_parser::Block::UnorderedList(u) => u.render(w),
+            acdc_parser::Block::Image(i) => i.render(w),
             _ => {
                 tracing::warn!("Unexpected block: {:?}", self);
                 Ok(())
