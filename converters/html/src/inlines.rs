@@ -1,8 +1,7 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Image, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Source,
-    Substitution, Url,
+    AttributeValue, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -162,36 +161,6 @@ impl Render for Url {
         } else {
             write!(w, "<a href=\"{}\">{text}</a>", self.target)?;
         }
-        Ok(())
-    }
-}
-
-impl Render for Image {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        write!(
-            w,
-            "<img src=\"{}\"",
-            match &self.source {
-                Source::Url(url) => url,
-                Source::Path(path) => path,
-                Source::Name(name) => name,
-            }
-        )?;
-        if !self.title.is_empty() {
-            write!(w, " alt=\"",)?;
-            self.title
-                .iter()
-                .try_for_each(|node| node.render(w, processor, options))?;
-            write!(w, "\"")?;
-        }
-        write!(w, "\">")?;
         Ok(())
     }
 }

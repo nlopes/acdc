@@ -176,6 +176,7 @@ mod admonition;
 mod block;
 mod delimited;
 mod document;
+mod image;
 mod inlines;
 mod list;
 mod paragraph;
