@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution,
-    Url,
+    AttributeValue, Autolink, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind,
+    Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -102,6 +102,7 @@ impl Render for InlineMacro {
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         match self {
+            InlineMacro::Autolink(al) => al.render(w, processor, options),
             InlineMacro::Link(l) => l.render(w, processor, options),
             InlineMacro::Image(i) => i.render(w, processor, options),
             InlineMacro::Pass(p) => p.render(w, processor, options),
@@ -109,6 +110,25 @@ impl Render for InlineMacro {
             InlineMacro::Footnote(f) => f.render(w, processor, options),
             unknown => todo!("inline macro: {:?}", unknown),
         }
+    }
+}
+
+impl Render for Autolink {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        let content = &self.url;
+        if options.inlines_basic {
+            write!(w, "{content}")?;
+        } else {
+            write!(w, "<a href=\"{content}\">{content}</a>")?;
+        }
+        Ok(())
     }
 }
 
