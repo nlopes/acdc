@@ -1321,10 +1321,20 @@ peg::parser! {
             let (start, id, content_start, content_str, end) = footnote_match;
 
             tracing::info!(?id, content = %content_str, "Found footnote inline");
-            let (content, _) = process_inlines(state, block_metadata, content_start.offset, &content_start, end, offset, &content_str).map_err(|e| {
+
+            // If content_str is empty or only whitespace, we should not try to process
+            // inlines, it just means this footnote has no content and therefore the user
+            // has already added the content in a footnote with the same id but with
+            // content.
+            let content = if content_str.trim().is_empty() {
+                vec![]
+            } else {
+                let (content, _) = process_inlines(state, block_metadata, content_start.offset, &content_start, end, offset, &content_str).map_err(|e| {
                 tracing::error!(?e, "could not process footnote content");
                 "could not process footnote content"
-            })?;
+                })?;
+                content
+            };
 
             let mut footnote = Footnote {
                 id: id.clone(),
@@ -1340,11 +1350,8 @@ peg::parser! {
         rule footnote_match(offset: usize, block_metadata: &BlockParsingMetadata) -> (usize, Option<String>, Position, String, usize)
         = start:position!()
         "footnote:"
-        id:id()?
-        "["
-        content_start:position()
-        content:$([^']']+)
-        "]"
+        // TODO(nlopes): we should change this so that we require an id if content is empty
+        id:id()? "[" content_start:position() content:$([^']']*) "]"
         end:position!()
         {
             (start, id, content_start, content.to_string(), end)

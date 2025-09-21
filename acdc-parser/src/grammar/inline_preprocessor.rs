@@ -165,7 +165,9 @@ parser!(
             }
 
         rule inlines() -> String = quiet!{
-            passthrough() / attribute_reference() / unprocessed_text()
+            passthrough()
+            / attribute_reference()
+            / unprocessed_text()
         } / expected!("inlines parser failed")
 
         rule attribute_reference() -> String
