@@ -21,6 +21,17 @@ impl Render for acdc_parser::Document {
                 }
             }
         }
+
+        // Render footnotes at the end of the document if any exist
+        if !self.footnotes.is_empty() {
+            writeln!(w)?;
+            writeln!(w, "─────")?; // Simple separator
+            for footnote in &self.footnotes {
+                footnote.render(w)?;
+                writeln!(w)?;
+            }
+        }
+
         Ok(())
     }
 }
