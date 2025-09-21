@@ -16,7 +16,7 @@ impl Render for Image {
             }
             Source::Path(path) => {
                 let conf = viuer::Config::default();
-                viuer::print_from_file(&path, &conf).unwrap_or_else(|e| {
+                viuer::print_from_file(path, &conf).unwrap_or_else(|e| {
                     tracing::warn!(?path, ?e, "Failed to display image");
                     (0, 0)
                 });
