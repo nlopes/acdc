@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use acdc_parser::{InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -7,13 +8,13 @@ use crossterm::{
 
 use crate::Render;
 
-impl Render for acdc_parser::InlineNode {
+impl Render for InlineNode {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         match self {
-            acdc_parser::InlineNode::PlainText(p) => {
+            InlineNode::PlainText(p) => {
                 write!(w, "{}", p.content.clone())
             }
-            acdc_parser::InlineNode::ItalicText(i) => {
+            InlineNode::ItalicText(i) => {
                 // ItalicText is a wrapper around a Vec<InlineNode>
                 //
                 // We need to render each node in the Vec<InlineNode> and then italicize the result
@@ -34,7 +35,7 @@ impl Render for acdc_parser::InlineNode {
                 ))?;
                 Ok(())
             }
-            acdc_parser::InlineNode::BoldText(b) => {
+            InlineNode::BoldText(b) => {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 b.content
                     .iter()
@@ -48,7 +49,7 @@ impl Render for acdc_parser::InlineNode {
                 ))?;
                 Ok(())
             }
-            acdc_parser::InlineNode::HighlightText(h) => {
+            InlineNode::HighlightText(h) => {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 h.content
                     .iter()
@@ -63,7 +64,7 @@ impl Render for acdc_parser::InlineNode {
                 ))?;
                 Ok(())
             }
-            acdc_parser::InlineNode::MonospaceText(m) => {
+            InlineNode::MonospaceText(m) => {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 m.content
                     .iter()
@@ -79,7 +80,7 @@ impl Render for acdc_parser::InlineNode {
                 Ok(())
             }
             // implement macro link
-            acdc_parser::InlineNode::Macro(m) => {
+            InlineNode::Macro(m) => {
                 m.render(w)?;
                 Ok(())
             }
@@ -88,11 +89,13 @@ impl Render for acdc_parser::InlineNode {
     }
 }
 
-impl Render for acdc_parser::InlineMacro {
+impl Render for InlineMacro {
     fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
         match self {
-            acdc_parser::InlineMacro::Link(l) => write!(w, "{}", l.target)?,
-            unknown => unimplemented!("GAH: {:?}", unknown),
+            InlineMacro::Link(l) => write!(w, "{}", l.target)?,
+            InlineMacro::Url(u) => write!(w, "{}", u.target)?,
+            InlineMacro::Autolink(a) => write!(w, "{}", a.url)?,
+            unknown => todo!("{unknown:?}"),
         }
         Ok(())
     }
