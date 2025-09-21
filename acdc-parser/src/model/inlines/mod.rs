@@ -38,6 +38,7 @@ pub enum InlineNode {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum InlineMacro {
+    Footnote(Footnote),
     Icon(Icon),
     Image(Box<Image>),
     Keyboard(Keyboard),
@@ -184,6 +185,13 @@ where
     S: Serializer,
 {
     match macro_node {
+        InlineMacro::Footnote(footnote) => {
+            map.serialize_entry("name", "footnote")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("id", &footnote.id)?;
+            map.serialize_entry("inlines", &footnote.content)?;
+            map.serialize_entry("location", &footnote.location)?;
+        }
         InlineMacro::Icon(icon) => {
             map.serialize_entry("name", "icon")?;
             map.serialize_entry("type", "inline")?;
@@ -276,6 +284,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_title = None;
                 let mut my_target = None;
                 let mut my_attributes = None;
+                let mut my_id = None;
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
                         "name" => {
@@ -339,6 +348,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                             }
                             my_attributes = Some(map.next_value::<ElementAttributes>()?);
                         }
+                        "id" => {
+                            if my_id.is_some() {
+                                return Err(de::Error::duplicate_field("id"));
+                            }
+                            my_id = Some(map.next_value::<Option<String>>()?);
+                        }
                         _ => {
                             // Ignore any other fields
                             let _ = map.next_value::<de::IgnoredAny>()?;
@@ -395,6 +410,19 @@ impl<'de> Deserialize<'de> for InlineNode {
                             metadata: BlockMetadata::default(),
                             location: my_location,
                         }))))
+                    }
+                    ("footnote", "inline") => {
+                        let my_inlines =
+                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
+                        Ok(InlineNode::Macro(InlineMacro::Footnote(Footnote {
+                            id: my_id.flatten(),
+                            content: my_inlines,
+                            // TODO(nlopes): This will be set by the footnote
+                            // tracker during parsing - should serialize and
+                            // deserialize it too?
+                            number: 0,
+                            location: my_location,
+                        })))
                     }
                     ("keyboard", "inline") => {
                         Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {

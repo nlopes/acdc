@@ -382,6 +382,17 @@ pub(crate) fn map_inline_locations(
                 mapped_standalone.location = map_loc(&standalone.location);
                 vec![InlineNode::StandaloneCurvedApostrophe(mapped_standalone)]
             }
+            InlineNode::Macro(inline_macro) => {
+                use crate::InlineMacro;
+                let mut mapped_macro = inline_macro.clone();
+                if let InlineMacro::Footnote(footnote) = &mut mapped_macro {
+                    // Map the footnote's own location
+                    footnote.location = map_loc(&footnote.location);
+                    // Recursively map the content locations using the same mapping function
+                    footnote.content = map_inline_locations(state, processed, &footnote.content, location);
+                }
+                vec![InlineNode::Macro(mapped_macro)]
+            }
             other => vec![other.clone()],
         })
         .collect::<Vec<_>>()

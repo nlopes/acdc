@@ -32,6 +32,8 @@ pub struct Document {
     pub attributes: DocumentAttributes,
     #[serde(default)]
     pub blocks: Vec<Block>,
+    #[serde(skip)]
+    pub footnotes: Vec<Footnote>,
     pub location: Location,
 }
 
