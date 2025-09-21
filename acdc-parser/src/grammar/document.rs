@@ -12,6 +12,8 @@ use crate::{
     grammar::{
         LineMap,
         author_revision::{RevisionInfo, generate_initials, process_revision_info},
+        inline_preprocessing,
+        inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
         location_mapping::map_inline_locations,
     },
@@ -1037,8 +1039,10 @@ peg::parser! {
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "image::" source:source() attributes:attributes() end:position!()
         {
-            let (_discrete, metadata, _title_position) = attributes;
-            let mut metadata = metadata.clone();
+            let (_discrete, metadata_from_attributes, _title_position) = attributes;
+            let title = block_metadata.title.clone();
+            let mut metadata = block_metadata.metadata.clone();
+            metadata.merge(&metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
                 metadata.attributes.insert("alt".to_string(), AttributeValue::String(style.clone()));
@@ -1051,9 +1055,9 @@ peg::parser! {
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
-                title: block_metadata.title.clone(),
+                title,
                 source,
-                metadata: metadata.clone(),
+                metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
 
             }))
@@ -1062,11 +1066,13 @@ peg::parser! {
         rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "audio::" source:source() attributes:attributes() end:position!()
         {
-            let (_discrete, metadata, _title_position) = attributes;
-            let mut metadata = metadata.clone();
+            let (_discrete, metadata_from_attributes, _title_position) = attributes;
+            let title = block_metadata.title.clone();
+            let mut metadata = block_metadata.metadata.clone();
+            metadata.merge(&metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Audio(Audio {
-                title: block_metadata.title.clone(),
+                title,
                 source,
                 metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
@@ -1079,8 +1085,10 @@ peg::parser! {
         rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
         {
-            let (_discrete, metadata, _title_position) = attributes;
-            let mut metadata = metadata.clone();
+            let (_discrete, metadata_from_attributes, _title_position) = attributes;
+            let title = block_metadata.title.clone();
+            let mut metadata = block_metadata.metadata.clone();
+            metadata.merge(&metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
@@ -1100,7 +1108,7 @@ peg::parser! {
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
-                title: block_metadata.title.clone(),
+                title,
                 sources,
                 metadata,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
@@ -1867,6 +1875,7 @@ peg::parser! {
             }))
         }
 
+        // TODO(nlopes): what do I do with the attributes here?
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
@@ -2198,7 +2207,16 @@ peg::parser! {
 
         rule proto() -> &'input str = $("https" / "http" / "ftp" / "irc" / "mailto")
 
-        pub rule path() -> &'input str = $(['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+)
+        pub rule path() -> String = path:$(['A'..='Z' | '{' | '}' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+)
+        {?
+            let mut inline_state = InlinePreprocessorParserState::new();
+            let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
+            .map_err(|e| {
+                tracing::error!(?e, "could not preprocess path");
+                "could not preprocess path"
+            })?;
+            Ok(processed.text)
+        }
 
         pub rule source() -> Source
             = source:

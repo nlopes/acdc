@@ -77,6 +77,12 @@ impl Document {
     {
         self.0.remove(name)
     }
+
+    pub fn merge(&mut self, other: Document) {
+        for (key, value) in other.0 {
+            self.insert(key, value);
+        }
+    }
 }
 
 /// An `AttributeName` represents the name of an attribute in a document.
