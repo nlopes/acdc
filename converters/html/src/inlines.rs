@@ -1,8 +1,7 @@
 use std::io::Write;
 
 use acdc_parser::{
-    AttributeValue, Autolink, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind,
-    Substitution, Url,
+    Autolink, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -161,28 +160,16 @@ impl Render for Url {
     fn render<W: Write>(
         &self,
         w: &mut W,
-        _processor: &Processor,
+        processor: &Processor,
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
-        let text = self
-            .attributes
-            .iter()
-            .find_map(|(k, v)| {
-                // Link macros can only have one positional attribute, which is the text.
-                if *v == AttributeValue::None {
-                    Some(k)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(&format!("{}", self.target))
-            .to_string();
-
-        if options.inlines_basic {
-            write!(w, "{text}")?;
+        write!(w, "<a href=\"{}\">", self.target)?;
+        if self.text.is_empty() {
+            write!(w, "{}", self.target)?;
         } else {
-            write!(w, "<a href=\"{}\">{text}</a>", self.target)?;
+            crate::inlines::render_inlines(&self.text, w, processor, options)?;
         }
+        write!(w, "</a>")?;
         Ok(())
     }
 }

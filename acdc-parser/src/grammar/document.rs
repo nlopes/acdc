@@ -1351,12 +1351,24 @@ peg::parser! {
         = start:position!()
         "footnote:"
         // TODO(nlopes): we should change this so that we require an id if content is empty
-        id:id()? "[" content_start:position() content:$([^']']*) "]"
+        id:id()? "[" content_start:position() content:footnote_content() "]"
         end:position!()
         {
             (start, id, content_start, content.to_string(), end)
 
         }
+
+        /// Parse footnote content with support for nested square brackets
+        /// This handles cases like: [Link text], [http://url[link text]], etc.
+        rule footnote_content() -> String
+        = content:footnote_content_part()* {
+            content.join("")
+        }
+
+        /// Individual parts of footnote content - either regular text or nested brackets
+        rule footnote_content_part() -> String
+        = nested_brackets:("[" inner:footnote_content() "]" { format!("[{inner}]") })
+        / regular_text:$([^'[' | ']']+) { regular_text.to_string() }
 
         rule inline_pass(offset: usize) -> InlineNode
         = start:position!()
