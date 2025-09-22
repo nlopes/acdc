@@ -270,9 +270,18 @@ parser!(
             }
 
         rule pass_macro() -> String
-            = start:position() "pass:" substitutions:substitutions() "[" content:$([^']']*) "]" end:position!() {
-                let location = state.tracker.borrow_mut().calculate_location_from_start_end(start, end);
-                let content = if substitutions.contains(&Substitution::Attributes) {
+        = start:position() "pass:" substitutions:substitutions() "[" content:$([^']']*) "]" {
+            // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
+            // Calculate approximate substitutions length
+            let subs_len = if substitutions.is_empty() {
+                0
+            } else {
+                // Each substitution is 1 char + commas between them
+                substitutions.len() + (substitutions.len().saturating_sub(1))
+            };
+            let padding = 5 + subs_len + 1 + 1; // "pass:" + subs + "[" + "]"
+            let location = state.tracker.borrow_mut().calculate_location(start, content, padding);
+            let content = if substitutions.contains(&Substitution::Attributes) {
                     inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).expect("failed to process attribute references inside pass macro")
                 } else {
                     content.to_string()
