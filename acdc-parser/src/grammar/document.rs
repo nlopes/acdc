@@ -1351,24 +1351,33 @@ peg::parser! {
         = start:position!()
         "footnote:"
         // TODO(nlopes): we should change this so that we require an id if content is empty
-        id:id()? "[" content_start:position() content:footnote_content() "]"
+        id:id()? "[" content_start:position() content:balanced_bracket_content() "]"
         end:position!()
         {
             (start, id, content_start, content.to_string(), end)
 
         }
 
-        /// Parse footnote content with support for nested square brackets
-        /// This handles cases like: [Link text], [http://url[link text]], etc.
-        rule footnote_content() -> String
-        = content:footnote_content_part()* {
-            content.join("")
-        }
+        /// Parse content that may contain balanced square brackets (general case)
+        /// This is used for footnotes, link titles and button labels
+        rule balanced_bracket_content() -> String
+        = content:$(balanced_bracket_content_part()*) { content.to_string() }
 
-        /// Individual parts of footnote content - either regular text or nested brackets
-        rule footnote_content_part() -> String
-        = nested_brackets:("[" inner:footnote_content() "]" { format!("[{inner}]") })
-        / regular_text:$([^'[' | ']']+) { regular_text.to_string() }
+        /// Individual parts of balanced bracket content - either regular text or nested brackets
+        rule balanced_bracket_content_part() -> String
+        = nested_brackets:("[" inner:balanced_bracket_content() "]" { format!("[{inner}]") })
+        / regular_text:$([^('[' | ']')]+) { regular_text.to_string() }
+
+        /// Parse link/URL title content that may contain balanced brackets
+        /// This is similar to balanced_bracket_content but stops at comma and attribute patterns
+        rule balanced_link_title() -> String
+        = "\"" title:$((!"\"" [_])*) "\"" { title.to_string() }
+        / parts:$(balanced_link_title_part()+) { parts.to_string() }
+
+        /// Parse parts of link title content
+        rule balanced_link_title_part() -> String
+        = nested_brackets:("[" inner:balanced_bracket_content() "]" { format!("[{inner}]") })
+        / regular_text:$((!("," / (attribute_name() "=")) [^'[' | ']'])+) { regular_text.to_string() }
 
         rule inline_pass(offset: usize) -> InlineNode
         = start:position!()
@@ -1407,7 +1416,7 @@ peg::parser! {
 
         rule inline_button(offset: usize) -> InlineNode
         = start:position!()
-        "btn:[" label:$([^']']+) "]" end:position!()
+        "btn:[" label:$balanced_bracket_content() "]" end:position!()
         {
             tracing::info!(?label, "Found button inline");
             InlineNode::Macro(InlineMacro::Button(Button {
@@ -1637,8 +1646,7 @@ peg::parser! {
         /// - `]` (end of link)
         /// - `name=` patterns (attribute definitions)
         rule link_title() -> String
-        = "\"" title:$((!"\"" [_])*) "\"" { title.to_string() }
-        / title:$((!(("," / "]") / (attribute_name() "=")) [_])+) { title.to_string() }
+        = balanced_link_title()
 
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
