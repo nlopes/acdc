@@ -6,10 +6,10 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::Render;
+use crate::{Processor, Render};
 
 impl Render for Image {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
         match &self.source {
             Source::Url(url) => {
                 w.queue(PrintStyledContent(format!("[Image: {url}]").italic()))?;

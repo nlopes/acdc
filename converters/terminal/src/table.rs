@@ -2,10 +2,10 @@ use std::io::Write;
 
 use comfy_table::{Cell, Color, ContentArrangement, Table};
 
-use crate::Render;
+use crate::{Processor, Render};
 
 impl Render for acdc_parser::Table {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         let mut table = Table::new();
         table
             .set_content_arrangement(ContentArrangement::Dynamic)
@@ -21,7 +21,7 @@ impl Render for acdc_parser::Table {
                     let mut inner = std::io::BufWriter::new(Vec::new());
                     col.content
                         .iter()
-                        .try_for_each(|block| block.render(&mut inner))?;
+                        .try_for_each(|block| block.render(&mut inner, processor))?;
                     inner.flush()?;
                     Ok(
                         Cell::new(String::from_utf8(inner.get_ref().clone()).unwrap_or_default())
@@ -42,7 +42,7 @@ impl Render for acdc_parser::Table {
                     let mut inner = std::io::BufWriter::new(Vec::new());
                     col.content
                         .iter()
-                        .try_for_each(|block| block.render(&mut inner))?;
+                        .try_for_each(|block| block.render(&mut inner, processor))?;
                     inner.flush()?;
                     Ok(Cell::new(
                         String::from_utf8(inner.get_ref().clone()).unwrap_or_default(),

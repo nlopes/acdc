@@ -1,7 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    Autolink, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution, Url,
+    Autolink, Button, Footnote, InlineMacro, InlineNode, Link, Pass, PassthroughKind, Substitution,
+    Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -107,6 +108,7 @@ impl Render for InlineMacro {
             InlineMacro::Pass(p) => p.render(w, processor, options),
             InlineMacro::Url(u) => u.render(w, processor, options),
             InlineMacro::Footnote(f) => f.render(w, processor, options),
+            InlineMacro::Button(b) => b.render(w, processor, options),
             unknown => todo!("inline macro: {:?}", unknown),
         }
     }
@@ -149,6 +151,30 @@ impl Render for Link {
             write!(w, "{text}")?;
         } else {
             write!(w, "<a href=\"{}\">{text}</a>", self.target)?;
+        }
+        Ok(())
+    }
+}
+
+impl Render for Button {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        _options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        // Buttons (UI macros) are experimental
+        if processor
+            .options
+            .document_attributes
+            .get("experimental")
+            .is_some()
+        {
+            write!(w, "<b class=\"button\">{}</b>", self.label)?;
+        } else {
+            write!(w, "btn:[{}]", self.label)?;
         }
         Ok(())
     }

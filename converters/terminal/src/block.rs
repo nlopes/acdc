@@ -1,15 +1,15 @@
 use std::io::Write;
 
-use crate::Render;
+use crate::{Processor, Render};
 
 impl Render for acdc_parser::Block {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         match self {
-            acdc_parser::Block::Paragraph(p) => p.render(w),
-            acdc_parser::Block::DelimitedBlock(d) => d.render(w),
-            acdc_parser::Block::Section(s) => s.render(w),
-            acdc_parser::Block::UnorderedList(u) => u.render(w),
-            acdc_parser::Block::Image(i) => i.render(w),
+            acdc_parser::Block::Paragraph(p) => p.render(w, processor),
+            acdc_parser::Block::DelimitedBlock(d) => d.render(w, processor),
+            acdc_parser::Block::Section(s) => s.render(w, processor),
+            acdc_parser::Block::UnorderedList(u) => u.render(w, processor),
+            acdc_parser::Block::Image(i) => i.render(w, processor),
             _ => {
                 tracing::warn!("Unexpected block: {:?}", self);
                 Ok(())
