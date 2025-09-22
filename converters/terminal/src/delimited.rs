@@ -1,12 +1,12 @@
 use std::io::Write;
 
-use crate::Render;
+use crate::{Processor, Render};
 
 impl Render for acdc_parser::DelimitedBlock {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         writeln!(w)?;
         match &self.inner {
-            acdc_parser::DelimitedBlockType::DelimitedTable(t) => t.render(w),
+            acdc_parser::DelimitedBlockType::DelimitedTable(t) => t.render(w, processor),
             _ => Ok(()),
         }
     }

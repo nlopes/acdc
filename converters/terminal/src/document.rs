@@ -5,17 +5,17 @@ use crossterm::{
     style::{Print, PrintStyledContent, Stylize},
 };
 
-use crate::Render;
+use crate::{Processor, Render};
 
 impl Render for acdc_parser::Document {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         if let Some(header) = &self.header {
-            header.render(w)?;
+            header.render(w, processor)?;
         }
         if !self.blocks.is_empty() {
             let last_index = self.blocks.len() - 1;
             for (i, block) in self.blocks.iter().enumerate() {
-                block.render(w)?;
+                block.render(w, processor)?;
                 if i != last_index {
                     writeln!(w)?;
                 }
@@ -27,7 +27,7 @@ impl Render for acdc_parser::Document {
             writeln!(w)?;
             writeln!(w, "─────")?; // Simple separator
             for footnote in &self.footnotes {
-                footnote.render(w)?;
+                footnote.render(w, processor)?;
                 writeln!(w)?;
             }
         }
@@ -37,11 +37,11 @@ impl Render for acdc_parser::Document {
 }
 
 impl Render for acdc_parser::Header {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         for node in &self.title {
             // Collect title content for styling
             let mut title_buffer = std::io::BufWriter::new(Vec::new());
-            node.render(&mut title_buffer)?;
+            node.render(&mut title_buffer, processor)?;
             title_buffer.flush()?;
             let title_content = String::from_utf8(title_buffer.get_ref().clone())
                 .map_err(|e| {
@@ -61,7 +61,7 @@ impl Render for acdc_parser::Header {
                 .iter()
                 .enumerate()
                 .try_for_each(|(i, author)| {
-                    author.render(w)?;
+                    author.render(w, processor)?;
                     if i != self.authors.len() - 1 {
                         w.queue(Print(", "))?;
                     }
@@ -75,7 +75,7 @@ impl Render for acdc_parser::Header {
 }
 
 impl Render for acdc_parser::Author {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
         w.queue(PrintStyledContent(format!("{} ", self.first_name).italic()))?;
         if let Some(middle_name) = &self.middle_name {
             w.queue(PrintStyledContent(format!("{middle_name} ").italic()))?;
@@ -99,8 +99,10 @@ mod tests {
     #[test]
     fn test_render_document() {
         let doc = Document::default();
+        let options = crate::Options::default();
+        let processor = crate::Processor { options };
         let mut buffer = Vec::new();
-        doc.render(&mut buffer).unwrap();
+        doc.render(&mut buffer, &processor).unwrap();
         assert_eq!(buffer, b"");
     }
 
@@ -125,7 +127,9 @@ mod tests {
         });
         doc.blocks = vec![];
         let mut buffer = Vec::new();
-        doc.render(&mut buffer).unwrap();
+        let options = crate::Options::default();
+        let processor = crate::Processor { options };
+        doc.render(&mut buffer, &processor).unwrap();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
     }
 
@@ -162,7 +166,9 @@ mod tests {
             }),
         ];
         let mut buffer = Vec::new();
-        doc.render(&mut buffer).unwrap();
+        let options = crate::Options::default();
+        let processor = crate::Processor { options };
+        doc.render(&mut buffer, &processor).unwrap();
         assert_eq!(buffer, b"Hello, world!\n\n> Section <\nHello, section!\n\n");
     }
 }

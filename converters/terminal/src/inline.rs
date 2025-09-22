@@ -1,15 +1,15 @@
 use std::io::Write;
 
-use acdc_parser::{Footnote, InlineMacro, InlineNode};
+use acdc_parser::{Button, Footnote, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::Render;
+use crate::{Processor, Render};
 
 impl Render for InlineNode {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         match self {
             InlineNode::PlainText(p) => {
                 write!(w, "{}", p.content.clone())
@@ -25,7 +25,7 @@ impl Render for InlineNode {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 i.content
                     .iter()
-                    .try_for_each(|node| node.render(&mut inner))?;
+                    .try_for_each(|node| node.render(&mut inner, processor))?;
                 inner.flush()?;
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
@@ -39,7 +39,7 @@ impl Render for InlineNode {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 b.content
                     .iter()
-                    .try_for_each(|node| node.render(&mut inner))?;
+                    .try_for_each(|node| node.render(&mut inner, processor))?;
                 inner.flush()?;
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
@@ -53,7 +53,7 @@ impl Render for InlineNode {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 h.content
                     .iter()
-                    .try_for_each(|node| node.render(&mut inner))?;
+                    .try_for_each(|node| node.render(&mut inner, processor))?;
                 inner.flush()?;
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
@@ -68,7 +68,7 @@ impl Render for InlineNode {
                 let mut inner = std::io::BufWriter::new(Vec::new());
                 m.content
                     .iter()
-                    .try_for_each(|node| node.render(&mut inner))?;
+                    .try_for_each(|node| node.render(&mut inner, processor))?;
                 inner.flush()?;
                 w.queue(PrintStyledContent(
                     String::from_utf8(inner.get_ref().clone())
@@ -81,7 +81,7 @@ impl Render for InlineNode {
             }
             // implement macro link
             InlineNode::Macro(m) => {
-                m.render(w)?;
+                m.render(w, processor)?;
                 Ok(())
             }
             unknown => unimplemented!("GAH: {:?}", unknown),
@@ -90,7 +90,7 @@ impl Render for InlineNode {
 }
 
 impl Render for InlineMacro {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         match self {
             InlineMacro::Link(l) => write!(w, "{}", l.target)?,
             InlineMacro::Url(u) => write!(w, "{}", u.target)?,
@@ -102,6 +102,7 @@ impl Render for InlineMacro {
                     format!("[{}]", footnote.number).cyan().bold(),
                 ))?;
             }
+            InlineMacro::Button(b) => b.render(w, processor)?,
             unknown => todo!("{unknown:?}"),
         }
         Ok(())
@@ -109,7 +110,7 @@ impl Render for InlineMacro {
 }
 
 impl Render for Footnote {
-    fn render(&self, w: &mut impl Write) -> std::io::Result<()> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
         // Render footnote entry: [n] footnote content
         w.queue(PrintStyledContent(
             format!("[{}]", self.number).cyan().bold(),
@@ -118,9 +119,30 @@ impl Render for Footnote {
 
         // Render the footnote content
         for node in &self.content {
-            node.render(w)?;
+            node.render(w, processor)?;
         }
 
+        Ok(())
+    }
+}
+
+impl Render for Button {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+        if processor
+            .options
+            .document_attributes
+            .contains_key("experimental")
+        {
+            w.queue(PrintStyledContent(
+                format!("[{}]", self.label).white().bold(),
+            ))?;
+        } else {
+            // If the no-button attribute is set, just render the label as plain text
+            w.queue(PrintStyledContent(
+                format!("btn:[{}]", self.label.clone()).white(),
+            ))?;
+            return Ok(());
+        }
         Ok(())
     }
 }

@@ -20,10 +20,10 @@ pub enum Error {
 }
 
 trait ToTerminal: Render {
-    fn to_terminal(&self) -> std::io::Result<()> {
+    fn to_terminal(&self, processor: &Processor) -> std::io::Result<()> {
         let stdout = std::io::stdout();
         let mut writer = std::io::BufWriter::new(stdout.lock());
-        self.render(&mut writer)?;
+        self.render(&mut writer, processor)?;
         writer.flush()?;
         Ok(())
     }
@@ -32,7 +32,7 @@ trait ToTerminal: Render {
 /// A simple trait for helping in rendering `AsciiDoc` content.
 trait Render {
     #[allow(clippy::missing_errors_doc)]
-    fn render(&self, w: &mut impl std::io::Write) -> std::io::Result<()>;
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()>;
 }
 
 pub struct Processor {
@@ -58,16 +58,16 @@ impl Processable for Processor {
         match &self.options.source {
             Source::Files(files) => {
                 for file in files {
-                    acdc_parser::parse_file(file, &options)?.to_terminal()?;
+                    acdc_parser::parse_file(file, &options)?.to_terminal(self)?;
                 }
             }
             Source::String(content) => {
-                acdc_parser::parse(content, &options)?.to_terminal()?;
+                acdc_parser::parse(content, &options)?.to_terminal(self)?;
             }
             Source::Stdin => {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
-                acdc_parser::parse_from_reader(&mut reader, &options)?.to_terminal()?;
+                acdc_parser::parse_from_reader(&mut reader, &options)?.to_terminal(self)?;
             }
         }
 
@@ -86,7 +86,7 @@ impl Processable for Processor {
                 let mut writer = std::io::BufWriter::new(buffer);
                 for file in files {
                     let doc = acdc_parser::parse_file(file, &options)?;
-                    doc.render(&mut writer)?;
+                    doc.render(&mut writer, self)?;
                 }
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
@@ -95,7 +95,7 @@ impl Processable for Processor {
                 let doc = acdc_parser::parse(content, &options)?;
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
-                doc.render(&mut writer)?;
+                doc.render(&mut writer, self)?;
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
             }
@@ -105,7 +105,7 @@ impl Processable for Processor {
                 let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
-                doc.render(&mut writer)?;
+                doc.render(&mut writer, self)?;
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
             }
