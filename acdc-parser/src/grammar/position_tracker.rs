@@ -79,21 +79,6 @@ impl PositionTracker {
             end,
         }
     }
-
-    pub(crate) fn calculate_location_from_start_end(
-        &mut self,
-        start: Position,
-        absolute_end: usize,
-    ) -> Location {
-        let absolute_start = self.get_offset();
-        self.advance_by(absolute_end - absolute_start);
-        Location {
-            absolute_start,
-            absolute_end,
-            start,
-            end: self.get_position(),
-        }
-    }
 }
 
 /// Pre-calculated line position map for efficient offset-to-position conversion.
