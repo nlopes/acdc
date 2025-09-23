@@ -1286,7 +1286,9 @@ peg::parser! {
 
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(
-            hard_wrap:hard_wrap(offset) { hard_wrap }
+            cross_reference_shorthand:cross_reference_shorthand(offset) { cross_reference_shorthand }
+            / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
+            / hard_wrap:hard_wrap(offset) { hard_wrap }
             / &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
             / image:inline_image(offset, block_metadata) { image }
             / icon:inline_icon(offset, block_metadata) { icon }
@@ -1648,6 +1650,53 @@ peg::parser! {
         rule link_title() -> String
         = balanced_link_title()
 
+        /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
+        rule cross_reference_shorthand(offset: usize) -> InlineNode
+        = start:position!() shorthand:cross_reference_shorthand_pattern() end:position!()
+        {?
+            let (target, text) = shorthand;
+            let target_str = target.trim().to_string();
+            let text = text.map(|t| t.trim().to_string());
+            tracing::info!(?target_str, ?text, "Found cross-reference shorthand");
+            Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
+                target: target_str,
+                text,
+                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+            })))
+        }
+
+        /// Pattern for cross-reference shorthand: <<id>> or <<id,custom text>>
+        rule cross_reference_shorthand_pattern() -> (String, Option<String>)
+        = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," text:$((!">>" [_])+) { text })? ">>"
+        {
+            (target.to_string(), content.map(|s| s.to_string()))
+        }
+
+        /// Parse cross-reference macro syntax: xref:id[text]
+        rule cross_reference_macro(offset: usize) -> InlineNode
+        = start:position!() "xref:" target:source() "[" text:$((!"]" [_])*) "]" end:position!()
+        {?
+            let target_str = target.to_string();
+            let text_str = if text.is_empty() { None } else { Some(text.to_string()) };
+            tracing::info!(?target_str, ?text_str, "Found cross-reference macro");
+            Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
+                target: target_str,
+                text: text_str,
+                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+            })))
+        }
+
+        /// Match cross-reference shorthand syntax without consuming: <<id>> or <<id,text>>
+        rule cross_reference_shorthand_match() -> ()
+        = cross_reference_shorthand_pattern()
+        {
+            ()
+        }
+
+        /// Match cross-reference macro syntax without consuming: xref:id[text]
+        rule cross_reference_macro_match()
+        = "xref:" source() "[" (!"]" [_])* "]"
+
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
@@ -1991,7 +2040,7 @@ peg::parser! {
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         attributes:attributes()?
-        content:$((!(eol()*<2,> / ![_] / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
+        content:$((!(eol()*<2,> / ![_] / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");

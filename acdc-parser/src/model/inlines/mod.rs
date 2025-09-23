@@ -47,6 +47,7 @@ pub enum InlineMacro {
     Url(Url),
     Link(Link),
     Autolink(Autolink),
+    CrossReference(CrossReference),
     Pass(Pass),
 }
 
@@ -246,6 +247,15 @@ where
             map.serialize_entry("target", &autolink.url)?;
             map.serialize_entry("location", &autolink.location)?;
         }
+        InlineMacro::CrossReference(xref) => {
+            map.serialize_entry("name", "xref")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("target", &xref.target)?;
+            if let Some(text) = &xref.text {
+                map.serialize_entry("text", text)?;
+            }
+            map.serialize_entry("location", &xref.location)?;
+        }
         InlineMacro::Pass(_) => {
             unimplemented!(
                 "passthrough serialization is not implemented because we only serialize to ASG what should be visible to the user"
@@ -285,6 +295,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_target = None;
                 let mut my_attributes = None;
                 let mut my_id = None;
+                let mut my_text = None;
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
                         "name" => {
@@ -353,6 +364,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 return Err(de::Error::duplicate_field("id"));
                             }
                             my_id = Some(map.next_value::<Option<String>>()?);
+                        }
+                        "text" => {
+                            if my_text.is_some() {
+                                return Err(de::Error::duplicate_field("text"));
+                            }
+                            my_text = Some(map.next_value::<String>()?);
                         }
                         _ => {
                             // Ignore any other fields
@@ -440,6 +457,15 @@ impl<'de> Deserialize<'de> for InlineNode {
                         Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
                             target: String::new(), // Simplified deserialization, target not stored in fixture format
                             items: vec![],
+                            location: my_location,
+                        })))
+                    }
+                    ("xref", "inline") => {
+                        let my_target =
+                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
+                            target: my_target.to_string(),
+                            text: my_text.map(|t| t.to_string()),
                             location: my_location,
                         })))
                     }

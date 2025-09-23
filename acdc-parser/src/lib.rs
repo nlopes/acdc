@@ -48,7 +48,7 @@ use preprocessor::Preprocessor;
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
-    Block, BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
+    Block, BlockMetadata, Bold, Button, CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListDescription, DescriptionListItem,
     DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote,
     Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak,
