@@ -152,9 +152,7 @@ impl Render for CrossReference {
     fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
         if let Some(text) = &self.text {
             // Render custom text with subtle styling to indicate it's a cross-reference
-            w.queue(PrintStyledContent(
-                text.clone().blue().underlined(),
-            ))?;
+            w.queue(PrintStyledContent(text.clone().blue().underlined()))?;
         } else {
             // Render target in brackets with styling
             w.queue(PrintStyledContent(

@@ -463,11 +463,13 @@ impl<'de> Deserialize<'de> for InlineNode {
                     ("xref", "inline") => {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
-                            target: my_target.to_string(),
-                            text: my_text.map(|t| t.to_string()),
-                            location: my_location,
-                        })))
+                        Ok(InlineNode::Macro(InlineMacro::CrossReference(
+                            crate::model::CrossReference {
+                                target: my_target.to_string(),
+                                text: my_text.map(|t| t.to_string()),
+                                location: my_location,
+                            },
+                        )))
                     }
                     ("ref", "inline") => {
                         let my_variant =
