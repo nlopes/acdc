@@ -10,42 +10,63 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 
 ## Features supported
 
-* [*] Document Headers
-* [*] Section
-* [*] Delimited Block
-** [*] Comment
-** [*] Example
-** [*] Listing
-** [*] Literal
-** [*] Open
-** [*] Sidebar
-** [*] Table
-** [*] Pass
-** [*] Quote
-* [*] Paragraph __(constrained not supported well!)__
-** [*] Bold
-** [*] Italic
-** [*] Monospace
-** [*] Literal Monospace
-** [*] Highlight
-** [*] Subscript / Superscript
-* [*] Image
-* [*] Lists
-** [*] Ordered
-** [*] Unordered
-* [*] Thematic Break
-* [*] Page Break
-* [ ] Tables
-* [*] Admonition
-* [*] Anchors
-* [*] Attributes
-* [*] Titles
-* [*] Footnotes
-* [*] Includes
+* [x] Document Headers
+* [x] Section
+* [x] Delimited Block
+** [x] Comment
+** [x] Example
+** [x] Listing
+** [x] Literal
+** [x] Open
+** [x] Sidebar
+** [x] Table
+** [x] Pass
+** [x] Quote
+** [x] Verse
+* [x] Paragraph
+** [x] Bold (constrained & unconstrained)
+** [x] Italic (constrained & unconstrained)
+** [x] Monospace (constrained & unconstrained)
+** [x] Literal Monospace
+** [x] Highlight (constrained & unconstrained)
+** [x] Subscript / Superscript
+** [x] Curved quotes and apostrophes
+** [x] Passthrough (inline and macro)
+* [x] Image (block and inline)
+* [x] Video
+* [x] Audio
+* [x] Lists
+** [x] Ordered
+** [x] Unordered
+** [ ] Description Lists
+** [x] Checklist items
+* [x] Thematic Break
+* [x] Page Break
+* [x] Tables (basic support)
+* [x] Admonition
+* [x] Anchors
+* [x] Attributes
+* [x] Titles
+* [x] Footnotes (including inline content)
+* [x] Cross References
+** [x] xref macro
+** [x] Shorthand notation (\<<id>>)
+* [x] Links and URLs
+** [x] Link macro
+** [x] URL detection and autolinks
+* [x] Inline Macros
+** [x] Button
+** [x] Keyboard
+** [x] Menu
+** [x] Icon
+** [x] Pass
+* [x] Includes
 ** **Advanced**
-** [*] Offsets
+** [x] Offsets
 ** [ ] Tagged regions
-* [*] Conditionals
-** [*] ifdef
-** [*] ifndef
-** [*] ifeval
+* [x] Conditionals
+** [x] ifdef
+** [x] ifndef
+** [x] ifeval
+* [x] Line breaks (+)
+* [x] Discrete headers
