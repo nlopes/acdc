@@ -1,0 +1,51 @@
+name: AsciiDoc TCK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: '*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tck:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: acdc
+
+    - name: Clone asciidoc-tck
+      run: git clone https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git asciidoc-tck
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Setup Rust Cache
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: acdc
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: asciidoc-tck/package-lock.json
+
+    - name: Build acdc with TCK feature
+      working-directory: acdc
+      run: cargo build --features tck
+
+    - name: Install asciidoc-tck dependencies
+      working-directory: asciidoc-tck
+      run: npm install
+
+    - name: Run TCK tests
+      working-directory: asciidoc-tck
+      run: RUST_LOG= node harness/bin/asciidoc-tck.js cli -c '../acdc/target/debug/acdc --stdin --backend tck'
