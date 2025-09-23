@@ -95,6 +95,15 @@ pub struct Keyboard {
 // TODO(nlopes): this could perhaps be an enum instead with the allowed keys
 pub type Key = String;
 
+/// A `CrossReference` represents an inline cross-reference (xref) in a document.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CrossReference {
+    pub target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    pub location: Location,
+}
+
 /// An `Autolink` represents an inline autolink in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Autolink {
