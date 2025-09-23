@@ -163,6 +163,52 @@ fn parse_input(input: &str, options: &Options) -> Result<Document, Error> {
     }
 }
 
+/// Parse inline `AsciiDoc` content from a string.
+///
+/// This function parses the provided string as inline `AsciiDoc` elements, returning a
+/// vector of inline nodes instead of a complete document structure. This is useful for
+/// parsing fragments of `AsciiDoc` content that contain inline markup like emphasis,
+/// strong text, links, macros, and other inline elements.
+///
+/// NOTE: This function exists pretty much just for the sake of the TCK tests, which rely
+/// on an "inline" type output.
+///
+/// # Example
+///
+/// ```
+/// use acdc_parser::parse_inline;
+///
+/// let options = acdc_parser::Options {
+///     safe_mode: acdc_core::SafeMode::Unsafe,
+///     timings: false,
+///     document_attributes: acdc_parser::DocumentAttributes::default(),
+/// };
+/// let content = "This is *strong* text with a https://example.com[link].";
+/// let inline_nodes = parse_inline(content, &options).unwrap();
+/// ```
+///
+/// # Errors
+/// This function returns an error if the inline content cannot be parsed.
+#[instrument]
+pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, Error> {
+    tracing::trace!(?input, "post preprocessor");
+    let mut state = grammar::ParserState::new(input);
+    state.document_attributes = options.document_attributes.clone();
+    state.options = options.clone();
+    match grammar::document_parser::inlines(
+        input,
+        &mut state,
+        0,
+        &grammar::BlockParsingMetadata::default(),
+    ) {
+        Ok(inlines) => Ok(inlines),
+        Err(e) => {
+            tracing::error!("error parsing inline content: {e}");
+            Err(Error::Parse(e.to_string()))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
