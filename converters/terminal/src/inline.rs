@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{Button, Footnote, InlineMacro, InlineNode};
+use acdc_parser::{Button, CrossReference, Footnote, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -103,6 +103,7 @@ impl Render for InlineMacro {
                 ))?;
             }
             InlineMacro::Button(b) => b.render(w, processor)?,
+            InlineMacro::CrossReference(xref) => xref.render(w, processor)?,
             unknown => todo!("{unknown:?}"),
         }
         Ok(())
@@ -142,6 +143,23 @@ impl Render for Button {
                 format!("btn:[{}]", self.label.clone()).white(),
             ))?;
             return Ok(());
+        }
+        Ok(())
+    }
+}
+
+impl Render for CrossReference {
+    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
+        if let Some(text) = &self.text {
+            // Render custom text with subtle styling to indicate it's a cross-reference
+            w.queue(PrintStyledContent(
+                text.clone().blue().underlined(),
+            ))?;
+        } else {
+            // Render target in brackets with styling
+            w.queue(PrintStyledContent(
+                format!("[{}]", self.target).blue().underlined(),
+            ))?;
         }
         Ok(())
     }
