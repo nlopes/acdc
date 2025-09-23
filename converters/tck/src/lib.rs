@@ -75,9 +75,20 @@ impl Processable for Processor {
             document_attributes: self.options.document_attributes.clone(),
         };
 
-        let doc = acdc_parser::parse(&tck_input.contents, &options)?;
         let mut stdout = io::stdout();
-        serde_json::to_writer(&stdout, &doc)?;
+        match tck_input.r#type.as_str() {
+            "block" => {
+                let doc = acdc_parser::parse(&tck_input.contents, &options)?;
+                serde_json::to_writer(&stdout, &doc)?;
+            }
+            "inline" => {
+                let inlines = acdc_parser::parse_inline(&tck_input.contents, &options)?;
+                serde_json::to_writer(&stdout, &inlines)?;
+            }
+            other => {
+                todo!("unsupported type: {other}");
+            }
+        }
         stdout.flush()?;
         Ok(())
     }
