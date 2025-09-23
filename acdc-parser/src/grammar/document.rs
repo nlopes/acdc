@@ -1669,7 +1669,7 @@ peg::parser! {
         rule cross_reference_shorthand_pattern() -> (String, Option<String>)
         = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," text:$((!">>" [_])+) { text })? ">>"
         {
-            (target.to_string(), content.map(|s| s.to_string()))
+            (target.to_string(), content.map(std::string::ToString::to_string))
         }
 
         /// Parse cross-reference macro syntax: xref:id[text]
@@ -1689,9 +1689,7 @@ peg::parser! {
         /// Match cross-reference shorthand syntax without consuming: <<id>> or <<id,text>>
         rule cross_reference_shorthand_match() -> ()
         = cross_reference_shorthand_pattern()
-        {
-            ()
-        }
+        { }
 
         /// Match cross-reference macro syntax without consuming: xref:id[text]
         rule cross_reference_macro_match()
