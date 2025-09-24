@@ -44,6 +44,19 @@ impl Render for DelimitedBlock {
                 writeln!(w, "</div>")?;
                 writeln!(w, "</div>")?;
             }
+            DelimitedBlockType::DelimitedQuote(blocks) => {
+                if let Some(style) = &self.metadata.style {
+                    writeln!(w, "<div class=\"{style}block\">")?;
+                } else {
+                    writeln!(w, "<div class=\"quoteblock\">")?;
+                }
+                writeln!(w, "<blockquote>")?;
+                for block in blocks {
+                    block.render(w, processor, options)?;
+                }
+                writeln!(w, "</blockquote>")?;
+                writeln!(w, "</div>")?;
+            }
             unknown => todo!("Unknown delimited block type: {:?}", unknown),
         }
         writeln!(w, "</div>")?;

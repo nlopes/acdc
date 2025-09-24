@@ -676,7 +676,7 @@ peg::parser! {
                 Vec::new()
             } else {
                 document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    tracing::error!("Error parsing example content as blocks: {}", e);
+                    tracing::error!(?e, "Error parsing example content as blocks in example block");
                     Ok(Vec::new())
                 })?
             };
@@ -1031,19 +1031,10 @@ peg::parser! {
                         location: content_location.clone(),
                     })])
                 } else {
-                    let blocks = if content.trim().is_empty() {
-                        Vec::new()
-                    } else {
-                        vec![Block::Paragraph(Paragraph {
-                            content: vec![InlineNode::PlainText(Plain {
-                                content: content.to_string(),
-                                location: content_location.clone(),
-                            })],
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(), // TODO(nlopes): Handle paragraph titles
-                            location: content_location.clone(),
-                        })]
-                    };
+                    let blocks = document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                        tracing::error!(?e, "Error parsing example content as blocks in quote block");
+                        Ok(Vec::new())
+                    })?;
                     DelimitedBlockType::DelimitedQuote(blocks)
                 }
             } else {
@@ -2366,7 +2357,7 @@ peg::parser! {
 
         rule proto() -> &'input str = $("https" / "http" / "ftp" / "irc" / "mailto")
 
-        pub rule path() -> String = path:$(['A'..='Z' | '{' | '}' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' ]+)
+        pub rule path() -> String = path:$(['A'..='Z' | '{' | '}' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' | '?' | '&' | '=' ]+)
         {?
             let mut inline_state = InlinePreprocessorParserState::new();
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
