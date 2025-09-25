@@ -7,7 +7,7 @@ use crate::{
     LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, Options,
     OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
     StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
-    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
+    TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url, Video,
     error::Detail,
     grammar::{
         LineMap,
@@ -27,6 +27,7 @@ pub(crate) struct ParserState {
     pub(crate) options: Options,
     pub(crate) input: String,
     pub(crate) footnote_tracker: FootnoteTracker,
+    pub(crate) toc_tracker: TocTracker,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +75,19 @@ impl FootnoteTracker {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct TocTracker {
+    /// All TOC entries collected during parsing, in document order
+    pub(crate) entries: Vec<TocEntry>,
+}
+
+impl TocTracker {
+    /// Register a section for inclusion in the TOC
+    pub(crate) fn register_section(&mut self, title: Vec<InlineNode>, level: u8, id: String) {
+        self.entries.push(TocEntry { id, title, level });
+    }
+}
+
 impl ParserState {
     pub(crate) fn new(input: &str) -> Self {
         Self {
@@ -82,6 +96,7 @@ impl ParserState {
             line_map: LineMap::new(input),
             input: input.to_string(),
             footnote_tracker: FootnoteTracker::new(),
+            toc_tracker: TocTracker::default(),
         }
     }
 
@@ -183,6 +198,7 @@ peg::parser! {
                 attributes: state.document_attributes.clone(),
                 blocks,
                 footnotes: state.footnote_tracker.footnotes.clone(),
+                toc_entries: state.toc_tracker.entries.clone(),
             })
         }
 
@@ -427,11 +443,20 @@ peg::parser! {
         section_level:section_level(offset, parent_section_level)
         section_level_end:position!()
         whitespace()
-        title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() &eol()*<2,2>
+        title_start:position!()
+        section_header:(title:section_title(start, offset, &block_metadata) title_end:position!() &eol()*<2,2> {
+            let title = title?;
+            let section_id = Section::generate_id(&block_metadata.metadata, &title);
+
+            // Register section for TOC immediately after title is parsed, before content
+            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone());
+
+            Ok::<(Vec<InlineNode>, String), Error>((title, section_id))
+        })
         content:section_content(offset, Some(section_level.1+1))? end:position!()
         {
-            let title = title?;
-            tracing::info!(?offset, ?block_metadata, ?title, ?title_start, ?title_end, "parsing section block");
+            let (title, section_id) = section_header?;
+            tracing::info!(?offset, ?block_metadata, ?title, "parsing section block");
 
             // Validate section level against parent section level if any is provided
             if let Some(parent_level) = parent_section_level && (
@@ -445,7 +470,6 @@ peg::parser! {
 
             let level = section_level.1;
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-
 
             Ok(Block::Section(Section {
                 metadata: block_metadata.metadata,
@@ -2843,5 +2867,55 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(metadata.roles.contains(&"admin".to_string()));
         assert!(metadata.options.contains(&"read".to_string()));
         assert!(metadata.options.contains(&"write".to_string()));
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_toc_simple() {
+        let input =
+            "= Document Title\n\n== Section 1\n\nSome content.\n\n== Section 2\n\nMore content.";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+
+        // Check that TOC entries were generated
+        assert_eq!(result.toc_entries.len(), 2);
+
+        // Check both sections were collected
+        assert_eq!(result.toc_entries[0].level, 1);
+        assert_eq!(result.toc_entries[0].id, "section_1");
+
+        assert_eq!(result.toc_entries[1].level, 1);
+        assert_eq!(result.toc_entries[1].id, "section_2");
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_toc_tree() {
+        let input = "= Document Title\n\n== Section A\n\nContent A.\n\n=== Section A.1\n\nContent A.1\n\n== Section B\n\nContent B.";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+
+        // Check that TOC entries were generated and ordered correctly
+        assert_eq!(result.toc_entries.len(), 3);
+        assert_eq!(result.toc_entries[0].id, "section_a");
+        assert_eq!(result.toc_entries[1].id, "section_a1");
+        assert_eq!(result.toc_entries[2].id, "section_b");
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_toc_empty_document() {
+        let input = "= Document Title\n\nJust some content without sections.";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)
+            .unwrap()
+            .unwrap();
+
+        // Should have no TOC entries
+        assert_eq!(result.toc_entries.len(), 0);
     }
 }
