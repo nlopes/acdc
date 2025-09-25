@@ -20,6 +20,7 @@ impl Render for Block {
             Block::Section(s) => s.render(w, processor, options),
             Block::UnorderedList(u) => u.render(w, processor, options),
             Block::DocumentAttribute(_) => Ok(()),
+            Block::TableOfContents(t) => t.render(w, processor, options),
             Block::Image(i) => i.render(w, processor, options),
             unknown => todo!("rendering for block type: {:?}", unknown),
         }

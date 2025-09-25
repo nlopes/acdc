@@ -167,12 +167,7 @@ impl Render for Button {
         _options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         // Buttons (UI macros) are experimental
-        if processor
-            .options
-            .document_attributes
-            .get("experimental")
-            .is_some()
-        {
+        if processor.document_attributes.get("experimental").is_some() {
             write!(w, "<b class=\"button\">{}</b>", self.label)?;
         } else {
             write!(w, "btn:[{}]", self.label)?;

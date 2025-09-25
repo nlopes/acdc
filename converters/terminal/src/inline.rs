@@ -129,11 +129,7 @@ impl Render for Footnote {
 
 impl Render for Button {
     fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
-        if processor
-            .options
-            .document_attributes
-            .contains_key("experimental")
-        {
+        if processor.document_attributes.contains_key("experimental") {
             w.queue(PrintStyledContent(
                 format!("[{}]", self.label).white().bold(),
             ))?;

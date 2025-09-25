@@ -8,7 +8,6 @@ pub struct Options {
     pub safe_mode: SafeMode,
     pub source: Source,
     pub timings: bool,
-    pub document_attributes: DocumentAttributes,
 }
 
 pub trait PrettyDuration {
@@ -89,7 +88,7 @@ pub trait Processable {
     type Options;
     type Error;
 
-    fn new(options: Self::Options) -> Self;
+    fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
 
     /// Run the processor
     ///

@@ -5,7 +5,7 @@ use std::{
 
 use acdc_converters_common::{Options, PrettyDuration, Processable};
 use acdc_core::Source;
-use acdc_parser::Document;
+use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -19,8 +19,11 @@ pub enum Error {
     FromUtf8(#[from] std::string::FromUtf8Error),
 }
 
+#[derive(Clone, Debug)]
 pub struct Processor {
     options: Options,
+    pub document_attributes: DocumentAttributes,
+    pub toc_entries: Vec<TocEntry>,
 }
 
 impl Processor {
@@ -36,7 +39,12 @@ impl Processor {
             ..RenderOptions::default()
         };
         let mut writer = BufWriter::new(&mut file);
-        doc.render(&mut writer, self, &options)?;
+        let processor = Processor {
+            toc_entries: doc.toc_entries.clone(),
+            document_attributes: doc.attributes.clone(),
+            ..self.clone()
+        };
+        doc.render(&mut writer, &processor, &options)?;
         writer.flush()?;
         Ok(())
     }
@@ -65,15 +73,19 @@ impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
-    fn new(options: Options) -> Self {
-        Self { options }
+    fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+        Self {
+            options,
+            document_attributes,
+            toc_entries: vec![],
+        }
     }
 
     fn run(&self) -> Result<(), Self::Error> {
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
-            document_attributes: self.options.document_attributes.clone(),
+            document_attributes: self.document_attributes.clone(),
         };
 
         match &self.options.source {
@@ -133,7 +145,7 @@ impl Processable for Processor {
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
-            document_attributes: self.options.document_attributes.clone(),
+            document_attributes: self.document_attributes.clone(),
         };
         match &self.options.source {
             Source::Files(files) => {
@@ -182,3 +194,4 @@ mod list;
 mod paragraph;
 mod section;
 mod table;
+mod toc;
