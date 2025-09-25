@@ -17,9 +17,6 @@ pub trait MarkedText: Sized {
     /// Get a mutable reference to the location
     fn location_mut(&mut self) -> &mut Location;
 
-    /// Get an immutable reference to the content
-    fn content(&self) -> &Self::Content;
-
     /// Get a mutable reference to the content
     fn content_mut(&mut self) -> &mut Self::Content;
 
@@ -107,10 +104,6 @@ macro_rules! impl_marked_text {
 
                 fn location_mut(&mut self) -> &mut Location {
                     &mut self.location
-                }
-
-                fn content(&self) -> &Self::Content {
-                    &self.content
                 }
 
                 fn content_mut(&mut self) -> &mut Self::Content {

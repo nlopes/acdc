@@ -34,6 +34,8 @@ pub struct Document {
     pub blocks: Vec<Block>,
     #[serde(skip)]
     pub footnotes: Vec<Footnote>,
+    #[serde(skip)]
+    pub toc_entries: Vec<TocEntry>,
     pub location: Location,
 }
 
@@ -83,30 +85,6 @@ pub struct Anchor {
 }
 
 pub type Role = String;
-
-// TODO: we could and probably should just use a `AttributeValue` instead
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
-pub struct OptionalAttributeValue(
-    #[serde(default, skip_serializing_if = "Option::is_none")] pub Option<String>,
-);
-
-impl<'de> Deserialize<'de> for OptionalAttributeValue {
-    fn deserialize<D>(deserializer: D) -> Result<OptionalAttributeValue, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        match Option::<String>::deserialize(deserializer)? {
-            Some(value) => {
-                if value.as_str() == "null" {
-                    Ok(OptionalAttributeValue(None))
-                } else {
-                    Ok(OptionalAttributeValue(Some(value)))
-                }
-            }
-            None => Ok(OptionalAttributeValue(None)),
-        }
-    }
-}
 
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -165,6 +143,19 @@ impl BlockMetadata {
     }
 }
 
+/// A `TocEntry` represents a table of contents entry.
+///
+/// This is collected during parsing from Section.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TocEntry {
+    /// Unique identifier for this section (used for anchor links)
+    pub id: String,
+    /// Title of the section
+    pub title: Vec<InlineNode>,
+    /// Section level (1 for top-level, 2 for subsection, etc.)
+    pub level: u8,
+}
+
 /// A `Block` represents a block in a document.
 ///
 /// A block is a structural element in a document that can contain other blocks.
@@ -187,11 +178,6 @@ pub enum Block {
     Image(Image),
     Audio(Audio),
     Video(Video),
-
-    // Internal only, please DO NOT USE - you shouldn't need to use.
-    #[doc(hidden)]
-    #[allow(private_interfaces)]
-    _DiscreteHeaderSection(DiscreteHeaderSection),
 }
 
 /// A `DocumentAttribute` represents a document attribute in a document.
@@ -217,20 +203,6 @@ pub struct DiscreteHeader {
     pub title: Vec<InlineNode>,
     pub level: u8,
     pub location: Location,
-}
-
-// TODO(nlopes): this only exists as an auxiliary structure. We figure out a discrete
-// header as part of parsing a section. Therefore, if we find a "discrete", we put it into
-// this structure and then when building the tree (tree_builder) we convert it into a
-// DiscreteHeader and add the content into the stack of blocks of the document (i.e: not
-// part of the section/discrete header).
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub(crate) struct DiscreteHeaderSection {
-    pub(crate) anchors: Vec<Anchor>,
-    pub(crate) title: Vec<InlineNode>,
-    pub(crate) level: u8,
-    pub(crate) location: Location,
-    pub(crate) content: Vec<Block>,
 }
 
 /// A `ThematicBreak` represents a thematic break in a document.
@@ -555,6 +527,45 @@ pub struct Section {
     pub level: SectionLevel,
     pub content: Vec<Block>,
     pub location: Location,
+}
+
+impl Section {
+    pub(crate) fn generate_id(metadata: &BlockMetadata, title: &[InlineNode]) -> String {
+        // Check if section has an explicit ID in metadata
+        if let Some(anchor) = &metadata.id {
+            return anchor.id.clone();
+        }
+
+        // Generate ID from title
+        let title_text = title_to_string(title);
+        title_text
+            .to_lowercase()
+            .chars()
+            .filter_map(|c| {
+                if c.is_alphanumeric() {
+                    Some(c)
+                } else if c.is_whitespace() || c == '-' {
+                    Some('_')
+                } else {
+                    None
+                }
+            })
+            .collect::<String>()
+    }
+}
+
+// TODO(nlopes): this should instead be impl ToString for Title
+//
+// To do so, we'd need to change Title from type alias to a newtype struct.
+pub fn title_to_string(title: &[InlineNode]) -> String {
+    title
+        .iter()
+        .map(|node| match node {
+            InlineNode::PlainText(text) => text.content.clone(),
+            InlineNode::RawText(text) => text.content.clone(),
+            _ => String::new(), // For now, skip complex inline nodes
+        })
+        .collect()
 }
 
 impl Serialize for Admonition {
