@@ -18,6 +18,7 @@ use std::io::{self, BufReader, Write};
 
 use acdc_converters_common::{Options, Processable};
 use acdc_core::Source;
+use acdc_parser::DocumentAttributes;
 use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]
@@ -39,17 +40,23 @@ struct TckInput {
     r#type: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Processor {
     options: Options,
+    document_attributes: acdc_parser::DocumentAttributes,
+    toc_entries: Vec<acdc_parser::TocEntry>,
 }
 
 impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
-    fn new(options: Options) -> Self {
-        Self { options }
+    fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+        Self {
+            options,
+            document_attributes,
+            toc_entries: vec![],
+        }
     }
 
     #[tracing::instrument]
@@ -72,7 +79,7 @@ impl Processable for Processor {
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
-            document_attributes: self.options.document_attributes.clone(),
+            document_attributes: self.document_attributes.clone(),
         };
 
         let mut stdout = io::stdout();

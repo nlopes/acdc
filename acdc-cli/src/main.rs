@@ -87,7 +87,6 @@ fn main() -> Result<()> {
         safe_mode,
         source: Source::Files(args.files.clone()),
         timings: args.timings,
-        document_attributes,
     };
 
     if args.stdin {
@@ -97,18 +96,24 @@ fn main() -> Result<()> {
 
     match args.backend {
         Backend::Html => {
-            run_processor(&args, &acdc_html::Processor::new(options))?;
+            run_processor(
+                &args,
+                &acdc_html::Processor::new(options, document_attributes),
+            )?;
         }
 
         #[cfg(feature = "tck")]
         Backend::Tck => {
             options.source = Source::Stdin;
-            acdc_tck::Processor::new(options).run()?;
+            acdc_tck::Processor::new(options, document_attributes).run()?;
         }
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {
-            run_processor(&args, &acdc_terminal::Processor::new(options))?;
+            run_processor(
+                &args,
+                &acdc_terminal::Processor::new(options, document_attributes),
+            )?;
         }
     }
 

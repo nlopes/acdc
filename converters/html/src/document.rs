@@ -2,7 +2,7 @@ use std::io::Write;
 
 use acdc_parser::{Author, Block, Document, Footnote, Header};
 
-use crate::{Processor, Render, RenderOptions};
+use crate::{Processor, Render, RenderOptions, toc};
 
 impl Render for Document {
     type Error = crate::Error;
@@ -17,7 +17,11 @@ impl Render for Document {
         writeln!(w, "<html>")?;
         render_head(self, w, processor, options)?;
         writeln!(w, "<body class=\"{}\">", processor.options.doctype)?;
-        render_body_header(self, w, processor, options)?;
+
+        let toc_placement = toc::get_placement_from_attributes(&self.attributes);
+
+        render_body_header(self, w, processor, options, toc_placement)?;
+
         writeln!(w, "<div id=\"content\">")?;
         let mut blocks = self.blocks.clone();
         let preamble = find_preamble(&mut blocks);
@@ -29,6 +33,9 @@ impl Render for Document {
             }
             writeln!(w, "</div>")?;
             writeln!(w, "</div>")?;
+            if toc_placement == "preamble" {
+                toc::render(w, processor, options)?;
+            }
         }
         for block in &blocks {
             block.render(w, processor, options)?;
@@ -89,6 +96,7 @@ fn render_body_header<W: Write>(
     w: &mut W,
     processor: &Processor,
     options: &RenderOptions,
+    toc_placement: &str,
 ) -> Result<(), crate::Error> {
     writeln!(w, "<div id=\"header\">")?;
     if let Some(header) = &document.header
@@ -134,6 +142,10 @@ fn render_body_header<W: Write>(
             }
         }
         writeln!(w, "</div>")?;
+    }
+    // Render TOC after header if toc="auto"
+    if toc_placement == "auto" {
+        toc::render(w, processor, options)?;
     }
     writeln!(w, "</div>")?;
     Ok(())

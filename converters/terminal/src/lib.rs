@@ -2,7 +2,7 @@ use std::io::Write;
 
 use acdc_converters_common::{Options, Processable};
 use acdc_core::Source;
-use acdc_parser::Document;
+use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -37,6 +37,8 @@ trait Render {
 
 pub struct Processor {
     options: Options,
+    document_attributes: DocumentAttributes,
+    toc_entries: Vec<TocEntry>,
 }
 
 impl ToTerminal for Document {}
@@ -45,15 +47,19 @@ impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
-    fn new(options: Options) -> Self {
-        Self { options }
+    fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+        Self {
+            options,
+            document_attributes,
+            toc_entries: vec![],
+        }
     }
 
     fn run(&self) -> Result<(), Error> {
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
-            document_attributes: self.options.document_attributes.clone(),
+            document_attributes: self.document_attributes.clone(),
         };
         match &self.options.source {
             Source::Files(files) => {
@@ -78,7 +84,7 @@ impl Processable for Processor {
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
-            document_attributes: self.options.document_attributes.clone(),
+            document_attributes: self.document_attributes.clone(),
         };
         match &self.options.source {
             Source::Files(files) => {
@@ -86,16 +92,26 @@ impl Processable for Processor {
                 let mut writer = std::io::BufWriter::new(buffer);
                 for file in files {
                     let doc = acdc_parser::parse_file(file, &options)?;
-                    doc.render(&mut writer, self)?;
+                    let processor = Processor {
+                        options: self.options.clone(),
+                        document_attributes: doc.attributes.clone(),
+                        toc_entries: doc.toc_entries.clone(),
+                    };
+                    doc.render(&mut writer, &processor)?;
                 }
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
             }
             Source::String(content) => {
                 let doc = acdc_parser::parse(content, &options)?;
+                let processor = Processor {
+                    options: self.options.clone(),
+                    document_attributes: doc.attributes.clone(),
+                    toc_entries: doc.toc_entries.clone(),
+                };
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
-                doc.render(&mut writer, self)?;
+                doc.render(&mut writer, &processor)?;
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
             }
@@ -103,9 +119,14 @@ impl Processable for Processor {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
                 let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
+                let processor = Processor {
+                    options: self.options.clone(),
+                    document_attributes: doc.attributes.clone(),
+                    toc_entries: doc.toc_entries.clone(),
+                };
                 let buffer = Vec::new();
                 let mut writer = std::io::BufWriter::new(buffer);
-                doc.render(&mut writer, self)?;
+                doc.render(&mut writer, &processor)?;
                 writer.flush()?;
                 Ok(String::from_utf8(writer.into_inner()?)?)
             }

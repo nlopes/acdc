@@ -100,7 +100,11 @@ mod tests {
     fn test_render_document() {
         let doc = Document::default();
         let options = crate::Options::default();
-        let processor = crate::Processor { options };
+        let processor = crate::Processor {
+            options,
+            document_attributes: doc.attributes.clone(),
+            toc_entries: vec![],
+        };
         let mut buffer = Vec::new();
         doc.render(&mut buffer, &processor).unwrap();
         assert_eq!(buffer, b"");
@@ -128,7 +132,11 @@ mod tests {
         doc.blocks = vec![];
         let mut buffer = Vec::new();
         let options = crate::Options::default();
-        let processor = crate::Processor { options };
+        let processor = crate::Processor {
+            options,
+            document_attributes: doc.attributes.clone(),
+            toc_entries: vec![],
+        };
         doc.render(&mut buffer, &processor).unwrap();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
     }
@@ -167,7 +175,11 @@ mod tests {
         ];
         let mut buffer = Vec::new();
         let options = crate::Options::default();
-        let processor = crate::Processor { options };
+        let processor = crate::Processor {
+            options,
+            document_attributes: doc.attributes.clone(),
+            toc_entries: vec![],
+        };
         doc.render(&mut buffer, &processor).unwrap();
         assert_eq!(buffer, b"Hello, world!\n\n> Section <\nHello, section!\n\n");
     }
