@@ -2,12 +2,13 @@
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
-    DelimitedBlockType, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
-    Footnote, Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
-    LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, Options,
-    OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
-    StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
-    TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url, Video,
+    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
+    DocumentAttribute, DocumentAttributes, Error, Footnote, Form, Header, Highlight, Icon, Image,
+    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
+    Location, Menu, Monospace, Options, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind,
+    Plain, Raw, Section, Source, StandaloneCurvedApostrophe, Subscript, Substitution, Superscript,
+    Table, TableColumn, TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url,
+    Video,
     error::Detail,
     grammar::{
         LineMap,
@@ -1210,11 +1211,13 @@ peg::parser! {
         }
 
         rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = unordered_list(start, offset, block_metadata) / ordered_list(start, offset, block_metadata)
+        = unordered_list(start, offset, block_metadata) / ordered_list(start, offset, block_metadata) / description_list(start, offset, block_metadata)
 
         rule unordered_list_marker() -> &'input str = $("*"+ / "-")
 
         rule ordered_list_marker() -> &'input str = $(digits()? "."+)
+
+        rule description_list_marker() -> &'input str = $("::::" / ":::" / "::" / ";;")
 
         rule section_level_marker() -> &'input str = $(("=" / "#")+)
 
@@ -1266,7 +1269,7 @@ peg::parser! {
         whitespace()
         checked:checklist_item()?
         list_content_start:position()
-        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / section_level_marker())) / ![_]) [_])+)
+        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / description_list_marker() / section_level_marker())) / ![_]) [_])+)
         end:position!() (eol()+ / ![_])
         {
             tracing::info!(%list_item, %marker, ?checked, "found list item");
@@ -1290,14 +1293,139 @@ peg::parser! {
             checked
         }
 
-        pub(crate) rule inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
-        = inlines:(
-            non_plain_text(offset, block_metadata)
-            / plain_text(offset, block_metadata))+
+        rule check_start_of_description_list()
+        = &((!(description_list_marker() (eol() / " ")) [_])+ description_list_marker())
+
+        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = check_start_of_description_list()
+        first_item:description_list_item(offset, block_metadata)
+        additional_items:description_list_additional_items(offset, block_metadata)*
+        end:position!()
         {
-            tracing::info!(?offset, ?inlines, "Found inlines");
-            inlines
+            tracing::info!("Found description list block with auto-attachment support");
+            let mut items = vec![first_item?];
+
+            for additional in additional_items {
+                items.push(additional?);
+            }
+
+            let actual_end = items.last().map_or(end, |item| {
+                let loc_end = item.location.absolute_end;
+                loc_end - offset
+            });
+
+            Ok(Block::DescriptionList(DescriptionList {
+                title: block_metadata.title.clone(),
+                metadata: block_metadata.metadata.clone(),
+                items,
+                location: state.create_location(start+offset, actual_end+offset),
+            }))
         }
+
+        // Parse additional description list items (after potential auto-attached content)
+        rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
+        = eol()*
+        check_start_of_description_list()
+        item:description_list_item(offset, block_metadata)
+        {
+            tracing::info!("Found additional description list item");
+            item
+        }
+
+        rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
+        = start:position!()
+        term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
+        delimiter:description_list_marker()
+        whitespace()?
+        principal_start:position!()
+        principal_content:$((!eol() [_])*)
+        // No contiguous lines - they would be parsed as separate blocks or items
+        // Now handle auto-attachment and explicit continuation
+        attached_content:description_list_attached_content(offset, block_metadata)*
+        end:position!()
+        {
+            tracing::info!(%term, %delimiter, "parsing description list item with auto-attachment");
+
+            let term = document_parser::inlines(term.trim(), state, start+offset, block_metadata)
+                .unwrap_or_else(|e| {
+                    tracing::error!(?e, "Error parsing term as inline content");
+                    vec![]
+                });
+
+            let principal_text = if principal_content.trim().is_empty() {
+                Vec::new()
+            } else {
+                // Parse as inline content
+                document_parser::inlines(principal_content.trim(), state, principal_start+offset, block_metadata)
+                    .unwrap_or_else(|e| {
+                        tracing::error!(?e, "Error parsing principal text as inline content");
+                        vec![]
+                    })
+            };
+
+            // Collect all attached blocks (auto-attached and explicitly continued)
+            let mut description = Vec::new();
+            for content in attached_content {
+                match content {
+                    Ok(blocks) => description.extend(blocks),
+                    Err(e) => {
+                        tracing::error!(?e, "Error processing attached content");
+                    }
+                }
+            }
+
+            Ok(DescriptionListItem {
+                anchors: vec![],
+                term,
+                delimiter: delimiter.to_string(),
+                principal_text,
+                description,
+                location: state.create_location(start+offset, end+offset),
+            })
+        }
+
+        rule description_list_attached_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        = eol() content:(
+            // Explicit continuation - this uses +
+            description_list_explicit_continuation(offset, block_metadata)
+            // Implicit - usually this is to detect a list
+            / description_list_auto_attached_list(offset, block_metadata)
+        )
+        {
+            content
+        }
+
+        rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        = &((unordered_list_marker() / ordered_list_marker()) whitespace())
+        list_start:position!()
+        list:(unordered_list(list_start, offset, block_metadata) / ordered_list(list_start, offset, block_metadata))
+        {
+            tracing::info!("Auto-attaching list to description list item");
+            Ok(vec![list?])
+        }
+
+        rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        = "+" eol()
+        continuation_start:position!()
+        // Capture lines until we see another description list item after blank line(s)
+        content:$((!(eol() eol()+ (!(description_list_marker() (eol() / " ")) [_])+ description_list_marker()) [_])*)
+        end:position!()
+        {
+            tracing::info!(?content, start = ?continuation_start, ?end, "Found explicit continuation");
+
+            if content.trim().is_empty() {
+                Ok(Vec::new())
+            } else {
+                document_parser::blocks(content, state, continuation_start+offset, block_metadata.parent_section_level)
+                    .unwrap_or_else(|e| {
+                        tracing::error!(?e, "Error parsing continuation content");
+                        Ok(Vec::new())
+                    })
+            }
+        }
+
+        pub(crate) rule inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
+        = (non_plain_text(offset, block_metadata) / plain_text(offset, block_metadata))+
 
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(

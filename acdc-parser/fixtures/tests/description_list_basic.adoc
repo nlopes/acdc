@@ -1,0 +1,2 @@
+CPU:: The brain of the computer.
+Hard drive:: Permanent storage for operating system files.
