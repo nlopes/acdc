@@ -216,7 +216,9 @@ mod tests {
 
     #[rstest::rstest]
     #[tracing_test::traced_test]
-    fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf) {
+    fn test_with_fixtures(
+        #[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf,
+    ) -> Result<(), Error> {
         let test_file_path = path.with_extension("json");
         let options = Options {
             safe_mode: SafeMode::Unsafe,
@@ -227,21 +229,25 @@ mod tests {
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!
         if test_file_path.exists() {
-            let test_file_contents = std::fs::read_to_string(test_file_path).unwrap();
+            let test_file_contents = std::fs::read_to_string(test_file_path)?;
             match parse_file(&path, &options) {
                 Ok(result) => {
-                    let result_str = serde_json::to_string(&result).unwrap();
-                    let test: Document = serde_json::from_str(&test_file_contents).unwrap();
-                    let test_str = serde_json::to_string(&test).unwrap();
+                    let result_str =
+                        serde_json::to_string(&result).expect("could not serialize result");
+                    let test: Document = serde_json::from_str(&test_file_contents)
+                        .expect("could not deserialize test");
+                    let test_str = serde_json::to_string(&test).expect("could not serialize test");
                     assert_eq!(test_str, result_str);
                 }
                 Err(e) => {
-                    let test: Error = serde_json::from_str(&test_file_contents).unwrap();
+                    let test: Error = serde_json::from_str(&test_file_contents)
+                        .expect("could not deserialize test");
                     assert_eq!(test.to_string(), e.to_string());
                 }
             }
         } else {
             tracing::warn!("no test file found for {:?}", path);
         }
+        Ok(())
     }
 }

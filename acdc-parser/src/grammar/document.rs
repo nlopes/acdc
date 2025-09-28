@@ -2222,6 +2222,16 @@ peg::parser! {
             let content = parse_inlines(&processed, state, block_metadata)?;
             let content = map_inline_locations(state, &processed, &content, &location);
 
+            // Title should either be an attribute named title, or the title parsed from the block metadata
+            let title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
+                vec![InlineNode::PlainText(Plain {
+                    content: title.clone(),
+                    location: state.create_location(start+offset, (start+offset).saturating_add(title.len()).saturating_sub(1)),
+                })]
+            } else {
+                block_metadata.title.clone()
+            };
+
             if let Some(variant) = admonition {
                 let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
@@ -2246,7 +2256,7 @@ peg::parser! {
                 Ok(Block::Paragraph(Paragraph {
                     content,
                     metadata: block_metadata.metadata.clone(),
-                    title: Vec::new(), // TODO(nlopes): Handle paragraph titles
+                    title,
                     location: initial_location,
                 }))
             }
@@ -2594,7 +2604,7 @@ mod tests {
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document() {
+    fn test_document() -> Result<(), Error> {
         let input = "// this comment line is ignored
 = Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>
@@ -2603,10 +2613,8 @@ v2.9, 01-09-2024: Fall incarnation
 :sectanchors:
 :url-repo: https://my-git-repo.com";
         let mut state = ParserState::new(input);
-        let result = document_parser::document(input, &mut state)
-            .unwrap()
-            .unwrap();
-        let header = result.header.unwrap();
+        let result = document_parser::document(input, &mut state)??;
+        let header = result.header.expect("document has a header");
         assert_eq!(header.title.len(), 1);
         assert_eq!(
             header.title[0],
@@ -2668,15 +2676,16 @@ v2.9, 01-09-2024: Fall incarnation
                 "https://my-git-repo.com".to_string()
             ))
         );
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_authors() {
+    fn test_authors() -> Result<(), Error> {
         let input =
             "Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
         let mut state = ParserState::new(input);
-        let result = document_parser::authors(input, &mut state).unwrap();
+        let result = document_parser::authors(input, &mut state)?;
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].first_name, "Lorn_Kismet");
@@ -2689,27 +2698,29 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(result[1].last_name, "Lopes");
         assert_eq!(result[1].initials, "NML");
         assert_eq!(result[1].email, Some("nlopesml@gmail.com".to_string()));
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_author() {
+    fn test_author() -> Result<(), Error> {
         let input = "Norberto M. Lopes supa dough <nlopesml@gmail.com>";
         let mut state = ParserState::new(input);
-        let result = document_parser::author(input, &mut state).unwrap();
+        let result = document_parser::author(input, &mut state)?;
         assert_eq!(result.first_name, "Norberto");
         assert_eq!(result.middle_name, Some("M.".to_string()));
         assert_eq!(result.last_name, "Lopes supa dough");
         assert_eq!(result.initials, "NML");
         assert_eq!(result.email, Some("nlopesml@gmail.com".to_string()));
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_revision_full() {
+    fn test_revision_full() -> Result<(), Error> {
         let input = "v2.9, 01-09-2024: Fall incarnation";
         let mut state = ParserState::new(input);
-        document_parser::revision(input, &mut state).unwrap();
+        document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
             Some(&AttributeValue::String("v2.9".to_string()))
@@ -2722,14 +2733,15 @@ v2.9, 01-09-2024: Fall incarnation
             state.document_attributes.get("revremark"),
             Some(&AttributeValue::String("Fall incarnation".to_string()))
         );
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_revision_with_date_no_remark() {
+    fn test_revision_with_date_no_remark() -> Result<(), Error> {
         let input = "v2.9, 01-09-2024";
         let mut state = ParserState::new(input);
-        document_parser::revision(input, &mut state).unwrap();
+        document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
             Some(&AttributeValue::String("v2.9".to_string()))
@@ -2739,14 +2751,15 @@ v2.9, 01-09-2024: Fall incarnation
             Some(&AttributeValue::String("01-09-2024".to_string()))
         );
         assert_eq!(state.document_attributes.get("revremark"), None);
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_revision_no_date_with_remark() {
+    fn test_revision_no_date_with_remark() -> Result<(), Error> {
         let input = "v2.9: Fall incarnation";
         let mut state = ParserState::new(input);
-        document_parser::revision(input, &mut state).unwrap();
+        document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
             Some(&AttributeValue::String("v2.9".to_string()))
@@ -2756,28 +2769,30 @@ v2.9, 01-09-2024: Fall incarnation
             state.document_attributes.get("revremark"),
             Some(&AttributeValue::String("Fall incarnation".to_string()))
         );
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_revision_no_date_no_remark() {
+    fn test_revision_no_date_no_remark() -> Result<(), Error> {
         let input = "v2.9";
         let mut state = ParserState::new(input);
-        document_parser::revision(input, &mut state).unwrap();
+        document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
             Some(&AttributeValue::String("v2.9".to_string()))
         );
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(state.document_attributes.get("revremark"), None);
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_title() {
+    fn test_document_title() -> Result<(), Error> {
         let input = "= Document Title";
         let mut state = ParserState::new(input);
-        let result = document_parser::document_title(input, &mut state).unwrap();
+        let result = document_parser::document_title(input, &mut state)?;
         assert_eq!(result.0.len(), 1);
         assert_eq!(
             result.0[0],
@@ -2794,14 +2809,15 @@ v2.9, 01-09-2024: Fall incarnation
                 }
             })
         );
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_title_and_subtitle() {
+    fn test_document_title_and_subtitle() -> Result<(), Error> {
         let input = "= Document Title: And a subtitle";
         let mut state = ParserState::new(input);
-        let result = document_parser::document_title(input, &mut state).unwrap();
+        let result = document_parser::document_title(input, &mut state)?;
         assert_eq!(
             result,
             (
@@ -2834,15 +2850,16 @@ v2.9, 01-09-2024: Fall incarnation
                 })])
             )
         );
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_header_with_title_and_authors() {
+    fn test_header_with_title_and_authors() -> Result<(), Error> {
         let input = "= Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
         let mut state = ParserState::new(input);
-        let result = document_parser::header(input, &mut state).unwrap().unwrap();
+        let result = document_parser::header(input, &mut state)?.expect("header should be present");
         assert_eq!(result.title.len(), 1);
         assert_eq!(
             result.title[0],
@@ -2876,44 +2893,44 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             result.authors[1].email,
             Some("nlopesml@gmail.com".to_string())
         );
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_empty_attribute_list() {
+    fn test_document_empty_attribute_list() -> Result<(), Error> {
         let input = "[]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata, _title_position) =
-            document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(metadata.id, None);
         assert_eq!(metadata.style, None);
         assert!(metadata.roles.is_empty());
         assert!(metadata.options.is_empty());
         assert!(metadata.attributes.is_empty());
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_empty_attribute_list_with_discrete() {
+    fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
         let input = "[discrete]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata, _title_position) =
-            document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(discrete); // Should be discrete
         assert_eq!(metadata.id, None);
         assert_eq!(metadata.style, None);
         assert!(metadata.roles.is_empty());
         assert!(metadata.options.is_empty());
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_attribute_with_id() {
+    fn test_document_attribute_with_id() -> Result<(), Error> {
         let input = "[id=my-id,role=admin,options=read,options=write]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata, _title_position) =
-            document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
@@ -2935,15 +2952,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(metadata.roles.contains(&"admin".to_string()));
         assert!(metadata.options.contains(&"read".to_string()));
         assert!(metadata.options.contains(&"write".to_string()));
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_attribute_with_id_mixed() {
+    fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
         let input = "[astyle#myid.admin,options=read,options=write]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata, _title_position) =
-            document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
@@ -2965,15 +2982,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(metadata.roles.contains(&"admin".to_string()));
         assert!(metadata.options.contains(&"read".to_string()));
         assert!(metadata.options.contains(&"write".to_string()));
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_document_attribute_with_id_mixed_with_quotes() {
+    fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
         let input = "[astyle#myid.admin,options=\"read,write\"]";
         let mut state = ParserState::new(input);
-        let (discrete, metadata, _title_position) =
-            document_parser::attributes(input, &mut state).unwrap();
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
@@ -2995,55 +3012,48 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(metadata.roles.contains(&"admin".to_string()));
         assert!(metadata.options.contains(&"read".to_string()));
         assert!(metadata.options.contains(&"write".to_string()));
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_toc_simple() {
+    fn test_toc_simple() -> Result<(), Error> {
         let input =
             "= Document Title\n\n== Section 1\n\nSome content.\n\n== Section 2\n\nMore content.";
         let mut state = ParserState::new(input);
-        let result = document_parser::document(input, &mut state)
-            .unwrap()
-            .unwrap();
+        let result = document_parser::document(input, &mut state)??;
 
         // Check that TOC entries were generated
         assert_eq!(result.toc_entries.len(), 2);
-
-        // Check both sections were collected
         assert_eq!(result.toc_entries[0].level, 1);
         assert_eq!(result.toc_entries[0].id, "section_1");
-
         assert_eq!(result.toc_entries[1].level, 1);
         assert_eq!(result.toc_entries[1].id, "section_2");
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_toc_tree() {
+    fn test_toc_tree() -> Result<(), Error> {
         let input = "= Document Title\n\n== Section A\n\nContent A.\n\n=== Section A.1\n\nContent A.1\n\n== Section B\n\nContent B.";
         let mut state = ParserState::new(input);
-        let result = document_parser::document(input, &mut state)
-            .unwrap()
-            .unwrap();
+        let result = document_parser::document(input, &mut state)??;
 
         // Check that TOC entries were generated and ordered correctly
         assert_eq!(result.toc_entries.len(), 3);
         assert_eq!(result.toc_entries[0].id, "section_a");
         assert_eq!(result.toc_entries[1].id, "section_a1");
         assert_eq!(result.toc_entries[2].id, "section_b");
+        Ok(())
     }
 
     #[test]
     #[tracing_test::traced_test]
-    fn test_toc_empty_document() {
+    fn test_toc_empty_document() -> Result<(), Error> {
         let input = "= Document Title\n\nJust some content without sections.";
         let mut state = ParserState::new(input);
-        let result = document_parser::document(input, &mut state)
-            .unwrap()
-            .unwrap();
-
-        // Should have no TOC entries
+        let result = document_parser::document(input, &mut state)??;
         assert_eq!(result.toc_entries.len(), 0);
+        Ok(())
     }
 }

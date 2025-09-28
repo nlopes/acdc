@@ -14,6 +14,11 @@ impl Render for Paragraph {
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         writeln!(w, "<div class=\"paragraph\">")?;
+        if !self.title.is_empty() {
+            write!(w, "<div class=\"title\">")?;
+            crate::inlines::render_inlines(&self.title, w, processor, options)?;
+            writeln!(w, "</div>")?;
+        }
         write!(w, "<p>")?;
         crate::inlines::render_inlines(&self.content, w, processor, options)?;
         writeln!(w, "</p>")?;
