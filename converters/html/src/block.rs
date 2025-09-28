@@ -19,6 +19,8 @@ impl Render for Block {
             Block::DelimitedBlock(d) => d.render(w, processor, options),
             Block::Section(s) => s.render(w, processor, options),
             Block::UnorderedList(u) => u.render(w, processor, options),
+            Block::OrderedList(o) => o.render(w, processor, options),
+            Block::DescriptionList(d) => d.render(w, processor, options),
             Block::DocumentAttribute(_) => Ok(()),
             Block::TableOfContents(t) => t.render(w, processor, options),
             Block::Image(i) => i.render(w, processor, options),
