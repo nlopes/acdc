@@ -1,0 +1,176 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Level 1",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First level item",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 11
+                },
+                {
+                  "line": 1,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Level 2",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "delimiter": ":::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second level item",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 12
+                },
+                {
+                  "line": 2,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Level 3",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "delimiter": ";;",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Another delimiter",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 11
+                },
+                {
+                  "line": 3,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 28
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 27
+    }
+  ]
+}

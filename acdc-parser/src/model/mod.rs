@@ -164,6 +164,11 @@ pub struct TocEntry {
 #[serde(untagged)]
 pub enum Block {
     TableOfContents(TableOfContents),
+    // TODO(nlopes): we shouldn't have an admonition type here, instead it should be
+    // picked up from the style attribute from the block metadata.
+    //
+    // The main one that would need changing is the Paragraph and the Delimited Example
+    // blocks, where we currently use this but don't need to.
     Admonition(Admonition),
     DiscreteHeader(DiscreteHeader),
     DocumentAttribute(DocumentAttribute),
@@ -339,16 +344,13 @@ pub struct DescriptionList {
 pub struct DescriptionListItem {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
-    pub term: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub term: Vec<InlineNode>,
     pub delimiter: String,
-    pub description: DescriptionListDescription,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub principal_text: Vec<InlineNode>,
+    pub description: Vec<Block>,
     pub location: Location,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum DescriptionListDescription {
-    Inline(String),
-    Blocks(Vec<Block>),
 }
 
 /// A `UnorderedList` represents an unordered list in a document.

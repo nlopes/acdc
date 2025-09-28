@@ -1,0 +1,128 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "CPU",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 3
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The brain of the computer.",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 7
+                },
+                {
+                  "line": 1,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Hard drive",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Permanent storage for operating system files.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 14
+                },
+                {
+                  "line": 2,
+                  "col": 58
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 59
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 59
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 58
+    }
+  ]
+}

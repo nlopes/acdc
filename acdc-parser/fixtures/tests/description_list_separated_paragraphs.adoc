@@ -1,0 +1,5 @@
+CPU:: The brain of the computer.
+
+This is a second paragraph about CPU.
+
+Memory:: RAM stores temporary data.

@@ -1,0 +1,111 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term 1",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "description": [],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term 2",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "With description",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 10
+                },
+                {
+                  "line": 2,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 26
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 25
+    }
+  ]
+}
