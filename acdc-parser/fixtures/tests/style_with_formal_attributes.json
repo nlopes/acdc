@@ -5,6 +5,14 @@
     {
       "name": "paragraph",
       "type": "block",
+      "title":[
+        {
+          "name":"text",
+          "type":"string",
+          "value":"\"Hello,world\"",
+          "location":[{"line":1,"col":1},{"line":1,"col":13}]
+        }
+      ],
       "metadata": {
         "attributes": {
           "title": "\"Hello,world\""
