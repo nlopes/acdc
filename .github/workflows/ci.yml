@@ -36,16 +36,16 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Run cargo fmt
-      run: cargo fmt --all -- --check
+      run: cargo +${{ matrix.toolchain }} fmt --all -- --check
 
     - name: Install nextest
       uses: taiki-e/install-action@nextest
 
     - name: Run tests
-      run: cargo nextest run --all-features --all-targets --verbose
+      run: cargo +${{ matrix.toolchain }} nextest run --all-features --all-targets --verbose
 
     - name: Run doc tests
-      run: cargo test --doc --verbose
+      run: cargo +${{ matrix.toolchain }} test --doc --verbose
 
     - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+      run: cargo +${{ matrix.toolchain }} clippy --all-targets --all-features -- --deny clippy::pedantic
