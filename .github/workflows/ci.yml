@@ -12,16 +12,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.nightly }}
 
     strategy:
       fail-fast: false
-      matrix:
-        toolchain: [ 'stable', 'beta' ]
-        nightly: [false]
-        include:
-          - toolchain: 'nightly'
-            nightly: true
 
     steps:
     - uses: actions/checkout@v4
@@ -29,7 +22,6 @@ jobs:
     - name: Install toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
-          toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
 
     - name: Setup Cache
