@@ -1,0 +1,9 @@
+= Cross Reference Macro Test
+
+== Introduction
+
+This uses the macro format: xref:conclusion[click here].
+
+== Conclusion
+
+This is the conclusion section.

@@ -385,11 +385,37 @@ pub(crate) fn map_inline_locations(
             InlineNode::Macro(inline_macro) => {
                 use crate::InlineMacro;
                 let mut mapped_macro = inline_macro.clone();
-                if let InlineMacro::Footnote(footnote) = &mut mapped_macro {
-                    // Map the footnote's own location
-                    footnote.location = map_loc(&footnote.location);
-                    // Recursively map the content locations using the same mapping function
-                    footnote.content = map_inline_locations(state, processed, &footnote.content, location);
+                match &mut mapped_macro {
+                    InlineMacro::Footnote(footnote) => {
+                        footnote.location = map_loc(&footnote.location);
+                        // Recursively map the content locations using the same mapping function
+                        footnote.content = map_inline_locations(state, processed, &footnote.content, location);
+                    }
+                    InlineMacro::Url(url) => {
+                        url.location = map_loc(&url.location);
+                    }
+                    InlineMacro::Link(link) => {
+                        link.location = map_loc(&link.location);
+                    }
+                    InlineMacro::Icon(icon) => {
+                        icon.location = map_loc(&icon.location);
+                    }
+                    InlineMacro::Button(button) => {
+                        button.location = map_loc(&button.location);
+                    }
+                    InlineMacro::Image(image) => {
+                        image.location = map_loc(&image.location);
+                    }
+                    InlineMacro::Menu(menu) => {
+                        menu.location = map_loc(&menu.location);
+                    }
+                    InlineMacro::Keyboard(keyboard) => {
+                        keyboard.location = map_loc(&keyboard.location);
+                    }
+                    InlineMacro::CrossReference(xref) => {
+                        xref.location = map_loc(&xref.location);
+                    }
+                    _ => todo!("location mapping not implemented for {mapped_macro:#?}"),
                 }
                 vec![InlineNode::Macro(mapped_macro)]
             }

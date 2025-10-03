@@ -23,7 +23,7 @@
             "type": "path",
             "value": "/projects/markdown/basics.text"
           },
-          "location": [{"line": 1, "col": 57},{"line": 1, "col": 145}]
+          "location": [{"line": 3, "col": 57},{"line": 3, "col": 115}]
         },
         {
           "name": "text",
