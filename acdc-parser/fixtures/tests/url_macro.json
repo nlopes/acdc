@@ -29,6 +29,7 @@
             "type": "url",
             "value": "https://example.com"
           },
+          "text": "example.com",
           "location": [
             {
               "line": 1,
@@ -97,11 +98,11 @@
           },
           "location": [
             {
-              "line": 1,
+              "line": 3,
               "col": 20
             },
             {
-              "line": 1,
+              "line": 3,
               "col": 97
             }
           ],
@@ -134,11 +135,11 @@
           },
           "location": [
             {
-              "line": 1,
+              "line": 3,
               "col": 102
             },
             {
-              "line": 1,
+              "line": 3,
               "col": 152
             }
           ],
@@ -200,11 +201,11 @@
           },
           "location": [
             {
-              "line": 1,
+              "line": 5,
               "col": 31
             },
             {
-              "line": 1,
+              "line": 5,
               "col": 121
             }
           ],
