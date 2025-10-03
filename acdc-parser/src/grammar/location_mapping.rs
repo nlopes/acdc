@@ -4,7 +4,7 @@ use crate::{
     Monospace, Plain, ProcessedContent, StandaloneCurvedApostrophe, Subscript, Superscript,
 };
 
-use super::{document::ParserState, marked_text::WithLocationMappingContext};
+use super::{ParserState, marked_text::WithLocationMappingContext};
 
 /// Context for location mapping operations
 pub(crate) struct LocationMappingContext<'a> {

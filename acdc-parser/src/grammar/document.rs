@@ -3,117 +3,26 @@ use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Error, Footnote, Form, Header, Highlight, Icon, Image,
-    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
-    Location, Menu, Monospace, Options, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind,
-    Plain, Raw, Section, Source, StandaloneCurvedApostrophe, Subscript, Substitution, Superscript,
-    Table, TableColumn, TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url,
-    Video,
+    DocumentAttribute, Error, Footnote, Form, Header, Highlight, Icon, Image, InlineMacro,
+    InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu,
+    Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
+    Source, StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table,
+    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
     error::Detail,
     grammar::{
-        LineMap,
+        ParserState,
         author_revision::{RevisionInfo, generate_initials, process_revision_info},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
         location_mapping::map_inline_locations,
+        table::parse_table_cell,
     },
     model::{ListLevel, SectionLevel},
 };
 
 #[derive(Debug)]
-pub(crate) struct ParserState {
-    pub(crate) document_attributes: DocumentAttributes,
-    pub(crate) line_map: LineMap,
-    pub(crate) options: Options,
-    pub(crate) input: String,
-    pub(crate) footnote_tracker: FootnoteTracker,
-    pub(crate) toc_tracker: TocTracker,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct FootnoteTracker {
-    /// All registered footnotes in the order they were encountered.
-    pub(crate) footnotes: Vec<Footnote>,
-    /// The last assigned footnote number (starts at 1)
-    last_footnote_position: u32,
-    /// Map of named footnote IDs to their assigned numbers
-    ///
-    /// This helps ensure that named footnotes are only assigned a number once and reused.
-    /// If it's an anonymous footnote (no ID), it always gets a new number.
-    named_footnote_numbers: std::collections::HashMap<String, u32>,
-}
-
-impl FootnoteTracker {
-    pub(crate) fn new() -> Self {
-        Self {
-            footnotes: Vec::new(),
-            last_footnote_position: 1,
-            named_footnote_numbers: std::collections::HashMap::new(),
-        }
-    }
-
-    /// Register a footnote and assign it a number, but only if not already processed
-    #[tracing::instrument(skip_all, fields(?footnote))]
-    pub(crate) fn push(&mut self, footnote: &mut Footnote) {
-        if let Some(id) = &footnote.id {
-            if let Some(&existing_number) = self.named_footnote_numbers.get(id) {
-                footnote.number = existing_number;
-            } else {
-                let number = self.last_footnote_position;
-                self.named_footnote_numbers.insert(id.clone(), number);
-                footnote.number = number;
-                self.footnotes.push(footnote.clone());
-                self.last_footnote_position += 1;
-            }
-        } else {
-            // Anonymous footnote
-            let number = self.last_footnote_position;
-            footnote.number = number;
-            self.footnotes.push(footnote.clone());
-            self.last_footnote_position += 1;
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub(crate) struct TocTracker {
-    /// All TOC entries collected during parsing, in document order
-    pub(crate) entries: Vec<TocEntry>,
-}
-
-impl TocTracker {
-    /// Register a section for inclusion in the TOC
-    pub(crate) fn register_section(&mut self, title: Vec<InlineNode>, level: u8, id: String) {
-        self.entries.push(TocEntry { id, title, level });
-    }
-}
-
-impl ParserState {
-    pub(crate) fn new(input: &str) -> Self {
-        Self {
-            options: Options::default(),
-            document_attributes: DocumentAttributes::default(),
-            line_map: LineMap::new(input),
-            input: input.to_string(),
-            footnote_tracker: FootnoteTracker::new(),
-            toc_tracker: TocTracker::default(),
-        }
-    }
-
-    /// Create a Location from raw byte offsets
-    pub(crate) fn create_location(&self, start: usize, end: usize) -> Location {
-        Location {
-            absolute_start: start,
-            absolute_end: end,
-            start: self.line_map.offset_to_position(start),
-            end: self.line_map.offset_to_position(end),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct Position {
+pub(crate) struct PositionWithOffset {
     pub(crate) offset: usize,
     pub(crate) position: crate::Position,
 }
@@ -143,21 +52,6 @@ enum BlockStyle {
     Id(String, Option<(usize, usize)>),
     Role(String),
     Option(String),
-}
-
-pub(crate) fn parse_table_cell(
-    content: &str,
-    state: &mut ParserState,
-    cell_start_offset: usize,
-    parent_section_level: Option<SectionLevel>,
-) -> TableColumn {
-    let content = document_parser::blocks(content, state, cell_start_offset, parent_section_level)
-        .expect("valid blocks inside table cell")
-        .unwrap_or_else(|_e| {
-            //TODO(nlopes): tracing::error!(e, "Error parsing table cell content as blocks");
-            Vec::new()
-        });
-    TableColumn { content }
 }
 
 const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
@@ -1492,7 +1386,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::Footnote(footnote)))
         }
 
-        rule footnote_match(offset: usize, block_metadata: &BlockParsingMetadata) -> (usize, Option<String>, Position, String, usize)
+        rule footnote_match(offset: usize, block_metadata: &BlockParsingMetadata) -> (usize, Option<String>, PositionWithOffset, String, usize)
         = start:position!()
         "footnote:"
         // TODO(nlopes): we should change this so that we require an id if content is empty
@@ -1695,7 +1589,7 @@ peg::parser! {
             if let Some(AttributeValue::String(content)) = metadata.attributes.get("title") {
                 if let Some((title_start, title_end)) = title_position {
                     // Use the captured position from the named_attribute rule
-                    let title_start_pos = Position {
+                    let title_start_pos = PositionWithOffset {
                         offset: title_start,
                         position: state.line_map.offset_to_position(title_start),
                     };
@@ -1873,7 +1767,7 @@ peg::parser! {
             }
 
             tracing::info!(?offset, ?content, "Found constrained bold text inline");
-            let adjusted_content_start = Position {
+            let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
@@ -1908,7 +1802,7 @@ peg::parser! {
             }
 
             tracing::info!(?offset, ?content, "Found constrained italic text inline");
-            let adjusted_content_start = Position {
+            let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
@@ -2000,7 +1894,7 @@ peg::parser! {
                 return Err("monospace must be at word boundary");
             }
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found constrained monospace text inline");
-            let adjusted_content_start = Position {
+            let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
@@ -2066,7 +1960,7 @@ peg::parser! {
                 return Err("highlight must be at word boundary");
             }
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found constrained highlight text inline");
-            let adjusted_content_start = Position {
+            let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
@@ -2589,8 +2483,8 @@ peg::parser! {
 
         rule whitespace() = quiet!{ " " / "\t" }
 
-        rule position() -> Position = offset:position!() {
-            Position {
+        rule position() -> PositionWithOffset = offset:position!() {
+            PositionWithOffset {
                 offset,
                 position: state.line_map.offset_to_position(offset)
             }
@@ -2598,6 +2492,7 @@ peg::parser! {
 
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

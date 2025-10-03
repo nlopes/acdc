@@ -1,7 +1,7 @@
 use crate::{InlineNode, Location, Pass, Plain, ProcessedContent, Substitution};
 
 use super::{
-    document::ParserState,
+    ParserState,
     location_mapping::remap_inline_node_location,
     markup_patterns::{
         MarkupMatch, find_constrained_bold_pattern, find_curved_apostrophe_pattern,

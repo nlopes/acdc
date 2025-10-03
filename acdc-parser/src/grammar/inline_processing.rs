@@ -3,13 +3,16 @@ use crate::{
     inline_preprocessing,
 };
 
-use super::document::{BlockParsingMetadata, ParserState, Position, document_parser};
+use super::{
+    ParserState,
+    document::{BlockParsingMetadata, PositionWithOffset, document_parser},
+};
 
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
 pub(crate) fn preprocess_inline_content(
     state: &ParserState,
     start: usize,
-    content_start: &Position,
+    content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
     content: &str,
@@ -63,7 +66,7 @@ pub(crate) fn process_inlines(
     state: &mut ParserState,
     block_metadata: &BlockParsingMetadata,
     start: usize,
-    content_start: &Position,
+    content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
     content: &str,

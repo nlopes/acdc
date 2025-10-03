@@ -1,7 +1,6 @@
 use crate::{Form, InlineNode, Location, grammar::ProcessedContent};
 
-use super::document::ParserState;
-use super::location_mapping::LocationMappingContext;
+use super::{ParserState, location_mapping::LocationMappingContext};
 
 /// Trait for types that represent marked text with location mapping capabilities.
 ///
