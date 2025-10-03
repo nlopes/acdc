@@ -415,6 +415,9 @@ pub(crate) fn map_inline_locations(
                     InlineMacro::CrossReference(xref) => {
                         xref.location = map_loc(&xref.location);
                     }
+                    InlineMacro::Autolink(autolink) => {
+                        autolink.location = map_loc(&autolink.location);
+                    }
                     _ => todo!("location mapping not implemented for {mapped_macro:#?}"),
                 }
                 vec![InlineNode::Macro(mapped_macro)]
