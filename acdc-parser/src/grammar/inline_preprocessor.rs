@@ -6,8 +6,8 @@ use std::{
 use peg::parser;
 
 use crate::{
-    AttributeValue, DocumentAttributes, Location, Pass, PassthroughKind, Position, Substitution,
-    grammar::PositionTracker,
+    AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
+    Substitution, grammar::PositionTracker,
 };
 
 // The parser state for the inline preprocessor.
@@ -89,8 +89,10 @@ impl SourceMap {
         self.replacements.sort_by_key(|r| r.absolute_start);
     }
     /// Map a position in the processed text back to the original source.
-    pub(crate) fn map_position(&self, pos: usize) -> usize {
-        let signed_pos = i32::try_from(pos).expect("could not convert pos to i32");
+    pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
+        let signed_pos = i32::try_from(pos).inspect_err(|error| {
+            tracing::error!(?error, "could not convert pos to i32");
+        })?;
 
         // The adjustment is the total number of characters removed/added during preprocessing.
         //
@@ -99,12 +101,15 @@ impl SourceMap {
         let mut adjustment: i32 = 0;
 
         for rep in &self.replacements {
-            let rep_absolute_start = i32::try_from(rep.absolute_start)
-                .expect("could not convert rep.absolute_start to i32");
-            let rep_absolute_end =
-                i32::try_from(rep.absolute_end).expect("could not convert rep.absolute_end to i32");
-            let rep_processed_end = i32::try_from(rep.processed_end)
-                .expect("could not convert rep.processed_end to i32");
+            let rep_absolute_start = i32::try_from(rep.absolute_start).inspect_err(|error| {
+                tracing::error!(?error, "could not convert rep.absolute_start to i32");
+            })?;
+            let rep_absolute_end = i32::try_from(rep.absolute_end).inspect_err(|error| {
+                tracing::error!(?error, "could not convert rep.absolute_end to i32");
+            })?;
+            let rep_processed_end = i32::try_from(rep.processed_end).inspect_err(|error| {
+                tracing::error!(?error, "could not convert rep.processed_end to i32");
+            })?;
 
             // If our position is less than or equal to the start of the replacement, then
             // we can break and return whatever is in adjusted (which is likely to be pos).
@@ -121,7 +126,7 @@ impl SourceMap {
                 match rep.kind {
                     ProcessedKind::Attribute => {
                         // All inserted characters map to the left-most original character.
-                        return rep.absolute_start;
+                        return Ok(rep.absolute_start);
                     }
                     ProcessedKind::Passthrough => {
                         if signed_pos >= rep_absolute_end {
@@ -129,13 +134,19 @@ impl SourceMap {
                             // passthrough (our position, even though within a passthrough
                             // is at a position *after* the original end of the
                             // passthrough
-                            return rep.absolute_end - 1;
+                            return Ok(rep.absolute_end - 1);
                         }
 
                         // If we're here, it means we're within the passthrough and it's
                         // safe to just subtract the adjustment.
-                        return usize::try_from(signed_pos - adjustment)
-                            .expect("could not convert back to usize within passthrough");
+                        return Ok(usize::try_from(signed_pos - adjustment).inspect_err(
+                            |error| {
+                                tracing::error!(
+                                    ?error,
+                                    "could not convert back to usize post all replacements"
+                                );
+                            },
+                        )?);
                     }
                 }
             }
@@ -146,8 +157,14 @@ impl SourceMap {
 
         // If we're here, it means we're not within any replacement, so we can just
         // subtract the adjustment.
-        usize::try_from(signed_pos - adjustment)
-            .expect("could not convert back to usize post all replacements")
+        Ok(
+            usize::try_from(signed_pos - adjustment).inspect_err(|error| {
+                tracing::error!(
+                    ?error,
+                    "could not convert back to usize post all replacements"
+                );
+            })?,
+        )
     }
 }
 
@@ -390,11 +407,11 @@ mod tests {
     }
 
     #[test]
-    fn test_preprocess_inline_passthrough_single() {
+    fn test_preprocess_inline_passthrough_single() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "+hello+";
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -404,14 +421,15 @@ mod tests {
         assert_eq!(passthroughs.len(), 1);
         assert_eq!(passthroughs[0].text, Some("hello".to_string()));
         assert_eq!(passthroughs[0].kind, PassthroughKind::Single);
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_inline_passthrough_double() {
+    fn test_preprocess_inline_passthrough_double() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "++hello++";
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -419,14 +437,15 @@ mod tests {
         assert_eq!(result.passthroughs.len(), 1);
         assert_eq!(result.passthroughs[0].text, Some("hello".to_string()));
         assert_eq!(result.passthroughs[0].kind, PassthroughKind::Double);
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_inline_passthrough_triple() {
+    fn test_preprocess_inline_passthrough_triple() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "+++hello+++";
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -434,14 +453,15 @@ mod tests {
         assert_eq!(result.passthroughs.len(), 1);
         assert_eq!(result.passthroughs[0].text, Some("hello".to_string()));
         assert_eq!(result.passthroughs[0].kind, PassthroughKind::Triple);
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_inline_passthrough_single_plus() {
+    fn test_preprocess_inline_passthrough_single_plus() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "+hello+ world+";
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} world+"
@@ -449,10 +469,11 @@ mod tests {
         assert_eq!(result.passthroughs.len(), 1);
         assert_eq!(result.passthroughs[0].text, Some("hello".to_string()));
         assert_eq!(result.passthroughs[0].kind, PassthroughKind::Single);
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_inline_passthrough_multiple() {
+    fn test_preprocess_inline_passthrough_multiple() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "Something\n\nHere is some +*bold*+ text and ++**more bold**++ text.";
@@ -464,7 +485,7 @@ mod tests {
         //                 123456789012345678901234567890123456789012345678901234
         //                          1         2         3         4         5
         //                              ^^^^^^^^          ^^^^^^^^^^^^^^^^^
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         // Verify processed text has placeholders
         assert_eq!(
@@ -476,7 +497,7 @@ mod tests {
         assert_eq!(result.passthroughs.len(), 2);
 
         // Check first passthrough
-        assert_eq!(result.passthroughs[0].text.as_ref().unwrap(), "*bold*");
+        assert!(matches!(&result.passthroughs[0].text, Some(s) if s == "*bold*"));
         assert_eq!(result.passthroughs[0].location.absolute_start, 24);
         assert_eq!(result.passthroughs[0].location.absolute_end, 32);
         assert_eq!(result.passthroughs[0].location.start.line, 3);
@@ -485,26 +506,23 @@ mod tests {
         assert_eq!(result.passthroughs[0].location.end.column, 22);
 
         // Check second passthrough
-        assert_eq!(
-            result.passthroughs[1].text.as_ref().unwrap(),
-            "**more bold**"
-        );
-
+        assert!(matches!(&result.passthroughs[1].text, Some(s) if s == "**more bold**"));
         assert_eq!(result.passthroughs[1].location.absolute_start, 42);
         assert_eq!(result.passthroughs[1].location.absolute_end, 59);
         assert_eq!(result.passthroughs[1].location.start.line, 3);
         assert_eq!(result.passthroughs[1].location.start.column, 32);
         assert_eq!(result.passthroughs[1].location.end.line, 3);
         assert_eq!(result.passthroughs[1].location.end.column, 49);
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_attribute_in_link() {
+    fn test_preprocess_attribute_in_link() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "The {s}[syntax page] provides complete stuff.";
 
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         assert_eq!(
             result.text,
@@ -515,13 +533,14 @@ mod tests {
         // Original:  "The {s}[syntax page] provides complete stuff."
         //             012345678901234567890123456789012345678901234567890123
         // Processed: "The link:/nonono[syntax page] provides complete stuff."
-        assert_eq!(result.source_map.map_position(15), 4); // This is still within the attribute so map it to the beginning.
-        assert_eq!(result.source_map.map_position(16), 7); // This is after the attribute so map it to where it should be.
-        assert_eq!(result.source_map.map_position(30), 21); // This is the `p` from `provides`.
+        assert_eq!(result.source_map.map_position(15)?, 4); // This is still within the attribute so map it to the beginning.
+        assert_eq!(result.source_map.map_position(16)?, 7); // This is after the attribute so map it to where it should be.
+        assert_eq!(result.source_map.map_position(30)?, 21); // This is the `p` from `provides`.
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_inline_in_attributes() {
+    fn test_preprocess_inline_in_attributes() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
 
@@ -531,7 +550,7 @@ mod tests {
         //                 Version 1.0 of My Title
         //                 {version} -> 1.0 (-6 chars)
         //                 {title} -> My Title (+1 char)
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         assert_eq!(result.text, "Version 1.0 of My Title");
 
@@ -541,12 +560,13 @@ mod tests {
 
         // Position 8 in original (start of {version}) should map to position 8 in
         // processed (start of "1.0")
-        assert_eq!(result.source_map.map_position(8), 8);
-        assert_eq!(result.source_map.map_position(15), 21);
+        assert_eq!(result.source_map.map_position(8)?, 8);
+        assert_eq!(result.source_map.map_position(15)?, 21);
+        Ok(())
     }
 
     #[test]
-    fn test_preprocess_complex_example() {
+    fn test_preprocess_complex_example() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
 
@@ -555,7 +575,7 @@ mod tests {
         //                 0123456789012345678901234
         //                           ^
         //                           {s} expands to link:/nonono (+9 chars)
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         assert_eq!(
             result.text,
@@ -564,18 +584,19 @@ mod tests {
 
         // Verify passthrough was captured and preserved
         assert_eq!(result.passthroughs.len(), 1);
-        assert_eq!(
-            result.passthroughs[0].text.as_ref().unwrap(),
-            "this {s} won't expand"
-        );
+        assert!(matches!(
+            &result.passthroughs[0].text,
+            Some(s) if s == "this {s} won't expand"
+        ));
 
         // Verify source mapping
-        let pos = result.source_map.map_position(10); // Start of {s}
+        let pos = result.source_map.map_position(10)?; // Start of {s}
         assert_eq!(pos, 10); // Should map to start of "link:/nonono"
+        Ok(())
     }
 
     #[test]
-    fn test_nested_passthrough_with_nested_attributes() {
+    fn test_nested_passthrough_with_nested_attributes() -> Result<(), Error> {
         let state = setup_state();
         let mut attributes = setup_attributes();
         // Add nested attributes
@@ -584,7 +605,7 @@ mod tests {
 
         // Test passthrough containing attribute that references another attribute
         let input = "Here is a +special {nested2} value+ to test.";
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         // Verify the passthrough preserved the unexpanded attribute
         assert_eq!(
@@ -594,41 +615,43 @@ mod tests {
 
         // Verify passthrough content preserved original text without expansion
         assert_eq!(result.passthroughs.len(), 1);
-        assert_eq!(
-            result.passthroughs[0].text.as_ref().unwrap(),
-            "special {nested2} value"
-        );
+        assert!(matches!(
+            &result.passthroughs[0].text,
+            Some(s) if s == "special {nested2} value"
+        ));
 
         // Verify source positions for debugging
         let start_pos = result.passthroughs[0].location.absolute_start;
         let end_pos = result.passthroughs[0].location.absolute_end;
         assert_eq!(start_pos, 10); // Start of passthrough content
         assert_eq!(end_pos, 35); // End of passthrough content
+        Ok(())
     }
 
     #[test]
-    fn test_line_breaks() {
+    fn test_line_breaks() -> Result<(), Error> {
         let state = setup_state();
         let attributes = setup_attributes();
 
         let input = "This is a test +\nwith a line break.";
         //                 012345678901234567890123456789012345678
         //                 0         1         2         3         4
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "This is a test +\nwith a line break.");
 
         // Verify no passthroughs were captured
         assert!(result.passthroughs.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn test_section_with_passthrough() {
+    fn test_section_with_passthrough() -> Result<(), Error> {
         let attributes = setup_attributes();
         let state = setup_state();
         let input = "= Document Title\nHello +<h1>+World+</h1>+ of +<u>+Gemini+</u>+";
         //                 012345678901234567890123456789012345678901234567890123456789012
         //                 0         1         2         3         4         5         6
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "= Document Title\nHello \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}World\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} of \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}Gemini\u{FFFD}\u{FFFD}\u{FFFD}3\u{FFFD}\u{FFFD}\u{FFFD}"
@@ -641,8 +664,8 @@ mod tests {
         let second_pass = &result.passthroughs[1];
 
         // Check passthrough content preserved original text
-        assert_eq!(first_pass.text.as_ref().unwrap(), "<h1>");
-        assert_eq!(second_pass.text.as_ref().unwrap(), "</h1>");
+        assert!(matches!(&first_pass.text, Some(s) if s == "<h1>"));
+        assert!(matches!(&second_pass.text, Some(s) if s == "</h1>"));
 
         // Verify substitutions were captured
         assert!(
@@ -665,10 +688,11 @@ mod tests {
         // Check positions
         assert_eq!(second_pass.location.absolute_start, 34); // Start of pass macro
         assert_eq!(second_pass.location.absolute_end, 41); // End of pass macro content including brackets
+        Ok(())
     }
 
     #[test]
-    fn test_pass_macro_with_mixed_content() {
+    fn test_pass_macro_with_mixed_content() -> Result<(), Error> {
         let state = setup_state();
         let mut attributes = setup_attributes();
         // Add docname attribute
@@ -679,7 +703,7 @@ mod tests {
         //                 0         1         2         3         4         5         6
         //                          ^start of pass        ^docname
         //                "The text FFF0FFF is underlined."
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "The text \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} is underlined."
@@ -691,7 +715,10 @@ mod tests {
         let pass = &result.passthroughs[0];
 
         // Check passthrough content preserved original text
-        assert_eq!(pass.text.as_ref().unwrap(), "<u>underline _test-doc_</u>");
+        assert!(matches!(
+            &pass.text,
+            Some(s) if s == "<u>underline _test-doc_</u>"
+        ));
 
         // Verify substitutions were captured
         assert!(pass.substitutions.contains(&Substitution::Quotes)); // 'q'
@@ -701,12 +728,13 @@ mod tests {
         assert_eq!(pass.location.absolute_start, 9); // Start of pass macro
         assert_eq!(pass.location.absolute_end, 47); // End of pass macro content including brackets
 
-        assert_eq!(result.source_map.map_position(9), 9); // Start of pass macro
-        assert_eq!(result.source_map.map_position(24), 55);
+        assert_eq!(result.source_map.map_position(9)?, 9); // Start of pass macro
+        assert_eq!(result.source_map.map_position(24)?, 55);
+        Ok(())
     }
 
     #[test]
-    fn test_all_passthroughs_with_attribute() {
+    fn test_all_passthroughs_with_attribute() -> Result<(), Error> {
         let state = setup_state();
         let mut attributes = setup_attributes();
         attributes.insert("meh".into(), AttributeValue::String("1.0".into()));
@@ -716,23 +744,36 @@ mod tests {
         //                 0         1         2         3         4         5         6         7         8
         //                 1 FFF0FFF, FFF1FFF 1.0 and FFF2FFF are all numbers.
 
-        let result = inline_preprocessing::run(input, &attributes, &state).unwrap();
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
             "1 \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}, \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} 1.0 and \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD} are all numbers."
         );
 
         assert_eq!(result.passthroughs.len(), 3);
-        assert_eq!(result.passthroughs[0].text.as_ref().unwrap(), "2");
-        assert_eq!(result.passthroughs[1].text.as_ref().unwrap(), "3");
-        assert_eq!(result.passthroughs[2].text.as_ref().unwrap(), "4");
+        assert!(matches!(
+            result.passthroughs[0].kind,
+            PassthroughKind::Single
+        ));
+        assert!(matches!(
+            result.passthroughs[1].kind,
+            PassthroughKind::Double
+        ));
+        assert!(matches!(
+            result.passthroughs[2].kind,
+            PassthroughKind::Triple
+        ));
+        assert!(matches!(&result.passthroughs[0].text, Some(s) if s == "2"));
+        assert!(matches!(&result.passthroughs[1].text, Some(s) if s == "3"));
+        assert!(matches!(&result.passthroughs[2].text, Some(s) if s == "4"));
 
-        assert_eq!(result.source_map.map_position(2), 2);
+        assert_eq!(result.source_map.map_position(2)?, 2);
         // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.
-        assert_eq!(result.source_map.map_position(5), 4);
+        assert_eq!(result.source_map.map_position(5)?, 4);
         // 24 is the FFF in passthrough 2, therefore it should map to position 10
-        assert_eq!(result.source_map.map_position(24), 20);
+        assert_eq!(result.source_map.map_position(24)?, 20);
         // 48 is the n in "and", therefore it should map to position 19
-        assert_eq!(result.source_map.map_position(48), 44);
+        assert_eq!(result.source_map.map_position(48)?, 44);
+        Ok(())
     }
 }

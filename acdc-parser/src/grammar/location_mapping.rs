@@ -95,8 +95,14 @@ pub(crate) fn create_location_mapper<'a>(
         }
 
         // Map those through the preprocessor source map back to original source
-        let mapped_abs_start = processed.source_map.map_position(processed_abs_start);
-        let mapped_abs_end = processed.source_map.map_position(processed_abs_end);
+        let mapped_abs_start = processed
+            .source_map
+            .map_position(processed_abs_start)
+            .expect("mapped start position is not valid");
+        let mapped_abs_end = processed
+            .source_map
+            .map_position(processed_abs_end)
+            .expect("mapped end position is not valid");
 
         // Compute human positions from the document's line map
         let start_pos = state.line_map.offset_to_position(mapped_abs_start);

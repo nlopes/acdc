@@ -553,11 +553,7 @@ mod tests {
     fn test_constrained_bold_pattern_matching() {
         // Test constrained bold pattern
         let result = find_constrained_bold_pattern("This *text* is bold.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 5);
-        assert_eq!(m.end, 11);
-        assert_eq!(m.content, "text");
+        assert!(matches!(result, Some(r) if r.content == "text" && r.start == 5 && r.end == 11));
 
         // Test that invalid patterns are rejected
         let result = find_constrained_bold_pattern("This*text*is not.");
@@ -568,33 +564,21 @@ mod tests {
     fn test_unconstrained_bold_pattern_matching() {
         // Test unconstrained bold pattern
         let result = find_unconstrained_bold_pattern("This **text** is bold.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 5);
-        assert_eq!(m.end, 13);
-        assert_eq!(m.content, "text");
+        assert!(matches!(result, Some(r) if r.content == "text" && r.start == 5 && r.end == 13));
     }
 
     #[test]
     fn test_italic_pattern_matching() {
         // Test italic pattern
         let result = find_italic_pattern("This _text_ is italic.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 5);
-        assert_eq!(m.end, 11);
-        assert_eq!(m.content, "text");
+        assert!(matches!(result, Some(r) if r.content == "text" && r.start == 5 && r.end == 11));
     }
 
     #[test]
     fn test_superscript_pattern_matching() {
         // Test superscript pattern
         let result = find_superscript_pattern("x^2^ is superscript.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 1);
-        assert_eq!(m.end, 4);
-        assert_eq!(m.content, "2");
+        assert!(matches!(result, Some(r) if r.content == "2" && r.start == 1 && r.end == 4));
 
         // Test that spaces are rejected
         let result = find_superscript_pattern("x^2 3^ is not superscript.");
@@ -605,11 +589,7 @@ mod tests {
     fn test_subscript_pattern_matching() {
         // Test subscript pattern
         let result = find_subscript_pattern("H~2~O is water.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 1);
-        assert_eq!(m.end, 4);
-        assert_eq!(m.content, "2");
+        assert!(matches!(result, Some(r) if r.content == "2" && r.start == 1 && r.end == 4));
 
         // Test that spaces are rejected
         let result = find_subscript_pattern("H~2 3~O is not.");
@@ -620,11 +600,7 @@ mod tests {
     fn test_curved_quotation_pattern_matching() {
         // Test curved quotation pattern
         let result = find_curved_quotation_pattern("Use \"`text`\" here.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 4);
-        assert_eq!(m.end, 12);
-        assert_eq!(m.content, "text");
+        assert!(matches!(result, Some(r) if r.content == "text" && r.start == 4 && r.end == 12));
 
         // Test that spaces are rejected
         let result = find_curved_quotation_pattern("Use \"`text with spaces`\" here.");
@@ -635,11 +611,7 @@ mod tests {
     fn test_curved_apostrophe_pattern_matching() {
         // Test curved apostrophe pattern
         let result = find_curved_apostrophe_pattern("Use '`text`' here.");
-        assert!(result.is_some());
-        let m = result.unwrap();
-        assert_eq!(m.start, 4);
-        assert_eq!(m.end, 12);
-        assert_eq!(m.content, "text");
+        assert!(matches!(result, Some(r) if r.content == "text" && r.start == 4 && r.end == 12));
 
         // Test that spaces are rejected
         let result = find_curved_apostrophe_pattern("Use '`text with spaces`' here.");

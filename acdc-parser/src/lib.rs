@@ -156,9 +156,9 @@ fn parse_input(input: &str, options: &Options) -> Result<Document, Error> {
     state.options = options.clone();
     match grammar::document_parser::document(input, &mut state) {
         Ok(doc) => doc,
-        Err(e) => {
-            tracing::error!("error parsing document content: {e}");
-            Err(Error::Parse(e.to_string()))
+        Err(error) => {
+            tracing::error!(?error, "error parsing document content");
+            Err(Error::Parse(error.to_string()))
         }
     }
 }
@@ -202,9 +202,9 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
         &grammar::BlockParsingMetadata::default(),
     ) {
         Ok(inlines) => Ok(inlines),
-        Err(e) => {
-            tracing::error!("error parsing inline content: {e}");
-            Err(Error::Parse(e.to_string()))
+        Err(error) => {
+            tracing::error!(?error, "error parsing inline content");
+            Err(Error::Parse(error.to_string()))
         }
     }
 }
@@ -246,7 +246,7 @@ mod tests {
                 }
             }
         } else {
-            tracing::warn!("no test file found for {:?}", path);
+            tracing::warn!(?path, "test file not found");
         }
         Ok(())
     }

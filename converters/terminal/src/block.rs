@@ -3,7 +3,9 @@ use std::io::Write;
 use crate::{Processor, Render};
 
 impl Render for acdc_parser::Block {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         match self {
             acdc_parser::Block::Paragraph(p) => p.render(w, processor),
             acdc_parser::Block::DelimitedBlock(d) => d.render(w, processor),

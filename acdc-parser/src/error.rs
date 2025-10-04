@@ -1,11 +1,18 @@
-use std::fmt;
+use std::{fmt, path::PathBuf};
 
 use serde::Deserialize;
 
 use crate::model::{Location, Position, SectionLevel};
 
+#[non_exhaustive]
 #[derive(thiserror::Error, Debug, Deserialize)]
 pub enum Error {
+    #[error("Invalid include path: {0}")]
+    InvalidIncludePath(PathBuf),
+
+    #[error("Invalid line range: {0}")]
+    InvalidLineRange(String),
+
     #[error("Parsing error: {0}")]
     Parse(String),
 
@@ -28,8 +35,8 @@ pub enum Error {
     #[error("Invalid conditional directive")]
     InvalidConditionalDirective,
 
-    #[error("Invalid include directive")]
-    InvalidIncludeDirective,
+    #[error("Invalid include directive: {0}")]
+    InvalidIncludeDirective(String),
 
     #[error("Invalid attribute directive")]
     InvalidAttributeDirective,

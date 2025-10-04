@@ -38,7 +38,7 @@ pub(crate) fn parse_line(attributes: &mut DocumentAttributes, line: &str) {
             }
         }
         Err(e) => {
-            tracing::warn!("Failed to parse attribute line: {:?}", e);
+            tracing::warn!(?e, "Failed to parse attribute line");
         }
     }
 }

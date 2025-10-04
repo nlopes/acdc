@@ -8,7 +8,9 @@ use crossterm::{
 use crate::{Processor, Render};
 
 impl Render for acdc_parser::Document {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         if let Some(header) = &self.header {
             header.render(w, processor)?;
         }
@@ -37,7 +39,9 @@ impl Render for acdc_parser::Document {
 }
 
 impl Render for acdc_parser::Header {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         for node in &self.title {
             // Collect title content for styling
             let mut title_buffer = std::io::BufWriter::new(Vec::new());
@@ -75,7 +79,9 @@ impl Render for acdc_parser::Header {
 }
 
 impl Render for acdc_parser::Author {
-    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
+    type Error = std::io::Error;
+
+    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
         w.queue(PrintStyledContent(format!("{} ", self.first_name).italic()))?;
         if let Some(middle_name) = &self.middle_name {
             w.queue(PrintStyledContent(format!("{middle_name} ").italic()))?;
@@ -97,7 +103,7 @@ mod tests {
     };
 
     #[test]
-    fn test_render_document() {
+    fn test_render_document() -> Result<(), crate::Error> {
         let doc = Document::default();
         let options = crate::Options::default();
         let processor = crate::Processor {
@@ -106,12 +112,13 @@ mod tests {
             toc_entries: vec![],
         };
         let mut buffer = Vec::new();
-        doc.render(&mut buffer, &processor).unwrap();
+        doc.render(&mut buffer, &processor)?;
         assert_eq!(buffer, b"");
+        Ok(())
     }
 
     #[test]
-    fn test_render_document_with_header() {
+    fn test_render_document_with_header() -> Result<(), crate::Error> {
         let mut doc = Document::default();
         let title = vec![InlineNode::PlainText(Plain {
             content: "Title".to_string(),
@@ -137,12 +144,13 @@ mod tests {
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
         };
-        doc.render(&mut buffer, &processor).unwrap();
+        doc.render(&mut buffer, &processor)?;
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
+        Ok(())
     }
 
     #[test]
-    fn test_render_document_with_blocks() {
+    fn test_render_document_with_blocks() -> Result<(), crate::Error> {
         let mut doc = Document::default();
         doc.blocks = vec![
             Block::Paragraph(Paragraph {
@@ -180,7 +188,8 @@ mod tests {
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
         };
-        doc.render(&mut buffer, &processor).unwrap();
+        doc.render(&mut buffer, &processor)?;
         assert_eq!(buffer, b"Hello, world!\n\n> Section <\nHello, section!\n\n");
+        Ok(())
     }
 }

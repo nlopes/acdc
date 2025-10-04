@@ -276,7 +276,10 @@ impl EvalValue {
                         if let Ok(value) = format!("{value}").parse::<f64>() {
                             EvalValue::Number(value)
                         } else {
-                            tracing::error!(value, "failed to parse i64 as f64");
+                            tracing::warn!(
+                                value,
+                                "failed to parse i64 as f64, parsing as string as a fallback"
+                            );
                             EvalValue::String(Self::strip_quotes(&s))
                         }
                     } else {
@@ -300,24 +303,18 @@ impl EvalValue {
 
 #[tracing::instrument(level = "trace")]
 pub(crate) fn parse_line(line: &str) -> Result<Conditional, Error> {
-    match conditional_parser::conditional(line) {
-        Ok(conditional) => Ok(conditional),
-        Err(e) => {
-            tracing::error!(error=?e, "failed to parse conditional directive");
-            Err(Error::InvalidConditionalDirective)
-        }
-    }
+    conditional_parser::conditional(line).map_err(|error| {
+        tracing::error!(?error, "failed to parse conditional directive");
+        Error::InvalidConditionalDirective
+    })
 }
 
 #[tracing::instrument(level = "trace")]
 pub(crate) fn parse_endif(line: &str) -> Result<Endif, Error> {
-    match conditional_parser::endif(line) {
-        Ok(endif) => Ok(endif),
-        Err(e) => {
-            tracing::error!(error=?e, "failed to parse endif directive");
-            Err(Error::InvalidConditionalDirective)
-        }
-    }
+    conditional_parser::endif(line).map_err(|error| {
+        tracing::error!(?error, "failed to parse endif directive");
+        Error::InvalidConditionalDirective
+    })
 }
 
 #[cfg(test)]
@@ -325,142 +322,105 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ifdef_single_attribute() {
+    fn test_ifdef_single_attribute() -> Result<(), Error> {
         let line = "ifdef::attribute[]";
-        let conditional = parse_line(line).unwrap();
-        match conditional {
-            Conditional::Ifdef(ifdef) => {
-                assert_eq!(ifdef.attributes, vec!["attribute"]);
-                assert_eq!(ifdef.operation, None);
-                assert_eq!(ifdef.content, None);
-            }
-            _ => panic!("Expected Ifdef"),
-        }
+        let conditional = parse_line(line)?;
+        assert!(
+            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attribute"] && ifdef.operation.is_none() && ifdef.content.is_none())
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_ifdef_or_attributes() {
+    fn test_ifdef_or_attributes() -> Result<(), Error> {
         let line = "ifdef::attr1,attr2[]";
-        let conditional = parse_line(line).unwrap();
-        match conditional {
-            Conditional::Ifdef(ifdef) => {
-                assert_eq!(ifdef.attributes, vec!["attr1", "attr2"]);
-                assert_eq!(ifdef.operation, Some(Operation::Or));
-                assert_eq!(ifdef.content, None);
-            }
-            _ => panic!("Expected Ifdef"),
-        }
+        let conditional = parse_line(line)?;
+        assert!(
+            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attr1", "attr2"] && ifdef.operation == Some(Operation::Or) && ifdef.content.is_none())
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_ifdef_and_attributes() {
+    fn test_ifdef_and_attributes() -> Result<(), Error> {
         let line = "ifdef::attr1+attr2[]";
-        let conditional = parse_line(line).unwrap();
-        match conditional {
-            Conditional::Ifdef(ifdef) => {
-                assert_eq!(ifdef.attributes, vec!["attr1", "attr2"]);
-                assert_eq!(ifdef.operation, Some(Operation::And));
-                assert_eq!(ifdef.content, None);
-            }
-            _ => panic!("Expected Ifdef"),
-        }
+        let conditional = parse_line(line)?;
+        assert!(
+            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attr1", "attr2"] && ifdef.operation == Some(Operation::And) && ifdef.content.is_none())
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_ifndef() {
+    fn test_ifndef() -> Result<(), Error> {
         let line = "ifndef::attribute[]";
-        let conditional = parse_line(line).unwrap();
-        match conditional {
-            Conditional::Ifndef(ifndef) => {
-                assert_eq!(ifndef.attributes, vec!["attribute"]);
-                assert_eq!(ifndef.operation, None);
-                assert_eq!(ifndef.content, None);
-            }
-            _ => panic!("Expected Ifndef"),
-        }
+        let conditional = parse_line(line)?;
+        assert!(
+            matches!(conditional, Conditional::Ifndef(ifndef) if ifndef.attributes == vec!["attribute"] && ifndef.operation.is_none() && ifndef.content.is_none())
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_ifeval_simple_math() {
+    fn test_ifeval_simple_math() -> Result<(), Error> {
         let line = "ifeval::[1 + 1 == 2]";
-        let conditional = parse_line(line).unwrap();
-        match &conditional {
-            Conditional::Ifeval(ifeval) => {
-                assert_eq!(ifeval.left, EvalValue::String("1 + 1".to_string()));
-                assert_eq!(ifeval.operator, Operator::Equal);
-                assert_eq!(ifeval.right, EvalValue::String("2".to_string()));
-            }
-            _ => panic!("Expected Ifeval"),
-        }
+        let conditional = parse_line(line)?;
         assert!(
-            conditional
-                .is_true(&DocumentAttributes::default(), &mut String::new())
-                .unwrap()
+            matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("1 + 1".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("2".to_string()))
         );
+        assert!(conditional.is_true(&DocumentAttributes::default(), &mut String::new())?);
+        Ok(())
     }
 
     #[test]
-    fn test_ifeval_str_equality() {
+    fn test_ifeval_str_equality() -> Result<(), Error> {
         let line = "ifeval::['ASDF' == ASDF]";
-        let conditional = parse_line(line).unwrap();
-        match &conditional {
-            Conditional::Ifeval(ifeval) => {
-                assert_eq!(ifeval.left, EvalValue::String("'ASDF'".to_string()));
-                assert_eq!(ifeval.operator, Operator::Equal);
-                assert_eq!(ifeval.right, EvalValue::String("ASDF".to_string()));
-            }
-            _ => panic!("Expected Ifeval"),
-        }
+        let conditional = parse_line(line)?;
         assert!(
-            conditional
-                .is_true(&DocumentAttributes::default(), &mut String::new())
-                .unwrap()
+            matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("'ASDF'".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("ASDF".to_string()))
         );
+        assert!(conditional.is_true(&DocumentAttributes::default(), &mut String::new())?);
+        Ok(())
     }
 
     #[test]
-    fn test_ifeval_greater_than_string_vs_number() {
+    fn test_ifeval_greater_than_string_vs_number() -> Result<(), Error> {
         let line = "ifeval::['1+1' >= 2]";
-        let conditional = parse_line(line).unwrap();
-        match &conditional {
-            Conditional::Ifeval(ifeval) => {
-                assert_eq!(ifeval.left, EvalValue::String("'1+1'".to_string()));
-                assert_eq!(ifeval.operator, Operator::GreaterThanOrEqual);
-                assert_eq!(ifeval.right, EvalValue::String("2".to_string()));
-                assert!(matches!(
-                    ifeval.evaluate(&DocumentAttributes::default()),
-                    Err(Error::InvalidIfEvalDirectiveMismatchedTypes)
-                ));
-            }
-            _ => panic!("Expected Ifeval"),
-        }
+        let conditional = parse_line(line)?;
+        assert!(
+            matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("'1+1'".to_string()) && ifeval.operator == Operator::GreaterThanOrEqual && ifeval.right == EvalValue::String("2".to_string()))
+        );
+
+        assert!(matches!(
+            conditional.is_true(&DocumentAttributes::default(), &mut String::new()),
+            Err(Error::InvalidIfEvalDirectiveMismatchedTypes)
+        ));
+        Ok(())
     }
 
     #[test]
-    fn test_ifdef_with_content() {
+    fn test_ifdef_with_content() -> Result<(), Error> {
         let line = "ifdef::attribute[Some content here]";
-        let conditional = parse_line(line).unwrap();
-        match conditional {
-            Conditional::Ifdef(ifdef) => {
-                assert_eq!(ifdef.attributes, vec!["attribute"]);
-                assert_eq!(ifdef.operation, None);
-                assert_eq!(ifdef.content, Some("Some content here".to_string()));
-            }
-            _ => panic!("Expected Ifdef"),
-        }
+        let conditional = parse_line(line)?;
+        assert!(
+            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attribute"] && ifdef.operation.is_none() && ifdef.content == Some("Some content here".to_string()))
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_endif() {
+    fn test_endif() -> Result<(), Error> {
         let line = "endif::attribute[]";
-        let endif = parse_endif(line).unwrap();
+        let endif = parse_endif(line)?;
         assert_eq!(endif.attribute, Some("attribute".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn test_endif_no_attribute() {
+    fn test_endif_no_attribute() -> Result<(), Error> {
         let line = "endif::[]";
-        let endif = parse_endif(line).unwrap();
+        let endif = parse_endif(line)?;
         assert_eq!(endif.attribute, None);
+        Ok(())
     }
 }

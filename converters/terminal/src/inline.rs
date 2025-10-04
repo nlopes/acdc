@@ -9,10 +9,12 @@ use crossterm::{
 use crate::{Processor, Render};
 
 impl Render for InlineNode {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         match self {
             InlineNode::PlainText(p) => {
-                write!(w, "{}", p.content.clone())
+                write!(w, "{}", p.content.clone())?;
             }
             InlineNode::ItalicText(i) => {
                 // ItalicText is a wrapper around a Vec<InlineNode>
@@ -33,7 +35,6 @@ impl Render for InlineNode {
                         .trim()
                         .italic(),
                 ))?;
-                Ok(())
             }
             InlineNode::BoldText(b) => {
                 let mut inner = std::io::BufWriter::new(Vec::new());
@@ -47,7 +48,6 @@ impl Render for InlineNode {
                         .trim()
                         .bold(),
                 ))?;
-                Ok(())
             }
             InlineNode::HighlightText(h) => {
                 let mut inner = std::io::BufWriter::new(Vec::new());
@@ -62,7 +62,6 @@ impl Render for InlineNode {
                         .black()
                         .on_yellow(),
                 ))?;
-                Ok(())
             }
             InlineNode::MonospaceText(m) => {
                 let mut inner = std::io::BufWriter::new(Vec::new());
@@ -77,20 +76,21 @@ impl Render for InlineNode {
                         .black()
                         .on_grey(),
                 ))?;
-                Ok(())
             }
             // implement macro link
             InlineNode::Macro(m) => {
                 m.render(w, processor)?;
-                Ok(())
             }
             unknown => unimplemented!("GAH: {:?}", unknown),
         }
+        Ok(())
     }
 }
 
 impl Render for InlineMacro {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         match self {
             InlineMacro::Link(l) => write!(w, "{}", l.target)?,
             InlineMacro::Url(u) => write!(w, "{}", u.target)?,
@@ -111,7 +111,9 @@ impl Render for InlineMacro {
 }
 
 impl Render for Footnote {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         // Render footnote entry: [n] footnote content
         w.queue(PrintStyledContent(
             format!("[{}]", self.number).cyan().bold(),
@@ -122,13 +124,14 @@ impl Render for Footnote {
         for node in &self.content {
             node.render(w, processor)?;
         }
-
         Ok(())
     }
 }
 
 impl Render for Button {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         if processor.document_attributes.contains_key("experimental") {
             w.queue(PrintStyledContent(
                 format!("[{}]", self.label).white().bold(),
@@ -138,14 +141,15 @@ impl Render for Button {
             w.queue(PrintStyledContent(
                 format!("btn:[{}]", self.label.clone()).white(),
             ))?;
-            return Ok(());
         }
         Ok(())
     }
 }
 
 impl Render for CrossReference {
-    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
         if let Some(text) = &self.text {
             // Render custom text with subtle styling to indicate it's a cross-reference
             w.queue(PrintStyledContent(text.clone().blue().underlined()))?;

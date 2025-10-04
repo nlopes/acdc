@@ -47,20 +47,21 @@ impl Preprocessor {
         file_path: P,
         options: &Options,
     ) -> Result<String, Error> {
-        let file_parent = file_path
-            .as_ref()
-            .parent()
-            .expect("file path has no parent");
-
-        let input = std::fs::read_to_string(&file_path).map_err(|e| {
-            tracing::error!(
-                path = ?file_path.as_ref().display(),
-                "failed to read file: {:?}",
+        if let Some(parent) = file_path.as_ref().parent()
+            && parent.try_exists()?
+        {
+            let input = std::fs::read_to_string(&file_path).map_err(|e| {
+                tracing::error!(
+                    path = ?file_path.as_ref().display(),
+                    "failed to read file: {:?}",
+                    e
+                );
                 e
-            );
-            e
-        })?;
-        self.process_either(&input, Some(file_parent), options)
+            })?;
+            self.process_either(&input, Some(parent), options)
+        } else {
+            Err(Error::InvalidIncludePath(file_path.as_ref().to_path_buf()))
+        }
     }
 
     #[tracing::instrument]
@@ -185,7 +186,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_process() {
+    fn test_process() -> Result<(), Error> {
         let options = Options::default();
         let input = ":attribute: value
 
@@ -193,20 +194,22 @@ ifdef::attribute[]
 content
 endif::[]
 ";
-        let output = Preprocessor.process(input, &options).unwrap();
+        let output = Preprocessor.process(input, &options)?;
         assert_eq!(output, ":attribute: value\n\ncontent\n");
+        Ok(())
     }
 
     #[test]
-    fn test_good_endif_directive() {
+    fn test_good_endif_directive() -> Result<(), Error> {
         let options = Options::default();
         let input = ":asdf:
 
 ifdef::asdf[]
 content
 endif::asdf[]";
-        let output = Preprocessor.process(input, &options).unwrap();
+        let output = Preprocessor.process(input, &options)?;
         assert_eq!(output, ":asdf:\n\ncontent\n");
+        Ok(())
     }
 
     #[test]
