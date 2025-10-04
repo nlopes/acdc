@@ -63,14 +63,17 @@ struct Args {
 fn setup_logging() {
     use tracing_subscriber::{EnvFilter, prelude::*};
 
-    let filter = EnvFilter::from_env("ACDC_LOG");
-    let layer = tracing_subscriber::fmt::layer()
-        .with_writer(std::io::stderr)
-        .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
-        .with_timer(tracing_subscriber::fmt::time::Uptime::default())
-        .with_filter(filter);
+    let env_filter = EnvFilter::try_from_env("ACDC_LOG");
 
-    tracing_subscriber::registry().with(layer).init();
+    if let Ok(filter) = env_filter {
+        let layer = tracing_subscriber::fmt::layer()
+            .with_writer(std::io::stderr)
+            .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
+            .with_timer(tracing_subscriber::fmt::time::Uptime::default())
+            .with_filter(filter);
+
+        tracing_subscriber::registry().with(layer).init();
+    }
 }
 
 fn main() -> Result<()> {
