@@ -2,6 +2,8 @@
 
 This is a collection of tools to handle `AsciiDoc` documents.
 
+For architecture and design decisions, see `link:./ARCHITECTURE.adoc[ARCHITECTURE.adoc]`.
+
 Developers will probably want to look at `link:./acdc-parser[acdc-parser]`.
 
 Users will likely want to look at `link:./acdc-cli[acdc-cli]`.
