@@ -4,23 +4,8 @@ use acdc_converters_common::{Options, Processable};
 use acdc_core::Source;
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-
-    #[error(transparent)]
-    Parse(#[from] acdc_parser::Error),
-
-    #[error(transparent)]
-    FromUtf8(#[from] std::string::FromUtf8Error),
-
-    #[error(transparent)]
-    IntoInner(#[from] std::io::IntoInnerError<std::io::BufWriter<Vec<u8>>>),
-}
-
-trait ToTerminal: Render {
-    fn to_terminal(&self, processor: &Processor) -> std::io::Result<()> {
+trait ToTerminal: Render<Error = crate::Error> {
+    fn to_terminal(&self, processor: &Processor) -> Result<(), Self::Error> {
         let stdout = std::io::stdout();
         let mut writer = std::io::BufWriter::new(stdout.lock());
         self.render(&mut writer, processor)?;
@@ -31,8 +16,9 @@ trait ToTerminal: Render {
 
 /// A simple trait for helping in rendering `AsciiDoc` content.
 trait Render {
-    #[allow(clippy::missing_errors_doc)]
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()>;
+    type Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error>;
 }
 
 pub struct Processor {
@@ -137,9 +123,12 @@ impl Processable for Processor {
 mod block;
 mod delimited;
 mod document;
+mod error;
 mod image;
 mod inline;
 mod list;
 mod paragraph;
 mod section;
 mod table;
+
+pub(crate) use error::Error;

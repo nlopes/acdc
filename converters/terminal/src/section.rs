@@ -3,7 +3,9 @@ use std::io::Write;
 use crate::{Processor, Render};
 
 impl Render for acdc_parser::Section {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         write!(w, "> ")?;
         for node in &self.title {
             node.render(w, processor)?;

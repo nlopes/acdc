@@ -864,7 +864,7 @@ peg::parser! {
                 .iter()
                 .filter(|(cell, _, _)| !cell.is_empty())
                 .map(|(cell, start, _end)| parse_table_cell(cell, state, *start, block_metadata.parent_section_level))
-                .collect::<Vec<_>>();
+                .collect::<Result<Vec<_>, _>>()?;
                 // validate that if we have ncols we have the same number of columns in each row
                 if let Some(ncols) = ncols
                 && columns.len() != ncols

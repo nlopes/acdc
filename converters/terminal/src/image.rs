@@ -9,7 +9,9 @@ use crossterm::{
 use crate::{Processor, Render};
 
 impl Render for Image {
-    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
         match &self.source {
             Source::Url(url) => {
                 w.queue(PrintStyledContent(format!("[Image: {url}]").italic()))?;

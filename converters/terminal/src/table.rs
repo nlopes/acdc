@@ -5,7 +5,9 @@ use comfy_table::{Cell, Color, ContentArrangement, Table};
 use crate::{Processor, Render};
 
 impl Render for acdc_parser::Table {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         let mut table = Table::new();
         table
             .set_content_arrangement(ContentArrangement::Dynamic)
@@ -29,8 +31,7 @@ impl Render for acdc_parser::Table {
                             .add_attribute(comfy_table::Attribute::Bold),
                     )
                 })
-                .collect::<Result<Vec<_>, acdc_parser::Error>>()
-                .expect("this should have been ok, and I need to not use expect");
+                .collect::<Result<Vec<_>, Self::Error>>()?;
             table.set_header(header_cells);
         }
 
@@ -48,8 +49,7 @@ impl Render for acdc_parser::Table {
                         String::from_utf8(inner.get_ref().clone()).unwrap_or_default(),
                     ))
                 })
-                .collect::<Result<Vec<_>, acdc_parser::Error>>()
-                .expect("this should have been ok, and I need to not use expect");
+                .collect::<Result<Vec<_>, Self::Error>>()?;
             table.add_row(cells);
         }
 

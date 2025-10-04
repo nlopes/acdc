@@ -132,15 +132,21 @@ peg::parser! {
 impl FromStr for LinesRange {
     type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.contains("..") {
-            let mut parts = s.split("..");
-            let start = parts.next().expect("no start").parse()?;
-            let end = parts.next().expect("no end").parse()?;
+    fn from_str(line_range: &str) -> Result<Self, Self::Err> {
+        if line_range.contains("..") {
+            let mut parts = line_range.split("..");
+            let start = parts
+                .next()
+                .ok_or_else(|| Error::InvalidLineRange(line_range.to_string()))?
+                .parse()?;
+            let end = parts
+                .next()
+                .ok_or_else(|| Error::InvalidLineRange(line_range.to_string()))?
+                .parse()?;
             Ok(LinesRange::Range(start, end))
         } else {
-            Ok(LinesRange::Single(s.parse().map_err(|e| {
-                tracing::error!(?s, "failed to parse line number: {:?}", e);
+            Ok(LinesRange::Single(line_range.parse().map_err(|e| {
+                tracing::error!(?line_range, ?e, "Failed to parse line range");
                 e
             })?))
         }
@@ -183,11 +189,7 @@ impl Include {
                     );
                 }
                 "lines" => {
-                    self.line_range
-                        .extend(LinesRange::parse(&value).map_err(|e| {
-                            tracing::error!(?value, "failed to parse lines attribute: {:?}", e);
-                            e
-                        })?);
+                    self.line_range.extend(LinesRange::parse(&value)?);
                 }
                 "tag" => {
                     self.tags.push(value.to_string());
@@ -210,7 +212,7 @@ impl Include {
                 }
                 unknown => {
                     tracing::error!(?unknown, "unknown attribute key in include directive");
-                    return Err(Error::InvalidIncludeDirective);
+                    return Err(Error::InvalidIncludeDirective(unknown.to_string()));
                 }
             }
         }
@@ -428,51 +430,55 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_parse_simple_include() {
+    fn test_parse_simple_include() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, &options).unwrap();
+        let include = Include::parse(&path, line, &options)?;
 
-        match include.target {
-            Target::Path(p) => assert_eq!(p, PathBuf::from("target.adoc")),
-            Target::Url(_) => panic!("Expected Path target"),
-        }
+        assert!(matches!(
+            include.target,
+            Target::Path(path) if path == PathBuf::from("target.adoc")
+        ));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_include_with_attributes() {
+    fn test_parse_include_with_attributes() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[leveloffset=+1,lines=1..5,tag=example]";
         let options = Options::default();
-        let include = Include::parse(&path, line, &options).unwrap();
+        let include = Include::parse(&path, line, &options)?;
 
         assert_eq!(include.level_offset, Some(1));
         assert_eq!(include.tags, vec!["example"]);
         assert!(!include.line_range.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn test_parse_include_with_url() {
+    fn test_parse_include_with_url() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
         let line = "include::https://example.com/doc.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, &options).unwrap();
+        let include = Include::parse(&path, line, &options)?;
 
-        match include.target {
-            Target::Url(url) => assert_eq!(url.as_str(), "https://example.com/doc.adoc"),
-            Target::Path(_) => panic!("Expected URL target"),
-        }
+        assert!(matches!(
+            include.target,
+            Target::Url(url) if url.as_str() == "https://example.com/doc.adoc"
+        ));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_quoted_attributes() {
+    fn test_parse_quoted_attributes() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
         let line = r#"include::target.adoc[tag="example code",encoding="utf-8"]"#;
         let options = Options::default();
-        let include = Include::parse(&path, line, &options).unwrap();
+        let include = Include::parse(&path, line, &options)?;
 
         assert_eq!(include.tags, vec!["example code"]);
         assert_eq!(include.encoding, Some("utf-8".to_string()));
+        Ok(())
     }
 }

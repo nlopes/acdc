@@ -10,7 +10,9 @@ use acdc_parser::{ListItem, ListItemCheckedStatus, UnorderedList};
 use crate::{Processor, Render};
 
 impl Render for UnorderedList {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         if !self.title.is_empty() {
             let mut inner = std::io::BufWriter::new(Vec::new());
             self.title
@@ -33,7 +35,9 @@ impl Render for UnorderedList {
 }
 
 impl Render for ListItem {
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> std::io::Result<()> {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         write!(w, "{}", self.marker)?;
         if let Some(checked) = &self.checked {
             write!(w, " ")?;
@@ -52,6 +56,7 @@ impl Render for ListItem {
                 write!(w, " ")?;
             }
         }
-        writeln!(w)
+        writeln!(w)?;
+        Ok(())
     }
 }
