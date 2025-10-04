@@ -47,9 +47,7 @@ impl Preprocessor {
         file_path: P,
         options: &Options,
     ) -> Result<String, Error> {
-        if let Some(parent) = file_path.as_ref().parent()
-            && parent.try_exists()?
-        {
+        if let Some(parent) = file_path.as_ref().parent() {
             let input = std::fs::read_to_string(&file_path).map_err(|e| {
                 tracing::error!(
                     path = ?file_path.as_ref().display(),

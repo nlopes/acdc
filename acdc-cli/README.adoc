@@ -45,3 +45,20 @@ Alternatively, you can build them all like so:
 ....
 cargo build --all-features
 ....
+
+## Extra Logging
+
+If you want more logs, especially useful if you're troubleshooting or reporting an error,
+please adjust the `ACDC_LOG` environment variable.
+
+[source,console]
+....
+ACDC_LOG=trace cargo run <your file>
+....
+
+or if you're running a binary already built:
+
+[source,console]
+....
+ACDC_LOG=trace acdc <your file>
+....

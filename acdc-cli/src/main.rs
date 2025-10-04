@@ -5,8 +5,6 @@ use acdc_core::{Doctype, SafeMode, Source};
 use acdc_parser::{AttributeValue, DocumentAttributes};
 use anyhow::Result;
 use clap::{ArgAction, Parser, ValueEnum};
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::{EnvFilter, fmt};
 
 #[derive(Debug, ValueEnum, Clone)]
 enum Backend {
@@ -62,14 +60,21 @@ struct Args {
     attributes: Vec<String>,
 }
 
+fn setup_logging() {
+    use tracing_subscriber::{EnvFilter, prelude::*};
+
+    let filter = EnvFilter::from_env("ACDC_LOG");
+    let layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stderr)
+        .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
+        .with_timer(tracing_subscriber::fmt::time::Uptime::default())
+        .with_filter(filter);
+
+    tracing_subscriber::registry().with(layer).init();
+}
+
 fn main() -> Result<()> {
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(fmt::layer())
-        .init();
-
+    setup_logging();
     let args = Args::parse();
     let document_attributes = build_attributes_map(&args.attributes);
     let safe_mode = if args.safe {
