@@ -81,6 +81,7 @@ impl Processable for Processor {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn run(&self) -> Result<(), Self::Error> {
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),

@@ -8,6 +8,8 @@ description.workspace = true
 [[bin]]
 name = "acdc"
 path = "src/main.rs"
+test = false
+doc = false
 
 [dependencies]
 acdc-converters-common.workspace = true
