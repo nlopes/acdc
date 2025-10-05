@@ -14,7 +14,9 @@ use crate::{
         author_revision::{RevisionInfo, generate_initials, process_revision_info},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
-        inline_processing::{parse_inlines, preprocess_inline_content, process_inlines},
+        inline_processing::{
+            adjust_and_log_parse_error, parse_inlines, preprocess_inline_content, process_inlines,
+        },
         location_mapping::map_inline_locations,
         table::parse_table_cell,
     },
@@ -595,7 +597,7 @@ peg::parser! {
                 Vec::new()
             } else {
                 document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    tracing::error!(?e, "Error parsing example content as blocks in example block");
+                    adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing example content as blocks in example block");
                     Ok(Vec::new())
                 })?
             };
@@ -794,7 +796,7 @@ peg::parser! {
                 Vec::new()
             } else {
                 document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    tracing::error!("Error parsing sidebar content as blocks: {}", e);
+                    adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing sidebar content as blocks");
                     Ok(Vec::new())
                 })?
             };
@@ -951,7 +953,7 @@ peg::parser! {
                     })])
                 } else {
                     let blocks = document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                        tracing::error!(?e, "Error parsing example content as blocks in quote block");
+                        adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing example content as blocks in quote block");
                         Ok(Vec::new())
                     })?;
                     DelimitedBlockType::DelimitedQuote(blocks)
@@ -1242,7 +1244,7 @@ peg::parser! {
 
             let term = document_parser::inlines(term.trim(), state, start+offset, block_metadata)
                 .unwrap_or_else(|e| {
-                    tracing::error!(?e, "Error parsing term as inline content");
+                    adjust_and_log_parse_error(&e, term.trim(), start+offset, state, "Error parsing term as inline content");
                     vec![]
                 });
 
@@ -1252,7 +1254,7 @@ peg::parser! {
                 // Parse as inline content
                 document_parser::inlines(principal_content.trim(), state, principal_start+offset, block_metadata)
                     .unwrap_or_else(|e| {
-                        tracing::error!(?e, "Error parsing principal text as inline content");
+                        adjust_and_log_parse_error(&e, principal_content.trim(), principal_start+offset, state, "Error parsing principal text as inline content");
                         vec![]
                     })
             };
@@ -1316,7 +1318,7 @@ peg::parser! {
             } else {
                 document_parser::blocks(trimmed, state, continuation_start+offset, block_metadata.parent_section_level)
                     .unwrap_or_else(|e| {
-                        tracing::error!(?e, "Error parsing continuation content");
+                        adjust_and_log_parse_error(&e, trimmed, continuation_start+offset, state, "Error parsing continuation content");
                         Ok(Vec::new())
                     })
             }

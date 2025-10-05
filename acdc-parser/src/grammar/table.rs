@@ -1,6 +1,6 @@
 use crate::{Error, TableColumn, model::SectionLevel};
 
-use super::{ParserState, document_parser};
+use super::{ParserState, document_parser, inline_processing::adjust_and_log_parse_error};
 
 pub(crate) fn parse_table_cell(
     content: &str,
@@ -10,7 +10,13 @@ pub(crate) fn parse_table_cell(
 ) -> Result<TableColumn, Error> {
     let content = document_parser::blocks(content, state, cell_start_offset, parent_section_level)
         .unwrap_or_else(|error| {
-            tracing::warn!(?error, "Failed parsing table cell content as blocks");
+            adjust_and_log_parse_error(
+                &error,
+                content,
+                cell_start_offset,
+                state,
+                "Failed parsing table cell content as blocks",
+            );
             Ok(Vec::new())
         })?;
     Ok(TableColumn { content })
