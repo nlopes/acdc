@@ -834,6 +834,7 @@ impl<'de> Deserialize<'de> for Block {
             {
                 let mut my_name = None;
                 let mut my_type = None;
+                let mut my_value: Option<String> = None;
                 let mut my_id = None;
                 let mut my_title = None;
                 let mut my_level = None;
@@ -866,7 +867,12 @@ impl<'de> Deserialize<'de> for Block {
                             }
                             my_type = Some(map.next_value::<String>()?);
                         }
-
+                        "value" => {
+                            if my_value.is_some() {
+                                return Err(de::Error::duplicate_field("value"));
+                            }
+                            my_value = Some(map.next_value::<String>()?);
+                        }
                         "form" => {
                             if my_form.is_some() {
                                 return Err(de::Error::duplicate_field("form"));
@@ -1387,6 +1393,26 @@ impl<'de> Deserialize<'de> for Block {
                     }
                     ("toc", "block") => Ok(Block::TableOfContents(TableOfContents {
                         metadata: my_metadata,
+                        location: my_location,
+                    })),
+                    // Document attribute is not something that currently the TCK
+                    // supports. I've added it because I believe it should be there. Where
+                    // in the document an attribute appears has implications on its scope.
+                    (name, "attribute") => Ok(Block::DocumentAttribute(DocumentAttribute {
+                        name: name.to_string(),
+                        value: if let Some(value) = my_value {
+                            if value.is_empty() {
+                                AttributeValue::None
+                            } else if value.eq_ignore_ascii_case("true") {
+                                AttributeValue::Bool(true)
+                            } else if value.eq_ignore_ascii_case("false") {
+                                AttributeValue::Bool(false)
+                            } else {
+                                AttributeValue::String(value.to_string())
+                            }
+                        } else {
+                            AttributeValue::None
+                        },
                         location: my_location,
                     })),
                     _ => Err(de::Error::custom(format!(

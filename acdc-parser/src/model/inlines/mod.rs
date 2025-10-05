@@ -482,9 +482,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                         //
                         //
                         match my_variant.as_str() {
-                            "url" => todo!(
-                                "implement url deserialization - this uses variant 'link' as well so need to be differentiated"
-                            ),
+                            "url" => Ok(InlineNode::Macro(InlineMacro::Url(Url {
+                                text: vec![],
+                                attributes: my_attributes.unwrap_or_default(),
+                                target: my_target,
+                                location: my_location,
+                            }))),
                             "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
                                 text: None,
                                 attributes: my_attributes.unwrap_or_default(),
@@ -492,7 +495,10 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 location: my_location,
                             }))),
 
-                            "autolink" => todo!("implement autolink deserialization"),
+                            "autolink" => Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
+                                url: my_target,
+                                location: my_location,
+                            }))),
                             "pass" => todo!("implement pass deserialization"),
                             _ => {
                                 tracing::error!(variant = %my_variant, "invalid inline macro variant");
