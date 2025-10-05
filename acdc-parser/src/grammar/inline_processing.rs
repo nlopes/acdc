@@ -13,7 +13,7 @@ use super::{
 /// When PEG parses a substring of the document, it reports positions relative to that substring.
 /// This function converts those positions to the correct positions in the original document.
 pub(crate) fn adjust_peg_error_position(
-    err: peg::error::ParseError<peg::str::LineCol>,
+    err: &peg::error::ParseError<peg::str::LineCol>,
     parsed_text: &str,
     doc_start_offset: usize,
     state: &ParserState,
@@ -38,9 +38,25 @@ pub(crate) fn adjust_peg_error_position(
         "error at {}:{}: {}",
         doc_position.line,
         doc_position.column,
-        err.to_string().split_once(": ").map(|(_, msg)| msg).unwrap_or(&err.to_string())
+        err.to_string()
+            .split_once(": ")
+            .map_or(err.to_string(), |(_, msg)| msg.to_string())
     );
     Error::Parse(adjusted_error)
+}
+
+/// Helper for error recovery when parsing from a substring
+///
+/// Adjusts error positions to the original document and logs the error
+pub(crate) fn adjust_and_log_parse_error(
+    err: &peg::error::ParseError<peg::str::LineCol>,
+    parsed_text: &str,
+    doc_start_offset: usize,
+    state: &ParserState,
+    context: &str,
+) {
+    let adjusted_error = adjust_peg_error_position(err, parsed_text, doc_start_offset, state);
+    tracing::error!(?adjusted_error, "{context}");
 }
 
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
@@ -87,12 +103,18 @@ pub(crate) fn parse_inlines(
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
 
-    let inlines = match document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata) {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(err, &processed.text, location.absolute_start, state));
-        }
-    };
+    let inlines =
+        match document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata) {
+            Ok(inlines) => inlines,
+            Err(err) => {
+                return Err(adjust_peg_error_position(
+                    &err,
+                    &processed.text,
+                    location.absolute_start,
+                    state,
+                ));
+            }
+        };
 
     state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
     Ok(inlines)
