@@ -9,31 +9,67 @@
       "target": "sunset.jpg",
       "title": [
         {
-          "name":"text",
-          "type":"string",
-          "value":"A ",
-          "location":[{"line":1,"col":2},{"line":1,"col":3}]
+          "name": "text",
+          "type": "string",
+          "value": "A ",
+          "location": [
+            {
+              "line": 1,
+              "col": 2
+            },
+            {
+              "line": 1,
+              "col": 3
+            }
+          ]
         },
         {
-          "name":"span",
-          "type":"inline",
-          "variant":"strong",
-          "form":"constrained",
-          "inlines":[
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
             {
-              "name":"text",
-              "type":"string",
-              "value":"beautiful",
-              "location":[{"line":1,"col":5},{"line":1,"col":13}]
+              "name": "text",
+              "type": "string",
+              "value": "beautiful",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 5
+                },
+                {
+                  "line": 1,
+                  "col": 13
+                }
+              ]
             }
           ],
-          "location":[{"line":1,"col":4},{"line":1,"col":14}]
+          "location": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 14
+            }
+          ]
         },
         {
-          "name":"text",
-          "type":"string",
-          "value":" sunset",
-          "location":[{"line":1,"col":15},{"line":1,"col":21}]
+          "name": "text",
+          "type": "string",
+          "value": " sunset",
+          "location": [
+            {
+              "line": 1,
+              "col": 15
+            },
+            {
+              "line": 1,
+              "col": 21
+            }
+          ]
         }
       ],
       "metadata": {

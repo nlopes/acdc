@@ -15,7 +15,16 @@
         "name": "text",
         "type": "string",
         "value": "Document Title",
-        "location": [{"line": 2,"col": 3},{"line": 2,"col": 16}]
+        "location": [
+          {
+            "line": 2,
+            "col": 3
+          },
+          {
+            "line": 2,
+            "col": 16
+          }
+        ]
       }
     ],
     "authors": [
@@ -34,7 +43,16 @@
         "address": "nlopesml@gmail.com"
       }
     ],
-    "location": [{"line": 2,"col": 1},{"line": 7,"col": 34}]
+    "location": [
+      {
+        "line": 2,
+        "col": 1
+      },
+      {
+        "line": 7,
+        "col": 34
+      }
+    ]
   },
   "blocks": [
     {
@@ -45,7 +63,16 @@
           "name": "text",
           "type": "string",
           "value": "The document ",
-          "location": [{"line": 9,"col": 1},{"line": 9,"col": 13}]
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 13
+            }
+          ]
         },
         {
           "name": "span",
@@ -57,20 +84,65 @@
               "name": "text",
               "type": "string",
               "value": "body",
-              "location": [{"line": 9,"col": 16},{"line": 9,"col": 19}]
+              "location": [
+                {
+                  "line": 9,
+                  "col": 16
+                },
+                {
+                  "line": 9,
+                  "col": 19
+                }
+              ]
             }
           ],
-          "location": [{"line": 9,"col": 14},{"line": 9,"col": 21}]
+          "location": [
+            {
+              "line": 9,
+              "col": 14
+            },
+            {
+              "line": 9,
+              "col": 21
+            }
+          ]
         },
         {
           "name": "text",
           "type": "string",
           "value": " starts here.",
-          "location": [{"line": 9,"col": 22},{"line": 9,"col": 34}]
+          "location": [
+            {
+              "line": 9,
+              "col": 22
+            },
+            {
+              "line": 9,
+              "col": 34
+            }
+          ]
         }
       ],
-      "location": [{"line": 9,"col": 1},{"line": 9,"col": 34}]
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 34
+        }
+      ]
     }
   ],
-  "location": [{"line": 1,"col": 1},{"line": 9,"col": 34}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 34
+    }
+  ]
 }

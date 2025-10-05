@@ -11,7 +11,16 @@
           "name": "text",
           "type": "string",
           "value": "Feeding the Werewolves",
-          "location": [{"line": 2, "col": 2},{"line": 2,"col": 23}]
+          "location": [
+            {
+              "line": 2,
+              "col": 2
+            },
+            {
+              "line": 2,
+              "col": 23
+            }
+          ]
         }
       ],
       "blocks": [
@@ -23,10 +32,28 @@
               "name": "text",
               "type": "string",
               "value": "While werewolves are hardy community members, keep in mind the following dietary concerns:",
-              "location": [{"line": 4, "col": 1},{"line": 4,"col": 90}]
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1
+                },
+                {
+                  "line": 4,
+                  "col": 90
+                }
+              ]
             }
           ],
-          "location": [{"line": 4, "col": 1},{"line": 4,"col": 90}]
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 90
+            }
+          ]
         },
         {
           "name": "list",
@@ -44,10 +71,28 @@
                   "name": "text",
                   "type": "string",
                   "value": "They are allergic to cinnamon.",
-                  "location": [{"line": 6,"col": 3},{"line": 6,"col": 32}]
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 3
+                    },
+                    {
+                      "line": 6,
+                      "col": 32
+                    }
+                  ]
                 }
               ],
-              "location": [{"line": 6,"col": 1},{"line": 6,"col": 32}]
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 32
+                }
+              ]
             },
             {
               "name": "listItem",
@@ -59,10 +104,28 @@
                   "name": "text",
                   "type": "string",
                   "value": "More than two glasses of orange juice in 24 hours makes them howl in harmony with alarms and sirens.",
-                  "location": [{"line": 7,"col": 3},{"line": 7,"col": 102}]
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 3
+                    },
+                    {
+                      "line": 7,
+                      "col": 102
+                    }
+                  ]
                 }
               ],
-              "location": [{"line": 7,"col": 1},{"line": 7,"col": 102}]
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 102
+                }
+              ]
             },
             {
               "name": "listItem",
@@ -74,17 +137,62 @@
                   "name": "text",
                   "type": "string",
                   "value": "Celery makes them sad.",
-                  "location": [{"line": 8,"col": 3},{"line": 8,"col": 24}]
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 3
+                    },
+                    {
+                      "line": 8,
+                      "col": 24
+                    }
+                  ]
                 }
               ],
-              "location": [{"line": 8,"col": 1},{"line": 8,"col": 24}]
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 24
+                }
+              ]
             }
           ],
-          "location": [{"line": 6,"col": 1},{"line": 8,"col": 24}]
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 24
+            }
+          ]
         }
       ],
-      "location": [{"line": 1, "col": 1},{"line": 9,"col": 4}]
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 4
+        }
+      ]
     }
   ],
-  "location": [{"line": 1,"col": 1},{"line": 9,"col": 4}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 4
+    }
+  ]
 }

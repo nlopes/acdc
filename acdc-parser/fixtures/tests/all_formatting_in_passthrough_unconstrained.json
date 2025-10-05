@@ -1,1 +1,224 @@
-{"name":"document","type":"block","blocks":[{"name":"paragraph","type":"block","inlines":[{"name":"span","type":"inline","variant":"strong","form":"unconstrained","inlines":[{"name":"text","type":"string","value":"bold","location":[{"line":1,"col":10},{"line":1,"col":14}]}],"location":[{"line":1,"col":8},{"line":1,"col":16}]},{"name":"text","type":"string","value":" ","location":[{"line":1,"col":16},{"line":1,"col":17}]},{"name":"span","type":"inline","variant":"emphasis","form":"unconstrained","inlines":[{"name":"text","type":"string","value":"italic","location":[{"line":1,"col":19},{"line":1,"col":25}]}],"location":[{"line":1,"col":17},{"line":1,"col":27}]},{"name":"text","type":"string","value":" ","location":[{"line":1,"col":27},{"line":1,"col":28}]},{"name":"span","type":"inline","variant":"code","form":"unconstrained","inlines":[{"name":"text","type":"string","value":"mono","location":[{"line":1,"col":30},{"line":1,"col":34}]}],"location":[{"line":1,"col":28},{"line":1,"col":36}]},{"name":"text","type":"string","value":" ","location":[{"line":1,"col":36},{"line":1,"col":37}]},{"name":"span","type":"inline","variant":"mark","form":"unconstrained","inlines":[{"name":"text","type":"string","value":"highlight","location":[{"line":1,"col":39},{"line":1,"col":48}]}],"location":[{"line":1,"col":37},{"line":1,"col":50}]},{"name":"text","type":"string","value":" text.","location":[{"line":1,"col":51},{"line":1,"col":56}]}],"location":[{"line":1,"col":1},{"line":1,"col":56}]}],"location":[{"line":1,"col":1},{"line":1,"col":56}]}
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 10
+                },
+                {
+                  "line": 1,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 8
+            },
+            {
+              "line": 1,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 1,
+              "col": 16
+            },
+            {
+              "line": 1,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "emphasis",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "italic",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 19
+                },
+                {
+                  "line": 1,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 17
+            },
+            {
+              "line": 1,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 1,
+              "col": 27
+            },
+            {
+              "line": 1,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "code",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "mono",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 30
+                },
+                {
+                  "line": 1,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 28
+            },
+            {
+              "line": 1,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 1,
+              "col": 36
+            },
+            {
+              "line": 1,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "highlight",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 39
+                },
+                {
+                  "line": 1,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 37
+            },
+            {
+              "line": 1,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " text.",
+          "location": [
+            {
+              "line": 1,
+              "col": 51
+            },
+            {
+              "line": 1,
+              "col": 56
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 56
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 56
+    }
+  ]
+}

@@ -10,7 +10,16 @@
         "name": "text",
         "type": "string",
         "value": "The Intrepid Chronicles",
-        "location": [{"line": 1,"col": 3},{"line": 1,"col": 25}]
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
       }
     ],
     "authors": [
@@ -22,7 +31,16 @@
         "address": "kismet@asciidoctor.org"
       }
     ],
-    "location": [{"line": 1,"col": 1},{"line": 3,"col": 166}]
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 166
+      }
+    ]
   },
   "blocks": [
     {
@@ -33,11 +51,38 @@
           "name": "text",
           "type": "string",
           "value": "This journey begins on a bleary Monday morning.",
-          "location": [{"line": 5,"col": 1},{"line": 5,"col": 47}]
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 47
+            }
+          ]
         }
       ],
-      "location": [{"line": 5,"col": 1},{"line": 5,"col": 47}]
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 47
+        }
+      ]
     }
   ],
-  "location": [{"line": 1,"col": 1},{"line": 5,"col": 47}]
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 47
+    }
+  ]
 }

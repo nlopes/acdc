@@ -1,7 +1,16 @@
 {
   "NestedSectionLevelMismatch": [
     {
-      "location": [{"line": 7,"col": 1},{"line": 7,"col": 4}]
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
     },
     4,
     3
