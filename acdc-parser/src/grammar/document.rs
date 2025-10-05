@@ -1163,7 +1163,7 @@ peg::parser! {
         whitespace()
         checked:checklist_item()?
         list_content_start:position()
-        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / description_list_marker() / section_level_marker())) / ![_]) [_])+)
+        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / check_start_of_description_list() / section_level_marker())) / ![_]) [_])+)
         end:position!() (eol()+ / ![_])
         {
             tracing::info!(%list_item, %marker, ?checked, "found list item");
@@ -1280,9 +1280,10 @@ peg::parser! {
 
         rule description_list_attached_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
         = eol() content:(
-            // Explicit continuation - this uses +
+            // Explicit continuation - this uses +, allows any content including delimited
+            // blocks
             description_list_explicit_continuation(offset, block_metadata)
-            // Implicit - usually this is to detect a list
+            // Auto-attach lists (even with blank lines before them)
             / description_list_auto_attached_list(offset, block_metadata)
         )
         {
@@ -1290,7 +1291,8 @@ peg::parser! {
         }
 
         rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
-        = &((unordered_list_marker() / ordered_list_marker()) whitespace())
+        = eol()* // Consume any blank lines before the list
+        &((unordered_list_marker() / ordered_list_marker()) whitespace())
         list_start:position!()
         list:(unordered_list(list_start, offset, block_metadata) / ordered_list(list_start, offset, block_metadata))
         {
@@ -1301,16 +1303,18 @@ peg::parser! {
         rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
         = "+" eol()
         continuation_start:position!()
-        // Capture lines until we see another description list item after blank line(s)
-        content:$((!(eol() eol()+ (!(description_list_marker() (eol() / " ")) [_])+ description_list_marker()) [_])*)
+        // Capture lines until we see another description list item
+        // This consumes everything until it hits a line that starts with a description list term
+        content:$((!(eol() check_start_of_description_list()) [_])*)
         end:position!()
         {
-            tracing::info!(?content, start = ?continuation_start, ?end, "Found explicit continuation");
+            tracing::info!(?content, start = ?continuation_start, ?end, "Explicit continuation content");
 
-            if content.trim().is_empty() {
+            let trimmed = content.trim_end();
+            if trimmed.is_empty() {
                 Ok(Vec::new())
             } else {
-                document_parser::blocks(content, state, continuation_start+offset, block_metadata.parent_section_level)
+                document_parser::blocks(trimmed, state, continuation_start+offset, block_metadata.parent_section_level)
                     .unwrap_or_else(|e| {
                         tracing::error!(?e, "Error parsing continuation content");
                         Ok(Vec::new())

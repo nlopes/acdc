@@ -1,0 +1,8 @@
+= Description List with Ordered List
+
+Item 1:: First description
+
+. ordered item 1
+. ordered item 2
+
+Item 2:: Second description

@@ -1,0 +1,17 @@
+= Mixed Content with Description Lists
+
+First item:: Some text here
+
+A paragraph that follows.
+
+- A list item
+- Another list item
+
+Another paragraph.
+
+Second item:: More text
+
+. Ordered item 1
+. Ordered item 2
+
+Third item:: Final text

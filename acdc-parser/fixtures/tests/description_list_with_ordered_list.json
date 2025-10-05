@@ -1,0 +1,241 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Description List with Ordered List",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 36
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 36
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Item 1",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First description",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 10
+                },
+                {
+                  "line": 3,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "description": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "ordered",
+              "marker": ".",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": ".",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "ordered item 1",
+                      "location": [
+                        {
+                          "line": 5,
+                          "col": 3
+                        },
+                        {
+                          "line": 5,
+                          "col": 16
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 16
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": ".",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "ordered item 2",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 3
+                        },
+                        {
+                          "line": 6,
+                          "col": 16
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1
+                    },
+                    {
+                      "line": 6,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Item 2",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second description",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 10
+                },
+                {
+                  "line": 8,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 28
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 8,
+      "col": 27
+    }
+  ]
+}

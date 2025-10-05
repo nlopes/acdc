@@ -1,0 +1,10 @@
+= Multiple Blank Lines
+
+Item 1:: Description
+
+
+- List item 1
+- List item 2
+
+
+Item 2:: Another description

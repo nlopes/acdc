@@ -35,10 +35,10 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 * [x] Image (block and inline)
 * [x] Video
 * [x] Audio
-* [x] Lists
+* [x] Lists (see <<lists,detailed notes>>)
 ** [x] Ordered
 ** [x] Unordered
-** [ ] Description Lists
+** [~] Description Lists (partial support)
 ** [x] Checklist items
 * [x] Thematic Break
 * [x] Page Break
@@ -70,3 +70,77 @@ NOTE: I took a few of the grammar rules from https://github.com/kober-systems/li
 ** [x] ifeval
 * [x] Line breaks (+)
 * [x] Discrete headers
+
+[[lists]]
+## Lists - detailed support notes
+
+Lists are partially implemented. Here's what works and what doesn't.
+
+### What works
+
+**Ordered and unordered lists**
+
+Basic list items with inline content work fine, including:
+
+- Nested lists (using different marker levels like `*`, `**`, `***`)
+- Checklist items (`[x]`, `[ ]`)
+- Multiline text that wraps within a list item
+
+**Description lists**
+
+I've implemented basic description list support with several features:
+
+- All standard delimiters (`::`, `:::`, `::::`, `;;`)
+- Principal text (inline text immediately after the delimiter)
+- Explicit continuation (`+`) for attaching block content
+- Auto-attaching ordered/unordered lists to description list items (even with blank lines before the list)
+
+### What doesn't work
+
+**List continuations for ordered/unordered lists**
+
+This is the big one. According to the https://docs.asciidoctor.org/asciidoc/latest/lists/continuation/[AsciiDoc spec], you should be able to use `+` on a line by itself to attach block content to list items:
+
+```asciidoc
+* List item text
++
+----
+Block content here
+----
+```
+
+I don't support this yet. The reason is "I haven't gotten to it yet". When I do, I should first look from an architectural point of view: `ListItem` only holds `Vec<InlineNode>`, not `Vec<Block>`. So list items can only contain inline content (bold, italic, links, etc.), not block-level content like paragraphs, delimited blocks, admonitions, or even other lists as attached content.
+
+Description lists work differently - `DescriptionListItem` has a `description: Vec<Block>` field, which is why continuation works there.
+
+**List separators**
+
+The https://docs.asciidoctor.org/asciidoc/latest/lists/separating/[spec describes] two ways to force separate lists:
+
+1. Line comment separator (`//`)
+2. Block attribute separator (`[]`)
+
+I don't support either. Lists with the same marker will always join together.
+
+**Description list limitations**
+
+While basic description lists work, there are gaps:
+
+- No support for the experimental `[ordered]` and `[unordered]` attributes (https://docs.asciidoctor.org/asciidoc/latest/lists/description-with-marker/[described here])
+- No `.stack` role support for formatting
+
+**Other missing list features**
+
+- No support for `{empty}` to drop principal text
+- No open block (`--`) wrapper support for grouping multiple blocks
+- No ancestor list continuation (attaching blocks to parent list items with blank lines before `+`)
+
+### Why these limitations exist
+
+The main issue is that I designed list items to only hold inline content. This made sense early on but now limits what lists can do. To properly support continuations, I'd need to:
+
+1. Change `ListItem.content` from `Vec<InlineNode>` to something that can hold both inline and block content
+2. Update the parser grammar to handle `+` continuations for ordered/unordered lists
+3. Add support for open blocks and other complex attachment scenarios
+
+I'll get to this, but it's not trivial and affects a lot of code.

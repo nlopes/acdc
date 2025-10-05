@@ -1,0 +1,18 @@
+= Blocks Before and After Description Lists
+
+This is a paragraph before the description list.
+
+- A list before
+- Another item
+
+Item 1:: First description
+
+- Auto-attached list
+- Another item
+
+Item 2:: Second description
+
+A paragraph after the description list.
+
+. An ordered list after
+. Another item
