@@ -1412,15 +1412,32 @@ peg::parser! {
         / regular_text:$([^('[' | ']')]+) { regular_text.to_string() }
 
         /// Parse link/URL title content that may contain balanced brackets
-        /// This is similar to balanced_bracket_content but stops at comma and attribute patterns
-        rule balanced_link_title() -> String
+        ///
+        /// This is similar to balanced_bracket_content but stops at comma and attribute
+        /// patterns
+        ///
+        /// Supports two formats:
+        /// 1. **Quoted text**: `"any text including 'quotes' and ,commas"`
+        /// 2. **Unquoted text**: `any text until , or ] or name=value`
+        ///
+        /// Unlike block attributes, link titles can contain:
+        /// - Single quotes: `link:file[see the 'source' code]`
+        /// - Periods: `link:file[version 1.2.3 notes]`
+        /// - Hash symbols: `link:file[C# programming guide]`
+        /// - Other special characters that would terminate block attribute parsing
+        ///
+        /// The unquoted parsing stops at:
+        /// - `,` (start of attributes)
+        /// - `]` (end of link)
+        /// - `name=` patterns (attribute definitions)
+        rule link_title() -> String
         = "\"" title:$((!"\"" [_])*) "\"" { title.to_string() }
         / parts:$(balanced_link_title_part()+) { parts.to_string() }
 
         /// Parse parts of link title content
         rule balanced_link_title_part() -> String
         = nested_brackets:("[" inner:balanced_bracket_content() "]" { format!("[{inner}]") })
-        / regular_text:$((!("," / (attribute_name() "=")) [^'[' | ']'])+) { regular_text.to_string() }
+        / regular_text:$((!("," whitespace()* (attribute_name() "=" / "]")) [^'[' | ']'])+) { regular_text.to_string() }
 
         rule inline_pass(offset: usize) -> InlineNode
         = start:position!()
@@ -1671,25 +1688,6 @@ peg::parser! {
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
             })))
         }
-
-        /// Parse link title text with proper quote and delimiter handling.
-        ///
-        /// Supports two formats:
-        /// 1. **Quoted text**: `"any text including 'quotes' and ,commas"`
-        /// 2. **Unquoted text**: `any text until , or ] or name=value`
-        ///
-        /// Unlike block attributes, link titles can contain:
-        /// - Single quotes: `link:file[see the 'source' code]`
-        /// - Periods: `link:file[version 1.2.3 notes]`
-        /// - Hash symbols: `link:file[C# programming guide]`
-        /// - Other special characters that would terminate block attribute parsing
-        ///
-        /// The unquoted parsing stops at:
-        /// - `,` (start of attributes)
-        /// - `]` (end of link)
-        /// - `name=` patterns (attribute definitions)
-        rule link_title() -> String
-        = balanced_link_title()
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand(offset: usize) -> InlineNode

@@ -1,0 +1,9 @@
+Visit https://example.com[Example, a test website] for more information.
+
+This is a link with multiple commas: https://reddit.com/about/[About reddit, including some mind boggling statistics].
+
+Link with comma and attributes: https://rust-lang.org[The Rust language, official docs,role=external].
+
+:fn-test: footnote:fn-test[https://example.com/path[Link text, with comma].]
+
+Testing footnote attribute: {fn-test}
