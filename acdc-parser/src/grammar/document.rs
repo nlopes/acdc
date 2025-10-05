@@ -2115,7 +2115,7 @@ peg::parser! {
                     location: initial_location,
                 }));
             }
-            let content = parse_inlines(&processed, state, block_metadata)?;
+            let content = parse_inlines(&processed, state, block_metadata, &location)?;
             let content = map_inline_locations(state, &processed, &content, &location);
 
             // Title should either be an attribute named title, or the title parsed from the block metadata

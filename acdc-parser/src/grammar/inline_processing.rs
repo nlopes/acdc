@@ -8,6 +8,41 @@ use super::{
     document::{BlockParsingMetadata, PositionWithOffset, document_parser},
 };
 
+/// Adjust PEG parser error positions to account for substring parsing
+///
+/// When PEG parses a substring of the document, it reports positions relative to that substring.
+/// This function converts those positions to the correct positions in the original document.
+pub(crate) fn adjust_peg_error_position(
+    err: peg::error::ParseError<peg::str::LineCol>,
+    parsed_text: &str,
+    doc_start_offset: usize,
+    state: &ParserState,
+) -> Error {
+    // Calculate the byte offset within the substring where the error occurred
+    let mut byte_offset = 0;
+    for (line_idx, line) in parsed_text.lines().enumerate() {
+        if line_idx + 1 == err.location.line {
+            byte_offset += err.location.column - 1; // column is 1-indexed
+            break;
+        }
+        byte_offset += line.len() + 1; // +1 for newline
+    }
+
+    // Add the substring's starting position to get the absolute document position
+    let absolute_offset = doc_start_offset + byte_offset;
+
+    // Convert the absolute offset back to line:column using the state's line_map
+    let doc_position = state.line_map.offset_to_position(absolute_offset);
+
+    let adjusted_error = format!(
+        "error at {}:{}: {}",
+        doc_position.line,
+        doc_position.column,
+        err.to_string().split_once(": ").map(|(_, msg)| msg).unwrap_or(&err.to_string())
+    );
+    Error::Parse(adjusted_error)
+}
+
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
 pub(crate) fn preprocess_inline_content(
     state: &ParserState,
@@ -46,12 +81,19 @@ pub(crate) fn parse_inlines(
     processed: &ProcessedContent,
     state: &mut ParserState,
     block_metadata: &BlockParsingMetadata,
+    location: &Location,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
-    let inlines =
-        document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)?;
+
+    let inlines = match document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata) {
+        Ok(inlines) => inlines,
+        Err(err) => {
+            return Err(adjust_peg_error_position(err, &processed.text, location.absolute_start, state));
+        }
+    };
+
     state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
     Ok(inlines)
 }
@@ -74,7 +116,7 @@ pub(crate) fn process_inlines(
     // Preprocess the inline content first
     let (initial_location, location, processed) =
         preprocess_inline_content(state, start, content_start, end, offset, content)?;
-    let content = parse_inlines(&processed, state, block_metadata)?;
+    let content = parse_inlines(&processed, state, block_metadata, &location)?;
     let content =
         super::location_mapping::map_inline_locations(state, &processed, &content, &location);
     Ok((content, initial_location))
