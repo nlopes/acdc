@@ -328,13 +328,10 @@ impl std::fmt::Display for Source {
 }
 
 /// A `DescriptionList` represents a description list in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DescriptionList {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub items: Vec<DescriptionListItem>,
     pub location: Location,
 }
@@ -730,6 +727,26 @@ impl Serialize for OrderedList {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", "ordered")?;
         state.serialize_entry("marker", &self.marker)?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for DescriptionList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "dlist")?;
+        state.serialize_entry("type", "block")?;
         if !self.title.is_empty() {
             state.serialize_entry("title", &self.title)?;
         }

@@ -1,0 +1,11 @@
+= Description List Without Inline Text
+
+CPU::
+
+- list item 1
+- list item 2
+
+MEM::
+
+- mem item 1
+- mem item 2

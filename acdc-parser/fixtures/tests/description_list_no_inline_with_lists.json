@@ -1,0 +1,290 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Description List Without Inline Text",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 38
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 38
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "CPU",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 3
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "description": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "unordered",
+              "marker": "-",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "-",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "list item 1",
+                      "location": [
+                        {
+                          "line": 5,
+                          "col": 3
+                        },
+                        {
+                          "line": 5,
+                          "col": 13
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 13
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "-",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "list item 2",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 3
+                        },
+                        {
+                          "line": 6,
+                          "col": 13
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1
+                    },
+                    {
+                      "line": 6,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "MEM",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 3
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "description": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "unordered",
+              "marker": "-",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "-",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "mem item 1",
+                      "location": [
+                        {
+                          "line": 10,
+                          "col": 3
+                        },
+                        {
+                          "line": 10,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 1
+                    },
+                    {
+                      "line": 10,
+                      "col": 12
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "-",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "mem item 2",
+                      "location": [
+                        {
+                          "line": 11,
+                          "col": 3
+                        },
+                        {
+                          "line": 11,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 12
+    }
+  ]
+}
