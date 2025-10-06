@@ -1,0 +1,4 @@
+* First item
+* Second item
+
+Following paragraph.
