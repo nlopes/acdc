@@ -55,28 +55,6 @@ impl Location {
         }
     }
 
-    // TODO(nlopes): shift_start should be shift_inline_start
-    pub fn shift_start(&mut self, parent: Option<&Location>) {
-        if let Some(parent) = parent {
-            if parent.start.line == 0 {
-                return;
-            }
-            self.absolute_start += parent.absolute_start;
-            self.start.line += parent.start.line - 1;
-        }
-    }
-
-    // TODO(nlopes): shift_end should be shift_inline_end
-    pub fn shift_end(&mut self, parent: Option<&Location>) {
-        if let Some(parent) = parent {
-            if parent.start.line == 0 {
-                return;
-            }
-            self.absolute_end += parent.absolute_start;
-            self.end.line += parent.start.line - 1;
-        }
-    }
-
     pub fn shift_line_column(&mut self, line: usize, column: usize) {
         self.start.line += line - 1;
         self.end.line += line - 1;

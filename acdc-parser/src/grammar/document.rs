@@ -1165,7 +1165,7 @@ peg::parser! {
         whitespace()
         checked:checklist_item()?
         list_content_start:position()
-        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / check_start_of_description_list() / section_level_marker())) / ![_]) [_])+)
+        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / check_start_of_description_list() / section_level_marker())) / eol()*<2,> / ![_]) [_])+)
         end:position!() (eol()+ / ![_])
         {
             tracing::info!(%list_item, %marker, ?checked, "found list item");
