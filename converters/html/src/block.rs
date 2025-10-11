@@ -24,6 +24,14 @@ impl Render for Block {
             Block::DocumentAttribute(_) => Ok(()),
             Block::TableOfContents(t) => t.render(w, processor, options),
             Block::Image(i) => i.render(w, processor, options),
+            Block::ThematicBreak(_) => {
+                writeln!(w, "<hr>")?;
+                Ok(())
+            }
+            Block::PageBreak(_) => {
+                writeln!(w, "<div style=\"page-break-after: always;\"></div>")?;
+                Ok(())
+            }
             unknown => todo!("rendering for block type: {:?}", unknown),
         }
     }
