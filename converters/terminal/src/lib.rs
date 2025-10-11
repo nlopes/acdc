@@ -14,6 +14,8 @@ trait ToTerminal: Render<Error = crate::Error> {
     }
 }
 
+pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
+
 /// A simple trait for helping in rendering `AsciiDoc` content.
 trait Render {
     type Error;
@@ -127,8 +129,10 @@ mod error;
 mod image;
 mod inline;
 mod list;
+mod page_break;
 mod paragraph;
 mod section;
 mod table;
+mod thematic_break;
 
 pub(crate) use error::Error;

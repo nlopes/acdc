@@ -12,6 +12,8 @@ impl Render for acdc_parser::Block {
             acdc_parser::Block::Section(s) => s.render(w, processor),
             acdc_parser::Block::UnorderedList(u) => u.render(w, processor),
             acdc_parser::Block::Image(i) => i.render(w, processor),
+            acdc_parser::Block::ThematicBreak(t) => t.render(w, processor),
+            acdc_parser::Block::PageBreak(p) => p.render(w, processor),
             _ => {
                 tracing::warn!("Unexpected block: {:?}", self);
                 Ok(())
