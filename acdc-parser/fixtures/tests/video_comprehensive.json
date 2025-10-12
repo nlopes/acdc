@@ -1,0 +1,1063 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Video Comprehensive Test",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line":1,
+            "col":26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 26
+      }
+    ]
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Basic local video",
+          "location": [
+            {
+              "line": 3,
+              "col": 4
+            },
+            {
+              "line": 3,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "basic.mp4"
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Local video with dimensions",
+            "location": [
+              {
+                "line": 7,
+                "col": 4
+              },
+              {
+                "line": 7,
+                "col": 30
+              }
+            ]
+          }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "demo.mp4"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "width": "640",
+              "height": "480"
+            }
+          },
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Local video with time range",
+            "location": [
+              {
+                "line": 11,
+                "col": 4
+              },
+              {
+                "line": 11,
+                "col": 30
+              }
+            ]
+          }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "demo.mp4"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "start": "10",
+              "end": "90"
+            }
+          },
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Local video with poster",
+            "location": [
+              {
+                "line": 15,
+                "col": 4
+              },
+              {
+                "line": 15,
+                "col": 26
+              }
+            ]
+          }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "demo.mp4"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "poster": "thumbnail.jpg"
+            }
+          },
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with preload",
+          "location": [
+            {
+              "line": 19,
+              "col": 4
+            },
+            {
+              "line": 19,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "test.mp4"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "preload": "auto"
+            }
+          },
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with lang attribute",
+          "location": [
+            {
+              "line": 23,
+              "col": 4
+            },
+            {
+              "line": 23,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "demo.mp4"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "lang": "en-US"
+            }
+          },
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 23,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with title",
+          "location": [
+            {
+              "line": 27,
+              "col": 4
+            },
+            {
+              "line": 27,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A demo video",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 2
+                },
+                {
+                  "line": 29,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "sources": [
+            {
+              "type": "path",
+              "value": "demo.mp4"
+            }
+          ],
+          "metadata": {
+            "title": "A demo video",
+            "attributes": {
+              "width": "640",
+              "height": "480"
+            }
+          },
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with ID",
+          "location": [
+            {
+              "line": 32,
+              "col": 4
+            },
+            {
+              "line": 32,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "id-test.mp4"
+            }
+          ],
+          "metadata": {
+            "anchors": [
+              {
+                "id": "my-video",
+                "location": [
+                  {
+                    "line": 34,
+                    "col": 1
+                  },
+                  {
+                    "line": 34,
+                    "col": 12
+                  }
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 35,
+              "col":  20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 35,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with all attributes and options",
+          "location": [
+            {
+              "line": 37,
+              "col": 4
+            },
+            {
+              "line": 37,
+              "col":  46
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Full featured video",
+              "location": [
+                {
+                  "line": 39,
+                  "col": 2
+                },
+                {
+                  "line": 39,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "sources": [
+            {
+              "type": "path",
+              "value": "demo.mp4"
+            }
+          ],
+          "metadata": {
+            "title": "Full featured video",
+            "attributes": {
+              "width": "640",
+              "height": "480",
+              "start": "10",
+              "end": "90",
+              "poster": "thumbnail.jpg",
+              "lang": "fr"
+            },
+            "options": [
+              "autoplay",
+              "loop",
+              "muted",
+              "nocontrols"
+            ]
+          },
+          "location": [
+            {
+              "line": 39,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 120
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 37,
+          "col": 1
+        },
+        {
+          "line": 40,
+          "col": 120
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "YouTube video basic",
+          "location": [
+            {
+              "line": 42,
+              "col": 4
+            },
+            {
+              "line": 42,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "rPQoq7ThGAU"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "youtube": true
+            }
+          },
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 42,
+          "col": 1
+        },
+        {
+          "line": 44,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "YouTube video with dimensions",
+          "location": [
+            {
+              "line": 46,
+              "col": 4
+            },
+            {
+              "line": 46,
+              "col":  32
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "rPQoq7ThGAU"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "youtube": true,
+              "width": "640",
+              "height": "480"
+            }
+          },
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 48,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 46,
+          "col": 1
+        },
+        {
+          "line": 48,
+          "col": 48
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "YouTube video with time and theme",
+          "location": [
+            {
+              "line": 50,
+              "col": 4
+            },
+            {
+              "line": 50,
+              "col":  36
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "rPQoq7ThGAU"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "youtube": true,
+              "start": "60",
+              "end": "120",
+              "theme": "light"
+            }
+          },
+          "location": [
+            {
+              "line": 52,
+              "col": 1
+            },
+            {
+              "line": 52,
+              "col": 56
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 50,
+          "col": 1
+        },
+        {
+          "line": 52,
+          "col": 56
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "YouTube video with options",
+          "location": [
+            {
+              "line": 54,
+              "col": 4
+            },
+            {
+              "line": 54,
+              "col":  29
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "rPQoq7ThGAU"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "youtube": true
+            },
+            "options": [
+              "autoplay",
+              "loop",
+              "muted"
+            ]
+          },
+          "location": [
+            {
+              "line": 56,
+              "col": 1
+            },
+            {
+              "line": 56,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 54,
+          "col": 1
+        },
+        {
+          "line": 56,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Vimeo video basic",
+          "location": [
+            {
+              "line": 58,
+              "col": 4
+            },
+            {
+              "line": 58,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "67480300"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "vimeo": true
+            }
+          },
+          "location": [
+            {
+              "line": 60,
+              "col": 1
+            },
+            {
+              "line": 60,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 58,
+          "col": 1
+        },
+        {
+          "line": 60,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Vimeo video with dimensions",
+          "location": [
+            {
+              "line": 62,
+              "col": 4
+            },
+            {
+              "line": 62,
+              "col":  30
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "67480300"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "vimeo": true,
+              "width": "640",
+              "height": "480"
+            }
+          },
+          "location": [
+            {
+              "line": 64,
+              "col": 1
+            },
+            {
+              "line": 64,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 62,
+          "col": 1
+        },
+        {
+          "line": 64,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "level": 1,
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Vimeo video with options",
+          "location": [
+            {
+              "line": 66,
+              "col": 4
+            },
+            {
+              "line": 66,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "video",
+          "type": "block",
+          "sources": [
+            {
+              "type": "path",
+              "value": "67480300"
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "vimeo": true
+            },
+            "options": [
+              "autoplay",
+              "loop",
+              "muted"
+            ]
+          },
+          "location": [
+            {
+              "line": 68,
+              "col": 1
+            },
+            {
+              "line": 68,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 66,
+          "col": 1
+        },
+        {
+          "line": 68,
+          "col": 49
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 68,
+      "col": 49
+    }
+  ]
+}

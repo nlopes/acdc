@@ -1,0 +1,68 @@
+= Video Comprehensive Test
+
+== Basic local video
+
+video::basic.mp4[]
+
+== Local video with dimensions
+
+video::demo.mp4[width=640,height=480]
+
+== Local video with time range
+
+video::demo.mp4[start=10,end=90]
+
+== Local video with poster
+
+video::demo.mp4[poster=thumbnail.jpg]
+
+== Local video with preload
+
+video::test.mp4[preload=auto]
+
+== Local video with lang attribute
+
+video::demo.mp4[lang=en-US]
+
+== Local video with title
+
+.A demo video
+video::demo.mp4[width=640,height=480]
+
+== Local video with ID
+
+[#my-video]
+video::id-test.mp4[]
+
+== Local video with all attributes and options
+
+.Full featured video
+video::demo.mp4[width=640,height=480,start=10,end=90,poster=thumbnail.jpg,lang=fr,opts="autoplay,loop,muted,nocontrols"]
+
+== YouTube video basic
+
+video::rPQoq7ThGAU[youtube]
+
+== YouTube video with dimensions
+
+video::rPQoq7ThGAU[youtube,width=640,height=480]
+
+== YouTube video with time and theme
+
+video::rPQoq7ThGAU[youtube,start=60,end=120,theme=light]
+
+== YouTube video with options
+
+video::rPQoq7ThGAU[youtube,opts="autoplay,loop,muted"]
+
+== Vimeo video basic
+
+video::67480300[vimeo]
+
+== Vimeo video with dimensions
+
+video::67480300[vimeo,width=640,height=480]
+
+== Vimeo video with options
+
+video::67480300[vimeo,opts="autoplay,loop,muted"]

@@ -24,8 +24,8 @@ impl Render for Image {
                 });
                 w.flush()?;
             }
-            Source::Name(_) => {
-                todo!("Handle named images");
+            Source::Name(name) => {
+                w.queue(PrintStyledContent(format!("[Image: {name}]").italic()))?;
             }
         }
         Ok(())
