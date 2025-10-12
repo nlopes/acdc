@@ -21,3 +21,16 @@ impl Render for acdc_parser::Section {
         Ok(())
     }
 }
+
+impl Render for acdc_parser::DiscreteHeader {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
+        write!(w, "> ")?;
+        for node in &self.title {
+            node.render(w, processor)?;
+        }
+        writeln!(w, " <")?;
+        Ok(())
+    }
+}
