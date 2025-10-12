@@ -308,7 +308,7 @@ peg::parser! {
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
 
             Ok(Block::DiscreteHeader(DiscreteHeader {
-                anchors: block_metadata.metadata.anchors,
+                metadata: block_metadata.metadata,
                 title,
                 level,
                 location,
@@ -343,7 +343,7 @@ peg::parser! {
         title_start:position!()
         section_header:(title:section_title(start, offset, &block_metadata) title_end:position!() &eol()*<2,2> {
             let title = title?;
-            let section_id = Section::generate_id(&block_metadata.metadata, &title);
+            let section_id = Section::generate_id(&block_metadata.metadata, &title).to_string();
 
             // Register section for TOC immediately after title is parsed, before content
             state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone());
@@ -2925,9 +2925,9 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         // Check that TOC entries were generated
         assert_eq!(result.toc_entries.len(), 2);
         assert_eq!(result.toc_entries[0].level, 1);
-        assert_eq!(result.toc_entries[0].id, "section_1");
+        assert_eq!(result.toc_entries[0].id, "_section_1");
         assert_eq!(result.toc_entries[1].level, 1);
-        assert_eq!(result.toc_entries[1].id, "section_2");
+        assert_eq!(result.toc_entries[1].id, "_section_2");
         Ok(())
     }
 
@@ -2940,9 +2940,9 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
 
         // Check that TOC entries were generated and ordered correctly
         assert_eq!(result.toc_entries.len(), 3);
-        assert_eq!(result.toc_entries[0].id, "section_a");
-        assert_eq!(result.toc_entries[1].id, "section_a1");
-        assert_eq!(result.toc_entries[2].id, "section_b");
+        assert_eq!(result.toc_entries[0].id, "_section_a");
+        assert_eq!(result.toc_entries[1].id, "_section_a1");
+        assert_eq!(result.toc_entries[2].id, "_section_b");
         Ok(())
     }
 

@@ -4,6 +4,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
+pub(crate) mod converter;
 mod macros;
 mod text;
 
