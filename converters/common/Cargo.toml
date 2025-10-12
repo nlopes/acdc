@@ -6,9 +6,11 @@ authors.workspace = true
 description.workspace = true
 
 [dependencies]
-clap.workspace = true
-acdc-parser = { path = "../../acdc-parser" }
 acdc-core.workspace = true
+acdc-parser = { path = "../../acdc-parser" }
+clap.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true

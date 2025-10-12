@@ -135,5 +135,6 @@ mod paragraph;
 mod section;
 mod table;
 mod thematic_break;
+mod video;
 
 pub(crate) use error::Error;

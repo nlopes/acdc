@@ -1,5 +1,6 @@
-use std::{fmt::Write as _, io::Write};
+use std::io::Write;
 
+use acdc_converters_common::video::TryUrl;
 use acdc_parser::Video;
 
 use crate::{Processor, Render, RenderOptions};
@@ -45,10 +46,8 @@ impl Render for Video {
             Some(acdc_parser::AttributeValue::Bool(true))
         );
 
-        if is_youtube {
-            render_youtube_video(self, w)?;
-        } else if is_vimeo {
-            render_vimeo_video(self, w)?;
+        if is_youtube || is_vimeo {
+            render_iframe_video(self, w)?;
         } else {
             render_local_video(self, w)?;
         }
@@ -60,46 +59,9 @@ impl Render for Video {
     }
 }
 
-fn render_youtube_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate::Error> {
-    let video_id = &video.sources[0].to_string();
-    let mut url = format!("https://www.youtube.com/embed/{video_id}?rel=0");
-
-    if let Some(acdc_parser::AttributeValue::String(start)) = video.metadata.attributes.get("start")
-    {
-        write!(url, "&start={start}")?;
-    }
-
-    if let Some(acdc_parser::AttributeValue::String(end)) = video.metadata.attributes.get("end") {
-        write!(url, "&end={end}")?;
-    }
-
-    if let Some(acdc_parser::AttributeValue::String(theme)) = video.metadata.attributes.get("theme")
-    {
-        write!(url, "&theme={theme}")?;
-    }
-
-    if video.metadata.options.iter().any(|o| o == "autoplay") {
-        write!(url, "&autoplay=1")?;
-    }
-
-    if video.metadata.options.iter().any(|o| o == "loop") {
-        write!(url, "&loop=1&playlist={video_id}")?;
-    }
-
-    if video.metadata.options.iter().any(|o| o == "muted") {
-        write!(url, "&mute=1")?;
-    }
-
-    // Add controls parameter if nocontrols is present
-    if video.metadata.options.iter().any(|o| o == "nocontrols") {
-        write!(url, "&controls=0")?;
-    }
-
-    // Add modest branding if modest option is present
-    if video.metadata.options.iter().any(|o| o == "modest") {
-        write!(url, "&modestbranding=1")?;
-    }
-
+/// Render a video as an iframe, suitable for `YouTube` or `Vimeo` embedding.
+fn render_iframe_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate::Error> {
+    let url = video.try_url(true)?;
     let allow_fullscreen = !video.metadata.options.iter().any(|o| o == "nofullscreen");
 
     write!(w, "<iframe")?;
@@ -126,69 +88,9 @@ fn render_youtube_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate:
     Ok(())
 }
 
-fn render_vimeo_video<W: Write>(video: &Video, w: &mut W) -> Result<(), std::io::Error> {
-    let video_id = &video.sources[0].to_string();
-
-    // Build Vimeo embed URL with parameters
-    let mut url = format!("https://player.vimeo.com/video/{video_id}");
-    let mut first_param = true;
-
-    if video.metadata.options.iter().any(|o| o == "autoplay") {
-        url.push_str(if first_param { "?" } else { "&" });
-        url.push_str("autoplay=1");
-        first_param = false;
-    }
-
-    if video.metadata.options.iter().any(|o| o == "loop") {
-        url.push_str(if first_param { "?" } else { "&" });
-        url.push_str("loop=1");
-        first_param = false;
-    }
-
-    if video.metadata.options.iter().any(|o| o == "muted") {
-        url.push_str(if first_param { "?" } else { "&" });
-        url.push_str("muted=1");
-    }
-
-    write!(w, "<iframe")?;
-
-    if let Some(acdc_parser::AttributeValue::String(width)) = video.metadata.attributes.get("width")
-    {
-        write!(w, " width=\"{width}\"")?;
-    }
-
-    if let Some(acdc_parser::AttributeValue::String(height)) =
-        video.metadata.attributes.get("height")
-    {
-        write!(w, " height=\"{height}\"")?;
-    }
-
-    writeln!(
-        w,
-        " src=\"{url}\" frameborder=\"0\" allowfullscreen></iframe>"
-    )?;
-
-    Ok(())
-}
-
+/// Render a local video using the `HTML5` `<video>` tag.
 fn render_local_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate::Error> {
-    // Build the src attribute with optional start and end time
-    let mut src = video.sources[0].to_string();
-    let start = video.metadata.attributes.get("start");
-    let end = video.metadata.attributes.get("end");
-
-    match (start, end) {
-        (
-            Some(acdc_parser::AttributeValue::String(s)),
-            Some(acdc_parser::AttributeValue::String(e)),
-        ) => {
-            write!(src, "#t={s},{e}")?;
-        }
-        (Some(acdc_parser::AttributeValue::String(s)), None) => {
-            write!(src, "#t={s}")?;
-        }
-        _ => {}
-    }
+    let src = video.try_url(false)?;
 
     write!(w, "<video src=\"{src}\"")?;
 
