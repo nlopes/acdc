@@ -2941,7 +2941,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         // Check that TOC entries were generated and ordered correctly
         assert_eq!(result.toc_entries.len(), 3);
         assert_eq!(result.toc_entries[0].id, "_section_a");
-        assert_eq!(result.toc_entries[1].id, "_section_a1");
+        assert_eq!(result.toc_entries[1].id, "_section_a_1");
         assert_eq!(result.toc_entries[2].id, "_section_b");
         Ok(())
     }
