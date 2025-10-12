@@ -186,6 +186,7 @@ impl Processable for Processor {
 }
 
 mod admonition;
+mod audio;
 mod block;
 mod delimited;
 mod document;

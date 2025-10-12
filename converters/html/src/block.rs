@@ -24,6 +24,7 @@ impl Render for Block {
             Block::DocumentAttribute(_) => Ok(()),
             Block::TableOfContents(t) => t.render(w, processor, options),
             Block::Image(i) => i.render(w, processor, options),
+            Block::Audio(a) => a.render(w, processor, options),
             Block::DiscreteHeader(d) => d.render(w, processor, options),
             Block::ThematicBreak(_) => {
                 writeln!(w, "<hr>")?;
