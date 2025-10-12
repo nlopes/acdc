@@ -38,7 +38,7 @@ impl Processor {
     ) -> Result<(), crate::Error> {
         let mut file = std::fs::File::create(path)?;
         let options = RenderOptions {
-            last_updated: file.metadata()?.modified().ok().map(chrono::DateTime::from),
+            last_updated: Some(file.metadata()?.modified().map(chrono::DateTime::from)?),
             ..RenderOptions::default()
         };
         let mut writer = BufWriter::new(&mut file);
@@ -155,10 +155,11 @@ impl Processable for Processor {
             Source::Files(files) => {
                 let mut buffer = Vec::new();
                 for file in files {
-                    render_options.last_updated = std::fs::metadata(file)?
-                        .modified()
-                        .ok()
-                        .map(chrono::DateTime::from);
+                    render_options.last_updated = Some(
+                        std::fs::metadata(file)?
+                            .modified()
+                            .map(chrono::DateTime::from)?,
+                    );
                     acdc_parser::parse_file(file, &options)?.render(
                         &mut buffer,
                         self,

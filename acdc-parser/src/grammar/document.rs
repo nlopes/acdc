@@ -2167,17 +2167,17 @@ peg::parser! {
         }
 
         rule anchor() -> Anchor
-            = result:(
-                start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() eol() end:position!() {
+        = result:(
+            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() end:position!() eol() {
                 (start, id, Some(reftext), end)
             } /
-            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) double_close_square_bracket() eol() end:position!() {
+            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) double_close_square_bracket() end:position!() eol() {
                 (start, id, None, end)
             } /
-            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() eol() end:position!() {
+            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() end:position!() eol() {
                 (start, id, Some(reftext), end)
             } /
-            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) close_square_bracket() eol() end:position!() {
+            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) close_square_bracket() end:position!() eol() {
                 (start, id, None, end)
             }) {
                 let (start, id, reftext, end) = result;
