@@ -202,8 +202,7 @@ pub struct DocumentAttribute {
 /// sidebar.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DiscreteHeader {
-    //#[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub anchors: Vec<Anchor>,
+    pub metadata: BlockMetadata,
     //#[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub level: u8,
@@ -528,43 +527,53 @@ pub struct Section {
     pub location: Location,
 }
 
-impl Section {
-    pub(crate) fn generate_id(metadata: &BlockMetadata, title: &[InlineNode]) -> String {
-        // Check if section has an explicit ID in metadata
-        if let Some(anchor) = &metadata.id {
-            return anchor.id.clone();
-        }
+/// A `SafeId` represents a sanitised ID.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SafeId {
+    Modified(String),
+    Unmodified(String),
+}
 
-        // Generate ID from title
-        let title_text = title_to_string(title);
-        title_text
-            .to_lowercase()
-            .chars()
-            .filter_map(|c| {
-                if c.is_alphanumeric() {
-                    Some(c)
-                } else if c.is_whitespace() || c == '-' {
-                    Some('_')
-                } else {
-                    None
-                }
-            })
-            .collect::<String>()
+impl std::fmt::Display for SafeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SafeId::Modified(id) => write!(f, "_{id}"),
+            SafeId::Unmodified(id) => write!(f, "{id}"),
+        }
     }
 }
 
-// TODO(nlopes): this should instead be impl ToString for Title
-//
-// To do so, we'd need to change Title from type alias to a newtype struct.
-pub fn title_to_string(title: &[InlineNode]) -> String {
-    title
-        .iter()
-        .map(|node| match node {
-            InlineNode::PlainText(text) => text.content.clone(),
-            InlineNode::RawText(text) => text.content.clone(),
-            _ => String::new(), // For now, skip complex inline nodes
-        })
-        .collect()
+impl Section {
+    /// Generate a section ID based on its title and metadata.
+    ///
+    /// This function checks if the section has an explicit ID in its metadata. If not, it
+    /// generates an ID from the title by converting it to lowercase, replacing spaces and
+    /// hyphens with underscores, and removing non-alphanumeric characters.
+    #[must_use]
+    pub fn generate_id(metadata: &BlockMetadata, title: &[InlineNode]) -> SafeId {
+        // Check if section has an explicit ID in metadata
+        if let Some(anchor) = &metadata.id {
+            return SafeId::Unmodified(anchor.id.clone());
+        }
+
+        // Generate ID from title
+        let title_text = converter::inlines_to_string(title);
+        SafeId::Modified(
+            title_text
+                .to_lowercase()
+                .chars()
+                .filter_map(|c| {
+                    if c.is_alphanumeric() {
+                        Some(c)
+                    } else if c.is_whitespace() || c == '-' || c == '.' {
+                        Some('_')
+                    } else {
+                        None
+                    }
+                })
+                .collect::<String>(),
+        )
+    }
 }
 
 impl Serialize for Admonition {
@@ -785,8 +794,8 @@ impl Serialize for DiscreteHeader {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("level", &self.level)?;
-        if !self.anchors.is_empty() {
-            state.serialize_entry("anchors", &self.anchors)?;
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -1121,7 +1130,7 @@ impl<'de> Deserialize<'de> for Block {
                     ("heading", "block") => Ok(Block::DiscreteHeader(DiscreteHeader {
                         title: my_title,
                         level: my_level.ok_or_else(|| de::Error::missing_field("level"))?,
-                        anchors: my_anchors, // TODO: this should be in metadata instead?
+                        metadata: my_metadata,
                         location: my_location,
                     })),
                     ("example", "block") => {
