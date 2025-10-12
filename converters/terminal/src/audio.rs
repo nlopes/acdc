@@ -11,7 +11,7 @@ impl Render for Audio {
     fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
         match &self.source {
             Source::Url(url) => {
-                queue!(w, PrintStyledContent(format!("[Audio: {url}]").italic()))?;
+                queue!(w, PrintStyledContent(url.clone().italic()))?;
             }
             Source::Path(path) | Source::Name(path) => {
                 queue!(w, PrintStyledContent(format!("[Audio: {path}]").italic()))?;

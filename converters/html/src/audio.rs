@@ -37,10 +37,10 @@ impl Render for Audio {
                 Some(acdc_parser::AttributeValue::String(s)),
                 Some(acdc_parser::AttributeValue::String(e)),
             ) => {
-                write!(src, "#t={s},{e}").ok();
+                write!(src, "#t={s},{e}")?;
             }
             (Some(acdc_parser::AttributeValue::String(s)), None) => {
-                write!(src, "#t={s}").ok();
+                write!(src, "#t={s}")?;
             }
             _ => {}
         }

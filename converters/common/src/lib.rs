@@ -1,6 +1,8 @@
 use acdc_core::{Doctype, SafeMode, Source};
 use acdc_parser::DocumentAttributes;
 
+pub mod video;
+
 #[derive(Debug, Default, Clone)]
 pub struct Options {
     pub generator_metadata: GeneratorMetadata,

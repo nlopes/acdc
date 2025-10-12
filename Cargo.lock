@@ -27,6 +27,8 @@ dependencies = [
  "acdc-core",
  "acdc-parser",
  "clap",
+ "thiserror 2.0.17",
+ "tracing",
 ]
 
 [[package]]
