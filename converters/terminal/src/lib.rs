@@ -122,6 +122,7 @@ impl Processable for Processor {
     }
 }
 
+mod audio;
 mod block;
 mod delimited;
 mod document;
