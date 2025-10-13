@@ -263,7 +263,8 @@ peg::parser! {
 
 
         pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
-        = eol()* block:(
+        = eol()*
+        block:(
             document_attribute_block(offset) /
             &"[discrete" dh:discrete_header(offset) { dh } /
             !same_or_higher_level_section(offset, parent_section_level) section:section(offset, parent_section_level) { section } /
@@ -341,7 +342,7 @@ peg::parser! {
         section_level_end:position!()
         whitespace()
         title_start:position!()
-        section_header:(title:section_title(start, offset, &block_metadata) title_end:position!() &eol()*<2,2> {
+        section_header:(title:section_title(start, offset, &block_metadata) title_end:position!() &(eol()*<2,2> / ![_]) {
             let title = title?;
             let section_id = Section::generate_id(&block_metadata.metadata, &title).to_string();
 
