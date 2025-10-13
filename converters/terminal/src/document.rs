@@ -42,21 +42,26 @@ impl Render for acdc_parser::Header {
     type Error = crate::Error;
 
     fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
+        let mut title_buffer = std::io::BufWriter::new(Vec::new());
         for node in &self.title {
-            // Collect title content for styling
-            let mut title_buffer = std::io::BufWriter::new(Vec::new());
             node.render(&mut title_buffer, processor)?;
-            title_buffer.flush()?;
-            let title_content = String::from_utf8(title_buffer.get_ref().clone())
-                .map_err(|e| {
-                    tracing::error!(?e, "Failed to convert document title to UTF-8 string");
-                    e
-                })
-                .unwrap_or_default()
-                .trim()
-                .to_string();
-            w.queue(PrintStyledContent(title_content.bold().underlined()))?;
         }
+        if let Some(subtitle) = &self.subtitle {
+            write!(&mut title_buffer, ": ")?;
+            for node in subtitle {
+                node.render(&mut title_buffer, processor)?;
+            }
+        }
+        title_buffer.flush()?;
+        let title_content = String::from_utf8(title_buffer.get_ref().clone())
+            .map_err(|e| {
+                tracing::error!(?e, "Failed to convert document title to UTF-8 string");
+                e
+            })
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        w.queue(PrintStyledContent(title_content.bold().underlined()))?;
 
         if !self.authors.is_empty() {
             w.queue(PrintStyledContent("by ".italic()))?;
