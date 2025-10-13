@@ -1754,7 +1754,7 @@ peg::parser! {
 
         rule bold_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position!() content_start:position() "*" content:$([^('*' | ' ' | '\t' | '\n')] [^'*']*) "*"
-          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
@@ -1790,7 +1790,7 @@ peg::parser! {
 
         rule italic_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position!() content_start:position() "_" content:$([^('_' | ' ' | '\t' | '\n')] [^'_']*) "_"
-          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
@@ -1823,7 +1823,7 @@ peg::parser! {
         }
 
         rule bold_text_constrained_match() -> ()
-        = pos:position!() "*" [^('*' | ' ' | '\t' | '\n')] [^'*']* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'] / ![_])
+        = pos:position!() "*" [^('*' | ' ' | '\t' | '\n')] [^'*']* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no asterisk)
             let valid_boundary = pos == 0 || {
@@ -1837,7 +1837,7 @@ peg::parser! {
         }
 
         rule italic_text_constrained_match() -> ()
-        = pos:position!() "_" [^('_' | ' ' | '\t' | '\n')] [^'_']* "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'] / ![_])
+        = pos:position!() "_" [^('_' | ' ' | '\t' | '\n')] [^'_']* "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no underscore)
             let valid_boundary = pos == 0 || {
@@ -1884,7 +1884,7 @@ peg::parser! {
 
         rule monospace_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position!() content_start:position() "`" content:$([^('`' | ' ' | '\t' | '\n')] [^'`']*) "`"
-          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
@@ -1915,7 +1915,7 @@ peg::parser! {
         }
 
         rule monospace_text_constrained_match() -> ()
-        = pos:position!() "`" !(['\''] / ['"']) [^('`' | ' ' | '\t' | '\n')] [^'`']* "`" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        = pos:position!() "`" !(['\''] / ['"']) [^('`' | ' ' | '\t' | '\n')] [^'`']* "`" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no backtick)
             let valid_boundary = pos == 0 || {
@@ -1949,7 +1949,7 @@ peg::parser! {
 
         rule highlight_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start:position!() content_start:position() "#" content:$([^('#' | ' ' | '\t' | '\n')] [^'#']*) "#"
-          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
@@ -1981,7 +1981,7 @@ peg::parser! {
         }
 
         rule highlight_text_constrained_match() -> ()
-        = pos:position!() "#" [^('#' | ' ' | '\t' | '\n')] [^'#']* "#" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!'] / ![_])
+        = pos:position!() "#" [^('#' | ' ' | '\t' | '\n')] [^'#']* "#" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no hash)
             let valid_boundary = pos == 0 || {
