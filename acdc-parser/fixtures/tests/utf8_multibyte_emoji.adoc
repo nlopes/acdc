@@ -1,0 +1,11 @@
+= Document with 🦀 Emoji
+
+== Section 🎉 with emoji
+
+This is a paragraph with emoji: 🦀 Rust is awesome! 🚀
+
+Some *bold 💪 text* and _italic 📝 text_.
+
+=== Nested 🌟 section
+
+More content with emoji 😊

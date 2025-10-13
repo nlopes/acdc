@@ -67,11 +67,7 @@ pub trait Substitute: ToString {
                     text = Self::substitute_special_chars(&text);
                 }
                 Substitution::Attributes => {
-                    // TODO(nlopes): this check is probably not needed and doesn't
-                    // actually change performance at all
-                    if text.contains('{') {
-                        text = Self::substitute_attributes(&text, attributes);
-                    }
+                    text = Self::substitute_attributes(&text, attributes);
                 }
                 Substitution::Quotes => {
                     text = Self::substitute_quotes(&text);
@@ -89,7 +85,7 @@ pub trait Substitute: ToString {
                     text = Self::substitute_callouts(&text);
                 }
 
-                // TODO(nlopes): for the two below, should this be how I do it? 🤔
+                // For the two below, should this be how I do it? 🤔 Not sure.
                 Substitution::Normal => {
                     self.substitute(NORMAL, attributes);
                 }

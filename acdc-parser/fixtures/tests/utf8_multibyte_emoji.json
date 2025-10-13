@@ -1,0 +1,303 @@
+{
+    "name": "document",
+    "type": "block",
+    "header": {
+        "title": [
+            {
+                "name": "text",
+                "type": "string",
+                "value": "Document with \ud83e\udd80 Emoji",
+                "location": [
+                    {
+                        "line": 1,
+                        "col": 3
+                    },
+                    {
+                        "line": 1,
+                        "col": 23
+                    }
+                ]
+            }
+        ],
+        "location": [
+            {
+                "line": 1,
+                "col": 1
+            },
+            {
+                "line": 1,
+                "col": 23
+            }
+        ]
+    },
+    "attributes": {},
+    "blocks": [
+        {
+            "name": "section",
+            "type": "block",
+            "title": [
+                {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Section \ud83c\udf89 with emoji",
+                    "location": [
+                        {
+                            "line": 3,
+                            "col": 4
+                        },
+                        {
+                            "line": 3,
+                            "col": 23
+                        }
+                    ]
+                }
+            ],
+            "level": 1,
+            "blocks": [
+                {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "This is a paragraph with emoji: \ud83e\udd80 Rust is awesome! \ud83d\ude80",
+                            "location": [
+                                {
+                                    "line": 5,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 5,
+                                    "col": 52
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 5,
+                            "col": 1
+                        },
+                        {
+                            "line": 5,
+                            "col": 52
+                        }
+                    ]
+                },
+                {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Some ",
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 5
+                                }
+                            ]
+                        },
+                        {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "strong",
+                            "form": "constrained",
+                            "inlines": [
+                                {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "bold \ud83d\udcaa text",
+                                    "location": [
+                                        {
+                                            "line": 7,
+                                            "col": 7
+                                        },
+                                        {
+                                            "line": 7,
+                                            "col": 17
+                                        }
+                                    ]
+                                }
+                            ],
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 6
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 18
+                                }
+                            ]
+                        },
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": " and ",
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 19
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 23
+                                }
+                            ]
+                        },
+                        {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "emphasis",
+                            "form": "constrained",
+                            "inlines": [
+                                {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "italic \ud83d\udcdd text",
+                                    "location": [
+                                        {
+                                            "line": 7,
+                                            "col": 25
+                                        },
+                                        {
+                                            "line": 7,
+                                            "col": 37
+                                        }
+                                    ]
+                                }
+                            ],
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 24
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 38
+                                }
+                            ]
+                        },
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 39
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 39
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 7,
+                            "col": 1
+                        },
+                        {
+                            "line": 7,
+                            "col": 39
+                        }
+                    ]
+                },
+                {
+                    "name": "section",
+                    "type": "block",
+                    "title": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Nested \ud83c\udf1f section",
+                            "location": [
+                                {
+                                    "line": 9,
+                                    "col": 5
+                                },
+                                {
+                                    "line": 9,
+                                    "col": 20
+                                }
+                            ]
+                        }
+                    ],
+                    "level": 2,
+                    "blocks": [
+                        {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                                {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "More content with emoji \ud83d\ude0a",
+                                    "location": [
+                                        {
+                                            "line": 11,
+                                            "col": 1
+                                        },
+                                        {
+                                            "line": 11,
+                                            "col": 25
+                                        }
+                                    ]
+                                }
+                            ],
+                            "location": [
+                                {
+                                    "line": 11,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 11,
+                                    "col": 25
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 9,
+                            "col": 1
+                        },
+                        {
+                            "line": 11,
+                            "col": 25
+                        }
+                    ]
+                }
+            ],
+            "location": [
+                {
+                    "line": 3,
+                    "col": 1
+                },
+                {
+                    "line": 11,
+                    "col": 25
+                }
+            ]
+        }
+    ],
+    "location": [
+        {
+            "line": 1,
+            "col": 1
+        },
+        {
+            "line": 11,
+            "col": 25
+        }
+    ]
+}

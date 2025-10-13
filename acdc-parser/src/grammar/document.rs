@@ -89,7 +89,7 @@ peg::parser! {
                         column: 0,
                         .. end.position
                     }} else {
-                        state.line_map.offset_to_position(document_end_offset)
+                        state.line_map.offset_to_position(document_end_offset, &state.input)
                     },
                 },
                 attributes: state.document_attributes.clone(),
@@ -441,8 +441,8 @@ peg::parser! {
             // Check if we're at the beginning of the input or after a newline
             let absolute_pos = start.offset + offset;
             let at_line_start = absolute_pos == 0 || {
-                let prev_char_pos = absolute_pos.saturating_sub(1);
-                state.input.chars().nth(prev_char_pos).is_some_and(|c| c == '\n')
+                let prev_byte_pos = absolute_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| b == b'\n')
             };
 
             if !at_line_start {
@@ -1614,7 +1614,7 @@ peg::parser! {
                     // Use the captured position from the named_attribute rule
                     let title_start_pos = PositionWithOffset {
                         offset: title_start,
-                        position: state.line_map.offset_to_position(title_start),
+                        position: state.line_map.offset_to_position(title_start, &state.input),
                     };
                     title = process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content).map_err(|e| {
                         tracing::error!(?e, "could not process title in inline image macro");
@@ -1759,14 +1759,14 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
-              let prev_char_pos = absolute_pos.saturating_sub(1);
-              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              let prev_byte_pos = absolute_pos.saturating_sub(1);
+              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
 
             if !valid_boundary {
-                tracing::debug!(absolute_pos, prev_char = ?state.input.chars().nth(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained bold");
+                tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained bold");
                 return Err("invalid word boundary for constrained bold");
             }
 
@@ -1795,9 +1795,9 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
-              let prev_char_pos = absolute_pos.saturating_sub(1);
-              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              let prev_byte_pos = absolute_pos.saturating_sub(1);
+              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
 
@@ -1827,9 +1827,9 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no asterisk)
             let valid_boundary = pos == 0 || {
-              let prev_char_pos = pos.saturating_sub(1);
-              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              let prev_byte_pos = pos.saturating_sub(1);
+              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
 
@@ -1841,9 +1841,9 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no underscore)
             let valid_boundary = pos == 0 || {
-                let prev_char_pos = pos.saturating_sub(1);
-                state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                    matches!(c, ' ' | '\t' | '\n' | '\r')
+                let prev_byte_pos = pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    matches!(b, b' ' | b'\t' | b'\n' | b'\r')
                 })
             };
 
@@ -1889,9 +1889,9 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
-              let prev_char_pos = absolute_pos.saturating_sub(1);
-              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              let prev_byte_pos = absolute_pos.saturating_sub(1);
+              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
             if !valid_boundary {
@@ -1919,9 +1919,9 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no backtick)
             let valid_boundary = pos == 0 || {
-              let prev_char_pos = pos.saturating_sub(1);
-              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              let prev_byte_pos = pos.saturating_sub(1);
+              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
 
@@ -1953,11 +1953,11 @@ peg::parser! {
         {?
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let prev_char_pos = absolute_pos.saturating_sub(1);
-            let prev_char = state.input.chars().nth(prev_char_pos);
+            let prev_byte_pos = absolute_pos.saturating_sub(1);
+            let prev_byte = state.input.as_bytes().get(prev_byte_pos);
             let valid_boundary = absolute_pos == 0 || {
-              prev_char.is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              prev_byte.is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
             if !valid_boundary {
@@ -1985,9 +1985,9 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no hash)
             let valid_boundary = pos == 0 || {
-              let prev_char_pos = pos.saturating_sub(1);
-              state.input.chars().nth(prev_char_pos).is_none_or(|c| {
-                matches!(c, ' ' | '\t' | '\n' | '\r')
+              let prev_byte_pos = pos.saturating_sub(1);
+              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
               })
             };
 
@@ -2490,7 +2490,7 @@ peg::parser! {
         rule position() -> PositionWithOffset = offset:position!() {
             PositionWithOffset {
                 offset,
-                position: state.line_map.offset_to_position(offset)
+                position: state.line_map.offset_to_position(offset, &state.input)
             }
         }
 
