@@ -506,7 +506,7 @@ peg::parser! {
         rule example_delimiter() -> &'input str = delim:$("="*<4,>) { delim }
         rule listing_delimiter() -> &'input str = delim:$("-"*<4,>) { delim }
         rule literal_delimiter() -> &'input str = delim:$("."*<4,>) { delim }
-        rule open_delimiter() -> &'input str = delim:$("-"*<2,> / "~"*<4,>) { delim }
+        rule open_delimiter() -> &'input str = delim:$("-"*<2,2> / "~"*<4,>) { delim }
         rule sidebar_delimiter() -> &'input str = delim:$("*"*<4,>) { delim }
         rule table_delimiter() -> &'input str = delim:$((['|' | ',' | ':' | '!'] "="*<3,>)) { delim }
         rule pass_delimiter() -> &'input str = delim:$("+"*<4,>) { delim }
