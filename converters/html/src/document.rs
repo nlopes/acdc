@@ -104,6 +104,10 @@ fn render_body_header<W: Write>(
     {
         write!(w, "<h1>")?;
         crate::inlines::render_inlines(&header.title, w, processor, options)?;
+        if let Some(subtitle) = &header.subtitle {
+            write!(w, ": ")?;
+            crate::inlines::render_inlines(subtitle, w, processor, options)?;
+        }
         writeln!(w, "</h1>")?;
         writeln!(w, "<div class=\"details\">")?;
         if !header.authors.is_empty() {
