@@ -673,7 +673,7 @@ peg::parser! {
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::PlainText(Plain {
+                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::RawText(Raw {
                     content: content.to_string(),
                     location: content_location,
                 })]),
@@ -704,7 +704,7 @@ peg::parser! {
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::PlainText(Plain {
+                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::RawText(Raw {
                     content: content.to_string(),
                     location: content_location,
                 })]),
@@ -733,7 +733,7 @@ peg::parser! {
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedLiteral(vec![InlineNode::PlainText(Plain {
+                inner: DelimitedBlockType::DelimitedLiteral(vec![InlineNode::RawText(Raw {
                     content: content.to_string(),
                     location: content_location,
                 })]),
