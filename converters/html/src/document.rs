@@ -196,6 +196,10 @@ impl Render for Header {
         })?;
         write!(w, "<title>")?;
         crate::inlines::render_inlines(&self.title, w, processor, options)?;
+        if let Some(subtitle) = &self.subtitle {
+            write!(w, ": ")?;
+            crate::inlines::render_inlines(subtitle, w, processor, options)?;
+        }
         writeln!(w, "</title>")?;
         Ok(())
     }
