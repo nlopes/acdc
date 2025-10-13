@@ -1,0 +1,399 @@
+{
+    "name": "document",
+    "type": "block",
+    "header": {
+        "title": [
+            {
+                "name": "text",
+                "type": "string",
+                "value": "\u6587\u6863\u6807\u9898",
+                "location": [
+                    {
+                        "line": 1,
+                        "col": 3
+                    },
+                    {
+                        "line": 1,
+                        "col": 6
+                    }
+                ]
+            }
+        ],
+        "location": [
+            {
+                "line": 1,
+                "col": 1
+            },
+            {
+                "line": 1,
+                "col": 6
+            }
+        ]
+    },
+    "attributes": {},
+    "blocks": [
+        {
+            "name": "section",
+            "type": "block",
+            "title": [
+                {
+                    "name": "text",
+                    "type": "string",
+                    "value": "\u7b2c\u4e00\u8282",
+                    "location": [
+                        {
+                            "line": 3,
+                            "col": 4
+                        },
+                        {
+                            "line": 3,
+                            "col": 6
+                        }
+                    ]
+                }
+            ],
+            "level": 1,
+            "blocks": [
+                {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "\u8fd9\u662f\u4e00\u4e2a\u5305\u542b\u4e2d\u6587\u5b57\u7b26\u7684\u6bb5\u843d\u3002",
+                            "location": [
+                                {
+                                    "line": 5,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 5,
+                                    "col": 14
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 5,
+                            "col": 1
+                        },
+                        {
+                            "line": 5,
+                            "col": 14
+                        }
+                    ]
+                },
+                {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Some ",
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 5
+                                }
+                            ]
+                        },
+                        {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "strong",
+                            "form": "constrained",
+                            "inlines": [
+                                {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "\u52a0\u7c97\u6587\u672c",
+                                    "location": [
+                                        {
+                                            "line": 7,
+                                            "col": 7
+                                        },
+                                        {
+                                            "line": 7,
+                                            "col": 10
+                                        }
+                                    ]
+                                }
+                            ],
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 6
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 11
+                                }
+                            ]
+                        },
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": " and ",
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 12
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 16
+                                }
+                            ]
+                        },
+                        {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "emphasis",
+                            "form": "constrained",
+                            "inlines": [
+                                {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "\u659c\u4f53\u6587\u672c",
+                                    "location": [
+                                        {
+                                            "line": 7,
+                                            "col": 18
+                                        },
+                                        {
+                                            "line": 7,
+                                            "col": 21
+                                        }
+                                    ]
+                                }
+                            ],
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 17
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 22
+                                }
+                            ]
+                        },
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                                {
+                                    "line": 7,
+                                    "col": 23
+                                },
+                                {
+                                    "line": 7,
+                                    "col": 23
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 7,
+                            "col": 1
+                        },
+                        {
+                            "line": 7,
+                            "col": 23
+                        }
+                    ]
+                },
+                {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "\u65e5\u672c\u8a9e\u306e\u30c6\u30ad\u30b9\u30c8: \u3053\u3093\u306b\u3061\u306f\u4e16\u754c\uff01",
+                            "location": [
+                                {
+                                    "line": 9,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 9,
+                                    "col": 18
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 9,
+                            "col": 1
+                        },
+                        {
+                            "line": 9,
+                            "col": 18
+                        }
+                    ]
+                },
+                {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "\ud55c\uad6d\uc5b4 \ud14d\uc2a4\ud2b8: \uc548\ub155\ud558\uc138\uc694!",
+                            "location": [
+                                {
+                                    "line": 11,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 11,
+                                    "col": 15
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 11,
+                            "col": 1
+                        },
+                        {
+                            "line": 11,
+                            "col": 15
+                        }
+                    ]
+                },
+                {
+                    "name": "section",
+                    "type": "block",
+                    "title": [
+                        {
+                            "name": "text",
+                            "type": "string",
+                            "value": "\u7b2c\u4e8c\u8282",
+                            "location": [
+                                {
+                                    "line": 13,
+                                    "col": 5
+                                },
+                                {
+                                    "line": 13,
+                                    "col": 7
+                                }
+                            ]
+                        }
+                    ],
+                    "level": 2,
+                    "blocks": [
+                        {
+                            "name": "section",
+                            "type": "block",
+                            "title": [
+                                {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "\u6df1\u5c42\u5d4c\u5957",
+                                    "location": [
+                                        {
+                                            "line": 15,
+                                            "col": 6
+                                        },
+                                        {
+                                            "line": 15,
+                                            "col": 9
+                                        }
+                                    ]
+                                }
+                            ],
+                            "level": 3,
+                            "blocks": [
+                                {
+                                    "name": "paragraph",
+                                    "type": "block",
+                                    "inlines": [
+                                        {
+                                            "name": "text",
+                                            "type": "string",
+                                            "value": "Content in a deeply nested section with \u591a\u5b57\u8282 characters.",
+                                            "location": [
+                                                {
+                                                    "line": 17,
+                                                    "col": 1
+                                                },
+                                                {
+                                                    "line": 17,
+                                                    "col": 55
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "location": [
+                                        {
+                                            "line": 17,
+                                            "col": 1
+                                        },
+                                        {
+                                            "line": 17,
+                                            "col": 55
+                                        }
+                                    ]
+                                }
+                            ],
+                            "location": [
+                                {
+                                    "line": 15,
+                                    "col": 1
+                                },
+                                {
+                                    "line": 17,
+                                    "col": 55
+                                }
+                            ]
+                        }
+                    ],
+                    "location": [
+                        {
+                            "line": 13,
+                            "col": 1
+                        },
+                        {
+                            "line": 17,
+                            "col": 55
+                        }
+                    ]
+                }
+            ],
+            "location": [
+                {
+                    "line": 3,
+                    "col": 1
+                },
+                {
+                    "line": 17,
+                    "col": 55
+                }
+            ]
+        }
+    ],
+    "location": [
+        {
+            "line": 1,
+            "col": 1
+        },
+        {
+            "line": 17,
+            "col": 55
+        }
+    ]
+}

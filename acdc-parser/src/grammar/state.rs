@@ -87,8 +87,8 @@ impl ParserState {
         Location {
             absolute_start: start,
             absolute_end: end,
-            start: self.line_map.offset_to_position(start),
-            end: self.line_map.offset_to_position(end),
+            start: self.line_map.offset_to_position(start, &self.input),
+            end: self.line_map.offset_to_position(end, &self.input),
         }
     }
 }

@@ -1,0 +1,17 @@
+= 文档标题
+
+== 第一节
+
+这是一个包含中文字符的段落。
+
+Some *加粗文本* and _斜体文本_.
+
+日本語のテキスト: こんにちは世界！
+
+한국어 텍스트: 안녕하세요!
+
+=== 第二节
+
+==== 深层嵌套
+
+Content in a deeply nested section with 多字节 characters.

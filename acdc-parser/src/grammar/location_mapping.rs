@@ -105,8 +105,12 @@ pub(crate) fn create_location_mapper<'a>(
             .expect("mapped end position is not valid");
 
         // Compute human positions from the document's line map
-        let start_pos = state.line_map.offset_to_position(mapped_abs_start);
-        let mut end_pos = state.line_map.offset_to_position(mapped_abs_end);
+        let start_pos = state
+            .line_map
+            .offset_to_position(mapped_abs_start, &state.input);
+        let mut end_pos = state
+            .line_map
+            .offset_to_position(mapped_abs_end, &state.input);
 
         // For single-character content inside constrained formatting, ensure both start and end column point to the same character
         let is_single_char_fix = mapped_abs_end == mapped_abs_start + 1
@@ -162,10 +166,10 @@ pub(crate) fn extend_attribute_location_if_needed(
             // Extend location to cover the full original attribute
             let start_pos = state
                 .line_map
-                .offset_to_position(attr_replacement.absolute_start);
+                .offset_to_position(attr_replacement.absolute_start, &state.input);
             let end_pos = state
                 .line_map
-                .offset_to_position(attr_replacement.absolute_end);
+                .offset_to_position(attr_replacement.absolute_end, &state.input);
             location = Location {
                 absolute_start: attr_replacement.absolute_start,
                 absolute_end: attr_replacement.absolute_end,

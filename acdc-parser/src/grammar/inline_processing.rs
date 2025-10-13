@@ -32,7 +32,9 @@ pub(crate) fn adjust_peg_error_position(
     let absolute_offset = doc_start_offset + byte_offset;
 
     // Convert the absolute offset back to line:column using the state's line_map
-    let doc_position = state.line_map.offset_to_position(absolute_offset);
+    let doc_position = state
+        .line_map
+        .offset_to_position(absolute_offset, &state.input);
 
     let adjusted_error = format!(
         "error at {}:{}: {}",

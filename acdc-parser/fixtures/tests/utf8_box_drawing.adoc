@@ -1,0 +1,21 @@
+= Document with Box Drawing
+
+== ASCII Art Section
+
+Here's some ASCII art:
+
+```
+┌─────────────────────────┐
+│   Welcome to ACDC!      │
+│                         │
+│   ┌─────┐   ┌─────┐    │
+│   │ Box │   │ Box │    │
+│   └─────┘   └─────┘    │
+└─────────────────────────┘
+```
+
+=== Subsection after box drawing
+
+==== Level 4 section
+
+This should parse correctly despite the multi-byte UTF-8 characters above.

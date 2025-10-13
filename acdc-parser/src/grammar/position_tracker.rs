@@ -87,42 +87,71 @@ impl PositionTracker {
 pub(crate) struct LineMap {
     /// Byte offsets where each line starts in the input
     line_starts: Vec<usize>,
+    /// Character counts (Unicode scalar values) at the start of each line
+    char_positions: Vec<usize>,
 }
 
 impl LineMap {
     /// Build line map by scanning input once during initialization.
     /// This is called once before parsing starts.
     pub(crate) fn new(input: &str) -> Self {
-        let mut line_starts = vec![0]; // Line 1 starts at offset 0
+        let mut line_starts = vec![0]; // Line 1 starts at byte offset 0
+        let mut char_positions = vec![0]; // Line 1 starts at character 0
+        let mut char_count = 0;
 
         for (offset, ch) in input.char_indices() {
+            char_count += 1;
             if ch == '\n' {
-                line_starts.push(offset + 1); // Next line starts after the newline
+                line_starts.push(offset + 1); // Next line starts after the newline (byte offset)
+                char_positions.push(char_count); // Track character count at line start
             }
         }
 
-        Self { line_starts }
+        Self {
+            line_starts,
+            char_positions,
+        }
     }
 
     /// Convert byte offset to Position using binary search - O(log n) lookup.
     /// This is a pure function with no side effects, safe for use in PEG action blocks.
-    pub(crate) fn offset_to_position(&self, offset: usize) -> Position {
+    /// Columns are counted as Unicode scalar values (characters), not bytes.
+    pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
         // Find which line this offset belongs to
         let line = match self.line_starts.binary_search(&offset) {
             Ok(line_idx) => line_idx + 1, // Exact match: start of this line
             Err(line_idx) => line_idx,    // Insert position: this line number
         };
 
-        // Get the start of this line
-        let line_start = self
+        // Get the byte offset at the start of this line
+        let line_start_byte = self
             .line_starts
             .get(line.saturating_sub(1))
             .copied()
             .unwrap_or(0);
 
+        // Ensure the offset doesn't land in the middle of a multi-byte UTF-8 character.
+        // If it does, round backward to the start of the current character.
+        let adjusted_offset = if offset > input.len() {
+            input.len()
+        } else if input.is_char_boundary(offset) {
+            offset
+        } else {
+            // Find the previous valid character boundary (start of current char)
+            (0..=offset)
+                .rev()
+                .find(|&i| input.is_char_boundary(i))
+                .unwrap_or(0)
+        };
+
+        // Count characters from line start to current offset
+        let chars_in_line = input
+            .get(line_start_byte..adjusted_offset)
+            .map_or(0, |s| s.chars().count());
+
         Position {
             line,
-            column: offset - line_start + 1,
+            column: chars_in_line + 1,
         }
     }
 }
@@ -139,17 +168,17 @@ mod tests {
         assert_eq!(line_map.line_starts, vec![0]);
 
         // Start of input
-        let pos = line_map.offset_to_position(0);
+        let pos = line_map.offset_to_position(0, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 1);
 
         // Middle of line
-        let pos = line_map.offset_to_position(7);
+        let pos = line_map.offset_to_position(7, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 8);
 
         // End of line
-        let pos = line_map.offset_to_position(12);
+        let pos = line_map.offset_to_position(12, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 13);
     }
@@ -162,27 +191,27 @@ mod tests {
         assert_eq!(line_map.line_starts, vec![0, 7, 14]);
 
         // Start of first line
-        let pos = line_map.offset_to_position(0);
+        let pos = line_map.offset_to_position(0, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 1);
 
         // End of first line (before newline)
-        let pos = line_map.offset_to_position(6);
+        let pos = line_map.offset_to_position(6, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 7);
 
         // Start of second line
-        let pos = line_map.offset_to_position(7);
+        let pos = line_map.offset_to_position(7, input);
         assert_eq!(pos.line, 2);
         assert_eq!(pos.column, 1);
 
         // Middle of second line
-        let pos = line_map.offset_to_position(10);
+        let pos = line_map.offset_to_position(10, input);
         assert_eq!(pos.line, 2);
         assert_eq!(pos.column, 4);
 
         // Start of third line
-        let pos = line_map.offset_to_position(14);
+        let pos = line_map.offset_to_position(14, input);
         assert_eq!(pos.line, 3);
         assert_eq!(pos.column, 1);
     }
@@ -195,12 +224,12 @@ mod tests {
         assert_eq!(line_map.line_starts, vec![0, 7, 8]);
 
         // Start of empty line
-        let pos = line_map.offset_to_position(7);
+        let pos = line_map.offset_to_position(7, input);
         assert_eq!(pos.line, 2);
         assert_eq!(pos.column, 1);
 
         // Start of line after empty line
-        let pos = line_map.offset_to_position(8);
+        let pos = line_map.offset_to_position(8, input);
         assert_eq!(pos.line, 3);
         assert_eq!(pos.column, 1);
     }
@@ -212,7 +241,7 @@ mod tests {
 
         // Test various positions and compare with position tracker
         for i in 0..input.len() {
-            let line_map_pos = line_map.offset_to_position(i);
+            let line_map_pos = line_map.offset_to_position(i, input);
 
             let mut tracker = PositionTracker::new();
             tracker.advance(&input[..i]);
@@ -235,17 +264,17 @@ mod tests {
         let line_map = LineMap::new(input);
 
         // Title start (after "= ")
-        let pos = line_map.offset_to_position(2);
+        let pos = line_map.offset_to_position(2, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 3);
 
         // Author line start (17 = length of "= Document Title\n")
-        let pos = line_map.offset_to_position(17);
+        let pos = line_map.offset_to_position(17, input);
         assert_eq!(pos.line, 2);
         assert_eq!(pos.column, 1);
 
         // Revision line start (61 = 17 + 44, where 44 is length of author line + newline)
-        let pos = line_map.offset_to_position(61);
+        let pos = line_map.offset_to_position(61, input);
         assert_eq!(pos.line, 3);
         assert_eq!(pos.column, 1);
     }
@@ -255,10 +284,10 @@ mod tests {
         let input = "Hello";
         let line_map = LineMap::new(input);
 
-        // Beyond input should still work and return reasonable position
-        let pos = line_map.offset_to_position(100);
+        // Beyond input: offset is clamped to input.len(), giving position after last character
+        let pos = line_map.offset_to_position(100, input);
         assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 101); // Beyond end of input
+        assert_eq!(pos.column, 6); // After 5 characters, column is 6
     }
 
     #[test]
@@ -268,7 +297,7 @@ mod tests {
 
         assert_eq!(line_map.line_starts, vec![0]);
 
-        let pos = line_map.offset_to_position(0);
+        let pos = line_map.offset_to_position(0, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 1);
     }
