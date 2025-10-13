@@ -15,9 +15,7 @@ impl Render for UnorderedList {
     ) -> Result<(), Self::Error> {
         writeln!(w, "<div class=\"ulist\">")?;
         writeln!(w, "<ul>")?;
-        for item in &self.items {
-            item.render(w, processor, options)?;
-        }
+        render_nested_list_items(&self.items, w, processor, options, 1, false)?;
         writeln!(w, "</ul>")?;
         writeln!(w, "</div>")?;
         Ok(())
@@ -35,13 +33,93 @@ impl Render for OrderedList {
     ) -> Result<(), Self::Error> {
         writeln!(w, "<div class=\"olist arabic\">")?;
         writeln!(w, "<ol class=\"arabic\">")?;
-        for item in &self.items {
-            item.render(w, processor, options)?;
-        }
+        render_nested_list_items(&self.items, w, processor, options, 1, true)?;
         writeln!(w, "</ol>")?;
         writeln!(w, "</div>")?;
         Ok(())
     }
+}
+
+/// Render nested list items hierarchically
+fn render_nested_list_items<W: Write>(
+    items: &[ListItem],
+    w: &mut W,
+    processor: &Processor,
+    options: &RenderOptions,
+    expected_level: u8,
+    is_ordered: bool,
+) -> Result<(), crate::Error> {
+    let mut i = 0;
+    while i < items.len() {
+        let item = &items[i];
+
+        if item.level < expected_level {
+            // Item at lower level, return to parent
+            break;
+        }
+
+        if item.level == expected_level {
+            // Render item at current level
+            writeln!(w, "<li>")?;
+            writeln!(w, "<p>")?;
+            crate::inlines::render_inlines(&item.content, w, processor, options)?;
+            writeln!(w, "</p>")?;
+
+            // Check if next items are nested (higher level)
+            if i + 1 < items.len() && items[i + 1].level > expected_level {
+                // Find all items at the next level
+                let next_level = items[i + 1].level;
+
+                // Open nested list
+                if is_ordered {
+                    writeln!(w, "<div class=\"olist arabic\">")?;
+                    writeln!(w, "<ol class=\"arabic\">")?;
+                } else {
+                    writeln!(w, "<div class=\"ulist\">")?;
+                    writeln!(w, "<ul>")?;
+                }
+
+                // Recursively render nested items
+                i += 1;
+                let nested_start = i;
+                while i < items.len() && items[i].level >= next_level {
+                    i += 1;
+                }
+                render_nested_list_items(
+                    &items[nested_start..i],
+                    w,
+                    processor,
+                    options,
+                    next_level,
+                    is_ordered,
+                )?;
+
+                // Close nested list
+                if is_ordered {
+                    writeln!(w, "</ol>")?;
+                    writeln!(w, "</div>")?;
+                } else {
+                    writeln!(w, "</ul>")?;
+                    writeln!(w, "</div>")?;
+                }
+
+                i -= 1; // Adjust because we'll increment at the end of the loop
+            }
+
+            writeln!(w, "</li>")?;
+            i += 1;
+        } else {
+            // Item at higher level than expected, shouldn't happen in well-formed input
+            // but handle gracefully by treating as same level
+            writeln!(w, "<li>")?;
+            writeln!(w, "<p>")?;
+            crate::inlines::render_inlines(&item.content, w, processor, options)?;
+            writeln!(w, "</p>")?;
+            writeln!(w, "</li>")?;
+            i += 1;
+        }
+    }
+    Ok(())
 }
 
 impl Render for ListItem {
