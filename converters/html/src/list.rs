@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use acdc_parser::{DescriptionList, DescriptionListItem, ListItem, OrderedList, UnorderedList};
+use acdc_parser::{
+    DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus, OrderedList,
+    UnorderedList,
+};
 
 use crate::{Processor, Render, RenderOptions};
 
@@ -41,6 +44,7 @@ impl Render for OrderedList {
 }
 
 /// Render nested list items hierarchically
+#[tracing::instrument(skip(w, processor))]
 fn render_nested_list_items<W: Write>(
     items: &[ListItem],
     w: &mut W,
@@ -62,6 +66,7 @@ fn render_nested_list_items<W: Write>(
             // Render item at current level
             writeln!(w, "<li>")?;
             writeln!(w, "<p>")?;
+            render_checked_status(item.checked.as_ref(), w)?;
             crate::inlines::render_inlines(&item.content, w, processor, options)?;
             writeln!(w, "</p>")?;
 
@@ -69,14 +74,37 @@ fn render_nested_list_items<W: Write>(
             if i + 1 < items.len() && items[i + 1].level > expected_level {
                 // Find all items at the next level
                 let next_level = items[i + 1].level;
+                let inner_item = &items[i + 1];
 
                 // Open nested list
                 if is_ordered {
-                    writeln!(w, "<div class=\"olist arabic\">")?;
-                    writeln!(w, "<ol class=\"arabic\">")?;
+                    writeln!(w, "<div class=\"olist arabic")?;
+                    if inner_item.checked.is_some() {
+                        writeln!(w, " checklist\">")?;
+                    } else {
+                        writeln!(w, "\">")?;
+                    }
+
+                    write!(w, "<ol class=\"arabic")?;
+                    if inner_item.checked.is_some() {
+                        writeln!(w, " checklist\">")?;
+                    } else {
+                        writeln!(w, "\">")?;
+                    }
                 } else {
-                    writeln!(w, "<div class=\"ulist\">")?;
-                    writeln!(w, "<ul>")?;
+                    // check if the item is a checkbox item
+                    write!(w, "<div class=\"ulist")?;
+                    if inner_item.checked.is_some() {
+                        writeln!(w, " checklist\">")?;
+                    } else {
+                        writeln!(w, "\">")?;
+                    }
+                    write!(w, "<ul")?;
+                    if inner_item.checked.is_some() {
+                        writeln!(w, " class=\"checklist\">")?;
+                    } else {
+                        writeln!(w, ">")?;
+                    }
                 }
 
                 // Recursively render nested items
@@ -111,11 +139,7 @@ fn render_nested_list_items<W: Write>(
         } else {
             // Item at higher level than expected, shouldn't happen in well-formed input
             // but handle gracefully by treating as same level
-            writeln!(w, "<li>")?;
-            writeln!(w, "<p>")?;
-            crate::inlines::render_inlines(&item.content, w, processor, options)?;
-            writeln!(w, "</p>")?;
-            writeln!(w, "</li>")?;
+            item.render(w, processor, options)?;
             i += 1;
         }
     }
@@ -133,6 +157,7 @@ impl Render for ListItem {
     ) -> Result<(), Self::Error> {
         writeln!(w, "<li>")?;
         writeln!(w, "<p>")?;
+        render_checked_status(self.checked.as_ref(), w)?;
         crate::inlines::render_inlines(&self.content, w, processor, options)?;
         writeln!(w, "</p>")?;
         writeln!(w, "</li>")?;
@@ -184,4 +209,21 @@ impl Render for DescriptionListItem {
         writeln!(w, "</dd>")?;
         Ok(())
     }
+}
+
+#[tracing::instrument(skip(w))]
+fn render_checked_status<W: Write>(
+    checked: Option<&ListItemCheckedStatus>,
+    w: &mut W,
+) -> Result<(), crate::Error> {
+    match checked {
+        Some(ListItemCheckedStatus::Checked) => {
+            write!(w, "&#10003; ")?; // Checked box
+        }
+        Some(ListItemCheckedStatus::Unchecked) => {
+            write!(w, "&#10063; ")?; // Unchecked box
+        }
+        None => {}
+    }
+    Ok(())
 }

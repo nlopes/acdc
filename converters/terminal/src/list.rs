@@ -16,13 +16,14 @@ use crate::{Processor, Render};
 ///
 /// This helper function renders a collection of inline nodes, inserting a space
 /// between each node. It uses a peekable iterator to avoid adding a trailing space.
+#[tracing::instrument(skip(w, processor))]
 fn render_nodes_with_spaces<W: Write, N>(
     nodes: &[N],
     w: &mut W,
     processor: &Processor,
 ) -> Result<(), crate::Error>
 where
-    N: Render<Error = crate::Error>,
+    N: Render<Error = crate::Error> + std::fmt::Debug,
 {
     let mut iter = nodes.iter().peekable();
     while let Some(node) = iter.next() {
@@ -38,13 +39,14 @@ where
 ///
 /// This helper function renders inline nodes to a buffer, converts to a string,
 /// trims whitespace, and applies italic styling for terminal output.
+#[tracing::instrument(skip(w, processor))]
 fn render_styled_title<W: Write, N>(
     title: &[N],
     w: &mut W,
     processor: &Processor,
 ) -> Result<(), crate::Error>
 where
-    N: Render<Error = crate::Error>,
+    N: Render<Error = crate::Error> + std::fmt::Debug,
 {
     if !title.is_empty() {
         let mut inner = std::io::BufWriter::new(Vec::new());
@@ -63,6 +65,7 @@ where
 }
 
 /// Render nested list items with proper indentation based on their level
+#[tracing::instrument(skip(w, processor))]
 fn render_nested_list_items<W: Write>(
     items: &[ListItem],
     w: &mut W,
@@ -124,6 +127,7 @@ fn render_nested_list_items<W: Write>(
 }
 
 /// Render a single list item with the specified indentation
+#[tracing::instrument(skip(w, processor))]
 fn render_list_item_with_indent<W: Write>(
     item: &ListItem,
     w: &mut W,
@@ -142,20 +146,28 @@ fn render_list_item_with_indent<W: Write>(
         write!(w, "*")?;
     }
 
-    if let Some(checked) = &item.checked {
-        write!(w, " ")?;
-        if checked == &ListItemCheckedStatus::Checked {
-            w.queue(PrintStyledContent("✔".bold()))?;
-        } else {
-            w.queue(PrintStyledContent("✘".bold()))?;
-        }
-    }
-
+    render_checked_status(item.checked.as_ref(), w)?;
     write!(w, " ")?;
 
     // Render each node with a space between them
     render_nodes_with_spaces(&item.content, w, processor)?;
     writeln!(w)?;
+    Ok(())
+}
+
+#[tracing::instrument(skip(w))]
+fn render_checked_status<W: Write>(
+    checked: Option<&ListItemCheckedStatus>,
+    w: &mut W,
+) -> Result<(), crate::Error> {
+    if let Some(checked) = checked {
+        write!(w, " ")?;
+        if checked == &ListItemCheckedStatus::Checked {
+            w.queue(PrintStyledContent("[✔]".bold()))?;
+        } else {
+            w.queue(PrintStyledContent("[ ]".bold()))?;
+        }
+    }
     Ok(())
 }
 
@@ -198,14 +210,7 @@ impl Render for ListItem {
 
     fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         write!(w, "{}", self.marker)?;
-        if let Some(checked) = &self.checked {
-            write!(w, " ")?;
-            if checked == &ListItemCheckedStatus::Checked {
-                w.queue(PrintStyledContent("✔".bold()))?;
-            } else {
-                w.queue(PrintStyledContent("✘".bold()))?;
-            }
-        }
+        render_checked_status(self.checked.as_ref(), w)?;
         write!(w, " ")?;
         // render each node with a space between them
         render_nodes_with_spaces(&self.content, w, processor)?;
