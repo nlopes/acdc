@@ -137,7 +137,7 @@ fn render_list_item_with_indent<W: Write>(
     item_number: usize,
 ) -> Result<(), crate::Error> {
     // Write indentation
-    write!(w, "{:indent$}", "", indent = indent)?;
+    write!(w, "{:indent$}", " ", indent = indent)?;
 
     // Write marker based on list type
     if is_ordered {

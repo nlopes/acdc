@@ -43,8 +43,7 @@ struct TckInput {
 #[derive(Clone, Debug)]
 pub struct Processor {
     options: Options,
-    document_attributes: acdc_parser::DocumentAttributes,
-    toc_entries: Vec<acdc_parser::TocEntry>,
+    document_attributes: DocumentAttributes,
 }
 
 impl Processable for Processor {
@@ -55,7 +54,6 @@ impl Processable for Processor {
         Self {
             options,
             document_attributes,
-            toc_entries: vec![],
         }
     }
 
@@ -93,7 +91,7 @@ impl Processable for Processor {
                 serde_json::to_writer(&stdout, &inlines)?;
             }
             other => {
-                todo!("unsupported type: {other}");
+                unimplemented!("unsupported type - check TCK documentation: {other}");
             }
         }
         stdout.flush()?;

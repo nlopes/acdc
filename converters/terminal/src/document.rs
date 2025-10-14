@@ -1,20 +1,31 @@
 use std::io::Write;
 
+use acdc_converters_common::toc as toc_common;
 use crossterm::{
     QueueableCommand,
     style::{Print, PrintStyledContent, Stylize},
 };
 
-use crate::{Processor, Render};
+use crate::{Processor, Render, toc};
 
 impl Render for acdc_parser::Document {
     type Error = crate::Error;
 
     fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
+        let toc_placement = toc_common::get_placement_from_attributes(&self.attributes);
         if let Some(header) = &self.header {
             header.render(w, processor)?;
         }
+
+        // Render TOC after header if toc="auto"
+        if toc_placement == "auto" {
+            toc::render(w, processor)?;
+        }
         if !self.blocks.is_empty() {
+            if toc_placement == "preamble" {
+                toc::render(w, processor)?;
+                writeln!(w)?;
+            }
             let last_index = self.blocks.len() - 1;
             for (i, block) in self.blocks.iter().enumerate() {
                 block.render(w, processor)?;

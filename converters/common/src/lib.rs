@@ -1,6 +1,7 @@
 use acdc_core::{Doctype, SafeMode, Source};
 use acdc_parser::DocumentAttributes;
 
+pub mod toc;
 pub mod video;
 
 #[derive(Debug, Default, Clone)]

@@ -2284,7 +2284,6 @@ peg::parser! {
                         metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
                     } else if v == AttributeValue::None && pos.is_none() {
                         metadata.positional_attributes.push(k);
-                        tracing::warn!("Unexpected attribute value type: {:?}", v);
                     }
                 }
                 (discrete, metadata, title_position)
