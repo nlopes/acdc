@@ -2,14 +2,17 @@ use std::io::Write;
 
 use acdc_converters_common::toc::get_placement_from_attributes;
 use acdc_parser::{AttributeValue, TableOfContents, TocEntry};
+use crossterm::{
+    QueueableCommand,
+    style::{PrintStyledContent, Stylize},
+};
 
-use crate::{Processor, Render, RenderOptions};
+use crate::{Processor, Render};
 
 fn render_list<W: Write>(
-    entries: &[TocEntry],
+    entries: &[acdc_parser::TocEntry],
     w: &mut W,
     processor: &Processor,
-    options: &RenderOptions,
     max_level: u8,
     current_level: u8,
 ) -> Result<(), crate::Error> {
@@ -28,13 +31,13 @@ fn render_list<W: Write>(
         return Ok(());
     }
 
-    writeln!(w, "<ul class=\"sectlevel{current_level}\">")?;
-
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
-        writeln!(w, "<li>")?;
-        write!(w, "<a href=\"#{}\">", entry.id,)?;
-        crate::inlines::render_inlines(&entry.title, w, processor, options)?;
-        writeln!(w, "</a>")?;
+        write!(w, "{:indent$}", "", indent = current_level as usize - 1)?;
+        for inline in &entry.title {
+            inline.render(w, processor)?;
+        }
+        writeln!(w)?;
+
         // Find children: entries that come after this one and have level = current_level + 1
         // but before the next entry at current_level or lower
         let start_search = entry_index + 1;
@@ -59,30 +62,14 @@ fn render_list<W: Write>(
         }
 
         if !children.is_empty() && current_level < max_level {
-            // Create a slice containing potential children and their descendants
             let child_slice = &entries[start_search..end_search];
-            render_list(
-                child_slice,
-                w,
-                processor,
-                options,
-                max_level,
-                current_level + 1,
-            )?;
+            render_list(child_slice, w, processor, max_level, current_level + 1)?;
         }
-
-        writeln!(w, "</li>")?;
     }
-
-    writeln!(w, "</ul>")?;
     Ok(())
 }
 
-pub(crate) fn render<W: Write>(
-    w: &mut W,
-    processor: &Processor,
-    options: &RenderOptions,
-) -> Result<(), crate::Error> {
+pub(crate) fn render<W: Write>(w: &mut W, processor: &Processor) -> Result<(), crate::Error> {
     // Use parser-collected TOC entries
     if !processor.toc_entries.is_empty() {
         // Get TOC configuration
@@ -104,10 +91,11 @@ pub(crate) fn render<W: Write>(
             })
             .unwrap_or(2);
 
-        writeln!(w, "<div id=\"toc\" class=\"toc\">")?;
-        writeln!(w, "<div id=\"toctitle\">{toc_title}</div>")?;
-        render_list(&processor.toc_entries, w, processor, options, toc_levels, 1)?;
-        writeln!(w, "</div>")?;
+        w.queue(PrintStyledContent(toc_title.bold()))?;
+        writeln!(w)?;
+
+        render_list(&processor.toc_entries, w, processor, toc_levels, 1)?;
+        writeln!(w)?;
     }
 
     Ok(())
@@ -116,15 +104,10 @@ pub(crate) fn render<W: Write>(
 impl Render for TableOfContents {
     type Error = crate::Error;
 
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         let toc_placement = get_placement_from_attributes(&processor.document_attributes);
         if toc_placement == "macro" {
-            render(w, processor, options)?;
+            render(w, processor)?;
         }
         Ok(())
     }

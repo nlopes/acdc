@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use acdc_converters_common::toc as toc_common;
 use acdc_parser::{Author, Block, Document, Footnote, Header};
 
 use crate::{Processor, Render, RenderOptions, toc};
@@ -18,7 +19,7 @@ impl Render for Document {
         render_head(self, w, processor, options)?;
         writeln!(w, "<body class=\"{}\">", processor.options.doctype)?;
 
-        let toc_placement = toc::get_placement_from_attributes(&self.attributes);
+        let toc_placement = toc_common::get_placement_from_attributes(&self.attributes);
 
         render_body_header(self, w, processor, options, toc_placement)?;
 

@@ -5,13 +5,7 @@ use acdc_core::Source;
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
 trait ToTerminal: Render<Error = crate::Error> {
-    fn to_terminal(&self, processor: &Processor) -> Result<(), Self::Error> {
-        let stdout = std::io::stdout();
-        let mut writer = std::io::BufWriter::new(stdout.lock());
-        self.render(&mut writer, processor)?;
-        writer.flush()?;
-        Ok(())
-    }
+    fn to_terminal(&self, processor: &Processor) -> Result<(), Self::Error>;
 }
 
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
@@ -29,7 +23,20 @@ pub struct Processor {
     toc_entries: Vec<TocEntry>,
 }
 
-impl ToTerminal for Document {}
+impl ToTerminal for Document {
+    fn to_terminal(&self, processor: &Processor) -> Result<(), Self::Error> {
+        let stdout = std::io::stdout();
+        let mut writer = std::io::BufWriter::new(stdout.lock());
+        let processor = Processor {
+            document_attributes: self.attributes.clone(),
+            toc_entries: self.toc_entries.clone(),
+            options: processor.options.clone(),
+        };
+        self.render(&mut writer, &processor)?;
+        writer.flush()?;
+        Ok(())
+    }
+}
 
 impl Processable for Processor {
     type Options = Options;
@@ -135,6 +142,7 @@ mod paragraph;
 mod section;
 mod table;
 mod thematic_break;
+mod toc;
 mod video;
 
 pub(crate) use error::Error;
