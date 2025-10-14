@@ -13,6 +13,8 @@ impl Render for Block {
             Block::DelimitedBlock(d) => d.render(w, processor),
             Block::Section(s) => s.render(w, processor),
             Block::UnorderedList(u) => u.render(w, processor),
+            Block::OrderedList(o) => o.render(w, processor),
+            Block::DescriptionList(d) => d.render(w, processor),
             Block::Image(i) => i.render(w, processor),
             Block::Audio(a) => a.render(w, processor),
             Block::Video(v) => v.render(w, processor),
