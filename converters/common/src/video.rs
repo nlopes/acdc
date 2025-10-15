@@ -214,7 +214,7 @@ mod tests {
         Video {
             sources: sources
                 .into_iter()
-                .map(|s| Source::Path(s.to_string()))
+                .map(|s| Source::Path(std::path::PathBuf::from(s)))
                 .collect(),
             metadata: BlockMetadata {
                 attributes,

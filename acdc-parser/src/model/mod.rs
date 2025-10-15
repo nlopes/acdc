@@ -271,26 +271,32 @@ pub struct TableOfContents {
     pub location: Location,
 }
 
-// TODO(nlopes): this should use instead
-//
-// - Path(std::path::PathBuf)
-// - Url(url::Url)
-// - Name(String) - used for example in menu macros or icon names
-//
-#[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "lowercase")]
+/// A `Source` represents the source of content (images, audio, video, etc.).
+///
+/// This type distinguishes between filesystem paths, URLs, and simple names (like icon names).
+#[derive(Clone, Debug, PartialEq)]
 pub enum Source {
-    Path(String),
-    Url(String),
+    /// A filesystem path
+    Path(std::path::PathBuf),
+    /// A URL
+    Url(url::Url),
+    /// A simple name (used for example in menu macros or icon names)
     Name(String),
 }
 
 impl Source {
+    /// Get the filename from the source.
+    ///
+    /// For paths, this returns the file name component. For URLs, it returns the last path
+    /// segment. For names, it returns the name itself.
     #[must_use]
     pub fn get_filename(&self) -> Option<&str> {
         match self {
-            Source::Path(path) => path.rsplit('/').next().or_else(|| path.rsplit('\\').next()),
-            Source::Url(url) => url.rsplit('/').next(),
+            Source::Path(path) => path.file_name().and_then(|os_str| os_str.to_str()),
+            Source::Url(url) => url
+                .path_segments()
+                .and_then(std::iter::Iterator::last)
+                .filter(|s| !s.is_empty()),
             Source::Name(name) => Some(name.as_str()),
         }
     }
@@ -300,17 +306,22 @@ impl FromStr for Source {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
+        // Try to parse as URL first
         if value.starts_with("http://")
             || value.starts_with("https://")
             || value.starts_with("ftp://")
             || value.starts_with("irc://")
             || value.starts_with("mailto:")
         {
-            // TODO(nlopes): we should use url::Url::parse here and return a Result
-            Ok(Source::Url(value.to_string()))
-        } else if value.contains('/') || value.contains('\\') {
-            Ok(Source::Path(value.to_string()))
+            url::Url::parse(value)
+                .map(Source::Url)
+                .map_err(|e| Error::Parse(format!("invalid URL: {e}")))
+        } else if value.contains('/') || value.contains('\\') || value.contains('.') {
+            // Contains path separators - treat as filesystem path or contains a dot which
+            // might indicate a filename with extension
+            Ok(Source::Path(std::path::PathBuf::from(value)))
         } else {
+            // Contains special characters or spaces - treat as a name
             Ok(Source::Name(value.to_string()))
         }
     }
@@ -319,7 +330,7 @@ impl FromStr for Source {
 impl std::fmt::Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Source::Path(path) => write!(f, "{path}"),
+            Source::Path(path) => write!(f, "{}", path.display()),
             Source::Url(url) => write!(f, "{url}"),
             Source::Name(name) => write!(f, "{name}"),
         }
@@ -609,18 +620,79 @@ impl Serialize for Source {
         match self {
             Source::Path(path) => {
                 state.serialize_entry("type", "path")?;
-                state.serialize_entry("value", path)?;
+                state.serialize_entry("value", &path.display().to_string())?;
             }
             Source::Url(url) => {
                 state.serialize_entry("type", "url")?;
-                state.serialize_entry("value", url)?;
+                state.serialize_entry("value", url.as_str())?;
             }
-            Source::Name(url) => {
+            Source::Name(name) => {
                 state.serialize_entry("type", "name")?;
-                state.serialize_entry("value", url)?;
+                state.serialize_entry("value", name)?;
             }
         }
         state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Source {
+    fn deserialize<D>(deserializer: D) -> Result<Source, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SourceVisitor;
+
+        impl<'de> Visitor<'de> for SourceVisitor {
+            type Value = Source;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a Source object with type and value fields")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Source, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut source_type: Option<String> = None;
+                let mut value: Option<String> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "type" => {
+                            if source_type.is_some() {
+                                return Err(de::Error::duplicate_field("type"));
+                            }
+                            source_type = Some(map.next_value()?);
+                        }
+                        "value" => {
+                            if value.is_some() {
+                                return Err(de::Error::duplicate_field("value"));
+                            }
+                            value = Some(map.next_value()?);
+                        }
+                        _ => {
+                            let _ = map.next_value::<de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                let source_type = source_type.ok_or_else(|| de::Error::missing_field("type"))?;
+                let value = value.ok_or_else(|| de::Error::missing_field("value"))?;
+
+                match source_type.as_str() {
+                    "path" => Ok(Source::Path(std::path::PathBuf::from(value))),
+                    "url" => url::Url::parse(&value)
+                        .map(Source::Url)
+                        .map_err(|e| de::Error::custom(format!("invalid URL: {e}"))),
+                    "name" => Ok(Source::Name(value)),
+                    _ => Err(de::Error::custom(format!(
+                        "unexpected source type: {source_type}"
+                    ))),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(SourceVisitor)
     }
 }
 
@@ -1033,12 +1105,11 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "macro" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let target = my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let source = Source::from_str(&target).map_err(de::Error::custom)?;
                         Ok(Block::Image(Image {
                             title: my_title,
-                            // TODO(nlopes): this should be figured out if url or path
-                            source: Source::Path(
-                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
-                            ),
+                            source,
                             metadata: my_metadata,
                             location: my_location,
                         }))
@@ -1048,11 +1119,11 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "macro" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
+                        let target = my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let source = Source::from_str(&target).map_err(de::Error::custom)?;
                         Ok(Block::Audio(Audio {
                             title: my_title,
-                            source: Source::Path(
-                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
-                            ),
+                            source,
                             metadata: my_metadata,
                             location: my_location,
                         }))
@@ -1078,8 +1149,15 @@ impl<'de> Deserialize<'de> for Block {
                                                 de::Error::custom("source value must be a string")
                                             })?;
                                         match source_type {
-                                            "path" => Ok(Source::Path(value.to_string())),
-                                            "url" => Ok(Source::Url(value.to_string())),
+                                            "path" => {
+                                                Ok(Source::Path(std::path::PathBuf::from(value)))
+                                            }
+                                            "url" => url::Url::parse(value)
+                                                .map(Source::Url)
+                                                .map_err(|e| {
+                                                    de::Error::custom(format!("invalid URL: {e}"))
+                                                }),
+                                            "name" => Ok(Source::Name(value.to_string())),
                                             _ => Err(de::Error::custom(format!(
                                                 "unexpected source type: {source_type}"
                                             ))),
@@ -1097,9 +1175,10 @@ impl<'de> Deserialize<'de> for Block {
                                     "unexpected form: {my_form}"
                                 )));
                             }
-                            vec![Source::Path(
-                                my_target.ok_or_else(|| de::Error::missing_field("target"))?,
-                            )]
+                            let target =
+                                my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                            let source = Source::from_str(&target).map_err(de::Error::custom)?;
+                            vec![source]
                         };
                         Ok(Block::Video(Video {
                             title: my_title,

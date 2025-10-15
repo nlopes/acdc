@@ -7,15 +7,15 @@
       "type": "block",
       "sources": [
         {
-          "type": "path",
+          "type": "name",
           "value": "Video1ID"
         },
         {
-          "type": "path",
+          "type": "name",
           "value": "Video2ID"
         },
         {
-          "type": "path",
+          "type": "name",
           "value": "Video3ID"
         }
       ],

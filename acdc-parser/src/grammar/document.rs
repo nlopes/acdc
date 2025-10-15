@@ -1522,7 +1522,7 @@ peg::parser! {
         )
         "]"
         end:position!()
-        {
+        {?
             tracing::info!(?target, "Found url macro");
             let (text, attributes) = content;
             let mut metadata = BlockMetadata::default();
@@ -1538,12 +1538,13 @@ peg::parser! {
             } else {
                 vec![]
             };
-            InlineNode::Macro(InlineMacro::Url(Url {
+            let target_source = Source::from_str(&target).map_err(|_| "failed to parse URL target")?;
+            Ok(InlineNode::Macro(InlineMacro::Url(Url {
                 text,
-                target: Source::Url(target),
+                target: target_source,
                 attributes: metadata.attributes.clone(),
                 location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
-            }))
+            })))
         }
 
         rule inline_autolink(offset: usize) -> InlineNode
@@ -1553,12 +1554,13 @@ peg::parser! {
             / url:url() { url }
         )
         end:position!()
-        {
+        {?
             tracing::info!(?url, "Found autolink inline");
-            InlineNode::Macro(InlineMacro::Autolink(Autolink {
-                url: Source::Url(url),
+            let url_source = Source::from_str(&url).map_err(|_| "failed to parse autolink URL")?;
+            Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
+                url: url_source,
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
-            }))
+            })))
         }
 
         rule inline_line_break(offset: usize) -> InlineNode
@@ -2413,11 +2415,26 @@ peg::parser! {
         rule inner_attribute_value() -> String
         = s:$("\"" [^('"' | ']')]* "\"") { s.to_string() }
 
-        pub rule url() -> String = proto:proto() "://" path:path() { format!("{}{}{}", proto, "://", path) }
+        pub rule url() -> String = proto:proto() "://" path:url_path() { format!("{}{}{}", proto, "://", path) }
 
         rule proto() -> &'input str = $("https" / "http" / "ftp" / "irc" / "mailto")
 
-        pub rule path() -> String = path:$(['A'..='Z' | '{' | '}' | 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/' | '~' | '?' | '&' | '=' ]+)
+        /// URL path component - supports query params, fragments, encoding, etc.
+        /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
+        rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' ]+)
+        {?
+            let mut inline_state = InlinePreprocessorParserState::new();
+            let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
+            .map_err(|e| {
+                tracing::error!(?e, "could not preprocess url path");
+                "could not preprocess url path"
+            })?;
+            Ok(processed.text)
+        }
+
+        /// Filesystem path - conservative character set for cross-platform compatibility
+        /// Includes '{' and '}' for `AsciiDoc` attribute substitution
+        pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
         {?
             let mut inline_state = InlinePreprocessorParserState::new();
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -2431,8 +2448,12 @@ peg::parser! {
         pub rule source() -> Source
             = source:
         (
-            u:url() { Source::Url(u.to_string()) }
-            / p:path() { Source::Path(p.to_string()) }
+            u:url() {?
+                Source::from_str(&u).map_err(|_| "failed to parse URL")
+            }
+            / p:path() {?
+                Source::from_str(&p).map_err(|_| "failed to parse path")
+            }
         )
         { source }
 
