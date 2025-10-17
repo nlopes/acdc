@@ -16,6 +16,9 @@ pub enum Error {
     #[error("Parsing error: {0}")]
     Parse(String),
 
+    #[error("PEG parsing error at position {0}: {1}")]
+    PegParse(Position, String),
+
     #[error("Parsing error: {0}")]
     #[serde(skip_deserializing)]
     ParseGrammar(#[from] peg::error::ParseError<peg::str::LineCol>),

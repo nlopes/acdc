@@ -36,15 +36,12 @@ pub(crate) fn adjust_peg_error_position(
         .line_map
         .offset_to_position(absolute_offset, &state.input);
 
-    let adjusted_error = format!(
-        "error at {}:{}: {}",
-        doc_position.line,
-        doc_position.column,
+    Error::PegParse(
+        doc_position,
         err.to_string()
             .split_once(": ")
-            .map_or(err.to_string(), |(_, msg)| msg.to_string())
-    );
-    Error::Parse(adjusted_error)
+            .map_or(err.to_string(), |(_, msg)| msg.to_string()),
+    )
 }
 
 /// Helper for error recovery when parsing from a substring
