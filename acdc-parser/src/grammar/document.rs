@@ -1532,9 +1532,11 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines(state, block_metadata, start.offset, &start, end, offset, &text).map_err(|e| {
-                    tracing::error!(?e, "could not process url macro text");
-                }).expect("could not process url macro text").0
+                process_inlines(state, block_metadata, start.offset, &start, end, offset, &text)
+                    .map_err(|e| {
+                        tracing::error!(?e, url_text = text, "could not process URL macro text");
+                        "could not process URL macro text"
+                    })?.0
             } else {
                 vec![]
             };
