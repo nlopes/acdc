@@ -1119,7 +1119,7 @@ peg::parser! {
         rule section_level_marker() -> &'input str = $(("=" / "#")+)
 
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = &(unordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
+        = &(whitespace()* unordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
             tracing::info!(?content, "Found unordered list block");
             // TODO(nlopes): this is very very inneficient and silly - right now I'm just
@@ -1140,7 +1140,7 @@ peg::parser! {
         }
 
         rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = &(ordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
+        = &(whitespace()* ordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
         {
             tracing::info!(?content, "Found ordered list block");
             // TODO(nlopes): this is very very inneficient and silly - right now I'm just
@@ -1162,11 +1162,12 @@ peg::parser! {
 
         rule list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
         = start:position!()
+        whitespace()*
         marker:(unordered_list_marker() / ordered_list_marker())
         whitespace()
         checked:checklist_item()?
         list_content_start:position()
-        list_item:$((!(&(eol()+ (unordered_list_marker() / ordered_list_marker() / check_start_of_description_list() / section_level_marker())) / eol()*<2,> / ![_]) [_])+)
+        list_item:$((!(&(eol()+ whitespace()* (unordered_list_marker() / ordered_list_marker() / check_start_of_description_list() / section_level_marker())) / eol()*<2,> / ![_]) [_])+)
         end:position!() (eol()+ / ![_])
         {
             tracing::info!(%list_item, %marker, ?checked, "found list item");
@@ -1295,7 +1296,7 @@ peg::parser! {
 
         rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
         = eol()* // Consume any blank lines before the list
-        &((unordered_list_marker() / ordered_list_marker()) whitespace())
+        &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
         list_start:position!()
         list:(unordered_list(list_start, offset, block_metadata) / ordered_list(list_start, offset, block_metadata))
         {
