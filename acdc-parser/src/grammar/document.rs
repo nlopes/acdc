@@ -1766,7 +1766,7 @@ peg::parser! {
             let valid_boundary = absolute_pos == 0 || {
               let prev_byte_pos = absolute_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
 
@@ -1802,7 +1802,7 @@ peg::parser! {
             let valid_boundary = absolute_pos == 0 || {
               let prev_byte_pos = absolute_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
 
@@ -1834,7 +1834,7 @@ peg::parser! {
             let valid_boundary = pos == 0 || {
               let prev_byte_pos = pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
 
@@ -1848,7 +1848,7 @@ peg::parser! {
             let valid_boundary = pos == 0 || {
                 let prev_byte_pos = pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                    matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
                 })
             };
 
@@ -1896,7 +1896,7 @@ peg::parser! {
             let valid_boundary = absolute_pos == 0 || {
               let prev_byte_pos = absolute_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
             if !valid_boundary {
@@ -1926,7 +1926,7 @@ peg::parser! {
             let valid_boundary = pos == 0 || {
               let prev_byte_pos = pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                  matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
 
@@ -1962,7 +1962,7 @@ peg::parser! {
             let prev_byte = state.input.as_bytes().get(prev_byte_pos);
             let valid_boundary = absolute_pos == 0 || {
               prev_byte.is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
             if !valid_boundary {
@@ -1992,7 +1992,7 @@ peg::parser! {
             let valid_boundary = pos == 0 || {
               let prev_byte_pos = pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
               })
             };
 
