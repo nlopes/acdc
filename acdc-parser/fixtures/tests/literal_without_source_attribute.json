@@ -7,6 +7,11 @@
       "type": "block",
       "form": "delimited",
       "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "ruby": null
+        }
+      },
       "inlines": [
         {
           "name": "text",
@@ -24,11 +29,6 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "ruby": null
-        }
-      },
       "location": [
         {
           "line": 1,

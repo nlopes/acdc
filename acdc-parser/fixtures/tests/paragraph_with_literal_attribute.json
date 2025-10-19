@@ -5,9 +5,6 @@
     {
       "name": "paragraph",
       "type": "block",
-      "metadata": {
-        "style": "literal"
-      },
       "inlines": [
         {
           "name": "text",
@@ -25,6 +22,9 @@
           ]
         }
       ],
+      "metadata": {
+        "style": "literal"
+      },
       "location": [
         {
           "line": 1,

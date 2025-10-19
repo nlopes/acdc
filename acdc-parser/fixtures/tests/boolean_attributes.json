@@ -1,10 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "sectanchors": true,
-    "toc": true
-  },
   "header": {
     "title": [
       {
@@ -33,6 +29,10 @@
         "col": 5
       }
     ]
+  },
+  "attributes": {
+    "sectanchors": true,
+    "toc": ""
   },
   "blocks": [
     {

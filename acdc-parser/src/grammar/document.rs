@@ -1108,7 +1108,9 @@ peg::parser! {
         }
 
         rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = unordered_list(start, offset, block_metadata) / ordered_list(start, offset, block_metadata) / description_list(start, offset, block_metadata)
+        = unordered_list(start, offset, block_metadata, false)
+        / ordered_list(start, offset, block_metadata, false)
+        / description_list(start, offset, block_metadata)
 
         rule unordered_list_marker() -> &'input str = $("*"+ / "-")
 
@@ -1118,16 +1120,34 @@ peg::parser! {
 
         rule section_level_marker() -> &'input str = $(("=" / "#")+)
 
-        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = &(whitespace()* unordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
+        // Helper rule to check if we're at the start of a new list item (lookahead)
+        rule at_list_item_start() = whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace()
+
+        // Helper rule to check if we're at an ordered list marker ahead (after newlines)
+        rule at_ordered_marker_ahead() = eol()+ whitespace()* ordered_list_marker()
+
+        // Helper rule to check if we're at an unordered list marker ahead (after newlines)
+        rule at_unordered_marker_ahead() = eol()+ whitespace()* unordered_list_marker()
+
+        // Helper rule to check if we're at a root-level (non-indented) ordered marker (current position)
+        rule at_root_ordered_marker() = !whitespace() ordered_list_marker()
+
+        // Helper rule to check if we're at a root-level (non-indented) unordered marker (current position)
+        rule at_root_unordered_marker() = !whitespace() unordered_list_marker()
+
+        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<Block, Error>
+        = &(whitespace()* unordered_list_marker() whitespace())
+        first:unordered_list_item(offset, block_metadata)
+        rest:(unordered_list_rest_item(offset, block_metadata, parent_is_ordered))*
+        end:position!()
         {
-            tracing::info!(?content, "Found unordered list block");
-            // TODO(nlopes): this is very very inneficient and silly - right now I'm just
-            // trying to remove all .unwraps so this is fine. Will come back to this once
-            // I'm going for optimisations.
-            let content: Vec<_> = content.into_iter().collect::<Result<_, Error>>()?;
+            tracing::info!("Found unordered list block");
+            let mut content = vec![first?];
+            for item in rest {
+                content.push(item?);
+            }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
-            let items: Vec<ListItem> = content.into_iter().map(|(item, end)| item).collect();
+            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::UnorderedList(UnorderedList {
@@ -1139,14 +1159,35 @@ peg::parser! {
             }))
         }
 
-        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = &(whitespace()* ordered_list_marker() whitespace()) content:list_item(offset, block_metadata)+ end:position!()
+        rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<(ListItem, usize), Error>
+        = !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata)
+        {?
+            if parent_is_ordered {
+                Ok(item)
+            } else {
+                Err("skip")
+            }
+        }
+        / item:unordered_list_item(offset, block_metadata)
+        {?
+            if parent_is_ordered {
+                Err("skip")
+            } else {
+                Ok(item)
+            }
+        }
+
+        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<Block, Error>
+        = &(whitespace()* ordered_list_marker() whitespace())
+        first:ordered_list_item(offset, block_metadata)
+        rest:(ordered_list_rest_item(offset, block_metadata, parent_is_ordered))*
+        end:position!()
         {
-            tracing::info!(?content, "Found ordered list block");
-            // TODO(nlopes): this is very very inneficient and silly - right now I'm just
-            // trying to remove all .unwraps so this is fine. Will come back to this once
-            // I'm going for optimisations.
-            let content: Vec<_> = content.into_iter().collect::<Result<_, Error>>()?;
+            tracing::info!("Found ordered list block");
+            let mut content = vec![first?];
+            for item in rest {
+                content.push(item?);
+            }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
@@ -1160,29 +1201,206 @@ peg::parser! {
             }))
         }
 
-        rule list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
+        rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<(ListItem, usize), Error>
+        = !at_ordered_marker_ahead() item:ordered_list_item(offset, block_metadata)
+        {?
+            if parent_is_ordered {
+                Ok(item)
+            } else {
+                Err("skip")
+            }
+        }
+        / item:ordered_list_item(offset, block_metadata)
+        {?
+            if parent_is_ordered {
+                Err("skip")
+            } else {
+                Ok(item)
+            }
+        }
+
+        rule unordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
         = start:position!()
         whitespace()*
-        marker:(unordered_list_marker() / ordered_list_marker())
+        marker:unordered_list_marker()
         whitespace()
         checked:checklist_item()?
-        list_content_start:position()
-        list_item:$((!(&(eol()+ whitespace()* (unordered_list_marker() / ordered_list_marker() / check_start_of_description_list() / section_level_marker())) / eol()*<2,> / ![_]) [_])+)
-        end:position!() (eol()+ / ![_])
+        first_line_start:position()
+        // Parse first line (principal text)
+        first_line:$((!(eol()) [_])*)
+        // Parse continuation lines that are part of the same paragraph
+        continuation_lines:(eol() !(&eol() / &at_list_item_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        first_line_end:position!()
+        // Try to parse nested ordered list (only if followed by newline)
+        nested:(eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
+        end:position!()
         {
-            tracing::info!(%list_item, %marker, ?checked, "found list item");
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let (content, _) = process_inlines(state, block_metadata, start, &list_content_start, end, offset, list_item)?;
-            let end = end.saturating_sub(1);
 
+            // Combine first_line with continuation_lines to form the complete paragraph text
+            let paragraph_text = if continuation_lines.is_empty() {
+                first_line.to_string()
+            } else {
+                let mut text = first_line.to_string();
+                for cont_line in continuation_lines {
+                    text.push('\n');
+                    text.push_str(cont_line);
+                }
+                text
+            };
+
+            // Calculate the actual end position for the list item content
+            // first_line_end points to the newline after the text, so we need to go back by 1
+            // if there's actual content
+            let content_end = if paragraph_text.is_empty() {
+                first_line_end
+            } else {
+                first_line_end.saturating_sub(1)
+            };
+
+            // The end position for the list item should be at the last character of content
+            // before any trailing newlines
+            let item_end = if paragraph_text.is_empty() {
+                start
+            } else {
+                first_line_end.saturating_sub(1)
+            };
+
+            let mut blocks = Vec::new();
+
+            // Add paragraph with all lines
+            if !paragraph_text.trim().is_empty() {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &paragraph_text)?;
+                let paragraph = Block::Paragraph(Paragraph {
+                    metadata: BlockMetadata::default(),
+                    title: vec![],
+                    content: inlines,
+                    location: state.create_location(first_line_start.offset+offset, content_end+offset),
+                });
+                blocks.push(paragraph);
+            }
+
+            // Add nested list if found
+            if let Some(Some(Some(Ok(nested_list)))) = nested {
+                blocks.push(nested_list);
+            }
+
+            // If no blocks were added, create an empty paragraph
+            if blocks.is_empty() {
+                blocks.push(Block::Paragraph(Paragraph {
+                    metadata: BlockMetadata::default(),
+                    title: vec![],
+                    content: vec![],
+                    location: state.create_location(start+offset, item_end+offset),
+                }));
+            }
 
             Ok((ListItem {
-                content,
+                content: blocks,
                 level,
                 marker: marker.to_string(),
                 checked,
-                location: state.create_location(start+offset, end+offset),
-            }, end))
+                location: state.create_location(start+offset, item_end+offset),
+            }, item_end))
+        }
+
+        /// Parse nested content within an unordered list item (e.g., nested ordered list)
+        rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
+        = !at_root_ordered_marker() nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, true) {
+            Some(list)
+        }
+
+        rule ordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
+        = start:position!()
+        whitespace()*
+        marker:ordered_list_marker()
+        whitespace()
+        checked:checklist_item()?
+        first_line_start:position()
+        // Parse first line (principal text)
+        first_line:$((!(eol()) [_])*)
+        // Parse continuation lines that are part of the same paragraph
+        continuation_lines:(eol() !(&eol() / &at_list_item_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        first_line_end:position!()
+        // Try to parse nested unordered list (only if followed by newline)
+        nested:(eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
+        end:position!()
+        {
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
+            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
+
+            // Combine first_line with continuation_lines to form the complete paragraph text
+            let paragraph_text = if continuation_lines.is_empty() {
+                first_line.to_string()
+            } else {
+                let mut text = first_line.to_string();
+                for cont_line in continuation_lines {
+                    text.push('\n');
+                    text.push_str(cont_line);
+                }
+                text
+            };
+
+            // Calculate the actual end position for the list item content
+            // first_line_end points to the newline after the text, so we need to go back by 1
+            // if there's actual content
+            let content_end = if paragraph_text.is_empty() {
+                first_line_end
+            } else {
+                first_line_end.saturating_sub(1)
+            };
+
+            // The end position for the list item should be at the last character of content
+            // before any trailing newlines
+            let item_end = if paragraph_text.is_empty() {
+                start
+            } else {
+                first_line_end.saturating_sub(1)
+            };
+
+            let mut blocks = Vec::new();
+
+            // Add paragraph with all lines
+            if !paragraph_text.trim().is_empty() {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &paragraph_text)?;
+                let paragraph = Block::Paragraph(Paragraph {
+                    metadata: BlockMetadata::default(),
+                    title: vec![],
+                    content: inlines,
+                    location: state.create_location(first_line_start.offset+offset, content_end+offset),
+                });
+                blocks.push(paragraph);
+            }
+
+            // Add nested list if found
+            if let Some(Some(Some(Ok(nested_list)))) = nested {
+                blocks.push(nested_list);
+            }
+
+            // If no blocks were added, create an empty paragraph
+            if blocks.is_empty() {
+                blocks.push(Block::Paragraph(Paragraph {
+                    metadata: BlockMetadata::default(),
+                    title: vec![],
+                    content: vec![],
+                    location: state.create_location(start+offset, item_end+offset),
+                }));
+            }
+
+            Ok((ListItem {
+                content: blocks,
+                level,
+                marker: marker.to_string(),
+                checked,
+                location: state.create_location(start+offset, item_end+offset),
+            }, item_end))
+        }
+
+        /// Parse nested content within an ordered list item (e.g., nested unordered list)
+        rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
+        = !at_root_unordered_marker() nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, true) {
+            Some(list)
         }
 
         rule checklist_item() -> ListItemCheckedStatus
@@ -1298,7 +1516,7 @@ peg::parser! {
         = eol()* // Consume any blank lines before the list
         &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
         list_start:position!()
-        list:(unordered_list(list_start, offset, block_metadata) / ordered_list(list_start, offset, block_metadata))
+        list:(unordered_list(list_start, offset, block_metadata, false) / ordered_list(list_start, offset, block_metadata, false))
         {
             tracing::info!("Auto-attaching list to description list item");
             Ok(vec![list?])
@@ -2101,7 +2319,17 @@ peg::parser! {
         content:$((!(
             eol()*<2,>
             / eol()* ![_]
+            / eol() &attributes_line()
             / eol() example_delimiter()
+            / eol() listing_delimiter()
+            / eol() literal_delimiter()
+            / eol() sidebar_delimiter()
+            / eol() quote_delimiter()
+            / eol() pass_delimiter()
+            / eol() table_delimiter()
+            / eol() markdown_code_delimiter()
+            / eol() comment_delimiter()
+            / eol() open_delimiter()
             / eol() list(start, offset, block_metadata)
             / eol()* &(section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
         ) [_])+)

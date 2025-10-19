@@ -30,7 +30,6 @@
       }
     ]
   },
-  "attributes": {},
   "blocks": [
     {
       "name": "dlist",
@@ -80,14 +79,29 @@
               "marker": "-",
               "items": [
                 {
-                  "name": "listItem",
-                  "type": "block",
+                  "level": 1,
                   "marker": "-",
                   "principal": [
                     {
-                      "name": "text",
-                      "type": "string",
-                      "value": "list item 1",
+                      "name": "paragraph",
+                      "type": "block",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "list item 1",
+                          "location": [
+                            {
+                              "line": 5,
+                              "col": 3
+                            },
+                            {
+                              "line": 5,
+                              "col": 13
+                            }
+                          ]
+                        }
+                      ],
                       "location": [
                         {
                           "line": 5,
@@ -112,14 +126,29 @@
                   ]
                 },
                 {
-                  "name": "listItem",
-                  "type": "block",
+                  "level": 1,
                   "marker": "-",
                   "principal": [
                     {
-                      "name": "text",
-                      "type": "string",
-                      "value": "list item 2",
+                      "name": "paragraph",
+                      "type": "block",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "list item 2",
+                          "location": [
+                            {
+                              "line": 6,
+                              "col": 3
+                            },
+                            {
+                              "line": 6,
+                              "col": 13
+                            }
+                          ]
+                        }
+                      ],
                       "location": [
                         {
                           "line": 6,

@@ -9,14 +9,29 @@
       "marker": "*",
       "items": [
         {
-          "name": "listItem",
-          "type": "block",
+          "level": 1,
           "marker": "*",
           "principal": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "First item",
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First item",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 3
+                    },
+                    {
+                      "line": 1,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 1,
@@ -41,14 +56,29 @@
           ]
         },
         {
-          "name": "listItem",
-          "type": "block",
+          "level": 1,
           "marker": "*",
           "principal": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Second item",
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Second item",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 3
+                    },
+                    {
+                      "line": 2,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 2,

@@ -65,10 +65,11 @@ fn render_nested_list_items<W: Write>(
         if item.level == expected_level {
             // Render item at current level
             writeln!(w, "<li>")?;
-            writeln!(w, "<p>")?;
             render_checked_status(item.checked.as_ref(), w)?;
-            crate::inlines::render_inlines(&item.content, w, processor, options)?;
-            writeln!(w, "</p>")?;
+            // Render each block in the list item content
+            for block in &item.content {
+                block.render(w, processor, options)?;
+            }
 
             // Check if next items are nested (higher level)
             if i + 1 < items.len() && items[i + 1].level > expected_level {
@@ -156,10 +157,11 @@ impl Render for ListItem {
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         writeln!(w, "<li>")?;
-        writeln!(w, "<p>")?;
         render_checked_status(self.checked.as_ref(), w)?;
-        crate::inlines::render_inlines(&self.content, w, processor, options)?;
-        writeln!(w, "</p>")?;
+        // Render each block in the list item content
+        for block in &self.content {
+            block.render(w, processor, options)?;
+        }
         writeln!(w, "</li>")?;
         Ok(())
     }

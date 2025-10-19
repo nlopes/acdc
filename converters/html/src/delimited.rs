@@ -106,10 +106,7 @@ impl Render for DelimitedBlock {
                     inlines,
                     w,
                     processor,
-                    &RenderOptions {
-                        inlines_substitutions: true,
-                        ..*options
-                    },
+                    options,
                 )?;
 
                 if language.is_some() {
@@ -141,10 +138,7 @@ impl Render for DelimitedBlock {
                     inlines,
                     w,
                     processor,
-                    &RenderOptions {
-                        inlines_substitutions: true,
-                        ..*options
-                    },
+                    options,
                 )?;
                 writeln!(w, "</pre>")?;
                 writeln!(w, "</div>")?;

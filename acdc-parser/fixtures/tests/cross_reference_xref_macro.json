@@ -30,12 +30,10 @@
       }
     ]
   },
-  "attributes": {},
   "blocks": [
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -53,6 +51,7 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "paragraph",
@@ -76,10 +75,7 @@
             {
               "name": "xref",
               "type": "inline",
-              "target": {
-                "type": "name",
-                "value": "conclusion"
-              },
+              "target": "conclusion",
               "text": "click here",
               "location": [
                 {
@@ -134,7 +130,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -152,6 +147,7 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "paragraph",

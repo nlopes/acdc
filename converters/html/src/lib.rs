@@ -57,7 +57,6 @@ impl Processor {
 struct RenderOptions {
     last_updated: Option<chrono::DateTime<chrono::Utc>>,
     inlines_basic: bool,
-    inlines_substitutions: bool,
 }
 
 /// A simple trait for helping in rendering `AsciiDoc` content.

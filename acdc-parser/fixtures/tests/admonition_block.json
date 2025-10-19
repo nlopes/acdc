@@ -62,15 +62,29 @@
           "marker": ".",
           "items": [
             {
-              "name": "listItem",
-              "type": "block",
+              "level": 1,
               "marker": ".",
-              "checked": null,
               "principal": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "They are allergic to cinnamon.",
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "They are allergic to cinnamon.",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 3
+                        },
+                        {
+                          "line": 6,
+                          "col": 32
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 6,
@@ -95,15 +109,29 @@
               ]
             },
             {
-              "name": "listItem",
-              "type": "block",
+              "level": 1,
               "marker": ".",
-              "checked": null,
               "principal": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "More than two glasses of orange juice in 24 hours makes them howl in harmony with alarms and sirens.",
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "More than two glasses of orange juice in 24 hours makes them howl in harmony with alarms and sirens.",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 3
+                        },
+                        {
+                          "line": 7,
+                          "col": 102
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 7,
@@ -128,15 +156,29 @@
               ]
             },
             {
-              "name": "listItem",
-              "type": "block",
+              "level": 1,
               "marker": ".",
-              "checked": null,
               "principal": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Celery makes them sad.",
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Celery makes them sad.",
+                      "location": [
+                        {
+                          "line": 8,
+                          "col": 3
+                        },
+                        {
+                          "line": 8,
+                          "col": 24
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 8,

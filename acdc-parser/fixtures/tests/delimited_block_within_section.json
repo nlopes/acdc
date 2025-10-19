@@ -60,6 +60,12 @@
           "type": "block",
           "form": "delimited",
           "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "yaml": null
+            },
+            "style": "source"
+          },
           "inlines": [
             {
               "name": "text",
@@ -77,12 +83,6 @@
               ]
             }
           ],
-          "metadata": {
-            "style": "source",
-            "attributes": {
-              "yaml": null
-            }
-          },
           "location": [
             {
               "line": 5,

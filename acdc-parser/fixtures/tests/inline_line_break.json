@@ -22,8 +22,8 @@
           ]
         },
         {
-          "name": "linebreak",
-          "type": "string",
+          "name": "break",
+          "type": "inline",
           "location": [
             {
               "line": 1,

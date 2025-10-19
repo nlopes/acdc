@@ -7,38 +7,23 @@
       "type": "block",
       "inlines": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "This is ",
-          "location": [
-            {
-              "line": 1,
-              "col": 1
-            },
-            {
-              "line": 1,
-              "col": 8
-            }
-          ]
-        },
-        {
           "name": "span",
           "type": "inline",
-          "variant": "code",
+          "variant": "strong",
           "form": "unconstrained",
           "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "unconstrained monospace",
+              "value": "Warning:",
               "location": [
                 {
                   "line": 1,
-                  "col": 11
+                  "col": 3
                 },
                 {
                   "line": 1,
-                  "col": 33
+                  "col": 10
                 }
               ]
             }
@@ -46,26 +31,11 @@
           "location": [
             {
               "line": 1,
-              "col": 9
+              "col": 1
             },
             {
               "line": 1,
-              "col": 35
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " text.",
-          "location": [
-            {
-              "line": 1,
-              "col": 36
-            },
-            {
-              "line": 1,
-              "col": 41
+              "col": 12
             }
           ]
         }
@@ -77,7 +47,43 @@
         },
         {
           "line": 1,
-          "col": 41
+          "col": 12
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "warning: field `inlines_substitutions` is never read\n  --> converters/html/src/document.rs:214",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
         }
       ]
     }
@@ -88,8 +94,8 @@
       "col": 1
     },
     {
-      "line": 1,
-      "col": 41
+      "line": 6,
+      "col": 4
     }
   ]
 }

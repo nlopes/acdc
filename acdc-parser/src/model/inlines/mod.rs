@@ -213,16 +213,22 @@ where
         InlineMacro::Keyboard(keyboard) => {
             map.serialize_entry("name", "keyboard")?;
             map.serialize_entry("type", "inline")?;
+            map.serialize_entry("keys", &keyboard.keys)?;
             map.serialize_entry("location", &keyboard.location)?;
         }
         InlineMacro::Button(button) => {
             map.serialize_entry("name", "button")?;
             map.serialize_entry("type", "inline")?;
+            map.serialize_entry("label", &button.label)?;
             map.serialize_entry("location", &button.location)?;
         }
         InlineMacro::Menu(menu) => {
             map.serialize_entry("name", "menu")?;
             map.serialize_entry("type", "inline")?;
+            map.serialize_entry("target", &menu.target)?;
+            if !menu.items.is_empty() {
+                map.serialize_entry("items", &menu.items)?;
+            }
             map.serialize_entry("location", &menu.location)?;
         }
         InlineMacro::Url(url) => {
@@ -297,6 +303,10 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_attributes = None;
                 let mut my_id = None;
                 let mut my_text = None;
+                let mut my_items = None;
+                let mut my_keys = None;
+                let mut my_label = None;
+
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
                         "name" => {
@@ -334,13 +344,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 return Err(de::Error::duplicate_field("title"));
                             }
                             my_title = Some(map.next_value::<Vec<InlineNode>>()?);
-                            //my_title = Some(map.next_value()?);
                         }
                         "target" => {
                             if my_target.is_some() {
                                 return Err(de::Error::duplicate_field("target"));
                             }
-                            my_target = Some(map.next_value::<Source>()?);
+                            my_target = Some(map.next_value::<serde_json::Value>()?);
                         }
                         "form" => {
                             if my_form.is_some() {
@@ -372,6 +381,24 @@ impl<'de> Deserialize<'de> for InlineNode {
                             }
                             my_text = Some(map.next_value::<String>()?);
                         }
+                        "items" => {
+                            if my_items.is_some() {
+                                return Err(de::Error::duplicate_field("items"));
+                            }
+                            my_items = Some(map.next_value::<Vec<String>>()?);
+                        }
+                        "keys" => {
+                            if my_keys.is_some() {
+                                return Err(de::Error::duplicate_field("keys"));
+                            }
+                            my_keys = Some(map.next_value::<Vec<String>>()?);
+                        }
+                        "label" => {
+                            if my_label.is_some() {
+                                return Err(de::Error::duplicate_field("label"));
+                            }
+                            my_label = Some(map.next_value::<String>()?);
+                        }
                         _ => {
                             // Ignore any other fields
                             let _ = map.next_value::<de::IgnoredAny>()?;
@@ -385,9 +412,6 @@ impl<'de> Deserialize<'de> for InlineNode {
                     my_location.ok_or_else(|| de::Error::missing_field("location"))?;
 
                 match (my_name.as_str(), my_type.as_str()) {
-                    ("linebreak", "string") => Ok(InlineNode::LineBreak(LineBreak {
-                        location: my_location,
-                    })),
                     ("text", "string") => {
                         let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
 
@@ -409,12 +433,17 @@ impl<'de> Deserialize<'de> for InlineNode {
                             location: my_location,
                         },
                     )),
+                    ("break", "inline") => Ok(InlineNode::LineBreak(LineBreak {
+                        location: my_location,
+                    })),
                     ("icon", "inline") => {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let target: Source =
+                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
                         Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
                             attributes: my_attributes.unwrap_or_default(),
-                            target: my_target,
+                            target,
                             location: my_location,
                         })))
                     }
@@ -422,9 +451,11 @@ impl<'de> Deserialize<'de> for InlineNode {
                         let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let source: Source =
+                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
                         Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
                             title: my_title,
-                            source: my_target,
+                            source,
                             metadata: BlockMetadata::default(),
                             location: my_location,
                         }))))
@@ -443,30 +474,40 @@ impl<'de> Deserialize<'de> for InlineNode {
                         })))
                     }
                     ("keyboard", "inline") => {
+                        let keys = my_keys.ok_or_else(|| de::Error::missing_field("keys"))?;
                         Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
-                            keys: vec![], // Simplified deserialization, keys not stored in fixture format
+                            keys,
                             location: my_location,
                         })))
                     }
                     ("btn" | "button", "inline") => {
+                        let label = my_label.ok_or_else(|| de::Error::missing_field("label"))?;
+
                         Ok(InlineNode::Macro(InlineMacro::Button(Button {
-                            label: String::new(), // Simplified deserialization, label not stored in fixture format
+                            label,
                             location: my_location,
                         })))
                     }
                     ("menu", "inline") => {
+                        let my_target =
+                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let target: String =
+                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
+
                         Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
-                            target: String::new(), // Simplified deserialization, target not stored in fixture format
-                            items: vec![],
+                            target,
+                            items: my_items.unwrap_or_default(),
                             location: my_location,
                         })))
                     }
                     ("xref", "inline") => {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let target: String =
+                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
                         Ok(InlineNode::Macro(InlineMacro::CrossReference(
                             crate::model::CrossReference {
-                                target: my_target.to_string(),
+                                target,
                                 text: my_text.map(|t| t.to_string()),
                                 location: my_location,
                             },
@@ -477,6 +518,8 @@ impl<'de> Deserialize<'de> for InlineNode {
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
+                        let target: Source =
+                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
                         // TODO(nlopes): need to deserialize the attributes (of which the first positional attribute is the text)!
                         //
                         // Also need to handle the other inline macros!
@@ -486,18 +529,18 @@ impl<'de> Deserialize<'de> for InlineNode {
                             "url" => Ok(InlineNode::Macro(InlineMacro::Url(Url {
                                 text: vec![],
                                 attributes: my_attributes.unwrap_or_default(),
-                                target: my_target,
+                                target,
                                 location: my_location,
                             }))),
                             "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
                                 text: None,
                                 attributes: my_attributes.unwrap_or_default(),
-                                target: my_target,
+                                target,
                                 location: my_location,
                             }))),
 
                             "autolink" => Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
-                                url: my_target,
+                                url: target,
                                 location: my_location,
                             }))),
                             "pass" => todo!("implement pass deserialization"),

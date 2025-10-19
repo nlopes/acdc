@@ -30,12 +30,11 @@
       }
     ]
   },
-  "attributes": {},
   "blocks": [
     {
       "name": "break",
       "type": "block",
-      "variant": "thematic",
+      "variant": "page",
       "location": [
         {
           "line": 3,
@@ -81,7 +80,7 @@
     {
       "name": "break",
       "type": "block",
-      "variant": "page",
+      "variant": "thematic",
       "location": [
         {
           "line": 7,
