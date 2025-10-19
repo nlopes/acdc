@@ -1,0 +1,8 @@
+1. First item
++
+[source,rust]
+----
+// code example
+fn main() {}
+----
+2. Second item
