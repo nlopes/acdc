@@ -1229,10 +1229,12 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        continuation_lines:(eol() !(&eol() / &at_list_item_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+") cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Try to parse nested ordered list (only if followed by newline)
         nested:(eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
+        // Try to parse explicit continuation (+ marker)
+        explicit_continuation:(eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
         end:position!()
         {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
@@ -1286,6 +1288,11 @@ peg::parser! {
                 blocks.push(nested_list);
             }
 
+            // Add explicit continuation blocks if found
+            if let Some(Some(Ok(continuation_blocks))) = explicit_continuation {
+                blocks.extend(continuation_blocks);
+            }
+
             // If no blocks were added, create an empty paragraph
             if blocks.is_empty() {
                 blocks.push(Block::Paragraph(Paragraph {
@@ -1321,10 +1328,12 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        continuation_lines:(eol() !(&eol() / &at_list_item_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+") cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Try to parse nested unordered list (only if followed by newline)
         nested:(eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
+        // Try to parse explicit continuation (+ marker)
+        explicit_continuation:(eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
         end:position!()
         {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
@@ -1376,6 +1385,11 @@ peg::parser! {
             // Add nested list if found
             if let Some(Some(Some(Ok(nested_list)))) = nested {
                 blocks.push(nested_list);
+            }
+
+            // Add explicit continuation blocks if found
+            if let Some(Some(Ok(continuation_blocks))) = explicit_continuation {
+                blocks.extend(continuation_blocks);
             }
 
             // If no blocks were added, create an empty paragraph
@@ -1539,6 +1553,27 @@ peg::parser! {
                 document_parser::blocks(trimmed, state, continuation_start+offset, block_metadata.parent_section_level)
                     .unwrap_or_else(|e| {
                         adjust_and_log_parse_error(&e, trimmed, continuation_start+offset, state, "Error parsing continuation content");
+                        Ok(Vec::new())
+                    })
+            }
+        }
+
+        rule list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        = "+" eol()
+        continuation_start:position!()
+        // Capture lines until we see another list item at same level or higher
+        content:$((!(eol() at_list_item_start()) [_])*)
+        end:position!()
+        {
+            tracing::info!(?content, start = ?continuation_start, ?end, "List explicit continuation content");
+
+            let trimmed = content.trim_end();
+            if trimmed.is_empty() {
+                Ok(Vec::new())
+            } else {
+                document_parser::blocks(trimmed, state, continuation_start+offset, block_metadata.parent_section_level)
+                    .unwrap_or_else(|e| {
+                        adjust_and_log_parse_error(&e, trimmed, continuation_start+offset, state, "Error parsing list continuation content");
                         Ok(Vec::new())
                     })
             }
