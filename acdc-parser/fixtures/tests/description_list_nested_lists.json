@@ -30,6 +30,7 @@
       }
     ]
   },
+  "attributes": {},
   "blocks": [
     {
       "name": "dlist",
@@ -79,29 +80,14 @@
               "marker": "-",
               "items": [
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": "-",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Level 1 item",
-                          "location": [
-                            {
-                              "line": 5,
-                              "col": 3
-                            },
-                            {
-                              "line": 5,
-                              "col": 14
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Level 1 item",
                       "location": [
                         {
                           "line": 5,
@@ -126,29 +112,14 @@
                   ]
                 },
                 {
-                  "level": 2,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": "**",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Level 2 item",
-                          "location": [
-                            {
-                              "line": 6,
-                              "col": 4
-                            },
-                            {
-                              "line": 6,
-                              "col": 15
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Level 2 item",
                       "location": [
                         {
                           "line": 6,
@@ -173,29 +144,14 @@
                   ]
                 },
                 {
-                  "level": 2,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": "**",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Another level 2",
-                          "location": [
-                            {
-                              "line": 7,
-                              "col": 4
-                            },
-                            {
-                              "line": 7,
-                              "col": 18
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Another level 2",
                       "location": [
                         {
                           "line": 7,
@@ -220,29 +176,14 @@
                   ]
                 },
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": "-",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Back to level 1",
-                          "location": [
-                            {
-                              "line": 8,
-                              "col": 3
-                            },
-                            {
-                              "line": 8,
-                              "col": 17
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Back to level 1",
                       "location": [
                         {
                           "line": 8,

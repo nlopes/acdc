@@ -149,9 +149,16 @@ fn render_list_item_with_indent<W: Write>(
     render_checked_status(item.checked.as_ref(), w)?;
     write!(w, " ")?;
 
-    // Render each node with a space between them
-    render_nodes_with_spaces(&item.content, w, processor)?;
+    // Render principal text inline
+    render_nodes_with_spaces(&item.principal, w, processor)?;
     writeln!(w)?;
+
+    // Render attached blocks with proper indentation
+    for block in &item.blocks {
+        // Add indentation for nested content
+        write!(w, "{:indent$}", " ", indent = indent + 2)?;
+        block.render(w, processor)?;
+    }
     Ok(())
 }
 
@@ -212,9 +219,13 @@ impl Render for ListItem {
         write!(w, "{}", self.marker)?;
         render_checked_status(self.checked.as_ref(), w)?;
         write!(w, " ")?;
-        // render each node with a space between them
-        render_nodes_with_spaces(&self.content, w, processor)?;
+        // Render principal text inline
+        render_nodes_with_spaces(&self.principal, w, processor)?;
         writeln!(w)?;
+        // Render attached blocks
+        for block in &self.blocks {
+            block.render(w, processor)?;
+        }
         Ok(())
     }
 }

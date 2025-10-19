@@ -30,6 +30,7 @@
       }
     ]
   },
+  "attributes": {},
   "blocks": [
     {
       "name": "dlist",
@@ -150,29 +151,14 @@
       "marker": "-",
       "items": [
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "-",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "List item 1",
-                  "location": [
-                    {
-                      "line": 7,
-                      "col": 3
-                    },
-                    {
-                      "line": 7,
-                      "col": 13
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "List item 1",
               "location": [
                 {
                   "line": 7,
@@ -197,29 +183,14 @@
           ]
         },
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "-",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "List item 2",
-                  "location": [
-                    {
-                      "line": 8,
-                      "col": 3
-                    },
-                    {
-                      "line": 8,
-                      "col": 13
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "List item 2",
               "location": [
                 {
                   "line": 8,

@@ -30,6 +30,7 @@
       }
     ]
   },
+  "attributes": {},
   "blocks": [
     {
       "name": "dlist",
@@ -133,29 +134,14 @@
       "marker": "-",
       "items": [
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "-",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "A list item",
-                  "location": [
-                    {
-                      "line": 7,
-                      "col": 3
-                    },
-                    {
-                      "line": 7,
-                      "col": 13
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "A list item",
               "location": [
                 {
                   "line": 7,
@@ -180,29 +166,14 @@
           ]
         },
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "-",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Another list item",
-                  "location": [
-                    {
-                      "line": 8,
-                      "col": 3
-                    },
-                    {
-                      "line": 8,
-                      "col": 19
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "Another list item",
               "location": [
                 {
                   "line": 8,
@@ -317,29 +288,14 @@
               "marker": ".",
               "items": [
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": ".",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Ordered item 1",
-                          "location": [
-                            {
-                              "line": 14,
-                              "col": 3
-                            },
-                            {
-                              "line": 14,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Ordered item 1",
                       "location": [
                         {
                           "line": 14,
@@ -364,29 +320,14 @@
                   ]
                 },
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": ".",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Ordered item 2",
-                          "location": [
-                            {
-                              "line": 15,
-                              "col": 3
-                            },
-                            {
-                              "line": 15,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Ordered item 2",
                       "location": [
                         {
                           "line": 15,

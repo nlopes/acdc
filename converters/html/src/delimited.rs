@@ -102,12 +102,7 @@ impl Render for DelimitedBlock {
                     writeln!(w, "<pre>")?;
                 }
 
-                crate::inlines::render_inlines(
-                    inlines,
-                    w,
-                    processor,
-                    options,
-                )?;
+                crate::inlines::render_inlines(inlines, w, processor, options)?;
 
                 if language.is_some() {
                     writeln!(w, "</code></pre>")?;
@@ -134,12 +129,7 @@ impl Render for DelimitedBlock {
 
                 writeln!(w, "<div class=\"content\">")?;
                 writeln!(w, "<pre>")?;
-                crate::inlines::render_inlines(
-                    inlines,
-                    w,
-                    processor,
-                    options,
-                )?;
+                crate::inlines::render_inlines(inlines, w, processor, options)?;
                 writeln!(w, "</pre>")?;
                 writeln!(w, "</div>")?;
                 writeln!(w, "</div>")?;

@@ -9,29 +9,14 @@
       "marker": "*",
       "items": [
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "*",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "The document header in AsciiDoc is optional.\nIf present, it must start with a document title.",
-                  "location": [
-                    {
-                      "line": 1,
-                      "col": 3
-                    },
-                    {
-                      "line": 2,
-                      "col": 48
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "The document header in AsciiDoc is optional.\nIf present, it must start with a document title.",
               "location": [
                 {
                   "line": 1,
@@ -56,29 +41,14 @@
           ]
         },
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "*",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Optional author and revision information lines\nimmediately follow the document title.",
-                  "location": [
-                    {
-                      "line": 4,
-                      "col": 3
-                    },
-                    {
-                      "line": 5,
-                      "col": 38
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "Optional author and revision information lines\nimmediately follow the document title.",
               "location": [
                 {
                   "line": 4,
@@ -103,29 +73,14 @@
           ]
         },
         {
-          "level": 1,
+          "name": "listItem",
+          "type": "block",
           "marker": "*",
           "principal": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "The document header must be separated from\n  the remainder of the document by one or more\n  empty lines and it cannot contain empty lines.",
-                  "location": [
-                    {
-                      "line": 7,
-                      "col": 3
-                    },
-                    {
-                      "line": 9,
-                      "col": 48
-                    }
-                  ]
-                }
-              ],
+              "name": "text",
+              "type": "string",
+              "value": "The document header must be separated from\n  the remainder of the document by one or more\n  empty lines and it cannot contain empty lines.",
               "location": [
                 {
                   "line": 7,

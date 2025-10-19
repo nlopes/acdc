@@ -31,29 +31,14 @@
           "marker": "-",
           "items": [
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": "-",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item one",
-                      "location": [
-                        {
-                          "line": 3,
-                          "col": 3
-                        },
-                        {
-                          "line": 3,
-                          "col": 10
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item one",
                   "location": [
                     {
                       "line": 3,
@@ -78,29 +63,14 @@
               ]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": "-",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item two",
-                      "location": [
-                        {
-                          "line": 4,
-                          "col": 3
-                        },
-                        {
-                          "line": 4,
-                          "col": 10
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item two",
                   "location": [
                     {
                       "line": 4,

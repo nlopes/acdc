@@ -449,17 +449,20 @@ pub enum ListItemCheckedStatus {
 
 /// A `ListItem` represents a list item in a document.
 ///
-/// List items can contain block-level content including paragraphs, nested lists,
-/// code blocks, and other block elements. Simple text content is wrapped in a Paragraph block.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+/// List items have principal text (inline content immediately after the marker) and
+/// optionally attached blocks (via continuation or nesting). This matches Asciidoctor's
+/// AST structure where principal text renders as bare `<p>` and attached blocks render
+/// with their full wrapper divs.
+#[derive(Clone, Debug, PartialEq)]
 pub struct ListItem {
     // TODO(nlopes): missing anchors
     pub level: ListLevel,
     pub marker: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checked: Option<ListItemCheckedStatus>,
-    #[serde(rename = "principal")]
-    pub content: Vec<Block>,
+    /// Principal text - inline content that appears immediately after the list marker
+    pub principal: Vec<InlineNode>,
+    /// Attached blocks - blocks attached via continuation (+) or nesting
+    pub blocks: Vec<Block>,
     pub location: Location,
 }
 
@@ -1081,8 +1084,10 @@ impl Serialize for Document {
         state.serialize_entry("type", "block")?;
         if let Some(header) = &self.header {
             state.serialize_entry("header", header)?;
-        }
-        if !self.attributes.is_empty() {
+            // We serialize the attributes even if they're empty because that's what the
+            // TCK expects (odd but true)
+            state.serialize_entry("attributes", &self.attributes)?;
+        } else if !self.attributes.is_empty() {
             state.serialize_entry("attributes", &self.attributes)?;
         }
         if !self.blocks.is_empty() {
@@ -1842,6 +1847,126 @@ impl<'de> Deserialize<'de> for Block {
             }
         }
 
+        deserializer.deserialize_map(MyStructVisitor)
+    }
+}
+
+impl Serialize for ListItem {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "listItem")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("marker", &self.marker)?;
+        if let Some(checked) = &self.checked {
+            state.serialize_entry("checked", checked)?;
+        }
+        // The TCK doesn't contain level information for list items, so we don't serialize
+        // it.
+        //
+        // Uncomment the line below if level information is added in the future.
+        //
+        // state.serialize_entry("level", &self.level)?;
+        state.serialize_entry("principal", &self.principal)?;
+        if !self.blocks.is_empty() {
+            state.serialize_entry("blocks", &self.blocks)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for ListItem {
+    fn deserialize<D>(deserializer: D) -> Result<ListItem, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct MyStructVisitor;
+
+        impl<'de> Visitor<'de> for MyStructVisitor {
+            type Value = ListItem;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a struct representing MyStruct")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<ListItem, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut my_principal = None;
+                let mut my_blocks = None;
+                let mut my_checked = None;
+                let mut my_location = None;
+                let mut my_marker = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "principal" => {
+                            if my_principal.is_some() {
+                                return Err(de::Error::duplicate_field("principal"));
+                            }
+                            my_principal = Some(map.next_value()?);
+                        }
+                        "blocks" => {
+                            if my_blocks.is_some() {
+                                return Err(de::Error::duplicate_field("blocks"));
+                            }
+                            my_blocks = Some(map.next_value()?);
+                        }
+                        "marker" => {
+                            if my_marker.is_some() {
+                                return Err(de::Error::duplicate_field("marker"));
+                            }
+                            my_marker = Some(map.next_value::<String>()?);
+                        }
+                        "location" => {
+                            if my_location.is_some() {
+                                return Err(de::Error::duplicate_field("location"));
+                            }
+                            my_location = Some(map.next_value()?);
+                        }
+                        "checked" => {
+                            if my_checked.is_some() {
+                                return Err(de::Error::duplicate_field("checked"));
+                            }
+                            my_checked = Some(map.next_value::<bool>()?);
+                        }
+                        _ => {
+                            tracing::debug!("ignoring unexpected field in ListItem: {key}");
+                            // Ignore any other fields
+                            let _ = map.next_value::<de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                let marker = my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
+                let principal =
+                    my_principal.ok_or_else(|| de::Error::missing_field("principal"))?;
+                let blocks = my_blocks.unwrap_or_default();
+                let level =
+                    ListLevel::try_from(ListItem::parse_depth_from_marker(&marker).unwrap_or(1))
+                        .map_err(|e| {
+                            de::Error::custom(format!("invalid list item level from marker: {e}",))
+                        })?;
+                let checked = my_checked.map(|c| {
+                    if c {
+                        ListItemCheckedStatus::Checked
+                    } else {
+                        ListItemCheckedStatus::Unchecked
+                    }
+                });
+                Ok(ListItem {
+                    level,
+                    marker,
+                    location: my_location.ok_or_else(|| de::Error::missing_field("location"))?,
+                    principal,
+                    blocks,
+                    checked,
+                })
+            }
+        }
         deserializer.deserialize_map(MyStructVisitor)
     }
 }
