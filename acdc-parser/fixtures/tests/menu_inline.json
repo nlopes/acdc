@@ -24,6 +24,10 @@
         {
           "name": "menu",
           "type": "inline",
+          "target": "File",
+          "items": [
+            "Save"
+          ],
           "location": [
             {
               "line": 1,

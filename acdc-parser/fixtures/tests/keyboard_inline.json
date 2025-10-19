@@ -24,6 +24,11 @@
         {
           "name": "keyboard",
           "type": "inline",
+          "keys": [
+            "Ctrl",
+            "Alt",
+            "Del"
+          ],
           "location": [
             {
               "line": 1,

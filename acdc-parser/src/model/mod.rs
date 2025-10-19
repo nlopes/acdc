@@ -89,6 +89,7 @@ pub type Role = String;
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct BlockMetadata {
+    #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes,
     #[serde(default, skip_serializing)]
     pub positional_attributes: Vec<String>,
@@ -189,11 +190,25 @@ pub enum Block {
 ///
 /// A document attribute is a key-value pair that can be used to set metadata in a
 /// document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DocumentAttribute {
     pub name: AttributeName,
     pub value: AttributeValue,
     pub location: Location,
+}
+
+impl Serialize for DocumentAttribute {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", &self.name)?;
+        state.serialize_entry("type", "attribute")?;
+        state.serialize_entry("value", &self.value)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
 }
 
 /// A `DiscreteHeader` represents a discrete header in a document.
@@ -210,65 +225,109 @@ pub struct DiscreteHeader {
 }
 
 /// A `ThematicBreak` represents a thematic break in a document.
-#[derive(Clone, Default, Debug, PartialEq, Serialize)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct ThematicBreak {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub location: Location,
 }
 
+impl Serialize for ThematicBreak {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "break")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "thematic")?;
+        if !self.anchors.is_empty() {
+            state.serialize_entry("anchors", &self.anchors)?;
+        }
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
 /// A `PageBreak` represents a page break in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PageBreak {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
 }
 
+impl Serialize for PageBreak {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "break")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "page")?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
 /// An `Audio` represents an audio block in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Audio {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub source: Source,
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
 }
 
 /// A `Video` represents a video block in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Video {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sources: Vec<Source>,
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
 }
 
 /// An `Image` represents an image block in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Image {
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     pub source: Source,
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
 }
 
 /// A `TableOfContents` represents a table of contents block.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TableOfContents {
-    #[serde(default, skip_serializing_if = "is_default_metadata")]
     pub metadata: BlockMetadata,
     pub location: Location,
+}
+
+impl Serialize for TableOfContents {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "toc")?;
+        state.serialize_entry("type", "block")?;
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
 }
 
 /// A `Source` represents the source of content (images, audio, video, etc.).
@@ -389,13 +448,18 @@ pub enum ListItemCheckedStatus {
 }
 
 /// A `ListItem` represents a list item in a document.
-#[derive(Clone, Debug, PartialEq)]
+///
+/// List items can contain block-level content including paragraphs, nested lists,
+/// code blocks, and other block elements. Simple text content is wrapped in a Paragraph block.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ListItem {
     // TODO(nlopes): missing anchors
     pub level: ListLevel,
     pub marker: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checked: Option<ListItemCheckedStatus>,
-    pub content: Vec<InlineNode>,
+    #[serde(rename = "principal")]
+    pub content: Vec<Block>,
     pub location: Location,
 }
 
@@ -611,6 +675,317 @@ impl Serialize for Admonition {
     }
 }
 
+impl Serialize for Audio {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "audio")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("form", "macro")?;
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        state.serialize_entry("source", &self.source)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for Image {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "image")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("form", "macro")?;
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        state.serialize_entry("source", &self.source)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for Video {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "video")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("form", "macro")?;
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !self.sources.is_empty() {
+            state.serialize_entry("sources", &self.sources)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Audio {
+    fn deserialize<D>(deserializer: D) -> Result<Audio, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Name,
+            Type,
+            Form,
+            Metadata,
+            Title,
+            Source,
+            Target, // Old format
+            Location,
+        }
+
+        struct AudioVisitor;
+
+        impl<'de> Visitor<'de> for AudioVisitor {
+            type Value = Audio;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Audio")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Audio, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut metadata = None;
+                let mut title = None;
+                let mut source = None;
+                let mut location = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Name | Field::Type | Field::Form => {
+                            // Ignore these fields
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                        Field::Metadata => {
+                            metadata = Some(map.next_value()?);
+                        }
+                        Field::Title => {
+                            title = Some(map.next_value()?);
+                        }
+                        Field::Source => {
+                            source = Some(map.next_value()?);
+                        }
+                        Field::Target => {
+                            // Old format: convert target string to Source::Path
+                            let target: String = map.next_value()?;
+                            source = Some(Source::Path(std::path::PathBuf::from(target)));
+                        }
+                        Field::Location => {
+                            location = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                Ok(Audio {
+                    title: title.unwrap_or_default(),
+                    source: source.ok_or_else(|| serde::de::Error::missing_field("source"))?,
+                    metadata: metadata.unwrap_or_default(),
+                    location: location
+                        .ok_or_else(|| serde::de::Error::missing_field("location"))?,
+                })
+            }
+        }
+
+        deserializer.deserialize_struct(
+            "Audio",
+            &[
+                "name", "type", "form", "metadata", "title", "source", "target", "location",
+            ],
+            AudioVisitor,
+        )
+    }
+}
+
+impl<'de> Deserialize<'de> for Image {
+    fn deserialize<D>(deserializer: D) -> Result<Image, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Name,
+            Type,
+            Form,
+            Metadata,
+            Title,
+            Source,
+            Target, // Old format
+            Location,
+        }
+
+        struct ImageVisitor;
+
+        impl<'de> Visitor<'de> for ImageVisitor {
+            type Value = Image;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Image")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Image, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut metadata = None;
+                let mut title = None;
+                let mut source = None;
+                let mut location = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Name | Field::Type | Field::Form => {
+                            // Ignore these fields
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                        Field::Metadata => {
+                            metadata = Some(map.next_value()?);
+                        }
+                        Field::Title => {
+                            title = Some(map.next_value()?);
+                        }
+                        Field::Source => {
+                            source = Some(map.next_value()?);
+                        }
+                        Field::Target => {
+                            // Old format: convert target string to Source::Path
+                            let target: String = map.next_value()?;
+                            source = Some(Source::Path(std::path::PathBuf::from(target)));
+                        }
+                        Field::Location => {
+                            location = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                Ok(Image {
+                    title: title.unwrap_or_default(),
+                    source: source.ok_or_else(|| serde::de::Error::missing_field("source"))?,
+                    metadata: metadata.unwrap_or_default(),
+                    location: location
+                        .ok_or_else(|| serde::de::Error::missing_field("location"))?,
+                })
+            }
+        }
+
+        deserializer.deserialize_struct(
+            "Image",
+            &[
+                "name", "type", "form", "metadata", "title", "source", "target", "location",
+            ],
+            ImageVisitor,
+        )
+    }
+}
+
+impl<'de> Deserialize<'de> for Video {
+    fn deserialize<D>(deserializer: D) -> Result<Video, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Name,
+            Type,
+            Form,
+            Metadata,
+            Title,
+            Sources,
+            Target, // Old format
+            Location,
+        }
+
+        struct VideoVisitor;
+
+        impl<'de> Visitor<'de> for VideoVisitor {
+            type Value = Video;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Video")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<Video, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut metadata = None;
+                let mut title = None;
+                let mut sources = None;
+                let mut location = None;
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::Name | Field::Type | Field::Form => {
+                            // Ignore these fields
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                        Field::Metadata => {
+                            metadata = Some(map.next_value()?);
+                        }
+                        Field::Title => {
+                            title = Some(map.next_value()?);
+                        }
+                        Field::Sources => {
+                            sources = Some(map.next_value()?);
+                        }
+                        Field::Target => {
+                            // Old format: convert target string to Source::Path
+                            let target: String = map.next_value()?;
+                            sources = Some(vec![Source::Path(std::path::PathBuf::from(target))]);
+                        }
+                        Field::Location => {
+                            location = Some(map.next_value()?);
+                        }
+                    }
+                }
+
+                Ok(Video {
+                    title: title.unwrap_or_default(),
+                    sources: sources.unwrap_or_default(),
+                    metadata: metadata.unwrap_or_default(),
+                    location: location
+                        .ok_or_else(|| serde::de::Error::missing_field("location"))?,
+                })
+            }
+        }
+
+        deserializer.deserialize_struct(
+            "Video",
+            &[
+                "name", "type", "form", "metadata", "title", "sources", "target", "location",
+            ],
+            VideoVisitor,
+        )
+    }
+}
+
 impl Serialize for Source {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -706,8 +1081,8 @@ impl Serialize for Document {
         state.serialize_entry("type", "block")?;
         if let Some(header) = &self.header {
             state.serialize_entry("header", header)?;
-            state.serialize_entry("attributes", &self.attributes)?;
-        } else if !self.attributes.is_empty() {
+        }
+        if !self.attributes.is_empty() {
             state.serialize_entry("attributes", &self.attributes)?;
         }
         if !self.blocks.is_empty() {
@@ -840,21 +1215,6 @@ impl Serialize for DescriptionList {
     }
 }
 
-impl Serialize for ListItem {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_map(None)?;
-        state.serialize_entry("name", "listItem")?;
-        state.serialize_entry("type", "block")?;
-        state.serialize_entry("marker", &self.marker)?;
-        state.serialize_entry("principal", &self.content)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
 impl Serialize for DiscreteHeader {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -862,6 +1222,7 @@ impl Serialize for DiscreteHeader {
     {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "heading")?;
+        state.serialize_entry("type", "block")?;
         if !self.title.is_empty() {
             state.serialize_entry("title", &self.title)?;
         }
@@ -924,6 +1285,7 @@ impl<'de> Deserialize<'de> for Block {
                 let mut my_ref_text = None;
                 let mut my_form = None;
                 let mut my_target = None;
+                let mut my_source = None;
                 let mut my_sources = None;
                 let mut my_variant = None;
                 let mut my_anchors = None;
@@ -966,11 +1328,17 @@ impl<'de> Deserialize<'de> for Block {
                             }
                             my_target = Some(map.next_value::<String>()?);
                         }
+                        "source" => {
+                            if my_source.is_some() {
+                                return Err(de::Error::duplicate_field("source"));
+                            }
+                            my_source = Some(map.next_value::<Source>()?);
+                        }
                         "sources" => {
                             if my_sources.is_some() {
                                 return Err(de::Error::duplicate_field("sources"));
                             }
-                            my_sources = Some(map.next_value::<serde_json::Value>()?);
+                            my_sources = Some(map.next_value::<Vec<Source>>()?);
                         }
                         "delimiter" => {
                             if my_delimiter.is_some() {
@@ -1105,8 +1473,7 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "macro" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
-                        let target = my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let source = Source::from_str(&target).map_err(de::Error::custom)?;
+                        let source = my_source.ok_or_else(|| de::Error::missing_field("source"))?;
                         Ok(Block::Image(Image {
                             title: my_title,
                             source,
@@ -1119,8 +1486,7 @@ impl<'de> Deserialize<'de> for Block {
                         if my_form != "macro" {
                             return Err(de::Error::custom(format!("unexpected form: {my_form}")));
                         }
-                        let target = my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let source = Source::from_str(&target).map_err(de::Error::custom)?;
+                        let source = my_source.ok_or_else(|| de::Error::missing_field("source"))?;
                         Ok(Block::Audio(Audio {
                             title: my_title,
                             source,
@@ -1131,41 +1497,7 @@ impl<'de> Deserialize<'de> for Block {
                     ("video", "block") => {
                         // Handle both simplified format with "target" and full format with "sources"
                         let sources = if let Some(sources_value) = my_sources {
-                            match sources_value {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| {
-                                        let obj = v.as_object().ok_or_else(|| {
-                                            de::Error::custom("source must be an object")
-                                        })?;
-                                        let source_type = obj
-                                            .get("type")
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("path");
-                                        let value = obj
-                                            .get("value")
-                                            .and_then(|v| v.as_str())
-                                            .ok_or_else(|| {
-                                                de::Error::custom("source value must be a string")
-                                            })?;
-                                        match source_type {
-                                            "path" => {
-                                                Ok(Source::Path(std::path::PathBuf::from(value)))
-                                            }
-                                            "url" => url::Url::parse(value)
-                                                .map(Source::Url)
-                                                .map_err(|e| {
-                                                    de::Error::custom(format!("invalid URL: {e}"))
-                                                }),
-                                            "name" => Ok(Source::Name(value.to_string())),
-                                            _ => Err(de::Error::custom(format!(
-                                                "unexpected source type: {source_type}"
-                                            ))),
-                                        }
-                                    })
-                                    .collect::<Result<Vec<Source>, _>>()?,
-                                _ => return Err(de::Error::custom("sources must be an array")),
-                            }
+                            sources_value
                         } else {
                             // Fallback to simplified format with target
                             let my_form =
@@ -1514,112 +1846,44 @@ impl<'de> Deserialize<'de> for Block {
     }
 }
 
-impl<'de> Deserialize<'de> for ListItem {
-    #[allow(clippy::too_many_lines)]
-    fn deserialize<D>(deserializer: D) -> Result<ListItem, D::Error>
+impl Serialize for ListItemCheckedStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        D: Deserializer<'de>,
+        S: Serializer,
     {
-        struct ListItemVisitor;
+        match &self {
+            ListItemCheckedStatus::Checked => serializer.serialize_bool(true),
+            ListItemCheckedStatus::Unchecked => serializer.serialize_bool(false),
+        }
+    }
+}
 
-        impl<'de> Visitor<'de> for ListItemVisitor {
-            type Value = ListItem;
+impl<'de> Deserialize<'de> for ListItemCheckedStatus {
+    fn deserialize<D>(deserializer: D) -> Result<ListItemCheckedStatus, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ListItemCheckedStatusVisitor;
+
+        impl Visitor<'_> for ListItemCheckedStatusVisitor {
+            type Value = ListItemCheckedStatus;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing ListItem")
+                formatter.write_str("a boolean representing checked status")
             }
 
-            fn visit_map<V>(self, mut map: V) -> Result<ListItem, V::Error>
+            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
             where
-                V: MapAccess<'de>,
+                E: de::Error,
             {
-                let mut my_name = None;
-                let mut my_type = None;
-                let mut my_marker = None;
-                let mut my_principal: Option<Vec<InlineNode>> = None;
-                let mut my_location = None;
-                let mut my_checked = None;
-
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "type" => {
-                            if my_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            my_type = Some(map.next_value::<String>()?);
-                        }
-                        "principal" => {
-                            if my_principal.is_some() {
-                                return Err(de::Error::duplicate_field("principal"));
-                            }
-                            my_principal = Some(map.next_value()?);
-                        }
-                        "checked" => {
-                            if my_checked.is_some() {
-                                return Err(de::Error::duplicate_field("marker"));
-                            }
-                            my_checked = Some(map.next_value::<Option<bool>>()?);
-                        }
-                        "marker" => {
-                            if my_marker.is_some() {
-                                return Err(de::Error::duplicate_field("marker"));
-                            }
-                            my_marker = Some(map.next_value::<String>()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
+                if v {
+                    Ok(ListItemCheckedStatus::Checked)
+                } else {
+                    Ok(ListItemCheckedStatus::Unchecked)
                 }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_marker = my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-                let my_principal =
-                    my_principal.ok_or_else(|| de::Error::missing_field("principal"))?;
-
-                if my_name != "listItem" {
-                    return Err(de::Error::custom(format!("unexpected name: {my_name}")));
-                }
-                if my_type != "block" {
-                    return Err(de::Error::custom(format!("unexpected type: {my_type}")));
-                }
-
-                // Calculate the level of depth of the list item from the marker
-                let level =
-                    ListLevel::try_from(ListItem::parse_depth_from_marker(&my_marker).unwrap_or(1))
-                        .map_err(de::Error::custom)?;
-                let my_checked = my_checked.unwrap_or(Some(false)).map(|c| {
-                    if c {
-                        ListItemCheckedStatus::Checked
-                    } else {
-                        ListItemCheckedStatus::Unchecked
-                    }
-                });
-                Ok(ListItem {
-                    marker: my_marker,
-                    content: my_principal,
-                    location: my_location,
-                    checked: my_checked,
-                    level,
-                })
             }
         }
-        deserializer.deserialize_map(ListItemVisitor)
+
+        deserializer.deserialize_bool(ListItemCheckedStatusVisitor)
     }
 }

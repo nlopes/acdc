@@ -1,9 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
-  },
   "header": {
     "title": [
       {
@@ -25,7 +22,6 @@
     "authors": [
       {
         "firstname": "Kismet",
-        "middlename": null,
         "lastname": "Lee",
         "initials": "KL",
         "address": "kismet@asciidoctor.org"
@@ -41,6 +37,9 @@
         "col": 166
       }
     ]
+  },
+  "attributes": {
+    "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
   },
   "blocks": [
     {

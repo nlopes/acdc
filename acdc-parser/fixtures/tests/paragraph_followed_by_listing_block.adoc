@@ -1,0 +1,6 @@
+**Warning:**
+[source]
+----
+warning: field `inlines_substitutions` is never read
+  --> converters/html/src/document.rs:214
+----

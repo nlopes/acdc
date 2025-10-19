@@ -13,8 +13,8 @@
             "col": 3
           },
           {
-            "line":1,
-            "col":26
+            "line": 1,
+            "col": 26
           }
         ]
       }
@@ -34,7 +34,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -52,10 +51,12 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
           "sources": [
             {
               "type": "path",
@@ -88,40 +89,41 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Local video with dimensions",
-            "location": [
-              {
-                "line": 7,
-                "col": 4
-              },
-              {
-                "line": 7,
-                "col": 30
-              }
-            ]
-          }
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with dimensions",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 30
+            }
+          ]
+        }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "height": "480",
+              "width": "640"
+            }
+          },
           "sources": [
             {
               "type": "path",
               "value": "demo.mp4"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "width": "640",
-              "height": "480"
-            }
-          },
           "location": [
             {
               "line": 9,
@@ -148,40 +150,41 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Local video with time range",
-            "location": [
-              {
-                "line": 11,
-                "col": 4
-              },
-              {
-                "line": 11,
-                "col": 30
-              }
-            ]
-          }
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with time range",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 30
+            }
+          ]
+        }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "end": "90",
+              "start": "10"
+            }
+          },
           "sources": [
             {
               "type": "path",
               "value": "demo.mp4"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "start": "10",
-              "end": "90"
-            }
-          },
           "location": [
             {
               "line": 13,
@@ -208,39 +211,40 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Local video with poster",
-            "location": [
-              {
-                "line": 15,
-                "col": 4
-              },
-              {
-                "line": 15,
-                "col": 26
-              }
-            ]
-          }
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local video with poster",
+          "location": [
+            {
+              "line": 15,
+              "col": 4
+            },
+            {
+              "line": 15,
+              "col": 26
+            }
+          ]
+        }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "poster": "thumbnail.jpg"
+            }
+          },
           "sources": [
             {
               "type": "path",
               "value": "demo.mp4"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "poster": "thumbnail.jpg"
-            }
-          },
           "location": [
             {
               "line": 17,
@@ -267,7 +271,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -285,21 +288,23 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "preload": "auto"
+            }
+          },
           "sources": [
             {
               "type": "path",
               "value": "test.mp4"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "preload": "auto"
-            }
-          },
           "location": [
             {
               "line": 21,
@@ -326,7 +331,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -344,21 +348,23 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "lang": "en-US"
+            }
+          },
           "sources": [
             {
               "type": "path",
               "value": "demo.mp4"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "lang": "en-US"
-            }
-          },
           "location": [
             {
               "line": 25,
@@ -385,7 +391,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -403,10 +408,18 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "height": "480",
+              "width": "640"
+            }
+          },
           "title": [
             {
               "name": "text",
@@ -430,13 +443,6 @@
               "value": "demo.mp4"
             }
           ],
-          "metadata": {
-            "title": "A demo video",
-            "attributes": {
-              "width": "640",
-              "height": "480"
-            }
-          },
           "location": [
             {
               "line": 29,
@@ -463,7 +469,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -481,16 +486,12 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
-          "sources": [
-            {
-              "type": "path",
-              "value": "id-test.mp4"
-            }
-          ],
+          "form": "macro",
           "metadata": {
             "anchors": [
               {
@@ -508,6 +509,12 @@
               }
             ]
           },
+          "sources": [
+            {
+              "type": "path",
+              "value": "id-test.mp4"
+            }
+          ],
           "location": [
             {
               "line": 34,
@@ -515,7 +522,7 @@
             },
             {
               "line": 35,
-              "col":  20
+              "col": 20
             }
           ]
         }
@@ -534,7 +541,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -547,15 +553,33 @@
             },
             {
               "line": 37,
-              "col":  46
+              "col": 46
             }
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "end": "90",
+              "height": "480",
+              "lang": "fr",
+              "poster": "thumbnail.jpg",
+              "start": "10",
+              "width": "640"
+            },
+            "options": [
+              "autoplay",
+              "loop",
+              "muted",
+              "nocontrols"
+            ]
+          },
           "title": [
             {
               "name": "text",
@@ -579,23 +603,6 @@
               "value": "demo.mp4"
             }
           ],
-          "metadata": {
-            "title": "Full featured video",
-            "attributes": {
-              "width": "640",
-              "height": "480",
-              "start": "10",
-              "end": "90",
-              "poster": "thumbnail.jpg",
-              "lang": "fr"
-            },
-            "options": [
-              "autoplay",
-              "loop",
-              "muted",
-              "nocontrols"
-            ]
-          },
           "location": [
             {
               "line": 39,
@@ -622,7 +629,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -640,21 +646,23 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "youtube": true
+            }
+          },
           "sources": [
             {
               "type": "name",
               "value": "rPQoq7ThGAU"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "youtube": true
-            }
-          },
           "location": [
             {
               "line": 44,
@@ -681,7 +689,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -694,28 +701,30 @@
             },
             {
               "line": 46,
-              "col":  32
+              "col": 32
             }
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "height": "480",
+              "width": "640",
+              "youtube": true
+            }
+          },
           "sources": [
             {
               "type": "name",
               "value": "rPQoq7ThGAU"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "youtube": true,
-              "width": "640",
-              "height": "480"
-            }
-          },
           "location": [
             {
               "line": 48,
@@ -742,7 +751,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -755,29 +763,31 @@
             },
             {
               "line": 50,
-              "col":  36
+              "col": 36
             }
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "end": "120",
+              "start": "60",
+              "theme": "light",
+              "youtube": true
+            }
+          },
           "sources": [
             {
               "type": "name",
               "value": "rPQoq7ThGAU"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "youtube": true,
-              "start": "60",
-              "end": "120",
-              "theme": "light"
-            }
-          },
           "location": [
             {
               "line": 52,
@@ -804,7 +814,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -817,21 +826,17 @@
             },
             {
               "line": 54,
-              "col":  29
+              "col": 29
             }
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
-          "sources": [
-            {
-              "type": "name",
-              "value": "rPQoq7ThGAU"
-            }
-          ],
+          "form": "macro",
           "metadata": {
             "attributes": {
               "youtube": true
@@ -842,6 +847,12 @@
               "muted"
             ]
           },
+          "sources": [
+            {
+              "type": "name",
+              "value": "rPQoq7ThGAU"
+            }
+          ],
           "location": [
             {
               "line": 56,
@@ -868,7 +879,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -886,21 +896,23 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "vimeo": true
+            }
+          },
           "sources": [
             {
               "type": "name",
               "value": "67480300"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "vimeo": true
-            }
-          },
           "location": [
             {
               "line": 60,
@@ -927,7 +939,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -940,28 +951,30 @@
             },
             {
               "line": 62,
-              "col":  30
+              "col": 30
             }
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "height": "480",
+              "vimeo": true,
+              "width": "640"
+            }
+          },
           "sources": [
             {
               "type": "name",
               "value": "67480300"
             }
           ],
-          "metadata": {
-            "attributes": {
-              "vimeo": true,
-              "width": "640",
-              "height": "480"
-            }
-          },
           "location": [
             {
               "line": 64,
@@ -988,7 +1001,6 @@
     {
       "name": "section",
       "type": "block",
-      "level": 1,
       "title": [
         {
           "name": "text",
@@ -1006,16 +1018,12 @@
           ]
         }
       ],
+      "level": 1,
       "blocks": [
         {
           "name": "video",
           "type": "block",
-          "sources": [
-            {
-              "type": "name",
-              "value": "67480300"
-            }
-          ],
+          "form": "macro",
           "metadata": {
             "attributes": {
               "vimeo": true
@@ -1026,6 +1034,12 @@
               "muted"
             ]
           },
+          "sources": [
+            {
+              "type": "name",
+              "value": "67480300"
+            }
+          ],
           "location": [
             {
               "line": 68,

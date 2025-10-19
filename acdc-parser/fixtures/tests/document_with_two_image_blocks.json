@@ -6,13 +6,16 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "target": "sunset.jpg",
       "metadata": {
         "attributes": {
           "alt": "Sunset",
           "height": "400",
           "width": "300"
         }
+      },
+      "source": {
+        "type": "path",
+        "value": "sunset.jpg"
       },
       "location": [
         {
@@ -29,13 +32,16 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "target": "mountain.png",
       "metadata": {
         "attributes": {
           "alt": "Mountain",
           "height": "600",
           "width": "500"
         }
+      },
+      "source": {
+        "type": "path",
+        "value": "mountain.png"
       },
       "location": [
         {

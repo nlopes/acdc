@@ -1,14 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "description": "The document's description.",
-    "sectanchors": true,
-    "url-repo": "https://my-git-repo.com",
-    "revnumber": "v2.9",
-    "revdate": "01-09-2024",
-    "revremark": "Fall incarnation"
-  },
   "header": {
     "title": [
       {
@@ -53,6 +45,14 @@
         "col": 34
       }
     ]
+  },
+  "attributes": {
+    "description": "The document's description.",
+    "revdate": "01-09-2024",
+    "revnumber": "v2.9",
+    "revremark": "Fall incarnation",
+    "sectanchors": true,
+    "url-repo": "https://my-git-repo.com"
   },
   "blocks": [
     {

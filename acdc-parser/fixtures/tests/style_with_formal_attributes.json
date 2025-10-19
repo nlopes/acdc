@@ -22,15 +22,6 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "title": "\"Hello,world\""
-        },
-        "options": [
-          "nolines"
-        ],
-        "style": "source"
-      },
       "inlines": [
         {
           "name": "text",
@@ -48,6 +39,15 @@
           ]
         }
       ],
+      "metadata": {
+        "attributes": {
+          "title": "\"Hello,world\""
+        },
+        "options": [
+          "nolines"
+        ],
+        "style": "source"
+      },
       "location": [
         {
           "line": 1,

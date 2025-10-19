@@ -5,6 +5,12 @@
     {
       "name": "video",
       "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "youtube": true
+        }
+      },
       "sources": [
         {
           "type": "name",
@@ -19,11 +25,6 @@
           "value": "Video3ID"
         }
       ],
-      "metadata": {
-        "attributes": {
-          "youtube": true
-        }
-      },
       "location": [
         {
           "line": 1,

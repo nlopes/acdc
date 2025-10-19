@@ -9,10 +9,7 @@
         {
           "name": "xref",
           "type": "inline",
-          "target": {
-            "type": "name",
-            "value": "conclusion"
-          },
+          "target": "conclusion",
           "text": "click here",
           "location": [
             {

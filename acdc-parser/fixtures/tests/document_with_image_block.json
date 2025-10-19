@@ -6,7 +6,13 @@
       "name": "image",
       "type": "block",
       "form": "macro",
-      "target": "sunset.jpg",
+      "metadata": {
+        "attributes": {
+          "alt": "Sunset",
+          "height": "400",
+          "width": "300"
+        }
+      },
       "title": [
         {
           "name": "text",
@@ -72,12 +78,9 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "alt": "Sunset",
-          "height": "400",
-          "width": "300"
-        }
+      "source": {
+        "type": "path",
+        "value": "sunset.jpg"
       },
       "location": [
         {

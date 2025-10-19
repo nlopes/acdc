@@ -24,6 +24,7 @@
         {
           "name": "button",
           "type": "inline",
+          "label": "Click Me",
           "location": [
             {
               "line": 1,

@@ -27,7 +27,7 @@
           "variant": "link",
           "target": {
             "type": "url",
-            "value": "https://www.rust-lang.org"
+            "value": "https://www.rust-lang.org/"
           },
           "location": [
             {

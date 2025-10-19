@@ -5,15 +5,6 @@
     {
       "name": "paragraph",
       "type": "block",
-      "metadata": {
-        "roles": [
-          "formal"
-        ],
-        "options": [
-          "step",
-          "trick"
-        ]
-      },
       "inlines": [
         {
           "name": "text",
@@ -31,6 +22,15 @@
           ]
         }
       ],
+      "metadata": {
+        "roles": [
+          "formal"
+        ],
+        "options": [
+          "step",
+          "trick"
+        ]
+      },
       "location": [
         {
           "line": 1,

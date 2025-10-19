@@ -27,9 +27,8 @@
           "variant": "link",
           "target": {
             "type": "url",
-            "value": "https://example.com"
+            "value": "https://example.com/"
           },
-          "text": "example.com",
           "location": [
             {
               "line": 1,
@@ -131,7 +130,7 @@
           "variant": "link",
           "target": {
             "type": "url",
-            "value": "https://docs.anthropic.com"
+            "value": "https://docs.anthropic.com/"
           },
           "location": [
             {
@@ -197,7 +196,7 @@
           "variant": "link",
           "target": {
             "type": "url",
-            "value": "https://rust-lang.org"
+            "value": "https://rust-lang.org/"
           },
           "location": [
             {
