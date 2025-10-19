@@ -30,6 +30,7 @@
       }
     ]
   },
+  "attributes": {},
   "blocks": [
     {
       "name": "dlist",
@@ -79,29 +80,14 @@
               "marker": "-",
               "items": [
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": "-",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "List item 1",
-                          "location": [
-                            {
-                              "line": 5,
-                              "col": 3
-                            },
-                            {
-                              "line": 5,
-                              "col": 13
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "List item 1",
                       "location": [
                         {
                           "line": 5,
@@ -144,29 +130,14 @@
               "marker": "-",
               "items": [
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": "-",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "List item 2",
-                          "location": [
-                            {
-                              "line": 6,
-                              "col": 3
-                            },
-                            {
-                              "line": 6,
-                              "col": 13
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "List item 2",
                       "location": [
                         {
                           "line": 6,
@@ -258,29 +229,14 @@
               "marker": ".",
               "items": [
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": ".",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Ordered item 1",
-                          "location": [
-                            {
-                              "line": 10,
-                              "col": 3
-                            },
-                            {
-                              "line": 10,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Ordered item 1",
                       "location": [
                         {
                           "line": 10,
@@ -305,29 +261,14 @@
                   ]
                 },
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": ".",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Ordered item 2",
-                          "location": [
-                            {
-                              "line": 11,
-                              "col": 3
-                            },
-                            {
-                              "line": 11,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Ordered item 2",
                       "location": [
                         {
                           "line": 11,

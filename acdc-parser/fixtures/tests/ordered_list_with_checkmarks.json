@@ -31,30 +31,15 @@
           "marker": ".",
           "items": [
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": ".",
               "checked": false,
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 1",
-                      "location": [
-                        {
-                          "line": 3,
-                          "col": 7
-                        },
-                        {
-                          "line": 3,
-                          "col": 12
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1",
                   "location": [
                     {
                       "line": 3,
@@ -79,29 +64,14 @@
               ]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": ".",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 2",
-                      "location": [
-                        {
-                          "line": 4,
-                          "col": 3
-                        },
-                        {
-                          "line": 4,
-                          "col": 8
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2",
                   "location": [
                     {
                       "line": 4,
@@ -126,30 +96,15 @@
               ]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": ".",
               "checked": true,
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 3",
-                      "location": [
-                        {
-                          "line": 5,
-                          "col": 7
-                        },
-                        {
-                          "line": 5,
-                          "col": 12
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 3",
                   "location": [
                     {
                       "line": 5,

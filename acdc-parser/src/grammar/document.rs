@@ -1240,8 +1240,8 @@ peg::parser! {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
 
-            // Combine first_line with continuation_lines to form the complete paragraph text
-            let paragraph_text = if continuation_lines.is_empty() {
+            // Combine first_line with continuation_lines to form the complete principal text
+            let principal_text = if continuation_lines.is_empty() {
                 first_line.to_string()
             } else {
                 let mut text = first_line.to_string();
@@ -1252,10 +1252,8 @@ peg::parser! {
                 text
             };
 
-            // Calculate the actual end position for the list item content
-            // first_line_end points to the newline after the text, so we need to go back by 1
-            // if there's actual content
-            let content_end = if paragraph_text.is_empty() {
+            // Calculate the actual end position for the principal text
+            let content_end = if principal_text.is_empty() {
                 first_line_end
             } else {
                 first_line_end.saturating_sub(1)
@@ -1263,25 +1261,21 @@ peg::parser! {
 
             // The end position for the list item should be at the last character of content
             // before any trailing newlines
-            let item_end = if paragraph_text.is_empty() {
+            let item_end = if principal_text.is_empty() {
                 start
             } else {
                 first_line_end.saturating_sub(1)
             };
 
-            let mut blocks = Vec::new();
+            // Process principal text as inline nodes
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
 
-            // Add paragraph with all lines
-            if !paragraph_text.trim().is_empty() {
-                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &paragraph_text)?;
-                let paragraph = Block::Paragraph(Paragraph {
-                    metadata: BlockMetadata::default(),
-                    title: vec![],
-                    content: inlines,
-                    location: state.create_location(first_line_start.offset+offset, content_end+offset),
-                });
-                blocks.push(paragraph);
-            }
+            let mut blocks = Vec::new();
 
             // Add nested list if found
             if let Some(Some(Some(Ok(nested_list)))) = nested {
@@ -1293,18 +1287,9 @@ peg::parser! {
                 blocks.extend(continuation_blocks);
             }
 
-            // If no blocks were added, create an empty paragraph
-            if blocks.is_empty() {
-                blocks.push(Block::Paragraph(Paragraph {
-                    metadata: BlockMetadata::default(),
-                    title: vec![],
-                    content: vec![],
-                    location: state.create_location(start+offset, item_end+offset),
-                }));
-            }
-
             Ok((ListItem {
-                content: blocks,
+                principal,
+                blocks,
                 level,
                 marker: marker.to_string(),
                 checked,
@@ -1339,8 +1324,8 @@ peg::parser! {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
 
-            // Combine first_line with continuation_lines to form the complete paragraph text
-            let paragraph_text = if continuation_lines.is_empty() {
+            // Combine first_line with continuation_lines to form the complete principal text
+            let principal_text = if continuation_lines.is_empty() {
                 first_line.to_string()
             } else {
                 let mut text = first_line.to_string();
@@ -1351,10 +1336,8 @@ peg::parser! {
                 text
             };
 
-            // Calculate the actual end position for the list item content
-            // first_line_end points to the newline after the text, so we need to go back by 1
-            // if there's actual content
-            let content_end = if paragraph_text.is_empty() {
+            // Calculate the actual end position for the principal text
+            let content_end = if principal_text.is_empty() {
                 first_line_end
             } else {
                 first_line_end.saturating_sub(1)
@@ -1362,25 +1345,21 @@ peg::parser! {
 
             // The end position for the list item should be at the last character of content
             // before any trailing newlines
-            let item_end = if paragraph_text.is_empty() {
+            let item_end = if principal_text.is_empty() {
                 start
             } else {
                 first_line_end.saturating_sub(1)
             };
 
-            let mut blocks = Vec::new();
+            // Process principal text as inline nodes
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
 
-            // Add paragraph with all lines
-            if !paragraph_text.trim().is_empty() {
-                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &paragraph_text)?;
-                let paragraph = Block::Paragraph(Paragraph {
-                    metadata: BlockMetadata::default(),
-                    title: vec![],
-                    content: inlines,
-                    location: state.create_location(first_line_start.offset+offset, content_end+offset),
-                });
-                blocks.push(paragraph);
-            }
+            let mut blocks = Vec::new();
 
             // Add nested list if found
             if let Some(Some(Some(Ok(nested_list)))) = nested {
@@ -1392,18 +1371,9 @@ peg::parser! {
                 blocks.extend(continuation_blocks);
             }
 
-            // If no blocks were added, create an empty paragraph
-            if blocks.is_empty() {
-                blocks.push(Block::Paragraph(Paragraph {
-                    metadata: BlockMetadata::default(),
-                    title: vec![],
-                    content: vec![],
-                    location: state.create_location(start+offset, item_end+offset),
-                }));
-            }
-
             Ok((ListItem {
-                content: blocks,
+                principal,
+                blocks,
                 level,
                 marker: marker.to_string(),
                 checked,

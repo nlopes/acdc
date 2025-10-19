@@ -66,8 +66,14 @@ fn render_nested_list_items<W: Write>(
             // Render item at current level
             writeln!(w, "<li>")?;
             render_checked_status(item.checked.as_ref(), w)?;
-            // Render each block in the list item content
-            for block in &item.content {
+            // Render principal text as bare <p> (if not empty)
+            if !item.principal.is_empty() {
+                writeln!(w, "<p>")?;
+                crate::inlines::render_inlines(&item.principal, w, processor, options)?;
+                writeln!(w, "</p>")?;
+            }
+            // Render attached blocks with their full wrapper divs
+            for block in &item.blocks {
                 block.render(w, processor, options)?;
             }
 
@@ -158,8 +164,14 @@ impl Render for ListItem {
     ) -> Result<(), Self::Error> {
         writeln!(w, "<li>")?;
         render_checked_status(self.checked.as_ref(), w)?;
-        // Render each block in the list item content
-        for block in &self.content {
+        // Render principal text as bare <p> (if not empty)
+        if !self.principal.is_empty() {
+            writeln!(w, "<p>")?;
+            crate::inlines::render_inlines(&self.principal, w, processor, options)?;
+            writeln!(w, "</p>")?;
+        }
+        // Render attached blocks with their full wrapper divs
+        for block in &self.blocks {
             block.render(w, processor, options)?;
         }
         writeln!(w, "</li>")?;

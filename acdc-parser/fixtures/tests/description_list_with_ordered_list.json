@@ -30,6 +30,7 @@
       }
     ]
   },
+  "attributes": {},
   "blocks": [
     {
       "name": "dlist",
@@ -79,29 +80,14 @@
               "marker": ".",
               "items": [
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": ".",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "ordered item 1",
-                          "location": [
-                            {
-                              "line": 5,
-                              "col": 3
-                            },
-                            {
-                              "line": 5,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "ordered item 1",
                       "location": [
                         {
                           "line": 5,
@@ -126,29 +112,14 @@
                   ]
                 },
                 {
-                  "level": 1,
+                  "name": "listItem",
+                  "type": "block",
                   "marker": ".",
                   "principal": [
                     {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "ordered item 2",
-                          "location": [
-                            {
-                              "line": 6,
-                              "col": 3
-                            },
-                            {
-                              "line": 6,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "ordered item 2",
                       "location": [
                         {
                           "line": 6,

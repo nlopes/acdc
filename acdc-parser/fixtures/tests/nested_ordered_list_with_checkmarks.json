@@ -48,29 +48,14 @@
           ],
           "items": [
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": "*",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "West wood maze",
-                      "location": [
-                        {
-                          "line": 4,
-                          "col": 3
-                        },
-                        {
-                          "line": 4,
-                          "col": 16
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "West wood maze",
                   "location": [
                     {
                       "line": 4,
@@ -95,29 +80,14 @@
               ]
             },
             {
-              "level": 2,
+              "name": "listItem",
+              "type": "block",
               "marker": "**",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Maze heart",
-                      "location": [
-                        {
-                          "line": 5,
-                          "col": 4
-                        },
-                        {
-                          "line": 5,
-                          "col": 13
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Maze heart",
                   "location": [
                     {
                       "line": 5,
@@ -142,29 +112,14 @@
               ]
             },
             {
-              "level": 3,
+              "name": "listItem",
+              "type": "block",
               "marker": "***",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Reflection pool",
-                      "location": [
-                        {
-                          "line": 6,
-                          "col": 5
-                        },
-                        {
-                          "line": 6,
-                          "col": 19
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Reflection pool",
                   "location": [
                     {
                       "line": 6,
@@ -189,29 +144,14 @@
               ]
             },
             {
-              "level": 2,
+              "name": "listItem",
+              "type": "block",
               "marker": "**",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Secret exit",
-                      "location": [
-                        {
-                          "line": 7,
-                          "col": 4
-                        },
-                        {
-                          "line": 7,
-                          "col": 14
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Secret exit",
                   "location": [
                     {
                       "line": 7,
@@ -236,29 +176,14 @@
               ]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": "*",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Untracked file in git repository",
-                      "location": [
-                        {
-                          "line": 8,
-                          "col": 3
-                        },
-                        {
-                          "line": 8,
-                          "col": 34
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Untracked file in git repository",
                   "location": [
                     {
                       "line": 8,
@@ -301,30 +226,15 @@
           "marker": ".",
           "items": [
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": ".",
               "checked": false,
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 1",
-                      "location": [
-                        {
-                          "line": 11,
-                          "col": 7
-                        },
-                        {
-                          "line": 11,
-                          "col": 12
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1",
                   "location": [
                     {
                       "line": 11,
@@ -349,29 +259,14 @@
               ]
             },
             {
-              "level": 2,
+              "name": "listItem",
+              "type": "block",
               "marker": "..",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 1.1",
-                      "location": [
-                        {
-                          "line": 12,
-                          "col": 4
-                        },
-                        {
-                          "line": 12,
-                          "col": 11
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1.1",
                   "location": [
                     {
                       "line": 12,
@@ -396,30 +291,15 @@
               ]
             },
             {
-              "level": 3,
+              "name": "listItem",
+              "type": "block",
               "marker": "...",
               "checked": true,
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 1.1.1",
-                      "location": [
-                        {
-                          "line": 13,
-                          "col": 9
-                        },
-                        {
-                          "line": 13,
-                          "col": 18
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 1.1.1",
                   "location": [
                     {
                       "line": 13,
@@ -444,29 +324,14 @@
               ]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": ".",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 2",
-                      "location": [
-                        {
-                          "line": 14,
-                          "col": 3
-                        },
-                        {
-                          "line": 14,
-                          "col": 8
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2",
                   "location": [
                     {
                       "line": 14,
@@ -491,29 +356,14 @@
               ]
             },
             {
-              "level": 2,
+              "name": "listItem",
+              "type": "block",
               "marker": "..",
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 2.1",
-                      "location": [
-                        {
-                          "line": 15,
-                          "col": 4
-                        },
-                        {
-                          "line": 15,
-                          "col": 11
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 2.1",
                   "location": [
                     {
                       "line": 15,
@@ -538,30 +388,15 @@
               ]
             },
             {
-              "level": 1,
+              "name": "listItem",
+              "type": "block",
               "marker": ".",
               "checked": true,
               "principal": [
                 {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Item 3",
-                      "location": [
-                        {
-                          "line": 16,
-                          "col": 7
-                        },
-                        {
-                          "line": 16,
-                          "col": 12
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Item 3",
                   "location": [
                     {
                       "line": 16,
