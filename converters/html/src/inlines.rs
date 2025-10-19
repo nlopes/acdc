@@ -18,7 +18,7 @@ impl Render for InlineNode {
     ) -> Result<(), Self::Error> {
         match self {
             InlineNode::PlainText(p) => {
-                let text = substitution_text(&p.content);
+                let text = substitution_text(&p.content, options);
                 write!(w, "{text}")?;
             }
             InlineNode::RawText(r) => {
@@ -62,7 +62,14 @@ impl Render for InlineNode {
                     write!(w, "<code>")?;
                 }
                 for inline in &m.content {
-                    inline.render(w, processor, options)?;
+                    inline.render(
+                        w,
+                        processor,
+                        &RenderOptions {
+                            inlines_basic: true,
+                            ..*options
+                        },
+                    )?;
                 }
                 if !options.inlines_basic {
                     write!(w, "</code>")?;
@@ -146,7 +153,7 @@ impl Render for Link {
         let text = self
             .text
             .as_ref()
-            .map(|t| substitution_text(t))
+            .map(|t| substitution_text(t, options))
             .unwrap_or(format!("{}", self.target));
         if options.inlines_basic {
             write!(w, "{text}")?;
@@ -227,14 +234,14 @@ impl Render for Pass {
         &self,
         w: &mut W,
         _processor: &Processor,
-        _options: &RenderOptions,
+        options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         if let Some(ref text) = self.text {
             if self.substitutions.contains(&Substitution::SpecialChars)
                 || self.kind == PassthroughKind::Single
                 || self.kind == PassthroughKind::Double
             {
-                let text = substitution_text(text);
+                let text = substitution_text(text, options);
                 write!(w, "{text}")?;
             } else {
                 write!(w, "{text}")?;
@@ -284,9 +291,14 @@ impl Render for Footnote {
     }
 }
 
-fn substitution_text(text: &str) -> String {
+fn substitution_text(text: &str, options: &RenderOptions) -> String {
     if text.is_empty() {
         return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
+    }
+
+    let text = text.replace("...", "&#8230;&#8203;");
+    if options.inlines_basic {
+        return text;
     }
     text.replace('&', "&amp;")
         .replace('>', "&gt;")
