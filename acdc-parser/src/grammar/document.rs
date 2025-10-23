@@ -292,13 +292,12 @@ peg::parser! {
 
         rule discrete_header(offset: usize) -> Result<Block, Error>
         = start:position!()
-        block_metadata:(bm:block_metadata(offset, None)
-            {
-                bm.map_err(|e| {
-                    tracing::error!(?e, "error parsing block metadata");
-                }).expect("block metadata errored out")
-            }
-        )
+        block_metadata:(bm:block_metadata(offset, None) {?
+            bm.map_err(|e| {
+                tracing::error!(?e, "error parsing block metadata in discrete_header");
+                "block metadata parse error"
+            })
+        })
         section_level:section_level(offset, None) whitespace()
         title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() end:position!() &eol()*<2,2>
         {
@@ -330,13 +329,12 @@ peg::parser! {
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!()
-        block_metadata:(bm:block_metadata(offset, parent_section_level)
-            {
-                bm.map_err(|e| {
-                    tracing::error!(?e, "error parsing block metadata");
-                }).expect("block metadata errored out")
-            }
-        )
+        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+            bm.map_err(|e| {
+                tracing::error!(?e, "error parsing block metadata in section");
+                "block metadata parse error"
+            })
+        })
         section_level_start:position!()
         section_level:section_level(offset, parent_section_level)
         section_level_end:position!()
@@ -382,15 +380,19 @@ peg::parser! {
         = lines:(
             anchor:anchor() { Ok::<BlockMetadataLine, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok(BlockMetadataLine::Attributes(attr)) }
-            / title:title_line(offset) { Ok(BlockMetadataLine::Title(title?)) }
+            / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )*
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
             let mut title = Vec::new();
 
-            for value in lines {
-                let value = value?;
+            for line in lines {
+                // Skip errors from title parsing (e.g., empty titles like "." + newline)
+                let Ok(value) = line else {
+                    tracing::warn!(?line, "failed to parse block metadata line, skipping");
+                    continue
+                };
                 match value {
                     BlockMetadataLine::Anchor(value) => metadata.anchors.push(value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
@@ -421,7 +423,7 @@ peg::parser! {
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
         rule title_line(offset: usize) -> Result<Vec<InlineNode>, Error>
-        = period() start:position() &(!(whitespace() / period())) title:$([^'\n']*) end:position!() eol()
+        = period() start:position() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
         {
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
@@ -466,13 +468,12 @@ peg::parser! {
 
         pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!()
-        block_metadata:(bm:block_metadata(offset, parent_section_level)
-            {
-                bm.map_err(|e| {
-                    tracing::error!(?e, "error parsing block metadata");
-                }).expect("block metadata errored out")
-            }
-        )
+        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+            bm.map_err(|e| {
+                tracing::error!(?e, "error parsing block metadata in block_generic");
+                "block metadata parse error"
+            })
+        })
         block:(
             delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
             / image:image(start, offset, &block_metadata) { image }
