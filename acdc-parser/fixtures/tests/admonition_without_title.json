@@ -1,0 +1,64 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "warning",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This is a warning without a title.",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 10
+                },
+                {
+                  "line": 1,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 10
+            },
+            {
+              "line": 1,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 43
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 43
+    }
+  ]
+}

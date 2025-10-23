@@ -1,0 +1,81 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "note",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Important Notice",
+          "location": [
+            {
+              "line": 1,
+              "col": 2
+            },
+            {
+              "line": 1,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This is a note with a title.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 7
+                },
+                {
+                  "line": 2,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 7
+            },
+            {
+              "line": 2,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 34
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 34
+    }
+  ]
+}

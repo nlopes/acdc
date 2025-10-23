@@ -1,0 +1,48 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "break",
+      "type": "block",
+      "variant": "thematic",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section Divider",
+          "location": [
+            {
+              "line": 1,
+              "col": 2
+            },
+            {
+              "line": 1,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 3
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 3
+    }
+  ]
+}
