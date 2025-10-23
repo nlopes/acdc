@@ -147,6 +147,23 @@ impl Render for DelimitedBlock {
                 writeln!(w, "</blockquote>")?;
                 writeln!(w, "</div>")?;
             }
+            DelimitedBlockType::DelimitedOpen(blocks) => {
+                writeln!(w, "<div class=\"openblock\">")?;
+
+                // Only render title if not empty
+                if !self.title.is_empty() {
+                    write!(w, "<div class=\"title\">")?;
+                    crate::inlines::render_inlines(&self.title, w, processor, options)?;
+                    writeln!(w, "</div>")?;
+                }
+
+                writeln!(w, "<div class=\"content\">")?;
+                for block in blocks {
+                    block.render(w, processor, options)?;
+                }
+                writeln!(w, "</div>")?;
+                writeln!(w, "</div>")?;
+            }
             unknown => todo!("Unknown delimited block type: {:?}", unknown),
         }
         Ok(())

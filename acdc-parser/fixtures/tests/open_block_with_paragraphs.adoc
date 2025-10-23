@@ -1,0 +1,8 @@
+--
+First paragraph in open block.
+
+Second paragraph in open block.
+
+.Title on third paragraph
+Third paragraph has its own title.
+--

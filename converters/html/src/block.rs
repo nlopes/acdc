@@ -27,7 +27,12 @@ impl Render for Block {
             Block::Audio(a) => a.render(w, processor, options),
             Block::Video(v) => v.render(w, processor, options),
             Block::DiscreteHeader(d) => d.render(w, processor, options),
-            Block::ThematicBreak(_) => {
+            Block::ThematicBreak(t) => {
+                if !t.title.is_empty() {
+                    write!(w, "<div class=\"title\">")?;
+                    crate::inlines::render_inlines(&t.title, w, processor, options)?;
+                    writeln!(w, "</div>")?;
+                }
                 writeln!(w, "<hr>")?;
                 Ok(())
             }

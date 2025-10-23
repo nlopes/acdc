@@ -759,16 +759,10 @@ peg::parser! {
             let blocks = if content.trim().is_empty() {
                 Vec::new()
             } else {
-                let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
-                vec![Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(Plain {
-                        content: content.to_string(),
-                        location: content_location.clone(),
-                    })],
-                    metadata: BlockMetadata::default(),
-                    title: Vec::new(), // TODO(nlopes): Handle paragraph titles
-                    location: content_location.clone(),
-                })]
+                document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                    adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing content as blocks in open block");
+                    Ok(Vec::new())
+                })?
             };
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
@@ -964,15 +958,10 @@ peg::parser! {
                 let blocks = if content.trim().is_empty() {
                     Vec::new()
                 } else {
-                    vec![Block::Paragraph(Paragraph {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: content.to_string(),
-                            location: content_location.clone(),
-                        })],
-                        metadata: BlockMetadata::default(),
-                        title: Vec::new(), // TODO(nlopes): Handle paragraph titles
-                        location: content_location.clone(),
-                    })]
+                    document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                        adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing content as blocks in quote block");
+                        Ok(Vec::new())
+                    })?
                 };
                 DelimitedBlockType::DelimitedQuote(blocks)
             };
@@ -1089,7 +1078,7 @@ peg::parser! {
             tracing::info!("Found thematic break block");
             Ok(Block::ThematicBreak(ThematicBreak {
                 anchors: block_metadata.metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
-                title: Vec::new(), // TODO(nlopes): Handle thematic break titles
+                title: block_metadata.title.clone(),
                 location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
             }))
         }
@@ -2378,11 +2367,11 @@ peg::parser! {
                 tracing::info!(%variant, "found admonition block with variant");
                 Ok(Block::Admonition(Admonition{
                     metadata: block_metadata.metadata.clone(),
-                    title: block_metadata.title.clone(),
+                    title,
                     blocks: vec![Block::Paragraph(Paragraph {
                         content,
                         metadata: block_metadata.metadata.clone(),
-                        title: Vec::new(), // TODO(nlopes): Handle paragraph titles
+                        title: Vec::new(),
                         location: state.create_location(content_start.offset+offset, end.saturating_sub(1)),
                     })],
                     location: state.create_location(offset, end.saturating_sub(1)),
