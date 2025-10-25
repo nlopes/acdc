@@ -6,8 +6,8 @@ use crossterm::{
 };
 
 use acdc_parser::{
-    DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus, OrderedList,
-    UnorderedList,
+    CalloutList, DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus,
+    OrderedList, UnorderedList,
 };
 
 use crate::{Processor, Render};
@@ -208,6 +208,45 @@ impl Render for OrderedList {
         render_styled_title(&self.title, w, processor)?;
         writeln!(w)?;
         render_nested_list_items(&self.items, w, processor, 1, 0, true)?;
+        Ok(())
+    }
+}
+
+/// Renders a callout list in terminal format.
+///
+/// Callout lists are used to annotate code blocks with numbered references.
+/// Items are formatted with angle bracket notation `<N>` where N is the item number.
+///
+/// # Format
+/// ```text
+/// <1> First explanation
+/// <2> Second explanation
+/// <3> Third explanation
+/// ```
+impl Render for CalloutList {
+    type Error = crate::Error;
+
+    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
+        render_styled_title(&self.title, w, processor)?;
+        if !self.title.is_empty() {
+            writeln!(w)?;
+        }
+
+        for (idx, item) in self.items.iter().enumerate() {
+            let item_number = idx + 1;
+            write!(w, "<{item_number}>")?;
+            write!(w, " ")?;
+
+            // Render principal text inline
+            render_nodes_with_spaces(&item.principal, w, processor)?;
+            writeln!(w)?;
+
+            // Render attached blocks with indentation
+            for block in &item.blocks {
+                write!(w, "  ")?;
+                block.render(w, processor)?;
+            }
+        }
         Ok(())
     }
 }
