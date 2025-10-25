@@ -48,14 +48,14 @@ use preprocessor::Preprocessor;
 pub use error::{Detail as ErrorDetail, Error};
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
-    Block, BlockMetadata, Bold, Button, CrossReference, CurvedApostrophe, CurvedQuotation,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
-    Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote, Form, Header,
-    Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
-    ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass,
-    PassthroughKind, Plain, Position, Raw, Role, Section, Source, StandaloneCurvedApostrophe,
-    Subscript, Substitution, Superscript, Table, TableColumn, TableOfContents, TableRow,
-    ThematicBreak, TocEntry, UnorderedList, Url, Video,
+    Block, BlockMetadata, Bold, Button, CalloutList, CrossReference, CurvedApostrophe,
+    CurvedQuotation, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem,
+    DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote,
+    Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak,
+    Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak,
+    Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source,
+    StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
+    TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url, Verbatim, Video,
 };
 
 #[derive(Debug, Clone, Default)]

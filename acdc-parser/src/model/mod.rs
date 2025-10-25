@@ -177,6 +177,7 @@ pub enum Block {
     PageBreak(PageBreak),
     UnorderedList(UnorderedList),
     OrderedList(OrderedList),
+    CalloutList(CalloutList),
     DescriptionList(DescriptionList),
     Section(Section),
     DelimitedBlock(DelimitedBlock),
@@ -438,6 +439,18 @@ pub struct OrderedList {
     pub marker: String,
     pub location: Location,
 }
+
+/// A `CalloutList` represents a callout list in a document.
+///
+/// Callout lists are used to annotate code blocks with numbered references.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CalloutList {
+    pub title: Vec<InlineNode>,
+    pub metadata: BlockMetadata,
+    pub items: Vec<ListItem>,
+    pub location: Location,
+}
+
 pub type ListLevel = u8;
 
 /// A `ListItemCheckedStatus` represents the checked status of a list item.
@@ -1200,6 +1213,27 @@ impl Serialize for OrderedList {
     }
 }
 
+impl Serialize for CalloutList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "list")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "callout")?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !is_default_metadata(&self.metadata) {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
 impl Serialize for DescriptionList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1753,13 +1787,60 @@ impl<'de> Deserialize<'de> for Block {
                     ("list", "block") => {
                         let my_variant =
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        let my_marker =
-                            my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
                         match my_variant.as_str() {
-                            "unordered" => Ok(Block::UnorderedList(UnorderedList {
+                            "unordered" => {
+                                let my_marker =
+                                    my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
+                                Ok(Block::UnorderedList(UnorderedList {
+                                    title: my_title,
+                                    metadata: my_metadata,
+                                    marker: my_marker,
+                                    items: match my_items
+                                        .ok_or_else(|| de::Error::missing_field("items"))?
+                                    {
+                                        serde_json::Value::Array(a) => a
+                                            .into_iter()
+                                            .map(|v| {
+                                                serde_json::from_value(v).map_err(de::Error::custom)
+                                            })
+                                            .collect::<Result<Vec<ListItem>, _>>()?,
+                                        _ => {
+                                            return Err(de::Error::custom(
+                                                "items must be an array",
+                                            ));
+                                        }
+                                    },
+                                    location: my_location,
+                                }))
+                            }
+                            "ordered" => {
+                                let my_marker =
+                                    my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
+                                Ok(Block::OrderedList(OrderedList {
+                                    title: my_title,
+                                    metadata: my_metadata,
+                                    marker: my_marker,
+                                    items: match my_items
+                                        .ok_or_else(|| de::Error::missing_field("items"))?
+                                    {
+                                        serde_json::Value::Array(a) => a
+                                            .into_iter()
+                                            .map(|v| {
+                                                serde_json::from_value(v).map_err(de::Error::custom)
+                                            })
+                                            .collect::<Result<Vec<ListItem>, _>>()?,
+                                        _ => {
+                                            return Err(de::Error::custom(
+                                                "items must be an array",
+                                            ));
+                                        }
+                                    },
+                                    location: my_location,
+                                }))
+                            }
+                            "callout" => Ok(Block::CalloutList(CalloutList {
                                 title: my_title,
                                 metadata: my_metadata,
-                                marker: my_marker,
                                 items: match my_items
                                     .ok_or_else(|| de::Error::missing_field("items"))?
                                 {
@@ -1773,24 +1854,6 @@ impl<'de> Deserialize<'de> for Block {
                                 },
                                 location: my_location,
                             })),
-                            "ordered" => Ok(Block::OrderedList(OrderedList {
-                                title: my_title,
-                                metadata: my_metadata,
-                                marker: my_marker,
-                                items: match my_items
-                                    .ok_or_else(|| de::Error::missing_field("items"))?
-                                {
-                                    serde_json::Value::Array(a) => a
-                                        .into_iter()
-                                        .map(|v| {
-                                            serde_json::from_value(v).map_err(de::Error::custom)
-                                        })
-                                        .collect::<Result<Vec<ListItem>, _>>()?,
-                                    _ => return Err(de::Error::custom("items must be an array")),
-                                },
-                                location: my_location,
-                            })),
-                            "callout" => todo!("callout list"),
                             _ => Err(de::Error::custom(format!(
                                 "unexpected 'list' variant: {my_variant}",
                             ))),

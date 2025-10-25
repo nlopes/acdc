@@ -1,0 +1,10 @@
+Non-sequential callout numbers:
+
+----
+Line one <3>
+Line two <1>
+Line three <2>
+----
+<1> Second callout
+<2> Third callout
+<3> First callout

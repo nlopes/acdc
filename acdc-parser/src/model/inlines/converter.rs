@@ -15,6 +15,7 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
         .map(|node| match node {
             InlineNode::PlainText(text) => text.content.clone(),
             InlineNode::RawText(text) => text.content.clone(),
+            InlineNode::VerbatimText(text) => text.content.clone(),
             InlineNode::BoldText(bold) => inlines_to_string(&bold.content),
             InlineNode::ItalicText(italic) => inlines_to_string(&italic.content),
             InlineNode::MonospaceText(mono) => inlines_to_string(&mono.content),

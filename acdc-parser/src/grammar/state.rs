@@ -10,6 +10,7 @@ pub(crate) struct ParserState {
     pub(crate) input: String,
     pub(crate) footnote_tracker: FootnoteTracker,
     pub(crate) toc_tracker: TocTracker,
+    pub(crate) last_block_was_verbatim: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -79,6 +80,7 @@ impl ParserState {
             input: input.to_string(),
             footnote_tracker: FootnoteTracker::new(),
             toc_tracker: TocTracker::default(),
+            last_block_was_verbatim: false,
         }
     }
 

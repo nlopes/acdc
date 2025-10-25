@@ -1,0 +1,9 @@
+Multiple callouts on the same line:
+
+----
+x = 5 <1> <2>
+y = 10 <3>
+----
+<1> Initialize x
+<2> Integer value
+<3> Initialize y
