@@ -49,9 +49,10 @@ pub(crate) struct BlockParsingMetadata {
 }
 
 #[derive(Debug)]
-// Used purely inside the grammar to represent the style of a block
-enum BlockStyle {
-    Id(String, Option<(usize, usize)>),
+/// Attribute shorthand syntax: .role, #id, %option
+/// Used for both block-level attributes and inline formatting attributes
+enum Shorthand {
+    Id(String),
     Role(String),
     Option(String),
 }
@@ -1956,31 +1957,50 @@ peg::parser! {
         = "xref:" source() "[" (!"]" [_])* "]"
 
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
+            = attrs:inline_attributes()? start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained bold text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained bold text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process unconstrained bold text content");
                 "could not process unconstrained bold text content"
             })?;
             Ok(InlineNode::BoldText(Bold {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule bold_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position!() content_start:position() "*" content:$([^('*' | ' ' | '\t' | '\n')] [^'*']*) "*"
+        = attrs:inline_attributes()? start:position!() content_start:position() "*" content:$([^('*' | ' ' | '\t' | '\n')] [^'*']*) "*"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
               let prev_byte_pos = absolute_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
 
@@ -1989,7 +2009,7 @@ peg::parser! {
                 return Err("invalid word boundary for constrained bold");
             }
 
-            tracing::info!(?offset, ?content, "Found constrained bold text inline");
+            tracing::info!(?offset, ?content, ?role, "Found constrained bold text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -2001,22 +2021,32 @@ peg::parser! {
 
             Ok(InlineNode::BoldText(Bold {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Constrained,
                 location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule italic_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position!() content_start:position() "_" content:$([^('_' | ' ' | '\t' | '\n')] [^'_']*) "_"
+        = attrs:inline_attributes()? start:position!() content_start:position() "_" content:$([^('_' | ' ' | '\t' | '\n')] [^'_']*) "_"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
               let prev_byte_pos = absolute_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
 
@@ -2024,7 +2054,7 @@ peg::parser! {
                 return Err("invalid word boundary for constrained italic");
             }
 
-            tracing::info!(?offset, ?content, "Found constrained italic text inline");
+            tracing::info!(?offset, ?content, ?role, "Found constrained italic text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -2035,20 +2065,21 @@ peg::parser! {
             })?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Constrained,
                 location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule bold_text_constrained_match() -> ()
-        = pos:position!() "*" [^('*' | ' ' | '\t' | '\n')] [^'*']* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        = boundary_pos:position!() inline_attributes()? "*" [^('*' | ' ' | '\t' | '\n')] [^'*']* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no asterisk)
-            let valid_boundary = pos == 0 || {
-              let prev_byte_pos = pos.saturating_sub(1);
+            let valid_boundary = boundary_pos == 0 || {
+              let prev_byte_pos = boundary_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
 
@@ -2056,13 +2087,13 @@ peg::parser! {
         }
 
         rule italic_text_constrained_match() -> ()
-        = pos:position!() "_" [^('_' | ' ' | '\t' | '\n')] [^'_']* "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        = boundary_pos:position!() inline_attributes()? "_" [^('_' | ' ' | '\t' | '\n')] [^'_']* "_" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no underscore)
-            let valid_boundary = pos == 0 || {
-                let prev_byte_pos = pos.saturating_sub(1);
+            let valid_boundary = boundary_pos == 0 || {
+                let prev_byte_pos = boundary_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                    matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
                 })
             };
 
@@ -2070,53 +2101,82 @@ peg::parser! {
         }
 
         rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "__" content_start:position() content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
+            = attrs:inline_attributes()? start:position() "__" content_start:position() content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained italic text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained italic text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process unconstrained italic text content");
                 "could not process unconstrained italic text content"
             })?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule monospace_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "``" content_start:position() content:$((!(eol() / ![_] / "``") [_])+) "``" end:position!()
+            = attrs:inline_attributes()? start:position() "``" content_start:position() content:$((!(eol() / ![_] / "``") [_])+) "``" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained monospace text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained monospace text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process unconstrained monospace text content");
                 "could not process unconstrained monospace text content"
             })?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule monospace_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position!() content_start:position() "`" content:$([^('`' | ' ' | '\t' | '\n')] [^'`']*) "`"
+        = attrs:inline_attributes()? start:position!() content_start:position() "`" content:$([^('`' | ' ' | '\t' | '\n')] [^'`']*) "`"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
               let prev_byte_pos = absolute_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
             if !valid_boundary {
                 return Err("monospace must be at word boundary");
             }
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found constrained monospace text inline");
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained monospace text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -2127,20 +2187,21 @@ peg::parser! {
             })?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Constrained,
                 location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule monospace_text_constrained_match() -> ()
-        = pos:position!() "`" !(['\''] / ['"']) [^('`' | ' ' | '\t' | '\n')] [^'`']* "`" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
+        = boundary_pos:position!() inline_attributes()? "`" !(['\''] / ['"']) [^('`' | ' ' | '\t' | '\n')] [^'`']* "`" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no backtick)
-            let valid_boundary = pos == 0 || {
-              let prev_byte_pos = pos.saturating_sub(1);
+            let valid_boundary = boundary_pos == 0 || {
+              let prev_byte_pos = boundary_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                  matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                  matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
 
@@ -2151,38 +2212,57 @@ peg::parser! {
         }
 
         rule highlight_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "##" content_start:position() content:$((!(eol() / ![_] / "##") [_])+) "##" end:position!()
+            = attrs:inline_attributes()? start:position() "##" content_start:position() content:$((!(eol() / ![_] / "##") [_])+) "##" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found unconstrained highlight text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained highlight text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process unconstrained highlight text content");
                 "could not process unconstrained highlight text content"
             })?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule highlight_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position!() content_start:position() "#" content:$([^('#' | ' ' | '\t' | '\n')] [^'#']*) "#"
+        = attrs:inline_attributes()? start:position!() content_start:position() "#" content:$([^('#' | ' ' | '\t' | '\n')] [^'#']*) "#"
           end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let prev_byte_pos = absolute_pos.saturating_sub(1);
             let prev_byte = state.input.as_bytes().get(prev_byte_pos);
             let valid_boundary = absolute_pos == 0 || {
               prev_byte.is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
             if !valid_boundary {
                 return Err("highlight must be at word boundary");
             }
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found constrained highlight text inline");
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained highlight text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
@@ -2193,20 +2273,21 @@ peg::parser! {
             })?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
-                role: None, // TODO(nlopes): Handle roles (come from attributes list)
+                role,
+                id,
                 form: Form::Constrained,
                 location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
             }))
         }
 
         rule highlight_text_constrained_match() -> ()
-        = pos:position!() "#" [^('#' | ' ' | '\t' | '\n')] [^'#']* "#" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
+        = boundary_pos:position!() inline_attributes()? "#" [^('#' | ' ' | '\t' | '\n')] [^'#']* "#" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no hash)
-            let valid_boundary = pos == 0 || {
-              let prev_byte_pos = pos.saturating_sub(1);
+            let valid_boundary = boundary_pos == 0 || {
+              let prev_byte_pos = boundary_pos.saturating_sub(1);
               state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[')
+                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
               })
             };
 
@@ -2218,16 +2299,26 @@ peg::parser! {
 
         /// Parse superscript text (^text^)
         rule superscript_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "^" content_start:position() content:$([^('^' | ' ' | '\t' | '\n')]+) "^" end:position!()
+            = attrs:inline_attributes()? start:position() "^" content_start:position() content:$([^('^' | ' ' | '\t' | '\n')]+) "^" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found superscript text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found superscript text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process superscript text content");
                 "could not process superscript text content"
             })?;
             Ok(InlineNode::SuperscriptText(Superscript {
                 content,
-                role: None,
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
@@ -2235,16 +2326,26 @@ peg::parser! {
 
         /// Parse subscript text (~text~)
         rule subscript_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "~" content_start:position() content:$([^('~' | ' ' | '\t' | '\n')]+) "~" end:position!()
+            = attrs:inline_attributes()? start:position() "~" content_start:position() content:$([^('~' | ' ' | '\t' | '\n')]+) "~" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found subscript text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found subscript text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process subscript text content");
                 "could not process subscript text content"
             })?;
             Ok(InlineNode::SubscriptText(Subscript {
                 content,
-                role: None,
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
@@ -2252,16 +2353,26 @@ peg::parser! {
 
         /// Parse curved quotation text (`"text"`)
         rule curved_quotation_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "\"`" content_start:position() content:$((!("`\"") [_])+) "`\"" end:position!()
+            = attrs:inline_attributes()? start:position() "\"`" content_start:position() content:$((!("`\"") [_])+) "`\"" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found curved quotation text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found curved quotation text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process curved quotation text content");
                 "could not process curved quotation text content"
             })?;
             Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
                 content,
-                role: None,
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
@@ -2269,16 +2380,26 @@ peg::parser! {
 
         /// Parse curved apostrophe text (`'text'`)
         rule curved_apostrophe_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-            = start:position() "'`" content_start:position() content:$((!("`'") [_])+) "`'" end:position!()
+            = attrs:inline_attributes()? start:position() "'`" content_start:position() content:$((!("`'") [_])+) "`'" end:position!()
         {?
-            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, "Found curved apostrophe text inline");
+            let role = attrs.as_ref().and_then(|(roles, _id)| {
+                if roles.is_empty() {
+                    None
+                } else {
+                    Some(roles.join(" "))
+                }
+            });
+            let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
+
+            tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found curved apostrophe text inline");
             let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
                 tracing::error!(?e, "could not process curved apostrophe text content");
                 "could not process curved apostrophe text content"
             })?;
             Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
                 content,
-                role: None,
+                role,
+                id,
                 form: Form::Unconstrained,
                 location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
             }))
@@ -2294,10 +2415,8 @@ peg::parser! {
             }))
         }
 
-        // TODO(nlopes): what do I do with the attributes here?
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
-        attributes:attributes()?
         content:$((!(eol()*<2,> / ![_] / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
         end:position!()
         {
@@ -2526,6 +2645,28 @@ peg::parser! {
         rule empty_style() = ""
         rule role() -> &'input str = $([^(',' | ']' | '#' | '.' | '%')]+)
 
+        /// Role pattern for inline contexts - allows % as literal character
+        rule inline_role() -> &'input str = $([^(',' | ']' | '#' | '.')]+)
+
+        /// ID pattern for inline contexts - allows % as literal character
+        rule inline_id() -> &'input str = $(id_start_char() inline_id_subsequent_char()*)
+        rule inline_id_subsequent_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '%']
+
+        /// Parse a single attribute shorthand: .role, #id, or %option
+        /// Used by block_style() for block-level attributes
+        rule shorthand() -> Shorthand
+        = "#" id:block_style_id() { Shorthand::Id(id.to_string()) }
+        / "." role:role() { Shorthand::Role(role.to_string()) }
+        / "%" option:option() { Shorthand::Option(option.to_string()) }
+
+        /// Parse inline attribute shorthand: .role, #id, or %role
+        /// In inline context, % is not an option separator - it's a literal character
+        /// Leading % is treated as part of the role name
+        rule inline_shorthand() -> Shorthand
+        = "#" id:inline_id() { Shorthand::Id(id.to_string()) }
+        / "." role:inline_role() { Shorthand::Role(role.to_string()) }
+        / "%" role:inline_role() { Shorthand::Role(format!("%{role}")) }
+
         // The option rule is used to parse options in the form of "option=value" or
         // "%option" (we don't capture the % here).
         //
@@ -2572,9 +2713,10 @@ peg::parser! {
         pub(crate) rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
             = start:position!() content:(
                 style:positional_attribute_value() shorthands:(
-                    "#" id_start:position!() id:block_style_id() id_end:position!() { BlockStyle::Id(id.to_string(), Some((id_start, id_end)))}
-                    / "." role:role() { BlockStyle::Role(role.to_string())}
-                    / "%" option:option() { BlockStyle::Option(option.to_string())}
+                    "#" id_start:position!() id:block_style_id() id_end:position!() {
+                        (Shorthand::Id(id.to_string()), Some((id_start, id_end)))
+                    }
+                    / s:shorthand() { (s, None) }
                 )+ {
                     (Some(style), shorthands)
                 } /
@@ -2583,9 +2725,10 @@ peg::parser! {
                     (Some(style), Vec::new())
                 } /
                 shorthands:(
-                    "#" id_start:position!() id:block_style_id() id_end:position!() { BlockStyle::Id(id.to_string(), Some((id_start, id_end)))}
-                    / "." role:role() { BlockStyle::Role(role.to_string())}
-                    / "%" option:option() { BlockStyle::Option(option.to_string())}
+                    "#" id_start:position!() id:block_style_id() id_end:position!() {
+                        (Shorthand::Id(id.to_string()), Some((id_start, id_end)))
+                    }
+                    / s:shorthand() { (s, None) }
                 )+ {
                     (None, shorthands)
                }
@@ -2595,9 +2738,9 @@ peg::parser! {
                 let mut maybe_anchor = None;
                 let mut roles = Vec::new();
                 let mut options = Vec::new();
-                for shorthand in shorthands {
+                for (shorthand, pos) in shorthands {
                     match shorthand {
-                        BlockStyle::Id(id, pos) => {
+                        Shorthand::Id(id) => {
                             let (id_start, id_end) = pos.unwrap_or((start, end));
                             maybe_anchor = Some(Anchor {
                                 id,
@@ -2605,8 +2748,8 @@ peg::parser! {
                                 location: state.create_location(id_start, id_end)
                             });
                         },
-                        BlockStyle::Role(role) => roles.push(role),
-                        BlockStyle::Option(option) => options.push(option),
+                        Shorthand::Role(role) => roles.push(role),
+                        Shorthand::Option(option) => options.push(option),
                     }
                 }
                 (style, maybe_anchor, roles, options)
@@ -2669,6 +2812,34 @@ peg::parser! {
                 "could not preprocess path"
             })?;
             Ok(processed.text)
+        }
+
+        /// Parse optional attribute list for inline elements
+        /// Returns (roles, id) extracted from attributes like [.role1.role2] or [#id.role]
+        /// This is a simplified version of block attributes, used for inline formatting
+        /// In inline context, % is treated as a literal character, not an option separator
+        /// Stops parsing shorthands at invalid characters (comma, space, etc.)
+        rule inline_attributes() -> (Vec<String>, Option<String>)
+        = open_square_bracket() shorthands:inline_shorthand()+ [^']']* close_square_bracket()
+        {
+            let mut roles = Vec::new();
+            let mut id = None;
+
+            for s in shorthands {
+                match s {
+                    Shorthand::Role(r) => roles.push(r),
+                    Shorthand::Id(i) => {
+                        // If multiple IDs are specified, last one wins
+                        id = Some(i);
+                    }
+                    Shorthand::Option(_) => {
+                        // Options are not parsed by inline_shorthand, this branch is unreachable
+                        unreachable!("inline_shorthand() does not produce Option variants")
+                    }
+                }
+            }
+
+            (roles, id)
         }
 
         pub rule source() -> Source

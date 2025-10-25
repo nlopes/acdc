@@ -81,6 +81,9 @@ impl Serialize for InlineNode {
                 if let Some(role) = &highlight.role {
                     map.serialize_entry("role", role)?;
                 }
+                if let Some(id) = &highlight.id {
+                    map.serialize_entry("id", id)?;
+                }
                 map.serialize_entry("inlines", &highlight.content)?;
                 map.serialize_entry("location", &highlight.location)?;
             }
@@ -91,6 +94,9 @@ impl Serialize for InlineNode {
                 map.serialize_entry("form", &italic.form)?;
                 if let Some(role) = &italic.role {
                     map.serialize_entry("role", role)?;
+                }
+                if let Some(id) = &italic.id {
+                    map.serialize_entry("id", id)?;
                 }
                 map.serialize_entry("inlines", &italic.content)?;
                 map.serialize_entry("location", &italic.location)?;
@@ -103,6 +109,9 @@ impl Serialize for InlineNode {
                 if let Some(role) = &bold.role {
                     map.serialize_entry("role", role)?;
                 }
+                if let Some(id) = &bold.id {
+                    map.serialize_entry("id", id)?;
+                }
                 map.serialize_entry("inlines", &bold.content)?;
                 map.serialize_entry("location", &bold.location)?;
             }
@@ -113,6 +122,9 @@ impl Serialize for InlineNode {
                 map.serialize_entry("form", &monospace.form)?;
                 if let Some(role) = &monospace.role {
                     map.serialize_entry("role", role)?;
+                }
+                if let Some(id) = &monospace.id {
+                    map.serialize_entry("id", id)?;
                 }
                 map.serialize_entry("inlines", &monospace.content)?;
                 map.serialize_entry("location", &monospace.location)?;
@@ -125,6 +137,9 @@ impl Serialize for InlineNode {
                 if let Some(role) = &subscript.role {
                     map.serialize_entry("role", role)?;
                 }
+                if let Some(id) = &subscript.id {
+                    map.serialize_entry("id", id)?;
+                }
                 map.serialize_entry("inlines", &subscript.content)?;
                 map.serialize_entry("location", &subscript.location)?;
             }
@@ -135,6 +150,9 @@ impl Serialize for InlineNode {
                 map.serialize_entry("form", &superscript.form)?;
                 if let Some(role) = &superscript.role {
                     map.serialize_entry("role", role)?;
+                }
+                if let Some(id) = &superscript.id {
+                    map.serialize_entry("id", id)?;
                 }
                 map.serialize_entry("inlines", &superscript.content)?;
                 map.serialize_entry("location", &superscript.location)?;
@@ -147,6 +165,9 @@ impl Serialize for InlineNode {
                 if let Some(role) = &curved_quotation.role {
                     map.serialize_entry("role", role)?;
                 }
+                if let Some(id) = &curved_quotation.id {
+                    map.serialize_entry("id", id)?;
+                }
                 map.serialize_entry("inlines", &curved_quotation.content)?;
                 map.serialize_entry("location", &curved_quotation.location)?;
             }
@@ -157,6 +178,9 @@ impl Serialize for InlineNode {
                 map.serialize_entry("form", &curved_apostrophe.form)?;
                 if let Some(role) = &curved_apostrophe.role {
                     map.serialize_entry("role", role)?;
+                }
+                if let Some(id) = &curved_apostrophe.id {
+                    map.serialize_entry("id", id)?;
                 }
                 map.serialize_entry("inlines", &curved_apostrophe.content)?;
                 map.serialize_entry("location", &curved_apostrophe.location)?;
@@ -301,6 +325,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_title = None;
                 let mut my_target = None;
                 let mut my_attributes = None;
+                let mut my_role = None;
                 let mut my_id = None;
                 let mut my_text = None;
                 let mut my_items = None;
@@ -368,6 +393,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 return Err(de::Error::duplicate_field("attributes"));
                             }
                             my_attributes = Some(map.next_value::<ElementAttributes>()?);
+                        }
+                        "role" => {
+                            if my_role.is_some() {
+                                return Err(de::Error::duplicate_field("role"));
+                            }
+                            my_role = Some(map.next_value::<Option<String>>()?);
                         }
                         "id" => {
                             if my_id.is_some() {
@@ -557,44 +588,51 @@ impl<'de> Deserialize<'de> for InlineNode {
                             my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
                         match my_variant.as_str() {
                             "strong" => Ok(InlineNode::BoldText(Bold {
-                                role: None,
+                                role: my_role.flatten(),
+                                id: my_id.flatten(),
                                 form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "emphasis" => Ok(InlineNode::ItalicText(Italic {
-                                role: None,
+                                role: my_role.flatten(),
+                                id: my_id.flatten(),
                                 form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "code" => Ok(InlineNode::MonospaceText(Monospace {
-                                role: None,
+                                role: my_role.flatten(),
+                                id: my_id.flatten(),
                                 form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "mark" => Ok(InlineNode::HighlightText(Highlight {
-                                role: None,
+                                role: my_role.flatten(),
+                                id: my_id.flatten(),
                                 form: my_form.unwrap_or(Form::Constrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "subscript" => Ok(InlineNode::SubscriptText(Subscript {
-                                role: None,
+                                role: my_role.flatten(),
+                                id: my_id.flatten(),
                                 form: my_form.unwrap_or(Form::Unconstrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "superscript" => Ok(InlineNode::SuperscriptText(Superscript {
-                                role: None,
+                                role: my_role.flatten(),
+                                id: my_id.flatten(),
                                 form: my_form.unwrap_or(Form::Unconstrained),
                                 content: my_inlines,
                                 location: my_location,
                             })),
                             "curved_quotation" => {
                                 Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
-                                    role: None,
+                                    role: my_role.flatten(),
+                                    id: my_id.flatten(),
                                     form: my_form.unwrap_or(Form::Unconstrained),
                                     content: my_inlines,
                                     location: my_location,
@@ -602,7 +640,8 @@ impl<'de> Deserialize<'de> for InlineNode {
                             }
                             "curved_apostrophe" => {
                                 Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
-                                    role: None,
+                                    role: my_role.flatten(),
+                                    id: my_id.flatten(),
                                     form: my_form.unwrap_or(Form::Unconstrained),
                                     content: my_inlines,
                                     location: my_location,
