@@ -1,0 +1,47 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Something or other <1>\n<1> A something",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 15
+    }
+  ]
+}

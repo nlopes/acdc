@@ -1,0 +1,13 @@
+Callout list with source language:
+
+[source,ruby]
+----
+require 'sinatra' <1>
+
+get '/hi' do <2>
+  "Hello World!" <3>
+end
+----
+<1> Import the Sinatra library
+<2> Define a route
+<3> Return response

@@ -1,13 +1,13 @@
 #![allow(clippy::too_many_arguments)]
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
-    BlockMetadata, Bold, Button, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
+    BlockMetadata, Bold, Button, CalloutList, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
     DocumentAttribute, Error, Footnote, Form, Header, Highlight, Icon, Image, InlineMacro,
     InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu,
     Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
     Source, StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table,
-    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Video,
+    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Verbatim, Video,
     error::Detail,
     grammar::{
         ParserState,
@@ -673,10 +673,12 @@ peg::parser! {
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
 
+            state.last_block_was_verbatim = true;
+
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::RawText(Raw {
+                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::VerbatimText(Verbatim {
                     content: content.to_string(),
                     location: content_location,
                 })]),
@@ -704,10 +706,12 @@ peg::parser! {
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
 
+            state.last_block_was_verbatim = true;
+
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::RawText(Raw {
+                inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::VerbatimText(Verbatim {
                     content: content.to_string(),
                     location: content_location,
                 })]),
@@ -733,10 +737,12 @@ peg::parser! {
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
 
+            state.last_block_was_verbatim = true;
+
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedLiteral(vec![InlineNode::RawText(Raw {
+                inner: DelimitedBlockType::DelimitedLiteral(vec![InlineNode::VerbatimText(Verbatim {
                     content: content.to_string(),
                     location: content_location,
                 })]),
@@ -1099,7 +1105,8 @@ peg::parser! {
         }
 
         rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = unordered_list(start, offset, block_metadata, false)
+        = callout_list(start, offset, block_metadata)
+        / unordered_list(start, offset, block_metadata, false)
         / ordered_list(start, offset, block_metadata, false)
         / description_list(start, offset, block_metadata)
 
@@ -1108,6 +1115,8 @@ peg::parser! {
         rule ordered_list_marker() -> &'input str = $(digits()? "."+)
 
         rule description_list_marker() -> &'input str = $("::::" / ":::" / "::" / ";;")
+
+        rule callout_list_marker() -> &'input str = $("<" digits() ">")
 
         rule section_level_marker() -> &'input str = $(("=" / "#")+)
 
@@ -1376,6 +1385,116 @@ peg::parser! {
         rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
         = !at_root_unordered_marker() nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, true) {
             Some(list)
+        }
+
+        /// Predicate rule that succeeds when we're NOT after a verbatim block
+        /// Used with negative lookahead to ensure callout lists only match after verbatim blocks
+        rule not_after_verbatim_block() -> ()
+        = {?
+            if state.last_block_was_verbatim {
+                Err("is_after_verbatim")
+            } else {
+                Ok(())
+            }
+        }
+
+        rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = !not_after_verbatim_block()
+        &(whitespace()* callout_list_marker() whitespace())
+        first:callout_list_item(offset, block_metadata)
+        rest:(callout_list_rest_item(offset, block_metadata))*
+        end:position!()
+        {
+            tracing::info!("Found callout list block");
+            let mut content = vec![first?];
+            for item in rest {
+                content.push(item?);
+            }
+            let end = content.last().map_or(end, |(_, item_end)| *item_end);
+            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
+
+            // Reset the flag after successfully parsing the callout list
+            state.last_block_was_verbatim = false;
+
+            Ok(Block::CalloutList(CalloutList {
+                title: block_metadata.title.clone(),
+                metadata: block_metadata.metadata.clone(),
+                items,
+                location: state.create_location(start+offset, end+offset),
+            }))
+        }
+
+        rule callout_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
+        = eol()+ item:callout_list_item(offset, block_metadata)
+        {?
+            Ok(item)
+        }
+
+        rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
+        = start:position!()
+        whitespace()*
+        marker:callout_list_marker()
+        whitespace()
+        first_line_start:position()
+        // Parse first line (principal text)
+        first_line:$((!(eol()) [_])*)
+        // Parse continuation lines that are part of the same paragraph
+        continuation_lines:(
+            eol()
+            !(whitespace()* (callout_list_marker() / unordered_list_marker() / ordered_list_marker() / eol()))
+            line:$((!(eol()) [_])*)
+            { line }
+        )*
+        first_line_end:position!()
+        {
+            // Callout lists are always at level 1 (they don't nest)
+            let level: ListLevel = 1;
+
+            // Combine first line and continuation lines
+            let principal_text = if continuation_lines.is_empty() {
+                first_line.to_string()
+            } else {
+                let mut text = first_line.to_string();
+                for cont_line in continuation_lines {
+                    text.push('\n');
+                    text.push_str(cont_line);
+                }
+                text
+            };
+
+            // Calculate the actual end position for the principal text
+            let content_end = if principal_text.is_empty() {
+                first_line_end
+            } else {
+                first_line_end.saturating_sub(1)
+            };
+
+            // The end position for the list item should be at the last character of content
+            let item_end = if principal_text.is_empty() {
+                start
+            } else {
+                first_line_end.saturating_sub(1)
+            };
+
+            // Process principal text as inline nodes
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
+
+            // For callout lists, we don't support nested content or attached blocks
+            let blocks = vec![];
+
+            Ok((ListItem {
+                principal,
+                blocks,
+                level,
+                marker: marker.to_string(),
+                checked: None,
+                location: state.create_location(start+offset, item_end+offset),
+            }, item_end))
         }
 
         rule checklist_item() -> ListItemCheckedStatus
@@ -2449,6 +2568,9 @@ peg::parser! {
         ) [_])+)
         end:position!()
         {
+            // Reset the verbatim flag since paragraph is not a verbatim block
+            state.last_block_was_verbatim = false;
+
             let (initial_location, location, processed) = preprocess_inline_content(state, start, &content_start, end, offset, content)?;
             if processed.text.starts_with(' ') {
                 tracing::debug!(?processed, "preprocessed inline content starts with a space - switching to literal block");

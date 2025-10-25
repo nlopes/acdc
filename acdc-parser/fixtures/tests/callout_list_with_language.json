@@ -1,0 +1,199 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Callout list with source language:",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "ruby": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "require 'sinatra' <1>\n\nget '/hi' do <2>\n  \"Hello World!\" <3>\nend",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "<1>",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Import the Sinatra library",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 5
+                },
+                {
+                  "line": 11,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "<2>",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Define a route",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 5
+                },
+                {
+                  "line": 12,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "<3>",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Return response",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 5
+                },
+                {
+                  "line": 13,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 19
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 19
+    }
+  ]
+}

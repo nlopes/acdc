@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus, OrderedList,
-    UnorderedList,
+    CalloutList, DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus,
+    OrderedList, UnorderedList,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -37,6 +37,42 @@ impl Render for OrderedList {
         writeln!(w, "<div class=\"olist arabic\">")?;
         writeln!(w, "<ol class=\"arabic\">")?;
         render_nested_list_items(&self.items, w, processor, options, 1, true)?;
+        writeln!(w, "</ol>")?;
+        writeln!(w, "</div>")?;
+        Ok(())
+    }
+}
+
+impl Render for CalloutList {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        writeln!(w, "<div class=\"colist arabic\">")?;
+        if !self.title.is_empty() {
+            write!(w, "<div class=\"title\">")?;
+            crate::inlines::render_inlines(&self.title, w, processor, options)?;
+            writeln!(w, "</div>")?;
+        }
+        writeln!(w, "<ol>")?;
+        for item in &self.items {
+            writeln!(w, "<li>")?;
+            // Render principal text as bare <p> (if not empty)
+            if !item.principal.is_empty() {
+                writeln!(w, "<p>")?;
+                crate::inlines::render_inlines(&item.principal, w, processor, options)?;
+                writeln!(w, "</p>")?;
+            }
+            // Render attached blocks with their full wrapper divs
+            for block in &item.blocks {
+                block.render(w, processor, options)?;
+            }
+            writeln!(w, "</li>")?;
+        }
         writeln!(w, "</ol>")?;
         writeln!(w, "</div>")?;
         Ok(())

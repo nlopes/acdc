@@ -1,0 +1,193 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Multiple callouts on the same line:",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "x = 5 <1> <2>\ny = 10 <3>",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "<1>",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Initialize x",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 5
+                },
+                {
+                  "line": 7,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "<2>",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Integer value",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 5
+                },
+                {
+                  "line": 8,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "<3>",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Initialize y",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 5
+                },
+                {
+                  "line": 9,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 16
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 16
+    }
+  ]
+}

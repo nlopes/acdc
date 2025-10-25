@@ -25,6 +25,13 @@ impl Render for InlineNode {
             InlineNode::RawText(r) => {
                 write!(w, "{}", r.content)?;
             }
+            InlineNode::VerbatimText(v) => {
+                // Process callout markers in verbatim text (used in literal and listing
+                // blocks)
+                let text = mark_callouts(&v.content);
+                let text = replace_callout_placeholders(&text);
+                write!(w, "{text}")?;
+            }
             InlineNode::BoldText(b) => {
                 if !options.inlines_basic {
                     match (&b.id, &b.role) {
@@ -370,13 +377,91 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
 
     let text = text.replace("...", "&#8230;&#8203;");
     if options.inlines_basic {
-        return text;
+        text
+    } else {
+        text.replace('&', "&amp;")
+            .replace('>', "&gt;")
+            .replace('<', "&lt;")
+            .replace('"', "&quot;")
+            .replace(" -- ", "&thinsp;&mdash;&thinsp;")
+            .replace(" --", "&thinsp;&mdash;")
+            .replace("-- ", "&mdash;&thinsp;")
     }
-    text.replace('&', "&amp;")
-        .replace('>', "&gt;")
-        .replace('<', "&lt;")
-        .replace('"', "&quot;")
-        .replace(" -- ", "&thinsp;&mdash;&thinsp;")
-        .replace(" --", "&thinsp;&mdash;")
-        .replace("-- ", "&mdash;&thinsp;")
+}
+
+fn mark_callouts(text: &str) -> String {
+    // Replace callout markers like <1>, <2> with placeholders
+    let mut result = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '<' {
+            let mut num_str = String::new();
+
+            while let Some(&next_char) = chars.peek() {
+                if next_char.is_ascii_digit() {
+                    num_str.push(next_char);
+                    chars.next();
+                } else if next_char == '>' && !num_str.is_empty() {
+                    chars.next(); // consume the '>'
+                    result.push_str("\u{FFFC}CALLOUT:");
+                    result.push_str(&num_str);
+                    result.push_str(":\u{FFFC}");
+                    num_str.clear();
+                    break;
+                } else {
+                    result.push('<');
+                    result.push_str(&num_str);
+                    break;
+                }
+            }
+
+            if !num_str.is_empty() {
+                result.push('<');
+                result.push_str(&num_str);
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+fn replace_callout_placeholders(text: &str) -> String {
+    // Replace callout placeholders with actual HTML
+    let mut result = String::new();
+    let mut chars = text.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\u{FFFC}' {
+            // Check if this is a callout placeholder
+            let mut placeholder = String::new();
+            while let Some(&next_char) = chars.peek() {
+                if next_char == '\u{FFFC}' {
+                    chars.next();
+                    break;
+                }
+                placeholder.push(next_char);
+                chars.next();
+            }
+
+            if let Some(num_str) = placeholder
+                .strip_prefix("CALLOUT:")
+                .and_then(|s| s.strip_suffix(':'))
+            {
+                result.push_str("<b class=\"conum\">(");
+                result.push_str(num_str);
+                result.push_str(")</b>");
+            } else {
+                result.push('\u{FFFC}');
+                result.push_str(&placeholder);
+                result.push('\u{FFFC}');
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
 }

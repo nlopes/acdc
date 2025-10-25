@@ -84,7 +84,6 @@ pub trait Substitute: ToString {
                 Substitution::Callouts => {
                     text = Self::substitute_callouts(&text);
                 }
-
                 // For the two below, should this be how I do it? 🤔 Not sure.
                 Substitution::Normal => {
                     self.substitute(NORMAL, attributes);

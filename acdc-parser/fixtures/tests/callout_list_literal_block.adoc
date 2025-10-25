@@ -1,0 +1,8 @@
+Callout list with literal block:
+
+....
+First line <1>
+Second line <2>
+....
+<1> Explanation for first line
+<2> Explanation for second line

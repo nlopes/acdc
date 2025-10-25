@@ -20,8 +20,12 @@ use crate::{BlockMetadata, ElementAttributes, Image, Source};
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum InlineNode {
+    // This is just "normal" text
     PlainText(Plain),
+    // This is raw text only found in Delimited Pass blocks
     RawText(Raw),
+    // This is verbatim text found in Delimited Literal and Listing blocks
+    VerbatimText(Verbatim),
     BoldText(Bold),
     ItalicText(Italic),
     MonospaceText(Monospace),
@@ -68,10 +72,20 @@ impl Serialize for InlineNode {
                 map.serialize_entry("location", &plain.location)?;
             }
             InlineNode::RawText(raw) => {
+                // We use "text" here to make sure the TCK passes, even though this is raw
+                // text.
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &raw.content)?;
                 map.serialize_entry("location", &raw.location)?;
+            }
+            InlineNode::VerbatimText(verbatim) => {
+                // We use "text" here to make sure the TCK passes, even though this is raw
+                // text.
+                map.serialize_entry("name", "text")?;
+                map.serialize_entry("type", "string")?;
+                map.serialize_entry("value", &verbatim.content)?;
+                map.serialize_entry("location", &verbatim.location)?;
             }
             InlineNode::HighlightText(highlight) => {
                 map.serialize_entry("name", "span")?;
@@ -455,6 +469,14 @@ impl<'de> Deserialize<'de> for InlineNode {
                         let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
 
                         Ok(InlineNode::RawText(Raw {
+                            content: my_value,
+                            location: my_location,
+                        }))
+                    }
+                    ("verbatim", "string") => {
+                        let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
+
+                        Ok(InlineNode::VerbatimText(Verbatim {
                             content: my_value,
                             location: my_location,
                         }))

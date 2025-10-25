@@ -114,7 +114,12 @@ impl Render for DelimitedBlock {
                 writeln!(w, "</div>")?;
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
-                if let Some(style) = &self.metadata.style {
+                // Check for custom style other than "source" - I've done this because
+                // `asciidoctor` seems to always use "literalblock" for source blocks or
+                // so I think!
+                if let Some(style) = &self.metadata.style
+                    && style != "source"
+                {
                     writeln!(w, "<div class=\"{style}block\">")?;
                 } else {
                     writeln!(w, "<div class=\"literalblock\">")?;
