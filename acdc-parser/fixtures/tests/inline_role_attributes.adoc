@@ -1,0 +1,33 @@
+This has [.red]*bold* text with a role.
+
+This has [.emphasis]_italic_ text with a role.
+
+This has [.code]`monospace` text with a role.
+
+This has [.yellow]#highlight# text with a role.
+
+This has [.note]^super^ text with a role.
+
+This has [.chem]~sub~ text with a role.
+
+This has [.quote]"`quoted`" text with a role.
+
+This has [#myid]*bold* text with an id.
+
+This has [#emphasis-id]_italic_ text with an id.
+
+This has [.red#myid]*bold* text with role and id.
+
+This has [#myid.emphasis]_italic_ text with id and role.
+
+This has [.role1.role2]*bold* text with multiple roles.
+
+This has [.primary.secondary]_italic_ text with two roles.
+
+This has [.marker]**unconstrained bold** text with a role.
+
+This has [#unc-id]__unconstrained italic__ text with an id.
+
+This has [.code#code-id]``unconstrained monospace`` text with role and id.
+
+This has [.yellow.highlight]##unconstrained highlight## text with roles.

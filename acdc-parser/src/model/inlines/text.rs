@@ -20,6 +20,8 @@ pub enum Form {
 pub struct Subscript {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -31,6 +33,8 @@ pub struct Subscript {
 pub struct Superscript {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -42,6 +46,8 @@ pub struct Superscript {
 pub struct CurvedQuotation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -53,6 +59,8 @@ pub struct CurvedQuotation {
 pub struct CurvedApostrophe {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -70,6 +78,8 @@ pub struct StandaloneCurvedApostrophe {
 pub struct Monospace {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -81,6 +91,8 @@ pub struct Monospace {
 pub struct Highlight {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -92,6 +104,8 @@ pub struct Highlight {
 pub struct Bold {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -103,6 +117,8 @@ pub struct Bold {
 pub struct Italic {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub form: Form,
     #[serde(rename = "inlines")]
     pub content: Vec<InlineNode>,
@@ -183,11 +199,24 @@ impl Serialize for Italic {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_map(Some(4))?;
+        let mut map_size = 6;
+        if self.role.is_some() {
+            map_size += 1;
+        }
+        if self.id.is_some() {
+            map_size += 1;
+        }
+        let mut state = serializer.serialize_map(Some(map_size))?;
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "emphasis")?;
         state.serialize_entry("form", &self.form)?;
+        if let Some(ref role) = self.role {
+            state.serialize_entry("role", role)?;
+        }
+        if let Some(ref id) = self.id {
+            state.serialize_entry("id", id)?;
+        }
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -199,11 +228,24 @@ impl Serialize for Superscript {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_map(Some(4))?;
+        let mut map_size = 6;
+        if self.role.is_some() {
+            map_size += 1;
+        }
+        if self.id.is_some() {
+            map_size += 1;
+        }
+        let mut state = serializer.serialize_map(Some(map_size))?;
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "superscript")?;
         state.serialize_entry("form", &self.form)?;
+        if let Some(ref role) = self.role {
+            state.serialize_entry("role", role)?;
+        }
+        if let Some(ref id) = self.id {
+            state.serialize_entry("id", id)?;
+        }
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -215,11 +257,24 @@ impl Serialize for Subscript {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_map(Some(4))?;
+        let mut map_size = 6;
+        if self.role.is_some() {
+            map_size += 1;
+        }
+        if self.id.is_some() {
+            map_size += 1;
+        }
+        let mut state = serializer.serialize_map(Some(map_size))?;
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "subscript")?;
         state.serialize_entry("form", &self.form)?;
+        if let Some(ref role) = self.role {
+            state.serialize_entry("role", role)?;
+        }
+        if let Some(ref id) = self.id {
+            state.serialize_entry("id", id)?;
+        }
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -231,11 +286,24 @@ impl Serialize for CurvedQuotation {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_map(Some(4))?;
+        let mut map_size = 6;
+        if self.role.is_some() {
+            map_size += 1;
+        }
+        if self.id.is_some() {
+            map_size += 1;
+        }
+        let mut state = serializer.serialize_map(Some(map_size))?;
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "curved_quotation")?;
         state.serialize_entry("form", &self.form)?;
+        if let Some(ref role) = self.role {
+            state.serialize_entry("role", role)?;
+        }
+        if let Some(ref id) = self.id {
+            state.serialize_entry("id", id)?;
+        }
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -247,11 +315,24 @@ impl Serialize for CurvedApostrophe {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_map(Some(4))?;
+        let mut map_size = 6;
+        if self.role.is_some() {
+            map_size += 1;
+        }
+        if self.id.is_some() {
+            map_size += 1;
+        }
+        let mut state = serializer.serialize_map(Some(map_size))?;
         state.serialize_entry("name", "span")?;
         state.serialize_entry("type", "inline")?;
         state.serialize_entry("variant", "curved_apostrophe")?;
         state.serialize_entry("form", &self.form)?;
+        if let Some(ref role) = self.role {
+            state.serialize_entry("role", role)?;
+        }
+        if let Some(ref id) = self.id {
+            state.serialize_entry("id", id)?;
+        }
         state.serialize_entry("inlines", &self.content)?;
         state.serialize_entry("location", &self.location)?;
         state.end()

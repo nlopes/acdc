@@ -10,6 +10,7 @@ use crate::{Processor, Render, RenderOptions};
 impl Render for InlineNode {
     type Error = crate::Error;
 
+    #[allow(clippy::too_many_lines)]
     fn render<W: Write>(
         &self,
         w: &mut W,
@@ -26,7 +27,14 @@ impl Render for InlineNode {
             }
             InlineNode::BoldText(b) => {
                 if !options.inlines_basic {
-                    write!(w, "<strong>")?;
+                    match (&b.id, &b.role) {
+                        (Some(id), Some(role)) => {
+                            write!(w, "<strong id=\"{id}\" class=\"{role}\">")?;
+                        }
+                        (Some(id), None) => write!(w, "<strong id=\"{id}\">")?,
+                        (None, Some(role)) => write!(w, "<strong class=\"{role}\">")?,
+                        (None, None) => write!(w, "<strong>")?,
+                    }
                 }
                 for inline in &b.content {
                     inline.render(w, processor, options)?;
@@ -37,7 +45,12 @@ impl Render for InlineNode {
             }
             InlineNode::ItalicText(i) => {
                 if !options.inlines_basic {
-                    write!(w, "<em>")?;
+                    match (&i.id, &i.role) {
+                        (Some(id), Some(role)) => write!(w, "<em id=\"{id}\" class=\"{role}\">")?,
+                        (Some(id), None) => write!(w, "<em id=\"{id}\">")?,
+                        (None, Some(role)) => write!(w, "<em class=\"{role}\">")?,
+                        (None, None) => write!(w, "<em>")?,
+                    }
                 }
                 for inline in &i.content {
                     inline.render(w, processor, options)?;
@@ -48,7 +61,12 @@ impl Render for InlineNode {
             }
             InlineNode::HighlightText(i) => {
                 if !options.inlines_basic {
-                    write!(w, "<mark>")?;
+                    match (&i.id, &i.role) {
+                        (Some(id), Some(role)) => write!(w, "<mark id=\"{id}\" class=\"{role}\">")?,
+                        (Some(id), None) => write!(w, "<mark id=\"{id}\">")?,
+                        (None, Some(role)) => write!(w, "<mark class=\"{role}\">")?,
+                        (None, None) => write!(w, "<mark>")?,
+                    }
                 }
                 for inline in &i.content {
                     inline.render(w, processor, options)?;
@@ -59,7 +77,12 @@ impl Render for InlineNode {
             }
             InlineNode::MonospaceText(m) => {
                 if !options.inlines_basic {
-                    write!(w, "<code>")?;
+                    match (&m.id, &m.role) {
+                        (Some(id), Some(role)) => write!(w, "<code id=\"{id}\" class=\"{role}\">")?,
+                        (Some(id), None) => write!(w, "<code id=\"{id}\">")?,
+                        (None, Some(role)) => write!(w, "<code class=\"{role}\">")?,
+                        (None, None) => write!(w, "<code>")?,
+                    }
                 }
                 for inline in &m.content {
                     inline.render(
@@ -76,23 +99,72 @@ impl Render for InlineNode {
                 }
             }
             InlineNode::CurvedQuotationText(c) => {
-                write!(w, "&ldquo;")?;
+                match (&c.id, &c.role) {
+                    (Some(id), Some(role)) => {
+                        write!(w, "<span id=\"{id}\" class=\"{role}\">&ldquo;")?;
+                    }
+                    (Some(id), None) => write!(w, "<span id=\"{id}\">&ldquo;")?,
+                    (None, Some(role)) => write!(w, "<span class=\"{role}\">&ldquo;")?,
+                    (None, None) => write!(w, "&ldquo;")?,
+                }
                 for inline in &c.content {
                     inline.render(w, processor, options)?;
                 }
-                write!(w, "&rdquo;")?;
+                if c.id.is_some() || c.role.is_some() {
+                    write!(w, "&rdquo;</span>")?;
+                } else {
+                    write!(w, "&rdquo;")?;
+                }
             }
             InlineNode::CurvedApostropheText(c) => {
-                write!(w, "&lsquo;")?;
+                match (&c.id, &c.role) {
+                    (Some(id), Some(role)) => {
+                        write!(w, "<span id=\"{id}\" class=\"{role}\">&lsquo;")?;
+                    }
+                    (Some(id), None) => write!(w, "<span id=\"{id}\">&lsquo;")?,
+                    (None, Some(role)) => write!(w, "<span class=\"{role}\">&lsquo;")?,
+                    (None, None) => write!(w, "&lsquo;")?,
+                }
                 for inline in &c.content {
                     inline.render(w, processor, options)?;
                 }
-                write!(w, "&rsquo;")?;
+                if c.id.is_some() || c.role.is_some() {
+                    write!(w, "&rsquo;</span>")?;
+                } else {
+                    write!(w, "&rsquo;")?;
+                }
             }
             InlineNode::StandaloneCurvedApostrophe(_) => {
                 write!(w, "&rsquo;")?;
             }
+            InlineNode::SuperscriptText(s) => {
+                match (&s.id, &s.role) {
+                    (Some(id), Some(role)) => write!(w, "<sup id=\"{id}\" class=\"{role}\">")?,
+                    (Some(id), None) => write!(w, "<sup id=\"{id}\">")?,
+                    (None, Some(role)) => write!(w, "<sup class=\"{role}\">")?,
+                    (None, None) => write!(w, "<sup>")?,
+                }
+                for inline in &s.content {
+                    inline.render(w, processor, options)?;
+                }
+                write!(w, "</sup>")?;
+            }
+            InlineNode::SubscriptText(s) => {
+                match (&s.id, &s.role) {
+                    (Some(id), Some(role)) => write!(w, "<sub id=\"{id}\" class=\"{role}\">")?,
+                    (Some(id), None) => write!(w, "<sub id=\"{id}\">")?,
+                    (None, Some(role)) => write!(w, "<sub class=\"{role}\">")?,
+                    (None, None) => write!(w, "<sub>")?,
+                }
+                for inline in &s.content {
+                    inline.render(w, processor, options)?;
+                }
+                write!(w, "</sub>")?;
+            }
             InlineNode::Macro(m) => m.render(w, processor, options)?,
+            InlineNode::LineBreak(_) => {
+                writeln!(w, "<br>")?;
+            }
             unknown => todo!("inlines: {:?}", unknown),
         }
         Ok(())
