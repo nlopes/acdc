@@ -838,7 +838,10 @@ peg::parser! {
                         "csv" => ",".to_string(),
                         "dsv" => ":".to_string(),
                         "tsv" => "\t".to_string(),
-                        format => unimplemented!("unkown table format: {format}"),
+                        unknown_format => {
+                            tracing::warn!(format = %unknown_format, "unknown table format, using default separator");
+                            "|".to_string()
+                        }
                     };
                 }
                 separator
