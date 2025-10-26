@@ -550,6 +550,33 @@ impl FromStr for AdmonitionVariant {
     }
 }
 
+/// Notation type for mathematical expressions.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StemNotation {
+    Latexmath,
+    Asciimath,
+}
+
+impl std::str::FromStr for StemNotation {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "latexmath" => Ok(Self::Latexmath),
+            "asciimath" => Ok(Self::Asciimath),
+            _ => Err(format!("unknown stem notation: {s}")),
+        }
+    }
+}
+
+/// Content of a stem block with math notation.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct StemContent {
+    pub content: String,
+    pub notation: StemNotation,
+}
+
 /// A `DelimitedBlockType` represents the type of a delimited block in a document.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -565,6 +592,7 @@ pub enum DelimitedBlockType {
     DelimitedPass(Vec<InlineNode>),
     DelimitedQuote(Vec<Block>),
     DelimitedVerse(Vec<InlineNode>),
+    DelimitedStem(StemContent),
 }
 
 impl DelimitedBlockType {
@@ -580,6 +608,7 @@ impl DelimitedBlockType {
             DelimitedBlockType::DelimitedPass(_) => "pass",
             DelimitedBlockType::DelimitedQuote(_) => "quote",
             DelimitedBlockType::DelimitedVerse(_) => "verse",
+            DelimitedBlockType::DelimitedStem(_) => "stem",
         }
     }
 }
@@ -1146,7 +1175,10 @@ impl Serialize for DelimitedBlock {
         }
 
         match &self.inner {
-            /* TODO(nlopes): missing stem */
+            DelimitedBlockType::DelimitedStem(stem) => {
+                state.serialize_entry("content", &stem.content)?;
+                state.serialize_entry("notation", &stem.notation)?;
+            }
             DelimitedBlockType::DelimitedListing(inner)
             | DelimitedBlockType::DelimitedLiteral(inner)
             | DelimitedBlockType::DelimitedPass(inner)
@@ -1332,6 +1364,7 @@ impl<'de> Deserialize<'de> for Block {
                 let mut my_items = None;
                 let mut my_inlines = None;
                 let mut my_content: Option<serde_json::Value> = None;
+                let mut my_notation: Option<serde_json::Value> = None;
                 let mut my_delimiter = None;
 
                 while let Some(key) = map.next_key::<String>()? {
@@ -1431,6 +1464,12 @@ impl<'de> Deserialize<'de> for Block {
                                 return Err(de::Error::duplicate_field("content"));
                             }
                             my_content = Some(map.next_value()?);
+                        }
+                        "notation" => {
+                            if my_notation.is_some() {
+                                return Err(de::Error::duplicate_field("notation"));
+                            }
+                            my_notation = Some(map.next_value()?);
                         }
                         "blocks" => {
                             if my_blocks.is_some() {
@@ -1737,6 +1776,35 @@ impl<'de> Deserialize<'de> for Block {
                         Ok(Block::DelimitedBlock(DelimitedBlock {
                             metadata: my_metadata,
                             inner: DelimitedBlockType::DelimitedPass(my_inlines),
+                            title: my_title,
+                            delimiter: my_delimiter,
+                            location: my_location,
+                        }))
+                    }
+                    ("stem", "block") => {
+                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
+                        if my_form != "delimited" {
+                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
+                        }
+                        let my_delimiter =
+                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
+                        let serde_json::Value::String(content) =
+                            my_content.ok_or_else(|| de::Error::missing_field("content"))?
+                        else {
+                            return Err(de::Error::custom("content must be a string"));
+                        };
+                        let notation = match my_notation {
+                            Some(serde_json::Value::String(n)) => {
+                                StemNotation::from_str(&n).map_err(de::Error::custom)?
+                            }
+                            _ => StemNotation::Latexmath, // Default
+                        };
+                        Ok(Block::DelimitedBlock(DelimitedBlock {
+                            metadata: my_metadata,
+                            inner: DelimitedBlockType::DelimitedStem(StemContent {
+                                content,
+                                notation,
+                            }),
                             title: my_title,
                             delimiter: my_delimiter,
                             location: my_location,

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{DelimitedBlock, DelimitedBlockType};
+use acdc_parser::{DelimitedBlock, DelimitedBlockType, StemContent, StemNotation};
 
 use crate::{Processor, Render, RenderOptions};
 
@@ -66,16 +66,8 @@ impl Render for DelimitedBlock {
             }
             DelimitedBlockType::DelimitedListing(inlines) => {
                 writeln!(w, "<div class=\"listingblock\">")?;
-
-                // Only render title if not empty
-                if !self.title.is_empty() {
-                    write!(w, "<div class=\"title\">")?;
-                    crate::inlines::render_inlines(&self.title, w, processor, options)?;
-                    writeln!(w, "</div>")?;
-                }
-
                 writeln!(w, "<div class=\"content\">")?;
-
+                crate::inlines::render_title(&self.title, w, processor, options)?;
                 // Check if this is a source block with a language
                 // The language is the first positional attribute (after style), which gets moved to attributes map
                 let is_source = self.metadata.style.as_deref() == Some("source");
@@ -125,12 +117,7 @@ impl Render for DelimitedBlock {
                     writeln!(w, "<div class=\"literalblock\">")?;
                 }
 
-                // Only render title if not empty
-                if !self.title.is_empty() {
-                    write!(w, "<div class=\"title\">")?;
-                    crate::inlines::render_inlines(&self.title, w, processor, options)?;
-                    writeln!(w, "</div>")?;
-                }
+                crate::inlines::render_title(&self.title, w, processor, options)?;
 
                 writeln!(w, "<div class=\"content\">")?;
                 writeln!(w, "<pre>")?;
@@ -154,14 +141,7 @@ impl Render for DelimitedBlock {
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
                 writeln!(w, "<div class=\"openblock\">")?;
-
-                // Only render title if not empty
-                if !self.title.is_empty() {
-                    write!(w, "<div class=\"title\">")?;
-                    crate::inlines::render_inlines(&self.title, w, processor, options)?;
-                    writeln!(w, "</div>")?;
-                }
-
+                crate::inlines::render_title(&self.title, w, processor, options)?;
                 writeln!(w, "<div class=\"content\">")?;
                 for block in blocks {
                     block.render(w, processor, options)?;
@@ -169,8 +149,37 @@ impl Render for DelimitedBlock {
                 writeln!(w, "</div>")?;
                 writeln!(w, "</div>")?;
             }
+            DelimitedBlockType::DelimitedStem(stem) => {
+                writeln!(w, "<div class=\"stemblock\">")?;
+                crate::inlines::render_title(&self.title, w, processor, options)?;
+                stem.render(w, processor, options)?;
+                writeln!(w, "</div>")?;
+            }
             unknown => todo!("Unknown delimited block type: {:?}", unknown),
         }
+        Ok(())
+    }
+}
+
+impl Render for StemContent {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        _options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        writeln!(w, "<div class=\"content\">")?;
+        match self.notation {
+            StemNotation::Latexmath => {
+                write!(w, "\\[{}\\]", self.content)?;
+            }
+            StemNotation::Asciimath => {
+                write!(w, "\\${}\\$", self.content)?;
+            }
+        }
+        writeln!(w, "</div>")?;
         Ok(())
     }
 }

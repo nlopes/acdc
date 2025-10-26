@@ -1,0 +1,642 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Testing Stem (Mathematical) Blocks",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 36
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "stem": "asciimath"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline stem expressions",
+          "location": [
+            {
+              "line": 4,
+              "col": 4
+            },
+            {
+              "line": 4,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The area of a circle is ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "A = \\pi r^2",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 25
+                },
+                {
+                  "line": 6,
+                  "col": 42
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 43
+                },
+                {
+                  "line": 6,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Einstein's famous equation: ",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "E = mc^2",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 29
+                },
+                {
+                  "line": 8,
+                  "col": 43
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 44
+                },
+                {
+                  "line": 8,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 44
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Stem block (latexmath)",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "stem",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "++++",
+          "content": "\\sqrt{x^2 + y^2} = r",
+          "notation": "latexmath",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Stem block with title",
+          "location": [
+            {
+              "line": 17,
+              "col": 4
+            },
+            {
+              "line": 17,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "stem",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "++++",
+          "content": "a^2 + b^2 = c^2",
+          "notation": "latexmath",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Pythagorean Theorem",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 2
+                },
+                {
+                  "line": 19,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Multiple stem blocks",
+          "location": [
+            {
+              "line": 25,
+              "col": 4
+            },
+            {
+              "line": 25,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "stem",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "++++",
+          "content": "\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}",
+          "notation": "latexmath",
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "stem",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "++++",
+          "content": "\\begin{bmatrix}\na & b \\\\\nc & d\n\\end{bmatrix}",
+          "notation": "latexmath",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Matrix Example",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 2
+                },
+                {
+                  "line": 32,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 39,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "AsciiMath stem blocks",
+          "location": [
+            {
+              "line": 41,
+              "col": 4
+            },
+            {
+              "line": 41,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "stem",
+          "type": "attribute",
+          "value": "asciimath",
+          "location": [
+            {
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Inline AsciiMath: ",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "sqrt(4) = 2",
+              "notation": "asciimath",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 19
+                },
+                {
+                  "line": 45,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 45,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "stem",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "++++",
+          "content": "sum_(i=1)^n i = (n(n+1))/2",
+          "notation": "asciimath",
+          "location": [
+            {
+              "line": 47,
+              "col": 1
+            },
+            {
+              "line": 50,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 41,
+          "col": 1
+        },
+        {
+          "line": 50,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Mixed content with stem",
+          "location": [
+            {
+              "line": 52,
+              "col": 4
+            },
+            {
+              "line": 52,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Regular paragraph before.",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 1
+                },
+                {
+                  "line": 54,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 54,
+              "col": 1
+            },
+            {
+              "line": 54,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "stem",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "++++",
+          "content": "\\int_0^1 x^2 dx = \\frac{1}{3}",
+          "notation": "asciimath",
+          "location": [
+            {
+              "line": 56,
+              "col": 1
+            },
+            {
+              "line": 59,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Regular paragraph after.",
+              "location": [
+                {
+                  "line": 61,
+                  "col": 1
+                },
+                {
+                  "line": 61,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 61,
+              "col": 1
+            },
+            {
+              "line": 61,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 52,
+          "col": 1
+        },
+        {
+          "line": 61,
+          "col": 24
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 61,
+      "col": 24
+    }
+  ]
+}

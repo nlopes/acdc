@@ -11,7 +11,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, BlockMetadata, ElementAttributes, Image, Source};
+use crate::{Anchor, BlockMetadata, ElementAttributes, Image, Source, StemNotation};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -55,6 +55,7 @@ pub enum InlineMacro {
     Autolink(Autolink),
     CrossReference(CrossReference),
     Pass(Pass),
+    Stem(Stem),
 }
 
 impl Serialize for InlineNode {
@@ -316,6 +317,13 @@ where
                 "passthrough serialization is not implemented because we only serialize to ASG what should be visible to the user"
             )
         }
+        InlineMacro::Stem(stem) => {
+            map.serialize_entry("name", "stem")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("content", &stem.content)?;
+            map.serialize_entry("notation", &stem.notation)?;
+            map.serialize_entry("location", &stem.location)?;
+        }
     }
     Ok(())
 }
@@ -355,6 +363,8 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_items = None;
                 let mut my_keys = None;
                 let mut my_label = None;
+                let mut my_content = None;
+                let mut my_notation = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
@@ -453,6 +463,18 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 return Err(de::Error::duplicate_field("label"));
                             }
                             my_label = Some(map.next_value::<String>()?);
+                        }
+                        "content" => {
+                            if my_content.is_some() {
+                                return Err(de::Error::duplicate_field("content"));
+                            }
+                            my_content = Some(map.next_value::<String>()?);
+                        }
+                        "notation" => {
+                            if my_notation.is_some() {
+                                return Err(de::Error::duplicate_field("notation"));
+                            }
+                            my_notation = Some(map.next_value::<StemNotation>()?);
                         }
                         _ => {
                             // Ignore any other fields
@@ -568,6 +590,18 @@ impl<'de> Deserialize<'de> for InlineNode {
                         Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
                             target,
                             items: my_items.unwrap_or_default(),
+                            location: my_location,
+                        })))
+                    }
+                    ("stem", "inline") => {
+                        let content =
+                            my_content.ok_or_else(|| de::Error::missing_field("content"))?;
+                        let notation =
+                            my_notation.ok_or_else(|| de::Error::missing_field("notation"))?;
+
+                        Ok(InlineNode::Macro(InlineMacro::Stem(Stem {
+                            content,
+                            notation,
                             location: my_location,
                         })))
                     }

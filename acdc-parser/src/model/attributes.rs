@@ -57,6 +57,10 @@ impl Document {
         }
     }
 
+    pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
+        self.0.insert(name, value);
+    }
+
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&AttributeValue> {
         self.0.get(name)

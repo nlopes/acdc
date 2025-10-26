@@ -22,7 +22,10 @@ impl Render for Block {
             Block::OrderedList(o) => o.render(w, processor, options),
             Block::CalloutList(c) => c.render(w, processor, options),
             Block::DescriptionList(d) => d.render(w, processor, options),
-            Block::DocumentAttribute(_) => Ok(()),
+            Block::DocumentAttribute(_) => {
+                // Document attributes are not rendered directly
+                Ok(())
+            }
             Block::TableOfContents(t) => t.render(w, processor, options),
             Block::Image(i) => i.render(w, processor, options),
             Block::Audio(a) => a.render(w, processor, options),

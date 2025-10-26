@@ -428,6 +428,9 @@ pub(crate) fn map_inline_locations(
                     InlineMacro::Autolink(autolink) => {
                         autolink.location = map_loc(&autolink.location);
                     }
+                    InlineMacro::Stem(stem) => {
+                        stem.location = map_loc(&stem.location);
+                    }
                     _ => todo!("location mapping not implemented for {mapped_macro:#?}"),
                 }
                 vec![InlineNode::Macro(mapped_macro)]

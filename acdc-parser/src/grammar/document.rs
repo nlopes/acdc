@@ -6,8 +6,9 @@ use crate::{
     DocumentAttribute, Error, Footnote, Form, Header, Highlight, Icon, Image, InlineMacro,
     InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu,
     Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
-    Source, StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table,
-    TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Verbatim, Video,
+    Source, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
+    Superscript, Table, TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Verbatim,
+    Video,
     error::Detail,
     grammar::{
         ParserState,
@@ -320,7 +321,8 @@ peg::parser! {
         = start:position!() att:document_attribute_match() end:position!()
         {
             let (key, value) = att;
-            state.document_attributes.insert(key.to_string(), value.clone());
+
+            state.document_attributes.set(key.to_string(), value.clone());
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.to_string(),
                 value,
@@ -923,13 +925,41 @@ peg::parser! {
             let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
             let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
 
+            // Check if this is a stem block
+            let inner = if let Some(ref style) = metadata.style {
+                if style == "stem" {
+                    // Get notation from :stem: document attribute
+                    let notation = match state.document_attributes.get("stem") {
+                        Some(AttributeValue::String(s)) => {
+                            StemNotation::from_str(s).unwrap_or(StemNotation::Latexmath)
+                        }
+                        Some(AttributeValue::Bool(true) | AttributeValue::None) => {
+                            StemNotation::Latexmath
+                        }
+                        _ => StemNotation::Latexmath,
+                    };
+                    metadata.style = None; // Clear style to avoid confusion
+                    DelimitedBlockType::DelimitedStem(StemContent {
+                        content: content.to_string(),
+                        notation,
+                    })
+                } else {
+                    DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
+                        content: content.to_string(),
+                        location: content_location,
+                    })])
+                }
+            } else {
+                DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
+                    content: content.to_string(),
+                    location: content_location,
+                })])
+            };
+
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-                    content: content.to_string(),
-                    location: content_location,
-                })]),
+                inner,
                 title: block_metadata.title.clone(),
                 location,
             }))
@@ -1669,6 +1699,7 @@ peg::parser! {
             / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
             / hard_wrap:hard_wrap(offset) { hard_wrap }
             / &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
+            / stem:inline_stem(offset) { stem }
             / image:inline_image(offset, block_metadata) { image }
             / icon:inline_icon(offset, block_metadata) { icon }
             / keyboard:inline_keyboard(offset) { keyboard }
@@ -1929,6 +1960,24 @@ peg::parser! {
                 attributes: metadata.attributes.clone(),
                 location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
 
+            }))
+        }
+
+        rule inline_stem(offset: usize) -> InlineNode
+        = start:position!() "stem:[" content:balanced_bracket_content() "]" end:position!()
+        {
+            // Get notation from :stem: document attribute
+            let notation = match state.document_attributes.get("stem") {
+                Some(AttributeValue::String(s)) => {
+                    StemNotation::from_str(s).unwrap_or(StemNotation::Asciimath)
+                }
+                _ => StemNotation::Asciimath,
+            };
+
+            InlineNode::Macro(InlineMacro::Stem(Stem {
+                content,
+                notation,
+                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
             }))
         }
 
@@ -2537,7 +2586,7 @@ peg::parser! {
 
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
-        content:$((!(eol()*<2,> / ![_] / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
+        content:$((!(eol()*<2,> / ![_] / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])+)
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");

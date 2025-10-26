@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ElementAttributes, InlineNode, Location, Source, Substitution};
+use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
 
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -108,5 +108,13 @@ pub struct CrossReference {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Autolink {
     pub url: Source,
+    pub location: Location,
+}
+
+/// A `Stem` represents an inline mathematical expression.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Stem {
+    pub content: String,
+    pub notation: StemNotation,
     pub location: Location,
 }
