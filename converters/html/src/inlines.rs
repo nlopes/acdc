@@ -172,6 +172,9 @@ impl Render for InlineNode {
             InlineNode::LineBreak(_) => {
                 writeln!(w, "<br>")?;
             }
+            InlineNode::InlineAnchor(anchor) => {
+                write!(w, "<a id=\"{}\"></a>", anchor.id)?;
+            }
             unknown => todo!("inlines: {:?}", unknown),
         }
         Ok(())

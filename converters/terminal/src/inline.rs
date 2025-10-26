@@ -81,6 +81,9 @@ impl Render for InlineNode {
             InlineNode::Macro(m) => {
                 m.render(w, processor)?;
             }
+            InlineNode::InlineAnchor(_) => {
+                // Anchors are invisible in terminal output
+            }
             unknown => unimplemented!("GAH: {:?}", unknown),
         }
         Ok(())

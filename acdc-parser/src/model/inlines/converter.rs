@@ -26,6 +26,7 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
             InlineNode::CurvedApostropheText(apos) => inlines_to_string(&apos.content),
             InlineNode::StandaloneCurvedApostrophe(_) => "'".to_string(),
             InlineNode::LineBreak(_) => " ".to_string(),
+            InlineNode::InlineAnchor(_) => String::new(),
             InlineNode::Macro(macro_node) => match macro_node {
                 InlineMacro::Link(link) => {
                     link.text.clone().unwrap_or_else(|| link.target.to_string())

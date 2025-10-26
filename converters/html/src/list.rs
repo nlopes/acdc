@@ -16,7 +16,14 @@ impl Render for UnorderedList {
         processor: &Processor,
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
-        writeln!(w, "<div class=\"ulist\">")?;
+        write!(w, "<div")?;
+        // Use metadata.id if present, otherwise use first anchor
+        if let Some(id) = &self.metadata.id {
+            write!(w, " id=\"{}\"", id.id)?;
+        } else if let Some(anchor) = self.metadata.anchors.first() {
+            write!(w, " id=\"{}\"", anchor.id)?;
+        }
+        writeln!(w, " class=\"ulist\">")?;
         writeln!(w, "<ul>")?;
         render_nested_list_items(&self.items, w, processor, options, 1, false)?;
         writeln!(w, "</ul>")?;
@@ -34,7 +41,14 @@ impl Render for OrderedList {
         processor: &Processor,
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
-        writeln!(w, "<div class=\"olist arabic\">")?;
+        write!(w, "<div")?;
+        // Use metadata.id if present, otherwise use first anchor
+        if let Some(id) = &self.metadata.id {
+            write!(w, " id=\"{}\"", id.id)?;
+        } else if let Some(anchor) = self.metadata.anchors.first() {
+            write!(w, " id=\"{}\"", anchor.id)?;
+        }
+        writeln!(w, " class=\"olist arabic\">")?;
         writeln!(w, "<ol class=\"arabic\">")?;
         render_nested_list_items(&self.items, w, processor, options, 1, true)?;
         writeln!(w, "</ol>")?;
@@ -224,7 +238,14 @@ impl Render for DescriptionList {
         processor: &Processor,
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
-        writeln!(w, "<div class=\"dlist\">")?;
+        write!(w, "<div")?;
+        // Use metadata.id if present, otherwise use first anchor
+        if let Some(id) = &self.metadata.id {
+            write!(w, " id=\"{}\"", id.id)?;
+        } else if let Some(anchor) = self.metadata.anchors.first() {
+            write!(w, " id=\"{}\"", anchor.id)?;
+        }
+        writeln!(w, " class=\"dlist\">")?;
         writeln!(w, "<dl>")?;
         for item in &self.items {
             item.render(w, processor, options)?;
