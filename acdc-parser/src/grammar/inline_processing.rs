@@ -139,6 +139,6 @@ pub(crate) fn process_inlines(
         preprocess_inline_content(state, start, content_start, end, offset, content)?;
     let content = parse_inlines(&processed, state, block_metadata, &location)?;
     let content =
-        super::location_mapping::map_inline_locations(state, &processed, &content, &location);
+        super::location_mapping::map_inline_locations(state, &processed, &content, &location)?;
     Ok((content, initial_location))
 }

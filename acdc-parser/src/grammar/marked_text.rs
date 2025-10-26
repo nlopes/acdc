@@ -1,6 +1,6 @@
 use crate::{Form, InlineNode, Location, grammar::ProcessedContent};
 
-use super::{ParserState, location_mapping::LocationMappingContext};
+use super::{ParserState, location_mapping::{LocationMapper, LocationMappingContext}};
 
 /// Trait for types that represent marked text with location mapping capabilities.
 ///
@@ -23,7 +23,7 @@ pub trait MarkedText: Sized {
     fn form(&self) -> &Form;
 
     /// Generic location mapping that works for any `MarkedText`
-    fn map_locations(mut self, mapping_ctx: &LocationMappingContext) -> Self {
+    fn map_locations(mut self, mapping_ctx: &LocationMappingContext) -> Result<Self, crate::Error> {
         // Get the form first to avoid borrowing issues
         let form = self.form().clone();
         let location = self.location().clone();
@@ -37,7 +37,7 @@ pub trait MarkedText: Sized {
         );
 
         // Map outer location with attribute extension
-        let mapped_outer = map_loc(&location);
+        let mapped_outer = map_loc(&location)?;
         let extended_location = super::location_mapping::extend_attribute_location_if_needed(
             mapping_ctx.state,
             mapping_ctx.processed,
@@ -51,9 +51,9 @@ pub trait MarkedText: Sized {
             mapping_ctx.state,
             mapping_ctx.processed,
             mapping_ctx.base_location,
-        );
+        )?;
 
-        self
+        Ok(self)
     }
 }
 
@@ -64,29 +64,30 @@ pub trait LocationMappable: Clone {
     /// Map locations within this content using the provided location mapper
     fn map_locations_with(
         &mut self,
-        map_loc: &dyn Fn(&Location) -> Location,
+        map_loc: &LocationMapper<'_>,
         state: &ParserState,
         processed: &ProcessedContent,
         base_location: &Location,
-    );
+    ) -> Result<(), crate::Error>;
 }
 
 /// Implementation for Vec<InlineNode> - the most common content type
 impl LocationMappable for Vec<InlineNode> {
     fn map_locations_with(
         &mut self,
-        map_loc: &dyn Fn(&Location) -> Location,
+        map_loc: &LocationMapper<'_>,
         state: &ParserState,
         processed: &ProcessedContent,
         base_location: &Location,
-    ) {
+    ) -> Result<(), crate::Error> {
         *self = super::location_mapping::map_inner_content_locations(
             std::mem::take(self),
             map_loc,
             state,
             processed,
             base_location,
-        );
+        )?;
+        Ok(())
     }
 }
 
@@ -135,33 +136,43 @@ impl_marked_text!(
 /// without repetitive match statements.
 pub trait WithLocationMappingContext {
     /// Map inline node locations using the provided location mapping context
-    fn with_location_mapping_context(self, mapping_ctx: &LocationMappingContext) -> Self;
+    fn with_location_mapping_context(
+        self,
+        mapping_ctx: &LocationMappingContext,
+    ) -> Result<Self, crate::Error>
+    where
+        Self: Sized;
 }
 
 impl WithLocationMappingContext for InlineNode {
-    fn with_location_mapping_context(self, mapping_ctx: &LocationMappingContext) -> InlineNode {
-        match self {
-            InlineNode::BoldText(node) => InlineNode::BoldText(node.map_locations(mapping_ctx)),
-            InlineNode::ItalicText(node) => InlineNode::ItalicText(node.map_locations(mapping_ctx)),
+    fn with_location_mapping_context(
+        self,
+        mapping_ctx: &LocationMappingContext,
+    ) -> Result<InlineNode, crate::Error> {
+        Ok(match self {
+            InlineNode::BoldText(node) => InlineNode::BoldText(node.map_locations(mapping_ctx)?),
+            InlineNode::ItalicText(node) => {
+                InlineNode::ItalicText(node.map_locations(mapping_ctx)?)
+            }
             InlineNode::MonospaceText(node) => {
-                InlineNode::MonospaceText(node.map_locations(mapping_ctx))
+                InlineNode::MonospaceText(node.map_locations(mapping_ctx)?)
             }
             InlineNode::HighlightText(node) => {
-                InlineNode::HighlightText(node.map_locations(mapping_ctx))
+                InlineNode::HighlightText(node.map_locations(mapping_ctx)?)
             }
             InlineNode::SubscriptText(node) => {
-                InlineNode::SubscriptText(node.map_locations(mapping_ctx))
+                InlineNode::SubscriptText(node.map_locations(mapping_ctx)?)
             }
             InlineNode::SuperscriptText(node) => {
-                InlineNode::SuperscriptText(node.map_locations(mapping_ctx))
+                InlineNode::SuperscriptText(node.map_locations(mapping_ctx)?)
             }
             InlineNode::CurvedQuotationText(node) => {
-                InlineNode::CurvedQuotationText(node.map_locations(mapping_ctx))
+                InlineNode::CurvedQuotationText(node.map_locations(mapping_ctx)?)
             }
             InlineNode::CurvedApostropheText(node) => {
-                InlineNode::CurvedApostropheText(node.map_locations(mapping_ctx))
+                InlineNode::CurvedApostropheText(node.map_locations(mapping_ctx)?)
             }
             _ => self,
-        }
+        })
     }
 }
