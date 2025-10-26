@@ -84,6 +84,63 @@ I use a two-pass approach:
 
 This correctly handles nested inline markup, attribute references within inline elements, passthrough and literal content, and special character substitutions.
 
+==== Attribute parsing: blocks vs inlines
+
+Inline elements support a simplified subset of the attribute syntax available to block elements. Here's why: Asciidoctor made this choice, and since the spec hasn't formalized inline attributes yet, I'm following that behavior.
+
+The key difference is that inline attributes only support roles (`.role`) and IDs (`#id`). You don't get the full attribute machinery available to blocks - no named attributes, no positional attributes, no options.
+
+Here's the comparison:
+
+[cols="1,2,2",options="header"]
+|===
+|Attribute |Inline Elements |Block Elements
+
+|**Roles**
+|Multiple (space-separated) +
+`[.role1.role2]*text*` → `class="role1 role2"`
+|Multiple (vector) +
+`[.role1.role2]` → stored as `Vec<String>`
+
+|**ID**
+|Single +
+`[#myid]*text*` → stored as `Option<String>`
+|Single +
+`[#myid]` → stored as `Option<Anchor>`*
+
+|**Options**
+|❌ Not supported +
+`%` treated as literal character
+|✅ Multiple +
+`[%option1%option2]` → `Vec<String>`
+
+|**Style**
+|❌ Not supported
+|✅ Single +
+`[style]` → `Option<String>`
+
+|**Named attrs**
+|❌ Not supported
+|✅ Multiple +
+`[key=value,foo=bar]` → `ElementAttributes`
+
+|**Positional attrs**
+|❌ Not supported
+|✅ Multiple +
+`[pos1,pos2,pos3]` → `Vec<String>`
+
+|**Anchors**
+|❌ Not supported
+|✅ Multiple +
+`[[anchor1]][[anchor2]]` → `Vec<Anchor>`
+|===
+
+\* `Anchor` = `{ id: String, xreflabel: Option<String> }`
+
+**The percent character quirk**: In inline contexts, `%` is a literal character, not an option separator like it is in block contexts. This means `[.role%option]*text*` becomes `class="role%option"`, with the percent sign included in the role name. If you start with a percent like `[%option]*text*`, that entire thing becomes the role name: `class="%option"`.
+
+**Role storage**: Both contexts support multiple roles, but they store them differently. Inline elements join multiple roles into a single space-separated string (`"role1 role2"`), while block metadata keeps them as separate vector items. This is an implementation detail - the HTML output is the same either way.
+
 ==== State tracking
 
 The parser keeps track of state through `ParserState`, which includes document attributes (key-value pairs from `:name: value` syntax), a footnote tracker for collecting footnotes, a TOC tracker that builds table of contents entries from section headers, and various options like safe mode and timing flags.
