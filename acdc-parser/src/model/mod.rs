@@ -468,7 +468,6 @@ pub enum ListItemCheckedStatus {
 /// with their full wrapper divs.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ListItem {
-    // TODO(nlopes): missing anchors
     pub level: ListLevel,
     pub marker: String,
     pub checked: Option<ListItemCheckedStatus>,

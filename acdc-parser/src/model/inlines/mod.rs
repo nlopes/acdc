@@ -11,7 +11,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{BlockMetadata, ElementAttributes, Image, Source};
+use crate::{Anchor, BlockMetadata, ElementAttributes, Image, Source};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -36,6 +36,7 @@ pub enum InlineNode {
     CurvedApostropheText(CurvedApostrophe),
     StandaloneCurvedApostrophe(StandaloneCurvedApostrophe),
     LineBreak(LineBreak),
+    InlineAnchor(Anchor),
     Macro(InlineMacro),
 }
 
@@ -208,6 +209,15 @@ impl Serialize for InlineNode {
                 map.serialize_entry("name", "break")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("location", &line_break.location)?;
+            }
+            InlineNode::InlineAnchor(anchor) => {
+                map.serialize_entry("name", "anchor")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("id", &anchor.id)?;
+                if let Some(xreflabel) = &anchor.xreflabel {
+                    map.serialize_entry("xreflabel", xreflabel)?;
+                }
+                map.serialize_entry("location", &anchor.location)?;
             }
             InlineNode::Macro(macro_node) => {
                 serialize_inline_macro::<S>(macro_node, &mut map)?;
@@ -489,6 +499,14 @@ impl<'de> Deserialize<'de> for InlineNode {
                     ("break", "inline") => Ok(InlineNode::LineBreak(LineBreak {
                         location: my_location,
                     })),
+                    ("anchor", "inline") => {
+                        let id = my_id.ok_or_else(|| de::Error::missing_field("id"))?;
+                        Ok(InlineNode::InlineAnchor(Anchor {
+                            id: id.ok_or_else(|| de::Error::custom("anchor id cannot be null"))?,
+                            xreflabel: None, // xreflabel can be added later if needed
+                            location: my_location,
+                        }))
+                    }
                     ("icon", "inline") => {
                         let my_target =
                             my_target.ok_or_else(|| de::Error::missing_field("target"))?;
