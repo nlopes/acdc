@@ -299,7 +299,7 @@ parser!(
             let padding = 5 + subs_len + 1 + 1; // "pass:" + subs + "[" + "]"
             let location = state.tracker.borrow_mut().calculate_location(start, content, padding);
             let content = if substitutions.contains(&Substitution::Attributes) {
-                    inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).expect("failed to process attribute references inside pass macro")
+                    inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.to_string())
                 } else {
                     content.to_string()
                 };
