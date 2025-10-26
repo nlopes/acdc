@@ -73,77 +73,87 @@ pub(crate) fn parse_inline_markup_in_passthrough(
 
         // Check all pattern types and find the one that starts earliest
         if let Some(markup_match) = find_unconstrained_bold_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "unconstrained_bold"));
         }
         if let Some(markup_match) = find_unconstrained_italic_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "unconstrained_italic"));
         }
         if let Some(markup_match) = find_constrained_bold_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "constrained_bold"));
         }
         if let Some(markup_match) = find_italic_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "italic"));
         }
         if let Some(markup_match) = find_superscript_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "superscript"));
         }
         if let Some(markup_match) = find_subscript_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "subscript"));
         }
         // Check curved quotes BEFORE monospace patterns since they start with backticks
         if let Some(markup_match) = find_curved_quotation_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start
-                || (markup_match.start == earliest_pattern.as_ref().unwrap().0.start))
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start <= earliest.start)
         {
             earliest_pattern = Some((markup_match, "curved_quotation"));
         }
         if let Some(markup_match) = find_curved_apostrophe_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start
-                || (markup_match.start == earliest_pattern.as_ref().unwrap().0.start))
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start <= earliest.start)
         {
             earliest_pattern = Some((markup_match, "curved_apostrophe"));
         }
         if let Some(markup_match) = find_monospace_unconstrained_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "monospace_unconstrained"));
         }
         if let Some(markup_match) = find_monospace_constrained_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "monospace_constrained"));
         }
         if let Some(markup_match) = find_highlight_unconstrained_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "highlight_unconstrained"));
         }
         if let Some(markup_match) = find_highlight_constrained_pattern(remaining)
-            && (earliest_pattern.is_none()
-                || markup_match.start < earliest_pattern.as_ref().unwrap().0.start)
+            && earliest_pattern
+                .as_ref()
+                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
         {
             earliest_pattern = Some((markup_match, "highlight_constrained"));
         }
