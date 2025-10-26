@@ -83,11 +83,59 @@ fn render_head<W: Write>(
     }
     writeln!(
         w,
-        "<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700\">"
+        r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<style>
+{}
+.stemblock .content {{
+  text-align: center;
+}}
+</style>
+"#,
+        include_str!("../static/asciidoctor.css")
     )?;
-    writeln!(w, "<style>")?;
-    writeln!(w, "{}", include_str!("../static/asciidoctor.css"))?;
-    writeln!(w, "</style>")?;
+
+    // Add MathJax if stem is enabled
+    if processor.document_attributes.get("stem").is_some() {
+        writeln!(
+            w,
+            r#"<script>
+MathJax = {{
+      loader: {{load: ['input/asciimath']}},
+      tex: {{
+        processEscapes: false
+      }},
+      asciimath: {{
+        delimiters: {{'[+]': [['\\$','\\$']]}},
+        displaystyle: false
+      }},
+      options: {{
+        ignoreHtmlClass: 'tex2jax_ignore|nostem|nolatexmath|noasciimath',
+        processHtmlClass: 'tex2jax_process'
+      }},
+      startup: {{
+        ready() {{
+          MathJax.startup.defaultReady();
+          MathJax.startup.promise.then(() => {{
+            const asciimath = MathJax._.input.asciimath.AsciiMath;
+            if (asciimath) {{
+              const originalCompile = asciimath.compile;
+              asciimath.compile = function(math, display) {{
+                const node = math.math;
+                if (node && node.parentElement && node.parentElement.parentElement &&
+                  node.parentElement.parentElement.classList.contains('stemblock')) {{
+                  display = true;
+                }}
+                return originalCompile.call(this, math, display);
+              }};
+            }}
+          }});
+        }}
+      }}
+}};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>"#
+        )?;
+    }
     writeln!(w, "</head>")?;
     Ok(())
 }

@@ -2,7 +2,7 @@ use std::io::Write;
 
 use acdc_parser::{
     Autolink, Button, CrossReference, Footnote, InlineMacro, InlineNode, Link, Pass,
-    PassthroughKind, Substitution, Url,
+    PassthroughKind, Stem, StemNotation, Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -199,6 +199,7 @@ impl Render for InlineMacro {
             InlineMacro::Footnote(f) => f.render(w, processor, options),
             InlineMacro::Button(b) => b.render(w, processor, options),
             InlineMacro::CrossReference(xref) => xref.render(w, processor, options),
+            InlineMacro::Stem(s) => s.render(w, processor, options),
             unknown => todo!("inline macro: {:?}", unknown),
         }
     }
@@ -333,6 +334,21 @@ impl Render for Pass {
     }
 }
 
+pub(crate) fn render_title(
+    title: &[InlineNode],
+    w: &mut impl Write,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), crate::Error> {
+    // Only render title if not empty
+    if !title.is_empty() {
+        writeln!(w, "<div class=\"title\">")?;
+        render_inlines(title, w, processor, options)?;
+        writeln!(w, "</div>")?;
+    }
+    Ok(())
+}
+
 pub(crate) fn render_inlines(
     inlines: &[InlineNode],
     w: &mut impl Write,
@@ -368,6 +384,27 @@ impl Render for Footnote {
                 ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
             )?;
             return Ok(());
+        }
+        Ok(())
+    }
+}
+
+impl Render for Stem {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        _options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        match self.notation {
+            StemNotation::Latexmath => {
+                writeln!(w, "\\({}\\)", self.content)?;
+            }
+            StemNotation::Asciimath => {
+                writeln!(w, "\\${}\\$", self.content)?;
+            }
         }
         Ok(())
     }

@@ -54,8 +54,9 @@ pub use model::{
     Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak,
     Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak,
     Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source,
-    StandaloneCurvedApostrophe, Subscript, Substitution, Superscript, Table, TableColumn,
-    TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url, Verbatim, Video,
+    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
+    Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, TocEntry,
+    UnorderedList, Url, Verbatim, Video,
 };
 
 #[derive(Debug, Clone, Default)]
