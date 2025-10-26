@@ -29,7 +29,10 @@ impl From<&str> for Substitution {
             "quotes" | "q" => Substitution::Quotes,
             "callouts" => Substitution::Callouts,
             "specialchars" | "c" | "" => Substitution::SpecialChars, // Empty substitution list defaults to special chars
-            unknown => unimplemented!("{unknown:?}"),
+            unknown => {
+                tracing::warn!(substitution = %unknown, "unknown substitution type, using SpecialChars as default");
+                Substitution::SpecialChars
+            }
         }
     }
 }
