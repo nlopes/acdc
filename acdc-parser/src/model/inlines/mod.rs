@@ -365,6 +365,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                 let mut my_label = None;
                 let mut my_content = None;
                 let mut my_notation = None;
+                let mut my_substitutions = None;
 
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
@@ -475,6 +476,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 return Err(de::Error::duplicate_field("notation"));
                             }
                             my_notation = Some(map.next_value::<StemNotation>()?);
+                        }
+                        "substitutions" => {
+                            if my_substitutions.is_some() {
+                                return Err(de::Error::duplicate_field("substitutions"));
+                            }
+                            my_substitutions = Some(map.next_value()?);
                         }
                         _ => {
                             // Ignore any other fields
@@ -648,7 +655,12 @@ impl<'de> Deserialize<'de> for InlineNode {
                                 url: target,
                                 location: my_location,
                             }))),
-                            "pass" => todo!("implement pass deserialization"),
+                            "pass" => Ok(InlineNode::Macro(InlineMacro::Pass(Pass {
+                                text: my_text,
+                                substitutions: my_substitutions.unwrap_or_default(),
+                                location: my_location,
+                                kind: PassthroughKind::default(),
+                            }))),
                             _ => {
                                 tracing::error!(variant = %my_variant, "invalid inline macro variant");
                                 Err(de::Error::custom("invalid inline macro variant"))
