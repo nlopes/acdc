@@ -431,7 +431,9 @@ pub(crate) fn map_inline_locations(
                     InlineMacro::Stem(stem) => {
                         stem.location = map_loc(&stem.location);
                     }
-                    _ => todo!("location mapping not implemented for {mapped_macro:#?}"),
+                    InlineMacro::Pass(pass) => {
+                        pass.location = map_loc(&pass.location);
+                    }
                 }
                 vec![InlineNode::Macro(mapped_macro)]
             }
