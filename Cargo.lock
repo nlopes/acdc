@@ -46,6 +46,7 @@ dependencies = [
  "acdc-core",
  "acdc-parser",
  "chrono",
+ "pretty_assertions",
  "thiserror 2.0.17",
  "tracing",
 ]
@@ -92,6 +93,7 @@ dependencies = [
  "clap",
  "comfy-table",
  "crossterm 0.29.0",
+ "pretty_assertions",
  "thiserror 2.0.17",
  "tracing",
  "viuer",

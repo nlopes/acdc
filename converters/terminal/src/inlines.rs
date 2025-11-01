@@ -494,9 +494,9 @@ mod tests {
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
 
         // Check for presence of components rather than exact format with braces
-        assert!(output.contains("x"), "Should contain base text");
+        assert!(output.contains('x'), "Should contain base text");
         assert!(
-            output.contains("^{") && output.contains("2"),
+            output.contains("^{") && output.contains('2'),
             "Should render superscript notation"
         );
         Ok(())
@@ -515,9 +515,9 @@ mod tests {
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
 
         // Check for presence of components rather than exact format with braces
-        assert!(output.contains("a"), "Should contain base text");
+        assert!(output.contains('a'), "Should contain base text");
         assert!(
-            output.contains("_{") && output.contains("n"),
+            output.contains("_{") && output.contains('n'),
             "Should render subscript notation"
         );
         Ok(())

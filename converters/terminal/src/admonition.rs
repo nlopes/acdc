@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{Admonition, AdmonitionVariant};
 use crossterm::{
     QueueableCommand,
@@ -9,7 +9,7 @@ use crate::Error;
 
 /// Visit an admonition block (NOTE, TIP, IMPORTANT, WARNING, CAUTION).
 ///
-/// Renders with icon/label and content in a visually distinct box.
+/// Renders with a styled variant label followed by title and content.
 pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     admon: &Admonition,
@@ -18,7 +18,7 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     writeln!(w)?;
 
     // Get styled variant label
-    let variant_str = format!("{}", admon.variant);
+    let variant_str = format!("{}", admon.variant).to_uppercase();
     let styled_variant = match admon.variant {
         AdmonitionVariant::Note => variant_str.blue().bold(),
         AdmonitionVariant::Tip => variant_str.green().bold(),
@@ -27,29 +27,35 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
         AdmonitionVariant::Caution => variant_str.magenta().bold(),
     };
 
-    // Top border with variant label
-    write!(w, "  ╔═")?;
+    // Write the variant label
     QueueableCommand::queue(w, PrintStyledContent(styled_variant))?;
-    writeln!(w, "═{}╗", "═".repeat(70))?;
+    writeln!(w)?;
 
     // Render title if present
-    let _ = w;
-    visitor.render_title_with_wrapper(&admon.title, "  ║ ", " ║\n")?;
     if !admon.title.is_empty() {
+        visitor.visit_inline_nodes(&admon.title)?;
         let w = visitor.writer_mut();
-        writeln!(w, "  ╠{}╣", "═".repeat(76))?;
+        writeln!(w)?;
+        writeln!(w)?;
     }
 
     // Render content blocks
     for block in &admon.blocks {
-        let w = visitor.writer_mut();
-        write!(w, "  ║ ")?;
-        let _ = w;
         visitor.visit_block(block)?;
     }
 
+    // End marker with three dots in the same color as the variant
     let w = visitor.writer_mut();
-    writeln!(w, "  ╚{}╝", "═".repeat(76))?;
+    let end_marker = "• • •";
+    let styled_end_marker = match admon.variant {
+        AdmonitionVariant::Note => end_marker.blue().bold(),
+        AdmonitionVariant::Tip => end_marker.green().bold(),
+        AdmonitionVariant::Important => end_marker.yellow().bold(),
+        AdmonitionVariant::Warning => end_marker.red().bold(),
+        AdmonitionVariant::Caution => end_marker.magenta().bold(),
+    };
+    QueueableCommand::queue(w, PrintStyledContent(styled_end_marker))?;
+    writeln!(w)?;
 
     Ok(())
 }

@@ -1,0 +1,20 @@
+[1m[4mMixed Content with Description Lists[0m
+
+
+[1mFirst item[0m
+  Some text here
+A paragraph that follows.
+
+
+ * A list item
+ * Another list item
+Another paragraph.
+
+
+[1mSecond item[0m
+  More text
+
+ 1. Ordered item 1
+ 2. Ordered item 2
+[1mThird item[0m
+  Final text
