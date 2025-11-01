@@ -1,0 +1,11 @@
+= Table with incomplete row (single-line format)
+
+[cols="34%,36%,31%",options="header"]
+|===
+|Subreddit|Submissions|Comments
+
+|/r/JiffyBot|0|333 (391)
+|/r/cringe|0|92 (614)
+|/r/incomplete|missing
+|/r/tf2|0|45 (315)
+|===

@@ -88,10 +88,24 @@ impl Table {
             let mut row_lines = Vec::new();
             let row_start_offset = current_offset;
 
-            while i < lines.len() && !lines[i].trim_end().is_empty() {
-                row_lines.push(lines[i].trim_end());
-                current_offset += lines[i].len() + 1; // +1 for newline
+            // Check if this is a single-line-per-row table (line has multiple separators)
+            // vs multi-line-per-row table (one cell per line, rows separated by empty lines)
+            let first_line = lines[i].trim_end();
+            let is_single_line_row =
+                first_line.starts_with(separator) && first_line.matches(separator).count() > 1;
+
+            if is_single_line_row {
+                // Single-line row format: each line is a complete row
+                row_lines.push(first_line);
+                current_offset += lines[i].len() + 1;
                 i += 1;
+            } else {
+                // Multi-line row format: collect lines until empty line
+                while i < lines.len() && !lines[i].trim_end().is_empty() {
+                    row_lines.push(lines[i].trim_end());
+                    current_offset += lines[i].len() + 1; // +1 for newline
+                    i += 1;
+                }
             }
 
             if !row_lines.is_empty() {
