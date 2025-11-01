@@ -434,12 +434,6 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
                 }
             }
 
-            // Check if this might be a curved quote pattern - skip if so
-            if i + 1 < chars.len() && (chars[i + 1] == '"' || chars[i + 1] == '\'') {
-                i += 1;
-                continue;
-            }
-
             i += 1; // Skip the opening `
             let content_start = i;
 

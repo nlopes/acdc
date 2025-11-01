@@ -1,0 +1,5 @@
+Test monospace with quotes: `"error parsing document content: {e}"`.
+
+Another example: `'single quoted'` text.
+
+Mixed: `"double"` and `'single'` in monospace.
