@@ -89,6 +89,15 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
     )
 }
 
+/// Helper to check delimiter matching and return error if mismatched
+fn check_delimiters(open: &str, close: &str, block_type: &str) -> Result<(), Error> {
+    if open == close {
+        Ok(())
+    } else {
+        Err(Error::mismatched_delimiters(block_type))
+    }
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
@@ -334,7 +343,7 @@ peg::parser! {
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
             let level = section_level.1;
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
 
             Ok(Block::DiscreteHeader(DiscreteHeader {
                 metadata: block_metadata.metadata,
@@ -388,14 +397,14 @@ peg::parser! {
             if let Some(parent_level) = parent_section_level && (
                 section_level.1 < parent_level  || section_level.1+1 > parent_level+1 || section_level.1 > 5) {
                     return Err(Error::NestedSectionLevelMismatch(
-                        Detail { location: state.create_location(section_level_start + offset, (section_level_end + offset).saturating_sub(1)) },
+                        Detail { location: state.create_block_location(section_level_start, section_level_end, offset) },
                         section_level.1+1,
                         parent_level + 1,
                     ));
             }
 
             let level = section_level.1;
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
 
             Ok(Block::Section(Section {
                 metadata: block_metadata.metadata,
@@ -618,12 +627,10 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("example".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "example")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -664,14 +671,12 @@ peg::parser! {
             content_start:position!() content:until_comment_delimiter() content_end:position!()
             eol() close_delim:comment_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("comment".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "comment")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
-            let location = state.create_location((start+offset), (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
@@ -694,13 +699,11 @@ peg::parser! {
             content_start:position!() content:until_listing_delimiter() content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("listing".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "listing")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             state.last_block_was_verbatim = true;
 
@@ -721,9 +724,7 @@ peg::parser! {
             content_start:position!() content:until_markdown_code_delimiter() content_end:position!()
             eol() close_delim:markdown_code_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("listing".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "listing")?;
             let mut metadata = block_metadata.metadata.clone();
 
             // If we captured a language, add it as a positional attribute
@@ -732,8 +733,8 @@ peg::parser! {
             }
 
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             state.last_block_was_verbatim = true;
 
@@ -758,13 +759,11 @@ peg::parser! {
         close_delim:literal_delimiter()
         end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("literal".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "literal")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             state.last_block_was_verbatim = true;
 
@@ -785,12 +784,10 @@ peg::parser! {
             content_start:position!() content:until_open_delimiter() content_end:position!()
             eol() close_delim:open_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("open".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "open")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -817,12 +814,10 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("sidebar".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "sidebar")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -847,14 +842,12 @@ peg::parser! {
         content_start:position!() content:until_table_delimiter() content_end:position!()
         eol() close_delim:table_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("table".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "table")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let table_location = state.create_location(table_start+offset, (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let table_location = state.create_block_location(table_start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             let separator = if let Some(AttributeValue::String(sep)) = block_metadata.metadata.attributes.get("separator") {
                 sep.clone()
@@ -971,13 +964,11 @@ peg::parser! {
             content_start:position!() content:until_pass_delimiter() content_end:position!()
             eol() close_delim:pass_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("pass".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "pass")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             // Check if this is a stem block
             let inner = if let Some(ref style) = metadata.style {
@@ -1024,13 +1015,11 @@ peg::parser! {
             content_start:position!() content:until_quote_delimiter() content_end:position!()
             eol() close_delim:quote_delimiter() end:position!()
         {
-            if open_delim != close_delim {
-                return Err(Error::MismatchedDelimiters("quote".to_string()));
-            }
+            check_delimiters(open_delim, close_delim, "quote")?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_location(start+offset, (end+offset).saturating_sub(1));
-            let content_location = state.create_location(content_start+offset, (content_end+offset).saturating_sub(1));
+            let location = state.create_block_location(start, end, offset);
+            let content_location = state.create_block_location(content_start, content_end, offset);
 
             let inner = if let Some(ref style) = metadata.style {
                 if style == "verse" {
@@ -1100,7 +1089,7 @@ peg::parser! {
                 title,
                 source,
                 metadata,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
 
             }))
         }
@@ -1117,7 +1106,7 @@ peg::parser! {
                 title,
                 source,
                 metadata,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -1153,7 +1142,7 @@ peg::parser! {
                 title,
                 sources,
                 metadata,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -1170,7 +1159,7 @@ peg::parser! {
             Ok(Block::ThematicBreak(ThematicBreak {
                 anchors: block_metadata.metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
                 title: block_metadata.title.clone(),
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -1806,7 +1795,7 @@ peg::parser! {
                 id: id.clone(),
                 content,
                 number: 0, // Will be set by register_footnote
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             };
             state.footnote_tracker.push(&mut footnote);
 
@@ -1875,7 +1864,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Pass(Pass {
                 text: Some(content.trim().to_string()),
                 substitutions: substitutions.into_iter().map(|s| Substitution::from(s.trim())).collect(),
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
                 kind: PassthroughKind::Macro,
             }))
         }
@@ -1893,7 +1882,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Menu(Menu {
                 target: target.to_string(),
                 items,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -1904,7 +1893,7 @@ peg::parser! {
             tracing::info!(?label, "Found button inline");
             InlineNode::Macro(InlineMacro::Button(Button {
                 label: label.trim().to_string(),
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -1918,7 +1907,7 @@ peg::parser! {
             tracing::info!(?keys, "Found keyboard inline");
             InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
                 keys,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -1965,7 +1954,7 @@ peg::parser! {
                 text,
                 target: target_source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             })))
         }
 
@@ -1981,7 +1970,7 @@ peg::parser! {
             let url_source = Source::from_str(&url).map_err(|_| "failed to parse autolink URL")?;
             Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
                 url: url_source,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             })))
         }
 
@@ -1990,7 +1979,7 @@ peg::parser! {
         {
             tracing::info!("Found inline line break");
             InlineNode::LineBreak(LineBreak {
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             })
         }
 
@@ -1999,7 +1988,7 @@ peg::parser! {
         {
             tracing::info!("Found hard wrap inline");
             InlineNode::LineBreak(LineBreak {
-                location: state.create_location((start+offset), (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             })
         }
 
@@ -2012,7 +2001,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Icon(Icon {
                 target: source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
 
             }))
         }
@@ -2031,7 +2020,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Stem(Stem {
                 content,
                 notation,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -2071,7 +2060,7 @@ peg::parser! {
                 title,
                 source,
                 metadata: metadata.clone(),
-                location: state.create_location(start.offset+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
 
             }))))
         }
@@ -2130,7 +2119,7 @@ peg::parser! {
                 text,
                 target,
                 attributes: metadata.attributes.clone(),
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             })))
         }
 
@@ -2145,7 +2134,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             })))
         }
 
@@ -2166,7 +2155,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text: text_str,
-                location: state.create_location(start+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             })))
         }
 
@@ -2201,7 +2190,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2247,7 +2236,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Constrained,
-                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -2291,7 +2280,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Constrained,
-                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -2345,7 +2334,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2371,7 +2360,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2413,7 +2402,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Constrained,
-                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -2456,7 +2445,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2499,7 +2488,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Constrained,
-                location: state.create_location(start + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start, end, offset),
             }))
         }
 
@@ -2543,7 +2532,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2570,7 +2559,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2597,7 +2586,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2624,7 +2613,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2634,7 +2623,7 @@ peg::parser! {
         {?
             tracing::info!(?start, ?end, ?offset, "Found standalone curved apostrophe inline");
             Ok(InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-                location: state.create_location(start.offset + offset, (end + offset).saturating_sub(1)),
+                location: state.create_block_location(start.offset, end, offset),
             }))
         }
 
@@ -2646,7 +2635,7 @@ peg::parser! {
             tracing::info!(?content, "Found plain text inline");
             InlineNode::PlainText(Plain {
                 content: content.to_string(),
-                location: state.create_location(start_pos+offset, (end+offset).saturating_sub(1)),
+                location: state.create_block_location(start_pos, end, offset),
             })
         }
 
@@ -2794,7 +2783,7 @@ peg::parser! {
                 InlineNode::InlineAnchor(Anchor {
                     id: id.to_string(),
                     xreflabel: reftext.map(ToString::to_string),
-                    location: state.create_location(start + offset, (end + offset).saturating_sub(1))
+                    location: state.create_block_location(start, end, offset)
                 })
             }
 

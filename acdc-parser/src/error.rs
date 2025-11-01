@@ -79,6 +79,14 @@ pub enum Error {
     TryFromIntError(#[from] std::num::TryFromIntError),
 }
 
+impl Error {
+    /// Helper for creating mismatched delimiter errors
+    #[must_use]
+    pub fn mismatched_delimiters(block_type: &str) -> Self {
+        Self::MismatchedDelimiters(block_type.to_string())
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Detail {
     pub location: Location,
