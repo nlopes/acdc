@@ -308,3 +308,432 @@ fn render_cross_reference<W: Write + ?Sized>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Options, TerminalVisitor};
+    use acdc_converters_common::visitor::Visitor;
+    use acdc_parser::{
+        Anchor, BlockMetadata, Bold, CrossReference, CurvedApostrophe, CurvedQuotation,
+        DocumentAttributes, ElementAttributes, Form, Highlight, Image, InlineMacro, Italic,
+        Keyboard, LineBreak, Link, Location, Monospace, Paragraph, Plain, Source,
+        StandaloneCurvedApostrophe, Subscript, Superscript,
+    };
+
+    /// Create simple plain text inline node for testing
+    fn create_plain_text(content: &str) -> InlineNode {
+        InlineNode::PlainText(Plain {
+            content: content.to_string(),
+            location: Location::default(),
+        })
+    }
+
+    /// Create test processor with default options
+    fn create_test_processor() -> Processor {
+        let options = Options::default();
+        let document_attributes = DocumentAttributes::default();
+        Processor {
+            options,
+            document_attributes,
+            toc_entries: vec![],
+        }
+    }
+
+    /// Helper to render a paragraph with inline nodes and return the output
+    fn render_paragraph(inlines: Vec<InlineNode>) -> Result<String, Error> {
+        let paragraph = Paragraph {
+            content: inlines,
+            location: Location::default(),
+            metadata: BlockMetadata::default(),
+            title: Vec::new(),
+        };
+
+        let buffer = Vec::new();
+        let processor = create_test_processor();
+        let mut visitor = TerminalVisitor::new(buffer, processor);
+        visitor.visit_paragraph(&paragraph)?;
+        let output = visitor.into_writer();
+
+        Ok(String::from_utf8_lossy(&output).to_string())
+    }
+
+    #[test]
+    fn test_plain_text() -> Result<(), Error> {
+        let output = render_paragraph(vec![create_plain_text("Hello, world!")])?;
+        assert!(
+            output.contains("Hello, world!"),
+            "Should contain plain text"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_bold_text() -> Result<(), Error> {
+        let bold = InlineNode::BoldText(Bold {
+            content: vec![create_plain_text("bold text")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![bold])?;
+        // Bold text should contain ANSI bold escape codes
+        assert!(
+            output.contains("bold text"),
+            "Should contain bold text content"
+        );
+        assert!(output.contains("\x1b[1m"), "Should contain ANSI bold code");
+        Ok(())
+    }
+
+    #[test]
+    fn test_italic_text() -> Result<(), Error> {
+        let italic = InlineNode::ItalicText(Italic {
+            content: vec![create_plain_text("italic text")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![italic])?;
+        // Italic text should contain ANSI italic escape codes
+        assert!(
+            output.contains("italic text"),
+            "Should contain italic text content"
+        );
+        assert!(
+            output.contains("\x1b[3m"),
+            "Should contain ANSI italic code"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_monospace_text() -> Result<(), Error> {
+        let monospace = InlineNode::MonospaceText(Monospace {
+            content: vec![create_plain_text("monospace text")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![monospace])?;
+        assert!(
+            output.contains("monospace text"),
+            "Should contain monospace text content"
+        );
+        // Monospace uses black text on grey background (codes 30 and 100)
+        assert!(
+            output.contains("\x1b["),
+            "Should contain ANSI escape codes for styling"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_mixed_formatting() -> Result<(), Error> {
+        let output = render_paragraph(vec![
+            create_plain_text("Normal "),
+            InlineNode::BoldText(Bold {
+                content: vec![create_plain_text("bold")],
+                role: None,
+                id: None,
+                form: Form::Constrained,
+                location: Location::default(),
+            }),
+            create_plain_text(" and "),
+            InlineNode::ItalicText(Italic {
+                content: vec![create_plain_text("italic")],
+                role: None,
+                id: None,
+                form: Form::Constrained,
+                location: Location::default(),
+            }),
+        ])?;
+
+        assert!(output.contains("Normal"), "Should contain normal text");
+        assert!(output.contains("bold"), "Should contain bold text");
+        assert!(output.contains("italic"), "Should contain italic text");
+        Ok(())
+    }
+
+    #[test]
+    fn test_highlight_text() -> Result<(), Error> {
+        let highlight = InlineNode::HighlightText(Highlight {
+            content: vec![create_plain_text("highlighted")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![highlight])?;
+        assert!(
+            output.contains("highlighted"),
+            "Should contain highlighted text"
+        );
+        // Highlight uses yellow background (code 43 or 103)
+        assert!(output.contains("\x1b["), "Should contain ANSI escape codes");
+        Ok(())
+    }
+
+    #[test]
+    fn test_superscript_text() -> Result<(), Error> {
+        let superscript = InlineNode::SuperscriptText(Superscript {
+            content: vec![create_plain_text("2")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
+
+        // Check for presence of components rather than exact format with braces
+        assert!(output.contains("x"), "Should contain base text");
+        assert!(
+            output.contains("^{") && output.contains("2"),
+            "Should render superscript notation"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_subscript_text() -> Result<(), Error> {
+        let subscript = InlineNode::SubscriptText(Subscript {
+            content: vec![create_plain_text("n")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
+
+        // Check for presence of components rather than exact format with braces
+        assert!(output.contains("a"), "Should contain base text");
+        assert!(
+            output.contains("_{") && output.contains("n"),
+            "Should render subscript notation"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_curved_quotation_text() -> Result<(), Error> {
+        let quoted = InlineNode::CurvedQuotationText(CurvedQuotation {
+            content: vec![create_plain_text("quoted text")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![quoted])?;
+        assert!(
+            output.contains("\u{201C}"),
+            "Should contain opening curly quote"
+        );
+        assert!(
+            output.contains("\u{201D}"),
+            "Should contain closing curly quote"
+        );
+        assert!(output.contains("quoted text"), "Should contain quoted text");
+        Ok(())
+    }
+
+    #[test]
+    fn test_curved_apostrophe_text() -> Result<(), Error> {
+        let apostrophe = InlineNode::CurvedApostropheText(CurvedApostrophe {
+            content: vec![create_plain_text("text")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![apostrophe])?;
+        assert!(
+            output.contains("\u{2018}"),
+            "Should contain opening curly apostrophe"
+        );
+        assert!(
+            output.contains("\u{2019}"),
+            "Should contain closing curly apostrophe"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_standalone_curved_apostrophe() -> Result<(), Error> {
+        let apostrophe = InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![apostrophe])?;
+        assert!(
+            output.contains("\u{2019}"),
+            "Should contain curly apostrophe"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_link_macro() -> Result<(), Error> {
+        let link = InlineNode::Macro(InlineMacro::Link(Link {
+            target: Source::Name("https://example.com".to_string()),
+            text: None,
+            attributes: ElementAttributes::default(),
+            location: Location::default(),
+        }));
+
+        let output = render_paragraph(vec![link])?;
+        assert!(
+            output.contains("https://example.com"),
+            "Should render link URL"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_image_macro_placeholder() -> Result<(), Error> {
+        let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image {
+            source: Source::Name("logo.png".to_string()),
+            title: Vec::new(),
+            metadata: BlockMetadata::default(),
+            location: Location::default(),
+        })));
+
+        let output = render_paragraph(vec![image])?;
+        assert!(
+            output.contains("[Image: logo.png]"),
+            "Should render image placeholder"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_keyboard_macro() -> Result<(), Error> {
+        let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
+            keys: vec!["Ctrl".to_string(), "C".to_string()],
+            location: Location::default(),
+        }));
+
+        let output = render_paragraph(vec![kbd])?;
+        assert!(
+            output.contains("[Ctrl+C]"),
+            "Should render keyboard shortcut"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_cross_reference_with_text() -> Result<(), Error> {
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference {
+            target: "section-id".to_string(),
+            text: Some("See Section 1".to_string()),
+            location: Location::default(),
+        }));
+
+        let output = render_paragraph(vec![xref])?;
+        assert!(
+            output.contains("See Section 1"),
+            "Should render xref custom text"
+        );
+        assert!(
+            output.contains("\x1b["),
+            "Should contain ANSI codes for styling"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_cross_reference_without_text() -> Result<(), Error> {
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference {
+            target: "section-id".to_string(),
+            text: None,
+            location: Location::default(),
+        }));
+
+        let output = render_paragraph(vec![xref])?;
+        assert!(
+            output.contains("[section-id]"),
+            "Should render xref with target in brackets"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_line_break() -> Result<(), Error> {
+        let output = render_paragraph(vec![
+            create_plain_text("First line"),
+            InlineNode::LineBreak(LineBreak {
+                location: Location::default(),
+            }),
+            create_plain_text("Second line"),
+        ])?;
+
+        // Line break should create a newline
+        assert!(output.contains("First line"), "Should contain first line");
+        assert!(output.contains("Second line"), "Should contain second line");
+        // Should have newline between them
+        assert!(output.lines().count() >= 2, "Should have multiple lines");
+        Ok(())
+    }
+
+    #[test]
+    fn test_inline_anchor_invisible() -> Result<(), Error> {
+        let output = render_paragraph(vec![
+            create_plain_text("Before"),
+            InlineNode::InlineAnchor(Anchor {
+                id: "anchor-id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            create_plain_text("After"),
+        ])?;
+
+        // Anchor should be invisible
+        assert!(
+            output.contains("Before"),
+            "Should contain text before anchor"
+        );
+        assert!(output.contains("After"), "Should contain text after anchor");
+        assert!(
+            !output.contains("anchor-id"),
+            "Anchor ID should not be visible"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_formatting() -> Result<(), Error> {
+        // Test bold text containing italic text
+        let nested = InlineNode::BoldText(Bold {
+            content: vec![InlineNode::ItalicText(Italic {
+                content: vec![create_plain_text("bold italic")],
+                role: None,
+                id: None,
+                form: Form::Constrained,
+                location: Location::default(),
+            })],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![nested])?;
+        assert!(
+            output.contains("bold italic"),
+            "Should contain nested formatted text"
+        );
+        // Should have escape codes for both bold and italic
+        assert!(output.contains("\x1b["), "Should contain ANSI escape codes");
+        Ok(())
+    }
+}
