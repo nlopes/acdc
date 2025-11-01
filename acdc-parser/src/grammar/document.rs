@@ -98,6 +98,16 @@ fn check_delimiters(open: &str, close: &str, block_type: &str) -> Result<(), Err
     }
 }
 
+/// Macro to handle inline processing errors with logging
+macro_rules! process_inlines_or_err {
+    ($call:expr, $msg:literal) => {
+        $call.map_err(|e| {
+            tracing::error!(?e, $msg);
+            $msg
+        })
+    };
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
@@ -1784,10 +1794,10 @@ peg::parser! {
             let content = if content_str.trim().is_empty() {
                 vec![]
             } else {
-                let (content, _) = process_inlines(state, block_metadata, content_start.offset, &content_start, end, offset, &content_str).map_err(|e| {
-                tracing::error!(?e, "could not process footnote content");
-                "could not process footnote content"
-                })?;
+                let (content, _) = process_inlines_or_err!(
+                    process_inlines(state, block_metadata, content_start.offset, &content_start, end, offset, &content_str),
+                    "could not process footnote content"
+                )?;
                 content
             };
 
@@ -2048,10 +2058,10 @@ peg::parser! {
                         offset: title_start,
                         position: state.line_map.offset_to_position(title_start, &state.input),
                     };
-                    title = process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content).map_err(|e| {
-                        tracing::error!(?e, "could not process title in inline image macro");
+                    title = process_inlines_or_err!(
+                        process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content),
                         "could not process title in inline image macro"
-                    })?.0;
+                    )?.0;
                 }
                 metadata.attributes.remove("title");
             }
@@ -2181,10 +2191,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained bold text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process unconstrained bold text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content),
                 "could not process unconstrained bold text content"
-            })?;
+            )?;
             Ok(InlineNode::BoldText(Bold {
                 content,
                 role,
@@ -2226,10 +2236,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process constrained bold text content");
+            let (content, _) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained bold text content"
-            })?;
+            )?;
 
             Ok(InlineNode::BoldText(Bold {
                 content,
@@ -2271,10 +2281,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process constrained italic text content");
+            let (content, _) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained italic text content"
-            })?;
+            )?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role,
@@ -2325,10 +2335,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained italic text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process unconstrained italic text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content),
                 "could not process unconstrained italic text content"
-            })?;
+            )?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role,
@@ -2351,10 +2361,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained monospace text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process unconstrained monospace text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content),
                 "could not process unconstrained monospace text content"
-            })?;
+            )?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role,
@@ -2393,10 +2403,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process constrained monospace text content");
+            let (content, _) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained monospace text content"
-            })?;
+            )?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role,
@@ -2436,10 +2446,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained highlight text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process unconstrained highlight text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content),
                 "could not process unconstrained highlight text content"
-            })?;
+            )?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role,
@@ -2479,10 +2489,10 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let (content, _) = process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process constrained highlight text content");
+            let (content, _) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, start + 1, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained highlight text content"
-            })?;
+            )?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role,
@@ -2523,10 +2533,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found superscript text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process superscript text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content),
                 "could not process superscript text content"
-            })?;
+            )?;
             Ok(InlineNode::SuperscriptText(Superscript {
                 content,
                 role,
@@ -2550,10 +2560,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found subscript text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process subscript text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 1, offset, content),
                 "could not process subscript text content"
-            })?;
+            )?;
             Ok(InlineNode::SubscriptText(Subscript {
                 content,
                 role,
@@ -2577,10 +2587,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found curved quotation text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process curved quotation text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content),
                 "could not process curved quotation text content"
-            })?;
+            )?;
             Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
                 content,
                 role,
@@ -2604,10 +2614,10 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| id.clone());
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found curved apostrophe text inline");
-            let (content, location) = process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content).map_err(|e| {
-                tracing::error!(?e, "could not process curved apostrophe text content");
+            let (content, location) = process_inlines_or_err!(
+                process_inlines(state, block_metadata, content_start.offset, &content_start, end - 2, offset, content),
                 "could not process curved apostrophe text content"
-            })?;
+            )?;
             Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
                 content,
                 role,
