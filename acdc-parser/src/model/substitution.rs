@@ -112,15 +112,28 @@ pub trait Substitute: ToString {
     #[must_use]
     fn substitute_attributes(text: &str, attributes: &DocumentAttributes) -> String {
         let mut result = String::with_capacity(text.len());
-        let mut i: usize = 0;
+        let mut chars = text.chars().peekable();
 
-        while i < text.len() {
-            if text[i..].starts_with('{') {
-                if let Some(end_brace) = text[i + 1..].find('}') {
-                    let attr_name = &text[i + 1..i + 1 + end_brace];
-                    match attributes.get(attr_name) {
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                // Collect characters until we find '}'
+                let mut attr_name = String::new();
+                let mut found_closing_brace = false;
+
+                while let Some(&next_ch) = chars.peek() {
+                    if next_ch == '}' {
+                        chars.next(); // consume the '}'
+                        found_closing_brace = true;
+                        break;
+                    }
+                    attr_name.push(next_ch);
+                    chars.next();
+                }
+
+                if found_closing_brace {
+                    match attributes.get(&attr_name) {
                         Some(AttributeValue::Bool(true)) => {
-                            result.push_str("");
+                            // Don't add anything for true boolean attributes
                         }
                         Some(AttributeValue::String(attr_value)) => {
                             result.push_str(attr_value);
@@ -128,18 +141,17 @@ pub trait Substitute: ToString {
                         _ => {
                             // If the attribute is not found, we return the attribute reference as is.
                             result.push('{');
-                            result.push_str(attr_name);
+                            result.push_str(&attr_name);
                             result.push('}');
                         }
                     }
-                    i += end_brace + 2;
                 } else {
-                    result.push_str(&text[i..=i]);
-                    i += 1;
+                    // No closing brace found, push the opening brace and the collected chars
+                    result.push('{');
+                    result.push_str(&attr_name);
                 }
             } else {
-                result.push_str(&text[i..=i]);
-                i += 1;
+                result.push(ch);
             }
         }
 
@@ -204,5 +216,28 @@ mod tests {
         let value = "value {attribute_volume}";
         let resolved = value.substitute(HEADER, &attributes);
         assert_eq!(resolved, attribute_volume_repeat);
+    }
+
+    #[test]
+    fn test_utf8_boundary_handling() {
+        // Regression test for fuzzer-found bug: UTF-8 multi-byte characters
+        // should not cause panics during attribute substitution
+        let attributes = DocumentAttributes::default();
+
+        // Input with UTF-8 multi-byte character (Ô = 0xc3 0x94)
+        let value = ":J::~\x01\x00\x00Ô";
+        let resolved = value.substitute(HEADER, &attributes);
+        // Should not panic and preserve the input
+        assert_eq!(resolved, value);
+
+        // Test with various UTF-8 characters and attribute-like patterns
+        let value = "{attr}Ô{missing}日本語";
+        let resolved = value.substitute(HEADER, &attributes);
+        assert_eq!(resolved, "{attr}Ô{missing}日本語");
+
+        // Test with multi-byte chars inside attribute name
+        let value = "{attrÔ}test";
+        let resolved = value.substitute(HEADER, &attributes);
+        assert_eq!(resolved, "{attrÔ}test");
     }
 }
