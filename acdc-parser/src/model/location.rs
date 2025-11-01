@@ -8,9 +8,9 @@ use serde::{
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 pub struct Location {
     /// The absolute start position of the location.
-    pub(crate) absolute_start: usize,
+    pub absolute_start: usize,
     /// The absolute end position of the location.
-    pub(crate) absolute_end: usize,
+    pub absolute_end: usize,
 
     /// The start position of the location.
     pub start: Position,

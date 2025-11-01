@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use acdc_converters_common::{GeneratorMetadata, Options, Processable};
 use acdc_core::{Doctype, SafeMode, Source};
 use acdc_parser::{AttributeValue, DocumentAttributes};
-use anyhow::Result;
 use clap::{ArgAction, Parser, ValueEnum};
+
+mod error;
 
 #[derive(Debug, ValueEnum, Clone)]
 enum Backend {
@@ -76,7 +77,7 @@ fn setup_logging() {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
     setup_logging();
     let args = Args::parse();
     let document_attributes = build_attributes_map(&args.attributes);
@@ -102,33 +103,47 @@ fn main() -> Result<()> {
         options.source = Source::Stdin;
     }
 
+    // For single file processing, read the file so we can provide source context in errors
+    let source_context = if args.files.len() == 1 && !args.stdin {
+        let path = &args.files[0];
+        std::fs::read_to_string(path)
+            .ok()
+            .map(|content| (path.clone(), content))
+    } else {
+        None
+    };
+
     match args.backend {
         Backend::Html => {
-            run_processor(
+            if let Err(e) = run_processor(
                 &args,
                 &acdc_html::Processor::new(options, document_attributes),
-            )?;
+            ) {
+                error::display(e, source_context.as_ref());
+            }
         }
 
         #[cfg(feature = "tck")]
         Backend::Tck => {
             options.source = Source::Stdin;
-            run_processor(
+            if let Err(e) = run_processor(
                 &args,
                 &acdc_tck::Processor::new(options, document_attributes),
-            )?;
+            ) {
+                error::display(e, source_context.as_ref());
+            }
         }
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {
-            run_processor(
+            if let Err(e) = run_processor(
                 &args,
                 &acdc_terminal::Processor::new(options, document_attributes),
-            )?;
+            ) {
+                error::display(e, source_context.as_ref());
+            }
         }
     }
-
-    Ok(())
 }
 
 #[tracing::instrument(skip(processor))]
