@@ -73,12 +73,12 @@ fn render_entries<V: WritableVisitor<Error = Error>>(
 }
 
 pub(crate) fn render<V: WritableVisitor<Error = Error>>(
-    _toc_macro: Option<&TableOfContents>,
+    toc_macro: Option<&TableOfContents>,
     visitor: &mut V,
     placement: &str,
     processor: &Processor,
 ) -> Result<(), Error> {
-    let config = TocConfig::from(&processor.document_attributes);
+    let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
     if config.placement == placement && !processor.toc_entries.is_empty() {
         let w = visitor.writer_mut();
         writeln!(w, "<div id=\"toc\" class=\"toc\">")?;

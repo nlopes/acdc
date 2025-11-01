@@ -66,7 +66,7 @@ fn render_entries<V: WritableVisitor<Error = crate::Error>>(
 }
 
 pub(crate) fn render<V: WritableVisitor<Error = crate::Error>>(
-    _toc_macro: Option<&TableOfContents>,
+    toc_macro: Option<&TableOfContents>,
     visitor: &mut V,
     placement: &str,
     processor: &Processor,
@@ -77,7 +77,7 @@ pub(crate) fn render<V: WritableVisitor<Error = crate::Error>>(
         style::{PrintStyledContent, Stylize},
     };
 
-    let config = TocConfig::from(&processor.document_attributes);
+    let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
     if config.placement == placement && !processor.toc_entries.is_empty() {
         let w = visitor.writer_mut();
         if let Some(title) = config.title {

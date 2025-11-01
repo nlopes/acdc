@@ -111,6 +111,7 @@ macro_rules! process_inlines_or_err {
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
+        use crate::model::Substitute;
 
         // We ignore empty lines before we set the start position of the document because
         // the asciidoc document should not consider empty lines at the beginning or end
@@ -1066,13 +1067,15 @@ peg::parser! {
         }
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = "toc::[]" end:position!()
+        = "toc::" attributes:attributes() end:position!()
         {
+            let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let mut metadata = block_metadata.metadata.clone();
+            metadata.merge(&metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
             tracing::info!("Found Table of Contents block");
             Ok(Block::TableOfContents(TableOfContents {
-                metadata: metadata.clone(),
+                metadata,
                 location: state.create_location(start+offset, end+offset),
             }))
         }
@@ -2945,7 +2948,8 @@ peg::parser! {
         pub(crate) rule attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = att:named_attribute() { att }
               / att:positional_attribute_value() {
-                  Some((att, AttributeValue::None, None))
+                  let substituted = String::substitute_attributes(&att, &state.document_attributes);
+                  Some((substituted, AttributeValue::None, None))
               }
 
         // Add a simple ID rule
@@ -2961,7 +2965,10 @@ peg::parser! {
               / ("options" / "opts") "=" option:option()
                 { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()), None)) }
               / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
-                { Some((name.to_string(), AttributeValue::String(value), Some((start, end)))) }
+                {
+                    let substituted_value = String::substitute_attributes(&value, &state.document_attributes);
+                    Some((name.to_string(), AttributeValue::String(substituted_value), Some((start, end))))
+                }
 
         // The block style is a positional attribute that is used to set the style of a block element.
         //
