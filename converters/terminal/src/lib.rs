@@ -1,4 +1,8 @@
-use std::io::{BufReader, BufWriter, Write};
+use std::{
+    cell::Cell,
+    io::{BufReader, BufWriter, Write},
+    rc::Rc,
+};
 
 use acdc_converters_common::{Converter, Options, Processable, visitor::Visitor};
 use acdc_core::Source;
@@ -8,9 +12,12 @@ pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 
 #[derive(Clone, Debug)]
 pub struct Processor {
-    options: Options,
-    document_attributes: DocumentAttributes,
-    toc_entries: Vec<TocEntry>,
+    pub(crate) options: Options,
+    pub(crate) document_attributes: DocumentAttributes,
+    pub(crate) toc_entries: Vec<TocEntry>,
+    /// Shared counter for auto-numbering example blocks.
+    /// Uses Rc<Cell<>> so all clones share the same counter.
+    pub(crate) example_counter: Rc<Cell<usize>>,
 }
 
 impl Converter for Processor {
@@ -27,6 +34,7 @@ impl Converter for Processor {
             document_attributes: doc.attributes.clone(),
             toc_entries: doc.toc_entries.clone(),
             options: self.options.clone(),
+            example_counter: self.example_counter.clone(),
         };
         let mut visitor = TerminalVisitor::new(writer, processor);
         visitor.visit_document(doc)?;
@@ -43,6 +51,7 @@ impl Processable for Processor {
             options,
             document_attributes,
             toc_entries: vec![],
+            example_counter: Rc::new(Cell::new(0)),
         }
     }
 

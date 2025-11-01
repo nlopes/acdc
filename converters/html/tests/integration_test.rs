@@ -20,7 +20,8 @@ fn normalize_html(html: &str) -> String {
 ///
 /// Parses the input `.adoc` file, converts to HTML, and compares with expected output.
 fn test_fixture(fixture_name: &str) -> Result<(), Error> {
-    let input_path = PathBuf::from("../../acdc-parser/fixtures/tests").join(format!("{fixture_name}.adoc"));
+    let input_path =
+        PathBuf::from("../../acdc-parser/fixtures/tests").join(format!("{fixture_name}.adoc"));
     let expected_path =
         PathBuf::from("tests/fixtures/expected").join(format!("{fixture_name}.html"));
 
