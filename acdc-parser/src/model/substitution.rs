@@ -37,6 +37,7 @@ impl From<&str> for Substitution {
     }
 }
 
+#[allow(dead_code)]
 pub const BASIC: &[Substitution] = &[Substitution::SpecialChars];
 pub const HEADER: &[Substitution] = &[Substitution::SpecialChars, Substitution::Attributes];
 pub const NORMAL: &[Substitution] = &[
@@ -47,6 +48,7 @@ pub const NORMAL: &[Substitution] = &[
     Substitution::Macros,
     Substitution::PostReplacements,
 ];
+#[allow(dead_code)]
 pub const REFTEXT: &[Substitution] = &[
     Substitution::SpecialChars,
     Substitution::Quotes,

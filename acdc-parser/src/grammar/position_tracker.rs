@@ -88,8 +88,6 @@ impl PositionTracker {
 pub(crate) struct LineMap {
     /// Byte offsets where each line starts in the input
     line_starts: Vec<usize>,
-    /// Character counts (Unicode scalar values) at the start of each line
-    char_positions: Vec<usize>,
 }
 
 impl LineMap {
@@ -97,21 +95,14 @@ impl LineMap {
     /// This is called once before parsing starts.
     pub(crate) fn new(input: &str) -> Self {
         let mut line_starts = vec![0]; // Line 1 starts at byte offset 0
-        let mut char_positions = vec![0]; // Line 1 starts at character 0
-        let mut char_count = 0;
 
         for (offset, ch) in input.char_indices() {
-            char_count += 1;
             if ch == '\n' {
                 line_starts.push(offset + 1); // Next line starts after the newline (byte offset)
-                char_positions.push(char_count); // Track character count at line start
             }
         }
 
-        Self {
-            line_starts,
-            char_positions,
-        }
+        Self { line_starts }
     }
 
     /// Convert byte offset to Position using binary search - O(log n) lookup.

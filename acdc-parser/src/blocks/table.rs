@@ -1,62 +1,6 @@
-use crate::{Location, Table};
+use crate::Table;
 
 impl Table {
-    pub(crate) fn parse_rows(
-        text: &str,
-        separator: &str,
-        has_header: &mut bool,
-    ) -> Vec<Vec<String>> {
-        let mut location = Location::default();
-
-        let mut rows = Vec::new();
-        let mut row_string = String::new();
-        for (i, row) in text.lines().enumerate() {
-            let row = row.trim();
-            // If we are in the first row and it is empty, we should not have a header,
-            // set it to false and move on.
-            if i == 0 && row.is_empty() {
-                *has_header = false;
-                continue;
-            }
-
-            // If we're in the first row and it is empty, and we've already added
-            // something to the rows, then we should have a header
-            if i == 1 && row.is_empty() {
-                *has_header = true;
-            }
-
-            if row.is_empty() && !row_string.is_empty() {
-                let columns = row_string
-                    .split(separator)
-                    .map(str::trim)
-                    .map(str::to_string)
-                    .collect();
-                row_string.clear();
-                rows.push(columns);
-            }
-
-            // Adjust the location
-            if row_string.is_empty() {
-                location.start.line = i + 1;
-                location.start.column = 1;
-            }
-            location.end.line = i + 1;
-            location.end.column = row.len() + 1;
-
-            // Add the row to the row string
-            row_string.push_str(row);
-        }
-        if !row_string.is_empty() {
-            let columns = row_string
-                .split(separator)
-                .map(str::trim)
-                .map(str::to_string)
-                .collect();
-            rows.push(columns);
-        }
-        rows
-    }
-
     pub(crate) fn parse_rows_with_positions(
         text: &str,
         separator: &str,

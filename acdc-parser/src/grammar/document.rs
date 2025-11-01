@@ -41,11 +41,9 @@ enum BlockMetadataLine {
 #[derive(Debug, Default)]
 // Used purely in the grammar to represent the parsed block details
 pub(crate) struct BlockParsingMetadata {
-    discrete: bool,
     pub(crate) metadata: BlockMetadata,
     title: Vec<InlineNode>,
     parent_section_level: Option<SectionLevel>,
-    pub(crate) attribute_positions: std::collections::HashMap<String, (usize, usize)>,
 }
 
 #[derive(Debug)]
@@ -473,11 +471,9 @@ peg::parser! {
                 }
             }
             Ok(BlockParsingMetadata {
-                discrete,
                 metadata,
                 title,
                 parent_section_level,
-                attribute_positions: std::collections::HashMap::new(),
             })
         }
 
