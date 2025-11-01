@@ -62,6 +62,33 @@ const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
 const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
 const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 
+pub(crate) fn match_constrained_boundary(b: u8) -> bool {
+    matches!(
+        b,
+        b' ' | b'\t'
+            | b'\n'
+            | b'\r'
+            | b'('
+            | b'{'
+            | b'['
+            | b')'
+            | b'}'
+            | b']'
+            | b'/'
+            | b'-'
+            | b'|'
+            | b','
+            | b';'
+            | b'.'
+            | b'?'
+            | b'!'
+            | b'<'
+            | b'>'
+            | b'\''
+            | b'"'
+    )
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
@@ -2194,10 +2221,10 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
-              let prev_byte_pos = absolute_pos.saturating_sub(1);
-              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                let prev_byte_pos = absolute_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
+                })
             };
 
             if !valid_boundary {
@@ -2240,10 +2267,10 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
-              let prev_byte_pos = absolute_pos.saturating_sub(1);
-              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                let prev_byte_pos = absolute_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
+                })
             };
 
             if !valid_boundary {
@@ -2273,10 +2300,10 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no asterisk)
             let valid_boundary = boundary_pos == 0 || {
-              let prev_byte_pos = boundary_pos.saturating_sub(1);
-              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                let prev_byte_pos = boundary_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
+                })
             };
 
             if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
@@ -2289,7 +2316,7 @@ peg::parser! {
             let valid_boundary = boundary_pos == 0 || {
                 let prev_byte_pos = boundary_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
+                    match_constrained_boundary(b)
                 })
             };
 
@@ -2364,10 +2391,10 @@ peg::parser! {
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
             let valid_boundary = absolute_pos == 0 || {
-              let prev_byte_pos = absolute_pos.saturating_sub(1);
-              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                let prev_byte_pos = absolute_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
+                })
             };
             if !valid_boundary {
                 return Err("monospace must be at word boundary");
@@ -2395,10 +2422,10 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no backtick)
             let valid_boundary = boundary_pos == 0 || {
-              let prev_byte_pos = boundary_pos.saturating_sub(1);
-              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                  matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                let prev_byte_pos = boundary_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
+                })
             };
 
             if !valid_boundary {
@@ -2451,9 +2478,9 @@ peg::parser! {
             let prev_byte_pos = absolute_pos.saturating_sub(1);
             let prev_byte = state.input.as_bytes().get(prev_byte_pos);
             let valid_boundary = absolute_pos == 0 || {
-              prev_byte.is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                prev_byte.is_none_or(|&b| {
+                    matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
+                })
             };
             if !valid_boundary {
                 return Err("highlight must be at word boundary");
@@ -2481,10 +2508,10 @@ peg::parser! {
         {?
             // Check if we're at start OR preceded by word boundary (no hash)
             let valid_boundary = boundary_pos == 0 || {
-              let prev_byte_pos = boundary_pos.saturating_sub(1);
-              state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
-              })
+                let prev_byte_pos = boundary_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
+                })
             };
 
             if !valid_boundary {
