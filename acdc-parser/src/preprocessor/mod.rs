@@ -4,7 +4,7 @@ use std::path::Path;
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
-use crate::{Options, error::Error};
+use crate::{Options, error::{Error, SourceLocation, Positioning}, model::Position};
 
 mod attribute;
 mod conditional;
@@ -86,6 +86,26 @@ pub(crate) fn read_and_decode_file(
 pub(crate) struct Preprocessor;
 
 impl Preprocessor {
+    /// Helper to create a `SourceLocation` from preprocessor context (line-level precision).
+    ///
+    /// Since the preprocessor operates line-by-line and doesn't track column positions,
+    /// we use column=1 as a placeholder. The line number and offset still provide
+    /// useful location information for error messages.
+    fn create_source_location(
+        line_number: usize,
+        current_offset: usize,
+        file_parent: Option<&Path>,
+    ) -> SourceLocation {
+        SourceLocation {
+            file: file_parent.map(Path::to_path_buf),
+            positioning: Positioning::Position(Position {
+                line: line_number,
+                column: 1, // Preprocessor doesn't track column - use 1 as placeholder
+                offset: current_offset,
+            }),
+        }
+    }
+
     fn normalize(input: &str) -> String {
         input
             .lines()
@@ -124,7 +144,10 @@ impl Preprocessor {
             let input = read_and_decode_file(file_path.as_ref(), None)?;
             self.process_either(&input, Some(file_path.as_ref()), options)
         } else {
-            Err(Error::InvalidIncludePath(file_path.as_ref().to_path_buf()))
+            Err(Error::InvalidIncludePath(
+                Box::new(Self::create_source_location(1, 0, Some(file_path.as_ref()))),
+                file_path.as_ref().to_path_buf(),
+            ))
         }
     }
 
@@ -208,18 +231,24 @@ impl Preprocessor {
                     || line.starts_with("ifeval")
                 {
                     let mut content = String::new();
-                    let condition = conditional::parse_line(line)?;
+                    let condition = conditional::parse_line(line, line_number, current_offset, file_parent)?;
                     while let Some(next_line) = lines.peek() {
                         if next_line.is_empty() {
                             tracing::trace!(?line, "single line if directive");
                             break;
                         } else if next_line.starts_with("endif") {
-                            let endif = conditional::parse_endif(next_line)?;
+                            // Calculate the line number and offset for the endif line
+                            let endif_line_number = line_number + 1;
+                            // Approximate offset: current_offset + line.len() + accumulated content length
+                            let endif_offset = current_offset + line.len() + content.len() + content.lines().count();
+                            let endif = conditional::parse_endif(next_line, endif_line_number, endif_offset, file_parent)?;
                             if !endif.closes(&condition) {
                                 tracing::warn!(
                                     "attribute mismatch between if and endif directives"
                                 );
-                                return Err(Error::InvalidConditionalDirective);
+                                return Err(Error::InvalidConditionalDirective(Box::new(
+                                    Self::create_source_location(endif_line_number, endif_offset, file_parent)
+                                )));
                             }
                             tracing::trace!(?content, "multiline if directive");
                             // Skip the if/endif block
@@ -231,7 +260,7 @@ impl Preprocessor {
                         lines.next();
                         line_number += 1;
                     }
-                    if condition.is_true(&options.document_attributes, &mut content)? {
+                    if condition.is_true(&options.document_attributes, &mut content, line_number, current_offset, file_parent)? {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
@@ -310,7 +339,7 @@ endif::asdf[]";
 content
 endif::another[]";
         let output = Preprocessor.process(input, &options);
-        assert!(matches!(output, Err(Error::InvalidConditionalDirective)));
+        assert!(matches!(output, Err(Error::InvalidConditionalDirective(..))));
     }
 
     #[test]
