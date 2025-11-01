@@ -1,140 +1,114 @@
-use std::io::Write;
+use std::io::{self, BufWriter, Write};
 
-use acdc_converters_common::toc as toc_common;
+use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_parser::Author;
 use crossterm::{
     QueueableCommand,
     style::{Print, PrintStyledContent, Stylize},
 };
 
-use crate::{Processor, Render, toc};
+use crate::{Error, TerminalVisitor};
 
-impl Render for acdc_parser::Document {
-    type Error = crate::Error;
+pub(crate) fn visit_header<V: WritableVisitor<Error = Error>>(
+    header: &acdc_parser::Header,
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
+    let processor = processor.clone();
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut temp_visitor = TerminalVisitor::new(inner, processor);
 
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        let toc_placement = toc_common::get_placement_from_attributes(&self.attributes);
-        if let Some(header) = &self.header {
-            header.render(w, processor)?;
+    for node in &header.title {
+        temp_visitor.visit_inline_node(node)?;
+    }
+    if let Some(subtitle) = &header.subtitle {
+        let w = temp_visitor.writer_mut();
+        write!(w, ": ")?;
+        let _ = w;
+        for node in subtitle {
+            temp_visitor.visit_inline_node(node)?;
         }
+    }
 
-        // Render TOC after header if toc="auto"
-        if toc_placement == "auto" {
-            toc::render(w, processor)?;
-        }
-        if !self.blocks.is_empty() {
-            if toc_placement == "preamble" {
-                toc::render(w, processor)?;
-                writeln!(w)?;
-            }
-            let last_index = self.blocks.len() - 1;
-            for (i, block) in self.blocks.iter().enumerate() {
-                block.render(w, processor)?;
-                if i != last_index {
-                    writeln!(w)?;
+    let buffer = temp_visitor
+        .into_writer()
+        .into_inner()
+        .map_err(io::IntoInnerError::into_error)?;
+    let title_content = String::from_utf8(buffer)
+        .map_err(|e| {
+            tracing::error!(?e, "Failed to convert document title to UTF-8 string");
+            e
+        })
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+
+    let w = visitor.writer_mut();
+    w.queue(PrintStyledContent(title_content.bold().underlined()))?;
+
+    if !header.authors.is_empty() {
+        w.queue(PrintStyledContent("by ".italic()))?;
+        // Join the authors with commas, except for the last one, using a functional approach
+        header
+            .authors
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, author)| {
+                visit_author(author, w)?;
+                if i != header.authors.len() - 1 {
+                    w.queue(Print(", "))?;
                 }
-            }
-        }
-
-        // Render footnotes at the end of the document if any exist
-        if !self.footnotes.is_empty() {
-            writeln!(w)?;
-            writeln!(w, "─────")?; // Simple separator
-            for footnote in &self.footnotes {
-                footnote.render(w, processor)?;
-                writeln!(w)?;
-            }
-        }
-
-        Ok(())
+                Ok::<(), io::Error>(())
+            })?;
+        writeln!(w)?;
     }
+    w.queue(Print("\n\n"))?;
+    Ok(())
 }
 
-impl Render for acdc_parser::Header {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        let mut title_buffer = std::io::BufWriter::new(Vec::new());
-        for node in &self.title {
-            node.render(&mut title_buffer, processor)?;
-        }
-        if let Some(subtitle) = &self.subtitle {
-            write!(&mut title_buffer, ": ")?;
-            for node in subtitle {
-                node.render(&mut title_buffer, processor)?;
-            }
-        }
-        title_buffer.flush()?;
-        let title_content = String::from_utf8(title_buffer.get_ref().clone())
-            .map_err(|e| {
-                tracing::error!(?e, "Failed to convert document title to UTF-8 string");
-                e
-            })
-            .unwrap_or_default()
-            .trim()
-            .to_string();
-        w.queue(PrintStyledContent(title_content.bold().underlined()))?;
-
-        if !self.authors.is_empty() {
-            w.queue(PrintStyledContent("by ".italic()))?;
-            // Join the authors with commas, except for the last one, using a functional approach
-            self.authors
-                .iter()
-                .enumerate()
-                .try_for_each(|(i, author)| {
-                    author.render(w, processor)?;
-                    if i != self.authors.len() - 1 {
-                        w.queue(Print(", "))?;
-                    }
-                    Ok::<(), std::io::Error>(())
-                })?;
-            writeln!(w)?;
-        }
-        w.queue(Print("\n\n"))?;
-        Ok(())
+fn visit_author<W: Write + ?Sized>(author: &Author, w: &mut W) -> Result<(), io::Error> {
+    w.queue(PrintStyledContent(
+        format!("{} ", author.first_name).italic(),
+    ))?;
+    if let Some(middle_name) = &author.middle_name {
+        w.queue(PrintStyledContent(format!("{middle_name} ").italic()))?;
     }
-}
-
-impl Render for acdc_parser::Author {
-    type Error = std::io::Error;
-
-    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
-        w.queue(PrintStyledContent(format!("{} ", self.first_name).italic()))?;
-        if let Some(middle_name) = &self.middle_name {
-            w.queue(PrintStyledContent(format!("{middle_name} ").italic()))?;
-        }
-        w.queue(PrintStyledContent(self.last_name.clone().italic()))?;
-        if let Some(email) = &self.email {
-            w.queue(PrintStyledContent(format!(" <{email}>").italic()))?;
-        }
-        Ok(())
+    w.queue(PrintStyledContent(author.last_name.clone().italic()))?;
+    if let Some(email) = &author.email {
+        w.queue(PrintStyledContent(format!(" <{email}>").italic()))?;
     }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Options, Processor};
     use acdc_parser::{
         Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, Plain,
         Section,
     };
 
     #[test]
-    fn test_render_document() -> Result<(), crate::Error> {
+    fn test_render_document() -> Result<(), Error> {
         let doc = Document::default();
-        let options = crate::Options::default();
-        let processor = crate::Processor {
+        let options = Options::default();
+        let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
         };
-        let mut buffer = Vec::new();
-        doc.render(&mut buffer, &processor)?;
+        let buffer = Vec::new();
+        let mut visitor = TerminalVisitor::new(buffer, processor);
+        visitor.visit_document(&doc)?;
+        let buffer = visitor.into_writer();
         assert_eq!(buffer, b"");
         Ok(())
     }
 
     #[test]
-    fn test_render_document_with_header() -> Result<(), crate::Error> {
+    fn test_render_document_with_header() -> Result<(), Error> {
         let mut doc = Document::default();
         let title = vec![InlineNode::PlainText(Plain {
             content: "Title".to_string(),
@@ -153,20 +127,22 @@ mod tests {
             location: Location::default(),
         });
         doc.blocks = vec![];
-        let mut buffer = Vec::new();
-        let options = crate::Options::default();
-        let processor = crate::Processor {
+        let buffer = Vec::new();
+        let options = Options::default();
+        let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
         };
-        doc.render(&mut buffer, &processor)?;
+        let mut visitor = TerminalVisitor::new(buffer, processor);
+        visitor.visit_document(&doc)?;
+        let buffer = visitor.into_writer();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
         Ok(())
     }
 
     #[test]
-    fn test_render_document_with_blocks() -> Result<(), crate::Error> {
+    fn test_render_document_with_blocks() -> Result<(), Error> {
         let mut doc = Document::default();
         doc.blocks = vec![
             Block::Paragraph(Paragraph {
@@ -197,14 +173,16 @@ mod tests {
                 metadata: BlockMetadata::default(),
             }),
         ];
-        let mut buffer = Vec::new();
-        let options = crate::Options::default();
-        let processor = crate::Processor {
+        let buffer = Vec::new();
+        let options = Options::default();
+        let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
         };
-        doc.render(&mut buffer, &processor)?;
+        let mut visitor = TerminalVisitor::new(buffer, processor);
+        visitor.visit_document(&doc)?;
+        let buffer = visitor.into_writer();
         assert_eq!(buffer, b"Hello, world!\n\n> Section <\nHello, section!\n\n");
         Ok(())
     }

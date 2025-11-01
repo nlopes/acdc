@@ -1,48 +1,46 @@
-use std::io::Write;
-
+use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::Paragraph;
 
-use crate::{Processor, Render, RenderOptions};
+use crate::Error;
 
-impl Render for Paragraph {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        // Check if this paragraph should be rendered as a literal block
-        if let Some(style) = &self.metadata.style
-            && style == "literal"
-        {
-            writeln!(w, "<div class=\"literalblock\">")?;
-            if !self.title.is_empty() {
-                write!(w, "<div class=\"title\">")?;
-                crate::inlines::render_inlines(&self.title, w, processor, options)?;
-                writeln!(w, "</div>")?;
-            }
-            writeln!(w, "<div class=\"content\">")?;
-            write!(w, "<pre>")?;
-            crate::inlines::render_inlines(&self.content, w, processor, options)?;
-            writeln!(w, "</pre>")?;
-            writeln!(w, "</div>")?;
-            writeln!(w, "</div>")?;
-            return Ok(());
-        }
-
-        // Regular paragraph rendering
-        writeln!(w, "<div class=\"paragraph\">")?;
-        if !self.title.is_empty() {
-            write!(w, "<div class=\"title\">")?;
-            crate::inlines::render_inlines(&self.title, w, processor, options)?;
-            writeln!(w, "</div>")?;
-        }
-        write!(w, "<p>")?;
-        crate::inlines::render_inlines(&self.content, w, processor, options)?;
-        writeln!(w, "</p>")?;
+/// Visit a paragraph using the visitor pattern
+///
+/// This is called from the `HtmlVisitor` trait implementation.
+pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
+    para: &Paragraph,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    // Check if this paragraph should be rendered as a literal block
+    if let Some(style) = &para.metadata.style
+        && style == "literal"
+    {
+        let mut w = visitor.writer_mut();
+        writeln!(w, "<div class=\"literalblock\">")?;
+        let _ = w;
+        visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+        w = visitor.writer_mut();
+        writeln!(w, "<div class=\"content\">")?;
+        write!(w, "<pre>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&para.content)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
         writeln!(w, "</div>")?;
-        Ok(())
+        writeln!(w, "</div>")?;
+        return Ok(());
     }
+
+    // Regular paragraph rendering
+    let mut w = visitor.writer_mut();
+    writeln!(w, "<div class=\"paragraph\">")?;
+    let _ = w;
+    visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+    w = visitor.writer_mut();
+    write!(w, "<p>")?;
+    let _ = w;
+    visitor.visit_inline_nodes(&para.content)?;
+    w = visitor.writer_mut();
+    writeln!(w, "</p>")?;
+    writeln!(w, "</div>")?;
+    Ok(())
 }

@@ -1,39 +1,35 @@
-use std::io::Write;
+use std::io::{BufReader, BufWriter, Write};
 
-use acdc_converters_common::{Options, Processable};
+use acdc_converters_common::{Converter, Options, Processable, visitor::Visitor};
 use acdc_core::Source;
-use acdc_parser::{Document, DocumentAttributes, TocEntry};
-
-trait ToTerminal: Render<Error = crate::Error> {
-    fn to_terminal(&self, processor: &Processor) -> Result<(), Self::Error>;
-}
+use acdc_parser::{Document, DocumentAttributes, Options as ParserOptions, TocEntry};
 
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 
-/// A simple trait for helping in rendering `AsciiDoc` content.
-trait Render {
-    type Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error>;
-}
-
+#[derive(Clone, Debug)]
 pub struct Processor {
     options: Options,
     document_attributes: DocumentAttributes,
     toc_entries: Vec<TocEntry>,
 }
 
-impl ToTerminal for Document {
-    fn to_terminal(&self, processor: &Processor) -> Result<(), Self::Error> {
-        let stdout = std::io::stdout();
-        let mut writer = std::io::BufWriter::new(stdout.lock());
+impl Converter for Processor {
+    type Error = Error;
+    type Options = ();
+
+    fn convert<W: Write>(
+        &self,
+        doc: &Document,
+        writer: W,
+        _options: &Self::Options,
+    ) -> Result<(), Self::Error> {
         let processor = Processor {
-            document_attributes: self.attributes.clone(),
-            toc_entries: self.toc_entries.clone(),
-            options: processor.options.clone(),
+            document_attributes: doc.attributes.clone(),
+            toc_entries: doc.toc_entries.clone(),
+            options: self.options.clone(),
         };
-        self.render(&mut writer, &processor)?;
-        writer.flush()?;
+        let mut visitor = TerminalVisitor::new(writer, processor);
+        visitor.visit_document(doc)?;
         Ok(())
     }
 }
@@ -51,7 +47,7 @@ impl Processable for Processor {
     }
 
     fn run(&self) -> Result<(), Error> {
-        let options = acdc_parser::Options {
+        let options = ParserOptions {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
             document_attributes: self.document_attributes.clone(),
@@ -59,13 +55,19 @@ impl Processable for Processor {
         match &self.options.source {
             Source::Files(files) => {
                 for file in files {
-                    acdc_parser::parse_file(file, &options)?.to_terminal(self)?;
+                    let doc = acdc_parser::parse_file(file, &options)?;
+                    let stdout = std::io::stdout();
+                    let writer = BufWriter::new(stdout.lock());
+                    self.convert(&doc, writer, &())?;
                 }
             }
             Source::Stdin => {
                 let stdin = std::io::stdin();
-                let mut reader = std::io::BufReader::new(stdin.lock());
-                acdc_parser::parse_from_reader(&mut reader, &options)?.to_terminal(self)?;
+                let mut reader = BufReader::new(stdin.lock());
+                let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
+                let stdout = std::io::stdout();
+                let writer = BufWriter::new(stdout.lock());
+                self.convert(&doc, writer, &())?;
             }
         }
 
@@ -73,20 +75,20 @@ impl Processable for Processor {
     }
 }
 
+mod admonition;
 mod audio;
-mod block;
 mod delimited;
 mod document;
 mod error;
 mod image;
-mod inline;
+mod inlines;
 mod list;
-mod page_break;
 mod paragraph;
 mod section;
 mod table;
-mod thematic_break;
+mod terminal_visitor;
 mod toc;
 mod video;
 
 pub(crate) use error::Error;
+pub use terminal_visitor::TerminalVisitor;

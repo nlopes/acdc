@@ -1,18 +1,11 @@
-use std::io::Write;
+use acdc_converters_common::visitor::WritableVisitor;
+use acdc_parser::{TableOfContents, TocEntry};
 
-use acdc_converters_common::toc::get_placement_from_attributes;
-use acdc_parser::{AttributeValue, TableOfContents, TocEntry};
-use crossterm::{
-    QueueableCommand,
-    style::{PrintStyledContent, Stylize},
-};
+use crate::Processor;
 
-use crate::{Processor, Render};
-
-fn render_list<W: Write>(
-    entries: &[acdc_parser::TocEntry],
-    w: &mut W,
-    processor: &Processor,
+fn render_entries<V: WritableVisitor<Error = crate::Error>>(
+    entries: &[TocEntry],
+    visitor: &mut V,
     max_level: u8,
     current_level: u8,
 ) -> Result<(), crate::Error> {
@@ -32,10 +25,13 @@ fn render_list<W: Write>(
     }
 
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
+        let mut w = visitor.writer_mut();
         write!(w, "{:indent$}", "", indent = current_level as usize - 1)?;
+        let _ = w;
         for inline in &entry.title {
-            inline.render(w, processor)?;
+            visitor.visit_inline_node(inline)?;
         }
+        w = visitor.writer_mut();
         writeln!(w)?;
 
         // Find children: entries that come after this one and have level = current_level + 1
@@ -63,52 +59,36 @@ fn render_list<W: Write>(
 
         if !children.is_empty() && current_level < max_level {
             let child_slice = &entries[start_search..end_search];
-            render_list(child_slice, w, processor, max_level, current_level + 1)?;
+            render_entries(child_slice, visitor, max_level, current_level + 1)?;
         }
     }
     Ok(())
 }
 
-pub(crate) fn render<W: Write>(w: &mut W, processor: &Processor) -> Result<(), crate::Error> {
-    // Use parser-collected TOC entries
-    if !processor.toc_entries.is_empty() {
-        // Get TOC configuration
-        let toc_title = processor
-            .document_attributes
-            .get("toc-title")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Table of Contents");
+pub(crate) fn render<V: WritableVisitor<Error = crate::Error>>(
+    _toc_macro: Option<&TableOfContents>,
+    visitor: &mut V,
+    placement: &str,
+    processor: &Processor,
+) -> Result<(), crate::Error> {
+    use acdc_converters_common::toc::Config as TocConfig;
+    use crossterm::{
+        QueueableCommand,
+        style::{PrintStyledContent, Stylize},
+    };
 
-        let toc_levels = processor
-            .document_attributes
-            .get("toclevels")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => s.parse::<u8>().ok(),
-                _ => None,
-            })
-            .unwrap_or(2);
-
-        w.queue(PrintStyledContent(toc_title.bold()))?;
-        writeln!(w)?;
-
-        render_list(&processor.toc_entries, w, processor, toc_levels, 1)?;
-        writeln!(w)?;
-    }
-
-    Ok(())
-}
-
-impl Render for TableOfContents {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        let toc_placement = get_placement_from_attributes(&processor.document_attributes);
-        if toc_placement == "macro" {
-            render(w, processor)?;
+    let config = TocConfig::from(&processor.document_attributes);
+    if config.placement == placement && !processor.toc_entries.is_empty() {
+        let w = visitor.writer_mut();
+        if let Some(title) = config.title {
+            w.queue(PrintStyledContent(title.bold()))?;
+        } else {
+            w.queue(PrintStyledContent("Table of Contents".bold()))?;
         }
-        Ok(())
+        writeln!(w)?;
+        render_entries(&processor.toc_entries, visitor, config.levels, 1)?;
+        let w = visitor.writer_mut();
+        writeln!(w)?;
     }
+    Ok(())
 }

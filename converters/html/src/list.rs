@@ -1,108 +1,106 @@
 use std::io::Write;
 
+use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{
-    CalloutList, DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus,
-    OrderedList, UnorderedList,
+    CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList, UnorderedList,
 };
 
-use crate::{Processor, Render, RenderOptions};
+use crate::Error;
 
-impl Render for UnorderedList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        write!(w, "<div")?;
-        // Use metadata.id if present, otherwise use first anchor
-        if let Some(id) = &self.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = self.metadata.anchors.first() {
-            write!(w, " id=\"{}\"", anchor.id)?;
-        }
-        writeln!(w, " class=\"ulist\">")?;
-        writeln!(w, "<ul>")?;
-        render_nested_list_items(&self.items, w, processor, options, 1, false)?;
-        writeln!(w, "</ul>")?;
-        writeln!(w, "</div>")?;
-        Ok(())
+pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
+    list: &UnorderedList,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    write!(writer, "<div")?;
+    // Use metadata.id if present, otherwise use first anchor
+    if let Some(id) = &list.metadata.id {
+        write!(writer, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = list.metadata.anchors.first() {
+        write!(writer, " id=\"{}\"", anchor.id)?;
     }
+    writeln!(writer, " class=\"ulist\">")?;
+    writeln!(writer, "<ul>")?;
+    let _ = writer;
+    render_nested_list_items(&list.items, visitor, 1, false)?;
+    writer = visitor.writer_mut();
+    writeln!(writer, "</ul>")?;
+    writeln!(writer, "</div>")?;
+    Ok(())
 }
 
-impl Render for OrderedList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        write!(w, "<div")?;
-        // Use metadata.id if present, otherwise use first anchor
-        if let Some(id) = &self.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = self.metadata.anchors.first() {
-            write!(w, " id=\"{}\"", anchor.id)?;
-        }
-        writeln!(w, " class=\"olist arabic\">")?;
-        writeln!(w, "<ol class=\"arabic\">")?;
-        render_nested_list_items(&self.items, w, processor, options, 1, true)?;
-        writeln!(w, "</ol>")?;
-        writeln!(w, "</div>")?;
-        Ok(())
+pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
+    list: &OrderedList,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    write!(writer, "<div")?;
+    // Use metadata.id if present, otherwise use first anchor
+    if let Some(id) = &list.metadata.id {
+        write!(writer, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = list.metadata.anchors.first() {
+        write!(writer, " id=\"{}\"", anchor.id)?;
     }
+    writeln!(writer, " class=\"olist arabic\">")?;
+    writeln!(writer, "<ol class=\"arabic\">")?;
+    let _ = writer;
+    render_nested_list_items(&list.items, visitor, 1, true)?;
+    writer = visitor.writer_mut();
+    writeln!(writer, "</ol>")?;
+    writeln!(writer, "</div>")?;
+    Ok(())
 }
 
-impl Render for CalloutList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        writeln!(w, "<div class=\"colist arabic\">")?;
-        if !self.title.is_empty() {
-            write!(w, "<div class=\"title\">")?;
-            crate::inlines::render_inlines(&self.title, w, processor, options)?;
-            writeln!(w, "</div>")?;
-        }
-        writeln!(w, "<ol>")?;
-        for item in &self.items {
-            writeln!(w, "<li>")?;
-            // Render principal text as bare <p> (if not empty)
-            if !item.principal.is_empty() {
-                writeln!(w, "<p>")?;
-                crate::inlines::render_inlines(&item.principal, w, processor, options)?;
-                writeln!(w, "</p>")?;
-            }
-            // Render attached blocks with their full wrapper divs
-            for block in &item.blocks {
-                block.render(w, processor, options)?;
-            }
-            writeln!(w, "</li>")?;
-        }
-        writeln!(w, "</ol>")?;
-        writeln!(w, "</div>")?;
-        Ok(())
+pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
+    list: &CalloutList,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    writeln!(writer, "<div class=\"colist arabic\">")?;
+    if !list.title.is_empty() {
+        write!(writer, "<div class=\"title\">")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&list.title)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</div>")?;
     }
+    writeln!(writer, "<ol>")?;
+    let _ = writer;
+
+    for item in &list.items {
+        let mut writer = visitor.writer_mut();
+        writeln!(writer, "<li>")?;
+        // Render principal text as bare <p> (if not empty)
+        if !item.principal.is_empty() {
+            writeln!(writer, "<p>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&item.principal)?;
+            writer = visitor.writer_mut();
+            writeln!(writer, "</p>")?;
+        }
+        let _ = writer;
+        // Walk attached blocks using visitor
+        for block in &item.blocks {
+            visitor.visit_block(block)?;
+        }
+        writer = visitor.writer_mut();
+        writeln!(writer, "</li>")?;
+    }
+
+    writer = visitor.writer_mut();
+    writeln!(writer, "</ol>")?;
+    writeln!(writer, "</div>")?;
+    Ok(())
 }
 
 /// Render nested list items hierarchically
-#[tracing::instrument(skip(w, processor))]
-fn render_nested_list_items<W: Write>(
+#[tracing::instrument(skip(visitor))]
+fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
     items: &[ListItem],
-    w: &mut W,
-    processor: &Processor,
-    options: &RenderOptions,
+    visitor: &mut V,
     expected_level: u8,
     is_ordered: bool,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     let mut i = 0;
     while i < items.len() {
         let item = &items[i];
@@ -114,17 +112,21 @@ fn render_nested_list_items<W: Write>(
 
         if item.level == expected_level {
             // Render item at current level
-            writeln!(w, "<li>")?;
-            render_checked_status(item.checked.as_ref(), w)?;
+            let mut writer = visitor.writer_mut();
+            writeln!(writer, "<li>")?;
+            render_checked_status(item.checked.as_ref(), writer)?;
             // Render principal text as bare <p> (if not empty)
             if !item.principal.is_empty() {
-                writeln!(w, "<p>")?;
-                crate::inlines::render_inlines(&item.principal, w, processor, options)?;
-                writeln!(w, "</p>")?;
+                writeln!(writer, "<p>")?;
+                let _ = writer;
+                visitor.visit_inline_nodes(&item.principal)?;
+                writer = visitor.writer_mut();
+                writeln!(writer, "</p>")?;
             }
+            let _ = writer;
             // Render attached blocks with their full wrapper divs
             for block in &item.blocks {
-                block.render(w, processor, options)?;
+                visitor.visit_block(block)?;
             }
 
             // Check if next items are nested (higher level)
@@ -133,36 +135,38 @@ fn render_nested_list_items<W: Write>(
                 let next_level = items[i + 1].level;
                 let inner_item = &items[i + 1];
 
+                writer = visitor.writer_mut();
                 // Open nested list
                 if is_ordered {
-                    writeln!(w, "<div class=\"olist arabic")?;
+                    writeln!(writer, "<div class=\"olist arabic")?;
                     if inner_item.checked.is_some() {
-                        writeln!(w, " checklist\">")?;
+                        writeln!(writer, " checklist\">")?;
                     } else {
-                        writeln!(w, "\">")?;
+                        writeln!(writer, "\">")?;
                     }
 
-                    write!(w, "<ol class=\"arabic")?;
+                    write!(writer, "<ol class=\"arabic")?;
                     if inner_item.checked.is_some() {
-                        writeln!(w, " checklist\">")?;
+                        writeln!(writer, " checklist\">")?;
                     } else {
-                        writeln!(w, "\">")?;
+                        writeln!(writer, "\">")?;
                     }
                 } else {
                     // check if the item is a checkbox item
-                    write!(w, "<div class=\"ulist")?;
+                    write!(writer, "<div class=\"ulist")?;
                     if inner_item.checked.is_some() {
-                        writeln!(w, " checklist\">")?;
+                        writeln!(writer, " checklist\">")?;
                     } else {
-                        writeln!(w, "\">")?;
+                        writeln!(writer, "\">")?;
                     }
-                    write!(w, "<ul")?;
+                    write!(writer, "<ul")?;
                     if inner_item.checked.is_some() {
-                        writeln!(w, " class=\"checklist\">")?;
+                        writeln!(writer, " class=\"checklist\">")?;
                     } else {
-                        writeln!(w, ">")?;
+                        writeln!(writer, ">")?;
                     }
                 }
+                let _ = writer;
 
                 // Recursively render nested items
                 i += 1;
@@ -170,123 +174,100 @@ fn render_nested_list_items<W: Write>(
                 while i < items.len() && items[i].level >= next_level {
                     i += 1;
                 }
-                render_nested_list_items(
-                    &items[nested_start..i],
-                    w,
-                    processor,
-                    options,
-                    next_level,
-                    is_ordered,
-                )?;
+                render_nested_list_items(&items[nested_start..i], visitor, next_level, is_ordered)?;
 
+                writer = visitor.writer_mut();
                 // Close nested list
                 if is_ordered {
-                    writeln!(w, "</ol>")?;
-                    writeln!(w, "</div>")?;
+                    writeln!(writer, "</ol>")?;
+                    writeln!(writer, "</div>")?;
                 } else {
-                    writeln!(w, "</ul>")?;
-                    writeln!(w, "</div>")?;
+                    writeln!(writer, "</ul>")?;
+                    writeln!(writer, "</div>")?;
                 }
+                let _ = writer;
 
                 i -= 1; // Adjust because we'll increment at the end of the loop
             }
 
-            writeln!(w, "</li>")?;
+            writer = visitor.writer_mut();
+            writeln!(writer, "</li>")?;
             i += 1;
         } else {
             // Item at higher level than expected, shouldn't happen in well-formed input
-            // but handle gracefully by treating as same level
-            item.render(w, processor, options)?;
+            // but handle gracefully by treating as same level - render the item inline
+            let mut writer = visitor.writer_mut();
+            writeln!(writer, "<li>")?;
+            render_checked_status(item.checked.as_ref(), writer)?;
+            if !item.principal.is_empty() {
+                writeln!(writer, "<p>")?;
+                let _ = writer;
+                visitor.visit_inline_nodes(&item.principal)?;
+                writer = visitor.writer_mut();
+                writeln!(writer, "</p>")?;
+            }
+            let _ = writer;
+            for block in &item.blocks {
+                visitor.visit_block(block)?;
+            }
+            writer = visitor.writer_mut();
+            writeln!(writer, "</li>")?;
             i += 1;
         }
     }
     Ok(())
 }
 
-impl Render for ListItem {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        writeln!(w, "<li>")?;
-        render_checked_status(self.checked.as_ref(), w)?;
-        // Render principal text as bare <p> (if not empty)
-        if !self.principal.is_empty() {
-            writeln!(w, "<p>")?;
-            crate::inlines::render_inlines(&self.principal, w, processor, options)?;
-            writeln!(w, "</p>")?;
-        }
-        // Render attached blocks with their full wrapper divs
-        for block in &self.blocks {
-            block.render(w, processor, options)?;
-        }
-        writeln!(w, "</li>")?;
-        Ok(())
+pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
+    list: &DescriptionList,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    write!(writer, "<div")?;
+    // Use metadata.id if present, otherwise use first anchor
+    if let Some(id) = &list.metadata.id {
+        write!(writer, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = list.metadata.anchors.first() {
+        write!(writer, " id=\"{}\"", anchor.id)?;
     }
-}
+    writeln!(writer, " class=\"dlist\">")?;
+    writeln!(writer, "<dl>")?;
+    let _ = writer;
 
-impl Render for DescriptionList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        write!(w, "<div")?;
-        // Use metadata.id if present, otherwise use first anchor
-        if let Some(id) = &self.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = self.metadata.anchors.first() {
-            write!(w, " id=\"{}\"", anchor.id)?;
+    for item in &list.items {
+        let mut writer = visitor.writer_mut();
+        writeln!(writer, "<dt class=\"hdlist1\">")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&item.term)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</dt>")?;
+        writeln!(writer, "<dd>")?;
+        if !item.principal_text.is_empty() {
+            writeln!(writer, "<p>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&item.principal_text)?;
+            writer = visitor.writer_mut();
+            writeln!(writer, "</p>")?;
         }
-        writeln!(w, " class=\"dlist\">")?;
-        writeln!(w, "<dl>")?;
-        for item in &self.items {
-            item.render(w, processor, options)?;
+        let _ = writer;
+        for block in &item.description {
+            visitor.visit_block(block)?;
         }
-        writeln!(w, "</dl>")?;
-        writeln!(w, "</div>")?;
-        Ok(())
+        writer = visitor.writer_mut();
+        writeln!(writer, "</dd>")?;
     }
-}
 
-impl Render for DescriptionListItem {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        writeln!(w, "<dt class=\"hdlist1\">")?;
-        crate::inlines::render_inlines(&self.term, w, processor, options)?;
-        writeln!(w, "</dt>")?;
-        writeln!(w, "<dd>")?;
-        if !self.principal_text.is_empty() {
-            writeln!(w, "<p>")?;
-            crate::inlines::render_inlines(&self.principal_text, w, processor, options)?;
-            writeln!(w, "</p>")?;
-        }
-        for block in &self.description {
-            block.render(w, processor, options)?;
-        }
-        writeln!(w, "</dd>")?;
-        Ok(())
-    }
+    writer = visitor.writer_mut();
+    writeln!(writer, "</dl>")?;
+    writeln!(writer, "</div>")?;
+    Ok(())
 }
 
 #[tracing::instrument(skip(w))]
-fn render_checked_status<W: Write>(
+fn render_checked_status<W: Write + ?Sized>(
     checked: Option<&ListItemCheckedStatus>,
     w: &mut W,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     match checked {
         Some(ListItemCheckedStatus::Checked) => {
             write!(w, "&#10003; ")?; // Checked box

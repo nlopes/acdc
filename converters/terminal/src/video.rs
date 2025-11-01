@@ -1,21 +1,22 @@
-use std::io::Write;
-
-use acdc_converters_common::video::TryUrl;
+use acdc_converters_common::{video::TryUrl, visitor::WritableVisitor};
 use acdc_parser::Video;
-use crossterm::{queue, style::PrintStyledContent, style::Stylize};
+use crossterm::{
+    QueueableCommand,
+    style::{PrintStyledContent, Stylize},
+};
 
-use crate::{Processor, Render};
+use crate::Error;
 
-impl Render for Video {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
-        if self.sources.is_empty() {
-            return Ok(());
-        }
-
-        let url = self.try_url(false)?;
-        queue!(w, PrintStyledContent(url.italic()))?;
-        Ok(())
+pub(crate) fn visit_video<V: WritableVisitor<Error = Error>>(
+    video: &Video,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    if video.sources.is_empty() {
+        return Ok(());
     }
+
+    let url = video.try_url(false)?;
+    let w = visitor.writer_mut();
+    w.queue(PrintStyledContent(url.italic()))?;
+    Ok(())
 }

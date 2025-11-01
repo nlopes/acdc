@@ -1,18 +1,14 @@
-use std::io::Write;
+use acdc_converters_common::{toc::Config as TocConfig, visitor::WritableVisitor};
+use acdc_parser::{TableOfContents, TocEntry};
 
-use acdc_converters_common::toc::get_placement_from_attributes;
-use acdc_parser::{AttributeValue, TableOfContents, TocEntry};
+use crate::{Error, Processor};
 
-use crate::{Processor, Render, RenderOptions};
-
-fn render_list<W: Write>(
+fn render_entries<V: WritableVisitor<Error = Error>>(
     entries: &[TocEntry],
-    w: &mut W,
-    processor: &Processor,
-    options: &RenderOptions,
+    visitor: &mut V,
     max_level: u8,
     current_level: u8,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     if current_level > max_level {
         return Ok(());
     }
@@ -28,12 +24,15 @@ fn render_list<W: Write>(
         return Ok(());
     }
 
+    let mut w = visitor.writer_mut();
     writeln!(w, "<ul class=\"sectlevel{current_level}\">")?;
 
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
         writeln!(w, "<li>")?;
         write!(w, "<a href=\"#{}\">", entry.id,)?;
-        crate::inlines::render_inlines(&entry.title, w, processor, options)?;
+        let _ = w;
+        visitor.visit_inline_nodes(&entry.title)?;
+        w = visitor.writer_mut();
         writeln!(w, "</a>")?;
         // Find children: entries that come after this one and have level = current_level + 1
         // but before the next entry at current_level or lower
@@ -61,14 +60,9 @@ fn render_list<W: Write>(
         if !children.is_empty() && current_level < max_level {
             // Create a slice containing potential children and their descendants
             let child_slice = &entries[start_search..end_search];
-            render_list(
-                child_slice,
-                w,
-                processor,
-                options,
-                max_level,
-                current_level + 1,
-            )?;
+            let _ = w;
+            render_entries(child_slice, visitor, max_level, current_level + 1)?;
+            w = visitor.writer_mut();
         }
 
         writeln!(w, "</li>")?;
@@ -78,54 +72,24 @@ fn render_list<W: Write>(
     Ok(())
 }
 
-pub(crate) fn render<W: Write>(
-    w: &mut W,
+pub(crate) fn render<V: WritableVisitor<Error = Error>>(
+    _toc_macro: Option<&TableOfContents>,
+    visitor: &mut V,
+    placement: &str,
     processor: &Processor,
-    options: &RenderOptions,
-) -> Result<(), crate::Error> {
-    // Use parser-collected TOC entries
-    if !processor.toc_entries.is_empty() {
-        // Get TOC configuration
-        let toc_title = processor
-            .document_attributes
-            .get("toc-title")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Table of Contents");
-
-        let toc_levels = processor
-            .document_attributes
-            .get("toclevels")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => s.parse::<u8>().ok(),
-                _ => None,
-            })
-            .unwrap_or(2);
-
+) -> Result<(), Error> {
+    let config = TocConfig::from(&processor.document_attributes);
+    if config.placement == placement && !processor.toc_entries.is_empty() {
+        let w = visitor.writer_mut();
         writeln!(w, "<div id=\"toc\" class=\"toc\">")?;
-        writeln!(w, "<div id=\"toctitle\">{toc_title}</div>")?;
-        render_list(&processor.toc_entries, w, processor, options, toc_levels, 1)?;
+        if let Some(title) = &config.title {
+            writeln!(w, "<div id=\"toctitle\">{title}</div>")?;
+        } else {
+            writeln!(w, "<div id=\"toctitle\">Table of Contents</div>")?;
+        }
+        render_entries(&processor.toc_entries, visitor, config.levels, 1)?;
+        let w = visitor.writer_mut();
         writeln!(w, "</div>")?;
     }
-
     Ok(())
-}
-
-impl Render for TableOfContents {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        let toc_placement = get_placement_from_attributes(&processor.document_attributes);
-        if toc_placement == "macro" {
-            render(w, processor, options)?;
-        }
-        Ok(())
-    }
 }

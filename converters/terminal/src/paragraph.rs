@@ -1,22 +1,24 @@
-use std::io::Write;
+use acdc_converters_common::visitor::WritableVisitor;
+use acdc_parser::Paragraph;
 
-use crate::{Processor, Render};
+use crate::Error;
 
-impl Render for acdc_parser::Paragraph {
-    type Error = crate::Error;
+pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
+    para: &Paragraph,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    visitor.visit_inline_nodes(&para.title)?;
 
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        for node in &self.title {
-            node.render(w, processor)?;
+    let last_index = para.content.len() - 1;
+    for (i, node) in para.content.iter().enumerate() {
+        visitor.visit_inline_node(node)?;
+        if i != last_index {
+            let w = visitor.writer_mut();
+            write!(w, " ")?;
         }
-
-        let last_index = self.content.len() - 1;
-        for (i, node) in self.content.iter().enumerate() {
-            node.render(w, processor)?;
-            if i != last_index {
-                write!(w, " ")?;
-            }
-        }
-        Ok(())
     }
+    let w = visitor.writer_mut();
+    writeln!(w)?;
+    writeln!(w)?;
+    Ok(())
 }

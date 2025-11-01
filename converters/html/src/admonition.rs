@@ -1,37 +1,35 @@
-use std::io::Write;
-
+use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::Admonition;
 
-use crate::{Processor, Render, RenderOptions};
+use crate::Error;
 
-impl Render for Admonition {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        writeln!(w, "<div class=\"admonitionblock {}\">", self.variant)?;
-        writeln!(w, "<table>")?;
-        writeln!(w, "<tr>")?;
-        writeln!(w, "<td class=\"icon\">")?;
-        writeln!(w, "<div class=\"title\">{}</div>", self.variant)?;
-        writeln!(w, "</td>")?;
-        writeln!(w, "<td class=\"content\">")?;
-        if !self.title.is_empty() {
-            write!(w, "<div class=\"title\">")?;
-            crate::inlines::render_inlines(&self.title, w, processor, options)?;
-            writeln!(w, "</div>")?;
-        }
-        for block in &self.blocks {
-            block.render(w, processor, options)?;
-        }
-        writeln!(w, "</td>")?;
-        writeln!(w, "</tr>")?;
-        writeln!(w, "</table>")?;
-        writeln!(w, "</div>")?;
-        Ok(())
+pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    admon: &Admonition,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;
+    writeln!(writer, "<table>")?;
+    writeln!(writer, "<tr>")?;
+    writeln!(writer, "<td class=\"icon\">")?;
+    writeln!(writer, "<div class=\"title\">{}</div>", admon.variant)?;
+    writeln!(writer, "</td>")?;
+    writeln!(writer, "<td class=\"content\">")?;
+    if !admon.title.is_empty() {
+        write!(writer, "<div class=\"title\">")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&admon.title)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</div>")?;
     }
+    let _ = writer;
+    for block in &admon.blocks {
+        visitor.visit_block(block)?;
+    }
+    writer = visitor.writer_mut();
+    writeln!(writer, "</td>")?;
+    writeln!(writer, "</tr>")?;
+    writeln!(writer, "</table>")?;
+    writeln!(writer, "</div>")?;
+    Ok(())
 }

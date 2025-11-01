@@ -1,73 +1,64 @@
 use std::{
     cell::Cell,
-    io::{BufWriter, Write},
-    path::Path,
+    fs::File,
+    io::{self, BufReader, BufWriter, Write},
+    rc::Rc,
+    time::{Duration, Instant},
 };
 
-use acdc_converters_common::{Options, PrettyDuration, Processable};
+use acdc_converters_common::{Converter, Options, PrettyDuration, Processable, visitor::Visitor};
 use acdc_core::Source;
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
-
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    Fmt(#[from] std::fmt::Error),
-
-    #[error(transparent)]
-    FromUtf8(#[from] std::string::FromUtf8Error),
-
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-
-    #[error(transparent)]
-    Parse(#[from] acdc_parser::Error),
-}
 
 #[derive(Clone, Debug)]
 pub struct Processor {
     options: Options,
-    pub document_attributes: DocumentAttributes,
-    pub toc_entries: Vec<TocEntry>,
-    example_counter: Cell<usize>,
+    document_attributes: DocumentAttributes,
+    toc_entries: Vec<TocEntry>,
+    /// Shared counter for auto-numbering example blocks.
+    /// Uses Rc<Cell<>> so all clones share the same counter.
+    example_counter: Rc<Cell<usize>>,
 }
 
 impl Processor {
-    fn to_file<P: AsRef<Path>>(
+    /// Get a reference to the document attributes
+    #[must_use]
+    pub fn document_attributes(&self) -> &DocumentAttributes {
+        &self.document_attributes
+    }
+
+    /// Get a reference to the TOC entries
+    #[must_use]
+    pub fn toc_entries(&self) -> &[TocEntry] {
+        &self.toc_entries
+    }
+}
+
+impl Converter for Processor {
+    type Error = Error;
+    type Options = RenderOptions;
+
+    fn convert<W: Write>(
         &self,
         doc: &Document,
-        _original: P,
-        path: P,
-        options: &RenderOptions,
-    ) -> Result<(), crate::Error> {
-        let mut file = std::fs::File::create(path)?;
-        let mut writer = BufWriter::new(&mut file);
+        writer: W,
+        options: &Self::Options,
+    ) -> Result<(), Self::Error> {
         let processor = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
             ..self.clone()
         };
-        doc.render(&mut writer, &processor, options)?;
-        writer.flush()?;
+        let mut visitor = HtmlVisitor::new(writer, processor, options.clone());
+        visitor.visit_document(doc)?;
         Ok(())
     }
 }
 
-#[derive(Debug, Default)]
-struct RenderOptions {
-    last_updated: Option<chrono::DateTime<chrono::Utc>>,
-    inlines_basic: bool,
-}
-
-/// A simple trait for helping in rendering `AsciiDoc` content.
-trait Render {
-    type Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error>;
+#[derive(Debug, Default, Clone)]
+pub struct RenderOptions {
+    pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
+    pub inlines_basic: bool,
 }
 
 impl Processable for Processor {
@@ -79,7 +70,7 @@ impl Processable for Processor {
             options,
             document_attributes,
             toc_entries: vec![],
-            example_counter: Cell::new(0),
+            example_counter: Rc::new(Cell::new(0)),
         }
     }
 
@@ -109,8 +100,8 @@ impl Processable for Processor {
                     tracing::debug!(source = ?file, destination = ?html_path, "processing file");
 
                     // Read and parse the document
-                    let now = std::time::Instant::now();
-                    let mut total_elapsed = std::time::Duration::new(0, 0);
+                    let now = Instant::now();
+                    let mut total_elapsed = Duration::new(0, 0);
                     let doc = acdc_parser::parse_file(file, &options)?;
                     let elapsed = now.elapsed();
                     tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to read and parse source");
@@ -122,9 +113,11 @@ impl Processable for Processor {
                         );
                     }
 
-                    // Convert the document
-                    let now = std::time::Instant::now();
-                    self.to_file(&doc, file, &html_path, &render_options)?;
+                    // Convert the document (using visitor pattern)
+                    let now = Instant::now();
+                    let file_handle = File::create(&html_path)?;
+                    let writer = BufWriter::new(file_handle);
+                    self.convert(&doc, writer, &render_options)?;
                     let elapsed = now.elapsed();
                     tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to convert document");
                     total_elapsed += elapsed;
@@ -140,12 +133,12 @@ impl Processable for Processor {
                 }
             }
             Source::Stdin => {
-                let stdin = std::io::stdin();
-                let mut reader = std::io::BufReader::new(stdin.lock());
+                let stdin = io::stdin();
+                let mut reader = BufReader::new(stdin.lock());
                 let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
-                let mut buffer = Vec::new();
-                doc.render(&mut buffer, self, &render_options)?;
-                write!(std::io::stdout(), "{}", String::from_utf8(buffer)?)?;
+                let stdout = io::stdout();
+                let writer = BufWriter::new(stdout.lock());
+                self.convert(&doc, writer, &render_options)?;
             }
         }
         Ok(())
@@ -154,9 +147,10 @@ impl Processable for Processor {
 
 mod admonition;
 mod audio;
-mod block;
 mod delimited;
 mod document;
+mod error;
+mod html_visitor;
 mod image;
 mod inlines;
 mod list;
@@ -165,3 +159,6 @@ mod section;
 mod table;
 mod toc;
 mod video;
+
+pub(crate) use error::Error;
+pub use html_visitor::HtmlVisitor;
