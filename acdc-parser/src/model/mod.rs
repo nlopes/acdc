@@ -1459,14 +1459,18 @@ impl<'de> Deserialize<'de> for Block {
                 match (my_name.as_str(), my_type.as_str()) {
                     ("section", "block") => {
                         let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
-                        let my_blocks =
-                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
-                                serde_json::Value::Array(a) => a
+                        let my_blocks = if let Some(blocks) = my_blocks {
+                            match blocks {
+                                serde_json::Value::Array(blocks) => blocks
                                     .into_iter()
                                     .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
                                     .collect::<Result<Vec<Block>, _>>()?,
                                 _ => return Err(de::Error::custom("blocks must be an array")),
-                            };
+                            }
+                        } else {
+                            // blocks can be empty
+                            Vec::new()
+                        };
                         Ok(Block::Section(Section {
                             metadata: my_metadata,
                             title: my_title,
