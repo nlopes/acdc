@@ -801,13 +801,9 @@ impl<'de> Deserialize<'de> for Audio {
         #[derive(Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
         enum Field {
-            Name,
-            Type,
-            Form,
             Metadata,
             Title,
             Source,
-            Target, // Old format
             Location,
         }
 
@@ -831,10 +827,6 @@ impl<'de> Deserialize<'de> for Audio {
 
                 while let Some(key) = map.next_key()? {
                     match key {
-                        Field::Name | Field::Type | Field::Form => {
-                            // Ignore these fields
-                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
-                        }
                         Field::Metadata => {
                             metadata = Some(map.next_value()?);
                         }
@@ -843,11 +835,6 @@ impl<'de> Deserialize<'de> for Audio {
                         }
                         Field::Source => {
                             source = Some(map.next_value()?);
-                        }
-                        Field::Target => {
-                            // Old format: convert target string to Source::Path
-                            let target: String = map.next_value()?;
-                            source = Some(Source::Path(std::path::PathBuf::from(target)));
                         }
                         Field::Location => {
                             location = Some(map.next_value()?);
@@ -867,9 +854,7 @@ impl<'de> Deserialize<'de> for Audio {
 
         deserializer.deserialize_struct(
             "Audio",
-            &[
-                "name", "type", "form", "metadata", "title", "source", "target", "location",
-            ],
+            &["metadata", "title", "source", "location"],
             AudioVisitor,
         )
     }
@@ -883,13 +868,9 @@ impl<'de> Deserialize<'de> for Image {
         #[derive(Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
         enum Field {
-            Name,
-            Type,
-            Form,
             Metadata,
             Title,
             Source,
-            Target, // Old format
             Location,
         }
 
@@ -913,10 +894,6 @@ impl<'de> Deserialize<'de> for Image {
 
                 while let Some(key) = map.next_key()? {
                     match key {
-                        Field::Name | Field::Type | Field::Form => {
-                            // Ignore these fields
-                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
-                        }
                         Field::Metadata => {
                             metadata = Some(map.next_value()?);
                         }
@@ -925,11 +902,6 @@ impl<'de> Deserialize<'de> for Image {
                         }
                         Field::Source => {
                             source = Some(map.next_value()?);
-                        }
-                        Field::Target => {
-                            // Old format: convert target string to Source::Path
-                            let target: String = map.next_value()?;
-                            source = Some(Source::Path(std::path::PathBuf::from(target)));
                         }
                         Field::Location => {
                             location = Some(map.next_value()?);
@@ -949,14 +921,13 @@ impl<'de> Deserialize<'de> for Image {
 
         deserializer.deserialize_struct(
             "Image",
-            &[
-                "name", "type", "form", "metadata", "title", "source", "target", "location",
-            ],
+            &["metadata", "title", "source", "location"],
             ImageVisitor,
         )
     }
 }
 
+// Video uses "sources" (plural)
 impl<'de> Deserialize<'de> for Video {
     fn deserialize<D>(deserializer: D) -> Result<Video, D::Error>
     where
@@ -965,13 +936,9 @@ impl<'de> Deserialize<'de> for Video {
         #[derive(Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
         enum Field {
-            Name,
-            Type,
-            Form,
             Metadata,
             Title,
             Sources,
-            Target, // Old format
             Location,
         }
 
@@ -995,27 +962,10 @@ impl<'de> Deserialize<'de> for Video {
 
                 while let Some(key) = map.next_key()? {
                     match key {
-                        Field::Name | Field::Type | Field::Form => {
-                            // Ignore these fields
-                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
-                        }
-                        Field::Metadata => {
-                            metadata = Some(map.next_value()?);
-                        }
-                        Field::Title => {
-                            title = Some(map.next_value()?);
-                        }
-                        Field::Sources => {
-                            sources = Some(map.next_value()?);
-                        }
-                        Field::Target => {
-                            // Old format: convert target string to Source::Path
-                            let target: String = map.next_value()?;
-                            sources = Some(vec![Source::Path(std::path::PathBuf::from(target))]);
-                        }
-                        Field::Location => {
-                            location = Some(map.next_value()?);
-                        }
+                        Field::Metadata => metadata = Some(map.next_value()?),
+                        Field::Title => title = Some(map.next_value()?),
+                        Field::Sources => sources = Some(map.next_value()?),
+                        Field::Location => location = Some(map.next_value()?),
                     }
                 }
 
@@ -1031,9 +981,7 @@ impl<'de> Deserialize<'de> for Video {
 
         deserializer.deserialize_struct(
             "Video",
-            &[
-                "name", "type", "form", "metadata", "title", "sources", "target", "location",
-            ],
+            &["metadata", "title", "sources", "location"],
             VideoVisitor,
         )
     }
@@ -1209,70 +1157,57 @@ impl Serialize for DelimitedBlock {
     }
 }
 
-impl Serialize for UnorderedList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_map(None)?;
-        state.serialize_entry("name", "list")?;
-        state.serialize_entry("type", "block")?;
-        state.serialize_entry("variant", "unordered")?;
-        state.serialize_entry("marker", &self.marker)?;
-        if !self.title.is_empty() {
-            state.serialize_entry("title", &self.title)?;
+macro_rules! impl_list_serialize {
+    ($type:ty, $variant:literal, with_marker) => {
+        impl Serialize for $type {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                let mut state = serializer.serialize_map(None)?;
+                state.serialize_entry("name", "list")?;
+                state.serialize_entry("type", "block")?;
+                state.serialize_entry("variant", $variant)?;
+                state.serialize_entry("marker", &self.marker)?;
+                if !self.title.is_empty() {
+                    state.serialize_entry("title", &self.title)?;
+                }
+                if !is_default_metadata(&self.metadata) {
+                    state.serialize_entry("metadata", &self.metadata)?;
+                }
+                state.serialize_entry("items", &self.items)?;
+                state.serialize_entry("location", &self.location)?;
+                state.end()
+            }
         }
-        if !is_default_metadata(&self.metadata) {
-            state.serialize_entry("metadata", &self.metadata)?;
+    };
+    ($type:ty, $variant:literal) => {
+        impl Serialize for $type {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                let mut state = serializer.serialize_map(None)?;
+                state.serialize_entry("name", "list")?;
+                state.serialize_entry("type", "block")?;
+                state.serialize_entry("variant", $variant)?;
+                if !self.title.is_empty() {
+                    state.serialize_entry("title", &self.title)?;
+                }
+                if !is_default_metadata(&self.metadata) {
+                    state.serialize_entry("metadata", &self.metadata)?;
+                }
+                state.serialize_entry("items", &self.items)?;
+                state.serialize_entry("location", &self.location)?;
+                state.end()
+            }
         }
-        state.serialize_entry("items", &self.items)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
+    };
 }
 
-impl Serialize for OrderedList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_map(None)?;
-        state.serialize_entry("name", "list")?;
-        state.serialize_entry("type", "block")?;
-        state.serialize_entry("variant", "ordered")?;
-        state.serialize_entry("marker", &self.marker)?;
-        if !self.title.is_empty() {
-            state.serialize_entry("title", &self.title)?;
-        }
-        if !is_default_metadata(&self.metadata) {
-            state.serialize_entry("metadata", &self.metadata)?;
-        }
-        state.serialize_entry("items", &self.items)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
-impl Serialize for CalloutList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_map(None)?;
-        state.serialize_entry("name", "list")?;
-        state.serialize_entry("type", "block")?;
-        state.serialize_entry("variant", "callout")?;
-        if !self.title.is_empty() {
-            state.serialize_entry("title", &self.title)?;
-        }
-        if !is_default_metadata(&self.metadata) {
-            state.serialize_entry("metadata", &self.metadata)?;
-        }
-        state.serialize_entry("items", &self.items)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
+impl_list_serialize!(UnorderedList, "unordered", with_marker);
+impl_list_serialize!(OrderedList, "ordered", with_marker);
+impl_list_serialize!(CalloutList, "callout");
 
 impl Serialize for DescriptionList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
