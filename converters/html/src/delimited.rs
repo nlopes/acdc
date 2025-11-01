@@ -61,7 +61,9 @@ impl Render for DelimitedBlock {
         options: &RenderOptions,
     ) -> Result<(), Self::Error> {
         match &self.inner {
-            DelimitedBlockType::DelimitedTable(t) => t.render(w, processor, options)?,
+            DelimitedBlockType::DelimitedTable(t) => {
+                crate::table::render_table_with_metadata(t, w, processor, options, &self.metadata)?;
+            }
             DelimitedBlockType::DelimitedPass(inlines) => {
                 crate::inlines::render_inlines(inlines, w, processor, options)?;
             }
