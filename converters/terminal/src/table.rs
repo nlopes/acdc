@@ -1,7 +1,7 @@
 use std::io::{self, BufWriter};
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
-use comfy_table::{Cell, Color, ContentArrangement, Table};
+use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
 
 use crate::{Error, Processor, TerminalVisitor};
 
@@ -15,7 +15,8 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_width(80)
         .load_preset(comfy_table::presets::UTF8_FULL)
-        .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS);
+        .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS)
+        .enforce_styling();
 
     if let Some(header) = &tbl.header {
         let header_cells = header
@@ -34,7 +35,7 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
                     .map_err(io::IntoInnerError::into_error)?;
                 Ok(Cell::new(String::from_utf8(buffer).unwrap_or_default())
                     .fg(Color::Green)
-                    .add_attribute(comfy_table::Attribute::Bold))
+                    .add_attribute(Attribute::Bold))
             })
             .collect::<Result<Vec<_>, Error>>()?;
         table_widget.set_header(header_cells);

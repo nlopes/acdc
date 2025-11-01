@@ -64,12 +64,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             // STEM/math content - show placeholder in terminal
             render_title_if_present(visitor, &block.title)?;
             let w = visitor.writer_mut();
-            writeln!(
-                w,
-                "  [STEM({}): {}]",
-                stem.notation.to_string(),
-                stem.content
-            )?;
+            writeln!(w, "  [STEM({}): {}]", stem.notation, stem.content)?;
             Ok(())
         }
         DelimitedBlockType::DelimitedComment(_) => {
@@ -90,37 +85,24 @@ fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
     title: &[InlineNode],
     inlines: &[InlineNode],
     block_type: &str,
-    processor: &Processor,
+    _processor: &Processor,
 ) -> Result<(), Error> {
-    // Render title if present
-    if !title.is_empty() {
-        let w = visitor.writer_mut();
-        write!(w, "  ")?;
-        QueueableCommand::queue(
-            w,
-            PrintStyledContent(format!("[{block_type}]").dark_grey().bold()),
-        )?;
-        write!(w, " ")?;
-        let _ = w;
-        visitor.visit_inline_nodes(title)?;
-        let w = visitor.writer_mut();
-        writeln!(w)?;
-    }
-
-    // Render content with indentation and monospace background
     let w = visitor.writer_mut();
-    writeln!(w, "  ┌{}", "─".repeat(76))?;
-    write!(w, "  │ ")?;
-    let _ = w;
 
-    // Render inline nodes as plain text
-    for inline in inlines {
-        crate::inlines::visit_inline_node(inline, visitor, processor)?;
-    }
-
-    let w = visitor.writer_mut();
+    // Start marker with block type label
+    let label = block_type.to_uppercase();
+    let styled_label = label.dark_grey().bold();
+    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
     writeln!(w)?;
-    writeln!(w, "  └{}", "─".repeat(76))?;
+
+    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+    visitor.visit_inline_nodes(inlines)?;
+
+    let w = visitor.writer_mut();
+    // End marker with three dots
+    let end_marker = "• • •".dark_grey().bold();
+    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+    writeln!(w)?;
 
     Ok(())
 }
@@ -132,35 +114,25 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
     blocks: &[Block],
     _processor: &Processor,
 ) -> Result<(), Error> {
-    // Render title with "Example" prefix if present
-    if title.is_empty() {
-        let w = visitor.writer_mut();
-        QueueableCommand::queue(w, PrintStyledContent("  Example:".cyan().bold()))?;
-        writeln!(w)?;
-    } else {
-        let w = visitor.writer_mut();
-        write!(w, "  ")?;
-        QueueableCommand::queue(w, PrintStyledContent("Example:".cyan().bold()))?;
-        write!(w, " ")?;
-        let _ = w;
-        visitor.visit_inline_nodes(title)?;
-        let w = visitor.writer_mut();
-        writeln!(w)?;
-    }
-
-    // Render content with indentation
     let w = visitor.writer_mut();
-    writeln!(w, "  ┌{}", "─".repeat(76))?;
-    let _ = w;
 
+    // Start marker with "EXAMPLE" label
+    let styled_label = "EXAMPLE".cyan().bold();
+    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+    writeln!(w)?;
+
+    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+
+    // Render content blocks
     for nested_block in blocks {
-        let w = visitor.writer_mut();
-        write!(w, "  │ ")?;
-        let _ = w;
         visitor.visit_block(nested_block)?;
     }
+
+    // End marker with three dots
     let w = visitor.writer_mut();
-    writeln!(w, "  └{}", "─".repeat(76))?;
+    let end_marker = "• • •".cyan().bold();
+    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+    writeln!(w)?;
 
     Ok(())
 }
@@ -171,34 +143,30 @@ fn render_quote_block<V: WritableVisitor<Error = Error>>(
     title: &[InlineNode],
     blocks: &[Block],
 ) -> Result<(), Error> {
-    // Render title if present
-    if !title.is_empty() {
-        let w = visitor.writer_mut();
-        write!(w, "  ")?;
-        let _ = w;
-        visitor.visit_inline_nodes(title)?;
-        let w = visitor.writer_mut();
-        writeln!(w)?;
-    }
-
-    // Render content with quote marks and indentation
     let w = visitor.writer_mut();
-    writeln!(w, "  {}", "\u{201C}".italic().grey())?; // Opening quote
-    let _ = w;
 
+    // Start marker with "QUOTE" label
+    let styled_label = "QUOTE".grey().bold();
+    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+    writeln!(w)?;
+
+    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+
+    // Render content blocks
     for nested_block in blocks {
-        let w = visitor.writer_mut();
-        write!(w, "    ")?; // Extra indentation for quotes
-        let _ = w;
         visitor.visit_block(nested_block)?;
     }
+
+    // End marker with three dots
     let w = visitor.writer_mut();
-    writeln!(w, "  {}", "\u{201D}".italic().grey())?; // Closing quote
+    let end_marker = "• • •".grey().bold();
+    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+    writeln!(w)?;
 
     Ok(())
 }
 
-/// Render a sidebar block with a box.
+/// Render a sidebar block.
 fn render_sidebar_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
@@ -206,28 +174,23 @@ fn render_sidebar_block<V: WritableVisitor<Error = Error>>(
 ) -> Result<(), Error> {
     let w = visitor.writer_mut();
 
-    writeln!(w, "  ╔{}╗", "═".repeat(76))?;
+    // Start marker with "SIDEBAR" label
+    let styled_label = "SIDEBAR".blue().bold();
+    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+    writeln!(w)?;
 
-    // Render title if present
-    if !title.is_empty() {
-        write!(w, "  ║ ")?;
-        QueueableCommand::queue(w, PrintStyledContent(String::new().bold()))?;
-        let _ = w;
-        visitor.visit_inline_nodes(title)?;
-        let w = visitor.writer_mut();
-        writeln!(w, " ║")?;
-        writeln!(w, "  ╠{}╣", "═".repeat(76))?;
-    }
+    visitor.render_title_with_wrapper(title, "", "\n\n")?;
 
-    // Render content
+    // Render content blocks
     for nested_block in blocks {
-        let w = visitor.writer_mut();
-        write!(w, "  ║ ")?;
-        let _ = w;
         visitor.visit_block(nested_block)?;
     }
+
+    // End marker with three dots
     let w = visitor.writer_mut();
-    writeln!(w, "  ╚{}╝", "═".repeat(76))?;
+    let end_marker = "• • •".blue().bold();
+    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+    writeln!(w)?;
 
     Ok(())
 }
@@ -238,22 +201,23 @@ fn render_verse_block<V: WritableVisitor<Error = Error>>(
     title: &[InlineNode],
     inlines: &[InlineNode],
 ) -> Result<(), Error> {
-    // Render title if present
-    if !title.is_empty() {
-        let w = visitor.writer_mut();
-        write!(w, "  ")?;
-        let _ = w;
-        visitor.visit_inline_nodes(title)?;
-        let w = visitor.writer_mut();
-        writeln!(w)?;
-    }
-
-    // Render verse content with indentation
     let w = visitor.writer_mut();
-    write!(w, "    ")?;
-    let _ = w;
+
+    // Start marker with "VERSE" label
+    let styled_label = "VERSE".magenta().bold();
+    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+    writeln!(w)?;
+
+    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+
+    // Render verse content
     visitor.visit_inline_nodes(inlines)?;
     let w = visitor.writer_mut();
+    writeln!(w)?;
+
+    // End marker with three dots
+    let end_marker = "• • •".magenta().bold();
+    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
     writeln!(w)?;
 
     Ok(())
@@ -310,8 +274,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("┌"), "Should have top-left border");
-        assert!(output_str.contains("└"), "Should have bottom-left border");
+        assert!(output_str.contains("LISTING"), "Should have LISTING label");
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("code content here"),
             "Should contain content"
@@ -337,15 +301,13 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(
-            output_str.contains("[listing]"),
-            "Should show [listing] label"
-        );
+        assert!(output_str.contains("LISTING"), "Should have LISTING label");
         assert!(
             output_str.contains("My Code Listing"),
             "Should contain title"
         );
         assert!(output_str.contains("code here"), "Should contain content");
+        assert!(output_str.contains("• • •"), "Should have end marker");
 
         Ok(())
     }
@@ -367,8 +329,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("┌"), "Should have top-left border");
-        assert!(output_str.contains("└"), "Should have bottom-left border");
+        assert!(output_str.contains("LITERAL"), "Should have LITERAL label");
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("literal text"),
             "Should contain content"
@@ -394,10 +356,7 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(
-            output_str.contains("[literal]"),
-            "Should show [literal] label"
-        );
+        assert!(output_str.contains("LITERAL"), "Should have LITERAL label");
         assert!(
             output_str.contains("Literal Block Title"),
             "Should contain title"
@@ -406,6 +365,7 @@ mod tests {
             output_str.contains("literal content"),
             "Should contain content"
         );
+        assert!(output_str.contains("• • •"), "Should have end marker");
 
         Ok(())
     }
@@ -434,12 +394,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(
-            output_str.contains("Example:"),
-            "Should show Example: label"
-        );
-        assert!(output_str.contains("┌"), "Should have top-left border");
-        assert!(output_str.contains("└"), "Should have bottom-left border");
+        assert!(output_str.contains("EXAMPLE"), "Should have EXAMPLE label");
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("example text"),
             "Should contain content"
@@ -472,10 +428,7 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(
-            output_str.contains("Example:"),
-            "Should show Example: prefix"
-        );
+        assert!(output_str.contains("EXAMPLE"), "Should have EXAMPLE label");
         assert!(
             output_str.contains("Custom Example Title"),
             "Should contain custom title"
@@ -484,6 +437,7 @@ mod tests {
             output_str.contains("example content"),
             "Should contain content"
         );
+        assert!(output_str.contains("• • •"), "Should have end marker");
 
         Ok(())
     }
@@ -512,14 +466,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(
-            output_str.contains("\u{201C}"),
-            "Should have opening curly quote"
-        );
-        assert!(
-            output_str.contains("\u{201D}"),
-            "Should have closing curly quote"
-        );
+        assert!(output_str.contains("QUOTE"), "Should have QUOTE label");
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("This is a quote."),
             "Should contain content"
@@ -552,15 +500,9 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
+        assert!(output_str.contains("QUOTE"), "Should have QUOTE label");
         assert!(output_str.contains("Quote Title"), "Should contain title");
-        assert!(
-            output_str.contains("\u{201C}"),
-            "Should have opening curly quote"
-        );
-        assert!(
-            output_str.contains("\u{201D}"),
-            "Should have closing curly quote"
-        );
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("Quote content here."),
             "Should contain content"
@@ -637,14 +579,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(
-            output_str.contains("╔"),
-            "Should have top-left double border"
-        );
-        assert!(
-            output_str.contains("╚"),
-            "Should have bottom-left double border"
-        );
+        assert!(output_str.contains("SIDEBAR"), "Should have SIDEBAR label");
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("Sidebar content."),
             "Should contain content"
@@ -677,8 +613,9 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
+        assert!(output_str.contains("SIDEBAR"), "Should have SIDEBAR label");
         assert!(output_str.contains("Sidebar Title"), "Should contain title");
-        assert!(output_str.contains("╠"), "Should have title separator");
+        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("Sidebar text here."),
             "Should contain content"
@@ -962,14 +899,14 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Empty blocks should still render borders
+        // Empty blocks should still render label and end marker
         assert!(
-            output_str.contains("┌"),
-            "Should have top border even when empty"
+            output_str.contains("LISTING"),
+            "Should have label even when empty"
         );
         assert!(
-            output_str.contains("└"),
-            "Should have bottom border even when empty"
+            output_str.contains("• • •"),
+            "Should have end marker even when empty"
         );
 
         Ok(())
@@ -992,9 +929,15 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Empty quote should still have quote marks
-        assert!(output_str.contains("\u{201C}"), "Should have opening quote");
-        assert!(output_str.contains("\u{201D}"), "Should have closing quote");
+        // Empty quote should still have label and end marker
+        assert!(
+            output_str.contains("QUOTE"),
+            "Should have label even when empty"
+        );
+        assert!(
+            output_str.contains("• • •"),
+            "Should have end marker even when empty"
+        );
 
         Ok(())
     }

@@ -14,7 +14,11 @@ comfy-table = "7.2"
 crossterm = "0.29"
 thiserror.workspace = true
 tracing.workspace = true
+# images on the terminal
 viuer = { version = "0.9", features = ["print-file"] }
+
+[dev-dependencies]
+pretty_assertions.workspace = true
 
 [lints]
 workspace = true

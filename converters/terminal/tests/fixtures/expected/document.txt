@@ -1,0 +1,3 @@
+[1m[4mDocument Title[0m[3mby [0m[3mLorn_Kismet [0m[3mR. [0m[3mLee[0m[3m <kismet@asciidoctor.org>[0m, [3mNorberto [0m[3mM. [0m[3mLopes[0m[3m <nlopesml@gmail.com>[0m
+
+

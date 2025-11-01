@@ -1,0 +1,9 @@
+
+[38;5;7m[1mQUOTE[0m
+First paragraph in quote.
+
+Second paragraph in quote.
+
+Quote authorThird paragraph with title.
+
+[38;5;7m[1m• • •[0m
