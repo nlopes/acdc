@@ -90,11 +90,16 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
 }
 
 /// Helper to check delimiter matching and return error if mismatched
-fn check_delimiters(open: &str, close: &str, block_type: &str) -> Result<(), Error> {
+fn check_delimiters(
+    open: &str,
+    close: &str,
+    block_type: &str,
+    detail: Detail,
+) -> Result<(), Error> {
     if open == close {
         Ok(())
     } else {
-        Err(Error::mismatched_delimiters(block_type))
+        Err(Error::mismatched_delimiters(detail, block_type))
     }
 }
 
@@ -638,7 +643,7 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
-            check_delimiters(open_delim, close_delim, "example")?;
+            check_delimiters(open_delim, close_delim, "example", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -682,7 +687,7 @@ peg::parser! {
             content_start:position!() content:until_comment_delimiter() content_end:position!()
             eol() close_delim:comment_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "comment")?;
+            check_delimiters(open_delim, close_delim, "comment", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
@@ -710,7 +715,7 @@ peg::parser! {
             content_start:position!() content:until_listing_delimiter() content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "listing")?;
+            check_delimiters(open_delim, close_delim, "listing", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -735,7 +740,7 @@ peg::parser! {
             content_start:position!() content:until_markdown_code_delimiter() content_end:position!()
             eol() close_delim:markdown_code_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "listing")?;
+            check_delimiters(open_delim, close_delim, "listing", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
 
             // If we captured a language, add it as a positional attribute
@@ -770,7 +775,7 @@ peg::parser! {
         close_delim:literal_delimiter()
         end:position!()
         {
-            check_delimiters(open_delim, close_delim, "literal")?;
+            check_delimiters(open_delim, close_delim, "literal", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -795,7 +800,7 @@ peg::parser! {
             content_start:position!() content:until_open_delimiter() content_end:position!()
             eol() close_delim:open_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "open")?;
+            check_delimiters(open_delim, close_delim, "open", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -825,7 +830,7 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
-            check_delimiters(open_delim, close_delim, "sidebar")?;
+            check_delimiters(open_delim, close_delim, "sidebar", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -853,7 +858,7 @@ peg::parser! {
         content_start:position!() content:until_table_delimiter() content_end:position!()
         eol() close_delim:table_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "table")?;
+            check_delimiters(open_delim, close_delim, "table", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -975,7 +980,7 @@ peg::parser! {
             content_start:position!() content:until_pass_delimiter() content_end:position!()
             eol() close_delim:pass_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "pass")?;
+            check_delimiters(open_delim, close_delim, "pass", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -1026,7 +1031,7 @@ peg::parser! {
             content_start:position!() content:until_quote_delimiter() content_end:position!()
             eol() close_delim:quote_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "quote")?;
+            check_delimiters(open_delim, close_delim, "quote", Detail { location: state.create_block_location(start, end, offset) })?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -2726,10 +2731,15 @@ peg::parser! {
                 block_metadata.title.clone()
             };
 
-            if let Some(variant) = admonition {
-                let Ok(variant) = AdmonitionVariant::from_str(&variant) else {
+            if let Some((variant, admonition_start, admonition_end)) = admonition {
+                let Ok(parsed_variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
-                    return Err(Error::InvalidAdmonitionVariant(variant) );
+                    return Err(Error::InvalidAdmonitionVariant(
+                        Detail {
+                            location: state.create_location(admonition_start + offset, admonition_end + offset - 1)
+                        },
+                        variant
+                    ));
                 };
                 tracing::info!(%variant, "found admonition block with variant");
                 Ok(Block::Admonition(Admonition{
@@ -2742,7 +2752,7 @@ peg::parser! {
                         location: state.create_location(content_start.offset+offset, end.saturating_sub(1)),
                     })],
                     location: state.create_location(offset, end.saturating_sub(1)),
-                    variant,
+                    variant: parsed_variant,
 
                 }))
             } else {
@@ -2756,10 +2766,10 @@ peg::parser! {
             }
         }
 
-        rule admonition() -> String
-            = variant:$("NOTE" / "WARNING" / "TIP" / "IMPORTANT" / "CAUTION") ": "
+        rule admonition() -> (String, usize, usize)
+            = start:position!() variant:$("NOTE" / "WARNING" / "TIP" / "IMPORTANT" / "CAUTION") ": " end:position!()
         {
-            variant.to_string()
+            (variant.to_string(), start, end)
         }
 
         rule anchor() -> Anchor
