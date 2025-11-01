@@ -85,6 +85,37 @@ impl Error {
     pub fn mismatched_delimiters(block_type: &str) -> Self {
         Self::MismatchedDelimiters(block_type.to_string())
     }
+
+    /// Extract location information from this error if available.
+    /// Returns the Location for errors that have position information.
+    #[must_use]
+    pub fn location(&self) -> Option<&Location> {
+        match self {
+            Self::NestedSectionLevelMismatch(detail, _, _) => Some(&detail.location),
+            _ => None,
+        }
+    }
+
+    /// Get advice for this error if available.
+    /// Returns helpful information for resolving the error.
+    #[must_use]
+    pub fn advice(&self) -> Option<&'static str> {
+        match self {
+            Self::NestedSectionLevelMismatch(..) => Some(
+                "Section levels must increment by at most 1. For example, level 2 (==) cannot be followed directly by level 4 (====)",
+            ),
+            Self::MismatchedDelimiters(_) => Some(
+                "Delimited blocks must use the same delimiter to open and close (e.g., '====' to open, '====' to close)",
+            ),
+            Self::InvalidAdmonitionVariant(_) => {
+                Some("Valid admonition types are: NOTE, TIP, IMPORTANT, WARNING, CAUTION")
+            }
+            Self::InvalidIfEvalDirectiveMismatchedTypes => Some(
+                "ifeval expressions must compare values of the same type (both numbers or both strings)",
+            ),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize)]

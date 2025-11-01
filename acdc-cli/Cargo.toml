@@ -20,8 +20,10 @@ acdc-tck = { path = "../converters/tck", optional = true }
 acdc-terminal = { path = "../converters/terminal", optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
+miette = { version = "7", features = ["derive", "fancy"] }
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
