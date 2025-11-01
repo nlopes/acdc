@@ -62,9 +62,6 @@ impl Processable for Processor {
                     acdc_parser::parse_file(file, &options)?.to_terminal(self)?;
                 }
             }
-            Source::String(content) => {
-                acdc_parser::parse(content, &options)?.to_terminal(self)?;
-            }
             Source::Stdin => {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
@@ -73,59 +70,6 @@ impl Processable for Processor {
         }
 
         Ok(())
-    }
-
-    fn output(&self) -> Result<String, Self::Error> {
-        let options = acdc_parser::Options {
-            safe_mode: self.options.safe_mode.clone(),
-            timings: self.options.timings,
-            document_attributes: self.document_attributes.clone(),
-        };
-        match &self.options.source {
-            Source::Files(files) => {
-                let buffer = Vec::new();
-                let mut writer = std::io::BufWriter::new(buffer);
-                for file in files {
-                    let doc = acdc_parser::parse_file(file, &options)?;
-                    let processor = Processor {
-                        options: self.options.clone(),
-                        document_attributes: doc.attributes.clone(),
-                        toc_entries: doc.toc_entries.clone(),
-                    };
-                    doc.render(&mut writer, &processor)?;
-                }
-                writer.flush()?;
-                Ok(String::from_utf8(writer.into_inner()?)?)
-            }
-            Source::String(content) => {
-                let doc = acdc_parser::parse(content, &options)?;
-                let processor = Processor {
-                    options: self.options.clone(),
-                    document_attributes: doc.attributes.clone(),
-                    toc_entries: doc.toc_entries.clone(),
-                };
-                let buffer = Vec::new();
-                let mut writer = std::io::BufWriter::new(buffer);
-                doc.render(&mut writer, &processor)?;
-                writer.flush()?;
-                Ok(String::from_utf8(writer.into_inner()?)?)
-            }
-            Source::Stdin => {
-                let stdin = std::io::stdin();
-                let mut reader = std::io::BufReader::new(stdin.lock());
-                let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
-                let processor = Processor {
-                    options: self.options.clone(),
-                    document_attributes: doc.attributes.clone(),
-                    toc_entries: doc.toc_entries.clone(),
-                };
-                let buffer = Vec::new();
-                let mut writer = std::io::BufWriter::new(buffer);
-                doc.render(&mut writer, &processor)?;
-                writer.flush()?;
-                Ok(String::from_utf8(writer.into_inner()?)?)
-            }
-        }
     }
 }
 
