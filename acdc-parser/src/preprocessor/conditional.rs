@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     DocumentAttributes,
-    error::{Error, SourceLocation, Positioning},
+    error::{Error, Positioning, SourceLocation},
     model::{HEADER, Position, Substitute},
 };
 
@@ -201,7 +201,9 @@ impl Conditional {
                 }
                 is_true
             }
-            Conditional::Ifeval(ifeval) => ifeval.evaluate(attributes, line_number, current_offset, file_parent)?,
+            Conditional::Ifeval(ifeval) => {
+                ifeval.evaluate(attributes, line_number, current_offset, file_parent)?
+            }
         })
     }
 }
@@ -391,7 +393,13 @@ mod tests {
         assert!(
             matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("1 + 1".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("2".to_string()))
         );
-        assert!(conditional.is_true(&DocumentAttributes::default(), &mut String::new(), 1, 0, None)?);
+        assert!(conditional.is_true(
+            &DocumentAttributes::default(),
+            &mut String::new(),
+            1,
+            0,
+            None
+        )?);
         Ok(())
     }
 
@@ -402,7 +410,13 @@ mod tests {
         assert!(
             matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("'ASDF'".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("ASDF".to_string()))
         );
-        assert!(conditional.is_true(&DocumentAttributes::default(), &mut String::new(), 1, 0, None)?);
+        assert!(conditional.is_true(
+            &DocumentAttributes::default(),
+            &mut String::new(),
+            1,
+            0,
+            None
+        )?);
         Ok(())
     }
 
@@ -415,7 +429,13 @@ mod tests {
         );
 
         assert!(matches!(
-            conditional.is_true(&DocumentAttributes::default(), &mut String::new(), 1, 0, None),
+            conditional.is_true(
+                &DocumentAttributes::default(),
+                &mut String::new(),
+                1,
+                0,
+                None
+            ),
             Err(Error::InvalidIfEvalDirectiveMismatchedTypes(..))
         ));
         Ok(())
