@@ -44,7 +44,11 @@ impl Render for Block {
                 writeln!(w, "<div style=\"page-break-after: always;\"></div>")?;
                 Ok(())
             }
-            unknown => todo!("rendering for block type: {:?}", unknown),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                format!("Unsupported block type: {self:?}"),
+            )
+            .into()),
         }
     }
 }

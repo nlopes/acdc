@@ -53,6 +53,7 @@ const KNOWN_LANGUAGES: &[&str] = &[
 impl Render for DelimitedBlock {
     type Error = crate::Error;
 
+    #[allow(clippy::too_many_lines)]
     fn render<W: Write>(
         &self,
         w: &mut W,
@@ -155,7 +156,47 @@ impl Render for DelimitedBlock {
                 stem.render(w, processor, options)?;
                 writeln!(w, "</div>")?;
             }
-            unknown => todo!("Unknown delimited block type: {:?}", unknown),
+            DelimitedBlockType::DelimitedComment(_) => {
+                // Comment blocks produce no output
+            }
+            DelimitedBlockType::DelimitedExample(blocks) => {
+                writeln!(w, "<div class=\"exampleblock\">")?;
+                crate::inlines::render_title(&self.title, w, processor, options)?;
+                writeln!(w, "<div class=\"content\">")?;
+                for block in blocks {
+                    block.render(w, processor, options)?;
+                }
+                writeln!(w, "</div>")?;
+                writeln!(w, "</div>")?;
+            }
+            DelimitedBlockType::DelimitedSidebar(blocks) => {
+                writeln!(w, "<div class=\"sidebarblock\">")?;
+                crate::inlines::render_title(&self.title, w, processor, options)?;
+                writeln!(w, "<div class=\"content\">")?;
+                for block in blocks {
+                    block.render(w, processor, options)?;
+                }
+                writeln!(w, "</div>")?;
+                writeln!(w, "</div>")?;
+            }
+            DelimitedBlockType::DelimitedVerse(inlines) => {
+                writeln!(w, "<div class=\"verseblock\">")?;
+                crate::inlines::render_title(&self.title, w, processor, options)?;
+                writeln!(w, "<pre class=\"content\">")?;
+                crate::inlines::render_inlines(inlines, w, processor, options)?;
+                writeln!(w, "</pre>")?;
+                writeln!(w, "<div class=\"attribution\">")?;
+                writeln!(w, "</div>")?;
+                writeln!(w, "</div>")?;
+            }
+            _ => {
+                let inner = &self.inner;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported delimited block type: {inner:?}"),
+                )
+                .into());
+            }
         }
         Ok(())
     }
