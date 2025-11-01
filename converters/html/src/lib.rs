@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     io::{BufWriter, Write},
     path::Path,
 };
@@ -27,6 +28,7 @@ pub struct Processor {
     options: Options,
     pub document_attributes: DocumentAttributes,
     pub toc_entries: Vec<TocEntry>,
+    example_counter: Cell<usize>,
 }
 
 impl Processor {
@@ -80,6 +82,7 @@ impl Processable for Processor {
             options,
             document_attributes,
             toc_entries: vec![],
+            example_counter: Cell::new(0),
         }
     }
 

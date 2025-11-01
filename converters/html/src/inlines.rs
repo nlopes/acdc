@@ -434,17 +434,22 @@ impl Render for Icon {
         processor: &Processor,
         _options: &RenderOptions,
     ) -> Result<(), Self::Error> {
-        // Check if icons are set to font mode
-        if processor.document_attributes.get("icons").is_some_and(|v| v.to_string() == "font") {
-            // Font Awesome mode
-            write!(w, "<span class=\"icon\"><i class=\"fa fa-{}\"></i></span>", self.target)?;
+        // Check icons attribute to determine rendering mode
+        if let Some(icons_value) = processor.document_attributes.get("icons") {
+            if icons_value.to_string() == "font" {
+                // Font Awesome mode
+                write!(w, "<span class=\"icon\"><i class=\"fa fa-{}\"></i></span>", self.target)?;
+            } else {
+                // Image mode (when icons attribute is set to something other than "font")
+                write!(
+                    w,
+                    "<span class=\"image\"><img src=\"./images/icons/{}.png\" alt=\"{}\"></span>",
+                    self.target, self.target
+                )?;
+            }
         } else {
-            // Image mode (default)
-            write!(
-                w,
-                "<span class=\"image\"><img src=\"./images/icons/{}.png\" alt=\"{}\"></span>",
-                self.target, self.target
-            )?;
+            // Text mode (default when icons attribute is not set)
+            write!(w, "<span class=\"icon\">[{}]</span>", self.target)?;
         }
         Ok(())
     }
@@ -493,9 +498,14 @@ impl Render for Menu {
             // Menu selection with items
             write!(w, "<span class=\"menuseq\">")?;
             write!(w, "<b class=\"menu\">{}</b>", self.target)?;
-            for item in &self.items {
-                write!(w, "&#160;<b class=\"caret\">&#8250;</b> ")?;
-                write!(w, "<b class=\"menuitem\">{item}</b>")?;
+            for (i, item) in self.items.iter().enumerate() {
+                write!(w, "&#160;<i class=\"fa fa-angle-right caret\"></i> ")?;
+                // Use "submenu" class for intermediate items, "menuitem" for the last
+                if i == self.items.len() - 1 {
+                    write!(w, "<b class=\"menuitem\">{item}</b>")?;
+                } else {
+                    write!(w, "<b class=\"submenu\">{item}</b>")?;
+                }
             }
             write!(w, "</span>")?;
         }
