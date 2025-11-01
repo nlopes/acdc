@@ -301,7 +301,7 @@ peg::parser! {
             })
         })
         section_level:section_level(offset, None) whitespace()
-        title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() end:position!() &eol()*<2,2>
+        title_start:position!() title:section_title(start, offset, &block_metadata) title_end:position!() end:position!() &eol()*<1,2>
         {
             let title = title?;
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
@@ -343,7 +343,7 @@ peg::parser! {
         section_level_end:position!()
         whitespace()
         title_start:position!()
-        section_header:(title:section_title(start, offset, &block_metadata) title_end:position!() &(eol()*<2,2> / ![_]) {
+        section_header:(title:section_title(start, offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_]) {
             let title = title?;
             let section_id = Section::generate_id(&block_metadata.metadata, &title).to_string();
 
