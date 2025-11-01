@@ -41,3 +41,6 @@ jobs:
 
     - name: Run clippy
       run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+
+    - name: Run clippy
+      run: cargo clippy --all-targets --all-features --tests -- --deny clippy::pedantic
