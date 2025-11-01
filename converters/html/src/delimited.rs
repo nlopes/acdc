@@ -161,7 +161,16 @@ impl Render for DelimitedBlock {
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
                 writeln!(w, "<div class=\"exampleblock\">")?;
-                crate::inlines::render_title(&self.title, w, processor, options)?;
+
+                // Render title with "Example N." prefix if title exists
+                if !self.title.is_empty() {
+                    let count = processor.example_counter.get() + 1;
+                    processor.example_counter.set(count);
+                    write!(w, "<div class=\"title\">Example {count}. ")?;
+                    crate::inlines::render_inlines(&self.title, w, processor, options)?;
+                    writeln!(w, "</div>")?;
+                }
+
                 writeln!(w, "<div class=\"content\">")?;
                 for block in blocks {
                     block.render(w, processor, options)?;
@@ -171,8 +180,8 @@ impl Render for DelimitedBlock {
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 writeln!(w, "<div class=\"sidebarblock\">")?;
-                crate::inlines::render_title(&self.title, w, processor, options)?;
                 writeln!(w, "<div class=\"content\">")?;
+                crate::inlines::render_title(&self.title, w, processor, options)?;
                 for block in blocks {
                     block.render(w, processor, options)?;
                 }
@@ -182,10 +191,23 @@ impl Render for DelimitedBlock {
             DelimitedBlockType::DelimitedVerse(inlines) => {
                 writeln!(w, "<div class=\"verseblock\">")?;
                 crate::inlines::render_title(&self.title, w, processor, options)?;
-                writeln!(w, "<pre class=\"content\">")?;
+                write!(w, "<pre class=\"content\">")?;
                 crate::inlines::render_inlines(inlines, w, processor, options)?;
                 writeln!(w, "</pre>")?;
                 writeln!(w, "<div class=\"attribution\">")?;
+
+                // Extract author and cite from positional attributes
+                // [verse, author, cite] -> positional_attributes[0] = author, [1] = cite
+                let author = self.metadata.positional_attributes.first();
+                let cite = self.metadata.positional_attributes.get(1);
+
+                if let Some(author) = author {
+                    writeln!(w, "&#8212; {author}<br>")?;
+                }
+                if let Some(cite) = cite {
+                    writeln!(w, "<cite>{cite}</cite>")?;
+                }
+
                 writeln!(w, "</div>")?;
                 writeln!(w, "</div>")?;
             }
@@ -228,6 +250,7 @@ impl Render for StemContent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
     use acdc_converters_common::{GeneratorMetadata, Options};
     use acdc_core::{Doctype, SafeMode, Source};
     use acdc_parser::{BlockMetadata, DocumentAttributes, InlineNode, Location, Plain};
@@ -252,6 +275,7 @@ mod tests {
             options,
             document_attributes,
             toc_entries: Vec::new(),
+            example_counter: Cell::new(0),
         }
     }
 

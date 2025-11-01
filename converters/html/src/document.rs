@@ -136,6 +136,16 @@ MathJax = {{
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>"#
         )?;
     }
+
+    // Add Font Awesome if icons are set to font mode
+    if processor.document_attributes.get("icons").is_some_and(|v| v.to_string() == "font") {
+        writeln!(
+            w,
+            r#"<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/v4-shims.min.css">"#
+        )?;
+    }
+
     writeln!(w, "</head>")?;
     Ok(())
 }
