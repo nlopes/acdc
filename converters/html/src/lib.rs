@@ -97,6 +97,9 @@ impl Processable for Processor {
                         println!("Input file: {}", file.to_string_lossy());
                     }
                     let html_path = file.with_extension("html");
+                    if html_path == *file {
+                        return Err(Error::OutputPathSameAsInput(file.clone()));
+                    }
                     tracing::debug!(source = ?file, destination = ?html_path, "processing file");
 
                     // Read and parse the document
