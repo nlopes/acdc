@@ -6,10 +6,9 @@ use crate::{
     DocumentAttribute, Error, Footnote, Form, Header, Highlight, Icon, Image, InlineMacro,
     InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu,
     Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
-    Source, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
-    Superscript, Table, TableOfContents, TableRow, ThematicBreak, UnorderedList, Url, Verbatim,
-    Video,
-    error::Detail,
+    Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
+    Substitution, Superscript, Table, TableOfContents, TableRow, ThematicBreak, UnorderedList, Url,
+    Verbatim, Video,
     grammar::{
         ParserState,
         author_revision::{RevisionInfo, generate_initials, process_revision_info},
@@ -94,7 +93,7 @@ fn check_delimiters(
     open: &str,
     close: &str,
     block_type: &str,
-    detail: Detail,
+    detail: SourceLocation,
 ) -> Result<(), Error> {
     if open == close {
         Ok(())
@@ -111,6 +110,14 @@ macro_rules! process_inlines_or_err {
             $msg
         })
     };
+}
+
+/// Helper to create `SourceLocation` from a Location and file path
+fn create_source_location(location: Location, file: Option<std::path::PathBuf>) -> SourceLocation {
+    SourceLocation {
+        file,
+        positioning: crate::Positioning::Location(location),
+    }
 }
 
 peg::parser! {
@@ -413,7 +420,7 @@ peg::parser! {
             if let Some(parent_level) = parent_section_level && (
                 section_level.1 < parent_level  || section_level.1+1 > parent_level+1 || section_level.1 > 5) {
                     return Err(Error::NestedSectionLevelMismatch(
-                        Detail { location: state.create_block_location(section_level_start, section_level_end, offset) },
+                        Box::new(create_source_location(state.create_block_location(section_level_start, section_level_end, offset), state.current_file.clone())),
                         section_level.1+1,
                         parent_level + 1,
                     ));
@@ -643,7 +650,7 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
-            check_delimiters(open_delim, close_delim, "example", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "example", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -687,7 +694,7 @@ peg::parser! {
             content_start:position!() content:until_comment_delimiter() content_end:position!()
             eol() close_delim:comment_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "comment", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "comment", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
@@ -715,7 +722,7 @@ peg::parser! {
             content_start:position!() content:until_listing_delimiter() content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "listing", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "listing", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -740,7 +747,7 @@ peg::parser! {
             content_start:position!() content:until_markdown_code_delimiter() content_end:position!()
             eol() close_delim:markdown_code_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "listing", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "listing", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
 
             // If we captured a language, add it as a positional attribute
@@ -775,7 +782,7 @@ peg::parser! {
         close_delim:literal_delimiter()
         end:position!()
         {
-            check_delimiters(open_delim, close_delim, "literal", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "literal", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -800,7 +807,7 @@ peg::parser! {
             content_start:position!() content:until_open_delimiter() content_end:position!()
             eol() close_delim:open_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "open", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "open", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -830,7 +837,7 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
-            check_delimiters(open_delim, close_delim, "sidebar", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "sidebar", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -858,7 +865,7 @@ peg::parser! {
         content_start:position!() content:until_table_delimiter() content_end:position!()
         eol() close_delim:table_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "table", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "table", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -980,7 +987,7 @@ peg::parser! {
             content_start:position!() content:until_pass_delimiter() content_end:position!()
             eol() close_delim:pass_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "pass", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "pass", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -1031,7 +1038,7 @@ peg::parser! {
             content_start:position!() content:until_quote_delimiter() content_end:position!()
             eol() close_delim:quote_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "quote", Detail { location: state.create_block_location(start, end, offset) })?;
+            check_delimiters(open_delim, close_delim, "quote", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -2735,9 +2742,7 @@ peg::parser! {
                 let Ok(parsed_variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
                     return Err(Error::InvalidAdmonitionVariant(
-                        Detail {
-                            location: state.create_location(admonition_start + offset, admonition_end + offset - 1)
-                        },
+                        Box::new(create_source_location(state.create_location(admonition_start + offset, admonition_end + offset - 1), state.current_file.clone())),
                         variant
                     ));
                 };
@@ -3221,10 +3226,15 @@ v2.9, 01-09-2024: Fall incarnation
                 location: Location {
                     absolute_start: 34,
                     absolute_end: 47,
-                    start: crate::Position { line: 2, column: 3 },
+                    start: crate::Position {
+                        line: 2,
+                        column: 3,
+                        offset: 34
+                    },
                     end: crate::Position {
                         line: 2,
-                        column: 16
+                        column: 16,
+                        offset: 47,
                     },
                 }
             })
@@ -3399,10 +3409,15 @@ v2.9, 01-09-2024: Fall incarnation
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position { line: 1, column: 3 },
+                    start: crate::Position {
+                        line: 1,
+                        column: 3,
+                        offset: 2
+                    },
                     end: crate::Position {
                         line: 1,
-                        column: 16
+                        column: 16,
+                        offset: 15,
                     },
                 }
             })
@@ -3424,10 +3439,15 @@ v2.9, 01-09-2024: Fall incarnation
                     location: Location {
                         absolute_start: 2,
                         absolute_end: 15,
-                        start: crate::Position { line: 1, column: 3 },
+                        start: crate::Position {
+                            line: 1,
+                            column: 3,
+                            offset: 2
+                        },
                         end: crate::Position {
                             line: 1,
-                            column: 16
+                            column: 16,
+                            offset: 15,
                         },
                     }
                 })],
@@ -3438,11 +3458,13 @@ v2.9, 01-09-2024: Fall incarnation
                         absolute_end: 31,
                         start: crate::Position {
                             line: 1,
-                            column: 18
+                            column: 18,
+                            offset: 17,
                         },
                         end: crate::Position {
                             line: 1,
-                            column: 32
+                            column: 32,
+                            offset: 31,
                         },
                     }
                 })])
@@ -3466,10 +3488,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position { line: 1, column: 3 },
+                    start: crate::Position {
+                        line: 1,
+                        column: 3,
+                        offset: 2
+                    },
                     end: crate::Position {
                         line: 1,
-                        column: 16
+                        column: 16,
+                        offset: 15,
                     },
                 }
             })
@@ -3538,10 +3565,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 4,
                     absolute_end: 9,
-                    start: crate::Position { line: 1, column: 5 },
+                    start: crate::Position {
+                        line: 1,
+                        column: 5,
+                        offset: 4
+                    },
                     end: crate::Position {
                         line: 1,
-                        column: 10
+                        column: 10,
+                        offset: 9,
                     }
                 }
             })
@@ -3568,10 +3600,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position { line: 1, column: 9 },
+                    start: crate::Position {
+                        line: 1,
+                        column: 9,
+                        offset: 8
+                    },
                     end: crate::Position {
                         line: 1,
-                        column: 13
+                        column: 13,
+                        offset: 12,
                     }
                 }
             })
@@ -3598,10 +3635,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position { line: 1, column: 9 },
+                    start: crate::Position {
+                        line: 1,
+                        column: 9,
+                        offset: 8
+                    },
                     end: crate::Position {
                         line: 1,
-                        column: 13
+                        column: 13,
+                        offset: 12,
                     }
                 }
             })

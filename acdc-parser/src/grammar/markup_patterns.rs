@@ -35,7 +35,7 @@ fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatc
         if !crate::grammar::document::match_constrained_boundary(
             u8::try_from(prev_char)
                 .inspect_err(|e| {
-                    tracing::error!("Failed to convert char to u8: {e}");
+                    tracing::error!(error=?e, "Failed to convert char to u8");
                 })
                 .ok()?,
         ) {
@@ -185,7 +185,7 @@ pub(crate) fn find_italic_pattern(text: &str) -> Option<MarkupMatch> {
                 if !crate::grammar::document::match_constrained_boundary(
                     u8::try_from(prev_char)
                         .inspect_err(|e| {
-                            tracing::error!("Failed to convert char to u8: {e}");
+                            tracing::error!(error=?e, "Failed to convert char to u8");
                         })
                         .ok()?,
                 ) {
@@ -425,7 +425,7 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
                 if !crate::grammar::document::match_constrained_boundary(
                     u8::try_from(prev_char)
                         .inspect_err(|e| {
-                            tracing::error!("Failed to convert char to u8: {e}");
+                            tracing::error!(error=?e, "Failed to convert char to u8");
                         })
                         .ok()?,
                 ) {
@@ -537,7 +537,7 @@ pub(crate) fn find_highlight_constrained_pattern(text: &str) -> Option<MarkupMat
                 if !crate::grammar::document::match_constrained_boundary(
                     u8::try_from(prev_char)
                         .inspect_err(|e| {
-                            tracing::error!("Failed to convert char to u8: {e}");
+                            tracing::error!(error=?e, "Failed to convert char to u8");
                         })
                         .ok()?,
                 ) {

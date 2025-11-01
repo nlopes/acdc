@@ -9,7 +9,7 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
-    #[error(transparent)]
+    #[error("Parsing error: {0}")]
     Parse(#[from] acdc_parser::Error),
 
     #[error("input file and output file cannot be the same: {0}")]

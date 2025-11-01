@@ -35,6 +35,7 @@ impl PositionTracker {
         Position {
             line: self.line,
             column: self.column,
+            offset: self.offset,
         }
     }
 
@@ -152,6 +153,7 @@ impl LineMap {
         Position {
             line,
             column: chars_in_line + 1,
+            offset,
         }
     }
 }

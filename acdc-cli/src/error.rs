@@ -1,17 +1,17 @@
-use std::{error::Error, path::PathBuf, process::exit};
+use std::process::exit;
 
-use acdc_parser::{Error as ParserError, Location};
-use miette::{Diagnostic, NamedSource, SourceSpan};
+use acdc_parser::SourceLocation;
+use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 
 /// Rich error wrapper for beautiful miette display with source code
 #[derive(Debug, Diagnostic, thiserror::Error)]
 #[error("{message}")]
 #[diagnostic()]
-pub(crate) struct RichError {
+pub(crate) struct RichError<'a> {
     message: String,
 
     #[help]
-    advice: String,
+    advice: Option<&'a str>,
 
     #[source_code]
     src: NamedSource<String>,
@@ -21,57 +21,55 @@ pub(crate) struct RichError {
     position_advice: String,
 }
 
-fn source_span_from_location(location: &Location) -> SourceSpan {
-    let start_offset = location.absolute_start;
-    let length = location.absolute_end - location.absolute_start;
-
-    SourceSpan::new(start_offset.into(), length)
-}
-
-pub(crate) fn display<E: Error + 'static>(e: E, source_context: Option<&(PathBuf, String)>) {
-    let mut current_error: &dyn Error = &e;
-    // Check if this error wraps a parser error by walking the source chain
-    while let Some(current) = current_error.source()
-        && let Some(parser_error) = current.downcast_ref::<ParserError>()
-    {
-        // set to the next error in the chain
-        current_error = current;
-
-        // Try to create a rich report with source code if available
-        if let (Some((path, source)), Some(location)) = (source_context, parser_error.location()) {
-            let advice = parser_error.advice().unwrap_or_default().to_string();
-
-            // Create a named source for the file
-            let named_source = NamedSource::new(path.display().to_string(), source.clone());
-
-            // Convert location to SourceSpan (offset, length)
-            let source_span = source_span_from_location(location);
-
-            // Create label showing where error occurred
-            let line = location.start.line;
-            let column = location.start.column;
-            let position_advice = format!("error occurred here (line {line}, column {column})");
-
-            // Create rich error with source code
-            let rich_error = RichError {
-                message: parser_error.to_string(),
-                advice,
-                src: named_source,
-                span: source_span,
-                position_advice,
-            };
-
-            eprint!("{:?}", miette::Report::new(rich_error));
-            exit(1);
-        } else {
-            // // Fallback to simpler display without source
-            eprintln!("  × {parser_error}");
-            if let Some(advice) = parser_error.advice() {
-                eprintln!("  help: {advice}");
-            }
+fn source_span_from_source_location(loc: &SourceLocation) -> SourceSpan {
+    match &loc.positioning {
+        acdc_parser::Positioning::Location(location) => {
+            let start_offset = location.absolute_start;
+            let length = location.absolute_end - location.absolute_start;
+            SourceSpan::new(start_offset.into(), length)
+        }
+        acdc_parser::Positioning::Position(position) => {
+            // Single character span at the position
+            SourceSpan::new(position.offset.into(), 1)
         }
     }
-    // No parser error found, display normally
+}
+
+pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {
+    if let Some(parser_error) = acdc_converters_common::find_parser_error(e)
+        && let Some(source_location) = parser_error.source_location()
+        && let Some(path) = &source_location.file
+        /* Lazy-load file content only if we have a file path */
+        && let Ok(source_str) = std::fs::read_to_string(path)
+    {
+        let advice = parser_error.advice();
+        let named_source = NamedSource::new(path.display().to_string(), source_str);
+        let source_span = source_span_from_source_location(source_location);
+        let position_advice = match &source_location.positioning {
+            acdc_parser::Positioning::Location(location) => {
+                format!(
+                    "error occurred here (line {}, column {})",
+                    location.start.line, location.start.column
+                )
+            }
+            acdc_parser::Positioning::Position(position) => {
+                format!(
+                    "error occurred here (line {}, column {})",
+                    position.line, position.column
+                )
+            }
+        };
+        let rich_error = RichError {
+            message: parser_error.to_string(),
+            advice,
+            src: named_source,
+            span: source_span,
+            position_advice,
+        };
+        return Report::new(rich_error);
+    }
+
+    // Fallback: No parser error with location found, or couldn't read file, display normally
     eprintln!("Error: {e}");
     exit(1);
 }

@@ -7,7 +7,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::Error;
+use crate::{Error, SourceLocation};
 
 mod attributes;
 mod inlines;
@@ -373,9 +373,15 @@ impl FromStr for Source {
             || value.starts_with("irc://")
             || value.starts_with("mailto:")
         {
-            url::Url::parse(value)
-                .map(Source::Url)
-                .map_err(|e| Error::Parse(format!("invalid URL: {e}")))
+            url::Url::parse(value).map(Source::Url).map_err(|e| {
+                Error::Parse(
+                    Box::new(SourceLocation {
+                        file: None,
+                        positioning: crate::Positioning::Position(Position::default()),
+                    }),
+                    format!("invalid URL: {e}"),
+                )
+            })
         } else if value.contains('/') || value.contains('\\') || value.contains('.') {
             // Contains path separators - treat as filesystem path or contains a dot which
             // might indicate a filename with extension
@@ -539,9 +545,13 @@ impl FromStr for AdmonitionVariant {
             "IMPORTANT" | "important" => Ok(AdmonitionVariant::Important),
             "CAUTION" | "caution" => Ok(AdmonitionVariant::Caution),
             "WARNING" | "warning" => Ok(AdmonitionVariant::Warning),
-            _ => Err(Error::Parse(format!(
-                "unknown admonition variant: {variant}"
-            ))),
+            _ => Err(Error::Parse(
+                Box::new(SourceLocation {
+                    file: None,
+                    positioning: crate::Positioning::Position(Position::default()),
+                }),
+                format!("unknown admonition variant: {variant}"),
+            )),
         }
     }
 }
@@ -2009,7 +2019,7 @@ impl<'de> Deserialize<'de> for ListItem {
                             my_checked = Some(map.next_value::<bool>()?);
                         }
                         _ => {
-                            tracing::debug!("ignoring unexpected field in ListItem: {key}");
+                            tracing::debug!(?key, "ignoring unexpected field in ListItem");
                             // Ignore any other fields
                             let _ = map.next_value::<de::IgnoredAny>()?;
                         }

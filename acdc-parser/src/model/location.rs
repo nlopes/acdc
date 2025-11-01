@@ -133,6 +133,9 @@ pub struct Position {
     /// The column number of the position.
     #[serde(rename = "col")]
     pub column: usize,
+    /// The byte offset of the position.
+    #[serde(skip)]
+    pub offset: usize,
 }
 
 impl std::fmt::Display for Position {
