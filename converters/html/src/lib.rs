@@ -37,19 +37,16 @@ impl Processor {
         doc: &Document,
         _original: P,
         path: P,
+        options: &RenderOptions,
     ) -> Result<(), crate::Error> {
         let mut file = std::fs::File::create(path)?;
-        let options = RenderOptions {
-            last_updated: Some(file.metadata()?.modified().map(chrono::DateTime::from)?),
-            ..RenderOptions::default()
-        };
         let mut writer = BufWriter::new(&mut file);
         let processor = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
             ..self.clone()
         };
-        doc.render(&mut writer, &processor, &options)?;
+        doc.render(&mut writer, &processor, options)?;
         writer.flush()?;
         Ok(())
     }
@@ -88,6 +85,9 @@ impl Processable for Processor {
 
     #[tracing::instrument(skip(self))]
     fn run(&self) -> Result<(), Self::Error> {
+        let mut render_options = RenderOptions {
+            ..RenderOptions::default()
+        };
         let options = acdc_parser::Options {
             safe_mode: self.options.safe_mode.clone(),
             timings: self.options.timings,
@@ -97,6 +97,11 @@ impl Processable for Processor {
         match &self.options.source {
             Source::Files(files) => {
                 for file in files {
+                    render_options.last_updated = Some(
+                        std::fs::metadata(file)?
+                            .modified()
+                            .map(chrono::DateTime::from)?,
+                    );
                     if self.options.timings {
                         println!("Input file: {}", file.to_string_lossy());
                     }
@@ -119,7 +124,7 @@ impl Processable for Processor {
 
                     // Convert the document
                     let now = std::time::Instant::now();
-                    self.to_file(&doc, file, &html_path)?;
+                    self.to_file(&doc, file, &html_path, &render_options)?;
                     let elapsed = now.elapsed();
                     tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file, destination = ?html_path, "time to convert document");
                     total_elapsed += elapsed;
@@ -134,60 +139,16 @@ impl Processable for Processor {
                     println!("Generated HTML file: {}", html_path.to_string_lossy());
                 }
             }
-            _ => {
-                return Err(Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "only files are supported",
-                )));
-            }
-        }
-        Ok(())
-    }
-
-    fn output(&self) -> Result<String, Self::Error> {
-        let mut render_options = RenderOptions {
-            ..RenderOptions::default()
-        };
-        let options = acdc_parser::Options {
-            safe_mode: self.options.safe_mode.clone(),
-            timings: self.options.timings,
-            document_attributes: self.document_attributes.clone(),
-        };
-        match &self.options.source {
-            Source::Files(files) => {
-                let mut buffer = Vec::new();
-                for file in files {
-                    render_options.last_updated = Some(
-                        std::fs::metadata(file)?
-                            .modified()
-                            .map(chrono::DateTime::from)?,
-                    );
-                    acdc_parser::parse_file(file, &options)?.render(
-                        &mut buffer,
-                        self,
-                        &render_options,
-                    )?;
-                }
-                Ok(String::from_utf8(buffer)?)
-            }
-            Source::String(content) => {
-                let mut buffer = Vec::new();
-                acdc_parser::parse(content, &options)?.render(
-                    &mut buffer,
-                    self,
-                    &render_options,
-                )?;
-                Ok(String::from_utf8(buffer)?)
-            }
             Source::Stdin => {
                 let stdin = std::io::stdin();
                 let mut reader = std::io::BufReader::new(stdin.lock());
                 let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
                 let mut buffer = Vec::new();
                 doc.render(&mut buffer, self, &render_options)?;
-                Ok(String::from_utf8(buffer)?)
+                write!(std::io::stdout(), "{}", String::from_utf8(buffer)?)?;
             }
         }
+        Ok(())
     }
 }
 

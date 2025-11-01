@@ -113,7 +113,10 @@ fn main() -> Result<()> {
         #[cfg(feature = "tck")]
         Backend::Tck => {
             options.source = Source::Stdin;
-            acdc_tck::Processor::new(options, document_attributes).run()?;
+            run_processor(
+                &args,
+                &acdc_tck::Processor::new(options, document_attributes),
+            )?;
         }
 
         #[cfg(feature = "terminal")]
@@ -130,10 +133,7 @@ fn main() -> Result<()> {
 
 #[tracing::instrument(skip(processor))]
 fn run_processor<P: Processable>(args: &Args, processor: &P) -> Result<(), P::Error> {
-    if args.stdin {
-        let output = processor.output()?;
-        println!("{output}");
-    } else if args.files.is_empty() {
+    if !args.stdin && args.files.is_empty() {
         tracing::error!("You must pass at least one file to this processor");
         std::process::exit(1);
     } else {

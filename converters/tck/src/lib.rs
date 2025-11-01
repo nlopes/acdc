@@ -97,8 +97,4 @@ impl Processable for Processor {
         stdout.flush()?;
         Ok(())
     }
-
-    fn output(&self) -> Result<String, Self::Error> {
-        unimplemented!("output purposefully not implemented for the tck processor")
-    }
 }

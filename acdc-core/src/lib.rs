@@ -93,16 +93,14 @@ pub enum SafeMode {
 
 /// Source of the document to parse
 ///
-/// We support three sources:
+/// We support two sources:
 /// 1. Files: A list of file paths to read the document from
-/// 2. String: A string containing the document content
-/// 3. Stdin: Read the document content from standard input
+/// 2. Stdin: Read the document content from standard input
 #[derive(Debug, Default, Clone, PartialEq)]
 pub enum Source {
     /// A list of file paths to read the document from
     Files(Vec<PathBuf>),
-    /// A string containing the document content
-    String(String),
+
     /// Read the document content from standard input
     #[default]
     Stdin,

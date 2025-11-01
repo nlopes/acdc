@@ -100,16 +100,4 @@ pub trait Processable {
     /// Will typically return parsing or rendering errors. Implementations are free to
     /// return any error type they wish though.
     fn run(&self) -> Result<(), Self::Error>;
-
-    /// Run the processor but return the processed output as a string
-    ///
-    /// # Errors
-    ///
-    /// Will return one of:
-    ///
-    /// - the processed output
-    ///
-    /// - parsing or rendering errors. Implementations are free to return any error type
-    ///   they wish though.
-    fn output(&self) -> Result<String, Self::Error>;
 }

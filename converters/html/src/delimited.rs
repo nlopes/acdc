@@ -268,7 +268,7 @@ mod tests {
         let options = Options {
             generator_metadata: GeneratorMetadata::default(),
             doctype: Doctype::Article,
-            source: Source::String("test".to_string()),
+            source: Source::Stdin,
             safe_mode: SafeMode::Unsafe,
             timings: false,
         };
