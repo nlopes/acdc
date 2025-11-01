@@ -1,79 +1,73 @@
 use std::io::Write;
 
-use acdc_converters_common::video::TryUrl;
-use acdc_parser::Video;
+use acdc_converters_common::{video::TryUrl, visitor::WritableVisitor};
+use acdc_parser::{AttributeValue, Video};
 
-use crate::{Processor, Render, RenderOptions};
+use crate::Error;
 
-impl Render for Video {
-    type Error = crate::Error;
-
-    fn render<W: Write>(
-        &self,
-        w: &mut W,
-        processor: &Processor,
-        options: &RenderOptions,
-    ) -> Result<(), Self::Error> {
-        write!(w, "<div")?;
-        if let Some(id) = &self.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
-        }
-        writeln!(w, " class=\"videoblock\">")?;
-
-        if !self.title.is_empty() {
-            write!(w, "<div class=\"title\">")?;
-            crate::inlines::render_inlines(&self.title, w, processor, options)?;
-            writeln!(w, "</div>")?;
-        }
-
-        writeln!(w, "<div class=\"content\">")?;
-
-        // Video blocks can have multiple sources
-        if self.sources.is_empty() {
-            writeln!(w, "</div>")?;
-            writeln!(w, "</div>")?;
-            return Ok(());
-        }
-
-        // Check if this is a YouTube or Vimeo video
-        // The platform is stored as an attribute with boolean value
-        let is_youtube = matches!(
-            self.metadata.attributes.get("youtube"),
-            Some(acdc_parser::AttributeValue::Bool(true))
-        );
-        let is_vimeo = matches!(
-            self.metadata.attributes.get("vimeo"),
-            Some(acdc_parser::AttributeValue::Bool(true))
-        );
-
-        if is_youtube || is_vimeo {
-            render_iframe_video(self, w)?;
-        } else {
-            render_local_video(self, w)?;
-        }
-
-        writeln!(w, "</div>")?;
-        writeln!(w, "</div>")?;
-
-        Ok(())
+pub(crate) fn visit_video<V: WritableVisitor<Error = Error>>(
+    video: &Video,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut w = visitor.writer_mut();
+    write!(w, "<div")?;
+    if let Some(id) = &video.metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
     }
+    writeln!(w, " class=\"videoblock\">")?;
+
+    if !video.title.is_empty() {
+        write!(w, "<div class=\"title\">")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&video.title)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</div>")?;
+    }
+
+    writeln!(w, "<div class=\"content\">")?;
+
+    // Video blocks can have multiple sources
+    if video.sources.is_empty() {
+        writeln!(w, "</div>")?;
+        writeln!(w, "</div>")?;
+        return Ok(());
+    }
+
+    // Check if this is a YouTube or Vimeo video
+    // The platform is stored as an attribute with boolean value
+    let is_youtube = matches!(
+        video.metadata.attributes.get("youtube"),
+        Some(AttributeValue::Bool(true))
+    );
+    let is_vimeo = matches!(
+        video.metadata.attributes.get("vimeo"),
+        Some(AttributeValue::Bool(true))
+    );
+
+    if is_youtube || is_vimeo {
+        render_iframe_video(video, w)?;
+    } else {
+        render_local_video(video, w)?;
+    }
+
+    writeln!(w, "</div>")?;
+    writeln!(w, "</div>")?;
+
+    Ok(())
 }
 
 /// Render a video as an iframe, suitable for `YouTube` or `Vimeo` embedding.
-fn render_iframe_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate::Error> {
+fn render_iframe_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(), Error> {
     let url = video.try_url(true)?;
     let allow_fullscreen = !video.metadata.options.iter().any(|o| o == "nofullscreen");
 
     write!(w, "<iframe")?;
 
-    if let Some(acdc_parser::AttributeValue::String(width)) = video.metadata.attributes.get("width")
-    {
+    if let Some(AttributeValue::String(width)) = video.metadata.attributes.get("width") {
         write!(w, " width=\"{width}\"")?;
     }
 
-    if let Some(acdc_parser::AttributeValue::String(height)) =
-        video.metadata.attributes.get("height")
-    {
+    if let Some(AttributeValue::String(height)) = video.metadata.attributes.get("height") {
         write!(w, " height=\"{height}\"")?;
     }
 
@@ -89,31 +83,24 @@ fn render_iframe_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate::
 }
 
 /// Render a local video using the `HTML5` `<video>` tag.
-fn render_local_video<W: Write>(video: &Video, w: &mut W) -> Result<(), crate::Error> {
+fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(), Error> {
     let src = video.try_url(false)?;
 
     write!(w, "<video src=\"{src}\"")?;
 
-    if let Some(acdc_parser::AttributeValue::String(width)) = video.metadata.attributes.get("width")
-    {
+    if let Some(AttributeValue::String(width)) = video.metadata.attributes.get("width") {
         write!(w, " width=\"{width}\"")?;
     }
 
-    if let Some(acdc_parser::AttributeValue::String(height)) =
-        video.metadata.attributes.get("height")
-    {
+    if let Some(AttributeValue::String(height)) = video.metadata.attributes.get("height") {
         write!(w, " height=\"{height}\"")?;
     }
 
-    if let Some(acdc_parser::AttributeValue::String(poster)) =
-        video.metadata.attributes.get("poster")
-    {
+    if let Some(AttributeValue::String(poster)) = video.metadata.attributes.get("poster") {
         write!(w, " poster=\"{poster}\"")?;
     }
 
-    if let Some(acdc_parser::AttributeValue::String(preload)) =
-        video.metadata.attributes.get("preload")
-    {
+    if let Some(AttributeValue::String(preload)) = video.metadata.attributes.get("preload") {
         write!(w, " preload=\"{preload}\"")?;
     }
 

@@ -1,34 +1,32 @@
-use std::io::Write;
+use std::io::{self, BufWriter, Write};
 
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
 };
 
+use acdc_converters_common::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
-    CalloutList, DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus,
+    CalloutList, DescriptionList, DescriptionListItem, InlineNode, ListItem, ListItemCheckedStatus,
     OrderedList, UnorderedList,
 };
 
-use crate::{Processor, Render};
+use crate::{Error, TerminalVisitor};
 
 /// Render inline nodes with spaces between them.
 ///
 /// This helper function renders a collection of inline nodes, inserting a space
 /// between each node. It uses a peekable iterator to avoid adding a trailing space.
-#[tracing::instrument(skip(w, processor))]
-fn render_nodes_with_spaces<W: Write, N>(
-    nodes: &[N],
-    w: &mut W,
-    processor: &Processor,
-) -> Result<(), crate::Error>
-where
-    N: Render<Error = crate::Error> + std::fmt::Debug,
-{
-    let mut iter = nodes.iter().peekable();
-    while let Some(node) = iter.next() {
-        node.render(w, processor)?;
-        if iter.peek().is_some() {
+#[tracing::instrument(skip(visitor))]
+fn render_nodes_with_spaces<V: WritableVisitor<Error = Error>>(
+    nodes: &[InlineNode],
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let last_index = if nodes.is_empty() { 0 } else { nodes.len() - 1 };
+    for (i, node) in nodes.iter().enumerate() {
+        visitor.visit_inline_node(node)?;
+        if i != last_index {
+            let w = visitor.writer_mut();
             write!(w, " ")?;
         }
     }
@@ -39,41 +37,41 @@ where
 ///
 /// This helper function renders inline nodes to a buffer, converts to a string,
 /// trims whitespace, and applies italic styling for terminal output.
-#[tracing::instrument(skip(w, processor))]
-fn render_styled_title<W: Write, N>(
-    title: &[N],
-    w: &mut W,
-    processor: &Processor,
-) -> Result<(), crate::Error>
-where
-    N: Render<Error = crate::Error> + std::fmt::Debug,
-{
+#[tracing::instrument(skip(visitor))]
+fn render_styled_title<V: WritableVisitor<Error = Error>>(
+    title: &[InlineNode],
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
     if !title.is_empty() {
-        let mut inner = std::io::BufWriter::new(Vec::new());
-        title
-            .iter()
-            .try_for_each(|node| node.render(&mut inner, processor))?;
-        inner.flush()?;
-        let bytes = inner
+        let processor = processor.clone();
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor);
+        for node in title {
+            temp_visitor.visit_inline_node(node)?;
+        }
+        let buffer = temp_visitor
+            .into_writer()
             .into_inner()
-            .map_err(|e| std::io::Error::other(format!("Buffer error: {e}")))?;
+            .map_err(io::IntoInnerError::into_error)?;
+        let w = visitor.writer_mut();
         w.queue(PrintStyledContent(
-            String::from_utf8_lossy(&bytes).trim().to_string().italic(),
+            String::from_utf8_lossy(&buffer).trim().to_string().italic(),
         ))?;
     }
     Ok(())
 }
 
 /// Render nested list items with proper indentation based on their level
-#[tracing::instrument(skip(w, processor))]
-fn render_nested_list_items<W: Write>(
+#[tracing::instrument(skip(visitor))]
+fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
     items: &[ListItem],
-    w: &mut W,
-    processor: &Processor,
+    visitor: &mut V,
     expected_level: u8,
     indent: usize,
     is_ordered: bool,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     let mut i = 0;
     let mut item_number = 1;
 
@@ -87,7 +85,7 @@ fn render_nested_list_items<W: Write>(
 
         if item.level == expected_level {
             // Render item at current level with appropriate indentation
-            render_list_item_with_indent(item, w, processor, indent, is_ordered, item_number)?;
+            render_list_item_with_indent(item, visitor, indent, is_ordered, item_number)?;
             item_number += 1;
 
             // Check if next items are nested (higher level)
@@ -105,8 +103,7 @@ fn render_nested_list_items<W: Write>(
                 // Recursively render nested items
                 render_nested_list_items(
                     &items[nested_start..i],
-                    w,
-                    processor,
+                    visitor,
                     next_level,
                     nested_indent,
                     is_ordered,
@@ -118,7 +115,7 @@ fn render_nested_list_items<W: Write>(
             i += 1;
         } else {
             // Item at higher level than expected, treat as same level
-            render_list_item_with_indent(item, w, processor, indent, is_ordered, item_number)?;
+            render_list_item_with_indent(item, visitor, indent, is_ordered, item_number)?;
             item_number += 1;
             i += 1;
         }
@@ -127,15 +124,15 @@ fn render_nested_list_items<W: Write>(
 }
 
 /// Render a single list item with the specified indentation
-#[tracing::instrument(skip(w, processor))]
-fn render_list_item_with_indent<W: Write>(
+#[tracing::instrument(skip(visitor))]
+fn render_list_item_with_indent<V: WritableVisitor<Error = Error>>(
     item: &ListItem,
-    w: &mut W,
-    processor: &Processor,
+    visitor: &mut V,
     indent: usize,
     is_ordered: bool,
     item_number: usize,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
+    let mut w = visitor.writer_mut();
     // Write indentation
     write!(w, "{:indent$}", " ", indent = indent)?;
 
@@ -148,25 +145,30 @@ fn render_list_item_with_indent<W: Write>(
 
     render_checked_status(item.checked.as_ref(), w)?;
     write!(w, " ")?;
+    let _ = w;
 
     // Render principal text inline
-    render_nodes_with_spaces(&item.principal, w, processor)?;
+    render_nodes_with_spaces(&item.principal, visitor)?;
+
+    w = visitor.writer_mut();
     writeln!(w)?;
 
     // Render attached blocks with proper indentation
     for block in &item.blocks {
+        let w = visitor.writer_mut();
         // Add indentation for nested content
         write!(w, "{:indent$}", " ", indent = indent + 2)?;
-        block.render(w, processor)?;
+        let _ = w;
+        visitor.visit_block(block)?;
     }
     Ok(())
 }
 
 #[tracing::instrument(skip(w))]
-fn render_checked_status<W: Write>(
+fn render_checked_status<W: Write + ?Sized>(
     checked: Option<&ListItemCheckedStatus>,
     w: &mut W,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     if let Some(checked) = checked {
         write!(w, " ")?;
         if checked == &ListItemCheckedStatus::Checked {
@@ -178,15 +180,17 @@ fn render_checked_status<W: Write>(
     Ok(())
 }
 
-impl Render for UnorderedList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        render_styled_title(&self.title, w, processor)?;
-        writeln!(w)?;
-        render_nested_list_items(&self.items, w, processor, 1, 0, false)?;
-        Ok(())
-    }
+pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
+    list: &UnorderedList,
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
+    render_styled_title(&list.title, visitor, processor)?;
+    let w = visitor.writer_mut();
+    writeln!(w)?;
+    let _ = w;
+    render_nested_list_items(&list.items, visitor, 1, 0, false)?;
+    Ok(())
 }
 
 /// Renders an ordered list in terminal format.
@@ -201,15 +205,17 @@ impl Render for UnorderedList {
 ///    1. Nested item
 /// 3. Third item
 /// ```
-impl Render for OrderedList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        render_styled_title(&self.title, w, processor)?;
-        writeln!(w)?;
-        render_nested_list_items(&self.items, w, processor, 1, 0, true)?;
-        Ok(())
-    }
+pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
+    list: &OrderedList,
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
+    render_styled_title(&list.title, visitor, processor)?;
+    let w = visitor.writer_mut();
+    writeln!(w)?;
+    let _ = w;
+    render_nested_list_items(&list.items, visitor, 1, 0, true)?;
+    Ok(())
 }
 
 /// Renders a callout list in terminal format.
@@ -223,50 +229,39 @@ impl Render for OrderedList {
 /// <2> Second explanation
 /// <3> Third explanation
 /// ```
-impl Render for CalloutList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        render_styled_title(&self.title, w, processor)?;
-        if !self.title.is_empty() {
-            writeln!(w)?;
-        }
-
-        for (idx, item) in self.items.iter().enumerate() {
-            let item_number = idx + 1;
-            write!(w, "<{item_number}>")?;
-            write!(w, " ")?;
-
-            // Render principal text inline
-            render_nodes_with_spaces(&item.principal, w, processor)?;
-            writeln!(w)?;
-
-            // Render attached blocks with indentation
-            for block in &item.blocks {
-                write!(w, "  ")?;
-                block.render(w, processor)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Render for ListItem {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        write!(w, "{}", self.marker)?;
-        render_checked_status(self.checked.as_ref(), w)?;
-        write!(w, " ")?;
-        // Render principal text inline
-        render_nodes_with_spaces(&self.principal, w, processor)?;
+pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
+    list: &CalloutList,
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
+    render_styled_title(&list.title, visitor, processor)?;
+    if !list.title.is_empty() {
+        let w = visitor.writer_mut();
         writeln!(w)?;
-        // Render attached blocks
-        for block in &self.blocks {
-            block.render(w, processor)?;
-        }
-        Ok(())
     }
+
+    for (idx, item) in list.items.iter().enumerate() {
+        let item_number = idx + 1;
+        let mut w = visitor.writer_mut();
+        write!(w, "<{item_number}>")?;
+        write!(w, " ")?;
+        let _ = w;
+
+        // Render principal text inline
+        render_nodes_with_spaces(&item.principal, visitor)?;
+
+        w = visitor.writer_mut();
+        writeln!(w)?;
+
+        // Render attached blocks with indentation
+        for block in &item.blocks {
+            let w = visitor.writer_mut();
+            write!(w, "  ")?;
+            let _ = w;
+            visitor.visit_block(block)?;
+        }
+    }
+    Ok(())
 }
 
 /// Renders a description list in terminal format.
@@ -281,51 +276,61 @@ impl Render for ListItem {
 /// Term 2
 ///   Definition for term 2
 /// ```
-impl Render for DescriptionList {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        render_styled_title(&self.title, w, processor)?;
-        writeln!(w)?;
-        for item in &self.items {
-            item.render(w, processor)?;
-        }
-        Ok(())
+pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
+    list: &DescriptionList,
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
+    render_styled_title(&list.title, visitor, processor)?;
+    let w = visitor.writer_mut();
+    writeln!(w)?;
+    let _ = w;
+    for item in &list.items {
+        visit_description_list_item(item, visitor, processor)?;
     }
+    Ok(())
 }
 
 /// Renders a single description list item (term and definition).
 ///
 /// The term is rendered in bold, followed by the principal text (if present)
 /// indented with 2 spaces, and any additional description blocks.
-impl Render for DescriptionListItem {
-    type Error = crate::Error;
+fn visit_description_list_item<V: WritableVisitor<Error = Error>>(
+    item: &DescriptionListItem,
+    visitor: &mut V,
+    processor: &crate::Processor,
+) -> Result<(), Error> {
+    // Render term in bold
+    let processor = processor.clone();
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut temp_visitor = TerminalVisitor::new(inner, processor);
+    render_nodes_with_spaces(&item.term, &mut temp_visitor)?;
+    let buffer = temp_visitor
+        .into_writer()
+        .into_inner()
+        .map_err(io::IntoInnerError::into_error)?;
 
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        // Render term in bold
-        let mut term_buffer = std::io::BufWriter::new(Vec::new());
-        render_nodes_with_spaces(&self.term, &mut term_buffer, processor)?;
-        term_buffer.flush()?;
-        let bytes = term_buffer
-            .into_inner()
-            .map_err(|e| std::io::Error::other(format!("Buffer error: {e}")))?;
-        w.queue(PrintStyledContent(
-            String::from_utf8_lossy(&bytes).to_string().bold(),
-        ))?;
+    let mut w = visitor.writer_mut();
+    w.queue(PrintStyledContent(
+        String::from_utf8_lossy(&buffer).to_string().bold(),
+    ))?;
+    writeln!(w)?;
+
+    // Render principal text with indentation if present
+    if !item.principal_text.is_empty() {
+        write!(w, "  ")?;
+        let _ = w;
+        render_nodes_with_spaces(&item.principal_text, visitor)?;
+        w = visitor.writer_mut();
         writeln!(w)?;
-
-        // Render principal text with indentation if present
-        if !self.principal_text.is_empty() {
-            write!(w, "  ")?;
-            render_nodes_with_spaces(&self.principal_text, w, processor)?;
-            writeln!(w)?;
-        }
-
-        // Render description blocks (without indentation as block.render handles formatting)
-        for block in &self.description {
-            block.render(w, processor)?;
-        }
-
-        Ok(())
     }
+    let _ = w;
+
+    // Render description blocks (without indentation as block.render handles formatting)
+    for block in &item.description {
+        visitor.visit_block(block)?;
+    }
+
+    Ok(())
 }

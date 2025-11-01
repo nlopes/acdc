@@ -1,28 +1,29 @@
-use std::io::Write;
-
+use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{Audio, Source};
-use crossterm::{queue, style::PrintStyledContent, style::Stylize};
+use crossterm::{
+    QueueableCommand,
+    style::{PrintStyledContent, Stylize},
+};
 
-use crate::{Processor, Render};
+use crate::Error;
 
-impl Render for Audio {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, _processor: &Processor) -> Result<(), Self::Error> {
-        match &self.source {
-            Source::Url(url) => {
-                queue!(w, PrintStyledContent(url.as_str().to_string().italic()))?;
-            }
-            Source::Path(path) => {
-                queue!(
-                    w,
-                    PrintStyledContent(format!("[Audio: {}]", path.display()).italic())
-                )?;
-            }
-            Source::Name(name) => {
-                queue!(w, PrintStyledContent(format!("[Audio: {name}]").italic()))?;
-            }
+pub(crate) fn visit_audio<V: WritableVisitor<Error = Error>>(
+    audio: &Audio,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let w = visitor.writer_mut();
+    match &audio.source {
+        Source::Url(url) => {
+            w.queue(PrintStyledContent(url.as_str().to_string().italic()))?;
         }
-        Ok(())
+        Source::Path(path) => {
+            w.queue(PrintStyledContent(
+                format!("[Audio: {}]", path.display()).italic(),
+            ))?;
+        }
+        Source::Name(name) => {
+            w.queue(PrintStyledContent(format!("[Audio: {name}]").italic()))?;
+        }
     }
+    Ok(())
 }

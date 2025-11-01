@@ -1,25 +1,53 @@
-use std::io::Write;
-
+use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{AttributeValue, Block, BlockMetadata, Table};
 
-use crate::{Processor, Render, RenderOptions};
+use crate::{Error, Processor, RenderOptions};
 
-pub(crate) fn render_table_with_metadata<W: Write>(
+/// Render cell content with support for nested blocks
+fn render_cell_content<V>(
+    blocks: &[Block],
+    visitor: &mut V,
+    _processor: &Processor,
+    _options: &RenderOptions,
+) -> Result<(), Error>
+where
+    V: WritableVisitor<Error = Error>,
+{
+    for block in blocks {
+        // For paragraphs in table cells, use <p class="tableblock"> instead of the default paragraph rendering
+        if let Block::Paragraph(para) = block {
+            let writer = visitor.writer_mut();
+            write!(writer, "<p class=\"tableblock\">")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&para.content)?;
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</p>")?;
+        } else {
+            // For other block types, use visitor
+            visitor.visit_block(block)?;
+        }
+    }
+    Ok(())
+}
+
+/// Render table with support for nested blocks in cells
+pub(crate) fn render_table<V>(
     table: &Table,
-    w: &mut W,
+    visitor: &mut V,
     processor: &Processor,
     options: &RenderOptions,
     metadata: &BlockMetadata,
-) -> Result<(), crate::Error> {
-    // Generate table classes based on metadata
+) -> Result<(), Error>
+where
+    V: WritableVisitor<Error = Error>,
+{
+    let writer = visitor.writer_mut();
     let classes = ["tableblock", "frame-all", "grid-all", "stretch"];
 
-    writeln!(w, "<table class=\"{}\">", classes.join(" "))?;
+    writeln!(writer, "<table class=\"{}\">", classes.join(" "))?;
 
     // Generate colgroup if cols attribute exists
     if let Some(cols_value) = metadata.attributes.get("cols") {
-        // Parse cols attribute - it's a comma-separated list of column specs
-        // For now, we'll just count them and generate equal widths
         let cols_str = match cols_value {
             AttributeValue::String(s) => s.as_str(),
             _ => "",
@@ -27,73 +55,73 @@ pub(crate) fn render_table_with_metadata<W: Write>(
         let col_count = cols_str.split(',').count();
         let col_count_f64 = f64::from(u32::try_from(col_count).unwrap_or(1));
         let width_percent = 100.0 / col_count_f64;
-        writeln!(w, "<colgroup>")?;
+        writeln!(writer, "<colgroup>")?;
         for _ in 0..col_count {
-            writeln!(w, "<col style=\"width: {width_percent:.0}%;\" />")?;
+            writeln!(writer, "<col style=\"width: {width_percent:.0}%;\" />")?;
         }
-        writeln!(w, "</colgroup>")?;
+        writeln!(writer, "</colgroup>")?;
     }
 
     // Render header
     if let Some(header) = &table.header {
-        writeln!(w, "<thead>")?;
-        writeln!(w, "<tr>")?;
+        writeln!(writer, "<thead>")?;
+        writeln!(writer, "<tr>")?;
+        let _ = writer;
         for cell in &header.columns {
-            write!(w, "<th class=\"tableblock halign-left valign-top\">")?;
-            render_cell_content(&cell.content, w, processor, options)?;
-            writeln!(w, "</th>")?;
+            let writer = visitor.writer_mut();
+            write!(writer, "<th class=\"tableblock halign-left valign-top\">")?;
+            let _ = writer;
+            render_cell_content(&cell.content, visitor, processor, options)?;
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</th>")?;
         }
-        writeln!(w, "</tr>")?;
-        writeln!(w, "</thead>")?;
+        let writer = visitor.writer_mut();
+        writeln!(writer, "</tr>")?;
+        writeln!(writer, "</thead>")?;
     }
 
     // Render body
-    writeln!(w, "<tbody>")?;
+    let writer = visitor.writer_mut();
+    writeln!(writer, "<tbody>")?;
+    let _ = writer;
     for row in &table.rows {
-        writeln!(w, "<tr>")?;
+        let writer = visitor.writer_mut();
+        writeln!(writer, "<tr>")?;
+        let _ = writer;
         for cell in &row.columns {
-            write!(w, "<td class=\"tableblock halign-left valign-top\">")?;
-            render_cell_content(&cell.content, w, processor, options)?;
-            writeln!(w, "</td>")?;
+            let writer = visitor.writer_mut();
+            write!(writer, "<td class=\"tableblock halign-left valign-top\">")?;
+            let _ = writer;
+            render_cell_content(&cell.content, visitor, processor, options)?;
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</td>")?;
         }
-        writeln!(w, "</tr>")?;
+        let writer = visitor.writer_mut();
+        writeln!(writer, "</tr>")?;
     }
-    writeln!(w, "</tbody>")?;
+    let writer = visitor.writer_mut();
+    writeln!(writer, "</tbody>")?;
 
     // Render footer if present
     if let Some(footer) = &table.footer {
-        writeln!(w, "<tfoot>")?;
-        writeln!(w, "<tr>")?;
+        let writer = visitor.writer_mut();
+        writeln!(writer, "<tfoot>")?;
+        writeln!(writer, "<tr>")?;
+        let _ = writer;
         for cell in &footer.columns {
-            write!(w, "<td class=\"tableblock halign-left valign-top\">")?;
-            render_cell_content(&cell.content, w, processor, options)?;
-            writeln!(w, "</td>")?;
+            let writer = visitor.writer_mut();
+            write!(writer, "<td class=\"tableblock halign-left valign-top\">")?;
+            let _ = writer;
+            render_cell_content(&cell.content, visitor, processor, options)?;
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</td>")?;
         }
-        writeln!(w, "</tr>")?;
-        writeln!(w, "</tfoot>")?;
+        let writer = visitor.writer_mut();
+        writeln!(writer, "</tr>")?;
+        writeln!(writer, "</tfoot>")?;
     }
 
-    writeln!(w, "</table>")?;
-    Ok(())
-}
-
-/// Render cell content as paragraphs with tableblock class
-fn render_cell_content<W: Write>(
-    blocks: &[Block],
-    w: &mut W,
-    processor: &Processor,
-    options: &RenderOptions,
-) -> Result<(), crate::Error> {
-    for block in blocks {
-        // For paragraphs in table cells, use <p class="tableblock"> instead of the default paragraph rendering
-        if let Block::Paragraph(para) = block {
-            write!(w, "<p class=\"tableblock\">")?;
-            crate::inlines::render_inlines(&para.content, w, processor, options)?;
-            writeln!(w, "</p>")?;
-        } else {
-            // For other block types, render normally
-            block.render(w, processor, options)?;
-        }
-    }
+    let writer = visitor.writer_mut();
+    writeln!(writer, "</table>")?;
     Ok(())
 }

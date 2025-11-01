@@ -1,36 +1,33 @@
-use std::io::Write;
+use acdc_converters_common::visitor::WritableVisitor;
+use acdc_parser::{DiscreteHeader, Section};
 
-use crate::{Processor, Render};
-
-impl Render for acdc_parser::Section {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        write!(w, "> ")?;
-        for node in &self.title {
-            node.render(w, processor)?;
-        }
-        writeln!(w, " <")?;
-        let last_index = self.content.len() - 1;
-        for (i, block) in self.content.iter().enumerate() {
-            block.render(w, processor)?;
-            if i != last_index {
-                writeln!(w)?;
-            }
-        }
-        Ok(())
+pub(crate) fn visit_section<V: WritableVisitor<Error = crate::Error>>(
+    section: &Section,
+    visitor: &mut V,
+) -> Result<(), crate::Error> {
+    let mut w = visitor.writer_mut();
+    write!(w, "> ")?;
+    let _ = w;
+    for node in &section.title {
+        visitor.visit_inline_node(node)?;
     }
+    w = visitor.writer_mut();
+    writeln!(w, " <")?;
+    // Note: nested blocks are walked by the visitor itself
+    Ok(())
 }
 
-impl Render for acdc_parser::DiscreteHeader {
-    type Error = crate::Error;
-
-    fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
-        write!(w, "> ")?;
-        for node in &self.title {
-            node.render(w, processor)?;
-        }
-        writeln!(w, " <")?;
-        Ok(())
+pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = crate::Error>>(
+    header: &DiscreteHeader,
+    visitor: &mut V,
+) -> Result<(), crate::Error> {
+    let mut w = visitor.writer_mut();
+    write!(w, "> ")?;
+    let _ = w;
+    for node in &header.title {
+        visitor.visit_inline_node(node)?;
     }
+    w = visitor.writer_mut();
+    writeln!(w, " <")?;
+    Ok(())
 }

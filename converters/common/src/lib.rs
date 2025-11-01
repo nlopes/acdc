@@ -4,6 +4,9 @@ use acdc_parser::DocumentAttributes;
 pub mod toc;
 pub mod video;
 
+// Visitor pattern infrastructure
+pub mod visitor;
+
 #[derive(Debug, Default, Clone)]
 pub struct Options {
     pub generator_metadata: GeneratorMetadata,
@@ -100,4 +103,28 @@ pub trait Processable {
     /// Will typically return parsing or rendering errors. Implementations are free to
     /// return any error type they wish though.
     fn run(&self) -> Result<(), Self::Error>;
+}
+
+/// Trait for converting `AsciiDoc` documents to different output formats.
+///
+/// Converters handle the transformation from parsed AST to output format
+/// (HTML, terminal, etc.) using the visitor pattern internally.
+pub trait Converter {
+    /// Error type for conversion operations
+    type Error;
+
+    /// Format-specific options (e.g., `RenderOptions` for HTML)
+    type Options: Clone + Default;
+
+    /// Convert a document to the target format, writing to the provided writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if document conversion or writing fails.
+    fn convert<W: std::io::Write>(
+        &self,
+        doc: &acdc_parser::Document,
+        writer: W,
+        options: &Self::Options,
+    ) -> Result<(), Self::Error>;
 }
