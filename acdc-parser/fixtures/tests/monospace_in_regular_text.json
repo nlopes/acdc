@@ -1,0 +1,143 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Workspace-level ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "code",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "forbid(unsafe_code)",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 18
+                },
+                {
+                  "line": 1,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 17
+            },
+            {
+              "line": 1,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", pedantic clippy in CI, ",
+          "location": [
+            {
+              "line": 1,
+              "col": 38
+            },
+            {
+              "line": 1,
+              "col": 62
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "code",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "cargo fmt",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 64
+                },
+                {
+                  "line": 1,
+                  "col": 72
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 63
+            },
+            {
+              "line": 1,
+              "col": 73
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " checks.",
+          "location": [
+            {
+              "line": 1,
+              "col": 74
+            },
+            {
+              "line": 1,
+              "col": 81
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 81
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 81
+    }
+  ]
+}
