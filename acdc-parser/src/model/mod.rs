@@ -1,5 +1,5 @@
 //! The data models for the `AsciiDoc` document.
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde::{
     Deserialize, Serialize,
@@ -387,7 +387,7 @@ impl FromStr for Source {
     }
 }
 
-impl std::fmt::Display for Source {
+impl Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Source::Path(path) => write!(f, "{}", path.display()),
@@ -521,7 +521,7 @@ pub enum AdmonitionVariant {
     Warning,
 }
 
-impl std::fmt::Display for AdmonitionVariant {
+impl Display for AdmonitionVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AdmonitionVariant::Note => write!(f, "note"),
@@ -558,7 +558,16 @@ pub enum StemNotation {
     Asciimath,
 }
 
-impl std::str::FromStr for StemNotation {
+impl Display for StemNotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StemNotation::Latexmath => write!(f, "latexmath"),
+            StemNotation::Asciimath => write!(f, "asciimath"),
+        }
+    }
+}
+
+impl FromStr for StemNotation {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -653,7 +662,7 @@ pub enum SafeId {
     Unmodified(String),
 }
 
-impl std::fmt::Display for SafeId {
+impl Display for SafeId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SafeId::Modified(id) => write!(f, "_{id}"),
