@@ -16,7 +16,7 @@ pub enum Error {
     #[error("Parsing error: {0}")]
     Parse(String),
 
-    #[error("PEG parsing error at position {0}: {1}")]
+    #[error("PEG parsing error: {1}, position {0}")]
     PegParse(Position, String),
 
     #[error("Parsing error: {0}")]
@@ -26,11 +26,11 @@ pub enum Error {
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
     NestedSectionLevelMismatch(Detail, SectionLevel, SectionLevel),
 
-    #[error("mismatched delimiters: {0}")]
-    MismatchedDelimiters(String),
+    #[error("mismatched delimiters: {1}, position: {0}")]
+    MismatchedDelimiters(Detail, String),
 
-    #[error("Invalid admonition variant: {0}")]
-    InvalidAdmonitionVariant(String),
+    #[error("Invalid admonition variant: {1}, position: {0}")]
+    InvalidAdmonitionVariant(Detail, String),
 
     #[error("Invalid conditional directive")]
     InvalidConditionalDirective,
@@ -82,8 +82,8 @@ pub enum Error {
 impl Error {
     /// Helper for creating mismatched delimiter errors
     #[must_use]
-    pub fn mismatched_delimiters(block_type: &str) -> Self {
-        Self::MismatchedDelimiters(block_type.to_string())
+    pub(crate) fn mismatched_delimiters(detail: Detail, block_type: &str) -> Self {
+        Self::MismatchedDelimiters(detail, block_type.to_string())
     }
 
     /// Extract location information from this error if available.
@@ -91,7 +91,9 @@ impl Error {
     #[must_use]
     pub fn location(&self) -> Option<&Location> {
         match self {
-            Self::NestedSectionLevelMismatch(detail, _, _) => Some(&detail.location),
+            Self::NestedSectionLevelMismatch(detail, ..)
+            | Self::MismatchedDelimiters(detail, ..)
+            | Self::InvalidAdmonitionVariant(detail, ..) => Some(&detail.location),
             _ => None,
         }
     }
@@ -104,10 +106,10 @@ impl Error {
             Self::NestedSectionLevelMismatch(..) => Some(
                 "Section levels must increment by at most 1. For example, level 2 (==) cannot be followed directly by level 4 (====)",
             ),
-            Self::MismatchedDelimiters(_) => Some(
+            Self::MismatchedDelimiters(..) => Some(
                 "Delimited blocks must use the same delimiter to open and close (e.g., '====' to open, '====' to close)",
             ),
-            Self::InvalidAdmonitionVariant(_) => {
+            Self::InvalidAdmonitionVariant(..) => {
                 Some("Valid admonition types are: NOTE, TIP, IMPORTANT, WARNING, CAUTION")
             }
             Self::InvalidIfEvalDirectiveMismatchedTypes => Some(
@@ -183,6 +185,47 @@ mod tests {
         assert_eq!(
             format!("{error}"),
             "section level mismatch: 1 (expected '2'), position: start(line: 1, column: 2), end(line: 3, column: 4)"
+        );
+    }
+
+    #[test]
+    fn test_error_invalid_admonition_variant_display() {
+        let error = Error::InvalidAdmonitionVariant(
+            Detail {
+                location: Location {
+                    absolute_start: 10,
+                    absolute_end: 25,
+                    start: Position { line: 2, column: 1 },
+                    end: Position {
+                        line: 2,
+                        column: 15,
+                    },
+                },
+            },
+            "INVALID".to_string(),
+        );
+        assert_eq!(
+            format!("{error}"),
+            "Invalid admonition variant: INVALID, position: start(line: 2, column: 1), end(line: 2, column: 15)"
+        );
+    }
+
+    #[test]
+    fn test_error_mismatched_delimiters_display() {
+        let error = Error::MismatchedDelimiters(
+            Detail {
+                location: Location {
+                    absolute_start: 0,
+                    absolute_end: 50,
+                    start: Position { line: 1, column: 1 },
+                    end: Position { line: 5, column: 5 },
+                },
+            },
+            "example".to_string(),
+        );
+        assert_eq!(
+            format!("{error}"),
+            "mismatched delimiters: example, position: start(line: 1, column: 1), end(line: 5, column: 5)"
         );
     }
 }
