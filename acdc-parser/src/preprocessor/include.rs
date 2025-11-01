@@ -6,7 +6,6 @@ use std::{
 };
 
 use acdc_core::SafeMode;
-use encoding_rs::{Encoding, UTF_8};
 use url::Url;
 
 use crate::{
@@ -227,7 +226,8 @@ impl Include {
     }
 
     pub(crate) fn read_content_from_file(&self, file_path: &Path) -> Result<String, Error> {
-        let content = self.decode_file(file_path)?;
+        let content =
+            crate::preprocessor::read_and_decode_file(file_path, self.encoding.as_deref())?;
         if let Some(ext) = file_path.extension() {
             // If the file is recognized as an AsciiDoc file (i.e., it has one of the
             // following extensions: .asciidoc, .adoc, .ad, .asc, or .txt) additional
@@ -256,43 +256,6 @@ impl Include {
 
         // If we're here, we still need to normalize the content.
         Ok(Preprocessor::normalize(&content))
-    }
-
-    fn decode_file(&self, file_path: &Path) -> Result<String, Error> {
-        let bytes = std::fs::read(file_path)?;
-
-        // If there was an encoding specified, then we try to decode the entire file as that.
-        if let Some(enc_label) = &self.encoding {
-            if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {
-                let (cow, _, had_errors) = encoding.decode(&bytes);
-                if had_errors {
-                    tracing::error!("decoding encountered errors");
-                }
-                return Ok(cow.into_owned());
-            }
-            return Err(Error::UnknownEncoding(enc_label.to_string()));
-        }
-
-        // If no encoding specified, first check for UTF-8 BOM (EF BB BF)
-        if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-            // Skip the first 3 bytes (the BOM) and decode as UTF-8
-            let (cow, _, had_errors) = UTF_8.decode(&bytes[3..]);
-            if had_errors {
-                tracing::error!("UTF-8 decoding (with BOM) encountered errors");
-            }
-            return Ok(cow.into_owned());
-        }
-
-        // If no BOM, try decoding as UTF-8 directly
-        let (cow, _, had_errors) = UTF_8.decode(&bytes);
-        if !had_errors {
-            return Ok(cow.into_owned());
-        }
-
-        // If you get here, the file is not valid UTF-8 (and no BOM).
-        Err(Error::UnrecognizedEncodingInFile(
-            file_path.to_path_buf().display().to_string(),
-        ))
     }
 
     pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
