@@ -2,6 +2,8 @@
 use std::fmt::Write as _;
 use std::path::Path;
 
+use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
+
 use crate::{Options, error::Error};
 
 mod attribute;
@@ -9,6 +11,90 @@ mod conditional;
 mod include;
 
 use include::Include;
+
+/// Reads a file and decodes it based on BOM (Byte Order Mark) or explicit encoding.
+///
+/// Supports:
+/// - UTF-8 with BOM (EF BB BF)
+/// - UTF-16 LE with BOM (FF FE)
+/// - UTF-16 BE with BOM (FE FF)
+/// - UTF-8 without BOM (fallback)
+/// - Explicit encoding via `encoding` parameter
+///
+/// # Errors
+/// Returns an error if:
+/// - The file cannot be read
+/// - The explicit encoding label is unknown
+/// - The file is not valid UTF-8 and has no BOM
+pub(crate) fn read_and_decode_file(
+    file_path: &Path,
+    encoding: Option<&str>,
+) -> Result<String, Error> {
+    let bytes = std::fs::read(file_path)?;
+
+    // If there was an encoding specified, decode the entire file as that
+    if let Some(enc_label) = encoding {
+        if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {
+            let (cow, _, had_errors) = encoding.decode(&bytes);
+            if had_errors {
+                tracing::error!(
+                    path = ?file_path.display(),
+                    encoding = %enc_label,
+                    "decoding encountered errors"
+                );
+            }
+            return Ok(cow.into_owned());
+        }
+        return Err(Error::UnknownEncoding(enc_label.to_string()));
+    }
+
+    // Check for UTF-8 BOM (EF BB BF)
+    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        let (cow, _, had_errors) = UTF_8.decode(&bytes[3..]);
+        if had_errors {
+            tracing::error!(
+                path = ?file_path.display(),
+                "UTF-8 decoding (with BOM) encountered errors"
+            );
+        }
+        return Ok(cow.into_owned());
+    }
+
+    // Check for UTF-16 LE BOM (FF FE)
+    if bytes.starts_with(&[0xFF, 0xFE]) {
+        let (cow, _, had_errors) = UTF_16LE.decode(&bytes[2..]);
+        if had_errors {
+            tracing::error!(
+                path = ?file_path.display(),
+                "UTF-16 LE decoding (with BOM) encountered errors"
+            );
+        }
+        return Ok(cow.into_owned());
+    }
+
+    // Check for UTF-16 BE BOM (FE FF)
+    if bytes.starts_with(&[0xFE, 0xFF]) {
+        let (cow, _, had_errors) = UTF_16BE.decode(&bytes[2..]);
+        if had_errors {
+            tracing::error!(
+                path = ?file_path.display(),
+                "UTF-16 BE decoding (with BOM) encountered errors"
+            );
+        }
+        return Ok(cow.into_owned());
+    }
+
+    // If no BOM, try decoding as UTF-8 directly
+    let (cow, _, had_errors) = UTF_8.decode(&bytes);
+    if !had_errors {
+        return Ok(cow.into_owned());
+    }
+
+    // If you get here, the file is not valid UTF-8 (and no BOM)
+    Err(Error::UnrecognizedEncodingInFile(
+        file_path.display().to_string(),
+    ))
+}
 
 #[derive(Debug, Default)]
 pub(crate) struct Preprocessor;
@@ -48,14 +134,8 @@ impl Preprocessor {
         options: &Options,
     ) -> Result<String, Error> {
         if let Some(parent) = file_path.as_ref().parent() {
-            let input = std::fs::read_to_string(&file_path).map_err(|e| {
-                tracing::error!(
-                    path = ?file_path.as_ref().display(),
-                    "failed to read file: {:?}",
-                    e
-                );
-                e
-            })?;
+            // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
+            let input = read_and_decode_file(file_path.as_ref(), None)?;
             self.process_either(&input, Some(parent), options)
         } else {
             Err(Error::InvalidIncludePath(file_path.as_ref().to_path_buf()))
@@ -218,5 +298,86 @@ content
 endif::another[]";
         let output = Preprocessor.process(input, &options);
         assert!(matches!(output, Err(Error::InvalidConditionalDirective)));
+    }
+
+    #[test]
+    fn test_utf8_bom_detection() -> Result<(), Error> {
+        let path = Path::new("fixtures/preprocessor/utf8_bom.adoc");
+        let content = read_and_decode_file(path, None)?;
+
+        // Should contain the test content without BOM
+        assert!(content.contains("= Test Document"));
+        assert!(content.contains("This is a test with special chars: é, ñ, ü."));
+        // BOM should be stripped
+        assert!(!content.starts_with('\u{FEFF}'));
+        Ok(())
+    }
+
+    #[test]
+    fn test_utf16le_bom_detection() -> Result<(), Error> {
+        let path = Path::new("fixtures/preprocessor/utf16le_bom.adoc");
+        let content = read_and_decode_file(path, None)?;
+
+        // Should correctly decode UTF-16 LE content
+        assert!(content.contains("= Test Document"));
+        assert!(content.contains("This is a test with special chars: é, ñ, ü."));
+        Ok(())
+    }
+
+    #[test]
+    fn test_utf16be_bom_detection() -> Result<(), Error> {
+        let path = Path::new("fixtures/preprocessor/utf16be_bom.adoc");
+        let content = read_and_decode_file(path, None)?;
+
+        // Should correctly decode UTF-16 BE content
+        assert!(content.contains("= Test Document"));
+        assert!(content.contains("This is a test with special chars: é, ñ, ü."));
+        Ok(())
+    }
+
+    #[test]
+    fn test_utf8_no_bom() -> Result<(), Error> {
+        let path = Path::new("fixtures/preprocessor/utf8_no_bom.adoc");
+        let content = read_and_decode_file(path, None)?;
+
+        // Should decode regular UTF-8 file
+        assert!(content.contains("= Test Document"));
+        assert!(content.contains("This is a test with special chars: é, ñ, ü."));
+        Ok(())
+    }
+
+    #[test]
+    fn test_explicit_encoding_override() -> Result<(), Error> {
+        // Test that explicit encoding parameter works
+        let path = Path::new("fixtures/preprocessor/utf8_no_bom.adoc");
+        let content = read_and_decode_file(path, Some("utf-8"))?;
+
+        assert!(content.contains("= Test Document"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_unknown_encoding_error() {
+        let path = Path::new("fixtures/preprocessor/utf8_no_bom.adoc");
+        let result = read_and_decode_file(path, Some("unknown-encoding-12345"));
+
+        assert!(matches!(result, Err(Error::UnknownEncoding(_))));
+    }
+
+    #[test]
+    fn test_include_utf16_file() -> Result<(), Error> {
+        // Test that include directive works with UTF-16 LE files
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/main_with_include.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain content from both main file and included UTF-16 file
+        assert!(result.contains("= Main Document"));
+        assert!(result.contains("This is included content."));
+        assert!(result.contains("With special characters: é, ñ, ü."));
+        assert!(result.contains("After include."));
+        Ok(())
     }
 }
