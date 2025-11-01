@@ -58,6 +58,25 @@ pub enum InlineMacro {
     Stem(Stem),
 }
 
+/// Macro to serialize inline format types (Bold, Italic, Monospace, etc.)
+/// All these types share identical structure and serialization logic.
+macro_rules! serialize_inline_format {
+    ($map:expr, $value:expr, $variant:literal) => {{
+        $map.serialize_entry("name", "span")?;
+        $map.serialize_entry("type", "inline")?;
+        $map.serialize_entry("variant", $variant)?;
+        $map.serialize_entry("form", &$value.form)?;
+        if let Some(role) = &$value.role {
+            $map.serialize_entry("role", role)?;
+        }
+        if let Some(id) = &$value.id {
+            $map.serialize_entry("id", id)?;
+        }
+        $map.serialize_entry("inlines", &$value.content)?;
+        $map.serialize_entry("location", &$value.location)?;
+    }};
+}
+
 impl Serialize for InlineNode {
     #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -90,116 +109,28 @@ impl Serialize for InlineNode {
                 map.serialize_entry("location", &verbatim.location)?;
             }
             InlineNode::HighlightText(highlight) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "mark")?;
-                map.serialize_entry("form", &highlight.form)?;
-                if let Some(role) = &highlight.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &highlight.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &highlight.content)?;
-                map.serialize_entry("location", &highlight.location)?;
+                serialize_inline_format!(map, highlight, "mark");
             }
             InlineNode::ItalicText(italic) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "emphasis")?;
-                map.serialize_entry("form", &italic.form)?;
-                if let Some(role) = &italic.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &italic.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &italic.content)?;
-                map.serialize_entry("location", &italic.location)?;
+                serialize_inline_format!(map, italic, "emphasis");
             }
             InlineNode::BoldText(bold) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "strong")?;
-                map.serialize_entry("form", &bold.form)?;
-                if let Some(role) = &bold.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &bold.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &bold.content)?;
-                map.serialize_entry("location", &bold.location)?;
+                serialize_inline_format!(map, bold, "strong");
             }
             InlineNode::MonospaceText(monospace) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "code")?;
-                map.serialize_entry("form", &monospace.form)?;
-                if let Some(role) = &monospace.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &monospace.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &monospace.content)?;
-                map.serialize_entry("location", &monospace.location)?;
+                serialize_inline_format!(map, monospace, "code");
             }
             InlineNode::SubscriptText(subscript) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "subscript")?;
-                map.serialize_entry("form", &subscript.form)?;
-                if let Some(role) = &subscript.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &subscript.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &subscript.content)?;
-                map.serialize_entry("location", &subscript.location)?;
+                serialize_inline_format!(map, subscript, "subscript");
             }
             InlineNode::SuperscriptText(superscript) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "superscript")?;
-                map.serialize_entry("form", &superscript.form)?;
-                if let Some(role) = &superscript.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &superscript.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &superscript.content)?;
-                map.serialize_entry("location", &superscript.location)?;
+                serialize_inline_format!(map, superscript, "superscript");
             }
             InlineNode::CurvedQuotationText(curved_quotation) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "curved_quotation")?;
-                map.serialize_entry("form", &curved_quotation.form)?;
-                if let Some(role) = &curved_quotation.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &curved_quotation.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &curved_quotation.content)?;
-                map.serialize_entry("location", &curved_quotation.location)?;
+                serialize_inline_format!(map, curved_quotation, "curved_quotation");
             }
             InlineNode::CurvedApostropheText(curved_apostrophe) => {
-                map.serialize_entry("name", "span")?;
-                map.serialize_entry("type", "inline")?;
-                map.serialize_entry("variant", "curved_apostrophe")?;
-                map.serialize_entry("form", &curved_apostrophe.form)?;
-                if let Some(role) = &curved_apostrophe.role {
-                    map.serialize_entry("role", role)?;
-                }
-                if let Some(id) = &curved_apostrophe.id {
-                    map.serialize_entry("id", id)?;
-                }
-                map.serialize_entry("inlines", &curved_apostrophe.content)?;
-                map.serialize_entry("location", &curved_apostrophe.location)?;
+                serialize_inline_format!(map, curved_apostrophe, "curved_apostrophe");
             }
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
                 map.serialize_entry("name", "curved_apostrophe")?;

@@ -74,7 +74,7 @@ pub struct StandaloneCurvedApostrophe {
 }
 
 /// A `Monospace` represents a monospace section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Monospace {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
@@ -87,7 +87,7 @@ pub struct Monospace {
 }
 
 /// A `Highlight` represents a highlighted section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Highlight {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
@@ -100,7 +100,7 @@ pub struct Highlight {
 }
 
 /// A `Bold` represents a bold section of text in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Bold {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<Role>,
@@ -193,151 +193,6 @@ pub struct Verbatim {
     #[serde(rename = "value")]
     pub content: String,
     pub location: Location,
-}
-
-impl Serialize for Italic {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map_size = 6;
-        if self.role.is_some() {
-            map_size += 1;
-        }
-        if self.id.is_some() {
-            map_size += 1;
-        }
-        let mut state = serializer.serialize_map(Some(map_size))?;
-        state.serialize_entry("name", "span")?;
-        state.serialize_entry("type", "inline")?;
-        state.serialize_entry("variant", "emphasis")?;
-        state.serialize_entry("form", &self.form)?;
-        if let Some(ref role) = self.role {
-            state.serialize_entry("role", role)?;
-        }
-        if let Some(ref id) = self.id {
-            state.serialize_entry("id", id)?;
-        }
-        state.serialize_entry("inlines", &self.content)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
-impl Serialize for Superscript {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map_size = 6;
-        if self.role.is_some() {
-            map_size += 1;
-        }
-        if self.id.is_some() {
-            map_size += 1;
-        }
-        let mut state = serializer.serialize_map(Some(map_size))?;
-        state.serialize_entry("name", "span")?;
-        state.serialize_entry("type", "inline")?;
-        state.serialize_entry("variant", "superscript")?;
-        state.serialize_entry("form", &self.form)?;
-        if let Some(ref role) = self.role {
-            state.serialize_entry("role", role)?;
-        }
-        if let Some(ref id) = self.id {
-            state.serialize_entry("id", id)?;
-        }
-        state.serialize_entry("inlines", &self.content)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
-impl Serialize for Subscript {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map_size = 6;
-        if self.role.is_some() {
-            map_size += 1;
-        }
-        if self.id.is_some() {
-            map_size += 1;
-        }
-        let mut state = serializer.serialize_map(Some(map_size))?;
-        state.serialize_entry("name", "span")?;
-        state.serialize_entry("type", "inline")?;
-        state.serialize_entry("variant", "subscript")?;
-        state.serialize_entry("form", &self.form)?;
-        if let Some(ref role) = self.role {
-            state.serialize_entry("role", role)?;
-        }
-        if let Some(ref id) = self.id {
-            state.serialize_entry("id", id)?;
-        }
-        state.serialize_entry("inlines", &self.content)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
-impl Serialize for CurvedQuotation {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map_size = 6;
-        if self.role.is_some() {
-            map_size += 1;
-        }
-        if self.id.is_some() {
-            map_size += 1;
-        }
-        let mut state = serializer.serialize_map(Some(map_size))?;
-        state.serialize_entry("name", "span")?;
-        state.serialize_entry("type", "inline")?;
-        state.serialize_entry("variant", "curved_quotation")?;
-        state.serialize_entry("form", &self.form)?;
-        if let Some(ref role) = self.role {
-            state.serialize_entry("role", role)?;
-        }
-        if let Some(ref id) = self.id {
-            state.serialize_entry("id", id)?;
-        }
-        state.serialize_entry("inlines", &self.content)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
-impl Serialize for CurvedApostrophe {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map_size = 6;
-        if self.role.is_some() {
-            map_size += 1;
-        }
-        if self.id.is_some() {
-            map_size += 1;
-        }
-        let mut state = serializer.serialize_map(Some(map_size))?;
-        state.serialize_entry("name", "span")?;
-        state.serialize_entry("type", "inline")?;
-        state.serialize_entry("variant", "curved_apostrophe")?;
-        state.serialize_entry("form", &self.form)?;
-        if let Some(ref role) = self.role {
-            state.serialize_entry("role", role)?;
-        }
-        if let Some(ref id) = self.id {
-            state.serialize_entry("id", id)?;
-        }
-        state.serialize_entry("inlines", &self.content)?;
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
 }
 
 impl Serialize for StandaloneCurvedApostrophe {
