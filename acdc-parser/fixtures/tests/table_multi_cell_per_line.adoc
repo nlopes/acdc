@@ -1,0 +1,29 @@
+= A table
+
+== The table
+
+[cols="1,1,1,1",options="header"]
+|===
+|Feature |Asciidoctor |ACDC |Notes
+
+|Sections
+|✅ Supported
+|✅ Supported
+|Up to 6 levels
+
+|Lists
+|✅ Supported
+|✅ Supported
+|All types
+
+|Tables
+|✅ Supported
+|⚠️Partial
+|PSV and DSV only
+
+|Stem blocks
+|✅ Supported
+|❌ Missing
+|Planned for 0.3
+
+|===

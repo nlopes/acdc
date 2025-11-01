@@ -119,17 +119,48 @@ impl Table {
         let mut current_offset = row_start_offset;
 
         for line in row_lines {
-            if let Some(cell_content_with_spaces) = line.strip_prefix(separator) {
+            // Skip lines that don't start with the separator
+            if !line.starts_with(separator) {
+                current_offset += line.len() + 1; // +1 for newline
+                continue;
+            }
+
+            // Split the line by separator to get all cells
+            let parts: Vec<&str> = line.split(separator).collect();
+
+            // Track position within the line
+            let mut line_offset = current_offset;
+
+            // Skip the first empty part (before the first |)
+            for (i, part) in parts.iter().enumerate() {
+                if i == 0 {
+                    // First part is always empty (before first |)
+                    line_offset += separator.len();
+                    continue;
+                }
+
+                let cell_content_with_spaces = part;
                 let cell_content = cell_content_with_spaces.trim();
 
-                // Find where the actual content starts (after separator and leading spaces)
+                // Find where the actual content starts (after leading spaces)
                 let leading_spaces =
                     cell_content_with_spaces.len() - cell_content_with_spaces.trim_start().len();
-                let cell_start = current_offset + separator.len() + leading_spaces;
-                let cell_end = cell_start + cell_content.len() - 1; // -1 for inclusive end
+                let cell_start = line_offset + leading_spaces;
+                let cell_end = if cell_content.is_empty() {
+                    cell_start
+                } else {
+                    cell_start + cell_content.len() - 1 // -1 for inclusive end
+                };
 
                 columns.push((cell_content.to_string(), cell_start, cell_end));
+
+                // Move offset past this cell and its separator
+                line_offset += part.len();
+                if i < parts.len() - 1 {
+                    line_offset += separator.len();
+                }
             }
+
             current_offset += line.len() + 1; // +1 for newline
         }
 
