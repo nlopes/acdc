@@ -93,4 +93,9 @@ impl ParserState {
             end: self.line_map.offset_to_position(end, &self.input),
         }
     }
+
+    /// Helper to create block location with standard offset calculation
+    pub(crate) fn create_block_location(&self, start: usize, end: usize, offset: usize) -> Location {
+        self.create_location(start + offset, (end + offset).saturating_sub(1))
+    }
 }
