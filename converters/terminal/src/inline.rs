@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{Button, CrossReference, Footnote, Icon, InlineMacro, InlineNode, Keyboard, Menu, Pass, Stem};
+use acdc_parser::{Button, CrossReference, Footnote, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},

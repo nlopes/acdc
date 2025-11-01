@@ -209,13 +209,11 @@ impl Render for InlineMacro {
             InlineMacro::Icon(i) => i.render(w, processor, options),
             InlineMacro::Keyboard(k) => k.render(w, processor, options),
             InlineMacro::Menu(m) => m.render(w, processor, options),
-            _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
-                    format!("Unsupported inline macro: {self:?}"),
-                )
-                .into());
-            }
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                format!("Unsupported inline macro: {self:?}"),
+            )
+            .into()),
         }
     }
 }
@@ -438,7 +436,11 @@ impl Render for Icon {
         if let Some(icons_value) = processor.document_attributes.get("icons") {
             if icons_value.to_string() == "font" {
                 // Font Awesome mode
-                write!(w, "<span class=\"icon\"><i class=\"fa fa-{}\"></i></span>", self.target)?;
+                write!(
+                    w,
+                    "<span class=\"icon\"><i class=\"fa fa-{}\"></i></span>",
+                    self.target
+                )?;
             } else {
                 // Image mode (when icons attribute is set to something other than "font")
                 write!(
