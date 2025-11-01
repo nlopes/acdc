@@ -2418,7 +2418,7 @@ peg::parser! {
         }
 
         rule monospace_text_constrained_match() -> ()
-        = boundary_pos:position!() inline_attributes()? "`" !(['\''] / ['"']) [^('`' | ' ' | '\t' | '\n')] [^'`']* "`" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
+        = boundary_pos:position!() inline_attributes()? "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no backtick)
             let valid_boundary = boundary_pos == 0 || {
