@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use acdc_converters_common::{Converter, Options, PrettyDuration, Processable, visitor::Visitor};
+use acdc_converters_common::{Options, PrettyDuration, Processable, visitor::Visitor};
 use acdc_core::Source;
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
@@ -32,18 +32,18 @@ impl Processor {
     pub fn toc_entries(&self) -> &[TocEntry] {
         &self.toc_entries
     }
-}
 
-impl Converter for Processor {
-    type Error = Error;
-    type Options = RenderOptions;
-
-    fn convert<W: Write>(
+    /// Convert a document to HTML, writing to the provided writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if document conversion or writing fails.
+    pub fn convert<W: Write>(
         &self,
         doc: &Document,
         writer: W,
-        options: &Self::Options,
-    ) -> Result<(), Self::Error> {
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         let processor = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),

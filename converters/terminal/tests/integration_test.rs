@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{Converter, Options as ConverterOptions, Processable};
+use acdc_converters_common::{Options as ConverterOptions, Processable};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 use acdc_terminal::Processor;
 
@@ -36,8 +36,7 @@ fn test_fixture(fixture_name: &str) -> Result<(), Error> {
     // Convert to Terminal output
     let mut output = Vec::new();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
-    let render_options = ();
-    processor.convert(&doc, &mut output, &render_options)?;
+    processor.convert(&doc, &mut output)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
