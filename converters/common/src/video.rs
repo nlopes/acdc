@@ -59,8 +59,16 @@ impl TryUrl for Video {
 /// Returns a URL like: `https://www.youtube.com/watch?v={id}&t={start}&end={end}`
 ///
 /// This is suitable for terminal output and direct linking.
+///
+/// # Errors
+///
+/// Returns an error if the video has no sources or if URL formatting fails.
 fn build_youtube_watch_url(video: &Video) -> Result<String, std::fmt::Error> {
-    let video_id = &video.sources[0].to_string();
+    let video_id = video
+        .sources
+        .first()
+        .ok_or(std::fmt::Error)?
+        .to_string();
     let mut url = format!("https://www.youtube.com/watch?v={video_id}");
 
     // Add start parameter if present (using &t= for watch URLs)
@@ -82,8 +90,16 @@ fn build_youtube_watch_url(video: &Video) -> Result<String, std::fmt::Error> {
 /// Returns a URL like: `https://www.youtube.com/embed/{id}?rel=0&start={start}&end={end}`
 ///
 /// This is suitable for HTML iframe embedding.
+///
+/// # Errors
+///
+/// Returns an error if the video has no sources or if URL formatting fails.
 fn build_youtube_embed_url(video: &Video) -> Result<String, std::fmt::Error> {
-    let video_id = &video.sources[0].to_string();
+    let video_id = video
+        .sources
+        .first()
+        .ok_or(std::fmt::Error)?
+        .to_string();
     let mut url = format!("https://www.youtube.com/embed/{video_id}?rel=0");
 
     // Add start parameter if present (using &start= for embed URLs)
@@ -136,8 +152,16 @@ fn build_youtube_embed_url(video: &Video) -> Result<String, std::fmt::Error> {
 /// Returns a URL like: `https://vimeo.com/{id}#t={start}`
 ///
 /// This is suitable for both terminal output and direct linking.
+///
+/// # Errors
+///
+/// Returns an error if the video has no sources or if URL formatting fails.
 fn build_vimeo_watch_url(video: &Video) -> Result<String, std::fmt::Error> {
-    let video_id = &video.sources[0].to_string();
+    let video_id = video
+        .sources
+        .first()
+        .ok_or(std::fmt::Error)?
+        .to_string();
     let mut url = format!("https://vimeo.com/{video_id}");
 
     // Add start parameter if present
@@ -154,8 +178,16 @@ fn build_vimeo_watch_url(video: &Video) -> Result<String, std::fmt::Error> {
 /// Returns a URL like: `https://player.vimeo.com/video/{id}?autoplay=1&loop=1&muted=1`
 ///
 /// This is suitable for HTML iframe embedding.
+///
+/// # Errors
+///
+/// Returns an error if the video has no sources or if URL formatting fails.
 fn build_vimeo_embed_url(video: &Video) -> Result<String, std::fmt::Error> {
-    let video_id = &video.sources[0].to_string();
+    let video_id = video
+        .sources
+        .first()
+        .ok_or(std::fmt::Error)?
+        .to_string();
     let mut url = format!("https://player.vimeo.com/video/{video_id}");
     let mut first_param = true;
 
@@ -179,9 +211,20 @@ fn build_vimeo_embed_url(video: &Video) -> Result<String, std::fmt::Error> {
     Ok(url)
 }
 
+/// Build a local video URL with optional time parameters.
+///
+/// Returns a URL like: `video.mp4#t={start},{end}`
+///
+/// # Errors
+///
+/// Returns an error if the video has no sources or if URL formatting fails.
 fn build_local_url(video: &Video) -> Result<String, std::fmt::Error> {
     // Build the src attribute with optional start and end time
-    let mut src = video.sources[0].to_string();
+    let mut src = video
+        .sources
+        .first()
+        .ok_or(std::fmt::Error)?
+        .to_string();
     let start = video.metadata.attributes.get("start");
     let end = video.metadata.attributes.get("end");
 
@@ -491,8 +534,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "index out of bounds: the len is 0 but the index is 0")]
-    fn test_empty_sources_returns_empty_string() {
+    fn test_empty_sources_returns_error() {
         let mut attrs = ElementAttributes::default();
         attrs.insert("youtube".to_string(), AttributeValue::Bool(true));
         let video = Video {
@@ -505,7 +547,8 @@ mod tests {
             location: Location::default(),
         };
 
-        // This panics because we try to access sources[0] when sources is empty
-        video.try_url(false).unwrap();
+        // Should return an error instead of panicking
+        let result = video.try_url(false);
+        assert!(result.is_err(), "Expected error for empty sources vector");
     }
 }
