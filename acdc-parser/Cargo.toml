@@ -8,7 +8,7 @@ authors.workspace = true
 [dependencies]
 acdc-core.workspace = true
 encoding_rs = "0.8"
-evalexpr = "12"
+evalexpr = "13"
 peg = "0.8"
 ureq = "2.9"
 serde.workspace = true
