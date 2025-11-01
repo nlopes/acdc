@@ -520,15 +520,20 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
         return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
     }
 
+    // Always escape HTML entities for security
+    let text = text
+        .replace('&', "&amp;")
+        .replace('>', "&gt;")
+        .replace('<', "&lt;")
+        .replace('"', "&quot;");
+
     let text = text.replace("...", "&#8230;&#8203;");
+
+    // Apply additional text transformations only when not in basic mode
     if options.inlines_basic {
         text
     } else {
-        text.replace('&', "&amp;")
-            .replace('>', "&gt;")
-            .replace('<', "&lt;")
-            .replace('"', "&quot;")
-            .replace(" -- ", "&thinsp;&mdash;&thinsp;")
+        text.replace(" -- ", "&thinsp;&mdash;&thinsp;")
             .replace(" --", "&thinsp;&mdash;")
             .replace("-- ", "&mdash;&thinsp;")
     }
