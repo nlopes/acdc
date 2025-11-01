@@ -75,8 +75,7 @@ pub enum Error {
     UnrecognizedEncodingInFile(String),
 
     #[error("Unable to retrieve HTTP response: {0}")]
-    #[serde(skip_deserializing)]
-    HttpRequest(#[from] reqwest::Error),
+    HttpRequest(String),
 
     #[error("Could not convert from int: {0}")]
     #[serde(skip_deserializing)]

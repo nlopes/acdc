@@ -10,7 +10,7 @@ acdc-core.workspace = true
 encoding_rs = "0.8"
 evalexpr = "12"
 peg = "0.8"
-reqwest = { version = "0.12", features = ["blocking"] }
+ureq = "2.9"
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
