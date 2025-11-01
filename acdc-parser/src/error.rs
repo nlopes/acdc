@@ -7,11 +7,11 @@ use crate::model::{Location, Position, SectionLevel};
 #[non_exhaustive]
 #[derive(thiserror::Error, Debug, Deserialize)]
 pub enum Error {
-    #[error("Invalid include path: {0}")]
-    InvalidIncludePath(PathBuf),
+    #[error("Invalid include path: {1}, position: {0}")]
+    InvalidIncludePath(Box<SourceLocation>, PathBuf),
 
-    #[error("Invalid line range: {0}")]
-    InvalidLineRange(String),
+    #[error("Invalid line range: {1}, position: {0}")]
+    InvalidLineRange(Box<SourceLocation>, String),
 
     #[error("Parsing error: {1}, position: {0}")]
     Parse(Box<SourceLocation>, String),
@@ -32,20 +32,17 @@ pub enum Error {
     #[error("Invalid admonition variant: {1}, position: {0}")]
     InvalidAdmonitionVariant(Box<SourceLocation>, String),
 
-    #[error("Invalid conditional directive")]
-    InvalidConditionalDirective,
+    #[error("Invalid conditional directive, position: {0}")]
+    InvalidConditionalDirective(Box<SourceLocation>),
 
-    #[error("Invalid include directive: {0}")]
-    InvalidIncludeDirective(String),
+    #[error("Invalid include directive: {1}, position: {0}")]
+    InvalidIncludeDirective(Box<SourceLocation>, String),
 
-    #[error("Invalid attribute directive")]
-    InvalidAttributeDirective,
+    #[error("Invalid indent: {1}, position: {0}")]
+    InvalidIndent(Box<SourceLocation>, String),
 
-    #[error("Invalid indent: {0}")]
-    InvalidIndent(String),
-
-    #[error("Invalid level offset: {0}")]
-    InvalidLevelOffset(String),
+    #[error("Invalid level offset: {1}, position: {0}")]
+    InvalidLevelOffset(Box<SourceLocation>, String),
 
     #[error("I/O error: {0}")]
     #[serde(skip_deserializing)]
@@ -59,11 +56,8 @@ pub enum Error {
     #[serde(skip_deserializing)]
     ParseInt(#[from] std::num::ParseIntError),
 
-    #[error("Unexpected block: {0}")]
-    UnexpectedBlock(String),
-
-    #[error("Invalid ifeval directive")]
-    InvalidIfEvalDirectiveMismatchedTypes,
+    #[error("Invalid ifeval directive, position: {0}")]
+    InvalidIfEvalDirectiveMismatchedTypes(Box<SourceLocation>),
 
     #[error("Unknown encoding: {0}")]
     UnknownEncoding(String),
@@ -95,7 +89,14 @@ impl Error {
             | Self::MismatchedDelimiters(detail, ..)
             | Self::InvalidAdmonitionVariant(detail, ..)
             | Self::Parse(detail, ..)
-            | Self::PegParse(detail, ..) => Some(detail),
+            | Self::PegParse(detail, ..)
+            | Self::InvalidIncludePath(detail, ..)
+            | Self::InvalidLineRange(detail, ..)
+            | Self::InvalidConditionalDirective(detail)
+            | Self::InvalidIncludeDirective(detail, ..)
+            | Self::InvalidIndent(detail, ..)
+            | Self::InvalidLevelOffset(detail, ..)
+            | Self::InvalidIfEvalDirectiveMismatchedTypes(detail) => Some(detail),
             _ => None,
         }
     }
@@ -114,8 +115,26 @@ impl Error {
             Self::InvalidAdmonitionVariant(..) => {
                 Some("Valid admonition types are: NOTE, TIP, IMPORTANT, WARNING, CAUTION")
             }
-            Self::InvalidIfEvalDirectiveMismatchedTypes => Some(
+            Self::InvalidIfEvalDirectiveMismatchedTypes(..) => Some(
                 "ifeval expressions must compare values of the same type (both numbers or both strings)",
+            ),
+            Self::InvalidConditionalDirective(..) => Some(
+                "Valid conditional directives are: ifdef, ifndef, ifeval, endif. Check the syntax of your conditional block.",
+            ),
+            Self::InvalidLineRange(..) => Some(
+                "Line ranges must be in the format 'start..end' where start and end are positive integers",
+            ),
+            Self::InvalidIncludeDirective(..) => Some(
+                "Valid include directive attributes are: leveloffset, lines, tag, tags, indent, encoding, opts",
+            ),
+            Self::InvalidIndent(..) => Some(
+                "The indent attribute must be a non-negative integer specifying the number of spaces to indent included content",
+            ),
+            Self::InvalidLevelOffset(..) => Some(
+                "The leveloffset attribute must be a signed integer (e.g., +1, -1, 0) to adjust section levels in included content",
+            ),
+            Self::InvalidIncludePath(..) => Some(
+                "Include paths must have a valid parent directory. Check that the path is not empty or relative to a non-existent location",
             ),
             _ => None,
         }

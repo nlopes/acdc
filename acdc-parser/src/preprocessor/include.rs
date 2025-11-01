@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::{
     Options, Preprocessor,
-    error::Error,
+    error::{Error, SourceLocation, Positioning},
     model::{HEADER, Position, Substitute},
 };
 
@@ -43,6 +43,10 @@ pub(crate) struct Include {
     encoding: Option<String>,
     opts: Vec<String>,
     options: Options,
+    // Location information for error reporting
+    line_number: usize,
+    current_offset: usize,
+    current_file: Option<PathBuf>,
 }
 
 /// A line range that an include may specify.
@@ -72,7 +76,13 @@ pub(crate) enum Target {
 }
 
 peg::parser! {
-    grammar include_parser(path: &std::path::Path, options: &Options) for str {
+    grammar include_parser(
+        path: &std::path::Path,
+        options: &Options,
+        line_number: usize,
+        current_offset: usize,
+        current_file: Option<&std::path::Path>
+    ) for str {
         pub(crate) rule include() -> Result<Include, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
                 let target_raw = target.substitute(HEADER, &options.document_attributes);
@@ -92,7 +102,10 @@ peg::parser! {
                     indent: None,
                     encoding: None,
                     opts: Vec::new(),
-                    options: options.clone()
+                    options: options.clone(),
+                    line_number,
+                    current_offset,
+                    current_file: current_file.map(Path::to_path_buf),
                 };
                 if let Some(attrs) = attrs {
                     include.parse_attributes(attrs)?;
@@ -132,47 +145,80 @@ impl FromStr for LinesRange {
     type Err = Error;
 
     fn from_str(line_range: &str) -> Result<Self, Self::Err> {
-        if line_range.contains("..") {
-            let mut parts = line_range.split("..");
-            let start = parts
-                .next()
-                .ok_or_else(|| Error::InvalidLineRange(line_range.to_string()))?
-                .parse()?;
-            let end = parts
-                .next()
-                .ok_or_else(|| Error::InvalidLineRange(line_range.to_string()))?
-                .parse()?;
-            Ok(LinesRange::Range(start, end))
-        } else {
-            Ok(LinesRange::Single(line_range.parse().map_err(|e| {
-                tracing::error!(?line_range, ?e, "Failed to parse line range");
-                e
-            })?))
-        }
+        // FromStr trait implementation for backward compatibility.
+        // Prefer using LinesRange::parse() with location info for better error messages.
+        Self::from_str_with_location(line_range, None)
     }
 }
 
 impl LinesRange {
-    fn parse(value: &str) -> Result<Vec<Self>, Error> {
-        let mut lines = Vec::new();
-        if value.contains(';') {
-            lines.extend(
-                value
-                    .split(';')
-                    .map(LinesRange::from_str)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
-        } else if value.contains(',') {
-            lines.extend(
-                value
-                    .split(',')
-                    .map(LinesRange::from_str)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
+    /// Helper to create error with location information
+    fn create_error(
+        line_range: &str,
+        location: Option<(usize, usize, Option<&Path>)>,
+    ) -> Error {
+        let (line_number, current_offset, current_file) = location.unwrap_or((1, 0, None));
+        Error::InvalidLineRange(
+            Box::new(SourceLocation {
+                file: current_file.map(Path::to_path_buf),
+                positioning: Positioning::Position(Position {
+                    line: line_number,
+                    column: 1,
+                    offset: current_offset,
+                }),
+            }),
+            line_range.to_string(),
+        )
+    }
+
+    /// Parse a single line range string with optional location info.
+    fn from_str_with_location(
+        line_range: &str,
+        location: Option<(usize, usize, Option<&Path>)>,
+    ) -> Result<Self, Error> {
+        if line_range.contains("..") {
+            let mut parts = line_range.split("..");
+            let start = parts
+                .next()
+                .ok_or_else(|| Self::create_error(line_range, location))?
+                .parse()
+                .map_err(|_| Self::create_error(line_range, location))?;
+            let end = parts
+                .next()
+                .ok_or_else(|| Self::create_error(line_range, location))?
+                .parse()
+                .map_err(|_| Self::create_error(line_range, location))?;
+            Ok(LinesRange::Range(start, end))
         } else {
-            lines.push(LinesRange::from_str(value)?);
+            Ok(LinesRange::Single(line_range.parse().map_err(|e| {
+                tracing::error!(?line_range, ?e, "Failed to parse line range");
+                Self::create_error(line_range, location)
+            })?))
         }
-        Ok(lines)
+    }
+
+    /// Parse line ranges (possibly multiple, separated by `;` or `,`) with location info.
+    fn parse(
+        value: &str,
+        line_number: usize,
+        current_offset: usize,
+        current_file: Option<&Path>,
+    ) -> Result<Vec<Self>, Error> {
+        let location = Some((line_number, current_offset, current_file));
+
+        let separator = if value.contains(';') {
+            ';'
+        } else if value.contains(',') {
+            ','
+        } else {
+            // Single range, no separator
+            return Ok(vec![Self::from_str_with_location(value, location)?]);
+        };
+
+        value
+            .split(separator)
+            .map(|part| Self::from_str_with_location(part, location))
+            .collect()
     }
 }
 
@@ -181,14 +227,27 @@ impl Include {
         for (key, value) in attributes {
             match key.as_ref() {
                 "leveloffset" => {
-                    self.level_offset = Some(
-                        value
-                            .parse()
-                            .map_err(|_| Error::InvalidLevelOffset(value.clone()))?,
-                    );
+                    self.level_offset = Some(value.parse().map_err(|_| {
+                        Error::InvalidLevelOffset(
+                            Box::new(SourceLocation {
+                                file: self.current_file.clone(),
+                                positioning: Positioning::Position(Position {
+                                    line: self.line_number,
+                                    column: 1,
+                                    offset: self.current_offset,
+                                }),
+                            }),
+                            value.clone(),
+                        )
+                    })?);
                 }
                 "lines" => {
-                    self.line_range.extend(LinesRange::parse(&value)?);
+                    self.line_range.extend(LinesRange::parse(
+                        &value,
+                        self.line_number,
+                        self.current_offset,
+                        self.current_file.as_deref(),
+                    )?);
                 }
                 "tag" => {
                     self.tags.push(value.clone());
@@ -197,11 +256,19 @@ impl Include {
                     self.tags.extend(value.split(';').map(str::to_string));
                 }
                 "indent" => {
-                    self.indent = Some(
-                        value
-                            .parse()
-                            .map_err(|_| Error::InvalidIndent(value.clone()))?,
-                    );
+                    self.indent = Some(value.parse().map_err(|_| {
+                        Error::InvalidIndent(
+                            Box::new(SourceLocation {
+                                file: self.current_file.clone(),
+                                positioning: Positioning::Position(Position {
+                                    line: self.line_number,
+                                    column: 1,
+                                    offset: self.current_offset,
+                                }),
+                            }),
+                            value.clone(),
+                        )
+                    })?);
                 }
                 "encoding" => {
                     self.encoding = Some(value.clone());
@@ -211,7 +278,17 @@ impl Include {
                 }
                 unknown => {
                     tracing::error!(?unknown, "unknown attribute key in include directive");
-                    return Err(Error::InvalidIncludeDirective(unknown.to_string()));
+                    return Err(Error::InvalidIncludeDirective(
+                        Box::new(SourceLocation {
+                            file: self.current_file.clone(),
+                            positioning: Positioning::Position(Position {
+                                line: self.line_number,
+                                column: 1,
+                                offset: self.current_offset,
+                            }),
+                        }),
+                        unknown.to_string(),
+                    ));
                 }
             }
         }
@@ -226,7 +303,7 @@ impl Include {
         current_file: Option<&Path>,
         options: &Options,
     ) -> Result<Self, Error> {
-        include_parser::include(line, file_parent, options).map_err(|e| {
+        include_parser::include(line, file_parent, options, line_number, line_start_offset, current_file).map_err(|e| {
             tracing::error!(?line, error=?e, "failed to parse include directive");
             let location = e.location;
             Error::Parse(
