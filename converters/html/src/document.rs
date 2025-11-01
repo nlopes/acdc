@@ -138,7 +138,11 @@ MathJax = {{
     }
 
     // Add Font Awesome if icons are set to font mode
-    if processor.document_attributes.get("icons").is_some_and(|v| v.to_string() == "font") {
+    if processor
+        .document_attributes
+        .get("icons")
+        .is_some_and(|v| v.to_string() == "font")
+    {
         writeln!(
             w,
             r#"<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">

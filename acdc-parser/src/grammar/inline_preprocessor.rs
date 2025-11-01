@@ -182,10 +182,19 @@ parser!(
             }
 
         rule inlines() -> String = quiet!{
-            passthrough()
+            // We add kbd_macro here to avoid conflicts with passthroughs as kbd macros
+            // also can have + signs on each side.
+            kbd_macro()
+            / passthrough()
             / attribute_reference()
             / unprocessed_text()
         } / expected!("inlines parser failed")
+
+        rule kbd_macro() -> String
+            = text:$("kbd:[" (!"]" [_])* "]") {
+                state.tracker.borrow_mut().advance(text);
+                text.to_string()
+            }
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
@@ -333,7 +342,7 @@ parser!(
             = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
 
         rule unprocessed_text() -> String
-            = text:$((!(passthrough_pattern() / attribute_reference_pattern()) [_])+) {
+            = text:$((!(passthrough_pattern() / attribute_reference_pattern() / kbd_macro_pattern()) [_])+) {
                 state.tracker.borrow_mut().advance(text);
                 text.to_string()
             }
@@ -341,6 +350,8 @@ parser!(
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 
         rule attribute_name_pattern() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+
+
+        rule kbd_macro_pattern() = "kbd:[" (!"]" [_])* "]"
 
         rule passthrough_pattern() =
             "+++" (!("+++") [_])+ "+++" /

@@ -1,0 +1,84 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "experimental": true
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Press ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            "Ctrl",
+            "Shift",
+            "N"
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 7
+            },
+            {
+              "line": 3,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " for incognito.",
+          "location": [
+            {
+              "line": 3,
+              "col": 25
+            },
+            {
+              "line": 3,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 39
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 39
+    }
+  ]
+}

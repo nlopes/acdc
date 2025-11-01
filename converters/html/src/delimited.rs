@@ -250,10 +250,10 @@ impl Render for StemContent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::Cell;
     use acdc_converters_common::{GeneratorMetadata, Options};
     use acdc_core::{Doctype, SafeMode, Source};
     use acdc_parser::{BlockMetadata, DocumentAttributes, InlineNode, Location, Plain};
+    use std::cell::Cell;
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
         vec![InlineNode::PlainText(Plain {
