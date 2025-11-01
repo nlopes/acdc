@@ -151,7 +151,7 @@ fn build_attributes_map(values: &[String]) -> DocumentAttributes {
         } else if let Some((name, val)) = raw_attr.split_once('=') {
             (name.to_string(), AttributeValue::String(val.to_string()))
         } else {
-            (raw_attr.to_string(), AttributeValue::Bool(true))
+            (raw_attr.clone(), AttributeValue::Bool(true))
         };
         map.insert(name, val);
     }

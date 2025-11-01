@@ -1,0 +1,233 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document with TOC literal levels",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 34
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 11
+      }
+    ]
+  },
+  "attributes": {
+    "toc": "macro"
+  },
+  "blocks": [
+    {
+      "name": "toc",
+      "type": "block",
+      "metadata": {
+        "attributes": {
+          "levels": "4"
+        }
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section 1",
+          "location": [
+            {
+              "line": 6,
+              "col": 4
+            },
+            {
+              "line": 6,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Subsection 1.1",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 5
+                },
+                {
+                  "line": 7,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "section",
+              "type": "block",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Sub-subsection 1.1.1",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 6
+                    },
+                    {
+                      "line": 8,
+                      "col": 25
+                    }
+                  ]
+                }
+              ],
+              "level": 3,
+              "blocks": [
+                {
+                  "name": "section",
+                  "type": "block",
+                  "title": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Sub-sub-subsection 1.1.1.1",
+                      "location": [
+                        {
+                          "line": 9,
+                          "col": 7
+                        },
+                        {
+                          "line": 9,
+                          "col": 32
+                        }
+                      ]
+                    }
+                  ],
+                  "level": 4,
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 9,
+                      "col": 32
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section 2",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 12
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 12
+    }
+  ]
+}

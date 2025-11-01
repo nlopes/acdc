@@ -184,14 +184,14 @@ impl Include {
                     self.level_offset = Some(
                         value
                             .parse()
-                            .map_err(|_| Error::InvalidLevelOffset(value.to_string()))?,
+                            .map_err(|_| Error::InvalidLevelOffset(value.clone()))?,
                     );
                 }
                 "lines" => {
                     self.line_range.extend(LinesRange::parse(&value)?);
                 }
                 "tag" => {
-                    self.tags.push(value.to_string());
+                    self.tags.push(value.clone());
                 }
                 "tags" => {
                     self.tags.extend(value.split(';').map(str::to_string));
@@ -200,11 +200,11 @@ impl Include {
                     self.indent = Some(
                         value
                             .parse()
-                            .map_err(|_| Error::InvalidIndent(value.to_string()))?,
+                            .map_err(|_| Error::InvalidIndent(value.clone()))?,
                     );
                 }
                 "encoding" => {
-                    self.encoding = Some(value.to_string());
+                    self.encoding = Some(value.clone());
                 }
                 "opts" => {
                     self.opts.extend(value.split(',').map(str::to_string));
@@ -405,7 +405,7 @@ mod tests {
 
         assert!(matches!(
             include.target,
-            Target::Path(path) if path == PathBuf::from("target.adoc")
+            Target::Path(ref path) if path.as_path() == Path::new("target.adoc")
         ));
         Ok(())
     }

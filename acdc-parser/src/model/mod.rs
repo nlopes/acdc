@@ -1903,7 +1903,7 @@ impl<'de> Deserialize<'de> for Block {
                             } else if value.eq_ignore_ascii_case("false") {
                                 AttributeValue::Bool(false)
                             } else {
-                                AttributeValue::String(value.to_string())
+                                AttributeValue::String(value.clone())
                             }
                         } else {
                             AttributeValue::None
