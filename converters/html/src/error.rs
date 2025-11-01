@@ -11,4 +11,7 @@ pub enum Error {
 
     #[error(transparent)]
     Parse(#[from] acdc_parser::Error),
+
+    #[error("input file and output file cannot be the same: {0}")]
+    OutputPathSameAsInput(std::path::PathBuf),
 }
