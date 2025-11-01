@@ -848,7 +848,17 @@ peg::parser! {
             };
 
             let ncols = if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
-                Some(cols.split(',').count())
+                // Parse cols attribute, handling both "1,2,3" and "3*" notation
+                let count: usize = cols.split(',').map(|s| {
+                    let s = s.trim().trim_matches('"');
+                    // Check for "N*" notation (e.g., "3*" means 3 columns)
+                    if let Some(stripped) = s.strip_suffix('*') {
+                        stripped.parse::<usize>().unwrap_or(1)
+                    } else {
+                        1
+                    }
+                }).sum();
+                Some(count)
             } else {
                 None
             };
@@ -875,11 +885,25 @@ peg::parser! {
                 .filter(|(cell, _, _)| !cell.is_empty())
                 .map(|(cell, start, _end)| parse_table_cell(cell, state, *start, block_metadata.parent_section_level))
                 .collect::<Result<Vec<_>, _>>()?;
+
+                // Calculate row line number from first cell for better error reporting
+                let row_line = if let Some(first) = row.first() {
+                    state.create_location(first.1, first.2).start.line
+                } else {
+                    table_location.start.line  // Fallback if row is empty (shouldn't happen)
+                };
+
                 // validate that if we have ncols we have the same number of columns in each row
                 if let Some(ncols) = ncols
                 && columns.len() != ncols
                 {
-                    return Err(Error::InvalidTableColumnLength(columns.len(), ncols));
+                    tracing::warn!(
+                        actual = columns.len(),
+                        expected = ncols,
+                        line = row_line,
+                        "table row has incorrect column count, skipping row"
+                    );
+                    continue;
                 }
 
                 // if we have a header, we need to add the columns we have to the header
