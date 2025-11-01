@@ -229,27 +229,31 @@ parser!(
         } / expected!("passthrough parser failed")
 
         rule single_plus_passthrough() -> String
-            = start:position() "+" content:$("+" / [^'+']+) "+" {
-                let location = state.tracker.borrow_mut().calculate_location(start, content, 2);
-                state.passthroughs.borrow_mut().push(Pass {
-                    text: Some(content.to_string()),
-                    // We add SpecialChars here for single and double but we don't do
-                    // anything with them, only the converter does.
-                    substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
-                    location: location.clone(),
-                    kind: PassthroughKind::Single,
-                });
-                let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                let original_span = location.absolute_end - location.absolute_start;
-                state.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    new_content.chars().count(),
-                    ProcessedKind::Passthrough,
-                );
-                state.pass_found_count.set(state.pass_found_count.get() + 1);
-                new_content
-            }
+        = start:position()
+        "+"
+        content:$(("+" / ![(' '|'\t'|'\n'|'\r'|'+')] [_] (!['\n'|'\r'|'+'] [_])*))
+        "+"
+        {
+            let location = state.tracker.borrow_mut().calculate_location(start, content, 2);
+            state.passthroughs.borrow_mut().push(Pass {
+                text: Some(content.to_string()),
+                // We add SpecialChars here for single and double but we don't do
+                // anything with them, only the converter does.
+                substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
+                location: location.clone(),
+                kind: PassthroughKind::Single,
+            });
+            let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
+            let original_span = location.absolute_end - location.absolute_start;
+            state.source_map.borrow_mut().add_replacement(
+                location.absolute_start,
+                location.absolute_end,
+                new_content.chars().count(),
+                ProcessedKind::Passthrough,
+            );
+            state.pass_found_count.set(state.pass_found_count.get() + 1);
+            new_content
+        }
 
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
@@ -356,7 +360,7 @@ parser!(
         rule passthrough_pattern() =
             "+++" (!("+++") [_])+ "+++" /
             "++" (!("++") [_])+ "++" /
-            "+" ("+" / [^'+']+) "+" /
+            "+" ("+" / ![(' '|'\t'|'\n'|'\r'|'+')] [_] (!['\n'|'\r'|'+'] [_])*) "+" /
             "pass:" substitutions()? "[" [^']']* "]"
 
         pub rule attribute_reference_substitutions() -> String
