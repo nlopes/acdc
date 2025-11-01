@@ -92,12 +92,14 @@ mod tests {
 
     #[test]
     fn test_render_document() -> Result<(), Error> {
+        use std::{cell::Cell, rc::Rc};
         let doc = Document::default();
         let options = Options::default();
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
+            example_counter: Rc::new(Cell::new(0)),
         };
         let buffer = Vec::new();
         let mut visitor = TerminalVisitor::new(buffer, processor);
@@ -133,6 +135,7 @@ mod tests {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
+            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;
@@ -179,6 +182,7 @@ mod tests {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
+            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;

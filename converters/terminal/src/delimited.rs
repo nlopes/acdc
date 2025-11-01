@@ -112,14 +112,23 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     blocks: &[Block],
-    _processor: &Processor,
+    processor: &Processor,
 ) -> Result<(), Error> {
     let w = visitor.writer_mut();
 
-    // Start marker with "EXAMPLE" label
-    let styled_label = "EXAMPLE".cyan().bold();
-    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-    writeln!(w)?;
+    // Start marker with "EXAMPLE N." label if there's a title
+    if title.is_empty() {
+        let styled_label = "EXAMPLE".cyan().bold();
+        QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+        writeln!(w)?;
+    } else {
+        let count = processor.example_counter.get() + 1;
+        processor.example_counter.set(count);
+        let label = format!("EXAMPLE {count}.");
+        let styled_label = label.cyan().bold();
+        QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+        write!(w, " ")?;
+    }
 
     visitor.render_title_with_wrapper(title, "", "\n\n")?;
 
@@ -248,12 +257,14 @@ mod tests {
 
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
+        use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
+            example_counter: Rc::new(Cell::new(0)),
         }
     }
 
@@ -1002,6 +1013,86 @@ mod tests {
         assert!(
             output_str.contains("This example shows: code snippet"),
             "Should contain nested content"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_example_block_numbering_sequence() -> Result<(), Error> {
+        let processor = create_test_processor();
+
+        // Create first example with title
+        let block1 = DelimitedBlock {
+            inner: DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph {
+                content: create_test_inlines("first example"),
+                location: Location::default(),
+                metadata: BlockMetadata::default(),
+                title: Vec::new(),
+            })]),
+            title: create_test_inlines("First Example"),
+            delimiter: "====".to_string(),
+            location: Location::default(),
+            metadata: BlockMetadata::default(),
+        };
+
+        // Create second example with title
+        let block2 = DelimitedBlock {
+            inner: DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph {
+                content: create_test_inlines("second example"),
+                location: Location::default(),
+                metadata: BlockMetadata::default(),
+                title: Vec::new(),
+            })]),
+            title: create_test_inlines("Second Example"),
+            delimiter: "====".to_string(),
+            location: Location::default(),
+            metadata: BlockMetadata::default(),
+        };
+
+        // Create third example with title
+        let block3 = DelimitedBlock {
+            inner: DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph {
+                content: create_test_inlines("third example"),
+                location: Location::default(),
+                metadata: BlockMetadata::default(),
+                title: Vec::new(),
+            })]),
+            title: create_test_inlines("Third Example"),
+            delimiter: "====".to_string(),
+            location: Location::default(),
+            metadata: BlockMetadata::default(),
+        };
+
+        // Render all three examples
+        let mut buffer1 = Vec::new();
+        let mut visitor1 = TerminalVisitor::new(&mut buffer1, processor.clone());
+        visitor1.visit_delimited_block(&block1)?;
+
+        let mut buffer2 = Vec::new();
+        let mut visitor2 = TerminalVisitor::new(&mut buffer2, processor.clone());
+        visitor2.visit_delimited_block(&block2)?;
+
+        let mut buffer3 = Vec::new();
+        let mut visitor3 = TerminalVisitor::new(&mut buffer3, processor.clone());
+        visitor3.visit_delimited_block(&block3)?;
+
+        // Check outputs
+        let output1 = String::from_utf8_lossy(&buffer1);
+        let output2 = String::from_utf8_lossy(&buffer2);
+        let output3 = String::from_utf8_lossy(&buffer3);
+
+        assert!(
+            output1.contains("EXAMPLE 1."),
+            "First example should have number 1, got: {output1}"
+        );
+        assert!(
+            output2.contains("EXAMPLE 2."),
+            "Second example should have number 2, got: {output2}"
+        );
+        assert!(
+            output3.contains("EXAMPLE 3."),
+            "Third example should have number 3, got: {output3}"
         );
 
         Ok(())

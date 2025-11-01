@@ -331,12 +331,14 @@ mod tests {
 
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
+        use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
+            example_counter: Rc::new(Cell::new(0)),
         }
     }
 
