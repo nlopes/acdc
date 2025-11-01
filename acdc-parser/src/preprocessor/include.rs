@@ -11,7 +11,7 @@ use url::Url;
 use crate::{
     Options, Preprocessor,
     error::Error,
-    model::{HEADER, Substitute},
+    model::{HEADER, Position, Substitute},
 };
 
 /**
@@ -218,10 +218,32 @@ impl Include {
         Ok(())
     }
 
-    pub(crate) fn parse(file_parent: &Path, line: &str, options: &Options) -> Result<Self, Error> {
+    pub(crate) fn parse(
+        file_parent: &Path,
+        line: &str,
+        line_number: usize,
+        line_start_offset: usize,
+        current_file: Option<&Path>,
+        options: &Options,
+    ) -> Result<Self, Error> {
         include_parser::include(line, file_parent, options).map_err(|e| {
-            tracing::error!(?line, "failed to parse include directive: {:?}", e);
-            Error::Parse(e.to_string())
+            tracing::error!(?line, error=?e, "failed to parse include directive");
+            let location = e.location;
+            Error::Parse(
+                Box::new(crate::SourceLocation {
+                    file: current_file.map(Path::to_path_buf),
+                    positioning: crate::Positioning::Position(Position {
+                        // Adjust line number to be relative to the document
+                        // PEG parser location.line is always 1 for a single line parse
+                        line: line_number,
+                        column: location.column,
+                        // Calculate absolute offset in document:
+                        // line_start_offset + column offset (0-indexed)
+                        offset: line_start_offset + location.column - 1,
+                    }),
+                }),
+                e.expected.to_string(),
+            )
         })?
     }
 
@@ -401,7 +423,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
 
         assert!(matches!(
             include.target,
@@ -415,7 +437,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[leveloffset=+1,lines=1..5,tag=example]";
         let options = Options::default();
-        let include = Include::parse(&path, line, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
 
         assert_eq!(include.level_offset, Some(1));
         assert_eq!(include.tags, vec!["example"]);
@@ -428,7 +450,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::https://example.com/doc.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
 
         assert!(matches!(
             include.target,
@@ -442,7 +464,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = r#"include::target.adoc[tag="example code",encoding="utf-8"]"#;
         let options = Options::default();
-        let include = Include::parse(&path, line, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
 
         assert_eq!(include.tags, vec!["example code"]);
         assert_eq!(include.encoding, Some("utf-8".to_string()));

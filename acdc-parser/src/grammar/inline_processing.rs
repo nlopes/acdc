@@ -37,7 +37,10 @@ pub(crate) fn adjust_peg_error_position(
         .offset_to_position(absolute_offset, &state.input);
 
     Error::PegParse(
-        doc_position,
+        Box::new(crate::SourceLocation {
+            file: state.current_file.clone(),
+            positioning: crate::Positioning::Position(doc_position),
+        }),
         err.to_string()
             .split_once(": ")
             .map_or(err.to_string(), |(_, msg)| msg.to_string()),
@@ -55,7 +58,7 @@ pub(crate) fn adjust_and_log_parse_error(
     context: &str,
 ) {
     let adjusted_error = adjust_peg_error_position(err, parsed_text, doc_start_offset, state);
-    tracing::error!(?adjusted_error, "{context}");
+    tracing::error!(?adjusted_error, ?context, "Parsing error occurred");
 }
 
 #[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]

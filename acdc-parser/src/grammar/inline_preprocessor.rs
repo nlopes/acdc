@@ -197,7 +197,7 @@ parser!(
         rule monospace() -> String
             // Unconstrained (double backticks) or constrained (single backticks)
             = text:$("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`") {
-                tracing::debug!("monospace matched: {:?}", text);
+                tracing::debug!(text, "monospace matched");
                 state.tracker.borrow_mut().advance(text);
                 text.to_string()
             }

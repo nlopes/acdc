@@ -11,6 +11,8 @@ pub(crate) struct ParserState {
     pub(crate) footnote_tracker: FootnoteTracker,
     pub(crate) toc_tracker: TocTracker,
     pub(crate) last_block_was_verbatim: bool,
+    /// The current file being parsed (None for inline/string parsing)
+    pub(crate) current_file: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,16 +83,20 @@ impl ParserState {
             footnote_tracker: FootnoteTracker::new(),
             toc_tracker: TocTracker::default(),
             last_block_was_verbatim: false,
+            current_file: None,
         }
     }
 
     /// Create a Location from raw byte offsets
     pub(crate) fn create_location(&self, start: usize, end: usize) -> Location {
+        let start_pos = self.line_map.offset_to_position(start, &self.input);
+        let end_pos = self.line_map.offset_to_position(end, &self.input);
+
         Location {
             absolute_start: start,
             absolute_end: end,
-            start: self.line_map.offset_to_position(start, &self.input),
-            end: self.line_map.offset_to_position(end, &self.input),
+            start: start_pos,
+            end: end_pos,
         }
     }
 

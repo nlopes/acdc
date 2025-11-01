@@ -31,7 +31,10 @@
 //! let document = parse(content, &options).unwrap();
 //!
 //! println!("{:?}", document);
-use std::{path::Path, string::ToString};
+use std::{
+    path::{Path, PathBuf},
+    string::ToString,
+};
 
 use tracing::instrument;
 
@@ -45,7 +48,7 @@ mod preprocessor;
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
 
-pub use error::{Detail as ErrorDetail, Error};
+pub use error::{Error, Positioning, SourceLocation};
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
     Block, BlockMetadata, Bold, Button, CalloutList, CrossReference, CurvedApostrophe,
@@ -223,7 +226,7 @@ pub fn parse_from_reader<R: std::io::Read>(
     options: &Options,
 ) -> Result<Document, Error> {
     let input = Preprocessor.process_reader(reader, options)?;
-    parse_input(&input, options)
+    parse_input(&input, options, None)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -249,7 +252,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
     let input = Preprocessor.process(input, options)?;
-    parse_input(&input, options)
+    parse_input(&input, options, None)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -275,21 +278,43 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 /// This function returns an error if the content cannot be parsed.
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
+    let path = file_path.as_ref().to_path_buf();
     let input = Preprocessor.process_file(file_path, options)?;
-    parse_input(&input, options)
+    parse_input(&input, options, Some(path))
+}
+
+/// Helper to convert a PEG parse error to our `SourceLocation` type
+fn peg_error_to_source_location(
+    error: &peg::error::ParseError<peg::str::LineCol>,
+    file: Option<PathBuf>,
+) -> SourceLocation {
+    SourceLocation {
+        file,
+        positioning: Positioning::Position(Position {
+            line: error.location.line,
+            column: error.location.column,
+            offset: error.location.offset,
+        }),
+    }
 }
 
 #[instrument]
-fn parse_input(input: &str, options: &Options) -> Result<Document, Error> {
+fn parse_input(
+    input: &str,
+    options: &Options,
+    file_path: Option<PathBuf>,
+) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
     let mut state = grammar::ParserState::new(input);
     state.document_attributes = options.document_attributes.clone();
     state.options = options.clone();
+    state.current_file.clone_from(&file_path);
     match grammar::document_parser::document(input, &mut state) {
         Ok(doc) => doc,
         Err(error) => {
             tracing::error!(?error, "error parsing document content");
-            Err(Error::Parse(error.to_string()))
+            let source_location = peg_error_to_source_location(&error, file_path);
+            Err(Error::Parse(Box::new(source_location), error.to_string()))
         }
     }
 }
@@ -335,7 +360,10 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
         Ok(inlines) => Ok(inlines),
         Err(error) => {
             tracing::error!(?error, "error parsing inline content");
-            Err(Error::Parse(error.to_string()))
+            Err(Error::Parse(
+                Box::new(peg_error_to_source_location(&error, None)),
+                error.to_string(),
+            ))
         }
     }
 }

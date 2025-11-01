@@ -77,7 +77,7 @@ fn setup_logging() {
     }
 }
 
-fn main() {
+fn main() -> miette::Result<()> {
     setup_logging();
     let args = Args::parse();
     let document_attributes = build_attributes_map(&args.attributes);
@@ -103,46 +103,29 @@ fn main() {
         options.source = Source::Stdin;
     }
 
-    // For single file processing, read the file so we can provide source context in errors
-    let source_context = if args.files.len() == 1 && !args.stdin {
-        let path = &args.files[0];
-        std::fs::read_to_string(path)
-            .ok()
-            .map(|content| (path.clone(), content))
-    } else {
-        None
-    };
-
     match args.backend {
-        Backend::Html => {
-            if let Err(e) = run_processor(
-                &args,
-                &acdc_html::Processor::new(options, document_attributes),
-            ) {
-                error::display(e, source_context.as_ref());
-            }
-        }
+        Backend::Html => Ok(run_processor(
+            &args,
+            &acdc_html::Processor::new(options, document_attributes),
+        )
+        .map_err(|e| error::display(&e))?),
 
         #[cfg(feature = "tck")]
         Backend::Tck => {
             options.source = Source::Stdin;
-            if let Err(e) = run_processor(
+            Ok(run_processor(
                 &args,
                 &acdc_tck::Processor::new(options, document_attributes),
-            ) {
-                error::display(e, source_context.as_ref());
-            }
+            )
+            .map_err(|e| error::display(&e))?)
         }
 
         #[cfg(feature = "terminal")]
-        Backend::Terminal => {
-            if let Err(e) = run_processor(
-                &args,
-                &acdc_terminal::Processor::new(options, document_attributes),
-            ) {
-                error::display(e, source_context.as_ref());
-            }
-        }
+        Backend::Terminal => Ok(run_processor(
+            &args,
+            &acdc_terminal::Processor::new(options, document_attributes),
+        )
+        .map_err(|e| error::display(&e))?),
     }
 }
 

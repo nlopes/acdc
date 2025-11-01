@@ -13,24 +13,24 @@ pub enum Error {
     #[error("Invalid line range: {0}")]
     InvalidLineRange(String),
 
-    #[error("Parsing error: {0}")]
-    Parse(String),
+    #[error("Parsing error: {1}, position: {0}")]
+    Parse(Box<SourceLocation>, String),
 
     #[error("PEG parsing error: {1}, position {0}")]
-    PegParse(Position, String),
+    PegParse(Box<SourceLocation>, String),
 
     #[error("Parsing error: {0}")]
     #[serde(skip_deserializing)]
     ParseGrammar(#[from] peg::error::ParseError<peg::str::LineCol>),
 
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
-    NestedSectionLevelMismatch(Detail, SectionLevel, SectionLevel),
+    NestedSectionLevelMismatch(Box<SourceLocation>, SectionLevel, SectionLevel),
 
     #[error("mismatched delimiters: {1}, position: {0}")]
-    MismatchedDelimiters(Detail, String),
+    MismatchedDelimiters(Box<SourceLocation>, String),
 
     #[error("Invalid admonition variant: {1}, position: {0}")]
-    InvalidAdmonitionVariant(Detail, String),
+    InvalidAdmonitionVariant(Box<SourceLocation>, String),
 
     #[error("Invalid conditional directive")]
     InvalidConditionalDirective,
@@ -82,18 +82,20 @@ pub enum Error {
 impl Error {
     /// Helper for creating mismatched delimiter errors
     #[must_use]
-    pub(crate) fn mismatched_delimiters(detail: Detail, block_type: &str) -> Self {
-        Self::MismatchedDelimiters(detail, block_type.to_string())
+    pub(crate) fn mismatched_delimiters(detail: SourceLocation, block_type: &str) -> Self {
+        Self::MismatchedDelimiters(Box::new(detail), block_type.to_string())
     }
 
-    /// Extract location information from this error if available.
-    /// Returns the Location for errors that have position information.
+    /// Extract source location information from this error if available.
+    /// Returns the `SourceLocation` (either Location or Position) for errors that have positional information.
     #[must_use]
-    pub fn location(&self) -> Option<&Location> {
+    pub fn source_location(&self) -> Option<&SourceLocation> {
         match self {
             Self::NestedSectionLevelMismatch(detail, ..)
             | Self::MismatchedDelimiters(detail, ..)
-            | Self::InvalidAdmonitionVariant(detail, ..) => Some(&detail.location),
+            | Self::InvalidAdmonitionVariant(detail, ..)
+            | Self::Parse(detail, ..)
+            | Self::PegParse(detail, ..) => Some(detail),
             _ => None,
         }
     }
@@ -120,31 +122,39 @@ impl Error {
     }
 }
 
+/// Positioning information - either a full Location with start/end or a single Position
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Detail {
-    pub location: Location,
+pub enum Positioning {
+    Location(Location),
+    Position(Position),
 }
 
-impl fmt::Display for Detail {
+impl fmt::Display for Positioning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Location {
-            start:
-                Position {
-                    line: start_line,
-                    column: start_column,
-                },
-            end:
-                Position {
-                    line: end_line,
-                    column: end_column,
-                },
-            ..
-        } = self.location;
+        match self {
+            Positioning::Location(location) => write!(
+                f,
+                "start(line: {}, column: {}), end(line: {}, column: {})",
+                location.start.line, location.start.column, location.end.line, location.end.column
+            ),
+            Positioning::Position(position) => {
+                write!(f, "line: {}, column: {}", position.line, position.column)
+            }
+        }
+    }
+}
 
-        write!(
-            f,
-            "start(line: {start_line}, column: {start_column}), end(line: {end_line}, column: {end_column})",
-        )
+/// Source location information combining file path and positioning
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct SourceLocation {
+    #[serde(skip)]
+    pub file: Option<PathBuf>,
+    pub positioning: Positioning,
+}
+
+impl fmt::Display for SourceLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.positioning)
     }
 }
 
@@ -154,13 +164,22 @@ mod tests {
 
     #[test]
     fn test_error_detail_display() {
-        let detail = Detail {
-            location: Location {
+        let detail = SourceLocation {
+            file: None,
+            positioning: Positioning::Location(Location {
                 absolute_start: 2,
                 absolute_end: 20,
-                start: Position { line: 1, column: 2 },
-                end: Position { line: 3, column: 4 },
-            },
+                start: Position {
+                    line: 1,
+                    column: 2,
+                    offset: 2,
+                },
+                end: Position {
+                    line: 3,
+                    column: 4,
+                    offset: 20,
+                },
+            }),
         };
         assert_eq!(
             format!("{detail}"),
@@ -171,14 +190,23 @@ mod tests {
     #[test]
     fn test_error_nested_section_level_mismatch_display() {
         let error = Error::NestedSectionLevelMismatch(
-            Detail {
-                location: Location {
+            Box::new(SourceLocation {
+                file: None,
+                positioning: Positioning::Location(Location {
                     absolute_start: 2,
                     absolute_end: 20,
-                    start: Position { line: 1, column: 2 },
-                    end: Position { line: 3, column: 4 },
-                },
-            },
+                    start: Position {
+                        line: 1,
+                        column: 2,
+                        offset: 2,
+                    },
+                    end: Position {
+                        line: 3,
+                        column: 4,
+                        offset: 20,
+                    },
+                }),
+            }),
             1,
             2,
         );
@@ -191,17 +219,23 @@ mod tests {
     #[test]
     fn test_error_invalid_admonition_variant_display() {
         let error = Error::InvalidAdmonitionVariant(
-            Detail {
-                location: Location {
+            Box::new(SourceLocation {
+                file: None,
+                positioning: Positioning::Location(Location {
                     absolute_start: 10,
                     absolute_end: 25,
-                    start: Position { line: 2, column: 1 },
+                    start: Position {
+                        line: 2,
+                        column: 1,
+                        offset: 10,
+                    },
                     end: Position {
                         line: 2,
                         column: 15,
+                        offset: 25,
                     },
-                },
-            },
+                }),
+            }),
             "INVALID".to_string(),
         );
         assert_eq!(
@@ -213,19 +247,47 @@ mod tests {
     #[test]
     fn test_error_mismatched_delimiters_display() {
         let error = Error::MismatchedDelimiters(
-            Detail {
-                location: Location {
+            Box::new(SourceLocation {
+                file: None,
+                positioning: Positioning::Location(Location {
                     absolute_start: 0,
                     absolute_end: 50,
-                    start: Position { line: 1, column: 1 },
-                    end: Position { line: 5, column: 5 },
-                },
-            },
+                    start: Position {
+                        line: 1,
+                        column: 1,
+                        offset: 0,
+                    },
+                    end: Position {
+                        line: 5,
+                        column: 5,
+                        offset: 50,
+                    },
+                }),
+            }),
             "example".to_string(),
         );
         assert_eq!(
             format!("{error}"),
             "mismatched delimiters: example, position: start(line: 1, column: 1), end(line: 5, column: 5)"
+        );
+    }
+
+    #[test]
+    fn test_error_parse_display() {
+        let error = Error::Parse(
+            Box::new(SourceLocation {
+                file: None,
+                positioning: Positioning::Position(Position {
+                    line: 1,
+                    column: 6,
+                    offset: 5,
+                }),
+            }),
+            "unexpected token".to_string(),
+        );
+        assert_eq!(
+            format!("{error}"),
+            "Parsing error: unexpected token, position: line: 1, column: 6"
         );
     }
 }

@@ -104,3 +104,46 @@ pub trait Processable {
     /// return any error type they wish though.
     fn run(&self) -> Result<(), Self::Error>;
 }
+
+/// Walk the error source chain to find a parser error
+///
+/// This utility function searches through the error chain looking for
+/// an `acdc_parser::Error` instance, which allows the CLI to provide
+/// rich error displays with source code context.
+///
+/// # How it works
+///
+/// Uses the standard `Error::source()` chain walking pattern to traverse
+/// the error hierarchy. At each level, attempts to downcast to
+/// `acdc_parser::Error`. Returns the first match found, or None if no
+/// parser error exists in the chain.
+///
+/// This approach leverages Rust's built-in error handling mechanisms and
+/// works automatically with any error type that uses `#[error(transparent)]`
+/// or implements `source()` correctly.
+///
+/// # Example
+///
+/// ```ignore
+/// if let Some(parser_error) = find_parser_error(&converter_error) {
+///     // Display rich error with source location
+/// }
+/// ```
+pub fn find_parser_error<'e>(
+    e: &'e (dyn std::error::Error + 'static),
+) -> Option<&'e acdc_parser::Error> {
+    // Try to downcast the error directly first
+    if let Some(parser_error) = e.downcast_ref::<acdc_parser::Error>() {
+        return Some(parser_error);
+    }
+
+    // Walk the source chain
+    let mut current = e.source();
+    while let Some(err) = current {
+        if let Some(parser_error) = err.downcast_ref::<acdc_parser::Error>() {
+            return Some(parser_error);
+        }
+        current = err.source();
+    }
+    None
+}

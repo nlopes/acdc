@@ -102,7 +102,7 @@ impl Preprocessor {
     ) -> Result<String, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).map_err(|e| {
-            tracing::error!("failed to read from reader: {:?}", e);
+            tracing::error!(error=?e, "failed to read from reader");
             e
         })?;
         self.process(&input, options)
@@ -119,15 +119,48 @@ impl Preprocessor {
         file_path: P,
         options: &Options,
     ) -> Result<String, Error> {
-        if let Some(parent) = file_path.as_ref().parent() {
+        if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            self.process_either(&input, Some(parent), options)
+            self.process_either(&input, Some(file_path.as_ref()), options)
         } else {
             Err(Error::InvalidIncludePath(file_path.as_ref().to_path_buf()))
         }
     }
 
+    fn process_continuation<'a, I: Iterator<Item = &'a str>>(
+        attribute_content: &mut String,
+        lines: &mut std::iter::Peekable<I>,
+        line_number: &mut usize,
+    ) {
+        while let Some(next_line) = lines.peek() {
+            let next_line = next_line.trim();
+            // If the next line isn't the end of a continuation, or a
+            // continuation, we need to break out.
+            if next_line.starts_with(':') || next_line.is_empty() {
+                break;
+            }
+            // If we get here, and we get a hard wrap, keep everything as is.
+            // If we get here, and we get a soft wrap, then remove the newline.
+            // Anything else means we're at the end of the wrapped attribute, so
+            // feed it and break.
+            if next_line.ends_with(" + \\") {
+                attribute_content.push_str(next_line);
+                attribute_content.push('\n');
+                lines.next();
+                *line_number += 1;
+            } else if next_line.ends_with(" \\") {
+                attribute_content.push_str(next_line.trim_end_matches('\\'));
+                lines.next();
+                *line_number += 1;
+            } else {
+                attribute_content.push_str(next_line);
+                lines.next();
+                *line_number += 1;
+                break;
+            }
+        }
+    }
     #[tracing::instrument]
     fn process_either(
         &self,
@@ -139,6 +172,8 @@ impl Preprocessor {
         let mut options = options.clone();
         let mut output = Vec::new();
         let mut lines = input.lines().peekable();
+        let mut line_number = 1; // Track the current line number (1-indexed)
+        let mut current_offset = 0; // Track absolute byte offset in document
         while let Some(line) = lines.next() {
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
                 let mut attribute_content = String::new();
@@ -148,30 +183,7 @@ impl Preprocessor {
                 } else if line.ends_with(" \\") {
                     attribute_content.push_str(line.trim_end_matches('\\'));
                 }
-                while let Some(next_line) = lines.peek() {
-                    let next_line = next_line.trim();
-                    // If the next line isn't the end of a continuation, or a
-                    // continuation, we need to break out.
-                    if next_line.starts_with(':') || next_line.is_empty() {
-                        break;
-                    }
-                    // If we get here, and we get a hard wrap, keep everything as is.
-                    // If we get here, and we get a soft wrap, then remove the newline.
-                    // Anything else means we're at the end of the wrapped attribute, so
-                    // feed it and break.
-                    if next_line.ends_with(" + \\") {
-                        attribute_content.push_str(next_line);
-                        attribute_content.push('\n');
-                        lines.next();
-                    } else if next_line.ends_with(" \\") {
-                        attribute_content.push_str(next_line.trim_end_matches('\\'));
-                        lines.next();
-                    } else {
-                        attribute_content.push_str(next_line);
-                        lines.next();
-                        break;
-                    }
-                }
+                Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
                 attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
                 output.push(attribute_content);
                 continue;
@@ -212,20 +224,32 @@ impl Preprocessor {
                             tracing::trace!(?content, "multiline if directive");
                             // Skip the if/endif block
                             lines.next();
+                            line_number += 1;
                             break;
                         }
                         let _ = writeln!(content, "{next_line}");
                         lines.next();
+                        line_number += 1;
                     }
                     if condition.is_true(&options.document_attributes, &mut content)? {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
-                    if let Some(file_parent) = file_parent {
-                        // Parse the include directive
-                        let include = Include::parse(file_parent, line, &options)?;
-                        // Process the include directive
-                        output.extend(include.lines()?);
+                    if let Some(current_file_path) = file_parent {
+                        // Extract parent directory for resolving include targets
+                        if let Some(parent_dir) = current_file_path.parent() {
+                            // Parse the include directive
+                            let include = Include::parse(
+                                parent_dir,
+                                line,
+                                line_number,
+                                current_offset,
+                                Some(current_file_path),
+                                &options,
+                            )?;
+                            // Process the include directive
+                            output.extend(include.lines()?);
+                        }
                     } else {
                         tracing::error!(
                             "file parent is missing - include directive cannot be processed"
@@ -239,6 +263,9 @@ impl Preprocessor {
                 // Return the line as is
                 output.push(line.to_string());
             }
+            // Move to next line: account for line length + newline character
+            current_offset += line.len() + 1;
+            line_number += 1;
         }
 
         Ok(output.join("\n"))
