@@ -12,6 +12,13 @@ mod include;
 
 use include::Include;
 
+/// BOM (Byte Order Mark) patterns for encoding detection
+const BOM_PATTERNS: &[(&[u8], &Encoding, usize, &str)] = &[
+    (&[0xEF, 0xBB, 0xBF], UTF_8, 3, "UTF-8"),
+    (&[0xFF, 0xFE], UTF_16LE, 2, "UTF-16 LE"),
+    (&[0xFE, 0xFF], UTF_16BE, 2, "UTF-16 BE"),
+];
+
 /// Reads a file and decodes it based on BOM (Byte Order Mark) or explicit encoding.
 ///
 /// Supports:
@@ -48,40 +55,19 @@ pub(crate) fn read_and_decode_file(
         return Err(Error::UnknownEncoding(enc_label.to_string()));
     }
 
-    // Check for UTF-8 BOM (EF BB BF)
-    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-        let (cow, _, had_errors) = UTF_8.decode(&bytes[3..]);
-        if had_errors {
-            tracing::error!(
-                path = ?file_path.display(),
-                "UTF-8 decoding (with BOM) encountered errors"
-            );
+    // Check for BOM patterns and decode accordingly
+    for (bom, encoding, skip, name) in BOM_PATTERNS {
+        if bytes.starts_with(bom) {
+            let (cow, _, had_errors) = encoding.decode(&bytes[*skip..]);
+            if had_errors {
+                tracing::error!(
+                    path = ?file_path.display(),
+                    encoding = name,
+                    "decoding encountered errors"
+                );
+            }
+            return Ok(cow.into_owned());
         }
-        return Ok(cow.into_owned());
-    }
-
-    // Check for UTF-16 LE BOM (FF FE)
-    if bytes.starts_with(&[0xFF, 0xFE]) {
-        let (cow, _, had_errors) = UTF_16LE.decode(&bytes[2..]);
-        if had_errors {
-            tracing::error!(
-                path = ?file_path.display(),
-                "UTF-16 LE decoding (with BOM) encountered errors"
-            );
-        }
-        return Ok(cow.into_owned());
-    }
-
-    // Check for UTF-16 BE BOM (FE FF)
-    if bytes.starts_with(&[0xFE, 0xFF]) {
-        let (cow, _, had_errors) = UTF_16BE.decode(&bytes[2..]);
-        if had_errors {
-            tracing::error!(
-                path = ?file_path.display(),
-                "UTF-16 BE decoding (with BOM) encountered errors"
-            );
-        }
-        return Ok(cow.into_owned());
     }
 
     // If no BOM, try decoding as UTF-8 directly

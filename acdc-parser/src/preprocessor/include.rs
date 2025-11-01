@@ -333,55 +333,57 @@ impl Include {
         Ok(lines)
     }
 
+    fn validate_line_number(num: usize) -> Option<usize> {
+        if num < 1 {
+            tracing::warn!(?num, "invalid line number in include directive");
+            None
+        } else {
+            Some(num - 1)
+        }
+    }
+
+    fn resolve_end_line(end: isize, max_size: usize) -> Option<usize> {
+        match end {
+            -1 => Some(max_size),
+            n if n > 0 => match usize::try_from(n - 1) {
+                Ok(val) => Some(val),
+                Err(e) => {
+                    tracing::error!(?end, ?e, "failed to cast end line number to usize");
+                    None
+                }
+            },
+            _ => {
+                tracing::error!(?end, "invalid end line number in include directive");
+                None
+            }
+        }
+    }
+
     pub(crate) fn extend_lines_with_ranges(
         &self,
         content_lines: &[String],
         lines: &mut Vec<String>,
     ) {
+        let content_lines_count = content_lines.len();
         for line in &self.line_range {
             match line {
                 LinesRange::Single(line_number) => {
-                    if *line_number < 1 {
-                        // Skip invalid line numbers
-                        tracing::warn!(?line_number, "invalid line number in include directive");
-                        continue;
-                    }
-                    let line_number = line_number - 1;
-                    if line_number < content_lines.len() {
-                        lines.push(content_lines[line_number].clone());
+                    if let Some(idx) = Self::validate_line_number(*line_number)
+                        && idx < content_lines_count
+                    {
+                        lines.push(content_lines[idx].clone());
                     }
                 }
                 LinesRange::Range(start, end) => {
-                    let raw_size = content_lines.len();
-                    if *start < 1 {
-                        // Skip invalid line numbers
-                        tracing::warn!(?start, "invalid start line number in include directive");
-                        continue;
-                    }
-                    let start = *start - 1;
-                    let end = if *end == -1 {
-                        raw_size
-                    } else if *end > 0 {
-                        match (*end - 1).try_into() {
-                            Ok(end) => end,
-                            Err(e) => {
-                                tracing::error!(
-                                    ?end,
-                                    "failed to cast end line number to usize: {:?}",
-                                    e
-                                );
-                                continue;
-                            }
-                        }
-                    } else {
-                        // Skip invalid line numbers
-                        tracing::error!(?end, "invalid end line number in include directive");
+                    let Some(start_idx) = Self::validate_line_number(*start) else {
                         continue;
                     };
-                    if start < raw_size && end < raw_size {
-                        for line in &content_lines[start..=end] {
-                            lines.push(line.clone());
-                        }
+                    let Some(end_idx) = Self::resolve_end_line(*end, content_lines_count) else {
+                        continue;
+                    };
+
+                    if start_idx < content_lines_count && end_idx < content_lines_count {
+                        lines.extend_from_slice(&content_lines[start_idx..=end_idx]);
                     }
                 }
             }

@@ -147,6 +147,25 @@ peg::parser! {
 }
 
 impl Conditional {
+    fn evaluate_attributes(
+        attrs: &[String],
+        operation: Option<&Operation>,
+        doc_attrs: &DocumentAttributes,
+        negate: bool,
+    ) -> bool {
+        if attrs.is_empty() {
+            tracing::warn!("no attributes in conditional directive but expecting at least one");
+            return !negate; // ifdef: false, ifndef: true
+        }
+
+        let result = match operation {
+            Some(Operation::Or) => attrs.iter().any(|attr| doc_attrs.contains_key(attr)),
+            _ => attrs.iter().all(|attr| doc_attrs.contains_key(attr)),
+        };
+
+        if negate { !result } else { result }
+    }
+
     pub(crate) fn is_true(
         &self,
         attributes: &DocumentAttributes,
@@ -154,42 +173,24 @@ impl Conditional {
     ) -> Result<bool, Error> {
         Ok(match self {
             Conditional::Ifdef(ifdef) => {
-                let mut is_true = false;
-                if ifdef.attributes.is_empty() {
-                    tracing::warn!("no attributes in ifdef directive but expecting at least one");
-                } else if let Some(Operation::Or) = &ifdef.operation {
-                    is_true = ifdef
-                        .attributes
-                        .iter()
-                        .any(|attr| attributes.contains_key(attr));
-                } else {
-                    // Operation::And (or just one attribute)
-                    is_true = ifdef
-                        .attributes
-                        .iter()
-                        .all(|attr| attributes.contains_key(attr));
-                }
+                let is_true = Self::evaluate_attributes(
+                    &ifdef.attributes,
+                    ifdef.operation.as_ref(),
+                    attributes,
+                    false,
+                );
                 if is_true && let Some(if_content) = &ifdef.content {
                     content.clone_from(if_content);
                 }
                 is_true
             }
             Conditional::Ifndef(ifndef) => {
-                let mut is_true = true;
-                if ifndef.attributes.is_empty() {
-                    tracing::warn!("no attributes in ifndef directive but expecting at least one");
-                } else if let Some(Operation::Or) = &ifndef.operation {
-                    is_true = !ifndef
-                        .attributes
-                        .iter()
-                        .any(|attr| attributes.contains_key(attr));
-                } else {
-                    // Operation::And (or just one attribute)
-                    is_true = !ifndef
-                        .attributes
-                        .iter()
-                        .all(|attr| attributes.contains_key(attr));
-                }
+                let is_true = Self::evaluate_attributes(
+                    &ifndef.attributes,
+                    ifndef.operation.as_ref(),
+                    attributes,
+                    true,
+                );
                 if is_true && let Some(if_content) = &ifndef.content {
                     content.clone_from(if_content);
                 }
@@ -252,40 +253,18 @@ impl EvalValue {
                 // First we substitute any attributes in the string with their values
                 let s = s.substitute(HEADER, attributes);
 
-                // Now, we try to parse the string into a number or a boolean if
-                // possible. If not, we assume it's a string and return it as is.
-                if let Ok(value) = s.parse::<bool>() {
-                    EvalValue::Boolean(value)
-                } else if let Ok(value) = s.parse::<f64>() {
-                    EvalValue::Number(value)
-                } else {
-                    // If we're here, let's check if we can evaluate this as a math expression
-                    // and return the result as a number.
-                    //
-                    // If not, we return the string as is.
-                    if let Ok(value) = evalexpr::eval_float(&s) {
-                        EvalValue::Number(value)
-                    } else if let Ok(value) = evalexpr::eval_int(&s) {
-                        // We have to have this here because evalexpr::eval_float may
-                        // return an error if the parsed number is an integer.
-                        //
-                        // That means that if we don't get a flot, we try to parse an int.
-                        //
-                        // Because we store everything as a float, we have to convert the
-                        // int to a float.
-                        if let Ok(value) = format!("{value}").parse::<f64>() {
-                            EvalValue::Number(value)
-                        } else {
-                            tracing::warn!(
-                                value,
-                                "failed to parse i64 as f64, parsing as string as a fallback"
-                            );
-                            EvalValue::String(Self::strip_quotes(&s))
-                        }
-                    } else {
-                        EvalValue::String(Self::strip_quotes(&s))
-                    }
-                }
+                // Try to parse as bool, f64, or evaluate as expression, otherwise return as string
+                s.parse::<bool>()
+                    .map(EvalValue::Boolean)
+                    .or_else(|_| s.parse::<f64>().map(EvalValue::Number))
+                    .or_else(|_| evalexpr::eval_float(&s).map(EvalValue::Number))
+                    .or_else(|_| {
+                        #[allow(clippy::cast_precision_loss)]
+                        evalexpr::eval_int(&s)
+                            .map(|v| v as f64)
+                            .map(EvalValue::Number)
+                    })
+                    .unwrap_or_else(|_| EvalValue::String(Self::strip_quotes(&s)))
             }
             value => value.clone(),
         }
