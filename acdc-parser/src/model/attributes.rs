@@ -119,3 +119,27 @@ impl std::fmt::Display for AttributeValue {
         }
     }
 }
+
+impl From<&str> for AttributeValue {
+    fn from(value: &str) -> Self {
+        AttributeValue::String(value.to_string())
+    }
+}
+
+impl From<String> for AttributeValue {
+    fn from(value: String) -> Self {
+        AttributeValue::String(value)
+    }
+}
+
+impl From<bool> for AttributeValue {
+    fn from(value: bool) -> Self {
+        AttributeValue::Bool(value)
+    }
+}
+
+impl From<()> for AttributeValue {
+    fn from((): ()) -> Self {
+        AttributeValue::None
+    }
+}

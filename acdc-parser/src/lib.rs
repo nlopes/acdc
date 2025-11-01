@@ -33,13 +33,13 @@
 //! println!("{:?}", document);
 use std::{path::Path, string::ToString};
 
-use acdc_core::SafeMode;
 use tracing::instrument;
 
 mod blocks;
 mod error;
 pub(crate) mod grammar;
 mod model;
+mod options;
 mod preprocessor;
 
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
@@ -58,12 +58,142 @@ pub use model::{
     Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, TocEntry,
     UnorderedList, Url, Verbatim, Video,
 };
+pub use options::{Options, OptionsBuilder};
 
-#[derive(Debug, Clone, Default)]
-pub struct Options {
-    pub safe_mode: SafeMode,
-    pub timings: bool,
-    pub document_attributes: DocumentAttributes,
+/// Type-based parser for `AsciiDoc` content.
+///
+/// `Parser` provides a more discoverable, fluent API for parsing `AsciiDoc` documents.
+///
+/// # Examples
+///
+/// Basic usage:
+///
+/// ```
+/// use acdc_parser::Parser;
+///
+/// let content = "= Document Title\n\nParagraph text.";
+/// let doc = Parser::new(content).parse()?;
+/// # Ok::<(), acdc_parser::Error>(())
+/// ```
+///
+/// With options:
+///
+/// ```
+/// use acdc_parser::{Parser, Options};
+/// use acdc_core::SafeMode;
+///
+/// let content = "= Document Title\n\nParagraph text.";
+/// let options = Options::builder()
+///     .with_safe_mode(SafeMode::Safe)
+///     .with_timings()
+///     .build();
+///
+/// let doc = Parser::new(content)
+///     .with_options(options)
+///     .parse()?;
+/// # Ok::<(), acdc_parser::Error>(())
+/// ```
+///
+/// For file-based parsing, read the file first:
+///
+/// ```no_run
+/// use acdc_parser::Parser;
+/// use std::fs;
+///
+/// let content = fs::read_to_string("document.adoc")?;
+/// let doc = Parser::new(&content).parse()?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Debug)]
+pub struct Parser<'input> {
+    input: &'input str,
+    options: Options,
+}
+
+impl<'input> Parser<'input> {
+    /// Create a new parser for the given input string.
+    ///
+    /// The parser will use default options. Use `with_options` to customize.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::Parser;
+    ///
+    /// let parser = Parser::new("= Title\n\nContent");
+    /// let doc = parser.parse()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn new(input: &'input str) -> Self {
+        Self {
+            input,
+            options: Options::default(),
+        }
+    }
+
+    /// Set the options for this parser.
+    ///
+    /// This consumes the parser and returns a new one with the specified options.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::{Parser, Options};
+    /// use acdc_core::SafeMode;
+    ///
+    /// let options = Options::builder()
+    ///     .with_safe_mode(SafeMode::Safe)
+    ///     .build();
+    ///
+    /// let parser = Parser::new("= Title")
+    ///     .with_options(options);
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn with_options(mut self, options: Options) -> Self {
+        self.options = options;
+        self
+    }
+
+    /// Parse the input into a Document.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::Parser;
+    ///
+    /// let doc = Parser::new("= Title\n\nContent").parse()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be parsed as valid `AsciiDoc`.
+    pub fn parse(self) -> Result<Document, Error> {
+        parse(self.input, &self.options)
+    }
+
+    /// Parse only inline elements from the input.
+    ///
+    /// This is useful for parsing fragments of `AsciiDoc` that contain only
+    /// inline markup like bold, italic, links, etc.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::Parser;
+    ///
+    /// let inlines = Parser::new("This is *bold* text").parse_inline()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input cannot be parsed.
+    pub fn parse_inline(self) -> Result<Vec<InlineNode>, Error> {
+        parse_inline(self.input, &self.options)
+    }
 }
 
 /// Parse `AsciiDoc` content from a reader.
@@ -213,6 +343,7 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_core::SafeMode;
     use pretty_assertions::assert_eq;
 
     #[rstest::rstest]
