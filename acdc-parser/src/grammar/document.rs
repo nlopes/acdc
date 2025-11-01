@@ -2648,22 +2648,42 @@ peg::parser! {
             // Reset the verbatim flag since paragraph is not a verbatim block
             state.last_block_was_verbatim = false;
 
-            let (initial_location, location, processed) = preprocess_inline_content(state, start, &content_start, end, offset, content)?;
-            if processed.text.starts_with(' ') {
-                tracing::debug!(?processed, "preprocessed inline content starts with a space - switching to literal block");
+            // Check if this is a literal paragraph BEFORE preprocessing
+            // Literal paragraphs start with a space and should not have inline preprocessing applied
+            if content.starts_with(' ') {
+                tracing::debug!(content, "paragraph starts with a space - switching to literal block");
                 let mut metadata = block_metadata.metadata.clone();
                 metadata.move_positional_attributes_to_attributes();
                 metadata.style = Some("literal".to_string());
+                let location = state.create_location(start + offset, end + offset);
+
+                // Strip leading space from each line ONLY if ALL lines consistently have leading space
+                // This matches asciidoctor's behavior
+                let lines: Vec<&str> = content.lines().collect();
+                let all_lines_have_leading_space = lines.iter().all(|line| line.is_empty() || line.starts_with(' '));
+
+                let content = if all_lines_have_leading_space {
+                    lines.iter()
+                        .map(|line| line.strip_prefix(' ').unwrap_or(line))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                } else {
+                    content.to_string()
+                };
+
+                tracing::debug!(content, all_lines_have_leading_space, "created literal paragraph");
                 return Ok(Block::Paragraph(Paragraph {
                     content: vec![InlineNode::PlainText(Plain {
-                        content: processed.text,
-                        location,
+                        content,
+                        location: location.clone(),
                     })],
                     metadata,
                     title: block_metadata.title.clone(),
-                    location: initial_location,
+                    location,
                 }));
             }
+
+            let (initial_location, location, processed) = preprocess_inline_content(state, start, &content_start, end, offset, content)?;
             let content = parse_inlines(&processed, state, block_metadata, &location)?;
             let content = map_inline_locations(state, &processed, &content, &location)?;
 

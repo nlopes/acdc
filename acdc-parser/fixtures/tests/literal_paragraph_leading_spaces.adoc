@@ -1,0 +1,4 @@
+ This is a literal paragraph with leading spaces.
+ All lines start with a space.
+ Special characters like + and ** should be preserved.
+ Line continuations using + should not be processed.

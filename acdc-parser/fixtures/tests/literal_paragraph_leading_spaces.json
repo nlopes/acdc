@@ -9,15 +9,15 @@
         {
           "name": "text",
           "type": "string",
-          "value": " error: 1954 Forbidden search\nabsolutely fatal: operation lost in the dodecahedron of doom\nWould you like to try again? y/n",
+          "value": "This is a literal paragraph with leading spaces.\nAll lines start with a space.\nSpecial characters like + and ** should be preserved.\nLine continuations using + should not be processed.",
           "location": [
             {
               "line": 1,
               "col": 1
             },
             {
-              "line": 3,
-              "col": 33
+              "line": 4,
+              "col": 53
             }
           ]
         }
@@ -31,8 +31,8 @@
           "col": 1
         },
         {
-          "line": 3,
-          "col": 33
+          "line": 4,
+          "col": 53
         }
       ]
     }
@@ -43,8 +43,8 @@
       "col": 1
     },
     {
-      "line": 3,
-      "col": 32
+      "line": 4,
+      "col": 52
     }
   ]
 }
