@@ -135,8 +135,6 @@ Here's the comparison:
 `[[anchor1]][[anchor2]]` → `Vec<Anchor>`
 |===
 
-\* `Anchor` = `{ id: String, xreflabel: Option<String> }`
-
 **The percent character quirk**: In inline contexts, `%` is a literal character, not an option separator like it is in block contexts. This means `[.role%option]*text*` becomes `class="role%option"`, with the percent sign included in the role name. If you start with a percent like `[%option]*text*`, that entire thing becomes the role name: `class="%option"`.
 
 **Role storage**: Both contexts support multiple roles, but they store them differently. Inline elements join multiple roles into a single space-separated string (`"role1 role2"`), while block metadata keeps them as separate vector items. This is an implementation detail - the HTML output is the same either way.
