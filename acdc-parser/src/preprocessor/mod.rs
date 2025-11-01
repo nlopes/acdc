@@ -4,7 +4,11 @@ use std::path::Path;
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
-use crate::{Options, error::{Error, SourceLocation, Positioning}, model::Position};
+use crate::{
+    Options,
+    error::{Error, Positioning, SourceLocation},
+    model::Position,
+};
 
 mod attribute;
 mod conditional;
@@ -151,6 +155,91 @@ impl Preprocessor {
         }
     }
 
+    /// Process an include directive
+    fn process_include(
+        line: &str,
+        line_number: usize,
+        current_offset: usize,
+        file_parent: Option<&Path>,
+        options: &Options,
+    ) -> Result<Option<Vec<String>>, Error> {
+        if let Some(current_file_path) = file_parent {
+            if let Some(parent_dir) = current_file_path.parent() {
+                let include = Include::parse(
+                    parent_dir,
+                    line,
+                    line_number,
+                    current_offset,
+                    Some(current_file_path),
+                    options,
+                )?;
+                return Ok(Some(include.lines()?));
+            }
+        } else {
+            tracing::error!("file parent is missing - include directive cannot be processed");
+        }
+        Ok(None)
+    }
+
+    /// Process a conditional directive (ifdef/ifndef/ifeval)
+    fn process_conditional<'a, I: Iterator<Item = &'a str>>(
+        line: &str,
+        lines: &mut std::iter::Peekable<I>,
+        line_number: &mut usize,
+        condition_line_number: usize,
+        current_offset: usize,
+        file_parent: Option<&Path>,
+        attributes: &crate::DocumentAttributes,
+    ) -> Result<Option<String>, Error> {
+        let mut content = String::new();
+        let condition =
+            conditional::parse_line(line, condition_line_number, current_offset, file_parent)?;
+
+        while let Some(next_line) = lines.peek() {
+            if next_line.is_empty() {
+                tracing::trace!(?line, "single line if directive");
+                break;
+            } else if next_line.starts_with("endif") {
+                // Calculate the line number and offset for the endif line
+                let endif_line_number = *line_number + 1;
+                let endif_offset =
+                    current_offset + line.len() + content.len() + content.lines().count();
+                let endif = conditional::parse_endif(
+                    next_line,
+                    endif_line_number,
+                    endif_offset,
+                    file_parent,
+                )?;
+
+                if !endif.closes(&condition) {
+                    tracing::warn!("attribute mismatch between if and endif directives");
+                    return Err(Error::InvalidConditionalDirective(Box::new(
+                        Self::create_source_location(endif_line_number, endif_offset, file_parent),
+                    )));
+                }
+                tracing::trace!(?content, "multiline if directive");
+                lines.next();
+                *line_number += 1;
+                break;
+            }
+            let _ = writeln!(content, "{next_line}");
+            lines.next();
+            *line_number += 1;
+        }
+
+        if condition.is_true(
+            attributes,
+            &mut content,
+            condition_line_number,
+            current_offset,
+            file_parent,
+        )? {
+            Ok(Some(content))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn process_continuation<'a, I: Iterator<Item = &'a str>>(
         attribute_content: &mut String,
         lines: &mut std::iter::Peekable<I>,
@@ -230,59 +319,27 @@ impl Preprocessor {
                     || line.starts_with("ifndef")
                     || line.starts_with("ifeval")
                 {
-                    let mut content = String::new();
-                    let condition = conditional::parse_line(line, line_number, current_offset, file_parent)?;
-                    while let Some(next_line) = lines.peek() {
-                        if next_line.is_empty() {
-                            tracing::trace!(?line, "single line if directive");
-                            break;
-                        } else if next_line.starts_with("endif") {
-                            // Calculate the line number and offset for the endif line
-                            let endif_line_number = line_number + 1;
-                            // Approximate offset: current_offset + line.len() + accumulated content length
-                            let endif_offset = current_offset + line.len() + content.len() + content.lines().count();
-                            let endif = conditional::parse_endif(next_line, endif_line_number, endif_offset, file_parent)?;
-                            if !endif.closes(&condition) {
-                                tracing::warn!(
-                                    "attribute mismatch between if and endif directives"
-                                );
-                                return Err(Error::InvalidConditionalDirective(Box::new(
-                                    Self::create_source_location(endif_line_number, endif_offset, file_parent)
-                                )));
-                            }
-                            tracing::trace!(?content, "multiline if directive");
-                            // Skip the if/endif block
-                            lines.next();
-                            line_number += 1;
-                            break;
-                        }
-                        let _ = writeln!(content, "{next_line}");
-                        lines.next();
-                        line_number += 1;
-                    }
-                    if condition.is_true(&options.document_attributes, &mut content, line_number, current_offset, file_parent)? {
+                    let current_line = line_number;
+                    if let Some(content) = Self::process_conditional(
+                        line,
+                        &mut lines,
+                        &mut line_number,
+                        current_line,
+                        current_offset,
+                        file_parent,
+                        &options.document_attributes,
+                    )? {
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
-                    if let Some(current_file_path) = file_parent {
-                        // Extract parent directory for resolving include targets
-                        if let Some(parent_dir) = current_file_path.parent() {
-                            // Parse the include directive
-                            let include = Include::parse(
-                                parent_dir,
-                                line,
-                                line_number,
-                                current_offset,
-                                Some(current_file_path),
-                                &options,
-                            )?;
-                            // Process the include directive
-                            output.extend(include.lines()?);
-                        }
-                    } else {
-                        tracing::error!(
-                            "file parent is missing - include directive cannot be processed"
-                        );
+                    if let Some(lines) = Self::process_include(
+                        line,
+                        line_number,
+                        current_offset,
+                        file_parent,
+                        &options,
+                    )? {
+                        output.extend(lines);
                     }
                 } else {
                     // Return the directive as is
@@ -339,7 +396,10 @@ endif::asdf[]";
 content
 endif::another[]";
         let output = Preprocessor.process(input, &options);
-        assert!(matches!(output, Err(Error::InvalidConditionalDirective(..))));
+        assert!(matches!(
+            output,
+            Err(Error::InvalidConditionalDirective(..))
+        ));
     }
 
     #[test]

@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::{
     Options, Preprocessor,
-    error::{Error, SourceLocation, Positioning},
+    error::{Error, Positioning, SourceLocation},
     model::{HEADER, Position, Substitute},
 };
 
@@ -75,13 +75,19 @@ pub(crate) enum Target {
     Url(Url),
 }
 
+/// Location context for error reporting in include directives
+#[derive(Debug, Clone, Copy)]
+struct LocationContext<'a> {
+    line_number: usize,
+    current_offset: usize,
+    current_file: Option<&'a Path>,
+}
+
 peg::parser! {
     grammar include_parser(
         path: &std::path::Path,
         options: &Options,
-        line_number: usize,
-        current_offset: usize,
-        current_file: Option<&std::path::Path>
+        location: LocationContext<'_>
     ) for str {
         pub(crate) rule include() -> Result<Include, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
@@ -103,9 +109,9 @@ peg::parser! {
                     encoding: None,
                     opts: Vec::new(),
                     options: options.clone(),
-                    line_number,
-                    current_offset,
-                    current_file: current_file.map(Path::to_path_buf),
+                    line_number: location.line_number,
+                    current_offset: location.current_offset,
+                    current_file: location.current_file.map(Path::to_path_buf),
                 };
                 if let Some(attrs) = attrs {
                     include.parse_attributes(attrs)?;
@@ -153,10 +159,7 @@ impl FromStr for LinesRange {
 
 impl LinesRange {
     /// Helper to create error with location information
-    fn create_error(
-        line_range: &str,
-        location: Option<(usize, usize, Option<&Path>)>,
-    ) -> Error {
+    fn create_error(line_range: &str, location: Option<(usize, usize, Option<&Path>)>) -> Error {
         let (line_number, current_offset, current_file) = location.unwrap_or((1, 0, None));
         Error::InvalidLineRange(
             Box::new(SourceLocation {
@@ -303,7 +306,13 @@ impl Include {
         current_file: Option<&Path>,
         options: &Options,
     ) -> Result<Self, Error> {
-        include_parser::include(line, file_parent, options, line_number, line_start_offset, current_file).map_err(|e| {
+        let location = LocationContext {
+            line_number,
+            current_offset: line_start_offset,
+            current_file,
+        };
+
+        include_parser::include(line, file_parent, options, location).map_err(|e| {
             tracing::error!(?line, error=?e, "failed to parse include directive");
             let location = e.location;
             Error::Parse(
