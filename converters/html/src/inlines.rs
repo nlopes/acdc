@@ -372,7 +372,7 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
         .replace('>', "&gt;")
         .replace('<', "&lt;")
         .replace('"', "&quot;")
-        .replace("'", "&#8217;")
+        .replace('\'', "&#8217;")
         .replace("...", "&#8230;&#8203;");
 
     // Apply additional text transformations only when not in basic mode

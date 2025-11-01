@@ -551,7 +551,7 @@ impl<'de> Deserialize<'de> for InlineNode {
                         Ok(InlineNode::Macro(InlineMacro::CrossReference(
                             crate::model::CrossReference {
                                 target,
-                                text: my_text.map(|t| t.to_string()),
+                                text: my_text,
                                 location: my_location,
                             },
                         )))

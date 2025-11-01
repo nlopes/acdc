@@ -1,0 +1,11 @@
+# Document with TOC attribute substitution
+:toc: macro
+:toclevels: 3
+
+toc::[levels={toclevels}]
+
+== Section 1
+=== Subsection 1.1
+==== Sub-subsection 1.1.1
+== Section 2
+=== Subsection 2.1

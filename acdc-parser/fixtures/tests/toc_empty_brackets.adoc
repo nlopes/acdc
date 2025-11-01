@@ -1,0 +1,10 @@
+# Document with TOC empty brackets (backward compat)
+:toc: macro
+:toclevels: 2
+
+toc::[]
+
+== Section 1
+=== Subsection 1.1
+==== Sub-subsection 1.1.1
+== Section 2

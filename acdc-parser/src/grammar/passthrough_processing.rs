@@ -177,7 +177,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "unconstrained_bold" => {
                     result.push(InlineNode::BoldText(Bold {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 2,
                                 current_offset + 2 + markup_match.content.len(),
@@ -195,7 +195,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "unconstrained_italic" => {
                     result.push(InlineNode::ItalicText(Italic {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 2,
                                 current_offset + 2 + markup_match.content.len(),
@@ -213,7 +213,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "constrained_bold" => {
                     result.push(InlineNode::BoldText(Bold {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 1,
                                 current_offset + 1 + markup_match.content.len(),
@@ -231,7 +231,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "italic" => {
                     result.push(InlineNode::ItalicText(Italic {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 1,
                                 current_offset + 1 + markup_match.content.len(),
@@ -249,7 +249,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "superscript" => {
                     result.push(InlineNode::SuperscriptText(Superscript {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 1,
                                 current_offset + 1 + markup_match.content.len(),
@@ -267,7 +267,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "subscript" => {
                     result.push(InlineNode::SubscriptText(Subscript {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 1,
                                 current_offset + 1 + markup_match.content.len(),
@@ -285,7 +285,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "curved_quotation" => {
                     result.push(InlineNode::CurvedQuotationText(CurvedQuotation {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 2,
                                 current_offset + 2 + markup_match.content.len(),
@@ -303,7 +303,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "curved_apostrophe" => {
                     result.push(InlineNode::CurvedApostropheText(CurvedApostrophe {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 2,
                                 current_offset + 2 + markup_match.content.len(),
@@ -321,7 +321,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "monospace_unconstrained" => {
                     result.push(InlineNode::MonospaceText(Monospace {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 2,
                                 current_offset + 2 + markup_match.content.len(),
@@ -339,7 +339,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "monospace_constrained" => {
                     result.push(InlineNode::MonospaceText(Monospace {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 1,
                                 current_offset + 1 + markup_match.content.len(),
@@ -357,7 +357,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "highlight_unconstrained" => {
                     result.push(InlineNode::HighlightText(Highlight {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 2,
                                 current_offset + 2 + markup_match.content.len(),
@@ -375,7 +375,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 "highlight_constrained" => {
                     result.push(InlineNode::HighlightText(Highlight {
                         content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.to_string(),
+                            content: markup_match.content.clone(),
                             location: create_location(
                                 current_offset + 1,
                                 current_offset + 1 + markup_match.content.len(),
@@ -393,7 +393,7 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 _ => {
                     // This shouldn't happen but handle it gracefully
                     result.push(InlineNode::PlainText(Plain {
-                        content: markup_match.content.to_string(),
+                        content: markup_match.content.clone(),
                         location: create_location(
                             current_offset + markup_match.start,
                             current_offset + markup_match.end,

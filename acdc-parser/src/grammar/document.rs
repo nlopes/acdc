@@ -1137,7 +1137,7 @@ peg::parser! {
                 metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
                     tracing::debug!(?metadata, "transforming video metadata style into attribute");
-                    metadata.attributes.insert(style.to_string(), AttributeValue::Bool(true));
+                    metadata.attributes.insert(style.clone(), AttributeValue::Bool(true));
                 } else {
                     // assume poster
                     tracing::debug!(?metadata, "transforming video metadata style into attribute, assuming poster");
@@ -1822,7 +1822,7 @@ peg::parser! {
         id:id()? "[" content_start:position() content:balanced_bracket_content() "]"
         end:position!()
         {
-            (start, id, content_start, content.to_string(), end)
+            (start, id, content_start, content.clone(), end)
 
         }
 
@@ -2883,7 +2883,7 @@ peg::parser! {
                             }
                         } else {
                             for v in values {
-                                metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
+                                metadata.attributes.insert(k.clone(), AttributeValue::String(v));
                             }
                         }
                     } else if let AttributeValue::String(v) = v {
@@ -2895,7 +2895,7 @@ peg::parser! {
                         if k == "title" && let Some(title_pos) = pos {
                             title_position = Some(title_pos);
                         }
-                        metadata.attributes.insert(k.to_string(), AttributeValue::String(v));
+                        metadata.attributes.insert(k.clone(), AttributeValue::String(v));
                     } else if v == AttributeValue::None && pos.is_none() {
                         metadata.positional_attributes.push(k);
                     }
@@ -3037,7 +3037,7 @@ peg::parser! {
         = &"\"" inner:inner_attribute_value()
         {
             tracing::debug!(%inner, "Found named attribute value (inner)");
-            inner.to_string()
+            inner.clone()
         }
         / s:$([^(',' | '"' | ']')]+)
         {
@@ -3165,7 +3165,7 @@ peg::parser! {
                 } else if value == "false" {
                     (key, AttributeValue::Bool(false))
                 } else {
-                    (key, AttributeValue::String(value.to_string()))
+                    (key, AttributeValue::String(value.clone()))
                 }
             } else {
                 // if it's not unset, and we don't have a value, set it to true

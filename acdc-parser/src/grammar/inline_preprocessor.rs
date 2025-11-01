@@ -221,7 +221,7 @@ parser!(
                             ProcessedKind::Attribute,
                         );
                         attributes.insert(state.source_map.borrow().replacements.len(), location);
-                        value.to_string()
+                        value.clone()
                     },
                     _ => {
                         // TODO(nlopes): do we need to handle other types?
@@ -329,7 +329,7 @@ parser!(
                     content.to_string()
                 };
                 state.passthroughs.borrow_mut().push(Pass {
-                    text: Some(content.to_string()),
+                    text: Some(content.clone()),
                     substitutions: substitutions.clone(),
                     location: location.clone(),
                     kind: PassthroughKind::Macro,
@@ -387,7 +387,7 @@ parser!(
         rule attribute_reference_content() -> String
             = "{" attribute_name:attribute_name() "}" {
                 match document_attributes.get(attribute_name) {
-                    Some(AttributeValue::String(value)) => value.to_string(),
+                    Some(AttributeValue::String(value)) => value.clone(),
                         // TODO(nlopes): do we need to handle other types?
                         // For non-string attributes, keep original text
                     _ => format!("{{{attribute_name}}}"),
