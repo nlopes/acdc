@@ -487,10 +487,6 @@ pub struct Paragraph {
     pub location: Location,
 }
 
-fn is_default_metadata(metadata: &BlockMetadata) -> bool {
-    metadata.is_default()
-}
-
 /// A `DelimitedBlock` represents a delimited block in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DelimitedBlock {
@@ -713,7 +709,7 @@ impl Serialize for Admonition {
         state.serialize_entry("name", "admonition")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", &self.variant)?;
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.title.is_empty() {
@@ -737,7 +733,7 @@ impl Serialize for Audio {
         state.serialize_entry("name", "audio")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "macro")?;
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.title.is_empty() {
@@ -758,7 +754,7 @@ impl Serialize for Image {
         state.serialize_entry("name", "image")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "macro")?;
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.title.is_empty() {
@@ -779,7 +775,7 @@ impl Serialize for Video {
         state.serialize_entry("name", "video")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "macro")?;
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.title.is_empty() {
@@ -1106,7 +1102,7 @@ impl Serialize for Section {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("title", &self.title)?;
         state.serialize_entry("level", &self.level)?;
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.content.is_empty() {
@@ -1127,7 +1123,7 @@ impl Serialize for DelimitedBlock {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "delimited")?;
         state.serialize_entry("delimiter", &self.delimiter)?;
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
 
@@ -1172,7 +1168,7 @@ macro_rules! impl_list_serialize {
                 if !self.title.is_empty() {
                     state.serialize_entry("title", &self.title)?;
                 }
-                if !is_default_metadata(&self.metadata) {
+                if !self.metadata.is_default() {
                     state.serialize_entry("metadata", &self.metadata)?;
                 }
                 state.serialize_entry("items", &self.items)?;
@@ -1194,7 +1190,7 @@ macro_rules! impl_list_serialize {
                 if !self.title.is_empty() {
                     state.serialize_entry("title", &self.title)?;
                 }
-                if !is_default_metadata(&self.metadata) {
+                if !self.metadata.is_default() {
                     state.serialize_entry("metadata", &self.metadata)?;
                 }
                 state.serialize_entry("items", &self.items)?;
@@ -1220,7 +1216,7 @@ impl Serialize for DescriptionList {
         if !self.title.is_empty() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !is_default_metadata(&self.metadata) {
+        if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("items", &self.items)?;
