@@ -14,7 +14,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use acdc_converters_common::{Converter, Options, Processable};
+use acdc_converters_common::{Options, Processable};
 use acdc_html::{Processor, RenderOptions};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 

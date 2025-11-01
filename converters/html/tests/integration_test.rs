@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{Converter, Options as ConverterOptions, Processable};
+use acdc_converters_common::{Options as ConverterOptions, Processable};
 use acdc_html::{Processor, RenderOptions};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 

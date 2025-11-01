@@ -14,7 +14,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use acdc_converters_common::{Converter, Options, Processable};
+use acdc_converters_common::{Options, Processable};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 use acdc_terminal::Processor;
 
@@ -69,9 +69,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Convert to Terminal output
         let mut output = Vec::new();
         let processor = Processor::new(Options::default(), doc.attributes.clone());
-        let render_options = ();
 
-        if let Err(e) = processor.convert(&doc, &mut output, &render_options) {
+        if let Err(e) = processor.convert(&doc, &mut output) {
             println!("❌ Error converting {fixture_name}: {e}");
             continue;
         }

@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use acdc_converters_common::{Converter, Options, Processable, visitor::Visitor};
+use acdc_converters_common::{Options, Processable, visitor::Visitor};
 use acdc_core::Source;
 use acdc_parser::{Document, DocumentAttributes, Options as ParserOptions, TocEntry};
 
@@ -20,16 +20,13 @@ pub struct Processor {
     pub(crate) example_counter: Rc<Cell<usize>>,
 }
 
-impl Converter for Processor {
-    type Error = Error;
-    type Options = ();
-
-    fn convert<W: Write>(
-        &self,
-        doc: &Document,
-        writer: W,
-        _options: &Self::Options,
-    ) -> Result<(), Self::Error> {
+impl Processor {
+    /// Convert a document to terminal output, writing to the provided writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if document conversion or writing fails.
+    pub fn convert<W: Write>(&self, doc: &Document, writer: W) -> Result<(), Error> {
         let processor = Processor {
             document_attributes: doc.attributes.clone(),
             toc_entries: doc.toc_entries.clone(),
@@ -67,7 +64,7 @@ impl Processable for Processor {
                     let doc = acdc_parser::parse_file(file, &options)?;
                     let stdout = std::io::stdout();
                     let writer = BufWriter::new(stdout.lock());
-                    self.convert(&doc, writer, &())?;
+                    self.convert(&doc, writer)?;
                 }
             }
             Source::Stdin => {
@@ -76,7 +73,7 @@ impl Processable for Processor {
                 let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
                 let stdout = std::io::stdout();
                 let writer = BufWriter::new(stdout.lock());
-                self.convert(&doc, writer, &())?;
+                self.convert(&doc, writer)?;
             }
         }
 
