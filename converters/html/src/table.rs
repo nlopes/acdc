@@ -21,7 +21,7 @@ where
             let _ = writer;
             visitor.visit_inline_nodes(&para.content)?;
             let writer = visitor.writer_mut();
-            writeln!(writer, "</p>")?;
+            write!(writer, "</p>")?;
         } else {
             // For other block types, use visitor
             visitor.visit_block(block)?;

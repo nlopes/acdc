@@ -371,9 +371,9 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
         .replace('&', "&amp;")
         .replace('>', "&gt;")
         .replace('<', "&lt;")
-        .replace('"', "&quot;");
-
-    let text = text.replace("...", "&#8230;&#8203;");
+        .replace('"', "&quot;")
+        .replace("'", "&#8217;")
+        .replace("...", "&#8230;&#8203;");
 
     // Apply additional text transformations only when not in basic mode
     if options.inlines_basic {

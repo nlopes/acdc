@@ -72,7 +72,7 @@ pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
         writeln!(writer, "<li>")?;
         // Render principal text as bare <p> (if not empty)
         if !item.principal.is_empty() {
-            writeln!(writer, "<p>")?;
+            write!(writer, "<p>")?;
             let _ = writer;
             visitor.visit_inline_nodes(&item.principal)?;
             writer = visitor.writer_mut();
@@ -117,7 +117,7 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             render_checked_status(item.checked.as_ref(), writer)?;
             // Render principal text as bare <p> (if not empty)
             if !item.principal.is_empty() {
-                writeln!(writer, "<p>")?;
+                write!(writer, "<p>")?;
                 let _ = writer;
                 visitor.visit_inline_nodes(&item.principal)?;
                 writer = visitor.writer_mut();
@@ -200,7 +200,7 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             writeln!(writer, "<li>")?;
             render_checked_status(item.checked.as_ref(), writer)?;
             if !item.principal.is_empty() {
-                writeln!(writer, "<p>")?;
+                write!(writer, "<p>")?;
                 let _ = writer;
                 visitor.visit_inline_nodes(&item.principal)?;
                 writer = visitor.writer_mut();
@@ -243,7 +243,7 @@ pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
         writeln!(writer, "</dt>")?;
         writeln!(writer, "<dd>")?;
         if !item.principal_text.is_empty() {
-            writeln!(writer, "<p>")?;
+            write!(writer, "<p>")?;
             let _ = writer;
             visitor.visit_inline_nodes(&item.principal_text)?;
             writer = visitor.writer_mut();
