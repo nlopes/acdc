@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use acdc_parser::{
-    Autolink, Button, CrossReference, Footnote, InlineMacro, InlineNode, Link, Pass,
-    PassthroughKind, Stem, StemNotation, Substitution, Url,
+    Autolink, Button, CrossReference, Footnote, Icon, InlineMacro, InlineNode, Keyboard, Link,
+    Menu, Pass, PassthroughKind, Stem, StemNotation, Substitution, Url,
 };
 
 use crate::{Processor, Render, RenderOptions};
@@ -175,7 +175,13 @@ impl Render for InlineNode {
             InlineNode::InlineAnchor(anchor) => {
                 write!(w, "<a id=\"{}\"></a>", anchor.id)?;
             }
-            unknown => todo!("inlines: {:?}", unknown),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported inline node: {self:?}"),
+                )
+                .into());
+            }
         }
         Ok(())
     }
@@ -200,7 +206,16 @@ impl Render for InlineMacro {
             InlineMacro::Button(b) => b.render(w, processor, options),
             InlineMacro::CrossReference(xref) => xref.render(w, processor, options),
             InlineMacro::Stem(s) => s.render(w, processor, options),
-            unknown => todo!("inline macro: {:?}", unknown),
+            InlineMacro::Icon(i) => i.render(w, processor, options),
+            InlineMacro::Keyboard(k) => k.render(w, processor, options),
+            InlineMacro::Menu(m) => m.render(w, processor, options),
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported inline macro: {self:?}"),
+                )
+                .into());
+            }
         }
     }
 }
@@ -405,6 +420,84 @@ impl Render for Stem {
             StemNotation::Asciimath => {
                 writeln!(w, "\\${}\\$", self.content)?;
             }
+        }
+        Ok(())
+    }
+}
+
+impl Render for Icon {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        processor: &Processor,
+        _options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        // Check if icons are set to font mode
+        if processor.document_attributes.get("icons").is_some_and(|v| v.to_string() == "font") {
+            // Font Awesome mode
+            write!(w, "<span class=\"icon\"><i class=\"fa fa-{}\"></i></span>", self.target)?;
+        } else {
+            // Image mode (default)
+            write!(
+                w,
+                "<span class=\"image\"><img src=\"./images/icons/{}.png\" alt=\"{}\"></span>",
+                self.target, self.target
+            )?;
+        }
+        Ok(())
+    }
+}
+
+impl Render for Keyboard {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        _options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        if self.keys.len() == 1 {
+            // Single key
+            write!(w, "<kbd>{}</kbd>", self.keys[0])?;
+        } else {
+            // Multiple keys
+            write!(w, "<span class=\"keyseq\">")?;
+            for (i, key) in self.keys.iter().enumerate() {
+                if i > 0 {
+                    write!(w, "+")?;
+                }
+                write!(w, "<kbd>{key}</kbd>")?;
+            }
+            write!(w, "</span>")?;
+        }
+        Ok(())
+    }
+}
+
+impl Render for Menu {
+    type Error = crate::Error;
+
+    fn render<W: Write>(
+        &self,
+        w: &mut W,
+        _processor: &Processor,
+        _options: &RenderOptions,
+    ) -> Result<(), Self::Error> {
+        if self.items.is_empty() {
+            // Simple menu reference
+            write!(w, "<b class=\"menuref\">{}</b>", self.target)?;
+        } else {
+            // Menu selection with items
+            write!(w, "<span class=\"menuseq\">")?;
+            write!(w, "<b class=\"menu\">{}</b>", self.target)?;
+            for item in &self.items {
+                write!(w, "&#160;<b class=\"caret\">&#8250;</b> ")?;
+                write!(w, "<b class=\"menuitem\">{item}</b>")?;
+            }
+            write!(w, "</span>")?;
         }
         Ok(())
     }

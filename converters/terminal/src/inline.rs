@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_parser::{Button, CrossReference, Footnote, InlineMacro, InlineNode};
+use acdc_parser::{Button, CrossReference, Footnote, Icon, InlineMacro, InlineNode, Keyboard, Menu, Pass, Stem};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -11,6 +11,7 @@ use crate::{Processor, Render};
 impl Render for InlineNode {
     type Error = crate::Error;
 
+    #[allow(clippy::too_many_lines)]
     fn render<W: Write>(&self, w: &mut W, processor: &Processor) -> Result<(), Self::Error> {
         match self {
             InlineNode::PlainText(p) => {
@@ -84,7 +85,55 @@ impl Render for InlineNode {
             InlineNode::InlineAnchor(_) => {
                 // Anchors are invisible in terminal output
             }
-            unknown => unimplemented!("GAH: {:?}", unknown),
+            InlineNode::RawText(r) => {
+                write!(w, "{}", r.content)?;
+            }
+            InlineNode::VerbatimText(v) => {
+                write!(w, "{}", v.content)?;
+            }
+            InlineNode::SuperscriptText(s) => {
+                // Terminal doesn't support true superscript, use ^{} notation
+                write!(w, "^{{")?;
+                for node in &s.content {
+                    node.render(w, processor)?;
+                }
+                write!(w, "}}")?;
+            }
+            InlineNode::SubscriptText(s) => {
+                // Terminal doesn't support true subscript, use _{} notation
+                write!(w, "_{{")?;
+                for node in &s.content {
+                    node.render(w, processor)?;
+                }
+                write!(w, "}}")?;
+            }
+            InlineNode::CurvedQuotationText(c) => {
+                write!(w, "\u{201C}")?; // Left double quotation mark
+                for node in &c.content {
+                    node.render(w, processor)?;
+                }
+                write!(w, "\u{201D}")?; // Right double quotation mark
+            }
+            InlineNode::CurvedApostropheText(c) => {
+                write!(w, "\u{2018}")?; // Left single quotation mark
+                for node in &c.content {
+                    node.render(w, processor)?;
+                }
+                write!(w, "\u{2019}")?; // Right single quotation mark
+            }
+            InlineNode::StandaloneCurvedApostrophe(_) => {
+                write!(w, "\u{2019}")?; // Right single quotation mark
+            }
+            InlineNode::LineBreak(_) => {
+                writeln!(w)?;
+            }
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported inline node in terminal: {self:?}"),
+                )
+                .into());
+            }
         }
         Ok(())
     }
@@ -107,7 +156,49 @@ impl Render for InlineMacro {
             }
             InlineMacro::Button(b) => b.render(w, processor)?,
             InlineMacro::CrossReference(xref) => xref.render(w, processor)?,
-            unknown => todo!("{unknown:?}"),
+            InlineMacro::Pass(p) => {
+                // Pass content through as-is
+                if let Some(ref text) = p.text {
+                    write!(w, "{text}")?;
+                }
+            }
+            InlineMacro::Image(img) => {
+                // Terminal can't display images, show alt text or path
+                write!(w, "[Image: {}]", img.source)?;
+            }
+            InlineMacro::Icon(icon) => {
+                // Terminal can't display icons, show icon name
+                write!(w, "[Icon: {}]", icon.target)?;
+            }
+            InlineMacro::Keyboard(kbd) => {
+                // Show keyboard shortcuts with brackets
+                write!(w, "[")?;
+                for (i, key) in kbd.keys.iter().enumerate() {
+                    if i > 0 {
+                        write!(w, "+")?;
+                    }
+                    write!(w, "{key}")?;
+                }
+                write!(w, "]")?;
+            }
+            InlineMacro::Menu(menu) => {
+                // Show menu path
+                write!(w, "{}", menu.target)?;
+                for item in &menu.items {
+                    write!(w, " > {item}")?;
+                }
+            }
+            InlineMacro::Stem(stem) => {
+                // Show stem content as-is (terminal can't render math)
+                write!(w, "[{}]", stem.content)?;
+            }
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported inline macro in terminal: {self:?}"),
+                )
+                .into());
+            }
         }
         Ok(())
     }
