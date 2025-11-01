@@ -184,11 +184,23 @@ parser!(
         rule inlines() -> String = quiet!{
             // We add kbd_macro here to avoid conflicts with passthroughs as kbd macros
             // also can have + signs on each side.
+            // We add monospace before passthrough to skip content inside backticks
             kbd_macro()
+            / monospace()
             / passthrough()
             / attribute_reference()
             / unprocessed_text()
         } / expected!("inlines parser failed")
+
+        // Match and skip monospace content (content inside backticks)
+        // This prevents the preprocessor from processing passthroughs inside monospace
+        rule monospace() -> String
+            // Unconstrained (double backticks) or constrained (single backticks)
+            = text:$("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`") {
+                tracing::debug!("monospace matched: {:?}", text);
+                state.tracker.borrow_mut().advance(text);
+                text.to_string()
+            }
 
         rule kbd_macro() -> String
             = text:$("kbd:[" (!"]" [_])* "]") {
@@ -346,7 +358,7 @@ parser!(
             = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
 
         rule unprocessed_text() -> String
-            = text:$((!(passthrough_pattern() / attribute_reference_pattern() / kbd_macro_pattern()) [_])+) {
+            = text:$((!(passthrough_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_])+) {
                 state.tracker.borrow_mut().advance(text);
                 text.to_string()
             }
@@ -356,6 +368,10 @@ parser!(
         rule attribute_name_pattern() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+
 
         rule kbd_macro_pattern() = "kbd:[" (!"]" [_])* "]"
+
+        rule monospace_pattern() =
+            "``" (!"``" [_])+ "``" /
+            "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`"
 
         rule passthrough_pattern() =
             "+++" (!("+++") [_])+ "+++" /
