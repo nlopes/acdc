@@ -29,10 +29,16 @@ fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatc
         return None;
     }
 
-    // Check boundary condition: must be at start or preceded by whitespace
+    // Check boundary condition: must be at start or preceded by whitespace or punctuation
     if start > 0 {
         let prev_char = chars[start - 1];
-        if !matches!(prev_char, ' ' | '\t' | '\n' | '\r' | '<' | '>') {
+        if !crate::grammar::document::match_constrained_boundary(
+            u8::try_from(prev_char)
+                .inspect_err(|e| {
+                    tracing::error!("Failed to convert char to u8: {e}");
+                })
+                .ok()?,
+        ) {
             return None;
         }
     }
@@ -60,7 +66,27 @@ fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatc
         let next_char = chars[i + 1];
         if !matches!(
             next_char,
-            ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+            ' ' | '\t'
+                | '\n'
+                | ','
+                | ';'
+                | '"'
+                | '.'
+                | '?'
+                | '!'
+                | '<'
+                | '>'
+                | '/'
+                | '-'
+                | '|'
+                | '('
+                | ')'
+                | '['
+                | ']'
+                | '{'
+                | '}'
+                | '\''
+                | ':'
         ) {
             return None;
         }
@@ -156,9 +182,12 @@ pub(crate) fn find_italic_pattern(text: &str) -> Option<MarkupMatch> {
             // Check boundary condition: _ must be preceded by whitespace, punctuation, or start
             if start > 0 {
                 let prev_char = chars[start - 1];
-                if !matches!(
-                    prev_char,
-                    ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+                if !crate::grammar::document::match_constrained_boundary(
+                    u8::try_from(prev_char)
+                        .inspect_err(|e| {
+                            tracing::error!("Failed to convert char to u8: {e}");
+                        })
+                        .ok()?,
                 ) {
                     i += 1;
                     continue;
@@ -176,7 +205,27 @@ pub(crate) fn find_italic_pattern(text: &str) -> Option<MarkupMatch> {
                         let next_char = chars[i + 1];
                         if !matches!(
                             next_char,
-                            ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+                            ' ' | '\t'
+                                | '\n'
+                                | ','
+                                | ';'
+                                | '"'
+                                | '.'
+                                | '?'
+                                | '!'
+                                | '<'
+                                | '>'
+                                | '/'
+                                | '-'
+                                | '|'
+                                | '('
+                                | ')'
+                                | '['
+                                | ']'
+                                | '{'
+                                | '}'
+                                | '\''
+                                | ':'
                         ) {
                             i += 1;
                             continue;
@@ -373,9 +422,12 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
             // Check boundary condition: ` must be preceded by whitespace, punctuation, or start
             if start > 0 {
                 let prev_char = chars[start - 1];
-                if !matches!(
-                    prev_char,
-                    ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+                if !crate::grammar::document::match_constrained_boundary(
+                    u8::try_from(prev_char)
+                        .inspect_err(|e| {
+                            tracing::error!("Failed to convert char to u8: {e}");
+                        })
+                        .ok()?,
                 ) {
                     i += 1;
                     continue;
@@ -399,7 +451,27 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
                         let next_char = chars[i + 1];
                         if !matches!(
                             next_char,
-                            ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+                            ' ' | '\t'
+                                | '\n'
+                                | ','
+                                | ';'
+                                | '"'
+                                | '.'
+                                | '?'
+                                | '!'
+                                | '<'
+                                | '>'
+                                | '/'
+                                | '-'
+                                | '|'
+                                | '('
+                                | ')'
+                                | '['
+                                | ']'
+                                | '{'
+                                | '}'
+                                | '\''
+                                | ':'
                         ) {
                             i += 1;
                             continue;
@@ -468,9 +540,12 @@ pub(crate) fn find_highlight_constrained_pattern(text: &str) -> Option<MarkupMat
             // Check boundary condition: # must be preceded by whitespace, punctuation, or start
             if start > 0 {
                 let prev_char = chars[start - 1];
-                if !matches!(
-                    prev_char,
-                    ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+                if !crate::grammar::document::match_constrained_boundary(
+                    u8::try_from(prev_char)
+                        .inspect_err(|e| {
+                            tracing::error!("Failed to convert char to u8: {e}");
+                        })
+                        .ok()?,
                 ) {
                     i += 1;
                     continue;
@@ -488,7 +563,27 @@ pub(crate) fn find_highlight_constrained_pattern(text: &str) -> Option<MarkupMat
                         let next_char = chars[i + 1];
                         if !matches!(
                             next_char,
-                            ' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | '<' | '>'
+                            ' ' | '\t'
+                                | '\n'
+                                | ','
+                                | ';'
+                                | '"'
+                                | '.'
+                                | '?'
+                                | '!'
+                                | '<'
+                                | '>'
+                                | '/'
+                                | '-'
+                                | '|'
+                                | '('
+                                | ')'
+                                | '['
+                                | ']'
+                                | '{'
+                                | '}'
+                                | '\''
+                                | ':'
                         ) {
                             i += 1;
                             continue;
