@@ -9,34 +9,59 @@ the `asciidoctor` tool.
 ....
 cargo run --all-features -- --help
 
-A suite of tools for AsciiDoc documents
+AsciiDoc toolchain
 
-Usage: acdc-cli [OPTIONS] [FILES]...
+Usage: acdc <COMMAND>
 
-Arguments:
-  [FILES]...  List of files to parse
+Commands:
+  convert  Convert AsciiDoc documents to various output formats
+  inspect  Inspect AST structure of AsciiDoc documents
+  tck      Run TCK compliance tests (reads JSON from stdin)
+  help     Print this message or the help of the given subcommand(s)
 
 Options:
-      --backend <BACKEND>      backend output format [default: html] [possible values: html, tck, terminal]
-      --doctype <DOCTYPE>      document type to use when converting document [default: article] [possible values: article, book, manpage, inline]
-      --safe-mode <SAFE_MODE>  safe mode to use when converting document [default: unsafe] [possible values: safe, unsafe, server, secure]
-  -h, --help                   Print help
-  -V, --version                Print version
+  -h, --help     Print help
+  -V, --version  Print version
 ....
+
+## Subcommands
+
+### convert
+
+Convert `AsciiDoc` documents to various output formats (HTML, terminal).
+
+[source,console]
+....
+acdc convert [OPTIONS] [FILES]...
+....
+
+### inspect
+
+Inspect the AST structure of `AsciiDoc` documents. Useful for debugging and understanding how acdc parses documents. Only available with `--features inspect`.
+
+[source,console]
+....
+acdc inspect [OPTIONS] <FILE>
+....
+
+### tck
+
+Run TCK (Test Compatibility Kit) compliance tests. Reads JSON from stdin and outputs AST as JSON. Only available with `--features tck`.
 
 ## Backends (converters) supported
 
 Check the `link:../converters/README.adoc[converters README]` for details.
 
-- `link:../converters/html[html]`
-- `link:../converters/terminal[terminal]` (not built by default)
-- `link:../converters/tck[tck]` (not built by default)
+- `link:../converters/html[html]` (default)
+- `link:../converters/terminal[terminal]` (available with `--features terminal`)
 
-### Building an optional backend
+### Building an optional backend or tool
 
 [source,console]
 ....
 cargo build --features terminal
+cargo build --features inspect
+cargo build --features tck
 ....
 
 Alternatively, you can build them all like so:
@@ -46,6 +71,29 @@ Alternatively, you can build them all like so:
 cargo build --all-features
 ....
 
+## Examples
+
+Convert a file to HTML:
+
+[source,console]
+....
+acdc convert document.adoc
+....
+
+Convert with terminal backend:
+
+[source,console]
+....
+acdc convert --backend terminal document.adoc
+....
+
+Inspect document AST:
+
+[source,console]
+....
+acdc inspect document.adoc --show-locations
+....
+
 ## Extra Logging
 
 If you want more logs, especially useful if you're troubleshooting or reporting an error,
@@ -53,12 +101,12 @@ please adjust the `ACDC_LOG` environment variable.
 
 [source,console]
 ....
-ACDC_LOG=trace cargo run <your file>
+ACDC_LOG=trace cargo run -- convert your-file.adoc
 ....
 
 or if you're running a binary already built:
 
 [source,console]
 ....
-ACDC_LOG=trace acdc <your file>
+ACDC_LOG=trace acdc convert your-file.adoc
 ....

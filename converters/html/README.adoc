@@ -1,0 +1,137 @@
+# `acdc-html`
+
+HTML converter for `AsciiDoc` documents. This is the default backend for `acdc`.
+
+## Usage
+
+[source,console]
+....
+acdc convert document.adoc
+....
+
+This generates `document.html` in the same directory as the source file.
+
+You can also convert multiple files at once:
+
+[source,console]
+....
+acdc convert *.adoc
+....
+
+Or convert from stdin to stdout:
+
+[source,console]
+....
+cat document.adoc | acdc convert --stdin
+....
+
+## Features
+
+### Standalone HTML Output
+
+Generates complete, standalone HTML documents with embedded CSS. No external dependencies needed - the output file contains everything required for display.
+
+### Asciidoctor-Compatible Styling
+
+Uses the same CSS as Asciidoctor for familiar, professional-looking output. The embedded stylesheet provides:
+
+- Clean, readable typography
+- Responsive layout
+- Syntax highlighting support
+- Print-optimized styles
+
+### Full AsciiDoc Support
+
+Supports all major AsciiDoc constructs:
+
+- **Document structure**: Headers, sections, table of contents
+- **Text formatting**: Bold, italic, monospace, highlighting, subscript, superscript
+- **Lists**: Unordered, ordered, description lists, callout lists
+- **Blocks**: Listings, literals, examples, quotes, sidebars, open blocks
+- **Admonitions**: NOTE, TIP, IMPORTANT, WARNING, CAUTION
+- **Media**: Images, videos (YouTube, Vimeo), audio
+- **Tables**: Full table support with headers, footers, and cell formatting
+- **Cross-references**: Internal links and anchors
+- **Attributes**: Document-level attribute substitution
+
+### Document Attributes
+
+Set document attributes via command line:
+
+[source,console]
+....
+acdc convert -a toc=left -a toclevels=3 -a icons=font document.adoc
+....
+
+### Performance Timing
+
+Enable timing information to see conversion performance:
+
+[source,console]
+....
+acdc convert --timings document.adoc
+....
+
+Output:
+....
+Input file: document.adoc
+  Time to convert document: 12.5ms
+Generated HTML file: document.html
+....
+
+## Output Structure
+
+Generated HTML includes:
+
+- Complete HTML5 document structure
+- Embedded CSS for styling
+- Metadata (generator, last updated timestamp)
+- Table of contents (if enabled via `:toc:` attribute)
+- Semantic HTML elements matching AsciiDoc structure
+
+## Examples
+
+### Basic Conversion
+
+[source,console]
+....
+acdc convert README.adoc
+....
+
+### With Table of Contents
+
+[source,console]
+....
+acdc convert -a toc=left -a toclevels=2 guide.adoc
+....
+
+### Book Doctype
+
+[source,console]
+....
+acdc convert --doctype book -a toc book.adoc
+....
+
+### Safe Mode
+
+[source,console]
+....
+acdc convert --safe-mode safe document.adoc
+....
+
+## Technical Details
+
+The HTML converter:
+
+- Generates valid HTML5
+- Preserves source line information for debugging
+- Handles Unicode correctly
+- Auto-numbers example blocks
+- Generates unique IDs for sections and anchors
+- Embeds the Asciidoctor CSS stylesheet for consistent styling
+- Includes file modification timestamps in metadata
+
+## Differences from Asciidoctor
+
+While the HTML converter aims for compatibility with Asciidoctor, there are some known
+differences and limitations.

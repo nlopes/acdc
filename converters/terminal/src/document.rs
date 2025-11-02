@@ -46,6 +46,7 @@ pub(crate) fn visit_header<V: WritableVisitor<Error = Error>>(
 
     let w = visitor.writer_mut();
     w.queue(PrintStyledContent(title_content.bold().underlined()))?;
+    writeln!(w)?;
 
     if !header.authors.is_empty() {
         w.queue(PrintStyledContent("by ".italic()))?;

@@ -6,7 +6,7 @@ A simple terminal parser for `AsciiDoc` documents.
 
 [source,console]
 ....
-acdc-cli --backend terminal simple.adoc
+acdc convert --backend terminal simple.adoc
 ....
 
 image::images/simple.adoc.png["Simple Document"]
@@ -15,7 +15,7 @@ You can also pass multiple files and it will parse and print them all.
 
 [source,console]
 ....
-acdc-cli --backend terminal *.adoc
+acdc convert --backend terminal *.adoc
 ....
 
 ## Examples
