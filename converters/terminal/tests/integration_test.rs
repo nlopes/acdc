@@ -36,7 +36,7 @@ fn test_fixture(fixture_name: &str) -> Result<(), Error> {
     // Convert to Terminal output
     let mut output = Vec::new();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
-    processor.convert(&doc, &mut output)?;
+    processor.convert_to_writer(&doc, &mut output)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;

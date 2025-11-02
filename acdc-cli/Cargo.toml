@@ -11,16 +11,23 @@ path = "src/main.rs"
 test = false
 doc = false
 
+[[bin]]
+name = "acdc-tck"
+path = "src/bin/acdc-tck.rs"
+required-features = ["tck"]
+test = false
+doc = false
+
 [dependencies]
 acdc-converters-common.workspace = true
 acdc-core.workspace = true
 acdc-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
-acdc-tck = { path = "../converters/tck", optional = true }
 acdc-terminal = { path = "../converters/terminal", optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
 miette = { version = "7", features = ["derive", "fancy"] }
+rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -30,7 +37,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 [features]
 default = ["html"]
 html = ["dep:acdc-html"]
-tck = ["dep:acdc-tck"]
+tck = []
 terminal = ["dep:acdc-terminal"]
 
 [lints]

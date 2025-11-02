@@ -48,4 +48,4 @@ jobs:
 
     - name: Run TCK tests
       working-directory: asciidoc-tck
-      run: RUST_LOG= node harness/bin/asciidoc-tck.js cli -c '../acdc/target/debug/acdc --stdin --backend tck'
+      run: RUST_LOG= node harness/bin/asciidoc-tck.js cli -c '../acdc/target/debug/acdc-tck'

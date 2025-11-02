@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let processor = Processor::new(Options::default(), doc.attributes.clone());
         let render_options = RenderOptions::default();
 
-        if let Err(e) = processor.convert(&doc, &mut output, &render_options) {
+        if let Err(e) = processor.convert_to_writer(&doc, &mut output, &render_options) {
             println!("❌ Error converting {fixture_name}: {e}");
             continue;
         }

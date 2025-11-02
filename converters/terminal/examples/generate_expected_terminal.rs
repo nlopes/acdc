@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut output = Vec::new();
         let processor = Processor::new(Options::default(), doc.attributes.clone());
 
-        if let Err(e) = processor.convert(&doc, &mut output) {
+        if let Err(e) = processor.convert_to_writer(&doc, &mut output) {
             println!("❌ Error converting {fixture_name}: {e}");
             continue;
         }

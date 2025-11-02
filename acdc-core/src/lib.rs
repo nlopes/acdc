@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use clap::ValueEnum;
 
 /// Document type to use when converting document.
@@ -91,17 +89,3 @@ pub enum SafeMode {
     Secure,
 }
 
-/// Source of the document to parse
-///
-/// We support two sources:
-/// 1. Files: A list of file paths to read the document from
-/// 2. Stdin: Read the document content from standard input
-#[derive(Debug, Default, Clone, PartialEq)]
-pub enum Source {
-    /// A list of file paths to read the document from
-    Files(Vec<PathBuf>),
-
-    /// Read the document content from standard input
-    #[default]
-    Stdin,
-}

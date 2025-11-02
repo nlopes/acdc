@@ -1,12 +1,11 @@
 use std::{
     cell::Cell,
-    io::{BufReader, BufWriter, Write},
+    io::{BufWriter, Write},
     rc::Rc,
 };
 
 use acdc_converters_common::{Options, Processable, visitor::Visitor};
-use acdc_core::Source;
-use acdc_parser::{Document, DocumentAttributes, Options as ParserOptions, TocEntry};
+use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 
@@ -26,7 +25,7 @@ impl Processor {
     /// # Errors
     ///
     /// Returns an error if document conversion or writing fails.
-    pub fn convert<W: Write>(&self, doc: &Document, writer: W) -> Result<(), Error> {
+    pub fn convert_to_writer<W: Write>(&self, doc: &Document, writer: W) -> Result<(), Error> {
         let processor = Processor {
             document_attributes: doc.attributes.clone(),
             toc_entries: doc.toc_entries.clone(),
@@ -52,31 +51,15 @@ impl Processable for Processor {
         }
     }
 
-    fn run(&self) -> Result<(), Error> {
-        let options = ParserOptions {
-            safe_mode: self.options.safe_mode.clone(),
-            timings: self.options.timings,
-            document_attributes: self.document_attributes.clone(),
-        };
-        match &self.options.source {
-            Source::Files(files) => {
-                for file in files {
-                    let doc = acdc_parser::parse_file(file, &options)?;
-                    let stdout = std::io::stdout();
-                    let writer = BufWriter::new(stdout.lock());
-                    self.convert(&doc, writer)?;
-                }
-            }
-            Source::Stdin => {
-                let stdin = std::io::stdin();
-                let mut reader = BufReader::new(stdin.lock());
-                let doc = acdc_parser::parse_from_reader(&mut reader, &options)?;
-                let stdout = std::io::stdout();
-                let writer = BufWriter::new(stdout.lock());
-                self.convert(&doc, writer)?;
-            }
-        }
-
+    fn convert(
+        &self,
+        doc: &acdc_parser::Document,
+        _file: Option<&std::path::Path>,
+    ) -> Result<(), Self::Error> {
+        // Terminal always outputs to stdout, file parameter is ignored
+        let stdout = std::io::stdout();
+        let writer = BufWriter::new(stdout.lock());
+        self.convert_to_writer(doc, writer)?;
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use acdc_core::{Doctype, SafeMode, Source};
+use acdc_core::{Doctype, SafeMode};
 use acdc_parser::DocumentAttributes;
 
 pub mod toc;
@@ -12,7 +12,6 @@ pub struct Options {
     pub generator_metadata: GeneratorMetadata,
     pub doctype: Doctype,
     pub safe_mode: SafeMode,
-    pub source: Source,
     pub timings: bool,
 }
 
@@ -96,13 +95,25 @@ pub trait Processable {
 
     fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
 
-    /// Run the processor
+    /// Convert a pre-parsed document
+    ///
+    /// The CLI handles all parsing (stdin or files), and converters just focus on conversion.
+    ///
+    /// # Arguments
+    ///
+    /// * `doc` - The pre-parsed document
+    /// * `file` - Optional source file path (used for output path, metadata, etc.)
+    ///   - `Some(path)` for file-based conversion
+    ///   - `None` for stdin-based conversion
     ///
     /// # Errors
     ///
-    /// Will typically return parsing or rendering errors. Implementations are free to
-    /// return any error type they wish though.
-    fn run(&self) -> Result<(), Self::Error>;
+    /// Returns an error if conversion or writing fails.
+    fn convert(
+        &self,
+        doc: &acdc_parser::Document,
+        file: Option<&std::path::Path>,
+    ) -> Result<(), Self::Error>;
 }
 
 /// Walk the error source chain to find a parser error

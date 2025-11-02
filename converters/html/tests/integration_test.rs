@@ -36,7 +36,7 @@ fn test_fixture(fixture_name: &str) -> Result<(), Error> {
     let mut output = Vec::new();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
     let render_options = RenderOptions::default();
-    processor.convert(&doc, &mut output, &render_options)?;
+    processor.convert_to_writer(&doc, &mut output, &render_options)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;

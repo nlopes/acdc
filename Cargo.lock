@@ -10,11 +10,11 @@ dependencies = [
  "acdc-core",
  "acdc-html",
  "acdc-parser",
- "acdc-tck",
  "acdc-terminal",
  "anyhow",
  "clap",
  "miette",
+ "rayon",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
@@ -72,19 +72,6 @@ dependencies = [
  "tracing-test",
  "ureq",
  "url",
-]
-
-[[package]]
-name = "acdc-tck"
-version = "0.1.0"
-dependencies = [
- "acdc-converters-common",
- "acdc-core",
- "acdc-parser",
- "serde",
- "serde_json",
- "thiserror 2.0.17",
- "tracing",
 ]
 
 [[package]]

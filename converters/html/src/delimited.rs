@@ -301,7 +301,7 @@ fn render_stem_content<W: Write + ?Sized>(stem: &StemContent, w: &mut W) -> Resu
 mod tests {
     use super::*;
     use acdc_converters_common::{GeneratorMetadata, Options, visitor::Visitor};
-    use acdc_core::{Doctype, SafeMode, Source};
+    use acdc_core::{Doctype, SafeMode};
     use acdc_parser::{BlockMetadata, DocumentAttributes, InlineNode, Location, Plain};
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
@@ -315,7 +315,6 @@ mod tests {
         let options = Options {
             generator_metadata: GeneratorMetadata::default(),
             doctype: Doctype::Article,
-            source: Source::Stdin,
             safe_mode: SafeMode::Unsafe,
             timings: false,
         };
