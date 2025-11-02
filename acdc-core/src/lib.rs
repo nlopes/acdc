@@ -88,4 +88,3 @@ pub enum SafeMode {
     /// Note: `GitHub` processes `AsciiDoc` files using the `SECURE` mode.
     Secure,
 }
-

@@ -60,7 +60,6 @@ pub struct RenderOptions {
     pub inlines_basic: bool,
 }
 
-
 impl Processable for Processor {
     type Options = Options;
     type Error = Error;

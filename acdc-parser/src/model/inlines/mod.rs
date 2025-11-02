@@ -1,7 +1,7 @@
 use serde::{
     Deserialize, Serialize,
     de::{self, Deserializer, MapAccess, Visitor},
-    ser::{SerializeMap, Serializer},
+    ser::{Error as _, SerializeMap, Serializer},
 };
 
 pub(crate) mod converter;
@@ -244,9 +244,9 @@ where
             map.serialize_entry("location", &xref.location)?;
         }
         InlineMacro::Pass(_) => {
-            unimplemented!(
-                "passthrough serialization is not implemented because we only serialize to ASG what should be visible to the user"
-            )
+            return Err(S::Error::custom(
+                "inline passthrough macros are not part of the ASG specification and cannot be serialized",
+            ));
         }
         InlineMacro::Stem(stem) => {
             map.serialize_entry("name", "stem")?;
