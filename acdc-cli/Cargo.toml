@@ -13,8 +13,15 @@ doc = false
 
 [[bin]]
 name = "acdc-tck"
-path = "src/bin/acdc-tck.rs"
+path = "src/bin/tck.rs"
 required-features = ["tck"]
+test = false
+doc = false
+
+[[bin]]
+name = "acdc-inspect"
+path = "src/bin/inspect.rs"
+required-features = ["inspect"]
 test = false
 doc = false
 
@@ -26,6 +33,7 @@ acdc-parser.workspace = true
 acdc-terminal = { path = "../converters/terminal", optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
+crossterm.workspace = true
 miette = { version = "7", features = ["derive", "fancy"] }
 rayon.workspace = true
 serde.workspace = true
@@ -38,6 +46,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 default = ["html"]
 html = ["dep:acdc-html"]
 tck = []
+inspect = []
 terminal = ["dep:acdc-terminal"]
 
 [lints]

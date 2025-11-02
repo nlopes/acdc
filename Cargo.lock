@@ -13,6 +13,7 @@ dependencies = [
  "acdc-terminal",
  "anyhow",
  "clap",
+ "crossterm 0.29.0",
  "miette",
  "rayon",
  "serde",
@@ -57,11 +58,8 @@ dependencies = [
 name = "acdc-parser"
 version = "0.1.0"
 dependencies = [
- "acdc-converters-common",
  "acdc-core",
- "clap",
  "criterion",
- "crossterm 0.29.0",
  "encoding_rs",
  "evalexpr",
  "peg",

@@ -19,10 +19,7 @@ thiserror.workspace = true
 url = "2.5"
 
 [dev-dependencies]
-acdc-converters-common.workspace = true
-clap.workspace = true
 criterion = { version = "0.5", features = ["html_reports"] }
-crossterm.workspace = true
 pretty_assertions.workspace = true
 rstest = "0.26"
 tracing-test = "0.2"
