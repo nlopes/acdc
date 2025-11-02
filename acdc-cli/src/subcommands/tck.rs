@@ -20,7 +20,7 @@
 //! ## Usage:
 //!
 //! ```bash
-//! echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' | acdc-tck
+//! echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' | acdc tck
 //! ```
 
 use std::io::{self, BufReader, Write};
@@ -29,7 +29,7 @@ use acdc_parser::DocumentAttributes;
 use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]
-enum Error {
+pub enum Error {
     #[error(transparent)]
     Deserialize(#[from] serde_json::Error),
 
@@ -47,26 +47,11 @@ struct TckInput {
     r#type: String,
 }
 
-fn setup_logging() {
-    use tracing_subscriber::{EnvFilter, prelude::*};
+/// Run TCK test (no args, reads from stdin)
+#[derive(clap::Args)]
+pub struct Args;
 
-    let env_filter = EnvFilter::try_from_env("ACDC_LOG");
-
-    if let Ok(filter) = env_filter {
-        let layer = tracing_subscriber::fmt::layer()
-            .with_writer(io::stderr)
-            .with_ansi(io::IsTerminal::is_terminal(&io::stderr()))
-            .with_timer(tracing_subscriber::fmt::time::Uptime::default())
-            .with_filter(filter);
-
-        tracing_subscriber::registry().with(layer).init();
-    }
-}
-
-fn main() -> Result<(), Error> {
-    setup_logging();
-
-    // Read JSON input from stdin
+pub fn run(_args: &Args) -> Result<(), Error> {
     let stdin = io::stdin();
     let reader = BufReader::new(stdin.lock());
     let tck_input: TckInput = serde_json::from_reader(reader)?;
@@ -95,8 +80,7 @@ fn main() -> Result<(), Error> {
             serde_json::to_writer(&stdout, &inlines)?;
         }
         other => {
-            eprintln!("Unsupported type: {other}");
-            eprintln!("Expected 'block' or 'inline'");
+            tracing::error!(type=other, "Unsupported type, expected 'block' or 'inline'");
             std::process::exit(1);
         }
     }

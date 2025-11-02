@@ -11,20 +11,6 @@ path = "src/main.rs"
 test = false
 doc = false
 
-[[bin]]
-name = "acdc-tck"
-path = "src/bin/tck.rs"
-required-features = ["tck"]
-test = false
-doc = false
-
-[[bin]]
-name = "acdc-inspect"
-path = "src/bin/inspect.rs"
-required-features = ["inspect"]
-test = false
-doc = false
-
 [dependencies]
 acdc-converters-common.workspace = true
 acdc-core.workspace = true
