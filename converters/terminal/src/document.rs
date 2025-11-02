@@ -46,9 +46,9 @@ pub(crate) fn visit_header<V: WritableVisitor<Error = Error>>(
 
     let w = visitor.writer_mut();
     w.queue(PrintStyledContent(title_content.bold().underlined()))?;
-    writeln!(w)?;
 
     if !header.authors.is_empty() {
+        writeln!(w)?;
         w.queue(PrintStyledContent("by ".italic()))?;
         // Join the authors with commas, except for the last one, using a functional approach
         header
@@ -141,7 +141,7 @@ mod tests {
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;
         let buffer = visitor.into_writer();
-        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
+        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
         Ok(())
     }
 
