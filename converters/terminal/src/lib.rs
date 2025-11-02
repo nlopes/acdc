@@ -74,6 +74,7 @@ mod inlines;
 mod list;
 mod paragraph;
 mod section;
+mod syntax;
 mod table;
 mod terminal_visitor;
 mod toc;

@@ -1,5 +1,8 @@
-use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, InlineNode};
+use acdc_converters_common::{
+    code::detect_language,
+    visitor::{WritableVisitor, WritableVisitorExt},
+};
+use acdc_parser::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -26,12 +29,22 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
 
     match &block.inner {
         DelimitedBlockType::DelimitedTable(t) => crate::table::visit_table(t, visitor, processor),
-        DelimitedBlockType::DelimitedListing(inlines) => {
-            render_preformatted_block(visitor, &block.title, inlines, "listing", processor)
-        }
-        DelimitedBlockType::DelimitedLiteral(inlines) => {
-            render_preformatted_block(visitor, &block.title, inlines, "literal", processor)
-        }
+        DelimitedBlockType::DelimitedListing(inlines) => render_preformatted_block(
+            visitor,
+            &block.title,
+            inlines,
+            &block.metadata,
+            "listing",
+            processor,
+        ),
+        DelimitedBlockType::DelimitedLiteral(inlines) => render_preformatted_block(
+            visitor,
+            &block.title,
+            inlines,
+            &block.metadata,
+            "literal",
+            processor,
+        ),
         DelimitedBlockType::DelimitedExample(blocks) => {
             render_example_block(visitor, &block.title, blocks, processor)
         }
@@ -79,30 +92,52 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     }
 }
 
-/// Render a preformatted block (listing or literal) with monospace styling.
+/// Render a preformatted block (listing or literal) with optional syntax highlighting.
+///
+/// If the block has `[source,language]` metadata and the language is recognized,
+/// syntax highlighting will be applied. Otherwise, renders as plain text.
 fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     inlines: &[InlineNode],
+    metadata: &BlockMetadata,
     block_type: &str,
     _processor: &Processor,
 ) -> Result<(), Error> {
-    let w = visitor.writer_mut();
+    // Detect language for syntax highlighting
+    let language = detect_language(metadata);
 
-    // Start marker with block type label
-    let label = block_type.to_uppercase();
-    let styled_label = label.dark_grey().bold();
-    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-    writeln!(w)?;
+    // Start marker with block type label (and language if present)
+    {
+        let w = visitor.writer_mut();
+        let label = if let Some(lang) = language {
+            format!("{} ({})", block_type.to_uppercase(), lang.to_uppercase())
+        } else {
+            block_type.to_uppercase()
+        };
+        let styled_label = label.dark_grey().bold();
+        QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
+        writeln!(w)?;
+    }
 
     visitor.render_title_with_wrapper(title, "", "\n\n")?;
-    visitor.visit_inline_nodes(inlines)?;
 
-    let w = visitor.writer_mut();
+    // Apply syntax highlighting if language is detected
+    if let Some(lang) = language {
+        let w = visitor.writer_mut();
+        crate::syntax::highlight_code(w, inlines, lang)?;
+    } else {
+        // Fallback to plain text rendering
+        visitor.visit_inline_nodes(inlines)?;
+    }
+
     // End marker with three dots
-    let end_marker = "• • •".dark_grey().bold();
-    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
-    writeln!(w)?;
+    {
+        let w = visitor.writer_mut();
+        let end_marker = "\n• • •\n".dark_grey().bold();
+        QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+        writeln!(w)?;
+    }
 
     Ok(())
 }

@@ -1,57 +1,14 @@
 use std::io::Write;
 
-use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_converters_common::{
+    code::detect_language,
+    visitor::{WritableVisitor, WritableVisitorExt},
+};
 use acdc_parser::{
     BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent, StemNotation,
 };
 
 use crate::{Error, Processor, RenderOptions};
-
-// Common programming languages and markup languages
-const KNOWN_LANGUAGES: &[&str] = &[
-    "bash",
-    "shell",
-    "sh",
-    "zsh",
-    "fish",
-    "python",
-    "py",
-    "ruby",
-    "rb",
-    "javascript",
-    "js",
-    "typescript",
-    "ts",
-    "java",
-    "c",
-    "cpp",
-    "c++",
-    "csharp",
-    "cs",
-    "go",
-    "rust",
-    "rs",
-    "php",
-    "perl",
-    "lua",
-    "swift",
-    "kotlin",
-    "scala",
-    "clojure",
-    "html",
-    "xml",
-    "css",
-    "json",
-    "yaml",
-    "yml",
-    "toml",
-    "ini",
-    "sql",
-    "dockerfile",
-    "makefile",
-    "cmake",
-    "groovy",
-];
 
 /// Visit a delimited block using the visitor pattern with ability to walk nested blocks
 pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
@@ -171,21 +128,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             w = visitor.writer_mut();
             // Check if this is a source block with a language
             // The language is the first positional attribute (after style), which gets moved to attributes map
-            let is_source = metadata.style.as_deref() == Some("source");
-            let language = if is_source {
-                // Check if there's a "bash" (or other language) key in attributes
-                // Positional attributes get moved to attributes map, so we need to find the language
-                metadata.attributes.iter().find_map(|(key, _)| {
-                    if KNOWN_LANGUAGES.contains(&key.as_str()) {
-                        Some(key.as_str())
-                    } else {
-                        None
-                    }
-                })
-            } else {
-                None
-            };
-
+            let language = detect_language(metadata);
             if let Some(lang) = language {
                 write!(
                     w,

@@ -12,6 +12,7 @@ acdc-parser.workspace = true
 clap.workspace = true
 comfy-table = "7.2"
 crossterm = "0.29"
+syntect = "5.3"
 thiserror.workspace = true
 tracing.workspace = true
 # images on the terminal

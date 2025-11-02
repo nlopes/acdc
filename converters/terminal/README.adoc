@@ -36,6 +36,26 @@ might have it set up to something that allows us to detect support for the right
 TERM=xterm-kitty
 ```
 
-## TODO
+## Syntax Highlighting
 
-- [ ] Add `syntect` for syntax highlighting in literal code blocks
+Code blocks with the `[source,language]` attribute get automatic syntax highlighting in the terminal using `syntect`. The terminal converter supports 40+ programming languages including:
+
+- Rust, Python, JavaScript, TypeScript, Go, Java, C, C++
+- Bash, Shell scripting, Zsh, Fish
+- Ruby, PHP, Perl, Lua, Swift, Kotlin, Scala
+- HTML, CSS, XML, JSON, YAML, TOML
+- SQL, Dockerfile, Makefile
+
+Example:
+
+[source,asciidoc]
+....
+[source,rust]
+----
+fn main() {
+    println!("Hello, world!");
+}
+----
+....
+
+The highlighted code will display with appropriate colors for your terminal. If a language isn't recognized or no language is specified, the code block renders as plain text.

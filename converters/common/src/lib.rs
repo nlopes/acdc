@@ -1,6 +1,7 @@
 use acdc_core::{Doctype, SafeMode};
 use acdc_parser::DocumentAttributes;
 
+pub mod code;
 pub mod toc;
 pub mod video;
 
