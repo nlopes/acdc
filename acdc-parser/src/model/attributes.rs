@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use rustc_hash::FxHashMap;
 
 use serde::{
     Deserialize, Serialize,
@@ -7,7 +7,7 @@ use serde::{
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct Document(BTreeMap<AttributeName, AttributeValue>);
+pub struct Document(FxHashMap<AttributeName, AttributeValue>);
 pub type Element = Document;
 
 impl Serialize for Document {
@@ -16,8 +16,13 @@ impl Serialize for Document {
         S: Serializer,
     {
         // We serialize the attributes as a sequence of key-value pairs.
+        // Sort the keys to ensure consistent serialization output.
+        let mut sorted_keys: Vec<_> = self.0.keys().collect();
+        sorted_keys.sort();
+
         let mut state = serializer.serialize_map(Some(self.0.len()))?;
-        for (key, value) in &self.0 {
+        for key in sorted_keys {
+            let value = &self.0[key];
             if key == "toc" && value == &AttributeValue::Bool(true) {
                 state.serialize_entry(key, "")?;
                 continue;
@@ -33,7 +38,7 @@ impl<'de> Deserialize<'de> for Document {
     where
         D: Deserializer<'de>,
     {
-        let pairs = BTreeMap::deserialize(deserializer).unwrap_or_default();
+        let pairs = FxHashMap::deserialize(deserializer).unwrap_or_default();
         Ok(Document(pairs))
     }
 }
@@ -72,13 +77,7 @@ impl Document {
     }
 
     // Remove an attribute from the document.
-    pub fn remove<K: AsRef<str> + std::cmp::Ord + ?Sized>(
-        &mut self,
-        name: &K,
-    ) -> Option<AttributeValue>
-    where
-        AttributeName: std::borrow::Borrow<K>,
-    {
+    pub fn remove(&mut self, name: &str) -> Option<AttributeValue> {
         self.0.remove(name)
     }
 

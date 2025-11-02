@@ -53,7 +53,7 @@ mod tests {
         parse_line(&mut attributes, ":name: value");
         assert_eq!(
             attributes.get("name"),
-            Some(&AttributeValue::String("value".to_string()))
+            Some(&AttributeValue::String("value".into()))
         );
     }
 
@@ -80,7 +80,7 @@ mod tests {
         parse_line(&mut attributes, ":complex-name_123: value");
         assert_eq!(
             attributes.get("complex-name_123"),
-            Some(&AttributeValue::String("value".to_string()))
+            Some(&AttributeValue::String("value".into()))
         );
     }
 }

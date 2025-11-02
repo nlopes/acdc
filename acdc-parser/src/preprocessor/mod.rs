@@ -111,11 +111,17 @@ impl Preprocessor {
     }
 
     fn normalize(input: &str) -> String {
-        input
-            .lines()
-            .map(str::trim_end)
-            .collect::<Vec<&str>>()
-            .join("\n")
+        // Pre-allocate string with input length as estimate
+        // (trimming end may reduce size slightly, but close enough)
+        let lines: Vec<&str> = input.lines().map(str::trim_end).collect();
+        let mut result = String::with_capacity(input.len());
+        for (i, line) in lines.iter().enumerate() {
+            if i > 0 {
+                result.push('\n');
+            }
+            result.push_str(line);
+        }
+        result
     }
 
     #[tracing::instrument(skip(reader))]
@@ -282,13 +288,16 @@ impl Preprocessor {
     ) -> Result<String, Error> {
         let input = Preprocessor::normalize(input);
         let mut options = options.clone();
-        let mut output = Vec::new();
+        // Pre-allocate output Vec with estimated line count
+        let estimated_lines = input.lines().count();
+        let mut output = Vec::with_capacity(estimated_lines);
         let mut lines = input.lines().peekable();
         let mut line_number = 1; // Track the current line number (1-indexed)
         let mut current_offset = 0; // Track absolute byte offset in document
         while let Some(line) = lines.next() {
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
-                let mut attribute_content = String::new();
+                // Pre-allocate with initial line length as estimate
+                let mut attribute_content = String::with_capacity(line.len() * 2);
                 if line.ends_with(" + \\") {
                     attribute_content.push_str(line);
                     attribute_content.push('\n');

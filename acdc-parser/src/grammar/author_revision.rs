@@ -29,7 +29,7 @@ pub(crate) fn process_revision_info(
         );
     } else {
         document_attributes.insert(
-            "revnumber".to_string(),
+            "revnumber".into(),
             AttributeValue::String(revision_info.number),
         );
     }
@@ -40,7 +40,7 @@ pub(crate) fn process_revision_info(
                 "Revision date found in revision line but ignoring due to being set through attribute entries."
             );
         } else {
-            document_attributes.insert("revdate".to_string(), AttributeValue::String(date));
+            document_attributes.insert("revdate".into(), AttributeValue::String(date));
         }
     }
 
@@ -50,7 +50,7 @@ pub(crate) fn process_revision_info(
                 "Revision remark found in revision line but ignoring due to being set through attribute entries."
             );
         } else {
-            document_attributes.insert("revremark".to_string(), AttributeValue::String(remark));
+            document_attributes.insert("revremark".into(), AttributeValue::String(remark));
         }
     }
 }

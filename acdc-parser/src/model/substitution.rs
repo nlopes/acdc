@@ -201,8 +201,8 @@ mod tests {
         let attribute_volume_repeat = String::from("value {attribute_volume}");
 
         let mut attributes = DocumentAttributes::default();
-        attributes.insert("weight".to_string(), attribute_weight.clone());
-        attributes.insert("mass".to_string(), attribute_mass.clone());
+        attributes.insert("weight".into(), attribute_weight.clone());
+        attributes.insert("mass".into(), attribute_mass.clone());
 
         // Resolve an attribute that is in the attributes map.
         let value = "{weight}";

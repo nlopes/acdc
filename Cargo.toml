@@ -22,6 +22,7 @@ acdc-core = { path = "./acdc-core" }
 acdc-parser = { path = "./acdc-parser" }
 clap = { version = "4.5.51", features = ["derive"] }
 pretty_assertions = "1.4"
+rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
@@ -29,3 +30,11 @@ thiserror = "2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+[profile.release]
+# Enable link-time optimization for better cross-crate inlining
+lto = "thin"
+# Single codegen unit for maximum optimization (slower compile, faster runtime)
+codegen-units = 1
+# Enable debug info for profiling in release builds
+debug = "line-tables-only"

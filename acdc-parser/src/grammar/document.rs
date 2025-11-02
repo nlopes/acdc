@@ -311,7 +311,7 @@ peg::parser! {
         {
             tracing::info!(?att, "Found document attribute in the document header");
             let (key, value) = att;
-            state.document_attributes.insert(key.to_string(), value);
+            state.document_attributes.insert(key.into(), value);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
@@ -379,9 +379,9 @@ peg::parser! {
         {
             let (key, value) = att;
 
-            state.document_attributes.set(key.to_string(), value.clone());
+            state.document_attributes.set(key.into(), value.clone());
             Ok(Block::DocumentAttribute(DocumentAttribute {
-                name: key.to_string(),
+                name: key.into(),
                 value,
                 location: state.create_location(start+offset, end+offset)
             }))
@@ -665,8 +665,7 @@ peg::parser! {
             if let Some(ref style) = block_metadata.metadata.style &&
             let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
                 tracing::debug!(?admonition_variant, "Detected admonition block with variant");
-                let mut metadata = block_metadata.metadata.clone();
-                metadata.style = None; // Clear style to avoid confusion
+                metadata.style = None; // Clear style to avoid confusion (reuse existing clone)
                 return Ok(Block::Admonition(Admonition {
                     variant: admonition_variant,
                     blocks,
@@ -677,7 +676,7 @@ peg::parser! {
             }
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
+                metadata, // Use the existing clone instead of cloning again
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedExample(blocks),
                 title: block_metadata.title.clone(),
@@ -870,20 +869,18 @@ peg::parser! {
 
             let separator = if let Some(AttributeValue::String(sep)) = block_metadata.metadata.attributes.get("separator") {
                 sep.clone()
+            } else if let Some(AttributeValue::String(format)) = block_metadata.metadata.attributes.get("format") {
+                match format.as_str() {
+                    "csv" => ",",
+                    "dsv" => ":",
+                    "tsv" => "\t",
+                    unknown_format => {
+                        tracing::warn!(format = %unknown_format, "unknown table format, using default separator");
+                        "|"
+                    }
+                }.to_string()
             } else {
-                let mut separator = "|".to_string();
-                if let Some(AttributeValue::String(format)) = block_metadata.metadata.attributes.get("format") {
-                    separator = match format.as_str() {
-                        "csv" => ",".to_string(),
-                        "dsv" => ":".to_string(),
-                        "tsv" => "\t".to_string(),
-                        unknown_format => {
-                            tracing::warn!(format = %unknown_format, "unknown table format, using default separator");
-                            "|".to_string()
-                        }
-                    };
-                }
-                separator
+                "|".to_string()
             };
 
             let ncols = if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
@@ -1097,13 +1094,13 @@ peg::parser! {
             metadata.merge(&metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
-                metadata.attributes.insert("alt".to_string(), AttributeValue::String(style.clone()));
+                metadata.attributes.insert("alt".into(), AttributeValue::String(style.clone()));
             }
             if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
+                metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
             }
             if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
+                metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
@@ -1149,14 +1146,14 @@ peg::parser! {
                 } else {
                     // assume poster
                     tracing::debug!(?metadata, "transforming video metadata style into attribute, assuming poster");
-                    metadata.attributes.insert("poster".to_string(), AttributeValue::String(style.clone()));
+                    metadata.attributes.insert("poster".into(), AttributeValue::String(style.clone()));
                 }
             }
             if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
+                metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
             }
             if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
+                metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
@@ -2053,13 +2050,13 @@ peg::parser! {
             let mut title = Vec::new();
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
-                metadata.attributes.insert("alt".to_string(), AttributeValue::String(style.clone()));
+                metadata.attributes.insert("alt".into(), AttributeValue::String(style.clone()));
             }
             if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".to_string(), AttributeValue::String(metadata.positional_attributes.remove(1)));
+                metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
             }
             if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".to_string(), AttributeValue::String(metadata.positional_attributes.remove(0)));
+                metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
             if let Some(AttributeValue::String(content)) = metadata.attributes.get("title") {
@@ -2878,11 +2875,11 @@ peg::parser! {
                     } else if (k == RESERVED_NAMED_ATTRIBUTE_ROLE || k == RESERVED_NAMED_ATTRIBUTE_OPTIONS) && let AttributeValue::String(v) = v {
                         // When the key is "role" or "options", we need to handle the case
                         // where the value is a quoted, comma-separated list of values.
-                        let values = if v.starts_with('"') && v.ends_with('"') {
+                        let values: Vec<String> = if v.starts_with('"') && v.ends_with('"') {
                             // Remove the quotes from the value, split by commas, and trim whitespace
                             v[1..v.len()-1].split(',').map(|s| s.trim().to_string()).collect()
                         } else {
-                            vec![v]
+                            vec![v.clone()]
                         };
                         if k == RESERVED_NAMED_ATTRIBUTE_ROLE {
                             for v in values {
@@ -3254,20 +3251,20 @@ v2.9, 01-09-2024: Fall incarnation
         );
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".to_string()))
+            Some(&AttributeValue::String("v2.9".into()))
         );
         assert_eq!(
             state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("01-09-2024".to_string()))
+            Some(&AttributeValue::String("01-09-2024".into()))
         );
         assert_eq!(
             state.document_attributes.get("revremark"),
-            Some(&AttributeValue::String("Fall incarnation".to_string()))
+            Some(&AttributeValue::String("Fall incarnation".into()))
         );
         assert_eq!(
             state.document_attributes.get("description"),
             Some(&AttributeValue::String(
-                "The document's description.".to_string()
+                "The document's description.".into()
             ))
         );
         assert_eq!(
@@ -3276,9 +3273,7 @@ v2.9, 01-09-2024: Fall incarnation
         );
         assert_eq!(
             state.document_attributes.get("url-repo"),
-            Some(&AttributeValue::String(
-                "https://my-git-repo.com".to_string()
-            ))
+            Some(&AttributeValue::String("https://my-git-repo.com".into()))
         );
         Ok(())
     }
@@ -3327,15 +3322,15 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".to_string()))
+            Some(&AttributeValue::String("v2.9".into()))
         );
         assert_eq!(
             state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("01-09-2024".to_string()))
+            Some(&AttributeValue::String("01-09-2024".into()))
         );
         assert_eq!(
             state.document_attributes.get("revremark"),
-            Some(&AttributeValue::String("Fall incarnation".to_string()))
+            Some(&AttributeValue::String("Fall incarnation".into()))
         );
         Ok(())
     }
@@ -3348,11 +3343,11 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".to_string()))
+            Some(&AttributeValue::String("v2.9".into()))
         );
         assert_eq!(
             state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("01-09-2024".to_string()))
+            Some(&AttributeValue::String("01-09-2024".into()))
         );
         assert_eq!(state.document_attributes.get("revremark"), None);
         Ok(())
@@ -3366,12 +3361,12 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".to_string()))
+            Some(&AttributeValue::String("v2.9".into()))
         );
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(
             state.document_attributes.get("revremark"),
-            Some(&AttributeValue::String("Fall incarnation".to_string()))
+            Some(&AttributeValue::String("Fall incarnation".into()))
         );
         Ok(())
     }
@@ -3384,7 +3379,7 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".to_string()))
+            Some(&AttributeValue::String("v2.9".into()))
         );
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(state.document_attributes.get("revremark"), None);

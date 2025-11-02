@@ -412,18 +412,9 @@ mod tests {
 
     fn setup_attributes() -> DocumentAttributes {
         let mut attributes = DocumentAttributes::default();
-        attributes.insert(
-            "s".to_string(),
-            AttributeValue::String("link:/nonono".to_string()),
-        );
-        attributes.insert(
-            "version".to_string(),
-            AttributeValue::String("1.0".to_string()),
-        );
-        attributes.insert(
-            "title".to_string(),
-            AttributeValue::String("My Title".to_string()),
-        );
+        attributes.insert("s".into(), AttributeValue::String("link:/nonono".into()));
+        attributes.insert("version".into(), AttributeValue::String("1.0".into()));
+        attributes.insert("title".into(), AttributeValue::String("My Title".into()));
         attributes
     }
 

@@ -10,6 +10,7 @@ acdc-core.workspace = true
 encoding_rs = "0.8"
 evalexpr = "13"
 peg = "0.8"
+rustc-hash.workspace = true
 ureq = "2.9"
 serde.workspace = true
 serde_json.workspace = true
@@ -18,6 +19,11 @@ thiserror.workspace = true
 url = "2.5"
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 pretty_assertions.workspace = true
 rstest = "0.26"
 tracing-test = "0.2"
+
+[[bench]]
+name = "parser_bench"
+harness = false
