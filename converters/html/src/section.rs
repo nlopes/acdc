@@ -16,7 +16,7 @@ pub(crate) fn visit_section<V: WritableVisitor<Error = Error>>(
         visitor.visit_block(nested_block)?;
     }
 
-    render_section_footer(visitor)?;
+    render_section_footer(section, visitor)?;
     Ok(())
 }
 
@@ -37,17 +37,30 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
     visitor.visit_inline_nodes(&section.title)?;
     w = visitor.writer_mut();
     writeln!(w, "</h{level}>")?;
-    writeln!(w, "<div class=\"sectionbody\">")?;
+
+    // Only sect1 gets a sectionbody wrapper in asciidoctor
+    // sect2 and higher have content directly in the sectN div
+    if section.level == 1 {
+        writeln!(w, "<div class=\"sectionbody\">")?;
+    }
     Ok(())
 }
 
 /// Render the section footer (closing tags)
 ///
 /// Call this after walking the section's nested blocks.
-fn render_section_footer<V: WritableVisitor<Error = Error>>(visitor: &mut V) -> Result<(), Error> {
+fn render_section_footer<V: WritableVisitor<Error = Error>>(
+    section: &Section,
+    visitor: &mut V,
+) -> Result<(), Error> {
     let w = visitor.writer_mut();
-    writeln!(w, "</div>")?;
-    writeln!(w, "</div>")?;
+
+    // Only sect1 has a sectionbody wrapper to close
+    if section.level == 1 {
+        writeln!(w, "</div>")?; // Close sectionbody
+    }
+
+    writeln!(w, "</div>")?; // Close sectN
     Ok(())
 }
 

@@ -34,7 +34,11 @@ impl<W: Write> HtmlVisitor<W> {
 
     fn render_head(&mut self, document: &Document) -> Result<(), Error> {
         writeln!(self.writer, "<head>")?;
-        writeln!(self.writer, "<meta charset=\"utf-8\">")?;
+        writeln!(self.writer, "<meta charset=\"UTF-8\">")?;
+        writeln!(
+            self.writer,
+            "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">"
+        )?;
         writeln!(
             self.writer,
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
@@ -248,7 +252,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             writeln!(self.writer, "<div class=\"details\">")?;
             if !header.authors.is_empty() {
                 for (i, author) in header.authors.iter().enumerate() {
-                    writeln!(
+                    write!(
                         self.writer,
                         "<span id=\"author{}\" class=\"author\">",
                         if i > 0 {
@@ -262,8 +266,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                         write!(self.writer, "{middle_name} ")?;
                     }
                     write!(self.writer, "{}", author.last_name)?;
-                    writeln!(self.writer, "</span>")?;
-                    writeln!(self.writer, "<br>")?;
+                    writeln!(self.writer, "</span><br>")?;
                     if let Some(email) = &author.email {
                         writeln!(
                             self.writer,

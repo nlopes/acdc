@@ -122,10 +122,10 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
         DelimitedBlockType::DelimitedListing(inlines) => {
             let mut w = visitor.writer_mut();
             writeln!(w, "<div class=\"listingblock\">")?;
-            writeln!(w, "<div class=\"content\">")?;
             let _ = w;
             visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
+            writeln!(w, "<div class=\"content\">")?;
             // Check if this is a source block with a language
             // The language is the first positional attribute (after style), which gets moved to attributes map
             let language = detect_language(metadata);
