@@ -15,7 +15,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use acdc_converters_common::{Options, Processable};
-use acdc_parser::{DocumentAttributes, Options as ParserOptions};
+use acdc_parser::Options as ParserOptions;
 use acdc_terminal::Processor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,9 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
 
-        // Parse AsciiDoc
+        // Parse AsciiDoc with rendering defaults
         let parser_options = ParserOptions {
-            document_attributes: DocumentAttributes::default(),
+            document_attributes: acdc_converters_common::default_rendering_attributes(),
             ..Default::default()
         };
         let doc = match acdc_parser::parse_file(&input_path, &parser_options) {

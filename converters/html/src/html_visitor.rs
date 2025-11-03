@@ -4,9 +4,9 @@ use std::io::Write;
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
-    Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
-    Footnote, Header, Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DescriptionList,
+    DiscreteHeader, Document, Footnote, Header, Image, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use crate::{Error, Processor, RenderOptions};
@@ -180,7 +180,25 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
         writeln!(self.writer, "<!DOCTYPE html>")?;
-        writeln!(self.writer, "<html>")?;
+
+        // Add lang attribute if not suppressed by :nolang:
+        if let Some(lang) = doc.attributes.get("lang") {
+            match lang {
+                AttributeValue::String(lang_value) if !lang_value.is_empty() => {
+                    writeln!(self.writer, "<html lang=\"{lang_value}\">")?;
+                }
+                _ => {
+                    writeln!(self.writer, "<html>")?;
+                }
+            }
+        } else if doc.attributes.contains_key("nolang") {
+            // :nolang: attribute suppresses lang
+            writeln!(self.writer, "<html>")?;
+        } else {
+            // No lang attribute and no nolang - use default "en"
+            writeln!(self.writer, "<html lang=\"en\">")?;
+        }
+
         self.render_head(doc)?;
         writeln!(
             self.writer,
@@ -323,7 +341,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        crate::admonition::visit_admonition(self, admon)
+        let processor = self.processor.clone();
+        crate::admonition::visit_admonition(self, admon, &processor)
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {

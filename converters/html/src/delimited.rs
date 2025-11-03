@@ -135,7 +135,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
                     "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
                 )?;
             } else {
-                writeln!(w, "<pre>")?;
+                write!(w, "<pre>")?;
             }
 
             let _ = w;
@@ -167,7 +167,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
             writeln!(w, "<div class=\"content\">")?;
-            writeln!(w, "<pre>")?;
+            write!(w, "<pre>")?;
             let _ = w;
             visitor.visit_inline_nodes(inlines)?;
             w = visitor.writer_mut();

@@ -1,6 +1,3 @@
-[1mTable of Contents[0m
-A list of sorts:
-
 > A list of sorts: <
 
  1. Item 1

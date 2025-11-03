@@ -1,5 +1,5 @@
 use acdc_core::{Doctype, SafeMode};
-use acdc_parser::DocumentAttributes;
+use acdc_parser::{AttributeValue, DocumentAttributes};
 
 pub mod code;
 pub mod toc;
@@ -7,6 +7,83 @@ pub mod video;
 
 // Visitor pattern infrastructure
 pub mod visitor;
+
+/// Create default document attributes for rendering.
+///
+/// These defaults match asciidoctor's rendering behavior and are used by converters
+/// (HTML, terminal, etc.) to provide consistent output. Document-level attributes
+/// from the source always take precedence over these defaults.
+///
+/// # Default Attributes
+///
+/// - `lang`: "en" - HTML lang attribute for accessibility
+/// - `note-caption`: "Note" - Capitalized admonition label
+/// - `tip-caption`: "Tip" - Capitalized admonition label
+/// - `important-caption`: "Important" - Capitalized admonition label
+/// - `warning-caption`: "Warning" - Capitalized admonition label
+/// - `caution-caption`: "Caution" - Capitalized admonition label
+/// - `toclevels`: "2" - Table of contents depth (only used when `:toc:` is set)
+/// - `sectnumlevels`: "3" - Section numbering depth (when section numbering enabled)
+///
+/// # Usage
+///
+/// Converters should merge these defaults with document attributes:
+///
+/// ```ignore
+/// let mut attrs = default_rendering_attributes();
+/// attrs.merge(document.attributes.clone()); // Document attributes override defaults
+/// ```
+///
+/// # Note
+///
+/// The `:toc:` attribute is intentionally NOT set by default - TOC generation
+/// must be explicitly requested in the document.
+#[must_use]
+pub fn default_rendering_attributes() -> DocumentAttributes {
+    let mut attrs = DocumentAttributes::default();
+
+    // HTML lang attribute (default: "en")
+    attrs.set("lang".to_string(), AttributeValue::String("en".to_string()));
+
+    // Admonition captions (capitalized to match asciidoctor)
+    attrs.set(
+        "note-caption".to_string(),
+        AttributeValue::String("Note".to_string()),
+    );
+    attrs.set(
+        "tip-caption".to_string(),
+        AttributeValue::String("Tip".to_string()),
+    );
+    attrs.set(
+        "important-caption".to_string(),
+        AttributeValue::String("Important".to_string()),
+    );
+    attrs.set(
+        "warning-caption".to_string(),
+        AttributeValue::String("Warning".to_string()),
+    );
+    attrs.set(
+        "caution-caption".to_string(),
+        AttributeValue::String("Caution".to_string()),
+    );
+
+    // TOC levels (only used when :toc: is set)
+    attrs.set(
+        "toclevels".to_string(),
+        AttributeValue::String("2".to_string()),
+    );
+
+    // Section numbering levels (for future section numbering feature)
+    attrs.set(
+        "sectnumlevels".to_string(),
+        AttributeValue::String("3".to_string()),
+    );
+
+    // NOTE: :toc: is intentionally NOT set - TOC should only appear when explicitly requested
+    // NOTE: :sectids: is enabled by default in the parser itself, no attribute needed
+
+    attrs
+}
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {

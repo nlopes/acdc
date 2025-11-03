@@ -1,18 +1,63 @@
 use acdc_converters_common::visitor::WritableVisitor;
-use acdc_parser::Admonition;
+use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 
-use crate::Error;
+use crate::{Error, Processor};
 
 pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     admon: &Admonition,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    // Get the appropriate caption attribute for this admonition type
+    let caption = match admon.variant {
+        AdmonitionVariant::Note => processor
+            .document_attributes
+            .get("note-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Note"),
+        AdmonitionVariant::Tip => processor
+            .document_attributes
+            .get("tip-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Tip"),
+        AdmonitionVariant::Important => processor
+            .document_attributes
+            .get("important-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Important"),
+        AdmonitionVariant::Warning => processor
+            .document_attributes
+            .get("warning-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Warning"),
+        AdmonitionVariant::Caution => processor
+            .document_attributes
+            .get("caution-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Caution"),
+    };
+
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;
     writeln!(writer, "<table>")?;
     writeln!(writer, "<tr>")?;
     writeln!(writer, "<td class=\"icon\">")?;
-    writeln!(writer, "<div class=\"title\">{}</div>", admon.variant)?;
+    writeln!(writer, "<div class=\"title\">{caption}</div>")?;
     writeln!(writer, "</td>")?;
     writeln!(writer, "<td class=\"content\">")?;
     if !admon.title.is_empty() {

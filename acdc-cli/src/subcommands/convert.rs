@@ -203,7 +203,11 @@ where
 }
 
 fn build_attributes_map(values: &[String]) -> DocumentAttributes {
-    let mut map = DocumentAttributes::default();
+    // Start with rendering defaults (from converters/common)
+    // CLI-provided attributes will override these defaults
+    let mut map = acdc_converters_common::default_rendering_attributes();
+
+    // Add CLI-provided attributes (these take precedence over defaults)
     for raw_attr in values {
         let (name, val) = if let Some(stripped) = raw_attr.strip_suffix('!') {
             (stripped.to_string(), AttributeValue::None)
@@ -212,7 +216,7 @@ fn build_attributes_map(values: &[String]) -> DocumentAttributes {
         } else {
             (raw_attr.clone(), AttributeValue::Bool(true))
         };
-        map.insert(name, val);
+        map.set(name, val); // use set() to override defaults
     }
     map
 }

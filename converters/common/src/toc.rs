@@ -16,9 +16,12 @@ impl Config {
     ) -> Self {
         let placement = attributes
             .get("toc")
-            .map_or("auto", |v| match v {
+            .map_or("none", |v| match v {
+                // Empty string or Bool(true) means toc is enabled with auto placement
+                AttributeValue::String(s) if s.is_empty() => "auto",
                 AttributeValue::String(s) => s.as_str(),
                 AttributeValue::Bool(true) => "auto",
+                // Bool(false) or None means toc is disabled
                 _ => "none",
             })
             .to_lowercase();
