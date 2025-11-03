@@ -7,11 +7,11 @@ use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 #[derive(Debug, Diagnostic, thiserror::Error)]
 #[error("{message}")]
 #[diagnostic()]
-pub(crate) struct RichError<'a> {
+pub(crate) struct RichError {
     message: String,
 
     #[help]
-    advice: Option<&'a str>,
+    advice: Option<&'static str>,
 
     #[source_code]
     src: NamedSource<String>,

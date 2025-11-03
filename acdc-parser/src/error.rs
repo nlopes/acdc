@@ -136,6 +136,21 @@ impl Error {
             Self::InvalidIncludePath(..) => Some(
                 "Include paths must have a valid parent directory. Check that the path is not empty or relative to a non-existent location",
             ),
+            Self::Parse(..) => Some(
+                "Check the AsciiDoc syntax at the indicated location. Common issues: incorrect block delimiters, malformed section headings, or invalid attribute syntax",
+            ),
+            Self::PegParse(..) => Some(
+                "The parser encountered unexpected syntax. Verify that block delimiters match, section levels increment correctly, and all syntax follows AsciiDoc specification",
+            ),
+            Self::Url(..) => Some(
+                "Verify the URL syntax is correct (e.g., https://example.com/file.adoc). Check for typos in the protocol, domain, or path",
+            ),
+            Self::HttpRequest(..) => Some(
+                "Check that the URL is accessible, the server is reachable, and you have network connectivity. For includes, consider using safe mode restrictions",
+            ),
+            Self::UnknownEncoding(..) | Self::UnrecognizedEncodingInFile(..) => Some(
+                "We only support UTF-8 or UTF-16 encoded files. Ensure the specified encoding is correct and the file is saved with that encoding",
+            ),
             _ => None,
         }
     }
