@@ -19,11 +19,11 @@ thiserror.workspace = true
 url = "2.5"
 
 [dev-dependencies]
-# criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.7", features = ["html_reports"] }
 pretty_assertions.workspace = true
 rstest = "0.26"
 tracing-test = "0.2"
 
-# [[bench]]
-# name = "parser_bench"
-# harness = false
+[[bench]]
+name = "parser_bench"
+harness = false
