@@ -71,6 +71,62 @@ Alternatively, you can build them all like so:
 cargo build --all-features
 ....
 
+## Feature Flags
+
+`acdc-cli` uses Cargo feature flags to enable optional converters and development tools. Here's what's available:
+
+### Output Converters
+
+* `html` (default) - HTML5 converter with Asciidoctor-compatible styling
+* `terminal` - Terminal converter with ANSI color support
+
+### Development Tools
+
+* `inspect` - AST inspection tool for debugging parser output
+* `tck` - Technology Compatibility Kit for spec compliance testing
+
+### Feature Groups
+
+For convenience, you can use these feature groups:
+
+* `all-backends` - Enables both HTML and terminal converters
+* `dev-tools` - Enables the inspect tool
+* `test-tools` - Enables the TCK tool
+
+### Usage Examples
+
+Build with terminal converter:
+
+[source,console]
+....
+cargo build --features terminal
+....
+
+Build with all backends:
+
+[source,console]
+....
+cargo build --features all-backends
+....
+
+Build with development tools:
+
+[source,console]
+....
+cargo build --features dev-tools
+....
+
+Build with everything:
+
+[source,console]
+....
+cargo build --all-features
+....
+
+### Built-in Dependencies
+
+Parser dependencies (ureq for remote includes, evalexpr for expressions, encoding_rs for encoding detection) are built-in and always available. They're core to AsciiDoc processing and don't require feature flags.
+
 ## Examples
 
 Convert a file to HTML:

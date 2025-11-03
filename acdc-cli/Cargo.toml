@@ -29,11 +29,21 @@ tracing.workspace = true
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
 [features]
+# Default features - HTML converter is always included as the primary output format
 default = ["html"]
-html = ["dep:acdc-html"]
-tck = []
-inspect = []
-terminal = ["dep:acdc-terminal"]
+
+# Output converters
+html = ["dep:acdc-html"]            # HTML5 converter with Asciidoctor-compatible styling
+terminal = ["dep:acdc-terminal"]    # Terminal converter with ANSI color support
+
+# Development tools
+inspect = []  # AST inspection tool for debugging parser output
+tck = []      # Technology Compatibility Kit for spec compliance testing
+
+# Feature groups for convenience
+all-backends = ["html", "terminal"]  # Enable all output converters
+dev-tools = ["inspect"]              # Enable development utilities
+test-tools = ["tck"]                 # Enable testing and compliance tools
 
 [lints]
 workspace = true
