@@ -393,13 +393,14 @@ impl Include {
                     tracing::error!(url=?url, "failed to extract file name from URL");
                     return Ok(lines);
                 }
-
-                let response = ureq::get(url.as_str())
-                    .call()
-                    .map_err(|e| Error::HttpRequest(e.to_string()))?;
-                // Create and write to the file
-                let mut file = File::create(&temp_path)?;
-                io::copy(&mut response.into_reader(), &mut file)?;
+                {
+                    let mut response = ureq::get(url.as_str())
+                        .call()
+                        .map_err(|e| Error::HttpRequest(e.to_string()))?;
+                    // Create and write to the file
+                    let mut file = File::create(&temp_path)?;
+                    io::copy(&mut response.body_mut().as_reader(), &mut file)?;
+                }
                 tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
                 temp_path
             }
