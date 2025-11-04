@@ -58,6 +58,7 @@ impl Processor {
 pub struct RenderOptions {
     pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
     pub inlines_basic: bool,
+    pub inlines_verbatim: bool,
 }
 
 impl Processable for Processor {

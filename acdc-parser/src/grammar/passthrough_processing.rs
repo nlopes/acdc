@@ -1,4 +1,4 @@
-use crate::{InlineNode, Location, Pass, Plain, ProcessedContent, Substitution};
+use crate::{InlineNode, Location, Pass, Plain, ProcessedContent, Raw, Substitution};
 
 use super::{
     ParserState,
@@ -23,13 +23,28 @@ pub(crate) fn process_passthrough_with_quotes(
     passthrough: &Pass,
     state: &ParserState,
 ) -> Vec<InlineNode> {
-    // Only process if this passthrough has quote substitutions
-    if !passthrough.substitutions.contains(&Substitution::Quotes) {
-        // No quote processing needed, return as plain text
-        return vec![InlineNode::PlainText(Plain {
-            content: content.to_string(),
-            location: passthrough.location.clone(),
-        })];
+    use crate::PassthroughKind;
+
+    let has_special_chars = passthrough
+        .substitutions
+        .contains(&Substitution::SpecialChars);
+    let has_quotes = passthrough.substitutions.contains(&Substitution::Quotes);
+
+    // If no quotes processing needed
+    if !has_quotes {
+        // For pass: macro with SpecialChars, escape the HTML (return PlainText)
+        // For all other passthroughs (+, ++, +++, pass:[]), output raw HTML (return RawText)
+        return if has_special_chars && matches!(passthrough.kind, PassthroughKind::Macro) {
+            vec![InlineNode::PlainText(Plain {
+                content: content.to_string(),
+                location: passthrough.location.clone(),
+            })]
+        } else {
+            vec![InlineNode::RawText(Raw {
+                content: content.to_string(),
+                location: passthrough.location.clone(),
+            })]
+        };
     }
 
     tracing::debug!(content = ?content, "Parsing passthrough content with quotes");

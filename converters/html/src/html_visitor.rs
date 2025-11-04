@@ -317,9 +317,31 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        let options = self.render_options.clone();
-        crate::delimited::visit_delimited_block(self, block, &processor, &options)
+        use acdc_parser::DelimitedBlockType;
+
+        // Enable HTML escaping for verbatim blocks (listing and literal)
+        let needs_escaping = matches!(
+            &block.inner,
+            DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
+        );
+
+        if needs_escaping {
+            // Temporarily enable inlines_verbatim mode
+            let original_verbatim = self.render_options.inlines_verbatim;
+            self.render_options.inlines_verbatim = true;
+
+            let processor = self.processor.clone();
+            let options = self.render_options.clone();
+            let result = crate::delimited::visit_delimited_block(self, block, &processor, &options);
+
+            // Restore original state
+            self.render_options.inlines_verbatim = original_verbatim;
+            result
+        } else {
+            let processor = self.processor.clone();
+            let options = self.render_options.clone();
+            crate::delimited::visit_delimited_block(self, block, &processor, &options)
+        }
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {

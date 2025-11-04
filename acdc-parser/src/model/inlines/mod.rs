@@ -93,9 +93,7 @@ impl Serialize for InlineNode {
                 map.serialize_entry("location", &plain.location)?;
             }
             InlineNode::RawText(raw) => {
-                // We use "text" here to make sure the TCK passes, even though this is raw
-                // text.
-                map.serialize_entry("name", "text")?;
+                map.serialize_entry("name", "raw")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &raw.content)?;
                 map.serialize_entry("location", &raw.location)?;

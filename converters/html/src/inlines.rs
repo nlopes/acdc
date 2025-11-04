@@ -1,10 +1,54 @@
+//! Inline content rendering for HTML conversion.
+//!
+//! # Security Model and HTML Escaping
+//!
+//! `AsciiDoc` follows a **trusted document author** model, similar to Markdown. The document
+//! author is trusted to create safe content, and certain features intentionally allow raw HTML
+//! output for flexibility.
+//!
+//! ## Escaping Behavior by Content Type
+//!
+//! ### `PlainText`
+//! - **Always escaped**: HTML special characters (`<`, `>`, `&`, `"`, `'`) are converted to entities
+//! - **Typography applied**: Em-dashes, ellipses, and smart quotes (unless in basic/verbatim mode)
+//! - Example: `<script>` → `&lt;script&gt;`
+//!
+//! ### `RawText` (Passthrough Content)
+//! - **Never escaped by default**: Intentionally outputs raw HTML
+//! - Used for passthrough blocks (`++++...++++`) and inline passthroughs (`pass:[]`, `+++...+++`)
+//! - **Escaping when verbatim**: Only escaped when in verbatim context (listing/literal blocks)
+//! - Example: `pass:[<strong>test</strong>]` → `<strong>test</strong>` (raw HTML)
+//!
+//! ### `VerbatimText` (Code Blocks)
+//! - **Always escaped**: Used in listing and literal blocks to display code
+//! - **Callout processing**: Handles `<1>`, `<2>` markers specially
+//! - Example in listing block: `<h1>` → `&lt;h1&gt;`
+//!
+//! ### Passthrough with `SpecialChars` Substitution
+//! - `pass:c[...]` or `pass:specialchars[...]` → HTML is escaped
+//! - Example: `pass:c[<strong>test</strong>]` → `&lt;strong&gt;test&lt;/strong&gt;`
+//!
+//! ## Why This Design?
+//!
+//! This matches asciidoctor's security model where:
+//! 1. Document authors are trusted (like Markdown, not like user-generated HTML)
+//! 2. Passthrough is a feature for intentionally embedding raw HTML
+//! 3. Regular content is always escaped for safety
+//! 4. Code blocks escape HTML to display it correctly
+//!
+//! ## ID Attributes
+//!
+//! Currently, acdc auto-generates section IDs from titles rather than accepting custom IDs.
+//! This is inherently safe. When custom ID support is added, asciidoctor does NOT escape
+//! IDs, trusting the document author to provide safe values.
+
 use std::{
     io::{self, Write},
     path::PathBuf,
 };
 
 use acdc_converters_common::visitor::WritableVisitor;
-use acdc_parser::{InlineMacro, InlineNode, PassthroughKind, StemNotation, Substitution};
+use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution};
 
 use crate::{Error, Processor, RenderOptions};
 
@@ -40,15 +84,29 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
     let w = visitor.writer_mut();
     match node {
         InlineNode::PlainText(p) => {
+            // PlainText always gets escaping and typography substitutions
             let text = substitution_text(&p.content, options);
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
-            write!(w, "{}", r.content)?;
+            // RawText outputs as-is (no escaping, no substitutions) unless in verbatim mode
+            let text = if options.inlines_verbatim {
+                substitution_text(&r.content, options)
+            } else {
+                r.content.clone()
+            };
+            write!(w, "{text}")?;
         }
         InlineNode::VerbatimText(v) => {
+            // VerbatimText handles callouts and escaping (verbatim mode always applies)
             let text = mark_callouts(&v.content);
             let text = replace_callout_placeholders(&text);
+            // Create temporary options with verbatim mode enabled for escaping
+            let verbatim_options = RenderOptions {
+                inlines_verbatim: true,
+                ..options.clone()
+            };
+            let text = substitution_text(&text, &verbatim_options);
             write!(w, "{text}")?;
         }
         InlineNode::BoldText(b) => {
@@ -234,10 +292,9 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
         }
         InlineMacro::Pass(p) => {
             if let Some(ref text) = p.text {
-                if p.substitutions.contains(&Substitution::SpecialChars)
-                    || p.kind == PassthroughKind::Single
-                    || p.kind == PassthroughKind::Double
-                {
+                // Only escape when SpecialChars substitution is enabled (pass:c[])
+                // Otherwise output raw HTML (pass:[], +++...+++)
+                if p.substitutions.contains(&Substitution::SpecialChars) {
                     let text = substitution_text(text, options);
                     write!(w, "{text}")?;
                 } else {
@@ -375,8 +432,8 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
         .replace('\'', "&#8217;")
         .replace("...", "&#8230;&#8203;");
 
-    // Apply additional text transformations only when not in basic mode
-    if options.inlines_basic {
+    // Apply additional text transformations only when not in basic or verbatim mode
+    if options.inlines_basic || options.inlines_verbatim {
         text
     } else {
         text.replace(" -- ", "&thinsp;&mdash;&thinsp;")

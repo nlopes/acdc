@@ -57,11 +57,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": " and *verbatim* and *none* with different substitutions.",
+          "value": " and ",
           "location": [
             {
               "line": 1,
               "col": 38
+            },
+            {
+              "line": 1,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*verbatim*",
+          "location": [
+            {
+              "line": 1,
+              "col": 43
+            },
+            {
+              "line": 1,
+              "col": 61
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 61
+            },
+            {
+              "line": 1,
+              "col": 66
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*none*",
+          "location": [
+            {
+              "line": 1,
+              "col": 66
+            },
+            {
+              "line": 1,
+              "col": 79
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " with different substitutions.",
+          "location": [
+            {
+              "line": 1,
+              "col": 79
             },
             {
               "line": 1,
