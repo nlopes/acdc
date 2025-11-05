@@ -28,7 +28,7 @@ enum Commands {
 fn setup_logging() {
     use tracing_subscriber::{EnvFilter, prelude::*};
 
-    let env_filter = EnvFilter::try_from_env("ACDC_LOG");
+    let env_filter = EnvFilter::try_from_env("ACDC_LOG").or_else(|_| EnvFilter::try_new("warn"));
 
     if let Ok(filter) = env_filter {
         let layer = tracing_subscriber::fmt::layer()
