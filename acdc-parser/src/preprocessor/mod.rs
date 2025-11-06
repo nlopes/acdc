@@ -316,7 +316,12 @@ impl Preprocessor {
             // while following the specs at
             // https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads#user-content-preprocessor
 
-            if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
+            // Skip single-line comments (lines starting with //)
+            if line.starts_with("//") {
+                tracing::debug!(line, "Filtering out comment line");
+                // Return an empty line to preserve line numbering
+                output.push(String::new());
+            } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 if line.starts_with("\\include")
                     || line.starts_with("\\ifdef")
                     || line.starts_with("\\ifndef")

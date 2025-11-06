@@ -34,37 +34,6 @@
       ]
     },
     {
-      "name": "paragraph",
-      "type": "block",
-      "inlines": [
-        {
-          "name": "text",
-          "type": "string",
-          "value": "// A comment block\n// that spans multiple lines.",
-          "location": [
-            {
-              "line": 3,
-              "col": 1
-            },
-            {
-              "line": 4,
-              "col": 29
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 3,
-          "col": 1
-        },
-        {
-          "line": 4,
-          "col": 29
-        }
-      ]
-    },
-    {
       "name": "example",
       "type": "block",
       "form": "delimited",

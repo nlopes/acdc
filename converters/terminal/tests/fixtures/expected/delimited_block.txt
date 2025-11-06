@@ -1,8 +1,5 @@
 This is a paragraph.
 
-// A comment block
-// that spans multiple lines.
-
 
 [38;5;14m[1mEXAMPLE[0m
 This is an example of an example block.
