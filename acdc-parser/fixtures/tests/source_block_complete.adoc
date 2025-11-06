@@ -1,0 +1,17 @@
+:filename: ./app.js
+
+.{filename}
+[source,javascript]
+----
+const express = require('express'); <1>
+const app = express();
+
+app.get('/', (req, res) => { <2>
+  res.send('Hello World!');
+});
+
+app.listen(3000); <3>
+----
+<1> Import the Express framework
+<2> Define a route handler
+<3> Start the server on port 3000

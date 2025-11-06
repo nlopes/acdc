@@ -114,3 +114,13 @@ fn test_url_macro() -> Result<(), Error> {
 fn test_basic_image_block() -> Result<(), Error> {
     test_fixture("basic_image_block")
 }
+
+#[test]
+fn test_source_block_with_attribute_in_title() -> Result<(), Error> {
+    test_fixture("source_block_with_attribute_in_title")
+}
+
+#[test]
+fn test_source_block_complete() -> Result<(), Error> {
+    test_fixture("source_block_complete")
+}

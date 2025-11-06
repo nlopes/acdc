@@ -100,13 +100,15 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
         InlineNode::VerbatimText(v) => {
             // VerbatimText handles callouts and escaping (verbatim mode always applies)
             let text = mark_callouts(&v.content);
-            let text = replace_callout_placeholders(&text);
             // Create temporary options with verbatim mode enabled for escaping
             let verbatim_options = RenderOptions {
                 inlines_verbatim: true,
                 ..options.clone()
             };
+            // Apply HTML escaping and typography BEFORE replacing callout placeholders
+            // This ensures the HTML tags in callouts don't get escaped
             let text = substitution_text(&text, &verbatim_options);
+            let text = replace_callout_placeholders(&text);
             write!(w, "{text}")?;
         }
         InlineNode::BoldText(b) => {
