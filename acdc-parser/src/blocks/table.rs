@@ -12,8 +12,15 @@ impl Table {
         let lines: Vec<&str> = text.lines().collect();
         let mut i = 0;
 
+        tracing::debug!(
+            ?has_header,
+            total_lines = lines.len(),
+            "Starting table parsing"
+        );
+
         while i < lines.len() {
             let line = lines[i].trim_end();
+            tracing::trace!(i, ?line, is_empty = line.is_empty(), "Processing line");
 
             // If we are in the first row and it is empty, we should not have a header
             if i == 0 && line.is_empty() {
@@ -21,11 +28,6 @@ impl Table {
                 current_offset += line.len() + 1;
                 i += 1;
                 continue;
-            }
-
-            // If we're at index 1 and it's empty, then we have a header
-            if i == 1 && line.is_empty() {
-                *has_header = true;
             }
 
             // Collect lines for this row (until we hit an empty line or end)
@@ -56,6 +58,12 @@ impl Table {
                 let columns =
                     Self::parse_row_with_positions(&row_lines, separator, row_start_offset);
                 rows.push(columns);
+            }
+
+            // After processing the first row, check if the next line is blank (indicates header)
+            if rows.len() == 1 && i < lines.len() && lines[i].trim_end().is_empty() {
+                tracing::debug!("Detected table header via blank line after first row");
+                *has_header = true;
             }
 
             // Skip empty lines

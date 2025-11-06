@@ -89,7 +89,14 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
         }
         // Handle tables
         DelimitedBlockType::DelimitedTable(t) => {
-            crate::table::render_table(t, visitor, processor, options, &block.metadata)?;
+            crate::table::render_table(
+                t,
+                visitor,
+                processor,
+                options,
+                &block.metadata,
+                &block.title,
+            )?;
         }
         // For other block types, use the regular rendering
         _ => {
@@ -267,6 +274,7 @@ mod tests {
             document_attributes,
             toc_entries: Vec::new(),
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            table_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         }
     }
 

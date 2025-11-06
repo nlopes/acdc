@@ -43,118 +43,117 @@
         }
       },
       "content": {
-        "header": null,
+        "header": {
+          "columns": [
+            {
+              "content": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Column 1",
+                      "location": [
+                        {
+                          "line": 5,
+                          "col": 2
+                        },
+                        {
+                          "line": 5,
+                          "col": 9
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 2
+                    },
+                    {
+                      "line": 5,
+                      "col": 9
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Column 2",
+                      "location": [
+                        {
+                          "line": 5,
+                          "col": 12
+                        },
+                        {
+                          "line": 5,
+                          "col": 19
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 12
+                    },
+                    {
+                      "line": 5,
+                      "col": 19
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "content": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Column 3",
+                      "location": [
+                        {
+                          "line": 5,
+                          "col": 22
+                        },
+                        {
+                          "line": 5,
+                          "col": 29
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 22
+                    },
+                    {
+                      "line": 5,
+                      "col": 29
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
         "footer": null,
         "rows": [
-          {
-            "columns": [
-              {
-                "content": [
-                  {
-                    "name": "paragraph",
-                    "type": "block",
-                    "inlines": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Column 1",
-                        "location": [
-                          {
-                            "line": 5,
-                            "col": 2
-                          },
-                          {
-                            "line": 5,
-                            "col": 9
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 2
-                      },
-                      {
-                        "line": 5,
-                        "col": 9
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "content": [
-                  {
-                    "name": "paragraph",
-                    "type": "block",
-                    "inlines": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Column 2",
-                        "location": [
-                          {
-                            "line": 5,
-                            "col": 12
-                          },
-                          {
-                            "line": 5,
-                            "col": 19
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 12
-                      },
-                      {
-                        "line": 5,
-                        "col": 19
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "content": [
-                  {
-                    "name": "paragraph",
-                    "type": "block",
-                    "inlines": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Column 3",
-                        "location": [
-                          {
-                            "line": 5,
-                            "col": 22
-                          },
-                          {
-                            "line": 5,
-                            "col": 29
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 5,
-                        "col": 22
-                      },
-                      {
-                        "line": 5,
-                        "col": 29
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
           {
             "columns": [
               {

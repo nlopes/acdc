@@ -23,8 +23,6 @@ pub(crate) fn process_passthrough_with_quotes(
     passthrough: &Pass,
     state: &ParserState,
 ) -> Vec<InlineNode> {
-    use crate::PassthroughKind;
-
     let has_special_chars = passthrough
         .substitutions
         .contains(&Substitution::SpecialChars);
@@ -32,9 +30,11 @@ pub(crate) fn process_passthrough_with_quotes(
 
     // If no quotes processing needed
     if !has_quotes {
-        // For pass: macro with SpecialChars, escape the HTML (return PlainText)
-        // For all other passthroughs (+, ++, +++, pass:[]), output raw HTML (return RawText)
-        return if has_special_chars && matches!(passthrough.kind, PassthroughKind::Macro) {
+        // If SpecialChars substitution is enabled, escape HTML (return PlainText)
+        // This applies to: +text+ (Single), ++text++ (Double), pass:c[] (Macro with SpecialChars)
+        // Otherwise output raw HTML (return RawText)
+        // This applies to: +++text+++ (Triple), pass:[] (Macro without SpecialChars)
+        return if has_special_chars {
             vec![InlineNode::PlainText(Plain {
                 content: content.to_string(),
                 location: passthrough.location.clone(),

@@ -1,5 +1,5 @@
-use acdc_converters_common::visitor::WritableVisitor;
-use acdc_parser::{AttributeValue, Block, BlockMetadata, Table};
+use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_parser::{AttributeValue, Block, BlockMetadata, InlineNode, Table};
 
 use crate::{Error, Processor, RenderOptions};
 
@@ -37,22 +37,56 @@ pub(crate) fn render_table<V>(
     processor: &Processor,
     options: &RenderOptions,
     metadata: &BlockMetadata,
+    title: &[InlineNode],
 ) -> Result<(), Error>
 where
     V: WritableVisitor<Error = Error>,
 {
-    let writer = visitor.writer_mut();
+    let mut writer = visitor.writer_mut();
     let classes = ["tableblock", "frame-all", "grid-all", "stretch"];
 
     writeln!(writer, "<table class=\"{}\">", classes.join(" "))?;
 
-    // Generate colgroup if cols attribute exists
-    if let Some(cols_value) = metadata.attributes.get("cols") {
+    // Render caption with table number if title exists
+    if !title.is_empty() {
+        let count = processor.table_counter.get() + 1;
+        processor.table_counter.set(count);
+        let _ = writer;
+        visitor.render_title_with_wrapper(
+            title,
+            &format!("<caption class=\"title\">Table {count}. "),
+            "</caption>\n",
+        )?;
+        writer = visitor.writer_mut();
+    }
+
+    // Generate colgroup - either from cols attribute or inferred from table structure
+    let col_count = if let Some(cols_value) = metadata.attributes.get("cols") {
         let cols_str = match cols_value {
-            AttributeValue::String(s) => s.as_str(),
+            AttributeValue::String(s) => s.trim_matches('"'),
             _ => "",
         };
-        let col_count = cols_str.split(',').count();
+
+        // Handle multiplier syntax like "3*" or "2*~"
+        if let Some(asterisk_pos) = cols_str.find('*') {
+            let count_str = &cols_str[..asterisk_pos];
+            count_str.parse::<usize>().unwrap_or(1)
+        } else {
+            // Regular comma-separated format
+            cols_str.split(',').count()
+        }
+    } else {
+        // Infer column count from header or first row
+        if let Some(header) = &table.header {
+            header.columns.len()
+        } else if let Some(first_row) = table.rows.first() {
+            first_row.columns.len()
+        } else {
+            0
+        }
+    };
+
+    if col_count > 0 {
         let col_count_f64 = f64::from(u32::try_from(col_count).unwrap_or(1));
         let width_percent = 100.0 / col_count_f64;
         writeln!(writer, "<colgroup>")?;

@@ -423,14 +423,14 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
         return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
     }
 
-    // Always escape HTML entities for security
+    // Escape HTML special characters that are dangerous (<, >, &)
+    // and apply typography transformations (ellipsis, smart quotes)
     let text = text
         .replace('&', "&amp;")
         .replace('>', "&gt;")
         .replace('<', "&lt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&#8217;")
-        .replace("...", "&#8230;&#8203;");
+        .replace("...", "&#8230;&#8203;")
+        .replace('\'', "&#8217;"); // Convert straight apostrophe to curly (smart quote)
 
     // Apply additional text transformations only when not in basic or verbatim mode
     if options.inlines_basic || options.inlines_verbatim {
