@@ -30,6 +30,12 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
             filepath.to_str().unwrap_or("").replace(['-', '_'], " ")
         )?;
     }
+    if let Some(width) = img.metadata.attributes.get("width") {
+        write!(w, " width=\"{width}\"")?;
+    }
+    if let Some(height) = img.metadata.attributes.get("height") {
+        write!(w, " height=\"{height}\"")?;
+    }
     write!(w, " />")?;
     if link.is_some() {
         write!(w, "</a>")?;

@@ -269,7 +269,8 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Image(i) => {
-            // Inline images are simpler than block images - just the img tag
+            // Inline images use a span wrapper with the img tag inside
+            write!(w, "<span class=\"image\">")?;
             let link = i.metadata.attributes.get("link");
             if let Some(link) = link {
                 write!(w, "<a class=\"image\" href=\"{link}\">")?;
@@ -293,10 +294,25 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     filepath.to_str().unwrap_or("").replace(['-', '_'], " ")
                 )?;
             }
-            write!(w, " />")?;
+
+            // Add width and height attributes if present
+            if let Some(width) = i.metadata.attributes.get("width") {
+                write!(w, " width=\"{width}\"")?;
+            }
+            if let Some(height) = i.metadata.attributes.get("height") {
+                write!(w, " height=\"{height}\"")?;
+            }
+
+            // Add title attribute for hover text if present
+            if let Some(title) = i.metadata.attributes.get("title") {
+                write!(w, " title=\"{title}\"")?;
+            }
+
+            write!(w, ">")?;
             if link.is_some() {
                 write!(w, "</a>")?;
             }
+            write!(w, "</span>")?;
         }
         InlineMacro::Pass(p) => {
             if let Some(ref text) = p.text {

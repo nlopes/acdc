@@ -2063,20 +2063,25 @@ peg::parser! {
                 metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
-            if let Some(AttributeValue::String(content)) = metadata.attributes.get("title") {
-                if let Some((title_start, title_end)) = title_position {
-                    // Use the captured position from the named_attribute rule
-                    let title_start_pos = PositionWithOffset {
-                        offset: title_start,
-                        position: state.line_map.offset_to_position(title_start, &state.input),
-                    };
-                    title = process_inlines_or_err!(
-                        process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content),
-                        "could not process title in inline image macro"
-                    )?.0;
-                }
-                metadata.attributes.remove("title");
+            // For inline images, if there's no first positional (no alt text in title field),
+            // check if there's a named title attribute. Only then should we use it to populate
+            // the title field for rendering purposes, but we keep it in attributes for the
+            // HTML title attribute (hover text).
+            if title.is_empty()
+                && let Some(AttributeValue::String(content)) = metadata.attributes.get("title")
+                && let Some((title_start, title_end)) = title_position
+            {
+                // Use the captured position from the named_attribute rule
+                let title_start_pos = PositionWithOffset {
+                    offset: title_start,
+                    position: state.line_map.offset_to_position(title_start, &state.input),
+                };
+                title = process_inlines_or_err!(
+                    process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content),
+                    "could not process title in inline image macro"
+                )?.0;
             }
+            // Note: We do NOT remove the title attribute - it's needed for the HTML title attribute
 
             Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
                 title,
