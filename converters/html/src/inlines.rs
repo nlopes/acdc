@@ -162,13 +162,11 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineNode::CurvedQuotationText(c) => {
-            match (&c.id, &c.role) {
-                (Some(id), Some(role)) => {
-                    write!(w, "<span id=\"{id}\" class=\"{role}\">&ldquo;")?;
-                }
-                (Some(id), None) => write!(w, "<span id=\"{id}\">&ldquo;")?,
-                (None, Some(role)) => write!(w, "<span class=\"{role}\">&ldquo;")?,
-                (None, None) => write!(w, "&ldquo;")?,
+            if c.id.is_some() || c.role.is_some() {
+                write_tag_with_attrs(w, "span", c.id.as_ref(), c.role.as_ref())?;
+                write!(w, "&ldquo;")?;
+            } else {
+                write!(w, "&ldquo;")?;
             }
             visitor.visit_inline_nodes(&c.content)?;
             let w = visitor.writer_mut();
@@ -179,13 +177,11 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineNode::CurvedApostropheText(c) => {
-            match (&c.id, &c.role) {
-                (Some(id), Some(role)) => {
-                    write!(w, "<span id=\"{id}\" class=\"{role}\">&lsquo;")?;
-                }
-                (Some(id), None) => write!(w, "<span id=\"{id}\">&lsquo;")?,
-                (None, Some(role)) => write!(w, "<span class=\"{role}\">&lsquo;")?,
-                (None, None) => write!(w, "&lsquo;")?,
+            if c.id.is_some() || c.role.is_some() {
+                write_tag_with_attrs(w, "span", c.id.as_ref(), c.role.as_ref())?;
+                write!(w, "&lsquo;")?;
+            } else {
+                write!(w, "&lsquo;")?;
             }
             visitor.visit_inline_nodes(&c.content)?;
             let w = visitor.writer_mut();
@@ -199,23 +195,13 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             write!(w, "&rsquo;")?;
         }
         InlineNode::SuperscriptText(s) => {
-            match (&s.id, &s.role) {
-                (Some(id), Some(role)) => write!(w, "<sup id=\"{id}\" class=\"{role}\">")?,
-                (Some(id), None) => write!(w, "<sup id=\"{id}\">")?,
-                (None, Some(role)) => write!(w, "<sup class=\"{role}\">")?,
-                (None, None) => write!(w, "<sup>")?,
-            }
+            write_tag_with_attrs(w, "sup", s.id.as_ref(), s.role.as_ref())?;
             visitor.visit_inline_nodes(&s.content)?;
             let w = visitor.writer_mut();
             write!(w, "</sup>")?;
         }
         InlineNode::SubscriptText(s) => {
-            match (&s.id, &s.role) {
-                (Some(id), Some(role)) => write!(w, "<sub id=\"{id}\" class=\"{role}\">")?,
-                (Some(id), None) => write!(w, "<sub id=\"{id}\">")?,
-                (None, Some(role)) => write!(w, "<sub class=\"{role}\">")?,
-                (None, None) => write!(w, "<sub>")?,
-            }
+            write_tag_with_attrs(w, "sub", s.id.as_ref(), s.role.as_ref())?;
             visitor.visit_inline_nodes(&s.content)?;
             let w = visitor.writer_mut();
             write!(w, "</sub>")?;
