@@ -42,15 +42,15 @@
 //! This is inherently safe. When custom ID support is added, asciidoctor does NOT escape
 //! IDs, trusting the document author to provide safe values.
 
-use std::{
-    io::{self, Write},
-    path::PathBuf,
-};
+use std::io::{self, Write};
 
 use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string};
 
-use crate::{Error, Processor, RenderOptions};
+use crate::{
+    Error, Processor, RenderOptions,
+    image_helpers::{alt_text_from_filename, write_dimension_attributes},
+};
 
 /// Helper to write an HTML opening tag with optional id and role attributes.
 ///
@@ -271,44 +271,35 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
         InlineMacro::Image(i) => {
             // Inline images use a span wrapper with the img tag inside
             write!(w, "<span class=\"image\">")?;
+
+            // Get alt text from title field first (first positional attribute),
+            // then fall back to alt attribute, then filename
+            let alt_text = if i.title.is_empty() {
+                i.metadata.attributes.get("alt").map_or_else(
+                    || alt_text_from_filename(&i.source),
+                    std::string::ToString::to_string,
+                )
+            } else {
+                inlines_to_string(&i.title)
+            };
+
+            // Wrap in link if link attribute exists
             let link = i.metadata.attributes.get("link");
             if let Some(link) = link {
                 write!(w, "<a class=\"image\" href=\"{link}\">")?;
             }
-            write!(w, "<img src=\"{}\"", i.source)?;
 
-            // Get alt text from title field first (first positional attribute),
-            // then fall back to alt attribute, then filename
-            if !i.title.is_empty() {
-                let alt_text = inlines_to_string(&i.title);
-                write!(w, " alt=\"{alt_text}\"")?;
-            } else if let Some(alt) = i.metadata.attributes.get("alt") {
-                write!(w, " alt=\"{alt}\"")?;
-            } else {
-                // If no alt text is provided, take the filename without the extension
-                let mut filepath = PathBuf::from(i.source.get_filename().unwrap_or(""));
-                filepath.set_extension("");
-                write!(
-                    w,
-                    " alt=\"{}\"",
-                    filepath.to_str().unwrap_or("").replace(['-', '_'], " ")
-                )?;
-            }
+            // Write the img tag with src, alt, and dimensions
+            write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", i.source)?;
+            write_dimension_attributes(w, &i.metadata)?;
 
-            // Add width and height attributes if present
-            if let Some(width) = i.metadata.attributes.get("width") {
-                write!(w, " width=\"{width}\"")?;
-            }
-            if let Some(height) = i.metadata.attributes.get("height") {
-                write!(w, " height=\"{height}\"")?;
-            }
-
-            // Add title attribute for hover text if present
+            // Add title attribute for hover text if present (inline-specific)
             if let Some(title) = i.metadata.attributes.get("title") {
                 write!(w, " title=\"{title}\"")?;
             }
 
             write!(w, ">")?;
+
             if link.is_some() {
                 write!(w, "</a>")?;
             }

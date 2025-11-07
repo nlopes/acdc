@@ -1,9 +1,10 @@
-use std::path::PathBuf;
-
 use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::Image;
 
-use crate::Error;
+use crate::{
+    Error,
+    image_helpers::{alt_text_from_filename, write_dimension_attributes},
+};
 
 pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     img: &Image,
@@ -12,31 +13,22 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     let mut w = visitor.writer_mut();
     write!(w, "<div class=\"imageblock\">")?;
     write!(w, "<div class=\"content\">")?;
+    // Get alt text from attribute or generate from filename
+    let alt_text = img.metadata.attributes.get("alt").map_or_else(
+        || alt_text_from_filename(&img.source),
+        std::string::ToString::to_string,
+    );
+
+    // Wrap in link if link attribute exists
     let link = img.metadata.attributes.get("link");
     if let Some(link) = link {
         write!(w, "<a class=\"image\" href=\"{link}\">")?;
     }
-    write!(w, "<img src=\"{}\"", img.source)?;
-    if let Some(alt) = img.metadata.attributes.get("alt") {
-        write!(w, " alt=\"{alt}\"")?;
-    } else {
-        // If no alt text is provided, take the filename without the extension, and
-        // then use spaces instead of dashes and underscores for the alt text
-        let mut filepath = PathBuf::from(img.source.get_filename().unwrap_or(""));
-        filepath.set_extension("");
-        write!(
-            w,
-            " alt=\"{}\"",
-            filepath.to_str().unwrap_or("").replace(['-', '_'], " ")
-        )?;
-    }
-    if let Some(width) = img.metadata.attributes.get("width") {
-        write!(w, " width=\"{width}\"")?;
-    }
-    if let Some(height) = img.metadata.attributes.get("height") {
-        write!(w, " height=\"{height}\"")?;
-    }
+
+    write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;
+    write_dimension_attributes(w, &img.metadata)?;
     write!(w, " />")?;
+
     if link.is_some() {
         write!(w, "</a>")?;
     }

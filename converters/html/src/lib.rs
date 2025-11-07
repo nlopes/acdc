@@ -135,6 +135,7 @@ mod document;
 mod error;
 mod html_visitor;
 mod image;
+mod image_helpers;
 mod inlines;
 mod list;
 mod paragraph;
