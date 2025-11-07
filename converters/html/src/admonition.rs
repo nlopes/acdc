@@ -9,48 +9,23 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     // Get the appropriate caption attribute for this admonition type
-    let caption = match admon.variant {
-        AdmonitionVariant::Note => processor
-            .document_attributes
-            .get("note-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Note"),
-        AdmonitionVariant::Tip => processor
-            .document_attributes
-            .get("tip-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Tip"),
-        AdmonitionVariant::Important => processor
-            .document_attributes
-            .get("important-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Important"),
-        AdmonitionVariant::Warning => processor
-            .document_attributes
-            .get("warning-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Warning"),
-        AdmonitionVariant::Caution => processor
-            .document_attributes
-            .get("caution-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
-            })
-            .unwrap_or("Caution"),
+    // Note: Parser sets defaults, so these attributes are guaranteed to exist
+    let caption_attr = match admon.variant {
+        AdmonitionVariant::Note => "note-caption",
+        AdmonitionVariant::Tip => "tip-caption",
+        AdmonitionVariant::Important => "important-caption",
+        AdmonitionVariant::Warning => "warning-caption",
+        AdmonitionVariant::Caution => "caution-caption",
     };
+
+    let caption = processor
+        .document_attributes
+        .get(caption_attr)
+        .and_then(|v| match v {
+            AttributeValue::String(s) => Some(s.as_str()),
+            _ => None,
+        })
+        .expect("caption attribute should exist from parser defaults");
 
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;

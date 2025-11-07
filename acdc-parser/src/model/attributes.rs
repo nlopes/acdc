@@ -1,28 +1,98 @@
 use rustc_hash::FxHashMap;
-
 use serde::{
     Deserialize, Serialize,
     de::Deserializer,
     ser::{SerializeMap, Serializer},
 };
 
-#[derive(Debug, Default, PartialEq, Clone)]
-pub struct Document(FxHashMap<AttributeName, AttributeValue>);
-pub type Element = Document;
+/// Internal shared implementation for both document and element attributes.
+///
+/// This type is not exported directly. Use `DocumentAttributes` for document-level
+/// attributes or `ElementAttributes` for element-level attributes.
+#[derive(Debug, PartialEq, Clone)]
+struct AttributeMap {
+    /// All attributes including defaults
+    all: FxHashMap<AttributeName, AttributeValue>,
+    /// Only explicitly set attributes (not defaults) - used for serialization
+    explicit: FxHashMap<AttributeName, AttributeValue>,
+}
 
-impl Serialize for Document {
+impl Default for AttributeMap {
+    fn default() -> Self {
+        let mut all = FxHashMap::default();
+
+        // Apply universal default attributes from constants
+        for (name, value) in crate::constants::default_attributes() {
+            all.insert(name.to_string(), value);
+        }
+
+        AttributeMap {
+            all,
+            explicit: FxHashMap::default(), // Defaults are not explicit
+        }
+    }
+}
+
+impl AttributeMap {
+    fn empty() -> Self {
+        AttributeMap {
+            all: FxHashMap::default(),
+            explicit: FxHashMap::default(),
+        }
+    }
+
+    fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
+        self.all.iter()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.all.is_empty()
+    }
+
+    fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+        if !self.contains_key(&name) {
+            self.all.insert(name.clone(), value.clone());
+            self.explicit.insert(name, value); // Track as explicit
+        }
+    }
+
+    fn set(&mut self, name: AttributeName, value: AttributeValue) {
+        self.all.insert(name.clone(), value.clone());
+        self.explicit.insert(name, value); // Track as explicit
+    }
+
+    fn get(&self, name: &str) -> Option<&AttributeValue> {
+        self.all.get(name)
+    }
+
+    fn contains_key(&self, name: &str) -> bool {
+        self.all.contains_key(name)
+    }
+
+    fn remove(&mut self, name: &str) -> Option<AttributeValue> {
+        self.explicit.remove(name);
+        self.all.remove(name)
+    }
+
+    fn merge(&mut self, other: AttributeMap) {
+        for (key, value) in other.all {
+            self.insert(key, value);
+        }
+    }
+}
+
+impl Serialize for AttributeMap {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // We serialize the attributes as a sequence of key-value pairs.
-        // Sort the keys to ensure consistent serialization output.
-        let mut sorted_keys: Vec<_> = self.0.keys().collect();
+        // Only serialize explicitly set attributes, not defaults
+        let mut sorted_keys: Vec<_> = self.explicit.keys().collect();
         sorted_keys.sort();
 
-        let mut state = serializer.serialize_map(Some(self.0.len()))?;
+        let mut state = serializer.serialize_map(Some(self.explicit.len()))?;
         for key in sorted_keys {
-            let value = &self.0[key];
+            let value = &self.explicit[key];
             if key == "toc" && value == &AttributeValue::Bool(true) {
                 state.serialize_entry(key, "")?;
                 continue;
@@ -33,58 +103,181 @@ impl Serialize for Document {
     }
 }
 
-impl<'de> Deserialize<'de> for Document {
-    fn deserialize<D>(deserializer: D) -> Result<Document, D::Error>
+impl<'de> Deserialize<'de> for AttributeMap {
+    fn deserialize<D>(deserializer: D) -> Result<AttributeMap, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let pairs = FxHashMap::deserialize(deserializer).unwrap_or_default();
-        Ok(Document(pairs))
+        let explicit = FxHashMap::deserialize(deserializer).unwrap_or_default();
+        // When deserializing, explicit attributes are the only ones we have
+        // Defaults will be added by DocumentAttributes::deserialize
+        Ok(AttributeMap {
+            all: explicit.clone(),
+            explicit,
+        })
     }
 }
 
-impl Document {
+/// Document-level attributes with universal defaults.
+///
+/// These attributes apply to the entire document and include defaults for
+/// admonition captions, TOC settings, structural settings, etc.
+///
+/// Use `DocumentAttributes::default()` to get a map with universal defaults applied.
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct DocumentAttributes(AttributeMap);
+
+impl DocumentAttributes {
+    /// Iterate over all attributes.
     pub fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
         self.0.iter()
     }
 
+    /// Check if the attribute map is empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    // Insert a new attribute into the document.
-    //
-    // NOTE: This will *NOT* overwrite an existing attribute with the same name.
+    /// Insert a new attribute.
+    ///
+    /// NOTE: This will *NOT* overwrite an existing attribute with the same name.
     pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
-        if !self.contains_key(&name) {
-            self.0.insert(name, value);
-        }
-    }
-
-    pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
         self.0.insert(name, value);
     }
 
+    /// Set an attribute, overwriting any existing value.
+    pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
+        self.0.set(name, value);
+    }
+
+    /// Get an attribute value by name.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&AttributeValue> {
         self.0.get(name)
     }
 
+    /// Check if an attribute exists.
     #[must_use]
     pub fn contains_key(&self, name: &str) -> bool {
         self.0.contains_key(name)
     }
 
-    // Remove an attribute from the document.
+    /// Remove an attribute by name.
     pub fn remove(&mut self, name: &str) -> Option<AttributeValue> {
         self.0.remove(name)
     }
 
-    pub fn merge(&mut self, other: Document) {
-        for (key, value) in other.0 {
-            self.insert(key, value);
+    /// Merge another attribute map into this one.
+    pub fn merge(&mut self, other: Self) {
+        self.0.merge(other.0);
+    }
+}
+
+impl Serialize for DocumentAttributes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for DocumentAttributes {
+    fn deserialize<D>(deserializer: D) -> Result<DocumentAttributes, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut map = AttributeMap::deserialize(deserializer)?;
+
+        // Re-apply defaults after deserialization
+        // This ensures defaults are available at runtime even though they weren't serialized
+        for (name, value) in crate::constants::default_attributes() {
+            if !map.explicit.contains_key(name) {
+                map.all.insert(name.to_string(), value);
+            }
         }
+
+        Ok(DocumentAttributes(map))
+    }
+}
+
+/// Element-level attributes (for blocks, sections, etc.).
+///
+/// These attributes are specific to individual elements and start empty.
+///
+/// Use `ElementAttributes::default()` to get an empty attribute map.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ElementAttributes(AttributeMap);
+
+impl Default for ElementAttributes {
+    fn default() -> Self {
+        ElementAttributes(AttributeMap::empty())
+    }
+}
+
+impl ElementAttributes {
+    /// Iterate over all attributes.
+    pub fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
+        self.0.iter()
+    }
+
+    /// Check if the attribute map is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Insert a new attribute.
+    ///
+    /// NOTE: This will *NOT* overwrite an existing attribute with the same name.
+    pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+        self.0.insert(name, value);
+    }
+
+    /// Set an attribute, overwriting any existing value.
+    pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
+        self.0.set(name, value);
+    }
+
+    /// Get an attribute value by name.
+    #[must_use]
+    pub fn get(&self, name: &str) -> Option<&AttributeValue> {
+        self.0.get(name)
+    }
+
+    /// Check if an attribute exists.
+    #[must_use]
+    pub fn contains_key(&self, name: &str) -> bool {
+        self.0.contains_key(name)
+    }
+
+    /// Remove an attribute by name.
+    pub fn remove(&mut self, name: &str) -> Option<AttributeValue> {
+        self.0.remove(name)
+    }
+
+    /// Merge another attribute map into this one.
+    pub fn merge(&mut self, other: Self) {
+        self.0.merge(other.0);
+    }
+}
+
+impl Serialize for ElementAttributes {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ElementAttributes {
+    fn deserialize<D>(deserializer: D) -> Result<ElementAttributes, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        AttributeMap::deserialize(deserializer).map(ElementAttributes)
     }
 }
 

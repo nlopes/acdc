@@ -37,6 +37,7 @@ use std::{
 use tracing::instrument;
 
 mod blocks;
+mod constants;
 mod error;
 pub(crate) mod grammar;
 mod model;

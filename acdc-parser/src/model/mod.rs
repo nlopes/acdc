@@ -15,9 +15,7 @@ mod location;
 mod section;
 mod substitution;
 
-pub use attributes::{
-    AttributeName, AttributeValue, Document as DocumentAttributes, Element as ElementAttributes,
-};
+pub use attributes::{AttributeName, AttributeValue, DocumentAttributes, ElementAttributes};
 pub use inlines::*;
 pub use location::*;
 pub use section::*;

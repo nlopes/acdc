@@ -311,7 +311,7 @@ peg::parser! {
         {
             tracing::info!(?att, "Found document attribute in the document header");
             let (key, value) = att;
-            state.document_attributes.insert(key.into(), value);
+            state.document_attributes.set(key.into(), value);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
