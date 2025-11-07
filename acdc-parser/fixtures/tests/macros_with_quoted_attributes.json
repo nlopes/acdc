@@ -1,0 +1,532 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Macros with Quoted Attributes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 31
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 31
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Test all macros that support positional attributes with quoted values.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 70
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 70
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Block Image",
+          "location": [
+            {
+              "line": 5,
+              "col": 4
+            },
+            {
+              "line": 5,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "image",
+          "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "alt": "A beautiful sunset"
+            }
+          },
+          "source": {
+            "type": "path",
+            "value": "sunset.jpg"
+          },
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 39
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline Macros",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Inline image: ",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "image",
+              "type": "inline",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Settings icon",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 15
+                    },
+                    {
+                      "line": 1,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
+              "target": {
+                "type": "path",
+                "value": "icon.png"
+              },
+              "location": [
+                {
+                  "line": 11,
+                  "col": 15
+                },
+                {
+                  "line": 11,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Icon with quoted title: ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "icon",
+              "type": "inline",
+              "target": {
+                "type": "name",
+                "value": "heart"
+              },
+              "location": [
+                {
+                  "line": 13,
+                  "col": 25
+                },
+                {
+                  "line": 13,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Audio and Video",
+          "location": [
+            {
+              "line": 15,
+              "col": 4
+            },
+            {
+              "line": 15,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "audio",
+          "type": "block",
+          "form": "macro",
+          "metadata": {
+            "style": "Episode 1"
+          },
+          "source": {
+            "type": "path",
+            "value": "podcast.mp3"
+          },
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "video",
+          "type": "block",
+          "form": "macro",
+          "metadata": {
+            "attributes": {
+              "poster": "How to test"
+            }
+          },
+          "sources": [
+            {
+              "type": "path",
+              "value": "tutorial.mp4"
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Edge Cases",
+          "location": [
+            {
+              "line": 21,
+              "col": 4
+            },
+            {
+              "line": 21,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Image with comma: ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "image",
+              "type": "inline",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Sales data, Q1 2024",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 19
+                    },
+                    {
+                      "line": 1,
+                      "col": 56
+                    }
+                  ]
+                }
+              ],
+              "target": {
+                "type": "path",
+                "value": "chart.png"
+              },
+              "location": [
+                {
+                  "line": 23,
+                  "col": 19
+                },
+                {
+                  "line": 23,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Image with multiple attributes: ",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "image",
+              "type": "inline",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Mountain view",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 33
+                    },
+                    {
+                      "line": 1,
+                      "col": 75
+                    }
+                  ]
+                }
+              ],
+              "target": {
+                "type": "path",
+                "value": "mountain.png"
+              },
+              "location": [
+                {
+                  "line": 25,
+                  "col": 33
+                },
+                {
+                  "line": 25,
+                  "col": 75
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 75
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 75
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 25,
+      "col": 75
+    }
+  ]
+}

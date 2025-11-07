@@ -124,3 +124,8 @@ fn test_source_block_with_attribute_in_title() -> Result<(), Error> {
 fn test_source_block_complete() -> Result<(), Error> {
     test_fixture("source_block_complete")
 }
+
+#[test]
+fn test_macros_with_quoted_attributes() -> Result<(), Error> {
+    test_fixture("macros_with_quoted_attributes")
+}

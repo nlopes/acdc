@@ -57,7 +57,7 @@ pub use model::{
     Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source,
     StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
     Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, TocEntry,
-    UnorderedList, Url, Verbatim, Video,
+    UnorderedList, Url, Verbatim, Video, inlines_to_string,
 };
 pub use options::{Options, OptionsBuilder};
 

@@ -2050,7 +2050,11 @@ peg::parser! {
             let mut title = Vec::new();
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
-                metadata.attributes.insert("alt".into(), AttributeValue::String(style.clone()));
+                // For inline images, the first positional attribute is the alt text (title)
+                title = vec![InlineNode::PlainText(Plain {
+                    content: style,
+                    location: state.create_block_location(start.offset, end, offset),
+                })];
             }
             if metadata.positional_attributes.len() >= 2 {
                 metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
@@ -3054,9 +3058,14 @@ peg::parser! {
         }
 
         rule positional_attribute_value() -> String
-        = s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
+        = quoted:inner_attribute_value() {
+            let trimmed = quoted.trim_matches('"');
+            tracing::debug!(quoted, trimmed, "Found quoted positional attribute value");
+            trimmed.to_string()
+        }
+        / s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
         {
-            tracing::debug!(%s, "Found positional attribute value");
+            tracing::debug!(%s, "Found unquoted positional attribute value");
             s.to_string()
         }
 

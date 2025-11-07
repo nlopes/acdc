@@ -1,0 +1,25 @@
+= Macros with Quoted Attributes
+
+Test all macros that support positional attributes with quoted values.
+
+== Block Image
+
+image::sunset.jpg["A beautiful sunset"]
+
+== Inline Macros
+
+Inline image: image:icon.png["Settings icon"]
+
+Icon with quoted title: icon:heart["Favorite"]
+
+== Audio and Video
+
+audio::podcast.mp3["Episode 1"]
+
+video::tutorial.mp4["How to test"]
+
+== Edge Cases
+
+Image with comma: image:chart.png["Sales data, Q1 2024"]
+
+Image with multiple attributes: image:mountain.png["Mountain view",500,300]

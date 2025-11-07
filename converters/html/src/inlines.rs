@@ -48,7 +48,7 @@ use std::{
 };
 
 use acdc_converters_common::visitor::WritableVisitor;
-use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution};
+use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string};
 
 use crate::{Error, Processor, RenderOptions};
 
@@ -275,7 +275,13 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 write!(w, "<a class=\"image\" href=\"{link}\">")?;
             }
             write!(w, "<img src=\"{}\"", i.source)?;
-            if let Some(alt) = i.metadata.attributes.get("alt") {
+
+            // Get alt text from title field first (first positional attribute),
+            // then fall back to alt attribute, then filename
+            if !i.title.is_empty() {
+                let alt_text = inlines_to_string(&i.title);
+                write!(w, " alt=\"{alt_text}\"")?;
+            } else if let Some(alt) = i.metadata.attributes.get("alt") {
                 write!(w, " alt=\"{alt}\"")?;
             } else {
                 // If no alt text is provided, take the filename without the extension

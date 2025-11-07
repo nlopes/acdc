@@ -1,0 +1,16 @@
+[1m[4mMacros with Quoted Attributes[0m
+
+Test all macros that support positional attributes with quoted values.
+
+> Block Image <
+> Inline Macros <
+Inline image:  [Image: icon.png]
+
+Icon with quoted title:  [Icon: heart]
+
+> Audio and Video <
+[3m[Audio: podcast.mp3][0m[3mtutorial.mp4[0m> Edge Cases <
+Image with comma:  [Image: chart.png]
+
+Image with multiple attributes:  [Image: mountain.png]
+
