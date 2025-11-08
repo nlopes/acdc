@@ -94,10 +94,6 @@ pub fn default_attributes() -> rustc_hash::FxHashMap<AttributeName, AttributeVal
             AttributeName::from("part-refsig"),
             AttributeValue::String("Part".into()),
         ),
-        (
-            AttributeName::from("appendix-refsig"),
-            AttributeValue::String("Appendix".into()),
-        ),
         // Structural settings
         (
             AttributeName::from("toclevels"),
