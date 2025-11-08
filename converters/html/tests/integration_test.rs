@@ -34,7 +34,11 @@ fn test_fixture(fixture_name: &str) -> Result<(), Error> {
 
     // Convert to HTML
     let mut output = Vec::new();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let converter_options = ConverterOptions {
+        generator_metadata: acdc_converters_common::GeneratorMetadata::new("acdc", "0.1.0"),
+        ..Default::default()
+    };
+    let processor = Processor::new(converter_options, doc.attributes.clone());
     let render_options = RenderOptions::default();
     processor.convert_to_writer(&doc, &mut output, &render_options)?;
 

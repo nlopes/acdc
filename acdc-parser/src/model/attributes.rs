@@ -19,15 +19,8 @@ struct AttributeMap {
 
 impl Default for AttributeMap {
     fn default() -> Self {
-        let mut all = FxHashMap::default();
-
-        // Apply universal default attributes from constants
-        for (name, value) in crate::constants::default_attributes() {
-            all.insert(name.to_string(), value);
-        }
-
         AttributeMap {
-            all,
+            all: crate::constants::default_attributes(),
             explicit: FxHashMap::default(), // Defaults are not explicit
         }
     }
@@ -46,7 +39,9 @@ impl AttributeMap {
     }
 
     fn is_empty(&self) -> bool {
-        self.all.is_empty()
+        // We only consider explicit attributes for emptiness because defaults are always
+        // present.
+        self.explicit.is_empty()
     }
 
     fn insert(&mut self, name: AttributeName, value: AttributeValue) {
@@ -193,9 +188,10 @@ impl<'de> Deserialize<'de> for DocumentAttributes {
         // Re-apply defaults after deserialization
         // This ensures defaults are available at runtime even though they weren't serialized
         for (name, value) in crate::constants::default_attributes() {
-            if !map.explicit.contains_key(name) {
-                map.all.insert(name.to_string(), value);
-            }
+            map.all
+                .entry(name)
+                .and_modify(|v| *v = value.clone())
+                .or_insert(value.clone());
         }
 
         Ok(DocumentAttributes(map))

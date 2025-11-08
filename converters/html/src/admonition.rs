@@ -43,10 +43,31 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
         writeln!(writer, "</div>")?;
     }
     let _ = writer;
-    for block in &admon.blocks {
-        visitor.visit_block(block)?;
+
+    // Handle paragraph rendering based on block count
+    // Single paragraph: render content directly (no wrapper)
+    // Multiple blocks: render each with normal wrapper
+    match admon.blocks.as_slice() {
+        [acdc_parser::Block::Paragraph(para)] => {
+            // Single paragraph: render inline content directly without wrapper
+            visitor.visit_inline_nodes(&para.content)?;
+            writer = visitor.writer_mut();
+            writeln!(writer)?;
+        }
+        [block] => {
+            // Single non-paragraph block: use normal rendering
+            visitor.visit_block(block)?;
+            writer = visitor.writer_mut();
+        }
+        blocks => {
+            // Multiple blocks: use normal rendering for all
+            for block in blocks {
+                visitor.visit_block(block)?;
+            }
+            writer = visitor.writer_mut();
+        }
     }
-    writer = visitor.writer_mut();
+
     writeln!(writer, "</td>")?;
     writeln!(writer, "</tr>")?;
     writeln!(writer, "</table>")?;

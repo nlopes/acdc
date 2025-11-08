@@ -28,7 +28,7 @@ pub struct Document {
     pub(crate) r#type: String,
     #[serde(default)]
     pub header: Option<Header>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "DocumentAttributes::is_empty")]
     pub attributes: DocumentAttributes,
     #[serde(default)]
     pub blocks: Vec<Block>,

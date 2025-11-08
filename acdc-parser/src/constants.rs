@@ -7,7 +7,7 @@
 // Format-specific attributes (like HTML's `lang`) should be handled
 // by individual converters with appropriate fallbacks.
 
-use crate::AttributeValue;
+use crate::{AttributeName, AttributeValue};
 
 /// Universal default attributes applied to all documents
 ///
@@ -19,53 +19,114 @@ use crate::AttributeValue;
 /// - Structural settings (TOC levels, section numbering depth)
 /// - ID generation settings
 /// - Attribute processing compliance settings
-pub fn default_attributes() -> Vec<(&'static str, AttributeValue)> {
-    vec![
-        // Admonition captions
-        ("note-caption", AttributeValue::String("Note".into())),
-        ("tip-caption", AttributeValue::String("Tip".into())),
+#[allow(clippy::too_many_lines)]
+pub fn default_attributes() -> rustc_hash::FxHashMap<AttributeName, AttributeValue> {
+    [
         (
-            "important-caption",
+            AttributeName::from("appendix-caption"),
+            AttributeValue::String("Appendix".into()),
+        ),
+        (
+            AttributeName::from("appendix-refsig"),
+            AttributeValue::String("Appendix".into()),
+        ),
+        // Admonition captions
+        (
+            AttributeName::from("note-caption"),
+            AttributeValue::String("Note".into()),
+        ),
+        (
+            AttributeName::from("tip-caption"),
+            AttributeValue::String("Tip".into()),
+        ),
+        (
+            AttributeName::from("important-caption"),
             AttributeValue::String("Important".into()),
         ),
-        ("warning-caption", AttributeValue::String("Warning".into())),
-        ("caution-caption", AttributeValue::String("Caution".into())),
-        // Block captions
-        ("example-caption", AttributeValue::String("Example".into())),
-        ("figure-caption", AttributeValue::String("Figure".into())),
-        ("table-caption", AttributeValue::String("Table".into())),
         (
-            "appendix-caption",
-            AttributeValue::String("Appendix".into()),
+            AttributeName::from("warning-caption"),
+            AttributeValue::String("Warning".into()),
+        ),
+        (
+            AttributeName::from("caution-caption"),
+            AttributeValue::String("Caution".into()),
+        ),
+        // Block captions
+        (
+            AttributeName::from("example-caption"),
+            AttributeValue::String("Example".into()),
+        ),
+        (
+            AttributeName::from("figure-caption"),
+            AttributeValue::String("Figure".into()),
+        ),
+        (
+            AttributeName::from("table-caption"),
+            AttributeValue::String("Table".into()),
         ),
         // UI labels
         (
-            "toc-title",
+            AttributeName::from("toc-title"),
             AttributeValue::String("Table of Contents".into()),
         ),
-        ("untitled-label", AttributeValue::String("Untitled".into())),
-        ("version-label", AttributeValue::String("Version".into())),
         (
-            "last-update-label",
+            AttributeName::from("untitled-label"),
+            AttributeValue::String("Untitled".into()),
+        ),
+        (
+            AttributeName::from("version-label"),
+            AttributeValue::String("Version".into()),
+        ),
+        (
+            AttributeName::from("last-update-label"),
             AttributeValue::String("Last updated".into()),
         ),
         // Reference labels
-        ("chapter-refsig", AttributeValue::String("Chapter".into())),
-        ("section-refsig", AttributeValue::String("Section".into())),
-        ("part-refsig", AttributeValue::String("Part".into())),
-        ("appendix-refsig", AttributeValue::String("Appendix".into())),
-        // Structural settings
-        ("toclevels", AttributeValue::String("2".into())),
-        ("sectnumlevels", AttributeValue::String("3".into())),
-        // ID generation
-        ("idprefix", AttributeValue::String("_".into())),
-        ("idseparator", AttributeValue::String("_".into())),
-        ("sectids", AttributeValue::Bool(true)),
-        // Attribute processing compliance
-        ("attribute-missing", AttributeValue::String("skip".into())),
         (
-            "attribute-undefined",
+            AttributeName::from("chapter-refsig"),
+            AttributeValue::String("Chapter".into()),
+        ),
+        (
+            AttributeName::from("section-refsig"),
+            AttributeValue::String("Section".into()),
+        ),
+        (
+            AttributeName::from("part-refsig"),
+            AttributeValue::String("Part".into()),
+        ),
+        (
+            AttributeName::from("appendix-refsig"),
+            AttributeValue::String("Appendix".into()),
+        ),
+        // Structural settings
+        (
+            AttributeName::from("toclevels"),
+            AttributeValue::String("2".into()),
+        ),
+        (
+            AttributeName::from("sectnumlevels"),
+            AttributeValue::String("3".into()),
+        ),
+        // ID generation
+        (
+            AttributeName::from("idprefix"),
+            AttributeValue::String("_".into()),
+        ),
+        (
+            AttributeName::from("idseparator"),
+            AttributeValue::String("_".into()),
+        ),
+        (AttributeName::from("sectids"), AttributeValue::Bool(true)),
+        // Attribute processing compliance
+        (
+            AttributeName::from("attribute-missing"),
+            AttributeValue::String("skip".into()),
+        ),
+        (
+            AttributeName::from("attribute-undefined"),
             AttributeValue::String("drop-line".into()),
         ),
     ]
+    .into_iter()
+    .collect()
 }

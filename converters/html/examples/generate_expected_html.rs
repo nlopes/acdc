@@ -68,7 +68,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Convert to HTML
         let mut output = Vec::new();
-        let processor = Processor::new(Options::default(), doc.attributes.clone());
+        let converter_options = Options {
+            generator_metadata: acdc_converters_common::GeneratorMetadata::new("acdc", "0.1.0"),
+            ..Default::default()
+        };
+        let processor = Processor::new(converter_options, doc.attributes.clone());
         let render_options = RenderOptions::default();
 
         if let Err(e) = processor.convert_to_writer(&doc, &mut output, &render_options) {
