@@ -20,6 +20,9 @@ pub struct Processor {
     /// Shared counter for auto-numbering table blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     table_counter: Rc<Cell<usize>>,
+    /// Shared counter for auto-numbering figure blocks.
+    /// Uses Rc<Cell<>> so all clones share the same counter.
+    figure_counter: Rc<Cell<usize>>,
 }
 
 impl Processor {
@@ -75,6 +78,7 @@ impl Processable for Processor {
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
         }
     }
 

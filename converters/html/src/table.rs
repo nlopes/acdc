@@ -30,6 +30,35 @@ where
     Ok(())
 }
 
+/// Render table caption with number if title exists
+fn render_table_caption<V>(
+    visitor: &mut V,
+    title: &[InlineNode],
+    processor: &Processor,
+) -> Result<(), Error>
+where
+    V: WritableVisitor<Error = Error>,
+{
+    if !title.is_empty() {
+        let count = processor.table_counter.get() + 1;
+        processor.table_counter.set(count);
+        let caption = processor
+            .document_attributes
+            .get("table-caption")
+            .and_then(|v| match v {
+                acdc_parser::AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Table");
+        visitor.render_title_with_wrapper(
+            title,
+            &format!("<caption class=\"title\">{caption} {count}. "),
+            "</caption>\n",
+        )?;
+    }
+    Ok(())
+}
+
 /// Render table with support for nested blocks in cells
 pub(crate) fn render_table<V>(
     table: &Table,
@@ -48,17 +77,9 @@ where
     writeln!(writer, "<table class=\"{}\">", classes.join(" "))?;
 
     // Render caption with table number if title exists
-    if !title.is_empty() {
-        let count = processor.table_counter.get() + 1;
-        processor.table_counter.set(count);
-        let _ = writer;
-        visitor.render_title_with_wrapper(
-            title,
-            &format!("<caption class=\"title\">Table {count}. "),
-            "</caption>\n",
-        )?;
-        writer = visitor.writer_mut();
-    }
+    let _ = writer;
+    render_table_caption(visitor, title, processor)?;
+    writer = visitor.writer_mut();
 
     // Generate colgroup - either from cols attribute or inferred from table structure
     let col_count = if let Some(cols_value) = metadata.attributes.get("cols") {

@@ -371,7 +371,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        crate::image::visit_image(img, self)
+        let processor = self.processor.clone();
+        crate::image::visit_image(img, self, &processor)
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {

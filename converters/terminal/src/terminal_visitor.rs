@@ -117,7 +117,8 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        crate::admonition::visit_admonition(self, admon)
+        let processor = self.processor.clone();
+        crate::admonition::visit_admonition(self, admon, &processor)
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {

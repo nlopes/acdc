@@ -54,11 +54,19 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             writeln!(writer, "<div class=\"exampleblock\">")?;
             let _ = writer;
 
-            // Render title with "Example N." prefix if title exists
+            // Render title with caption prefix if title exists
             if !block.title.is_empty() {
                 let count = processor.example_counter.get() + 1;
                 processor.example_counter.set(count);
-                let prefix = format!("<div class=\"title\">Example {count}. ");
+                let caption = processor
+                    .document_attributes
+                    .get("example-caption")
+                    .and_then(|v| match v {
+                        acdc_parser::AttributeValue::String(s) => Some(s.as_str()),
+                        _ => None,
+                    })
+                    .unwrap_or("Example");
+                let prefix = format!("<div class=\"title\">{caption} {count}. ");
                 visitor.render_title_with_wrapper(&block.title, &prefix, "</div>\n")?;
             }
 
@@ -275,6 +283,7 @@ mod tests {
             toc_entries: Vec::new(),
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             table_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            figure_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         }
     }
 

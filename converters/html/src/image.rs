@@ -1,14 +1,15 @@
-use acdc_converters_common::visitor::WritableVisitor;
-use acdc_parser::Image;
+use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_parser::{AttributeValue, Image};
 
 use crate::{
-    Error,
+    Error, Processor,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
 
 pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     img: &Image,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
     let mut w = visitor.writer_mut();
     write!(w, "<div class=\"imageblock\">")?;
@@ -33,13 +34,28 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
         write!(w, "</a>")?;
     }
     write!(w, "</div>")?; // close content
+
+    // Render title with figure caption if title exists
     if !img.title.is_empty() {
-        write!(w, "<div class=\"title\">")?;
+        let count = processor.figure_counter.get() + 1;
+        processor.figure_counter.set(count);
+        let caption = processor
+            .document_attributes
+            .get("figure-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .unwrap_or("Figure");
         let _ = w;
-        visitor.visit_inline_nodes(&img.title)?;
+        visitor.render_title_with_wrapper(
+            &img.title,
+            &format!("<div class=\"title\">{caption} {count}. "),
+            "</div>",
+        )?;
         w = visitor.writer_mut();
-        write!(w, "</div>")?;
     }
+
     write!(w, "</div>")?; // close imageblock
     Ok(())
 }

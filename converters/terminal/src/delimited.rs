@@ -152,14 +152,23 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
     let w = visitor.writer_mut();
 
     // Start marker with "EXAMPLE N." label if there's a title
+    let caption = processor
+        .document_attributes
+        .get("example-caption")
+        .and_then(|v| match v {
+            acdc_parser::AttributeValue::String(s) => Some(s.to_uppercase()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "EXAMPLE".to_string());
+
     if title.is_empty() {
-        let styled_label = "EXAMPLE".cyan().bold();
+        let styled_label = caption.cyan().bold();
         QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
         writeln!(w)?;
     } else {
         let count = processor.example_counter.get() + 1;
         processor.example_counter.set(count);
-        let label = format!("EXAMPLE {count}.");
+        let label = format!("{caption} {count}.");
         let styled_label = label.cyan().bold();
         QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
         write!(w, " ")?;

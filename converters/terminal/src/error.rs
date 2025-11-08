@@ -14,4 +14,9 @@ pub enum Error {
 
     #[error("Parsing error: {0}")]
     Parse(#[from] acdc_parser::Error),
+
+    #[error(
+        "Invalid admonition caption: {0} - caption attribute should match one of the defaults provided by the parser (e.g., 'note-caption', 'tip-caption', 'important-caption', 'warning-caption', 'caution-caption')"
+    )]
+    InvalidAdmonitionCaption(String),
 }
