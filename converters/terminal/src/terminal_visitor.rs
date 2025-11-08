@@ -59,7 +59,9 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
             writeln!(self.writer, "─────")?; // Simple separator
             for footnote in &doc.footnotes {
                 self.writer.queue(PrintStyledContent(
-                    format!("[{}]", footnote.number).cyan().bold(),
+                    format!("[{}]", footnote.number)
+                        .with(self.processor.appearance.colors.footnote)
+                        .bold(),
                 ))?;
                 write!(self.writer, " ")?;
 
@@ -72,7 +74,8 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        crate::section::visit_section(section, self)?;
+        let processor = self.processor.clone();
+        crate::section::visit_section(section, self, &processor)?;
 
         // Walk nested blocks within the section
         for nested_block in &section.content {
@@ -155,7 +158,8 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
-        crate::section::visit_discrete_header(header, self)
+        let processor = self.processor.clone();
+        crate::section::visit_discrete_header(header, self, &processor)
     }
 
     fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {

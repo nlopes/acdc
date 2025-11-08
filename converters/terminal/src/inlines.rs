@@ -4,7 +4,7 @@ use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
-    style::{PrintStyledContent, Stylize},
+    style::{Print, PrintStyledContent, Stylize},
 };
 
 use crate::{Error, Processor};
@@ -146,7 +146,9 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
         InlineNode::MonospaceText(m) => {
             let text = render_inline_nodes_to_string(&m.content, processor)?;
             let w = visitor.writer_mut();
-            w.queue(PrintStyledContent(text.black().on_grey()))?;
+            w.queue(PrintStyledContent(
+                text.with(processor.appearance.colors.inline_monospace),
+            ))?;
         }
         InlineNode::Macro(m) => {
             let w = visitor.writer_mut();
@@ -210,15 +212,51 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+fn maybe_render_osc8_link<W: Write + ?Sized>(
+    target: &str,
+    text: &str,
+    w: &mut W,
+    processor: &Processor,
+) -> Result<(), crate::Error> {
+    if processor.appearance.capabilities.osc8_links {
+        w.queue(Print(
+            format!("\x1B]8;;{target}\x1B\\{text}\x1B]8;;\x1B",)
+                .with(processor.appearance.colors.link),
+        ))?;
+    } else {
+        w.queue(PrintStyledContent(
+            target.with(processor.appearance.colors.link),
+        ))?;
+    }
+    Ok(())
+}
+
 fn render_inline_macro_to_writer<W: Write + ?Sized>(
     inline_macro: &InlineMacro,
     w: &mut W,
     processor: &Processor,
 ) -> Result<(), crate::Error> {
     match inline_macro {
-        InlineMacro::Link(l) => write!(w, "{}", l.target)?,
-        InlineMacro::Url(u) => write!(w, "{}", u.target)?,
-        InlineMacro::Autolink(a) => write!(w, "{}", a.url)?,
+        InlineMacro::Link(l) => {
+            let target = l.target.clone();
+            let text = match l.text.clone() {
+                Some(text) => text,
+                None => target.to_string(),
+            };
+            maybe_render_osc8_link(target.clone().to_string().as_str(), &text, w, processor)?;
+        }
+        InlineMacro::Url(u) => {
+            maybe_render_osc8_link(
+                u.target.to_string().as_str(),
+                &render_inline_nodes_to_string(&u.text, processor)?,
+                w,
+                processor,
+            )?;
+        }
+        InlineMacro::Autolink(a) => {
+            let target = a.url.to_string();
+            maybe_render_osc8_link(&target, &target, w, processor)?;
+        }
         InlineMacro::Footnote(footnote) => {
             // Render footnote as superscript number in terminal
             // For terminal output, we'll show [n] format since true superscript is limited
@@ -331,14 +369,17 @@ mod tests {
 
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
+        use crate::Appearance;
         use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
+        let appearance = Appearance::detect();
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
+            appearance,
         }
     }
 

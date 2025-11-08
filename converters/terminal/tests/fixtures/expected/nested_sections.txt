@@ -1,14 +1,13 @@
 [1m[4mDocument Title[0m
 
-> Section 1 <
+[38;2;215;0;135m[1m┄[0m[38;2;215;0;135m[1mSection 1[0m
 This is the content of section 1.
 
-> Section 1.1 <
+[38;5;15m[1m┄┄[0m[38;5;15m[1mSection 1.1[0m
 This is the content of section 1.1.
 
-> Section 1.1.1 <
+[38;5;14m[1m┄┄┄[0m[38;5;14m[1mSection 1.1.1[0m
 This is the content of section 1.1.1.
 
-> Section 2 <
+[38;2;215;0;135m[1m┄[0m[38;2;215;0;135m[1mSection 2[0m
 This is the content of section 2.
-

@@ -12,22 +12,23 @@ use syntect::{
     util::LinesWithEndings,
 };
 
-use crate::Error;
+use crate::{Error, Processor};
 
 /// Highlight code using syntect and render to terminal with crossterm colors.
 ///
 /// This function takes inline nodes (which may contain verbatim or plain text),
 /// extracts the text content, and applies syntax highlighting based on the
-/// specified language.
+/// specified language. The theme is chosen based on the terminal background.
 pub fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     language: &str,
+    processor: &Processor,
 ) -> Result<(), Error> {
     let code = extract_text_from_inlines(inlines);
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
-    let theme = &theme_set.themes["Solarized (light)"];
+    let theme = &theme_set.themes[processor.appearance.theme.syntect_theme()];
     let syntax = syntax_set
         .find_syntax_by_token(language)
         .or_else(|| syntax_set.find_syntax_by_extension(language))
@@ -94,13 +95,29 @@ fn apply_syntect_style(text: &str, style: Style) -> crossterm::style::StyledCont
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{Location, Verbatim};
+    use acdc_converters_common::Options;
+    use acdc_parser::{DocumentAttributes, Location, Verbatim};
+    use std::{cell::Cell, rc::Rc};
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode> {
         vec![InlineNode::VerbatimText(Verbatim {
             content: content.to_string(),
             location: Location::default(),
         })]
+    }
+
+    fn create_test_processor() -> Processor {
+        use crate::Appearance;
+        let options = Options::default();
+        let document_attributes = DocumentAttributes::default();
+        let appearance = Appearance::detect();
+        Processor {
+            options,
+            document_attributes,
+            toc_entries: vec![],
+            example_counter: Rc::new(Cell::new(0)),
+            appearance,
+        }
     }
 
     #[test]
@@ -114,9 +131,10 @@ mod tests {
     fn test_highlight_rust_code() -> Result<(), Error> {
         let code = "fn main() {\n    println!(\"Hello, world!\");\n}";
         let inlines = create_verbatim_inlines(code);
+        let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "rust")?;
+        highlight_code(&mut buffer, &inlines, "rust", &processor)?;
 
         // Just verify it doesn't crash and produces output
         assert!(!buffer.is_empty(), "Should produce highlighted output");
@@ -128,9 +146,10 @@ mod tests {
     fn test_highlight_unknown_language_fallback() -> Result<(), Error> {
         let code = "some code here";
         let inlines = create_verbatim_inlines(code);
+        let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "unknown_lang_xyz")?;
+        highlight_code(&mut buffer, &inlines, "unknown_lang_xyz", &processor)?;
 
         // Should fall back to plain text and not crash
         assert!(
@@ -145,9 +164,10 @@ mod tests {
     fn test_highlight_python_code() -> Result<(), Error> {
         let code = "def hello():\n    print('Hello, world!')";
         let inlines = create_verbatim_inlines(code);
+        let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "python")?;
+        highlight_code(&mut buffer, &inlines, "python", &processor)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 
@@ -158,9 +178,10 @@ mod tests {
     fn test_highlight_javascript_code() -> Result<(), Error> {
         let code = "function hello() {\n  console.log('Hello, world!');\n}";
         let inlines = create_verbatim_inlines(code);
+        let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "javascript")?;
+        highlight_code(&mut buffer, &inlines, "javascript", &processor)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 

@@ -1,8 +1,5 @@
 This is a paragraph.
-
-
 [38;5;14m[1mEXAMPLE[0m
 This is an example of an example block.
 That's so meta.
-
 [38;5;14m[1m• • •[0m

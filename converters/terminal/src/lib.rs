@@ -7,6 +7,8 @@ use std::{
 use acdc_converters_common::{Options, Processable, visitor::Visitor};
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
+pub(crate) use appearance::Appearance;
+
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 
 #[derive(Clone, Debug)]
@@ -17,6 +19,8 @@ pub struct Processor {
     /// Shared counter for auto-numbering example blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     pub(crate) example_counter: Rc<Cell<usize>>,
+    /// Terminal appearance (theme, capabilities, colors)
+    pub(crate) appearance: Appearance,
 }
 
 impl Processor {
@@ -31,6 +35,7 @@ impl Processor {
             toc_entries: doc.toc_entries.clone(),
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
+            appearance: self.appearance.clone(),
         };
         let mut visitor = TerminalVisitor::new(writer, processor);
         visitor.visit_document(doc)?;
@@ -43,11 +48,14 @@ impl Processable for Processor {
     type Error = Error;
 
     fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+        let appearance = Appearance::detect();
+
         Self {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
+            appearance,
         }
     }
 
@@ -65,6 +73,7 @@ impl Processable for Processor {
 }
 
 mod admonition;
+mod appearance;
 mod audio;
 mod delimited;
 mod document;

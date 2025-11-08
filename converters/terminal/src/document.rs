@@ -64,7 +64,7 @@ pub(crate) fn visit_header<V: WritableVisitor<Error = Error>>(
             })?;
         writeln!(w)?;
     }
-    w.queue(Print("\n\n"))?;
+    w.queue(Print("\n"))?;
     Ok(())
 }
 
@@ -93,14 +93,17 @@ mod tests {
 
     #[test]
     fn test_render_document() -> Result<(), Error> {
+        use crate::Appearance;
         use std::{cell::Cell, rc::Rc};
         let doc = Document::default();
         let options = Options::default();
+        let appearance = Appearance::detect();
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
+            appearance,
         };
         let buffer = Vec::new();
         let mut visitor = TerminalVisitor::new(buffer, processor);
@@ -112,6 +115,7 @@ mod tests {
 
     #[test]
     fn test_render_document_with_header() -> Result<(), Error> {
+        use crate::Appearance;
         let mut doc = Document::default();
         let title = vec![InlineNode::PlainText(Plain {
             content: "Title".to_string(),
@@ -132,21 +136,24 @@ mod tests {
         doc.blocks = vec![];
         let buffer = Vec::new();
         let options = Options::default();
+        let appearance = Appearance::detect();
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            appearance,
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;
         let buffer = visitor.into_writer();
-        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n\n");
+        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
         Ok(())
     }
 
     #[test]
     fn test_render_document_with_blocks() -> Result<(), Error> {
+        use crate::Appearance;
         let mut doc = Document::default();
         doc.blocks = vec![
             Block::Paragraph(Paragraph {
@@ -179,16 +186,30 @@ mod tests {
         ];
         let buffer = Vec::new();
         let options = Options::default();
+        let appearance = Appearance::detect();
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            appearance,
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;
         let buffer = visitor.into_writer();
-        assert_eq!(buffer, b"Hello, world!\n\n> Section <\nHello, section!\n\n");
+        let output = String::from_utf8_lossy(&buffer);
+
+        // Verify output contains expected content (with new section formatting)
+        assert!(
+            output.contains("Hello, world!"),
+            "Should contain paragraph text"
+        );
+        assert!(output.contains("Section"), "Should contain section title");
+        assert!(
+            output.contains("Hello, section!"),
+            "Should contain section content"
+        );
+
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
-> A list of sorts: <
+
+[38;2;215;0;135m[1m┄[0m[38;2;215;0;135m[1mA list of sorts:[0m
 
  1. Item 1
  2. Item 2

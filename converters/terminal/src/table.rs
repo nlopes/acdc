@@ -1,7 +1,7 @@
 use std::io::{self, BufWriter};
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
-use comfy_table::{Attribute, Cell, Color, ContentArrangement, Table};
+use comfy_table::{Attribute, Cell, ContentArrangement, Table};
 
 use crate::{Error, Processor, TerminalVisitor};
 
@@ -34,7 +34,7 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
                     .into_inner()
                     .map_err(io::IntoInnerError::into_error)?;
                 Ok(Cell::new(String::from_utf8(buffer).unwrap_or_default())
-                    .fg(Color::Green)
+                    .fg(processor.appearance.colors.table_header)
                     .add_attribute(Attribute::Bold))
             })
             .collect::<Result<Vec<_>, Error>>()?;
@@ -78,7 +78,7 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
                     .into_inner()
                     .map_err(io::IntoInnerError::into_error)?;
                 Ok(Cell::new(String::from_utf8(buffer).unwrap_or_default())
-                    .fg(Color::Cyan)
+                    .fg(processor.appearance.colors.table_footer)
                     .add_attribute(Attribute::Bold))
             })
             .collect::<Result<Vec<_>, Error>>()?;
@@ -109,14 +109,17 @@ mod tests {
 
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
+        use crate::Appearance;
         use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
+        let appearance = Appearance::detect();
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
+            appearance,
         }
     }
 

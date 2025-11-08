@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_common::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 use crossterm::{
     QueueableCommand,
@@ -9,71 +9,93 @@ use crate::{Error, Processor};
 
 /// Visit an admonition block (NOTE, TIP, IMPORTANT, WARNING, CAUTION).
 ///
-/// Renders with a styled variant label followed by title and content.
+/// Renders with bold caption and left border.
 pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     admon: &Admonition,
     processor: &Processor,
 ) -> Result<(), Error> {
+    use std::io::BufWriter;
+
     let w = visitor.writer_mut();
     writeln!(w)?;
 
-    // Get the appropriate caption attribute for this admonition type
-    let caption_attr = match admon.variant {
-        AdmonitionVariant::Note => "note-caption",
-        AdmonitionVariant::Tip => "tip-caption",
-        AdmonitionVariant::Important => "important-caption",
-        AdmonitionVariant::Warning => "warning-caption",
-        AdmonitionVariant::Caution => "caution-caption",
+    // Get icon, caption attribute, and theme color for this admonition type
+    let (caption_attr, color) = match admon.variant {
+        AdmonitionVariant::Note => ("note-caption", processor.appearance.colors.admon_note),
+        AdmonitionVariant::Tip => ("tip-caption", processor.appearance.colors.admon_tip),
+        AdmonitionVariant::Important => (
+            "important-caption",
+            processor.appearance.colors.admon_important,
+        ),
+        AdmonitionVariant::Warning => {
+            ("warning-caption", processor.appearance.colors.admon_warning)
+        }
+        AdmonitionVariant::Caution => {
+            ("caution-caption", processor.appearance.colors.admon_caution)
+        }
     };
 
     let caption = processor
         .document_attributes
         .get(caption_attr)
         .and_then(|v| match v {
-            AttributeValue::String(s) => Some(s.to_uppercase()),
+            AttributeValue::String(s) => Some(s.clone()),
             _ => None,
         })
         .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
 
-    // Get styled caption label
-    let styled_variant = match admon.variant {
-        AdmonitionVariant::Note => caption.blue().bold(),
-        AdmonitionVariant::Tip => caption.green().bold(),
-        AdmonitionVariant::Important => caption.yellow().bold(),
-        AdmonitionVariant::Warning => caption.red().bold(),
-        AdmonitionVariant::Caution => caption.magenta().bold(),
+    // Border character based on terminal capabilities
+    let border = if processor.appearance.capabilities.unicode {
+        "│"
+    } else {
+        "|"
     };
 
-    // Write the variant label
-    QueueableCommand::queue(w, PrintStyledContent(styled_variant))?;
-    writeln!(w)?;
+    // Header line with bold caption and left border
+    write!(w, "{} ", border.with(color))?;
+    let styled_caption = format!("{caption}:").bold();
+    QueueableCommand::queue(w, PrintStyledContent(styled_caption))?;
 
-    // Render title if present
-    if !admon.title.is_empty() {
-        visitor.visit_inline_nodes(&admon.title)?;
+    // Title on same line if present
+    if admon.title.is_empty() {
+        writeln!(w)?;
+    } else {
+        write!(w, " ")?;
+        let mut title_buffer = Vec::new();
+        let title_processor = processor.clone();
+        let mut title_visitor = crate::TerminalVisitor::new(&mut title_buffer, title_processor);
+        title_visitor.visit_inline_nodes(&admon.title)?;
+
+        let title_text = String::from_utf8_lossy(&title_buffer);
         let w = visitor.writer_mut();
-        writeln!(w)?;
-        writeln!(w)?;
+        writeln!(w, "{}", title_text.trim())?;
     }
 
-    // Render content blocks
+    // Render content blocks with left border
     for block in &admon.blocks {
-        visitor.visit_block(block)?;
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
+        temp_visitor.visit_block(block)?;
+
+        let buffer = temp_visitor
+            .into_writer()
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+
+        let content = String::from_utf8_lossy(&buffer);
+        let w = visitor.writer_mut();
+
+        for line in content.lines() {
+            write!(w, "{} ", border.with(color))?;
+            writeln!(w, "{line}")?;
+        }
     }
 
-    // End marker with three dots in the same color as the variant
+    // End border
     let w = visitor.writer_mut();
-    let end_marker = "• • •";
-    let styled_end_marker = match admon.variant {
-        AdmonitionVariant::Note => end_marker.blue().bold(),
-        AdmonitionVariant::Tip => end_marker.green().bold(),
-        AdmonitionVariant::Important => end_marker.yellow().bold(),
-        AdmonitionVariant::Warning => end_marker.red().bold(),
-        AdmonitionVariant::Caution => end_marker.magenta().bold(),
-    };
-    QueueableCommand::queue(w, PrintStyledContent(styled_end_marker))?;
-    writeln!(w)?;
+    writeln!(w, "{}", border.with(color))?;
 
     Ok(())
 }

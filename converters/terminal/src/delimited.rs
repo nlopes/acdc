@@ -1,6 +1,6 @@
 use acdc_converters_common::{
     code::detect_language,
-    visitor::{WritableVisitor, WritableVisitorExt},
+    visitor::{Visitor, WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode};
 use crossterm::{
@@ -24,9 +24,6 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     block: &DelimitedBlock,
     processor: &Processor,
 ) -> Result<(), Error> {
-    let w = visitor.writer_mut();
-    writeln!(w)?;
-
     match &block.inner {
         DelimitedBlockType::DelimitedTable(t) => crate::table::visit_table(t, visitor, processor),
         DelimitedBlockType::DelimitedListing(inlines) => render_preformatted_block(
@@ -49,7 +46,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             render_example_block(visitor, &block.title, blocks, processor)
         }
         DelimitedBlockType::DelimitedQuote(blocks) => {
-            render_quote_block(visitor, &block.title, blocks)
+            render_quote_block(visitor, &block.title, blocks, processor)
         }
         DelimitedBlockType::DelimitedSidebar(blocks) => {
             render_sidebar_block(visitor, &block.title, blocks)
@@ -95,49 +92,74 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
 /// Render a preformatted block (listing or literal) with optional syntax highlighting.
 ///
 /// If the block has `[source,language]` metadata and the language is recognized,
-/// syntax highlighting will be applied. Otherwise, renders as plain text.
+/// syntax highlighting will be applied. Uses simple horizontal separators (mdcat style).
 fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     inlines: &[InlineNode],
     metadata: &BlockMetadata,
-    block_type: &str,
-    _processor: &Processor,
+    _block_type: &str,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    use std::io::BufWriter;
+
     // Detect language for syntax highlighting
     let language = detect_language(metadata);
 
-    // Start marker with block type label (and language if present)
-    {
-        let w = visitor.writer_mut();
-        let label = if let Some(lang) = language {
-            format!("{} ({})", block_type.to_uppercase(), lang.to_uppercase())
-        } else {
-            block_type.to_uppercase()
-        };
-        let styled_label = label.dark_grey().bold();
-        QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-        writeln!(w)?;
+    // Title if present
+    if !title.is_empty() {
+        visitor.render_title_with_wrapper(title, "\n", "\n")?;
     }
 
-    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+    // Simple top separator (mdcat style)
+    let separator = "─".repeat(20);
+    let color = processor.appearance.colors.label_listing;
+    let w = visitor.writer_mut();
+    writeln!(w, "{}", separator.clone().with(color))?;
 
-    // Apply syntax highlighting if language is detected
+    // Render code content to buffer
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut code_buffer = inner;
+
     if let Some(lang) = language {
-        let w = visitor.writer_mut();
-        crate::syntax::highlight_code(w, inlines, lang)?;
+        crate::syntax::highlight_code(&mut code_buffer, inlines, lang, processor)?;
     } else {
-        // Fallback to plain text rendering
-        visitor.visit_inline_nodes(inlines)?;
+        // Fallback to plain text
+        use std::io::Write;
+        for node in inlines {
+            match node {
+                acdc_parser::InlineNode::VerbatimText(v) => {
+                    write!(code_buffer, "{}", v.content)?;
+                }
+                acdc_parser::InlineNode::RawText(r) => {
+                    write!(code_buffer, "{}", r.content)?;
+                }
+                acdc_parser::InlineNode::PlainText(p) => {
+                    write!(code_buffer, "{}", p.content)?;
+                }
+                acdc_parser::InlineNode::LineBreak(_) => {
+                    writeln!(code_buffer)?;
+                }
+                _ => {}
+            }
+        }
     }
 
-    // End marker with three dots
-    {
-        let w = visitor.writer_mut();
-        let end_marker = "\n• • •\n".dark_grey().bold();
-        QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+    let buffer = code_buffer
+        .into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?;
+
+    // Render code content directly (no left border)
+    let content = String::from_utf8_lossy(&buffer);
+    let w = visitor.writer_mut();
+    write!(w, "{content}")?;
+    if !content.ends_with('\n') {
         writeln!(w)?;
     }
+
+    // Bottom separator
+    writeln!(w, "{}", separator.with(color))?;
 
     Ok(())
 }
@@ -190,31 +212,47 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-/// Render a quote block with quote styling.
+/// Render a quote block with quote styling (mdcat style with indentation).
 fn render_quote_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     blocks: &[Block],
+    processor: &Processor,
 ) -> Result<(), Error> {
-    let w = visitor.writer_mut();
+    use std::io::BufWriter;
 
-    // Start marker with "QUOTE" label
-    let styled_label = "QUOTE".grey().bold();
-    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-    writeln!(w)?;
+    // Render title if present
+    visitor.render_title_with_wrapper(title, "", "\n")?;
 
-    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+    // Render content to temporary buffer
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
 
-    // Render content blocks
     for nested_block in blocks {
-        visitor.visit_block(nested_block)?;
+        temp_visitor.visit_block(nested_block)?;
     }
 
-    // End marker with three dots
+    let buffer = temp_visitor
+        .into_writer()
+        .into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?;
+
+    let content = String::from_utf8_lossy(&buffer);
+
+    // Add indentation to each line (mdcat style - 4 spaces)
     let w = visitor.writer_mut();
-    let end_marker = "• • •".grey().bold();
-    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
-    writeln!(w)?;
+    for line in content.lines() {
+        let styled_line = line.italic();
+        write!(w, "    ")?; // 4-space indent
+        QueueableCommand::queue(w, PrintStyledContent(styled_line))?;
+        writeln!(w)?;
+    }
+
+    // Add final newline if content didn't end with one
+    if !content.ends_with('\n') {
+        writeln!(w)?;
+    }
 
     Ok(())
 }
@@ -301,14 +339,17 @@ mod tests {
 
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
+        use crate::Appearance;
         use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
+        let appearance = Appearance::detect();
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
+            appearance,
         }
     }
 
@@ -329,8 +370,11 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("LISTING"), "Should have LISTING label");
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        // Check for horizontal separators (mdcat style)
+        assert!(
+            output_str.contains("────"),
+            "Should have horizontal separators"
+        );
         assert!(
             output_str.contains("code content here"),
             "Should contain content"
@@ -356,13 +400,15 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("LISTING"), "Should have LISTING label");
         assert!(
             output_str.contains("My Code Listing"),
             "Should contain title"
         );
         assert!(output_str.contains("code here"), "Should contain content");
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        assert!(
+            output_str.contains("────"),
+            "Should have horizontal separators"
+        );
 
         Ok(())
     }
@@ -384,8 +430,10 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("LITERAL"), "Should have LITERAL label");
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        assert!(
+            output_str.contains("────"),
+            "Should have horizontal separators"
+        );
         assert!(
             output_str.contains("literal text"),
             "Should contain content"
@@ -411,7 +459,6 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("LITERAL"), "Should have LITERAL label");
         assert!(
             output_str.contains("Literal Block Title"),
             "Should contain title"
@@ -420,7 +467,10 @@ mod tests {
             output_str.contains("literal content"),
             "Should contain content"
         );
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        assert!(
+            output_str.contains("────"),
+            "Should have horizontal separators"
+        );
 
         Ok(())
     }
@@ -521,8 +571,7 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("QUOTE"), "Should have QUOTE label");
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        // Quotes now use indentation (mdcat style)
         assert!(
             output_str.contains("This is a quote."),
             "Should contain content"
@@ -555,9 +604,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("QUOTE"), "Should have QUOTE label");
+        // Quotes now use indentation (mdcat style)
         assert!(output_str.contains("Quote Title"), "Should contain title");
-        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("Quote content here."),
             "Should contain content"
@@ -954,14 +1002,10 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Empty blocks should still render label and end marker
+        // Empty blocks should still render with horizontal separators
         assert!(
-            output_str.contains("LISTING"),
-            "Should have label even when empty"
-        );
-        assert!(
-            output_str.contains("• • •"),
-            "Should have end marker even when empty"
+            output_str.contains("────"),
+            "Should have horizontal separators even when empty"
         );
 
         Ok(())
@@ -984,14 +1028,11 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Empty quote should still have label and end marker
+        // Empty quote should render (though may be empty or just whitespace)
+        // Just verify it doesn't crash
         assert!(
-            output_str.contains("QUOTE"),
-            "Should have label even when empty"
-        );
-        assert!(
-            output_str.contains("• • •"),
-            "Should have end marker even when empty"
+            output_str.is_empty() || output_str.trim().is_empty(),
+            "Empty quote block should produce empty or whitespace output"
         );
 
         Ok(())
