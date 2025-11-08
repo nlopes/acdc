@@ -23,6 +23,10 @@ pub struct Processor {
     /// Shared counter for auto-numbering figure blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     figure_counter: Rc<Cell<usize>>,
+    /// Shared counter for auto-numbering listing blocks.
+    /// Uses Rc<Cell<>> so all clones share the same counter.
+    /// Only used when listing-caption attribute is set.
+    listing_counter: Rc<Cell<usize>>,
 }
 
 impl Processor {
@@ -79,6 +83,7 @@ impl Processable for Processor {
             example_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
             figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
         }
     }
 

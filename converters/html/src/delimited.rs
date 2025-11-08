@@ -5,7 +5,8 @@ use acdc_converters_common::{
     visitor::{WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{
-    BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent, StemNotation,
+    AttributeValue, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent,
+    StemNotation,
 };
 
 use crate::{Error, Processor, RenderOptions};
@@ -62,7 +63,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
                     .document_attributes
                     .get("example-caption")
                     .and_then(|v| match v {
-                        acdc_parser::AttributeValue::String(s) => Some(s.as_str()),
+                        AttributeValue::String(s) => Some(s.as_str()),
                         _ => None,
                     })
                     .unwrap_or("Example");
@@ -127,7 +128,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
     title: &[InlineNode],
     metadata: &BlockMetadata,
     visitor: &mut V,
-    _processor: &Processor,
+    processor: &Processor,
     _options: &RenderOptions,
 ) -> Result<(), Error> {
     match inner {
@@ -138,7 +139,29 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             let mut w = visitor.writer_mut();
             writeln!(w, "<div class=\"listingblock\">")?;
             let _ = w;
-            visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+
+            // Check if listing-caption is set and block has a title
+            if !title.is_empty() {
+                if let Some(AttributeValue::String(caption)) =
+                    processor.document_attributes.get("listing-caption")
+                {
+                    let count = processor.listing_counter.get() + 1;
+                    processor.listing_counter.set(count);
+                    visitor.render_title_with_wrapper(
+                        title,
+                        &format!("<div class=\"title\">{caption} {count}. "),
+                        "</div>\n",
+                    )?;
+                } else {
+                    // No listing-caption, render title without numbering
+                    visitor.render_title_with_wrapper(
+                        title,
+                        "<div class=\"title\">",
+                        "</div>\n",
+                    )?;
+                }
+            }
+
             w = visitor.writer_mut();
             writeln!(w, "<div class=\"content\">")?;
             // Check if this is a source block with a language
@@ -284,6 +307,7 @@ mod tests {
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             table_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             figure_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            listing_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
         }
     }
 
@@ -408,6 +432,116 @@ mod tests {
         assert!(
             !html.contains("<div class=\"literalblock\">"),
             "Literal block with style should not have default 'literalblock' class"
+        );
+    }
+
+    #[test]
+    fn test_listing_block_without_listing_caption_renders_title_without_number() {
+        let title = vec![InlineNode::PlainText(Plain {
+            content: "My Code Example".to_string(),
+            location: Location::default(),
+        })];
+
+        let block = DelimitedBlock {
+            metadata: BlockMetadata::default(),
+            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            delimiter: "----".to_string(),
+            title,
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor.clone(), options);
+
+        visitor.visit_delimited_block(&block).unwrap();
+        let html = String::from_utf8(visitor.into_writer()).unwrap();
+
+        assert!(
+            html.contains("<div class=\"title\">My Code Example</div>"),
+            "Expected title without numbering when listing-caption is not set, got: {html}",
+        );
+        assert!(
+            !html.contains("Listing 1"),
+            "Should not contain numbering when listing-caption is not set, got: {html}",
+        );
+        assert_eq!(
+            processor.listing_counter.get(),
+            0,
+            "Counter should not be incremented when listing-caption is not set"
+        );
+    }
+
+    #[test]
+    fn test_listing_block_with_listing_caption_renders_title_with_number() {
+        use acdc_parser::AttributeValue;
+
+        let title1 = vec![InlineNode::PlainText(Plain {
+            content: "First Example".to_string(),
+            location: Location::default(),
+        })];
+
+        let title2 = vec![InlineNode::PlainText(Plain {
+            content: "Second Example".to_string(),
+            location: Location::default(),
+        })];
+
+        let block1 = DelimitedBlock {
+            metadata: BlockMetadata::default(),
+            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),
+            delimiter: "----".to_string(),
+            title: title1,
+            location: Location::default(),
+        };
+
+        let block2 = DelimitedBlock {
+            metadata: BlockMetadata::default(),
+            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code 2")),
+            delimiter: "----".to_string(),
+            title: title2,
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let mut processor = create_test_processor();
+        // Set listing-caption attribute
+        processor.document_attributes.set(
+            "listing-caption".to_string(),
+            AttributeValue::String("Listing".to_string()),
+        );
+
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor.clone(), options.clone());
+
+        // Render first block
+        visitor.visit_delimited_block(&block1).unwrap();
+        let html1 = String::from_utf8(visitor.into_writer()).unwrap();
+
+        assert!(
+            html1.contains("<div class=\"title\">Listing 1. First Example</div>"),
+            "Expected numbered title for first listing block, got: {html1}",
+        );
+        assert_eq!(
+            processor.listing_counter.get(),
+            1,
+            "Counter should be incremented to 1"
+        );
+
+        // Render second block
+        let output2 = Vec::new();
+        let mut visitor2 = crate::HtmlVisitor::new(output2, processor.clone(), options);
+        visitor2.visit_delimited_block(&block2).unwrap();
+        let html2 = String::from_utf8(visitor2.into_writer()).unwrap();
+
+        assert!(
+            html2.contains("<div class=\"title\">Listing 2. Second Example</div>"),
+            "Expected numbered title for second listing block, got: {html2}",
+        );
+        assert_eq!(
+            processor.listing_counter.get(),
+            2,
+            "Counter should be incremented to 2"
         );
     }
 }
