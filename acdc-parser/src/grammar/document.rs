@@ -32,10 +32,11 @@ pub(crate) struct PositionWithOffset {
 #[derive(Debug)]
 // Used purely in the grammar to break down the block metadata lines into its different
 // types.
-enum BlockMetadataLine {
+enum BlockMetadataLine<'input> {
     Anchor(Anchor),
     Attributes((bool, BlockMetadata)),
     Title(Vec<InlineNode>),
+    DocumentAttribute(&'input str, AttributeValue),
 }
 
 #[derive(Debug, Default)]
@@ -115,6 +116,28 @@ fn create_source_location(location: Location, file: Option<std::path::PathBuf>) 
     SourceLocation {
         file,
         positioning: crate::Positioning::Location(location),
+    }
+}
+
+/// Helper to parse document attribute value with proper type conversion
+/// Handles unset attributes, boolean conversion, and string values
+fn parse_attribute_value(value_opt: Option<&str>, unset: bool) -> AttributeValue {
+    if unset {
+        // e.g: :!attr: or :attr!:
+        AttributeValue::Bool(false)
+    } else if let Some(v) = value_opt {
+        let v = v.trim();
+        // Handle boolean strings
+        if v == "true" {
+            AttributeValue::Bool(true)
+        } else if v == "false" {
+            AttributeValue::Bool(false)
+        } else {
+            AttributeValue::String(v.to_string())
+        }
+    } else {
+        // No value means true (e.g: :toc:)
+        AttributeValue::Bool(true)
     }
 }
 
@@ -438,8 +461,9 @@ peg::parser! {
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata, Error>
         = lines:(
-            anchor:anchor() { Ok::<BlockMetadataLine, Error>(BlockMetadataLine::Anchor(anchor)) }
-            / attr:attributes_line() { Ok(BlockMetadataLine::Attributes(attr)) }
+            anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
+            / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes(attr)) }
+            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )*
         {
@@ -464,10 +488,14 @@ peg::parser! {
                         metadata.attributes = attr_metadata.attributes;
                         metadata.positional_attributes = attr_metadata.positional_attributes;
                     },
+                    BlockMetadataLine::DocumentAttribute(key, value) => {
+                        // Set the document attribute immediately so it's available for
+                        // subsequent attribute references (e.g., in title lines)
+                        state.document_attributes.set(key.into(), value);
+                    },
                     BlockMetadataLine::Title(inner) => {
                         title = inner;
                     }
-                    _ => unreachable!(),
                 }
             }
             Ok(BlockParsingMetadata {
@@ -487,6 +515,16 @@ peg::parser! {
             let block_metadata = BlockParsingMetadata::default();
             let (title, _) = process_inlines(state, &block_metadata, start.offset, &start, end, offset, title)?;
             Ok(title)
+        }
+
+        // A document attribute line in block metadata context
+        // This allows document attributes to be set between block attributes and the block content
+        // Uses the same parsing logic as document attributes in the header
+        rule document_attribute_line() -> (&'input str, AttributeValue)
+        = attr:document_attribute_match() eol()
+        {
+            tracing::info!(?attr, "Found document attribute in block metadata");
+            attr
         }
 
         rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
@@ -3168,32 +3206,38 @@ peg::parser! {
         }
         / expected!("document attribute key starting with ':'")
 
+        // Value parsing for document attributes
+        // Handles both single-line values and values with continuation markers (" \" or " + \")
+        // The preprocessor preserves these markers for the parser to handle
+        rule document_attribute_value() -> String
+        = " " lines:document_attribute_value_lines()
+        {
+            lines.join("\n")
+        }
+
+        // Parse value lines, continuing while lines end with backslash
+        rule document_attribute_value_lines() -> Vec<&'input str>
+        = backslash_continuation_lines() / single_line:$([^'\n']+) { vec![single_line] }
+
+        // Lines ending with backslash continuation - keeps consuming lines until one doesn't end with backslash
+        rule backslash_continuation_lines() -> Vec<&'input str>
+        = lines:(line:$((!(" \\" eol()) [^'\n'])+ " \\") eol() { line })+
+          last:$([^'\n']+)?
+        {
+            let mut result = lines;
+            if let Some(l) = last {
+                result.push(l);
+            }
+            result
+        }
+
+        // Document attribute parsing
+        // Works identically in both header and block metadata contexts
         rule document_attribute_match() -> (&'input str, AttributeValue)
-        = key:document_attribute_key_match() maybe_value:(" " value:$(!(&((eol() document_attribute_key_match()) / eol()*<2,> / ![_])) [_])+ { value })?
+        = key:document_attribute_key_match() value:document_attribute_value()?
         {
             let (unset, key) = key;
-            if unset {
-                // e.g: :!background: or :background!:
-                (key, AttributeValue::Bool(false))
-            } else if let Some(value) = maybe_value {
-                let value = value.join("");
-                // if it's not unset, and we have a value, set it to that
-                // e.g: :background-color: #fff
-
-                // if the value is "true" or "false", set it to a boolean
-                // TODO(nlopes): I don't like this specialization but oh well.
-                if value == "true" {
-                    (key, AttributeValue::Bool(true))
-                } else if value == "false" {
-                    (key, AttributeValue::Bool(false))
-                } else {
-                    (key, AttributeValue::String(value.clone()))
-                }
-            } else {
-                // if it's not unset, and we don't have a value, set it to true
-                // e.g: :toc:
-                (key, AttributeValue::Bool(true))
-            }
+            (key, parse_attribute_value(value.as_deref(), unset))
         }
 
         rule whitespace() = quiet!{ " " / "\t" }
