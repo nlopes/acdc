@@ -11,6 +11,8 @@ pub(crate) struct ParserState {
     pub(crate) footnote_tracker: FootnoteTracker,
     pub(crate) toc_tracker: TocTracker,
     pub(crate) last_block_was_verbatim: bool,
+    /// Callout numbers found in the last verbatim block (for validation)
+    pub(crate) last_verbatim_callouts: Vec<usize>,
     /// The current file being parsed (None for inline/string parsing)
     pub(crate) current_file: Option<std::path::PathBuf>,
 }
@@ -83,6 +85,7 @@ impl ParserState {
             footnote_tracker: FootnoteTracker::new(),
             toc_tracker: TocTracker::default(),
             last_block_was_verbatim: false,
+            last_verbatim_callouts: Vec::new(),
             current_file: None,
         }
     }

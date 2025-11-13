@@ -56,7 +56,8 @@ fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
     for node in inlines {
         match node {
             InlineNode::VerbatimText(verbatim) => {
-                result.push_str(&verbatim.content);
+                let processed = process_callouts(&verbatim.content);
+                result.push_str(&processed);
             }
             InlineNode::RawText(raw) => {
                 result.push_str(&raw.content);
@@ -71,6 +72,37 @@ fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
             // In practice, code blocks should only contain verbatim/plain text
             _ => {}
         }
+    }
+
+    result
+}
+
+/// Process callout markers in verbatim text, replacing <.> with auto-numbered callouts
+fn process_callouts(text: &str) -> String {
+    use std::fmt::Write;
+
+    let mut result = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    let mut auto_number = 1;
+
+    while let Some(c) = chars.next() {
+        if c == '<' {
+            // Check for <.> pattern first
+            if chars.peek() == Some(&'.') {
+                chars.next(); // consume the '.'
+                if chars.peek() == Some(&'>') {
+                    chars.next(); // consume the '>'
+                    let _ = write!(result, "<{auto_number}>");
+                    auto_number += 1;
+                    continue;
+                }
+                // Not a valid <.> pattern, output what we consumed
+                result.push('<');
+                result.push('.');
+                continue;
+            }
+        }
+        result.push(c);
     }
 
     result

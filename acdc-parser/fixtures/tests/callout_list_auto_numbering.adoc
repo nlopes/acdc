@@ -1,0 +1,10 @@
+Callout list with automatic numbering:
+
+----
+Line one <.>
+Line two <.>
+Line three <.>
+----
+<.> First callout
+<.> Second callout
+<.> Third callout

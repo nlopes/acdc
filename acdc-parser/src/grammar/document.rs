@@ -761,13 +761,15 @@ peg::parser! {
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
 
+            let (resolved_content, callout_numbers) = resolve_verbatim_callouts(content);
             state.last_block_was_verbatim = true;
+            state.last_verbatim_callouts = callout_numbers;
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::VerbatimText(Verbatim {
-                    content: content.to_string(),
+                    content: resolved_content,
                     location: content_location,
                 })]),
                 title: block_metadata.title.clone(),
@@ -792,13 +794,15 @@ peg::parser! {
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
 
+            let (resolved_content, callout_numbers) = resolve_verbatim_callouts(content);
             state.last_block_was_verbatim = true;
+            state.last_verbatim_callouts = callout_numbers;
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedListing(vec![InlineNode::VerbatimText(Verbatim {
-                    content: content.to_string(),
+                    content: resolved_content,
                     location: content_location,
                 })]),
                 title: block_metadata.title.clone(),
@@ -821,13 +825,15 @@ peg::parser! {
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
 
+            let (resolved_content, callout_numbers) = resolve_verbatim_callouts(content);
             state.last_block_was_verbatim = true;
+            state.last_verbatim_callouts = callout_numbers;
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedLiteral(vec![InlineNode::VerbatimText(Verbatim {
-                    content: content.to_string(),
+                    content: resolved_content,
                     location: content_location,
                 })]),
                 title: block_metadata.title.clone(),
@@ -1245,7 +1251,7 @@ peg::parser! {
 
         rule description_list_marker() -> &'input str = $("::::" / ":::" / "::" / ";;")
 
-        rule callout_list_marker() -> &'input str = $("<" digits() ">")
+        rule callout_list_marker() -> &'input str = $("<" (digits() / ".") ">")
 
         rule section_level_marker() -> &'input str = $(("=" / "#")+)
 
@@ -1540,10 +1546,50 @@ peg::parser! {
                 content.push(item?);
             }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
-            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
+            let mut items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
+
+            // Resolve auto-numbered callout markers (<.>)
+            let mut auto_number = 1;
+            for item in &mut items {
+                if item.marker == "<.>" {
+                    item.marker = format!("<{auto_number}>");
+                    auto_number += 1;
+                }
+            }
+
+            // Validate callout list items
+            let mut expected_number = 1;
+            for item in &items {
+                // Extract the number from the marker (e.g., "<5>" -> 5)
+                if let Some(actual_number) = extract_callout_number(&item.marker) {
+                    let file_name = state.current_file.as_ref()
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
+                    let line = item.location.start.line;
+
+                    // Check sequential order
+                    if actual_number != expected_number {
+                        tracing::warn!(
+                            "{file_name}: line {line}: callout list item index: expected {expected_number}, got {actual_number}"
+                        );
+                    }
+
+                    // Check if the EXPECTED callout exists in the verbatim block
+                    // (This warns when sequence is broken and the expected number is missing)
+                    if !state.last_verbatim_callouts.contains(&expected_number) {
+                        tracing::warn!(
+                            "{file_name}: line {line}: no callout found for <{expected_number}>"
+                        );
+                    }
+
+                    expected_number += 1;
+                }
+            }
 
             // Reset the flag after successfully parsing the callout list
             state.last_block_was_verbatim = false;
+            state.last_verbatim_callouts.clear();
 
             Ok(Block::CalloutList(CalloutList {
                 title: block_metadata.title.clone(),
@@ -3249,6 +3295,62 @@ peg::parser! {
             }
         }
 
+    }
+}
+
+/// Resolve auto-numbered callout markers (`<.>`) in verbatim text.
+///
+/// Scans for `<.>` markers at the end of lines and replaces them with
+/// sequential numbers `<1>`, `<2>`, etc. Only processes markers at line endings
+/// per `AsciiDoc` spec.
+///
+/// # Arguments
+/// * `text` - The raw verbatim text that may contain `<.>` markers
+///
+/// # Returns
+/// A tuple of (resolved text, list of callout numbers found)
+fn resolve_verbatim_callouts(text: &str) -> (String, Vec<usize>) {
+    use std::fmt::Write;
+
+    let mut auto_number = 1;
+    let mut callout_numbers = Vec::new();
+
+    let resolved_text = text
+        .lines()
+        .map(|line| {
+            // Check if line ends with <.> (possibly with trailing whitespace)
+            let trimmed_end = line.trim_end();
+            //if trimmed_end.ends_with("<.>") {
+            // Find the position of <.> from the end
+            if let Some(pos) = trimmed_end.rfind("<.>") {
+                let mut result = line[..pos].to_string();
+                let _ = write!(result, "<{auto_number}>");
+                result.push_str(&line[pos + 3..]);
+                callout_numbers.push(auto_number);
+                auto_number += 1;
+                return result;
+                //}
+            } else if let Some(number) = extract_callout_number(trimmed_end) {
+                // Found an explicit callout number like <5>
+                callout_numbers.push(number);
+            }
+            line.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    (resolved_text, callout_numbers)
+}
+
+/// Extract callout number from a line ending with <N>
+fn extract_callout_number(line: &str) -> Option<usize> {
+    if line.ends_with('>')
+        && let Some(start) = line.rfind('<')
+    {
+        let number_str = &line[start + 1..line.len() - 1];
+        number_str.parse().ok()
+    } else {
+        None
     }
 }
 

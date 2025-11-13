@@ -444,14 +444,32 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
 }
 
 fn mark_callouts(text: &str) -> String {
-    // Replace callout markers like <1>, <2> with placeholders
+    // Replace callout markers like <1>, <2>, or <.> with placeholders
     let mut result = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
+    let mut auto_number = 1; // Counter for <.> auto-numbering
 
     while let Some(c) = chars.next() {
         if c == '<' {
-            let mut num_str = String::new();
+            // Check for <.> pattern first
+            if chars.peek() == Some(&'.') {
+                chars.next(); // consume the '.'
+                if chars.peek() == Some(&'>') {
+                    chars.next(); // consume the '>'
+                    result.push_str("\u{FFFC}CALLOUT:");
+                    result.push_str(&auto_number.to_string());
+                    result.push_str(":\u{FFFC}");
+                    auto_number += 1;
+                    continue;
+                }
+                // Not a valid <.> pattern, output what we consumed
+                result.push('<');
+                result.push('.');
+                continue;
+            }
 
+            // Check for <digits> pattern
+            let mut num_str = String::new();
             while let Some(&next_char) = chars.peek() {
                 if next_char.is_ascii_digit() {
                     num_str.push(next_char);

@@ -1,0 +1,12 @@
+Callout list with mixed automatic and explicit numbering:
+
+----
+Line one <.>
+Line two <5>
+Line three <.>
+Line four <10>
+----
+<.> First auto callout (should be 1)
+<5> Explicit callout 5
+<.> Second auto callout (should be 2)
+<10> Explicit callout 10

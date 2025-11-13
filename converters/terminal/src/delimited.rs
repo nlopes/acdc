@@ -130,7 +130,8 @@ fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
         for node in inlines {
             match node {
                 acdc_parser::InlineNode::VerbatimText(v) => {
-                    write!(code_buffer, "{}", v.content)?;
+                    let processed = process_callouts(&v.content);
+                    write!(code_buffer, "{processed}")?;
                 }
                 acdc_parser::InlineNode::RawText(r) => {
                     write!(code_buffer, "{}", r.content)?;
@@ -320,6 +321,37 @@ fn render_title_if_present<V: WritableVisitor<Error = Error>>(
     title: &[InlineNode],
 ) -> Result<(), Error> {
     visitor.render_title_with_wrapper(title, "  ", "\n")
+}
+
+/// Process callout markers in verbatim text, replacing <.> with auto-numbered callouts
+fn process_callouts(text: &str) -> String {
+    use std::fmt::Write;
+
+    let mut result = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    let mut auto_number = 1;
+
+    while let Some(c) = chars.next() {
+        if c == '<' {
+            // Check for <.> pattern first
+            if chars.peek() == Some(&'.') {
+                chars.next(); // consume the '.'
+                if chars.peek() == Some(&'>') {
+                    chars.next(); // consume the '>'
+                    let _ = write!(result, "<{auto_number}>");
+                    auto_number += 1;
+                    continue;
+                }
+                // Not a valid <.> pattern, output what we consumed
+                result.push('<');
+                result.push('.');
+                continue;
+            }
+        }
+        result.push(c);
+    }
+
+    result
 }
 
 #[cfg(test)]
