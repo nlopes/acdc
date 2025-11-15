@@ -153,11 +153,20 @@ peg::parser! {
         = eol()* start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks(0, None) end:position() (eol()* / ![_]) {
             let blocks = blocks?;
 
-            // Use UTF-8 safe decrement for the end offset
-            let document_end_offset = if end.offset == 0 {
-                0  // Handle empty document case
+            // Ensure end offset is on a valid UTF-8 boundary
+            let mut document_end_offset = end.offset;
+            if document_end_offset > state.input.len() {
+                document_end_offset = state.input.len();
+            }
+            // If not on a boundary, round forward to the next boundary
+            while document_end_offset < state.input.len() && !state.input.is_char_boundary(document_end_offset) {
+                document_end_offset += 1;
+            }
+            // Then decrement by one byte to get the last byte of content
+            let document_end_offset = if document_end_offset == 0 {
+                0
             } else {
-                crate::grammar::utf8_utils::safe_decrement_offset(&state.input, end.offset)
+                crate::grammar::utf8_utils::safe_decrement_offset(&state.input, document_end_offset)
             };
 
             // Ensure the invariant: absolute_start <= absolute_end

@@ -110,10 +110,20 @@ impl ParserState {
         end: usize,
         offset: usize,
     ) -> Location {
-        let end_offset = if (end + offset) == 0 {
+        // First, ensure the end position is on a valid UTF-8 boundary
+        let original_end = end + offset;
+        let mut adjusted_end = original_end;
+        if adjusted_end > 0 && adjusted_end <= self.input.len() {
+            // If not on a boundary, round forward to the next valid boundary
+            while adjusted_end < self.input.len() && !self.input.is_char_boundary(adjusted_end) {
+                adjusted_end += 1;
+            }
+        }
+
+        let end_offset = if adjusted_end == 0 {
             0
         } else {
-            crate::grammar::utf8_utils::safe_decrement_offset(&self.input, end + offset)
+            crate::grammar::utf8_utils::safe_decrement_offset(&self.input, adjusted_end)
         };
         self.create_location(start + offset, end_offset)
     }
