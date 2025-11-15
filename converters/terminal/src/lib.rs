@@ -20,7 +20,7 @@ pub struct Processor {
     /// Uses Rc<Cell<>> so all clones share the same counter.
     pub(crate) example_counter: Rc<Cell<usize>>,
     /// Terminal appearance (theme, capabilities, colors)
-    pub(crate) appearance: Appearance,
+    pub appearance: Appearance,
 }
 
 impl Processor {
@@ -89,5 +89,6 @@ mod terminal_visitor;
 mod toc;
 mod video;
 
+pub use appearance::Capabilities;
 pub(crate) use error::Error;
 pub use terminal_visitor::TerminalVisitor;
