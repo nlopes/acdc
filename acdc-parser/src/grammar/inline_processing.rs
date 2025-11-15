@@ -71,14 +71,24 @@ pub(crate) fn preprocess_inline_content(
     content: &str,
 ) -> Result<(Location, Location, ProcessedContent), Error> {
     // Create initial location for the entire content before inline processing
-    let initial_location = state.create_location(start + offset, (end + offset).saturating_sub(1));
+    let initial_end_offset = if (end + offset) == 0 {
+        0
+    } else {
+        crate::grammar::utf8_utils::safe_decrement_offset(&state.input, end + offset)
+    };
+    let initial_location = state.create_location(start + offset, initial_end_offset);
     // parse the inline content - this needs to be handed over to the inline preprocessing
     let mut inline_state = InlinePreprocessorParserState::new();
 
     // We adjust the start and end positions to account for the content start offset
+    let content_end_offset = if (end + offset) == 0 {
+        0
+    } else {
+        crate::grammar::utf8_utils::safe_decrement_offset(&state.input, end + offset)
+    };
     let location = state.create_location(
         content_start.offset + offset,
-        (end + offset).saturating_sub(1),
+        content_end_offset,
     );
     inline_state.set_initial_position(&location, content_start.offset + offset);
     tracing::info!(
