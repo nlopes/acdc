@@ -104,8 +104,22 @@ pub(crate) fn create_location_mapper<'a>(
         }
 
         // Map those through the preprocessor source map back to original source
-        let mapped_abs_start = processed.source_map.map_position(processed_abs_start)?;
-        let mapped_abs_end = processed.source_map.map_position(processed_abs_end)?;
+        let mut mapped_abs_start = processed.source_map.map_position(processed_abs_start)?;
+        let mut mapped_abs_end = processed.source_map.map_position(processed_abs_end)?;
+
+        // Ensure mapped positions are on valid UTF-8 boundaries
+        if mapped_abs_start > 0 && mapped_abs_start < state.input.len() && !state.input.is_char_boundary(mapped_abs_start) {
+            // Round backward to previous boundary
+            while mapped_abs_start > 0 && !state.input.is_char_boundary(mapped_abs_start) {
+                mapped_abs_start -= 1;
+            }
+        }
+        if mapped_abs_end > 0 && mapped_abs_end < state.input.len() && !state.input.is_char_boundary(mapped_abs_end) {
+            // Round forward to next boundary
+            while mapped_abs_end < state.input.len() && !state.input.is_char_boundary(mapped_abs_end) {
+                mapped_abs_end += 1;
+            }
+        }
 
         // Compute human positions from the document's line map
         let start_pos = state
