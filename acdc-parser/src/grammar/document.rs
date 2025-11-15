@@ -2802,7 +2802,7 @@ peg::parser! {
                 let mut metadata = block_metadata.metadata.clone();
                 metadata.move_positional_attributes_to_attributes();
                 metadata.style = Some("literal".to_string());
-                let location = state.create_location(start + offset, end + offset);
+                let location = state.create_block_location(start, end, offset);
 
                 // Strip leading space from each line ONLY if ALL lines consistently have leading space
                 // This matches asciidoctor's behavior
@@ -2860,9 +2860,9 @@ peg::parser! {
                         content,
                         metadata: block_metadata.metadata.clone(),
                         title: Vec::new(),
-                        location: state.create_location(content_start.offset+offset, end.saturating_sub(1)),
+                        location: state.create_block_location(content_start.offset, end, offset),
                     })],
-                    location: state.create_location(offset, end.saturating_sub(1)),
+                    location: state.create_block_location(0, end, offset),
                     variant: parsed_variant,
 
                 }))
