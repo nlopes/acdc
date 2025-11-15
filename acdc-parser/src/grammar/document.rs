@@ -152,27 +152,47 @@ peg::parser! {
         pub(crate) rule document() -> Result<Document, Error>
         = eol()* start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks(0, None) end:position() (eol()* / ![_]) {
             let blocks = blocks?;
-            let document_end_offset = end.offset.saturating_sub(1);
+
+            // Use UTF-8 safe decrement for the end offset
+            let document_end_offset = if end.offset == 0 {
+                0  // Handle empty document case
+            } else {
+                crate::grammar::utf8_utils::safe_decrement_offset(&state.input, end.offset)
+            };
+
+            // Ensure the invariant: absolute_start <= absolute_end
+            let (absolute_start, absolute_end) = if start.offset > document_end_offset {
+                // This can happen with whitespace-only input where eol()* consumes all content
+                // In this case, treat as an empty document at the start position
+                (start.offset, start.offset)
+            } else {
+                (start.offset, document_end_offset)
+            };
+
+            // Special case for truly empty input: TCK expects column 0
+            // Only for zero-byte input, not whitespace-only
+            let (start_position, end_position) = if state.input.is_empty() || (absolute_start == 0 && absolute_end == 0) {
+                // Whitespace-only documents should use column 1
+                (
+                    crate::Position { line: 1, column: 0, offset: 0 },
+                    crate::Position { line: 1, column: 0, offset: 0 }
+                )
+            } else {
+                (
+                    start.position,
+                    state.line_map.offset_to_position(absolute_end, &state.input)
+                )
+            };
+
             Ok(Document {
                 name: "document".to_string(),
                 r#type: "block".to_string(),
                 header,
                 location: Location {
-                    absolute_start: start.offset,
-                    absolute_end: document_end_offset,
-                    // The start position is the start of the document, but if the end offset is 0, we set it to 0
-                    start: if end.offset == 0 { crate::Position{
-                        column: 0,
-                        .. start.position
-                    }} else {
-                        start.position
-                    },
-                    end: if end.offset == 0 { crate::Position{
-                        column: 0,
-                        .. end.position
-                    }} else {
-                        state.line_map.offset_to_position(document_end_offset, &state.input)
-                    },
+                    absolute_start,
+                    absolute_end,
+                    start: start_position,
+                    end: end_position,
                 },
                 attributes: state.document_attributes.clone(),
                 blocks,

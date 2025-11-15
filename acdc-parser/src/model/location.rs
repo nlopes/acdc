@@ -19,6 +19,75 @@ pub struct Location {
 }
 
 impl Location {
+    /// Validates that this location satisfies all invariants
+    ///
+    /// # Errors
+    /// Returned as strings for easier debugging.
+    pub fn validate(&self, input: &str) -> Result<(), String> {
+        // Check range validity
+        if self.start.offset > self.end.offset {
+            return Err(format!(
+                "Invalid range: start offset {} > end offset {}",
+                self.start.offset, self.end.offset
+            ));
+        }
+
+        if self.absolute_start > self.absolute_end {
+            return Err(format!(
+                "Invalid absolute range: start {} > end {}",
+                self.absolute_start, self.absolute_end
+            ));
+        }
+
+        // Check bounds
+        if self.end.offset > input.len() {
+            return Err(format!(
+                "End offset {} exceeds input length {}",
+                self.end.offset,
+                input.len()
+            ));
+        }
+
+        if self.absolute_end > input.len() {
+            return Err(format!(
+                "Absolute end {} exceeds input length {}",
+                self.absolute_end,
+                input.len()
+            ));
+        }
+
+        // Check UTF-8 boundaries
+        if !input.is_char_boundary(self.start.offset) {
+            return Err(format!(
+                "Start offset {} not on UTF-8 boundary",
+                self.start.offset
+            ));
+        }
+
+        if !input.is_char_boundary(self.end.offset) {
+            return Err(format!(
+                "End offset {} not on UTF-8 boundary",
+                self.end.offset
+            ));
+        }
+
+        if !input.is_char_boundary(self.absolute_start) {
+            return Err(format!(
+                "Absolute start {} not on UTF-8 boundary",
+                self.absolute_start
+            ));
+        }
+
+        if !input.is_char_boundary(self.absolute_end) {
+            return Err(format!(
+                "Absolute end {} not on UTF-8 boundary",
+                self.absolute_end
+            ));
+        }
+
+        Ok(())
+    }
+
     /// Shift the start and end positions of the location by the parent location.
     ///
     /// This is super useful to adjust the location of a block that is inside another
