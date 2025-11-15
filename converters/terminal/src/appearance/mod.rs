@@ -1,7 +1,7 @@
 mod capabilities;
 mod theme;
 
-use capabilities::Capabilities;
+pub use capabilities::Capabilities;
 use theme::{ColorScheme, Theme};
 
 /// Terminal appearance configuration.
@@ -13,7 +13,7 @@ pub struct Appearance {
     /// Terminal theme (dark or light background)
     pub(crate) theme: Theme,
     /// Terminal capabilities (Unicode, OSC 8, etc.)
-    pub(crate) capabilities: Capabilities,
+    pub capabilities: Capabilities,
     /// Color scheme based on theme
     pub(crate) colors: ColorScheme,
 }

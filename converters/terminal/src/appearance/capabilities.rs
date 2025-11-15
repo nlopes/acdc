@@ -34,7 +34,8 @@ impl Capabilities {
     }
 
     /// Detect OSC 8 hyperlink support from TERM environment variable
-    fn detect_osc8() -> bool {
+    #[must_use]
+    pub fn detect_osc8() -> bool {
         if let Ok(term) = std::env::var("TERM") {
             let term_lower = term.to_lowercase();
             // Terminals known to support OSC 8
