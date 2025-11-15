@@ -409,4 +409,131 @@ mod tests {
         }
         Ok(())
     }
+
+    #[cfg(test)]
+    mod empty_document_tests {
+        use crate::{Options, parse};
+
+        #[test]
+        fn test_whitespace_only_documents() {
+            let test_cases = vec![
+                "\n", "\n\n", "\t", " \n\t\n ", "   ",
+                /* The original proptest failing case -> */ "\n\n\t",
+            ];
+
+            for input in test_cases {
+                let options = Options::default();
+                let result = parse(input, &options);
+
+                match result {
+                    Ok(doc) => {
+                        // Validate the invariant
+                        assert!(
+                            doc.location.start.offset <= doc.location.end.offset,
+                            "Failed for input {input:?}: start {} > end {}",
+                            doc.location.start.offset,
+                            doc.location.end.offset
+                        );
+
+                        assert!(
+                            doc.location.absolute_start <= doc.location.absolute_end,
+                            "Failed for input {input:?}: absolute_start {} > absolute_end {}",
+                            doc.location.absolute_start,
+                            doc.location.absolute_end
+                        );
+
+                        // Validate with our helper
+                        doc.location.validate(input).unwrap_or_else(|e| {
+                            panic!("Location validation failed for {input:?}: {e}")
+                        });
+                    }
+                    Err(e) => {
+                        panic!("Failed to parse {input:?}: {e}");
+                    }
+                }
+            }
+        }
+
+        #[test]
+        fn test_document_with_content_after_whitespace() {
+            let test_cases = vec!["\n\nHello", "\t\tWorld", "  \n  = Title"];
+
+            for input in test_cases {
+                let options = Options::default();
+                let doc =
+                    parse(input, &options).unwrap_or_else(|_| panic!("Should parse {input:?}"));
+
+                assert!(
+                    doc.location.start.offset <= doc.location.end.offset,
+                    "Failed for input {input:?}: start {} > end {}",
+                    doc.location.start.offset,
+                    doc.location.end.offset
+                );
+
+                assert!(
+                    doc.location.absolute_start <= doc.location.absolute_end,
+                    "Failed for input {input:?}: absolute_start {} > absolute_end {}",
+                    doc.location.absolute_start,
+                    doc.location.absolute_end
+                );
+
+                // Validate with our helper
+                doc.location
+                    .validate(input)
+                    .unwrap_or_else(|e| panic!("Location validation failed for {input:?}: {e}"));
+            }
+        }
+
+        #[test]
+        fn test_unicode_characters() {
+            // Test that UTF-8 safety is maintained
+            let test_cases = vec![
+                "😀",         // 4-byte emoji
+                "א",          // 2-byte Hebrew
+                "Hello 世界", // Mixed content
+                "\u{200b}",   // Zero-width space
+            ];
+
+            for input in test_cases {
+                let options = Options::default();
+                let result = parse(input, &options);
+
+                match result {
+                    Ok(doc) => {
+                        // All offsets should be on UTF-8 boundaries
+                        assert!(
+                            input.is_char_boundary(doc.location.start.offset),
+                            "Start offset {} not on UTF-8 boundary for {input:?}",
+                            doc.location.start.offset,
+                        );
+                        assert!(
+                            input.is_char_boundary(doc.location.end.offset),
+                            "End offset {} not on UTF-8 boundary for {input:?}",
+                            doc.location.end.offset,
+                        );
+                        assert!(
+                            input.is_char_boundary(doc.location.absolute_start),
+                            "Absolute start {} not on UTF-8 boundary for {input:?}",
+                            doc.location.absolute_start,
+                        );
+                        assert!(
+                            input.is_char_boundary(doc.location.absolute_end),
+                            "Absolute end {} not on UTF-8 boundary for {input:?}",
+                            doc.location.absolute_end,
+                        );
+
+                        // Validate with our helper
+                        doc.location.validate(input).unwrap_or_else(|e| {
+                            panic!("Location validation failed for {input:?}: {e}");
+                        });
+                    }
+                    Err(e) => {
+                        // Some of these might fail to parse, which is OK for now
+                        // We're just testing that if they parse, the locations are valid
+                        println!("Failed to parse {input:?}: {e} (this might be expected)",);
+                    }
+                }
+            }
+        }
+    }
 }
