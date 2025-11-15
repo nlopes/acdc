@@ -95,10 +95,7 @@ pub(crate) fn preprocess_inline_content(
     } else {
         crate::grammar::utf8_utils::safe_decrement_offset(&state.input, adjusted_end)
     };
-    let location = state.create_location(
-        content_start.offset + offset,
-        content_end_offset,
-    );
+    let location = state.create_location(content_start.offset + offset, content_end_offset);
     inline_state.set_initial_position(&location, content_start.offset + offset);
     tracing::info!(
         ?inline_state,

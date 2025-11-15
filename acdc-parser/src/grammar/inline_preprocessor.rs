@@ -813,18 +813,9 @@ mod tests {
         let Some(third) = result.passthroughs.get(2) else {
             panic!("expected third passthrough");
         };
-        assert!(matches!(
-            first.kind,
-            PassthroughKind::Single
-        ));
-        assert!(matches!(
-            second.kind,
-            PassthroughKind::Double
-        ));
-        assert!(matches!(
-            third.kind,
-            PassthroughKind::Triple
-        ));
+        assert!(matches!(first.kind, PassthroughKind::Single));
+        assert!(matches!(second.kind, PassthroughKind::Double));
+        assert!(matches!(third.kind, PassthroughKind::Triple));
         assert!(matches!(&first.text, Some(s) if s == "2"));
         assert!(matches!(&second.text, Some(s) if s == "3"));
         assert!(matches!(&third.text, Some(s) if s == "4"));
