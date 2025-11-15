@@ -46,8 +46,8 @@ where
             .document_attributes
             .get("table-caption")
             .and_then(|v| match v {
-                acdc_parser::AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
+                AttributeValue::String(s) => Some(s.as_str()),
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
             })
             .unwrap_or("Table");
         visitor.render_title_with_wrapper(
@@ -85,7 +85,7 @@ where
     let col_count = if let Some(cols_value) = metadata.attributes.get("cols") {
         let cols_str = match cols_value {
             AttributeValue::String(s) => s.trim_matches('"'),
-            _ => "",
+            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => "",
         };
 
         // Handle multiplier syntax like "3*" or "2*~"

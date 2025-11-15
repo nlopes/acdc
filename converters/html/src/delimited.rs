@@ -5,11 +5,49 @@ use acdc_converters_common::{
     visitor::{WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{
-    AttributeValue, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent,
-    StemNotation,
+    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
+    StemContent, StemNotation,
 };
 
 use crate::{Error, Processor, RenderOptions};
+
+fn write_example_block<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    block: &DelimitedBlock,
+    processor: &Processor,
+    blocks: &[Block],
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    writeln!(writer, "<div class=\"exampleblock\">")?;
+    let _ = writer;
+
+    // Render title with caption prefix if title exists
+    if !block.title.is_empty() {
+        let count = processor.example_counter.get() + 1;
+        processor.example_counter.set(count);
+        let caption = processor
+            .document_attributes
+            .get("example-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+            })
+            .unwrap_or("Example");
+        let prefix = format!("<div class=\"title\">{caption} {count}. ");
+        visitor.render_title_with_wrapper(&block.title, &prefix, "</div>\n")?;
+    }
+
+    writer = visitor.writer_mut();
+    writeln!(writer, "<div class=\"content\">")?;
+    let _ = writer;
+    for nested_block in blocks {
+        visitor.visit_block(nested_block)?;
+    }
+    writer = visitor.writer_mut();
+    writeln!(writer, "</div>")?;
+    writeln!(writer, "</div>")?;
+    Ok(())
+}
 
 /// Visit a delimited block using the visitor pattern with ability to walk nested blocks
 pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
@@ -51,35 +89,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             writeln!(writer, "</div>")?;
         }
         DelimitedBlockType::DelimitedExample(blocks) => {
-            let mut writer = visitor.writer_mut();
-            writeln!(writer, "<div class=\"exampleblock\">")?;
-            let _ = writer;
-
-            // Render title with caption prefix if title exists
-            if !block.title.is_empty() {
-                let count = processor.example_counter.get() + 1;
-                processor.example_counter.set(count);
-                let caption = processor
-                    .document_attributes
-                    .get("example-caption")
-                    .and_then(|v| match v {
-                        AttributeValue::String(s) => Some(s.as_str()),
-                        _ => None,
-                    })
-                    .unwrap_or("Example");
-                let prefix = format!("<div class=\"title\">{caption} {count}. ");
-                visitor.render_title_with_wrapper(&block.title, &prefix, "</div>\n")?;
-            }
-
-            writer = visitor.writer_mut();
-            writeln!(writer, "<div class=\"content\">")?;
-            let _ = writer;
-            for nested_block in blocks {
-                visitor.visit_block(nested_block)?;
-            }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</div>")?;
-            writeln!(writer, "</div>")?;
+            write_example_block(visitor, block, processor, blocks)?;
         }
         DelimitedBlockType::DelimitedSidebar(blocks) => {
             let mut writer = visitor.writer_mut();
@@ -108,7 +118,13 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             )?;
         }
         // For other block types, use the regular rendering
-        _ => {
+        DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedListing(_)
+        | DelimitedBlockType::DelimitedLiteral(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        | DelimitedBlockType::DelimitedComment(_)
+        | DelimitedBlockType::DelimitedVerse(_)
+        | _ => {
             render_delimited_block_inner(
                 &block.inner,
                 &block.title,
@@ -253,7 +269,12 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             writeln!(w, "</div>")?;
             writeln!(w, "</div>")?;
         }
-        _ => {
+        DelimitedBlockType::DelimitedQuote(_)
+        | DelimitedBlockType::DelimitedOpen(_)
+        | DelimitedBlockType::DelimitedExample(_)
+        | DelimitedBlockType::DelimitedSidebar(_)
+        | DelimitedBlockType::DelimitedTable(_)
+        | _ => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
                 format!("Unsupported delimited block type: {inner:?}"),
@@ -312,7 +333,7 @@ mod tests {
     }
 
     #[test]
-    fn test_listing_block_renders_as_listingblock() {
+    fn test_listing_block_renders_as_listingblock() -> Result<(), Error> {
         let block = DelimitedBlock {
             metadata: BlockMetadata::default(),
             inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
@@ -326,17 +347,18 @@ mod tests {
         let options = RenderOptions::default();
         let mut visitor = crate::HtmlVisitor::new(output, processor, options);
 
-        visitor.visit_delimited_block(&block).unwrap();
-        let html = String::from_utf8(visitor.into_writer()).unwrap();
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
             html.contains("<div class=\"listingblock\">"),
             "Expected listing block to render with 'listingblock' class, got: {html}",
         );
+        Ok(())
     }
 
     #[test]
-    fn test_literal_block_renders_as_literalblock() {
+    fn test_literal_block_renders_as_literalblock() -> Result<(), Error> {
         let block = DelimitedBlock {
             metadata: BlockMetadata::default(),
             inner: DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
@@ -350,17 +372,18 @@ mod tests {
         let options = RenderOptions::default();
         let mut visitor = crate::HtmlVisitor::new(output, processor, options);
 
-        visitor.visit_delimited_block(&block).unwrap();
-        let html = String::from_utf8(visitor.into_writer()).unwrap();
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
             html.contains("<div class=\"literalblock\">"),
             "Expected literal block to render with 'literalblock' class, got: {html}",
         );
+        Ok(())
     }
 
     #[test]
-    fn test_listing_block_with_source_style_and_language() {
+    fn test_listing_block_with_source_style_and_language() -> Result<(), Error> {
         use acdc_parser::{AttributeValue, ElementAttributes};
 
         let mut attributes = ElementAttributes::default();
@@ -385,8 +408,8 @@ mod tests {
         let options = RenderOptions::default();
         let mut visitor = crate::HtmlVisitor::new(output, processor, options);
 
-        visitor.visit_delimited_block(&block).unwrap();
-        let html = String::from_utf8(visitor.into_writer()).unwrap();
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
             html.contains("<div class=\"listingblock\">"),
@@ -400,10 +423,11 @@ mod tests {
             html.contains("<code class=\"language-bash\" data-lang=\"bash\">"),
             "Expected source block to have language attributes, got: {html}",
         );
+        Ok(())
     }
 
     #[test]
-    fn test_literal_block_with_style_attribute() {
+    fn test_literal_block_with_style_attribute() -> Result<(), Error> {
         let metadata = BlockMetadata {
             style: Some("verse".to_string()),
             ..Default::default()
@@ -422,8 +446,8 @@ mod tests {
         let options = RenderOptions::default();
         let mut visitor = crate::HtmlVisitor::new(output, processor, options);
 
-        visitor.visit_delimited_block(&block).unwrap();
-        let html = String::from_utf8(visitor.into_writer()).unwrap();
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
             html.contains("<div class=\"verseblock\">"),
@@ -433,10 +457,12 @@ mod tests {
             !html.contains("<div class=\"literalblock\">"),
             "Literal block with style should not have default 'literalblock' class"
         );
+        Ok(())
     }
 
     #[test]
-    fn test_listing_block_without_listing_caption_renders_title_without_number() {
+    fn test_listing_block_without_listing_caption_renders_title_without_number() -> Result<(), Error>
+    {
         let title = vec![InlineNode::PlainText(Plain {
             content: "My Code Example".to_string(),
             location: Location::default(),
@@ -455,8 +481,8 @@ mod tests {
         let options = RenderOptions::default();
         let mut visitor = crate::HtmlVisitor::new(output, processor.clone(), options);
 
-        visitor.visit_delimited_block(&block).unwrap();
-        let html = String::from_utf8(visitor.into_writer()).unwrap();
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
             html.contains("<div class=\"title\">My Code Example</div>"),
@@ -471,10 +497,11 @@ mod tests {
             0,
             "Counter should not be incremented when listing-caption is not set"
         );
+        Ok(())
     }
 
     #[test]
-    fn test_listing_block_with_listing_caption_renders_title_with_number() {
+    fn test_listing_block_with_listing_caption_renders_title_with_number() -> Result<(), Error> {
         use acdc_parser::AttributeValue;
 
         let title1 = vec![InlineNode::PlainText(Plain {
@@ -515,8 +542,8 @@ mod tests {
         let mut visitor = crate::HtmlVisitor::new(output, processor.clone(), options.clone());
 
         // Render first block
-        visitor.visit_delimited_block(&block1).unwrap();
-        let html1 = String::from_utf8(visitor.into_writer()).unwrap();
+        visitor.visit_delimited_block(&block1)?;
+        let html1 = String::from_utf8(visitor.into_writer())?;
 
         assert!(
             html1.contains("<div class=\"title\">Listing 1. First Example</div>"),
@@ -531,8 +558,8 @@ mod tests {
         // Render second block
         let output2 = Vec::new();
         let mut visitor2 = crate::HtmlVisitor::new(output2, processor.clone(), options);
-        visitor2.visit_delimited_block(&block2).unwrap();
-        let html2 = String::from_utf8(visitor2.into_writer()).unwrap();
+        visitor2.visit_delimited_block(&block2)?;
+        let html2 = String::from_utf8(visitor2.into_writer())?;
 
         assert!(
             html2.contains("<div class=\"title\">Listing 2. Second Example</div>"),
@@ -543,5 +570,6 @@ mod tests {
             2,
             "Counter should be incremented to 2"
         );
+        Ok(())
     }
 }

@@ -2,7 +2,9 @@ use acdc_converters_common::{
     code::detect_language,
     visitor::{Visitor, WritableVisitor, WritableVisitorExt},
 };
-use acdc_parser::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode};
+use acdc_parser::{
+    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
+};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -129,20 +131,31 @@ fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
         use std::io::Write;
         for node in inlines {
             match node {
-                acdc_parser::InlineNode::VerbatimText(v) => {
+                InlineNode::VerbatimText(v) => {
                     let processed = process_callouts(&v.content);
                     write!(code_buffer, "{processed}")?;
                 }
-                acdc_parser::InlineNode::RawText(r) => {
+                InlineNode::RawText(r) => {
                     write!(code_buffer, "{}", r.content)?;
                 }
-                acdc_parser::InlineNode::PlainText(p) => {
+                InlineNode::PlainText(p) => {
                     write!(code_buffer, "{}", p.content)?;
                 }
-                acdc_parser::InlineNode::LineBreak(_) => {
+                InlineNode::LineBreak(_) => {
                     writeln!(code_buffer)?;
                 }
-                _ => {}
+                InlineNode::BoldText(_)
+                | InlineNode::ItalicText(_)
+                | InlineNode::HighlightText(_)
+                | InlineNode::MonospaceText(_)
+                | InlineNode::SuperscriptText(_)
+                | InlineNode::SubscriptText(_)
+                | InlineNode::CurvedQuotationText(_)
+                | InlineNode::CurvedApostropheText(_)
+                | InlineNode::StandaloneCurvedApostrophe(_)
+                | InlineNode::InlineAnchor(_)
+                | InlineNode::Macro(_)
+                | _ => {}
             }
         }
     }
@@ -179,8 +192,8 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
         .document_attributes
         .get("example-caption")
         .and_then(|v| match v {
-            acdc_parser::AttributeValue::String(s) => Some(s.to_uppercase()),
-            _ => None,
+            AttributeValue::String(s) => Some(s.to_uppercase()),
+            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
         })
         .unwrap_or_else(|| "EXAMPLE".to_string());
 

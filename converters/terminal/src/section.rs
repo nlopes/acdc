@@ -109,7 +109,9 @@ fn extract_title_text(title: &[InlineNode]) -> String {
             InlineNode::SubscriptText(s) => extract_title_text(&s.content),
             InlineNode::CurvedQuotationText(c) => extract_title_text(&c.content),
             InlineNode::CurvedApostropheText(c) => extract_title_text(&c.content),
-            _ => String::new(),
+            InlineNode::VerbatimText(_) | InlineNode::RawText(_) | InlineNode::LineBreak(_) | _ => {
+                String::new()
+            }
         })
         .collect::<String>()
 }

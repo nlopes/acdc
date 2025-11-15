@@ -3,6 +3,7 @@ use std::{fs, hint::black_box};
 use acdc_parser::Parser;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
+#[allow(clippy::expect_used)]
 fn parse_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser");
 

@@ -122,17 +122,12 @@ peg::parser! {
             }
 
         rule operator() -> Operator
-            = op:$("==" / "!=" / "<=" / ">=" / "<" / ">") {
-                match op {
-                    "==" => Operator::Equal,
-                    "!=" => Operator::NotEqual,
-                    "<" => Operator::LessThan,
-                    ">" => Operator::GreaterThan,
-                    "<=" => Operator::LessThanOrEqual,
-                    ">=" => Operator::GreaterThanOrEqual,
-                    _ => unreachable!(),
-                }
-            }
+        = "==" { Operator::Equal }
+        / "!=" { Operator::NotEqual }
+        / "<=" { Operator::LessThanOrEqual }
+        / ">=" { Operator::GreaterThanOrEqual }
+        / "<" { Operator::LessThan }
+        / ">" { Operator::GreaterThan }
 
         rule name_match() = (!['[' | ',' | '+'] [_])+
 
@@ -288,7 +283,7 @@ impl EvalValue {
                     })
                     .unwrap_or_else(|_| EvalValue::String(Self::strip_quotes(&s)))
             }
-            value => value.clone(),
+            value @ (EvalValue::Number(_) | EvalValue::Boolean(_)) => value.clone(),
         }
     }
 

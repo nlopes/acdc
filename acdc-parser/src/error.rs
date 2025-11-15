@@ -158,20 +158,9 @@ impl Error {
             Self::UnknownEncoding(..) | Self::UnrecognizedEncodingInFile(..) => Some(
                 "We only support UTF-8 or UTF-16 encoded files. Ensure the specified encoding is correct and the file is saved with that encoding",
             ),
-            Self::ParseGrammar(_)
-            | Self::Io(_)
-            | Self::ParseInt(_)
-            | Self::TryFromIntError(_)
-            | Self::NestedSectionLevelMismatch(..)
-            | Self::MismatchedDelimiters(..)
-            | Self::InvalidAdmonitionVariant(..)
-            | Self::InvalidIfEvalDirectiveMismatchedTypes(..)
-            | Self::InvalidConditionalDirective(..)
-            | Self::InvalidLineRange(..)
-            | Self::InvalidIncludeDirective(..)
-            | Self::InvalidIndent(..)
-            | Self::InvalidLevelOffset(..)
-            | Self::InvalidIncludePath(..) => None,
+            Self::ParseGrammar(_) | Self::Io(_) | Self::ParseInt(_) | Self::TryFromIntError(_) => {
+                None
+            }
         }
     }
 }

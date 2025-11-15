@@ -23,9 +23,9 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
         .get(caption_attr)
         .and_then(|v| match v {
             AttributeValue::String(s) => Some(s.as_str()),
-            _ => None,
+            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
         })
-        .expect("caption attribute should exist from parser defaults");
+        .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
 
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;

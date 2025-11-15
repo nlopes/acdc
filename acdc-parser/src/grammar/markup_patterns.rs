@@ -11,11 +11,12 @@ pub(crate) fn find_constrained_bold_pattern(text: &str) -> Option<MarkupMatch> {
     let mut i = 0;
 
     while i < chars.len() {
-        if chars[i] == '*' {
-            // Check if this could be the start of a bold pattern
-            if let Some(m) = try_match_bold_at_position(&chars, i) {
-                return Some(m);
-            }
+        if let Some(&ch) = chars.get(i) &&
+             ch == '*' &&
+                /* Check if this could be the start of a bold pattern */
+                 let Some(m) = try_match_bold_at_position(&chars, i)
+        {
+            return Some(m);
         }
         i += 1;
     }
@@ -25,13 +26,14 @@ pub(crate) fn find_constrained_bold_pattern(text: &str) -> Option<MarkupMatch> {
 
 /// Try to match a bold pattern starting at the given position
 fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatch> {
-    if start >= chars.len() || chars[start] != '*' {
+    let start_char = chars.get(start)?;
+    if *start_char != '*' {
         return None;
     }
 
     // Check boundary condition: must be at start or preceded by whitespace or punctuation
     if start > 0 {
-        let prev_char = chars[start - 1];
+        let prev_char = *chars.get(start - 1)?;
         if !crate::grammar::document::match_constrained_boundary(
             u8::try_from(prev_char)
                 .inspect_err(|e| {
@@ -47,13 +49,18 @@ fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatc
     let mut i = start + 1;
 
     // Skip first character if it's not *, space, tab, or newline (constrained bold rule)
-    if i < chars.len() && matches!(chars[i], '*' | ' ' | '\t' | '\n') {
+    if let Some(&ch) = chars.get(i)
+        && matches!(ch, '*' | ' ' | '\t' | '\n')
+    {
         return None; // Invalid constrained bold
     }
 
     // Find the content (everything up to the next *)
     let content_start = i;
-    while i < chars.len() && chars[i] != '*' {
+    while let Some(&ch) = chars.get(i) {
+        if ch == '*' {
+            break;
+        }
         i += 1;
     }
 
@@ -62,9 +69,8 @@ fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatc
     }
 
     // Check boundary condition: closing * must be followed by whitespace, punctuation, or end
-    if i + 1 < chars.len() {
-        let next_char = chars[i + 1];
-        if !matches!(
+    if let Some(&next_char) = chars.get(i + 1)
+        && !matches!(
             next_char,
             ' ' | '\t'
                 | '\n'
@@ -87,12 +93,12 @@ fn try_match_bold_at_position(chars: &[char], start: usize) -> Option<MarkupMatc
                 | '}'
                 | '\''
                 | ':'
-        ) {
-            return None;
-        }
+        )
+    {
+        return None;
     }
 
-    let content: String = chars[content_start..i].iter().collect();
+    let content: String = chars.get(content_start..i)?.iter().collect();
     if content.is_empty() {
         return None; // Empty bold text
     }
@@ -110,22 +116,31 @@ pub(crate) fn find_unconstrained_bold_pattern(text: &str) -> Option<MarkupMatch>
     let mut i = 0;
 
     while i < chars.len() {
-        if i + 1 < chars.len() && chars[i] == '*' && chars[i + 1] == '*' {
+        if i + 1 < chars.len()
+            && let (Some(&ch1), Some(&ch2)) = (chars.get(i), chars.get(i + 1))
+            && ch1 == '*'
+            && ch2 == '*'
+        {
             let start = i;
             i += 2; // Skip the opening **
 
             // Find the closing **
             let content_start = i;
             while i + 1 < chars.len() {
-                if chars[i] == '*' && chars[i + 1] == '*' {
+                if let (Some(&close1), Some(&close2)) = (chars.get(i), chars.get(i + 1))
+                    && close1 == '*'
+                    && close2 == '*'
+                {
                     // Found closing **
-                    let content: String = chars[content_start..i].iter().collect();
-                    if !content.is_empty() {
-                        return Some(MarkupMatch {
-                            start,
-                            end: i + 2,
-                            content,
-                        });
+                    if let Some(content_slice) = chars.get(content_start..i) {
+                        let content: String = content_slice.iter().collect();
+                        if !content.is_empty() {
+                            return Some(MarkupMatch {
+                                start,
+                                end: i + 2,
+                                content,
+                            });
+                        }
                     }
                     break;
                 }
@@ -143,22 +158,31 @@ pub(crate) fn find_unconstrained_italic_pattern(text: &str) -> Option<MarkupMatc
     let mut i = 0;
 
     while i < chars.len() {
-        if i + 1 < chars.len() && chars[i] == '_' && chars[i + 1] == '_' {
+        if i + 1 < chars.len()
+            && let (Some(&ch1), Some(&ch2)) = (chars.get(i), chars.get(i + 1))
+            && ch1 == '_'
+            && ch2 == '_'
+        {
             let start = i;
             i += 2; // Skip the opening __
 
             // Find the closing __
             let content_start = i;
             while i + 1 < chars.len() {
-                if chars[i] == '_' && chars[i + 1] == '_' {
+                if let (Some(&close1), Some(&close2)) = (chars.get(i), chars.get(i + 1))
+                    && close1 == '_'
+                    && close2 == '_'
+                {
                     // Found closing __
-                    let content: String = chars[content_start..i].iter().collect();
-                    if !content.is_empty() {
-                        return Some(MarkupMatch {
-                            start,
-                            end: i + 2,
-                            content,
-                        });
+                    if let Some(content_slice) = chars.get(content_start..i) {
+                        let content: String = content_slice.iter().collect();
+                        if !content.is_empty() {
+                            return Some(MarkupMatch {
+                                start,
+                                end: i + 2,
+                                content,
+                            });
+                        }
                     }
                     break;
                 }
@@ -176,12 +200,14 @@ pub(crate) fn find_italic_pattern(text: &str) -> Option<MarkupMatch> {
     let mut i = 0;
 
     while i < chars.len() {
-        if chars[i] == '_' {
+        if let Some(&ch) = chars.get(i)
+            && ch == '_'
+        {
             let start = i;
 
             // Check boundary condition: _ must be preceded by whitespace, punctuation, or start
             if start > 0 {
-                let prev_char = chars[start - 1];
+                let prev_char = *chars.get(start - 1)?;
                 if !crate::grammar::document::match_constrained_boundary(
                     u8::try_from(prev_char)
                         .inspect_err(|e| {
@@ -198,12 +224,11 @@ pub(crate) fn find_italic_pattern(text: &str) -> Option<MarkupMatch> {
             let content_start = i;
 
             // Find the closing _
-            while i < chars.len() {
-                if chars[i] == '_' {
+            while let Some(&curr_ch) = chars.get(i) {
+                if curr_ch == '_' {
                     // Check boundary condition: closing _ must be followed by whitespace, punctuation, or end
-                    if i + 1 < chars.len() {
-                        let next_char = chars[i + 1];
-                        if !matches!(
+                    if let Some(&next_char) = chars.get(i + 1)
+                        && !matches!(
                             next_char,
                             ' ' | '\t'
                                 | '\n'
@@ -226,13 +251,13 @@ pub(crate) fn find_italic_pattern(text: &str) -> Option<MarkupMatch> {
                                 | '}'
                                 | '\''
                                 | ':'
-                        ) {
-                            i += 1;
-                            continue;
-                        }
+                        )
+                    {
+                        i += 1;
+                        continue;
                     }
 
-                    let content: String = chars[content_start..i].iter().collect();
+                    let content: String = chars.get(content_start..i)?.iter().collect();
                     if !content.is_empty() {
                         return Some(MarkupMatch {
                             start,
@@ -257,23 +282,30 @@ pub(crate) fn find_superscript_pattern(text: &str) -> Option<MarkupMatch> {
     let mut i = 0;
 
     while i < chars.len() {
-        if chars[i] == '^' {
+        if let Some(&ch) = chars.get(i)
+            && ch == '^'
+        {
             let start = i;
             i += 1; // Skip the opening ^
             let content_start = i;
 
             // Find the closing ^, ensuring content has no spaces
-            while i < chars.len() && chars[i] != '^' {
+            while let Some(&curr_ch) = chars.get(i) {
+                if curr_ch == '^' {
+                    break;
+                }
                 // Reject if we find any whitespace (continuous text requirement)
-                if chars[i].is_whitespace() {
+                if curr_ch.is_whitespace() {
                     break;
                 }
                 i += 1;
             }
 
             // Check if we found a valid closing ^
-            if i < chars.len() && chars[i] == '^' {
-                let content: String = chars[content_start..i].iter().collect();
+            if let Some(&close_ch) = chars.get(i)
+                && close_ch == '^'
+            {
+                let content: String = chars.get(content_start..i)?.iter().collect();
                 if !content.is_empty() {
                     return Some(MarkupMatch {
                         start,
@@ -295,23 +327,29 @@ pub(crate) fn find_subscript_pattern(text: &str) -> Option<MarkupMatch> {
     let mut i = 0;
 
     while i < chars.len() {
-        if chars[i] == '~' {
+        if let Some(&ch) = chars.get(i)
+            && ch == '~'
+        {
             let start = i;
             i += 1; // Skip the opening ~
             let content_start = i;
 
             // Find the closing ~, ensuring content has no spaces
-            while i < chars.len() && chars[i] != '~' {
+            while let Some(&curr_ch) = chars.get(i) {
+                if curr_ch == '~' ||
                 // Reject if we find any whitespace (continuous text requirement)
-                if chars[i].is_whitespace() {
+                 curr_ch.is_whitespace()
+                {
                     break;
                 }
                 i += 1;
             }
 
             // Check if we found a valid closing ~
-            if i < chars.len() && chars[i] == '~' {
-                let content: String = chars[content_start..i].iter().collect();
+            if let Some(&close_ch) = chars.get(i)
+                && close_ch == '~'
+            {
+                let content: String = chars.get(content_start..i)?.iter().collect();
                 if !content.is_empty() {
                     return Some(MarkupMatch {
                         start,
@@ -333,27 +371,35 @@ pub(crate) fn find_curved_quotation_pattern(text: &str) -> Option<MarkupMatch> {
     let mut i = 0;
 
     while i + 1 < chars.len() {
-        if chars[i] == '"' && chars[i + 1] == '`' {
+        if let (Some(&ch1), Some(&ch2)) = (chars.get(i), chars.get(i + 1))
+            && ch1 == '"'
+            && ch2 == '`'
+        {
             let start = i;
             i += 2; // Skip the opening "`
             let content_start = i;
 
             // Find the closing `", ensuring content has no spaces
             while i + 1 < chars.len() {
-                if chars[i] == '`' && chars[i + 1] == '"' {
-                    break;
-                }
-                // Reject if we find any whitespace (continuous text requirement)
-                if chars[i].is_whitespace() {
-                    i = content_start;
-                    break;
+                if let (Some(&curr_ch), Some(&next_ch)) = (chars.get(i), chars.get(i + 1)) {
+                    if curr_ch == '`' && next_ch == '"' {
+                        break;
+                    }
+                    // Reject if we find any whitespace (continuous text requirement)
+                    if curr_ch.is_whitespace() {
+                        i = content_start;
+                        break;
+                    }
                 }
                 i += 1;
             }
 
             // Check if we found a valid closing `"
-            if i + 1 < chars.len() && chars[i] == '`' && chars[i + 1] == '"' {
-                let content: String = chars[content_start..i].iter().collect();
+            if let (Some(&close1), Some(&close2)) = (chars.get(i), chars.get(i + 1))
+                && close1 == '`'
+                && close2 == '"'
+            {
+                let content: String = chars.get(content_start..i)?.iter().collect();
                 if !content.is_empty() {
                     return Some(MarkupMatch {
                         start,
@@ -375,27 +421,35 @@ pub(crate) fn find_curved_apostrophe_pattern(text: &str) -> Option<MarkupMatch> 
     let mut i = 0;
 
     while i + 1 < chars.len() {
-        if chars[i] == '\'' && chars[i + 1] == '`' {
+        if let (Some(&ch1), Some(&ch2)) = (chars.get(i), chars.get(i + 1))
+            && ch1 == '\''
+            && ch2 == '`'
+        {
             let start = i;
             i += 2; // Skip the opening '`
             let content_start = i;
 
             // Find the closing `', ensuring content has no spaces
             while i + 1 < chars.len() {
-                if chars[i] == '`' && chars[i + 1] == '\'' {
-                    break;
-                }
-                // Reject if we find any whitespace (continuous text requirement)
-                if chars[i].is_whitespace() {
-                    i = content_start;
-                    break;
+                if let (Some(&curr_ch), Some(&next_ch)) = (chars.get(i), chars.get(i + 1)) {
+                    if curr_ch == '`' && next_ch == '\'' {
+                        break;
+                    }
+                    // Reject if we find any whitespace (continuous text requirement)
+                    if curr_ch.is_whitespace() {
+                        i = content_start;
+                        break;
+                    }
                 }
                 i += 1;
             }
 
             // Check if we found a valid closing `'
-            if i + 1 < chars.len() && chars[i] == '`' && chars[i + 1] == '\'' {
-                let content: String = chars[content_start..i].iter().collect();
+            if let (Some(&close1), Some(&close2)) = (chars.get(i), chars.get(i + 1))
+                && close1 == '`'
+                && close2 == '\''
+            {
+                let content: String = chars.get(content_start..i)?.iter().collect();
                 if !content.is_empty() {
                     return Some(MarkupMatch {
                         start,
@@ -416,12 +470,14 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
     let mut i = 0;
 
     while i < chars.len() {
-        if chars[i] == '`' {
+        if let Some(&ch) = chars.get(i)
+            && ch == '`'
+        {
             let start = i;
 
             // Check boundary condition: ` must be preceded by whitespace, punctuation, or start
             if start > 0 {
-                let prev_char = chars[start - 1];
+                let prev_char = *chars.get(start - 1)?;
                 if !crate::grammar::document::match_constrained_boundary(
                     u8::try_from(prev_char)
                         .inspect_err(|e| {
@@ -438,12 +494,11 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
             let content_start = i;
 
             // Find the closing `
-            while i < chars.len() {
-                if chars[i] == '`' {
+            while let Some(&curr_ch) = chars.get(i) {
+                if curr_ch == '`' {
                     // Check boundary condition: closing ` must be followed by whitespace, punctuation, or end
-                    if i + 1 < chars.len() {
-                        let next_char = chars[i + 1];
-                        if !matches!(
+                    if let Some(&next_char) = chars.get(i + 1)
+                        && !matches!(
                             next_char,
                             ' ' | '\t'
                                 | '\n'
@@ -466,13 +521,13 @@ pub(crate) fn find_monospace_constrained_pattern(text: &str) -> Option<MarkupMat
                                 | '}'
                                 | '\''
                                 | ':'
-                        ) {
-                            i += 1;
-                            continue;
-                        }
+                        )
+                    {
+                        i += 1;
+                        continue;
                     }
 
-                    let content: String = chars[content_start..i].iter().collect();
+                    let content: String = chars.get(content_start..i)?.iter().collect();
                     if !content.is_empty() {
                         return Some(MarkupMatch {
                             start,
@@ -496,15 +551,22 @@ pub(crate) fn find_monospace_unconstrained_pattern(text: &str) -> Option<MarkupM
     let mut i = 0;
 
     while i < chars.len() {
-        if i + 1 < chars.len() && chars[i] == '`' && chars[i + 1] == '`' {
+        if i + 1 < chars.len()
+            && let (Some(&ch1), Some(&ch2)) = (chars.get(i), chars.get(i + 1))
+            && ch1 == '`'
+            && ch2 == '`'
+        {
             let start = i;
             i += 2; // Skip the opening ``
             let content_start = i;
 
             // Find the closing ``
             while i + 1 < chars.len() {
-                if chars[i] == '`' && chars[i + 1] == '`' {
-                    let content: String = chars[content_start..i].iter().collect();
+                if let (Some(&close1), Some(&close2)) = (chars.get(i), chars.get(i + 1))
+                    && close1 == '`'
+                    && close2 == '`'
+                {
+                    let content: String = chars.get(content_start..i)?.iter().collect();
                     if !content.is_empty() {
                         return Some(MarkupMatch {
                             start,
@@ -528,12 +590,14 @@ pub(crate) fn find_highlight_constrained_pattern(text: &str) -> Option<MarkupMat
     let mut i = 0;
 
     while i < chars.len() {
-        if chars[i] == '#' {
+        if let Some(&ch) = chars.get(i)
+            && ch == '#'
+        {
             let start = i;
 
             // Check boundary condition: # must be preceded by whitespace, punctuation, or start
             if start > 0 {
-                let prev_char = chars[start - 1];
+                let prev_char = *chars.get(start - 1)?;
                 if !crate::grammar::document::match_constrained_boundary(
                     u8::try_from(prev_char)
                         .inspect_err(|e| {
@@ -550,12 +614,11 @@ pub(crate) fn find_highlight_constrained_pattern(text: &str) -> Option<MarkupMat
             let content_start = i;
 
             // Find the closing #
-            while i < chars.len() {
-                if chars[i] == '#' {
+            while let Some(&curr_ch) = chars.get(i) {
+                if curr_ch == '#' {
                     // Check boundary condition: closing # must be followed by whitespace, punctuation, or end
-                    if i + 1 < chars.len() {
-                        let next_char = chars[i + 1];
-                        if !matches!(
+                    if let Some(&next_char) = chars.get(i + 1)
+                        && !matches!(
                             next_char,
                             ' ' | '\t'
                                 | '\n'
@@ -578,13 +641,13 @@ pub(crate) fn find_highlight_constrained_pattern(text: &str) -> Option<MarkupMat
                                 | '}'
                                 | '\''
                                 | ':'
-                        ) {
-                            i += 1;
-                            continue;
-                        }
+                        )
+                    {
+                        i += 1;
+                        continue;
                     }
 
-                    let content: String = chars[content_start..i].iter().collect();
+                    let content: String = chars.get(content_start..i)?.iter().collect();
                     if !content.is_empty() {
                         return Some(MarkupMatch {
                             start,
@@ -608,15 +671,22 @@ pub(crate) fn find_highlight_unconstrained_pattern(text: &str) -> Option<MarkupM
     let mut i = 0;
 
     while i < chars.len() {
-        if i + 1 < chars.len() && chars[i] == '#' && chars[i + 1] == '#' {
+        if i + 1 < chars.len()
+            && let (Some(&ch1), Some(&ch2)) = (chars.get(i), chars.get(i + 1))
+            && ch1 == '#'
+            && ch2 == '#'
+        {
             let start = i;
             i += 2; // Skip the opening ##
             let content_start = i;
 
             // Find the closing ##
             while i + 1 < chars.len() {
-                if chars[i] == '#' && chars[i + 1] == '#' {
-                    let content: String = chars[content_start..i].iter().collect();
+                if let (Some(&close1), Some(&close2)) = (chars.get(i), chars.get(i + 1))
+                    && close1 == '#'
+                    && close2 == '#'
+                {
+                    let content: String = chars.get(content_start..i)?.iter().collect();
                     if !content.is_empty() {
                         return Some(MarkupMatch {
                             start,

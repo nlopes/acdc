@@ -23,10 +23,7 @@ fn render_inline_nodes_to_string(
     }
     buffer.flush()?;
     // SAFETY: We only write valid UTF-8 through write! macros and plain text from parser
-    Ok(String::from_utf8(buffer.into_inner()?)
-        .expect("Terminal inline rendering produced invalid UTF-8")
-        .trim()
-        .to_string())
+    Ok(String::from_utf8(buffer.into_inner()?)?.trim().to_string())
 }
 
 /// Helper to render a single inline node directly to a writer

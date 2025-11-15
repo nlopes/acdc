@@ -1,4 +1,5 @@
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     #[error(transparent)]
     Fmt(#[from] std::fmt::Error),
@@ -19,4 +20,7 @@ pub enum Error {
         "Invalid admonition caption: {0} - caption attribute should match one of the defaults provided by the parser (e.g., 'note-caption', 'tip-caption', 'important-caption', 'warning-caption', 'caution-caption')"
     )]
     InvalidAdmonitionCaption(String),
+
+    #[error("Invalid theme: {0} - theme not found in syntect themes")]
+    InvalidTheme(String),
 }

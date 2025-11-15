@@ -28,7 +28,11 @@ pub fn highlight_code<W: Write + ?Sized>(
     let code = extract_text_from_inlines(inlines);
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
-    let theme = &theme_set.themes[processor.appearance.theme.syntect_theme()];
+    let theme_name = processor.appearance.theme.syntect_theme();
+    let theme = &theme_set
+        .themes
+        .get(theme_name)
+        .ok_or(Error::InvalidTheme(theme_name.to_string()))?;
     let syntax = syntax_set
         .find_syntax_by_token(language)
         .or_else(|| syntax_set.find_syntax_by_extension(language))
@@ -68,12 +72,22 @@ fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
             InlineNode::LineBreak(_) => {
                 result.push('\n');
             }
-            // For other node types, recurse or ignore
-            // In practice, code blocks should only contain verbatim/plain text
-            _ => {}
+            InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::InlineAnchor(_)
+            | _ => {
+                // For other node types, recurse or ignore
+                // In practice, code blocks should only contain verbatim/plain text
+            }
         }
     }
-
     result
 }
 

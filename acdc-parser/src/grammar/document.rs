@@ -3238,9 +3238,10 @@ peg::parser! {
                         // If multiple IDs are specified, last one wins
                         id = Some(i);
                     }
-                    Shorthand::Option(_) => {
-                        // Options are not parsed by inline_shorthand, this branch is unreachable
-                        unreachable!("inline_shorthand() does not produce Option variants")
+                    Shorthand::Option(o) => {
+                        // Options are not parsed by inline_shorthand, this branch should not occur
+                        // Defensive: log and continue rather than panic
+                        tracing::error!(option=?o, "inline_shorthand() unexpectedly produced Option variant");
                     }
                 }
             }
@@ -3384,6 +3385,12 @@ fn extract_callout_number(line: &str) -> Option<usize> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::indexing_slicing,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unreachable
+)]
 mod tests {
     use super::*;
 

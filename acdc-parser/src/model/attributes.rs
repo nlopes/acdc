@@ -87,12 +87,23 @@ impl Serialize for AttributeMap {
 
         let mut state = serializer.serialize_map(Some(self.explicit.len()))?;
         for key in sorted_keys {
-            let value = &self.explicit[key];
-            if key == "toc" && value == &AttributeValue::Bool(true) {
-                state.serialize_entry(key, "")?;
-                continue;
+            if let Some(value) = &self.explicit.get(key) {
+                match value {
+                    AttributeValue::Bool(true) => {
+                        if key == "toc" {
+                            state.serialize_entry(key, "")?;
+                        } else {
+                            state.serialize_entry(key, &true)?;
+                        }
+                    }
+                    value @ (AttributeValue::Bool(false)
+                    | AttributeValue::String(_)
+                    | AttributeValue::None
+                    | AttributeValue::Inlines(_)) => {
+                        state.serialize_entry(key, value)?;
+                    }
+                }
             }
-            state.serialize_entry(key, value)?;
         }
         state.end()
     }
@@ -303,7 +314,10 @@ impl std::fmt::Display for AttributeValue {
             AttributeValue::String(value) => write!(f, "{value}"),
             AttributeValue::Bool(value) => write!(f, "{value}"),
             AttributeValue::None => write!(f, "null"),
-            AttributeValue::Inlines(_) => unreachable!(),
+            inlines @ AttributeValue::Inlines(_) => {
+                tracing::error!(?inlines, "Attempted to display Inlines attribute value");
+                Ok(())
+            }
         }
     }
 }

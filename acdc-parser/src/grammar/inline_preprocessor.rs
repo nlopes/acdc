@@ -406,6 +406,7 @@ parser!(
 );
 
 #[cfg(test)]
+#[allow(clippy::panic)] // Tests are expected to panic on assertion failures
 mod tests {
     use super::*;
     use crate::DocumentAttributes;
@@ -441,8 +442,11 @@ mod tests {
         assert_eq!(state.pass_found_count.get(), 1);
         let passthroughs = state.passthroughs.into_inner();
         assert_eq!(passthroughs.len(), 1);
-        assert_eq!(passthroughs[0].text, Some("hello".to_string()));
-        assert_eq!(passthroughs[0].kind, PassthroughKind::Single);
+        let Some(first) = passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.kind, PassthroughKind::Single);
         Ok(())
     }
 
@@ -457,8 +461,11 @@ mod tests {
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
         );
         assert_eq!(result.passthroughs.len(), 1);
-        assert_eq!(result.passthroughs[0].text, Some("hello".to_string()));
-        assert_eq!(result.passthroughs[0].kind, PassthroughKind::Double);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.kind, PassthroughKind::Double);
         Ok(())
     }
 
@@ -473,8 +480,11 @@ mod tests {
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
         );
         assert_eq!(result.passthroughs.len(), 1);
-        assert_eq!(result.passthroughs[0].text, Some("hello".to_string()));
-        assert_eq!(result.passthroughs[0].kind, PassthroughKind::Triple);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.kind, PassthroughKind::Triple);
         Ok(())
     }
 
@@ -489,8 +499,11 @@ mod tests {
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} world+"
         );
         assert_eq!(result.passthroughs.len(), 1);
-        assert_eq!(result.passthroughs[0].text, Some("hello".to_string()));
-        assert_eq!(result.passthroughs[0].kind, PassthroughKind::Single);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.kind, PassthroughKind::Single);
         Ok(())
     }
 
@@ -519,22 +532,28 @@ mod tests {
         assert_eq!(result.passthroughs.len(), 2);
 
         // Check first passthrough
-        assert!(matches!(&result.passthroughs[0].text, Some(s) if s == "*bold*"));
-        assert_eq!(result.passthroughs[0].location.absolute_start, 24);
-        assert_eq!(result.passthroughs[0].location.absolute_end, 32);
-        assert_eq!(result.passthroughs[0].location.start.line, 3);
-        assert_eq!(result.passthroughs[0].location.start.column, 14);
-        assert_eq!(result.passthroughs[0].location.end.line, 3);
-        assert_eq!(result.passthroughs[0].location.end.column, 22);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "*bold*"));
+        assert_eq!(first.location.absolute_start, 24);
+        assert_eq!(first.location.absolute_end, 32);
+        assert_eq!(first.location.start.line, 3);
+        assert_eq!(first.location.start.column, 14);
+        assert_eq!(first.location.end.line, 3);
+        assert_eq!(first.location.end.column, 22);
 
         // Check second passthrough
-        assert!(matches!(&result.passthroughs[1].text, Some(s) if s == "**more bold**"));
-        assert_eq!(result.passthroughs[1].location.absolute_start, 42);
-        assert_eq!(result.passthroughs[1].location.absolute_end, 59);
-        assert_eq!(result.passthroughs[1].location.start.line, 3);
-        assert_eq!(result.passthroughs[1].location.start.column, 32);
-        assert_eq!(result.passthroughs[1].location.end.line, 3);
-        assert_eq!(result.passthroughs[1].location.end.column, 49);
+        let Some(second) = result.passthroughs.get(1) else {
+            panic!("expected second passthrough");
+        };
+        assert!(matches!(&second.text, Some(s) if s == "**more bold**"));
+        assert_eq!(second.location.absolute_start, 42);
+        assert_eq!(second.location.absolute_end, 59);
+        assert_eq!(second.location.start.line, 3);
+        assert_eq!(second.location.start.column, 32);
+        assert_eq!(second.location.end.line, 3);
+        assert_eq!(second.location.end.column, 49);
         Ok(())
     }
 
@@ -606,8 +625,11 @@ mod tests {
 
         // Verify passthrough was captured and preserved
         assert_eq!(result.passthroughs.len(), 1);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
         assert!(matches!(
-            &result.passthroughs[0].text,
+            &first.text,
             Some(s) if s == "this {s} won't expand"
         ));
 
@@ -637,14 +659,17 @@ mod tests {
 
         // Verify passthrough content preserved original text without expansion
         assert_eq!(result.passthroughs.len(), 1);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
         assert!(matches!(
-            &result.passthroughs[0].text,
+            &first.text,
             Some(s) if s == "special {nested2} value"
         ));
 
         // Verify source positions for debugging
-        let start_pos = result.passthroughs[0].location.absolute_start;
-        let end_pos = result.passthroughs[0].location.absolute_end;
+        let start_pos = first.location.absolute_start;
+        let end_pos = first.location.absolute_end;
         assert_eq!(start_pos, 10); // Start of passthrough content
         assert_eq!(end_pos, 35); // End of passthrough content
         Ok(())
@@ -682,8 +707,12 @@ mod tests {
         // Verify passthrough was captured
         assert_eq!(result.passthroughs.len(), 4);
 
-        let first_pass = &result.passthroughs[0];
-        let second_pass = &result.passthroughs[1];
+        let Some(first_pass) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        let Some(second_pass) = result.passthroughs.get(1) else {
+            panic!("expected second passthrough");
+        };
 
         // Check passthrough content preserved original text
         assert!(matches!(&first_pass.text, Some(s) if s == "<h1>"));
@@ -734,7 +763,9 @@ mod tests {
         // Verify passthrough was captured
         assert_eq!(result.passthroughs.len(), 1);
 
-        let pass = &result.passthroughs[0];
+        let Some(pass) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
 
         // Check passthrough content preserved original text
         assert!(matches!(
@@ -773,21 +804,30 @@ mod tests {
         );
 
         assert_eq!(result.passthroughs.len(), 3);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        let Some(second) = result.passthroughs.get(1) else {
+            panic!("expected second passthrough");
+        };
+        let Some(third) = result.passthroughs.get(2) else {
+            panic!("expected third passthrough");
+        };
         assert!(matches!(
-            result.passthroughs[0].kind,
+            first.kind,
             PassthroughKind::Single
         ));
         assert!(matches!(
-            result.passthroughs[1].kind,
+            second.kind,
             PassthroughKind::Double
         ));
         assert!(matches!(
-            result.passthroughs[2].kind,
+            third.kind,
             PassthroughKind::Triple
         ));
-        assert!(matches!(&result.passthroughs[0].text, Some(s) if s == "2"));
-        assert!(matches!(&result.passthroughs[1].text, Some(s) if s == "3"));
-        assert!(matches!(&result.passthroughs[2].text, Some(s) if s == "4"));
+        assert!(matches!(&first.text, Some(s) if s == "2"));
+        assert!(matches!(&second.text, Some(s) if s == "3"));
+        assert!(matches!(&third.text, Some(s) if s == "4"));
 
         assert_eq!(result.source_map.map_position(2)?, 2);
         // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.

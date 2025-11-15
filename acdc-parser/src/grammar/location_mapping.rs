@@ -108,15 +108,23 @@ pub(crate) fn create_location_mapper<'a>(
         let mut mapped_abs_end = processed.source_map.map_position(processed_abs_end)?;
 
         // Ensure mapped positions are on valid UTF-8 boundaries
-        if mapped_abs_start > 0 && mapped_abs_start < state.input.len() && !state.input.is_char_boundary(mapped_abs_start) {
+        if mapped_abs_start > 0
+            && mapped_abs_start < state.input.len()
+            && !state.input.is_char_boundary(mapped_abs_start)
+        {
             // Round backward to previous boundary
             while mapped_abs_start > 0 && !state.input.is_char_boundary(mapped_abs_start) {
                 mapped_abs_start -= 1;
             }
         }
-        if mapped_abs_end > 0 && mapped_abs_end < state.input.len() && !state.input.is_char_boundary(mapped_abs_end) {
+        if mapped_abs_end > 0
+            && mapped_abs_end < state.input.len()
+            && !state.input.is_char_boundary(mapped_abs_end)
+        {
             // Round forward to next boundary
-            while mapped_abs_end < state.input.len() && !state.input.is_char_boundary(mapped_abs_end) {
+            while mapped_abs_end < state.input.len()
+                && !state.input.is_char_boundary(mapped_abs_end)
+            {
                 mapped_abs_end += 1;
             }
         }
@@ -249,7 +257,12 @@ pub(crate) fn map_inner_content_locations(
                     };
                     marked_text.with_location_mapping_context(&mapping_ctx)
                 }
-                other => Ok(other),
+                other @ (InlineNode::RawText(_)
+                | InlineNode::VerbatimText(_)
+                | InlineNode::StandaloneCurvedApostrophe(_)
+                | InlineNode::LineBreak(_)
+                | InlineNode::InlineAnchor(_)
+                | InlineNode::Macro(_)) => Ok(other),
             }
         })
         .collect()
@@ -295,7 +308,14 @@ pub(crate) fn remap_inline_node_location(node: &mut InlineNode, base_offset: usi
         InlineNode::MonospaceText(monospace) => remap_formatted_location!(monospace, base_offset),
         InlineNode::HighlightText(highlight) => remap_formatted_location!(highlight, base_offset),
         // Add other inline node types as needed
-        _ => {}
+        InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_) => {
+            // No location remapping needed for these types
+        }
     }
 }
 
@@ -432,7 +452,12 @@ pub(crate) fn map_inline_locations(
                     }
                     vec![InlineNode::Macro(mapped_macro)]
                 }
-                other => vec![other.clone()],
+                other @ (InlineNode::RawText(_)
+                | InlineNode::VerbatimText(_)
+                | InlineNode::LineBreak(_)
+                | InlineNode::InlineAnchor(_)) => {
+                    vec![other.clone()]
+                }
             };
             acc.extend(nodes);
             Ok(acc)

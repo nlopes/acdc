@@ -93,6 +93,44 @@ pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+fn render_checked_status_list<W: Write + ?Sized>(
+    is_ordered: bool,
+    checked: Option<&ListItemCheckedStatus>,
+    writer: &mut W,
+) -> Result<(), Error> {
+    // Open nested list
+    if is_ordered {
+        writeln!(writer, "<div class=\"olist arabic")?;
+        if checked.is_some() {
+            writeln!(writer, " checklist\">")?;
+        } else {
+            writeln!(writer, "\">")?;
+        }
+
+        write!(writer, "<ol class=\"arabic")?;
+        if checked.is_some() {
+            writeln!(writer, " checklist\">")?;
+        } else {
+            writeln!(writer, "\">")?;
+        }
+    } else {
+        // check if the item is a checkbox item
+        write!(writer, "<div class=\"ulist")?;
+        if checked.is_some() {
+            writeln!(writer, " checklist\">")?;
+        } else {
+            writeln!(writer, "\">")?;
+        }
+        write!(writer, "<ul")?;
+        if checked.is_some() {
+            writeln!(writer, " class=\"checklist\">")?;
+        } else {
+            writeln!(writer, ">")?;
+        }
+    }
+    Ok(())
+}
+
 /// Render nested list items hierarchically
 #[tracing::instrument(skip(visitor))]
 fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
@@ -103,7 +141,10 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
 ) -> Result<(), Error> {
     let mut i = 0;
     while i < items.len() {
-        let item = &items[i];
+        let item = items.get(i).ok_or(Error::IndexOutOfBounds(
+            "Index out of bounds while rendering nested list items",
+            i,
+        ))?;
 
         if item.level < expected_level {
             // Item at lower level, return to parent
@@ -130,52 +171,34 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             }
 
             // Check if next items are nested (higher level)
-            if i + 1 < items.len() && items[i + 1].level > expected_level {
+            if i + 1 < items.len()
+                && let Some(inner_item) = items.get(i + 1)
+                && inner_item.level > expected_level
+            {
                 // Find all items at the next level
-                let next_level = items[i + 1].level;
-                let inner_item = &items[i + 1];
+                let next_level = inner_item.level;
 
                 writer = visitor.writer_mut();
-                // Open nested list
-                if is_ordered {
-                    writeln!(writer, "<div class=\"olist arabic")?;
-                    if inner_item.checked.is_some() {
-                        writeln!(writer, " checklist\">")?;
-                    } else {
-                        writeln!(writer, "\">")?;
-                    }
-
-                    write!(writer, "<ol class=\"arabic")?;
-                    if inner_item.checked.is_some() {
-                        writeln!(writer, " checklist\">")?;
-                    } else {
-                        writeln!(writer, "\">")?;
-                    }
-                } else {
-                    // check if the item is a checkbox item
-                    write!(writer, "<div class=\"ulist")?;
-                    if inner_item.checked.is_some() {
-                        writeln!(writer, " checklist\">")?;
-                    } else {
-                        writeln!(writer, "\">")?;
-                    }
-                    write!(writer, "<ul")?;
-                    if inner_item.checked.is_some() {
-                        writeln!(writer, " class=\"checklist\">")?;
-                    } else {
-                        writeln!(writer, ">")?;
-                    }
-                }
+                render_checked_status_list(is_ordered, inner_item.checked.as_ref(), writer)?;
                 let _ = writer;
 
                 // Recursively render nested items
                 i += 1;
                 let nested_start = i;
-                while i < items.len() && items[i].level >= next_level {
+                while items
+                    .get(i)
+                    .ok_or(Error::IndexOutOfBounds(
+                        "Index out of bounds for inner nested items",
+                        i,
+                    ))?
+                    .level
+                    >= next_level
+                {
                     i += 1;
                 }
-                render_nested_list_items(&items[nested_start..i], visitor, next_level, is_ordered)?;
-
+                if let Some(inner_items) = items.get(nested_start..i) {
+                    render_nested_list_items(inner_items, visitor, next_level, is_ordered)?;
+                }
                 writer = visitor.writer_mut();
                 // Close nested list
                 if is_ordered {

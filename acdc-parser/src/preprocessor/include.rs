@@ -479,8 +479,9 @@ impl Include {
                 LinesRange::Single(line_number) => {
                     if let Some(idx) = Self::validate_line_number(*line_number)
                         && idx < content_lines_count
+                        && let Some(line) = content_lines.get(idx)
                     {
-                        lines.push(content_lines[idx].clone());
+                        lines.push(line.clone());
                     }
                 }
                 LinesRange::Range(start, end) => {
@@ -491,8 +492,12 @@ impl Include {
                         continue;
                     };
 
-                    if start_idx < content_lines_count && end_idx < content_lines_count {
-                        lines.extend_from_slice(&content_lines[start_idx..=end_idx]);
+                    if start_idx < content_lines_count
+                        && end_idx < content_lines_count
+                        && start_idx <= end_idx
+                        && let Some(new_lines) = content_lines.get(start_idx..=end_idx)
+                    {
+                        lines.extend_from_slice(new_lines);
                     }
                 }
             }

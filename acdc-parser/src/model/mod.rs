@@ -1068,7 +1068,11 @@ impl Serialize for DelimitedBlock {
             DelimitedBlockType::DelimitedTable(inner) => {
                 state.serialize_entry("content", &inner)?;
             }
-            inner => {
+            inner @ (DelimitedBlockType::DelimitedComment(_)
+            | DelimitedBlockType::DelimitedExample(_)
+            | DelimitedBlockType::DelimitedOpen(_)
+            | DelimitedBlockType::DelimitedQuote(_)
+            | DelimitedBlockType::DelimitedSidebar(_)) => {
                 state.serialize_entry("blocks", &inner)?;
             }
         }
@@ -1387,6 +1391,7 @@ impl<'de> Deserialize<'de> for Block {
                     ("section", "block") => {
                         let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
                         let my_blocks = if let Some(blocks) = my_blocks {
+                            #[allow(clippy::wildcard_enum_match_arm)]
                             match blocks {
                                 serde_json::Value::Array(blocks) => blocks
                                     .into_iter()
@@ -1499,6 +1504,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         let my_delimiter =
                             my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -1522,6 +1528,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         let my_delimiter =
                             my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -1545,6 +1552,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         let my_delimiter =
                             my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -1568,6 +1576,7 @@ impl<'de> Deserialize<'de> for Block {
                         }
                         let my_delimiter =
                             my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a
@@ -1664,6 +1673,7 @@ impl<'de> Deserialize<'de> for Block {
                         else {
                             return Err(de::Error::custom("content must be a string"));
                         };
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         let notation = match my_notation {
                             Some(serde_json::Value::String(n)) => {
                                 StemNotation::from_str(&n).map_err(de::Error::custom)?
@@ -1707,6 +1717,7 @@ impl<'de> Deserialize<'de> for Block {
                     }
                     ("dlist", "block") => {
                         let _my_marker = my_marker.unwrap_or_else(String::new); // TODO: what is this marker?
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         Ok(Block::DescriptionList(DescriptionList {
                             title: my_title,
                             metadata: my_metadata,
@@ -1729,6 +1740,7 @@ impl<'de> Deserialize<'de> for Block {
                             "unordered" => {
                                 let my_marker =
                                     my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
+                                #[allow(clippy::wildcard_enum_match_arm)]
                                 Ok(Block::UnorderedList(UnorderedList {
                                     title: my_title,
                                     metadata: my_metadata,
@@ -1754,6 +1766,7 @@ impl<'de> Deserialize<'de> for Block {
                             "ordered" => {
                                 let my_marker =
                                     my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
+                                #[allow(clippy::wildcard_enum_match_arm)]
                                 Ok(Block::OrderedList(OrderedList {
                                     title: my_title,
                                     metadata: my_metadata,
@@ -1776,22 +1789,30 @@ impl<'de> Deserialize<'de> for Block {
                                     location: my_location,
                                 }))
                             }
-                            "callout" => Ok(Block::CalloutList(CalloutList {
-                                title: my_title,
-                                metadata: my_metadata,
-                                items: match my_items
-                                    .ok_or_else(|| de::Error::missing_field("items"))?
-                                {
-                                    serde_json::Value::Array(a) => a
-                                        .into_iter()
-                                        .map(|v| {
-                                            serde_json::from_value(v).map_err(de::Error::custom)
-                                        })
-                                        .collect::<Result<Vec<ListItem>, _>>()?,
-                                    _ => return Err(de::Error::custom("items must be an array")),
-                                },
-                                location: my_location,
-                            })),
+                            "callout" =>
+                            {
+                                #[allow(clippy::wildcard_enum_match_arm)]
+                                Ok(Block::CalloutList(CalloutList {
+                                    title: my_title,
+                                    metadata: my_metadata,
+                                    items: match my_items
+                                        .ok_or_else(|| de::Error::missing_field("items"))?
+                                    {
+                                        serde_json::Value::Array(a) => a
+                                            .into_iter()
+                                            .map(|v| {
+                                                serde_json::from_value(v).map_err(de::Error::custom)
+                                            })
+                                            .collect::<Result<Vec<ListItem>, _>>()?,
+                                        _ => {
+                                            return Err(de::Error::custom(
+                                                "items must be an array",
+                                            ));
+                                        }
+                                    },
+                                    location: my_location,
+                                }))
+                            }
                             _ => Err(de::Error::custom(format!(
                                 "unexpected 'list' variant: {my_variant}",
                             ))),
@@ -1800,6 +1821,7 @@ impl<'de> Deserialize<'de> for Block {
                     ("admonition", "block") => {
                         let my_variant =
                             my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
+                        #[allow(clippy::wildcard_enum_match_arm)]
                         let my_blocks =
                             match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
                                 serde_json::Value::Array(a) => a

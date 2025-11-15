@@ -43,7 +43,14 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
                     xref.text.clone().unwrap_or_else(|| xref.target.clone())
                 }
                 // Skip other macro types (images, footnotes, buttons, icons, etc.)
-                _ => String::new(),
+                InlineMacro::Image(_)
+                | InlineMacro::Footnote(_)
+                | InlineMacro::Button(_)
+                | InlineMacro::Pass(_)
+                | InlineMacro::Keyboard(_)
+                | InlineMacro::Menu(_)
+                | InlineMacro::Stem(_)
+                | InlineMacro::Icon(_) => String::new(),
             },
         })
         .collect()
