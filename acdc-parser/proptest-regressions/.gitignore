@@ -1,0 +1,5 @@
+# Proptest regression files
+# Uncomment the line below if you want to ignore regression files
+# *.txt
+
+# For now, we commit regression files to share failing cases with CI
