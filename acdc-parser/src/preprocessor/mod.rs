@@ -61,8 +61,10 @@ pub(crate) fn read_and_decode_file(
 
     // Check for BOM patterns and decode accordingly
     for (bom, encoding, skip, name) in BOM_PATTERNS {
-        if bytes.starts_with(bom) {
-            let (cow, _, had_errors) = encoding.decode(&bytes[*skip..]);
+        if bytes.starts_with(bom)
+            && let Some(content) = bytes.get(*skip..)
+        {
+            let (cow, _, had_errors) = encoding.decode(content);
             if had_errors {
                 tracing::error!(
                     path = ?file_path.display(),

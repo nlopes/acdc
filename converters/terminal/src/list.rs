@@ -75,9 +75,7 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
     let mut i = 0;
     let mut item_number = 1;
 
-    while i < items.len() {
-        let item = &items[i];
-
+    while let Some(item) = items.get(i) {
         if item.level < expected_level {
             // Item at lower level, return to parent
             break;
@@ -89,26 +87,31 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             item_number += 1;
 
             // Check if next items are nested (higher level)
-            if i + 1 < items.len() && items[i + 1].level > expected_level {
-                let next_level = items[i + 1].level;
+            if let Some(next_item) = items.get(i + 1)
+                && next_item.level > expected_level
+            {
+                let next_level = next_item.level;
                 let nested_indent = indent + 2; // Indent by 2 spaces per level
 
                 // Find range of nested items
                 i += 1;
                 let nested_start = i;
-                while i < items.len() && items[i].level >= next_level {
+                while let Some(inner_nested) = items.get(i)
+                    && inner_nested.level >= next_level
+                {
                     i += 1;
                 }
 
-                // Recursively render nested items
-                render_nested_list_items(
-                    &items[nested_start..i],
-                    visitor,
-                    next_level,
-                    nested_indent,
-                    is_ordered,
-                )?;
-
+                if let Some(nested_items) = items.get(nested_start..i) {
+                    // Recursively render nested items
+                    render_nested_list_items(
+                        nested_items,
+                        visitor,
+                        next_level,
+                        nested_indent,
+                        is_ordered,
+                    )?;
+                }
                 i -= 1; // Adjust because we'll increment at the end of the loop
             }
 

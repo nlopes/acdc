@@ -37,29 +37,30 @@ fn render_entries<V: WritableVisitor<Error = crate::Error>>(
         // Find children: entries that come after this one and have level = current_level + 1
         // but before the next entry at current_level or lower
         let start_search = entry_index + 1;
-        let end_search = if i + 1 < current_level_entries.len() {
-            current_level_entries[i + 1].0 // Next entry at current level
+        let end_search = if let Some(next_entry) = current_level_entries.get(i + 1) {
+            next_entry.0 // Next entry at current level
         } else {
             entries.len() // End of all entries
         };
 
-        // Find children: only entries that are direct children (level = current_level + 1)
-        // and stop when we hit another entry at current_level or higher
-        let mut children: Vec<&TocEntry> = Vec::new();
-        for entry in &entries[start_search..end_search] {
-            // Stop if we encounter another entry at the same level or higher
-            // This prevents us from claiming children that belong to later siblings
-            if entry.level <= current_level {
-                break;
+        if let Some(children_slice) = entries.get(start_search..end_search) {
+            // Find children: only entries that are direct children (level = current_level + 1)
+            // and stop when we hit another entry at current_level or higher
+            let mut children: Vec<&TocEntry> = Vec::new();
+            for entry in children_slice {
+                // Stop if we encounter another entry at the same level or higher
+                // This prevents us from claiming children that belong to later siblings
+                if entry.level <= current_level {
+                    break;
+                }
+                if entry.level == current_level + 1 {
+                    children.push(entry);
+                }
             }
-            if entry.level == current_level + 1 {
-                children.push(entry);
-            }
-        }
 
-        if !children.is_empty() && current_level < max_level {
-            let child_slice = &entries[start_search..end_search];
-            render_entries(child_slice, visitor, max_level, current_level + 1)?;
+            if !children.is_empty() && current_level < max_level {
+                render_entries(children_slice, visitor, max_level, current_level + 1)?;
+            }
         }
     }
     Ok(())

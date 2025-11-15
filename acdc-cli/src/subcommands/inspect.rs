@@ -54,7 +54,15 @@ fn inlines_to_string(inlines: &[InlineNode]) -> String {
                 InlineMacro::CrossReference(xref) => {
                     xref.text.clone().unwrap_or_else(|| xref.target.clone())
                 }
-                _ => String::new(),
+                InlineMacro::Footnote(_)
+                | InlineMacro::Image(_)
+                | InlineMacro::Button(_)
+                | InlineMacro::Pass(_)
+                | InlineMacro::Keyboard(_)
+                | InlineMacro::Menu(_)
+                | InlineMacro::Stem(_)
+                | InlineMacro::Icon(_)
+                | _ => String::new(),
             },
             _ => String::new(),
         })

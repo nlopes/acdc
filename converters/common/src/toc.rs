@@ -22,7 +22,9 @@ impl Config {
                 AttributeValue::String(s) => s.as_str(),
                 AttributeValue::Bool(true) => "auto",
                 // Bool(false) or None means toc is disabled
-                _ => "none",
+                AttributeValue::Bool(false) | AttributeValue::None | AttributeValue::Inlines(_) => {
+                    "none"
+                }
             })
             .to_lowercase();
 
@@ -30,7 +32,7 @@ impl Config {
             .get("toc-title")
             .and_then(|v| match v {
                 AttributeValue::String(s) => Some(s.as_str()),
-                _ => None,
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
             })
             .map(String::from);
 
@@ -39,13 +41,15 @@ impl Config {
             .and_then(|toc| toc.metadata.attributes.get("levels"))
             .and_then(|v| match v {
                 AttributeValue::String(s) => s.parse::<u8>().ok(),
-                _ => None,
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
             })
             .or_else(|| {
                 // Fall back to document-level toclevels attribute
                 attributes.get("toclevels").and_then(|v| match v {
                     AttributeValue::String(s) => s.parse::<u8>().ok(),
-                    _ => None,
+                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
+                        None
+                    }
                 })
             })
             .unwrap_or(2);

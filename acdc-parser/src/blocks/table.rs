@@ -64,13 +64,12 @@ impl Table {
             }
 
             // After processing the first row, check if the next line is blank (indicates header)
-            if rows.len() == 1 {
-                if let Some(&next_line) = lines.get(i) {
-                    if next_line.trim_end().is_empty() {
-                        tracing::debug!("Detected table header via blank line after first row");
-                        *has_header = true;
-                    }
-                }
+            if rows.len() == 1
+                && let Some(&next_line) = lines.get(i)
+                && next_line.trim_end().is_empty()
+            {
+                tracing::debug!("Detected table header via blank line after first row");
+                *has_header = true;
             }
 
             // Skip empty lines

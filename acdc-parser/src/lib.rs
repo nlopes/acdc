@@ -368,6 +368,12 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
 }
 
 #[cfg(test)]
+mod proptests;
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use acdc_core::SafeMode;

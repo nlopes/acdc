@@ -175,7 +175,13 @@ impl WithLocationMappingContext for InlineNode {
             InlineNode::CurvedApostropheText(node) => {
                 InlineNode::CurvedApostropheText(node.map_locations(mapping_ctx)?)
             }
-            _ => self,
+            InlineNode::RawText(_)
+            | InlineNode::PlainText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::StandaloneCurvedApostrophe(_) => self,
         })
     }
 }

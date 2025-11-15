@@ -378,8 +378,10 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Keyboard(k) => {
-            if k.keys.len() == 1 {
-                write!(w, "<kbd>{}</kbd>", k.keys[0])?;
+            if k.keys.len() == 1
+                && let Some(key) = k.keys.first()
+            {
+                write!(w, "<kbd>{key}</kbd>")?;
             } else {
                 write!(w, "<span class=\"keyseq\">")?;
                 for (i, key) in k.keys.iter().enumerate() {
