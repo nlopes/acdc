@@ -97,7 +97,14 @@ impl Error {
             | Self::InvalidIndent(detail, ..)
             | Self::InvalidLevelOffset(detail, ..)
             | Self::InvalidIfEvalDirectiveMismatchedTypes(detail) => Some(detail),
-            _ => None,
+            Self::ParseGrammar(_)
+            | Self::Io(_)
+            | Self::Url(_)
+            | Self::ParseInt(_)
+            | Self::UnknownEncoding(_)
+            | Self::UnrecognizedEncodingInFile(_)
+            | Self::HttpRequest(_)
+            | Self::TryFromIntError(_) => None,
         }
     }
 
@@ -151,7 +158,20 @@ impl Error {
             Self::UnknownEncoding(..) | Self::UnrecognizedEncodingInFile(..) => Some(
                 "We only support UTF-8 or UTF-16 encoded files. Ensure the specified encoding is correct and the file is saved with that encoding",
             ),
-            _ => None,
+            Self::ParseGrammar(_)
+            | Self::Io(_)
+            | Self::ParseInt(_)
+            | Self::TryFromIntError(_)
+            | Self::NestedSectionLevelMismatch(..)
+            | Self::MismatchedDelimiters(..)
+            | Self::InvalidAdmonitionVariant(..)
+            | Self::InvalidIfEvalDirectiveMismatchedTypes(..)
+            | Self::InvalidConditionalDirective(..)
+            | Self::InvalidLineRange(..)
+            | Self::InvalidIncludeDirective(..)
+            | Self::InvalidIndent(..)
+            | Self::InvalidLevelOffset(..)
+            | Self::InvalidIncludePath(..) => None,
         }
     }
 }

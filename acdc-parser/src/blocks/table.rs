@@ -18,8 +18,8 @@ impl Table {
             "Starting table parsing"
         );
 
-        while i < lines.len() {
-            let line = lines[i].trim_end();
+        while let Some(&line_ref) = lines.get(i) {
+            let line = line_ref.trim_end();
             tracing::trace!(i, ?line, is_empty = line.is_empty(), "Processing line");
 
             // If we are in the first row and it is empty, we should not have a header
@@ -36,20 +36,23 @@ impl Table {
 
             // Check if this is a single-line-per-row table (line has multiple separators)
             // vs multi-line-per-row table (one cell per line, rows separated by empty lines)
-            let first_line = lines[i].trim_end();
+            let first_line = line_ref.trim_end();
             let is_single_line_row =
                 first_line.starts_with(separator) && first_line.matches(separator).count() > 1;
 
             if is_single_line_row {
                 // Single-line row format: each line is a complete row
                 row_lines.push(first_line);
-                current_offset += lines[i].len() + 1;
+                current_offset += line_ref.len() + 1;
                 i += 1;
             } else {
                 // Multi-line row format: collect lines until empty line
-                while i < lines.len() && !lines[i].trim_end().is_empty() {
-                    row_lines.push(lines[i].trim_end());
-                    current_offset += lines[i].len() + 1; // +1 for newline
+                while let Some(&current_line) = lines.get(i) {
+                    if current_line.trim_end().is_empty() {
+                        break;
+                    }
+                    row_lines.push(current_line.trim_end());
+                    current_offset += current_line.len() + 1; // +1 for newline
                     i += 1;
                 }
             }
@@ -61,14 +64,21 @@ impl Table {
             }
 
             // After processing the first row, check if the next line is blank (indicates header)
-            if rows.len() == 1 && i < lines.len() && lines[i].trim_end().is_empty() {
-                tracing::debug!("Detected table header via blank line after first row");
-                *has_header = true;
+            if rows.len() == 1 {
+                if let Some(&next_line) = lines.get(i) {
+                    if next_line.trim_end().is_empty() {
+                        tracing::debug!("Detected table header via blank line after first row");
+                        *has_header = true;
+                    }
+                }
             }
 
             // Skip empty lines
-            while i < lines.len() && lines[i].trim_end().is_empty() {
-                current_offset += lines[i].len() + 1;
+            while let Some(&empty_line) = lines.get(i) {
+                if !empty_line.trim_end().is_empty() {
+                    break;
+                }
+                current_offset += empty_line.len() + 1;
                 i += 1;
             }
         }
