@@ -9,6 +9,7 @@ mod passthrough_processing;
 mod position_tracker;
 mod state;
 mod table;
+pub(crate) mod utf8_utils;
 
 pub(crate) use document::{BlockParsingMetadata, document_parser};
 pub(crate) use inline_preprocessor::{
