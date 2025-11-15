@@ -32,6 +32,10 @@ thiserror = "2"
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
+[workspace.lints.clippy]
+# Defensive programming - prevent missing cases when enums evolve
+wildcard_enum_match_arm = "deny"
+
 [profile.release]
 # Enable link-time optimization for better cross-crate inlining
 lto = "thin"
