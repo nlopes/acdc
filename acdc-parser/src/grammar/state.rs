@@ -110,6 +110,11 @@ impl ParserState {
         end: usize,
         offset: usize,
     ) -> Location {
-        self.create_location(start + offset, (end + offset).saturating_sub(1))
+        let end_offset = if (end + offset) == 0 {
+            0
+        } else {
+            crate::grammar::utf8_utils::safe_decrement_offset(&self.input, end + offset)
+        };
+        self.create_location(start + offset, end_offset)
     }
 }

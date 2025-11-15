@@ -88,12 +88,18 @@ pub(crate) fn create_location_mapper<'a>(
                     processed_abs_start = base_location.absolute_start + 1;
                     processed_abs_end = base_location.absolute_start + 2;
                 } else {
-                    // General case: expand collapsed locations by 1 to represent the character
-                    processed_abs_end += 1;
+                    // General case: expand collapsed locations to the next UTF-8 boundary
+                    processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
+                        &state.input,
+                        processed_abs_end,
+                    );
                 }
             } else {
-                // General case: expand collapsed locations by 1 to represent the character
-                processed_abs_end += 1;
+                // General case: expand collapsed locations to the next UTF-8 boundary
+                processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
+                    &state.input,
+                    processed_abs_end,
+                );
             }
         }
 
