@@ -2627,8 +2627,14 @@ peg::parser! {
         }
 
         rule highlight_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = attrs:inline_attributes()? start:position!() content_start:position() "#" content:$([^('#' | ' ' | '\t' | '\n')] [^'#']*) "#"
-          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
+        = attrs:inline_attributes()?
+        start:position!()
+        content_start:position()
+        "#"
+        content:$([^(' ' | '\t' | '\n')] [^'#']* ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'#']*)*)
+        "#"
+        end:position!()
+        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2641,15 +2647,16 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let prev_byte_pos = absolute_pos.saturating_sub(1);
-            let prev_byte = state.input.as_bytes().get(prev_byte_pos);
             let valid_boundary = absolute_pos == 0 || {
-                prev_byte.is_none_or(|&b| {
-                    matches!(b, b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']')
+                let prev_byte_pos = absolute_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
+                    match_constrained_boundary(b)
                 })
             };
+
             if !valid_boundary {
-                return Err("highlight must be at word boundary");
+                tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained highlight");
+                return Err("invalid word boundary for constrained highlight");
             }
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained highlight text inline");
             let adjusted_content_start = PositionWithOffset {
@@ -2670,7 +2677,14 @@ peg::parser! {
         }
 
         rule highlight_text_constrained_match() -> ()
-        = boundary_pos:position!() inline_attributes()? "#" [^('#' | ' ' | '\t' | '\n')] [^'#']* "#" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
+        = boundary_pos:position!()
+        inline_attributes()?
+        "#"
+        [^(' ' | '\t' | '\n')]
+        [^'#']*
+        ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'#']*)*
+        "#"
+        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no hash)
             let valid_boundary = boundary_pos == 0 || {
@@ -2680,10 +2694,7 @@ peg::parser! {
                 })
             };
 
-            if !valid_boundary {
-                return Err("highlight must be at word boundary");
-            }
-            Ok(())
+            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
         }
 
         /// Parse superscript text (^text^)

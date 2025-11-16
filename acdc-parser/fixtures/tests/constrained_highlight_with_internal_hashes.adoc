@@ -1,0 +1,21 @@
+= Highlight with Internal Hashes
+
+Test 1: #<h1>#World#</h1># and others.
+
+Test 2: #one>two#
+
+Test 3: #one<two#
+
+Test 4: word#not#word
+
+Test 5: word #highlight# word
+
+Test 6: #highlight#text#more#
+
+Test 7: (...#highlight#...)
+
+Test 8: [#highlight#]
+
+Test 9: {#highlight#}
+
+Test 10: /#highlight#/
