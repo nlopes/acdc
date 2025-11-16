@@ -1,0 +1,5 @@
+= Italic with HTML-like Tags
+
+Italic text containing HTML-like tags: _<h1>_World_</h1>_ should work correctly.
+
+This tests that angle brackets are proper boundaries.

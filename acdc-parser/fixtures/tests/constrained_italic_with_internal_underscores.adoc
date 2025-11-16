@@ -1,0 +1,21 @@
+= Italic with Internal Underscores
+
+Test 1: _<h1>_World_</h1>_ and others.
+
+Test 2: _one>two_
+
+Test 3: _one<two_
+
+Test 4: word_not_word
+
+Test 5: word _italic_ word
+
+Test 6: _italic_text_more_
+
+Test 7: (..._italic_...)
+
+Test 8: [_italic_]
+
+Test 9: {_italic_}
+
+Test 10: /_italic_/
