@@ -1,0 +1,7 @@
+[source,python]
+----
+def hello():
+    # Python comment (should be preserved)
+    // AsciiDoc comment (should also be preserved)
+    print("Hello, World!")
+----

@@ -164,6 +164,7 @@ impl Preprocessor {
     }
 
     /// Process an include directive
+    #[tracing::instrument]
     fn process_include(
         line: &str,
         line_number: usize,
@@ -190,6 +191,7 @@ impl Preprocessor {
     }
 
     /// Process a conditional directive (ifdef/ifndef/ifeval)
+    #[tracing::instrument(skip(lines, attributes))]
     fn process_conditional<'a, I: Iterator<Item = &'a str>>(
         line: &str,
         lines: &mut std::iter::Peekable<I>,
@@ -248,6 +250,7 @@ impl Preprocessor {
         }
     }
 
+    #[tracing::instrument(skip(lines, attribute_content))]
     fn process_continuation<'a, I: Iterator<Item = &'a str>>(
         attribute_content: &mut String,
         lines: &mut std::iter::Peekable<I>,
@@ -281,6 +284,47 @@ impl Preprocessor {
             }
         }
     }
+
+    /// Check if a line is a verbatim or raw block delimiter.
+    ///
+    /// Verbatim/raw blocks preserve content literally, including comments.
+    /// Recognized delimiters:
+    /// - `----` (listing/source blocks) - 4+ hyphens
+    /// - `....` (literal blocks) - 4+ periods
+    /// - `++++` (passthrough blocks) - 4+ plus signs
+    /// - ` ``` ` (markdown code fences) - 3+ backticks
+    #[tracing::instrument]
+    fn is_verbatim_delimiter(line: &str) -> Option<&str> {
+        let trimmed = line.trim();
+
+        // Check for markdown code fences (3+ backticks)
+        if trimmed.starts_with("```") {
+            return Some("```");
+        }
+
+        // Check for other delimiters (4+ chars)
+        //
+        // We need to fetch the same delimiter size to make sure we close the block
+        // correctly, and the minimum size is 4.
+        let mut chars = trimmed.chars();
+        let first_char = chars.next()?;
+        if first_char != '-' && first_char != '.' && first_char != '+' {
+            return None;
+        }
+        let mut idx = 1;
+        for next_char in chars {
+            if next_char == first_char {
+                idx += 1;
+            } else {
+                break;
+            }
+        }
+        if idx >= 4 {
+            return trimmed.get(..idx);
+        }
+        None
+    }
+
     #[tracing::instrument]
     fn process_either(
         &self,
@@ -296,6 +340,11 @@ impl Preprocessor {
         let mut lines = input.lines().peekable();
         let mut line_number = 1; // Track the current line number (1-indexed)
         let mut current_offset = 0; // Track absolute byte offset in document
+
+        // Track verbatim block state for comment filtering
+        let mut in_verbatim_block = false;
+        let mut current_delimiter: Option<&str> = None;
+
         while let Some(line) = lines.next() {
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
                 // Pre-allocate with initial line length as estimate
@@ -313,16 +362,35 @@ impl Preprocessor {
             } else if line.starts_with(':') {
                 attribute::parse_line(&mut options.document_attributes, line.trim());
             }
+            // Check for verbatim block delimiters to track when to preserve comments
+            if let Some(delimiter_type) = Self::is_verbatim_delimiter(line) {
+                if in_verbatim_block && Some(delimiter_type) == current_delimiter {
+                    // Closing delimiter - exit verbatim block
+                    tracing::trace!(?delimiter_type, "Closing verbatim block");
+                    in_verbatim_block = false;
+                    current_delimiter = None;
+                } else if !in_verbatim_block {
+                    // Opening delimiter - enter verbatim block
+                    tracing::trace!(?delimiter_type, "Opening verbatim block");
+                    in_verbatim_block = true;
+                    current_delimiter = Some(delimiter_type);
+                }
+                output.push(line.to_string());
+            }
             // Taken from
             // https://github.com/asciidoctor/asciidoctor/blob/306111f480e2853ba59107336408de15253ca165/lib/asciidoctor/reader.rb#L604
             // while following the specs at
             // https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads#user-content-preprocessor
 
-            // Skip single-line comments (lines starting with //)
-            if line.starts_with("//") {
-                tracing::debug!(line, "Filtering out comment line");
+            // Skip single-line comments (lines starting with //) ONLY if not in verbatim block
+            else if line.starts_with("//") && !in_verbatim_block {
+                tracing::debug!(line, "Filtering out comment line (outside verbatim block)");
                 // Return an empty line to preserve line numbering
                 output.push(String::new());
+            } else if line.starts_with("//") && in_verbatim_block {
+                // Preserve comment inside verbatim block
+                tracing::trace!(line, "Preserving comment line inside verbatim block");
+                output.push(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 if line.starts_with("\\include")
                     || line.starts_with("\\ifdef")

@@ -1,0 +1,8 @@
+.Listing block with comments
+----
+code line 1
+// This comment should be PRESERVED
+code line 2
+// Another comment to preserve
+code line 3
+----

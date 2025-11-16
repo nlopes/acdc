@@ -1,0 +1,55 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "python": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "def hello():\n    # Python comment (should be preserved)\n    // AsciiDoc comment (should also be preserved)\n    print(\"Hello, World!\")",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 4
+    }
+  ]
+}

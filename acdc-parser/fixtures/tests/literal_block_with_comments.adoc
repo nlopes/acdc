@@ -1,0 +1,6 @@
+.Literal block with comments
+....
+literal content line 1
+// This comment should be PRESERVED in literal block
+literal content line 2
+....

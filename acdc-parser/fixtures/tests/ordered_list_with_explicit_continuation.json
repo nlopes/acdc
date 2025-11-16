@@ -45,7 +45,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "\nfn main() {}",
+                  "value": "// code example\nfn main() {}",
                   "location": [
                     {
                       "line": 5,
