@@ -1,0 +1,26 @@
+= Document with Mixed Comments
+
+// This comment should be FILTERED (outside block)
+
+Regular paragraph.
+
+// Another comment to filter
+
+.Code block
+----
+code line 1
+// This comment should be PRESERVED (inside block)
+code line 2
+----
+
+// This comment should be FILTERED (between blocks)
+
+Another paragraph.
+
+....
+literal line 1
+// This comment should be PRESERVED (inside literal)
+literal line 2
+....
+
+// Final comment to filter (outside all blocks)
