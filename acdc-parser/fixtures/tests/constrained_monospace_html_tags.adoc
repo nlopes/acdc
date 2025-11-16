@@ -1,0 +1,5 @@
+= Monospace with HTML-like Tags
+
+Monospace text containing HTML-like tags: `<h1>`World`</h1>` should work correctly.
+
+This tests that angle brackets are proper boundaries.
