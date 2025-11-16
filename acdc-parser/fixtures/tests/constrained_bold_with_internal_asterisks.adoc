@@ -1,0 +1,21 @@
+= Bold with Internal Asterisks
+
+Test 1: *<h1>*World*</h1>* and others.
+
+Test 2: *one>two*
+
+Test 3: *one<two*
+
+Test 4: word*not*word
+
+Test 5: word *bold* word
+
+Test 6: *bold*text*more*
+
+Test 7: (...*bold*...)
+
+Test 8: [*bold*]
+
+Test 9: {*bold*}
+
+Test 10: /*bold*/

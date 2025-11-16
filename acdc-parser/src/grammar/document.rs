@@ -80,10 +80,10 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'.'
             | b'?'
             | b'!'
-            | b'<'
-            | b'>'
             | b'\''
             | b'"'
+            | b'<'
+            | b'>'
     )
 }
 
@@ -2335,8 +2335,13 @@ peg::parser! {
         }
 
         rule bold_text_constrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = attrs:inline_attributes()? start:position!() content_start:position() "*" content:$([^('*' | ' ' | '\t' | '\n')] [^'*']*) "*"
-          end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-'] / ![_])
+        = attrs:inline_attributes()?
+        start:position!()
+        content_start:position()
+        "*"
+        content:$([^(' ' | '\t' | '\n')] [^'*']* ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'*']*)*)
+        "*"
+        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -2425,7 +2430,7 @@ peg::parser! {
         }
 
         rule bold_text_constrained_match() -> ()
-        = boundary_pos:position!() inline_attributes()? "*" [^('*' | ' ' | '\t' | '\n')] [^'*']* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        = boundary_pos:position!() inline_attributes()? "*" [^(' ' | '\t' | '\n')] [^'*']* ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'*']*)* "*" ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no asterisk)
             let valid_boundary = boundary_pos == 0 || {
