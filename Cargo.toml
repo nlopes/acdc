@@ -19,7 +19,7 @@ description = "A suite of tools for AsciiDoc documents"
 acdc-converters-common = { path = "./converters/common" }
 acdc-core = { path = "./acdc-core" }
 acdc-parser = { path = "./acdc-parser" }
-clap = { version = "4.5.51", features = ["derive"] }
+clap = { version = "4.5.52", features = ["derive"] }
 crossterm = "0.29"
 pretty_assertions = "1.4"
 rayon = "1.11"
