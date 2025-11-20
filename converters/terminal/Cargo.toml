@@ -16,7 +16,7 @@ syntect = "5.3"
 thiserror.workspace = true
 tracing.workspace = true
 # images on the terminal
-viuer = { version = "0.9", features = ["print-file"] }
+viuer = { version = "0.10", features = ["print-file"] }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
