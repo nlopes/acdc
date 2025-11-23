@@ -3246,7 +3246,7 @@ peg::parser! {
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
         rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' ]+)
         {?
-            let mut inline_state = InlinePreprocessorParserState::new();
+            let mut inline_state = InlinePreprocessorParserState::new(path);
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
                 tracing::error!(?e, "could not preprocess url path");
@@ -3259,7 +3259,7 @@ peg::parser! {
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution
         pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
         {?
-            let mut inline_state = InlinePreprocessorParserState::new();
+            let mut inline_state = InlinePreprocessorParserState::new(path);
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
                 tracing::error!(?e, "could not preprocess path");

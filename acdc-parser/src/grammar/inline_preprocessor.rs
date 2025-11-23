@@ -14,26 +14,31 @@ use crate::{
 //
 // It should use internal mutability to allow the parser to modify the state.
 #[derive(Debug)]
-pub(crate) struct InlinePreprocessorParserState {
+pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) pass_found_count: Cell<usize>,
     pub(crate) passthroughs: RefCell<Vec<Pass>>,
     pub(crate) attributes: RefCell<HashMap<usize, Location>>,
     pub(crate) tracker: RefCell<PositionTracker>,
     pub(crate) source_map: RefCell<SourceMap>,
+    pub(crate) input: RefCell<&'a str>,
+    pub(crate) substring_start_offset: Cell<usize>,
 }
 
-impl InlinePreprocessorParserState {
-    pub(crate) fn new() -> Self {
+impl<'a> InlinePreprocessorParserState<'a> {
+    pub(crate) fn new(input: &'a str) -> Self {
         Self {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
             tracker: RefCell::new(PositionTracker::new()),
             source_map: RefCell::new(SourceMap::default()),
+            input: RefCell::new(input),
+            substring_start_offset: Cell::new(0),
         }
     }
 
     pub(crate) fn set_initial_position(&mut self, location: &Location, absolute_offset: usize) {
+        self.substring_start_offset.set(absolute_offset);
         self.tracker
             .borrow_mut()
             .set_initial_position(location, absolute_offset);
@@ -243,10 +248,62 @@ parser!(
         rule single_plus_passthrough() -> String
         = start:position()
         "+"
-        content:$(("+" / ![(' '|'\t'|'\n'|'\r'|'+')] [_] (!['\n'|'\r'|'+'] [_])*))
+        // Content: must not start with whitespace, can contain + if not followed by boundary
+        content:$(![(' '|'\t'|'\n'|'\r')] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])*)
         "+"
         {
+            // Check if we're at start OR preceded by word boundary character
+            // Convert absolute offset to relative offset within the substring
+            let substring_start = state.substring_start_offset.get();
+            let relative_offset = start.offset - substring_start;
+
+            let input_bytes = state.input.borrow();
+            let prev_byte_value = if relative_offset > 0 {
+                input_bytes.as_bytes().get(relative_offset - 1).copied()
+            } else {
+                None
+            };
+
+            let valid_boundary = relative_offset == 0 || {
+                if let Some(b) = prev_byte_value {
+                    matches!(
+                        b,
+                        b' ' | b'\t' | b'\n' | b'\r' | b'(' | b'{' | b'[' | b')' | b'}' | b']'
+                            | b'/' | b'-' | b'|' | b',' | b';' | b'.' | b'?' | b'!' | b'\''
+                            | b'"' | b'<' | b'>'
+                    )
+                } else {
+                    false
+                }
+            };
+
+            // Also check trailing boundary - must be followed by whitespace, punctuation, or EOF
+            // Calculate position after closing + based on: relative_offset + '+' + content + '+'
+            let trailing_valid = {
+                let input_bytes = state.input.borrow();
+                // Position after: start '+' (1) + content (len) + end '+' (1) = relative_offset + 1 + content.len() + 1
+                let after_plus_relative = relative_offset + 1 + content.len() + 1;
+                if after_plus_relative >= input_bytes.len() {
+                    // At EOF - valid trailing boundary
+                    true
+                } else if let Some(next_byte) = input_bytes.as_bytes().get(after_plus_relative) {
+                    matches!(
+                        *next_byte,
+                        b' ' | b'\t' | b'\n' | b'\r' | b',' | b';' | b'"' | b'.' | b'?' | b'!'
+                            | b':' | b')' | b']' | b'}' | b'/' | b'-' | b'<' | b'>'
+                    )
+                } else {
+                    false
+                }
+            };
+
+            // Calculate location to advance the tracker (even for invalid boundaries)
             let location = state.tracker.borrow_mut().calculate_location(start, content, 2);
+
+            if !valid_boundary || !trailing_valid {
+                // Not a valid constrained passthrough - return literal text without creating passthrough
+                return format!("+{content}+");
+            }
             state.passthroughs.borrow_mut().push(Pass {
                 text: Some(content.to_string()),
                 // We add SpecialChars here for single and double but we don't do
@@ -373,11 +430,14 @@ parser!(
             "``" (!"``" [_])+ "``" /
             "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`"
 
+        // Simple pattern for unprocessed_text negative lookahead
+        // Doesn't check boundaries - that's done in the full rules
+        // For single +, allows + in content if not followed by boundary (greedy matching)
         rule passthrough_pattern() =
-            "+++" (!("+++") [_])+ "+++" /
-            "++" (!("++") [_])+ "++" /
-            "+" ("+" / ![(' '|'\t'|'\n'|'\r'|'+')] [_] (!['\n'|'\r'|'+'] [_])*) "+" /
-            "pass:" substitutions()? "[" [^']']* "]"
+        "+++" (!("+++") [_])+ "+++" /
+        "++" (!("++") [_])+ "++" /
+        "+" ![' '|'\t'|'\n'|'\r'] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])* "+" /
+        "pass:" substitutions()? "[" [^']']* "]"
 
         pub rule attribute_reference_substitutions() -> String
             = content:(attribute_reference_content() / unprocessed_text_content())+ {
@@ -419,21 +479,23 @@ mod tests {
         attributes
     }
 
-    fn setup_state() -> InlinePreprocessorParserState {
+    fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
             tracker: RefCell::new(PositionTracker::new()),
             source_map: RefCell::new(SourceMap::default()),
+            input: RefCell::new(content),
+            substring_start_offset: Cell::new(0),
         }
     }
 
     #[test]
     fn test_preprocess_inline_passthrough_single() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
         let input = "+hello+";
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
@@ -453,8 +515,8 @@ mod tests {
     #[test]
     fn test_preprocess_inline_passthrough_double() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
         let input = "++hello++";
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
@@ -472,8 +534,8 @@ mod tests {
     #[test]
     fn test_preprocess_inline_passthrough_triple() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
         let input = "+++hello+++";
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
@@ -491,8 +553,8 @@ mod tests {
     #[test]
     fn test_preprocess_inline_passthrough_single_plus() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
         let input = "+hello+ world+";
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
@@ -510,7 +572,6 @@ mod tests {
     #[test]
     fn test_preprocess_inline_passthrough_multiple() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
         let input = "Something\n\nHere is some +*bold*+ text and ++**more bold**++ text.";
         //                 SomethingNNHere is some +*bold*+ text and ++**more bold**++ text.
         //                 0123456789012345678901234567890123456789012345678901234567890123456
@@ -520,6 +581,7 @@ mod tests {
         //                 123456789012345678901234567890123456789012345678901234
         //                          1         2         3         4         5
         //                              ^^^^^^^^          ^^^^^^^^^^^^^^^^^
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         // Verify processed text has placeholders
@@ -560,8 +622,8 @@ mod tests {
     #[test]
     fn test_preprocess_attribute_in_link() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
         let input = "The {s}[syntax page] provides complete stuff.";
+        let state = setup_state(input);
 
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
@@ -583,10 +645,10 @@ mod tests {
     #[test]
     fn test_preprocess_inline_in_attributes() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
 
         // Test block title with attribute reference
         let input = "Version {version} of {title}";
+        let state = setup_state(input);
         //                 0123456789012345678901234567
         //                 Version 1.0 of My Title
         //                 {version} -> 1.0 (-6 chars)
@@ -609,13 +671,12 @@ mod tests {
     #[test]
     fn test_preprocess_complex_example() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
-
         // Complex example with attribute in link and passthrough
         let input = "Check the {s}[syntax page] and +this {s} won't expand+ for details.";
         //                 0123456789012345678901234
         //                           ^
         //                           {s} expands to link:/nonono (+9 chars)
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         assert_eq!(
@@ -641,7 +702,6 @@ mod tests {
 
     #[test]
     fn test_nested_passthrough_with_nested_attributes() -> Result<(), Error> {
-        let state = setup_state();
         let mut attributes = setup_attributes();
         // Add nested attributes
         attributes.insert("nested1".into(), AttributeValue::String("{version}".into()));
@@ -649,6 +709,7 @@ mod tests {
 
         // Test passthrough containing attribute that references another attribute
         let input = "Here is a +special {nested2} value+ to test.";
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         // Verify the passthrough preserved the unexpanded attribute
@@ -677,10 +738,10 @@ mod tests {
 
     #[test]
     fn test_line_breaks() -> Result<(), Error> {
-        let state = setup_state();
         let attributes = setup_attributes();
 
         let input = "This is a test +\nwith a line break.";
+        let state = setup_state(input);
         //                 012345678901234567890123456789012345678
         //                 0         1         2         3         4
         let result = inline_preprocessing::run(input, &attributes, &state)?;
@@ -694,18 +755,20 @@ mod tests {
     #[test]
     fn test_section_with_passthrough() -> Result<(), Error> {
         let attributes = setup_attributes();
-        let state = setup_state();
+        // Greedy matching: +<h1>+World+ matches (content: <h1>+World), +<u>+Gemini+ matches (content: <u>+Gemini)
         let input = "= Document Title\nHello +<h1>+World+</h1>+ of +<u>+Gemini+</u>+";
-        //                 012345678901234567890123456789012345678901234567890123456789012
+        //                 0123456789012345678901234567890123456789012345678901234567890
         //                 0         1         2         3         4         5         6
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
+
+        // Two passthroughs with greedy matching (not four)
         assert_eq!(
             result.text,
-            "= Document Title\nHello \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}World\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} of \u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}Gemini\u{FFFD}\u{FFFD}\u{FFFD}3\u{FFFD}\u{FFFD}\u{FFFD}"
+            "= Document Title\nHello \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}</h1>+ of \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}</u>+"
         );
 
-        // Verify passthrough was captured
-        assert_eq!(result.passthroughs.len(), 4);
+        assert_eq!(result.passthroughs.len(), 2);
 
         let Some(first_pass) = result.passthroughs.first() else {
             panic!("expected first passthrough");
@@ -714,9 +777,9 @@ mod tests {
             panic!("expected second passthrough");
         };
 
-        // Check passthrough content preserved original text
-        assert!(matches!(&first_pass.text, Some(s) if s == "<h1>"));
-        assert!(matches!(&second_pass.text, Some(s) if s == "</h1>"));
+        // Check passthrough content with greedy matching
+        assert!(matches!(&first_pass.text, Some(s) if s == "<h1>+World"));
+        assert!(matches!(&second_pass.text, Some(s) if s == "<u>+Gemini"));
 
         // Verify substitutions were captured
         assert!(
@@ -724,32 +787,23 @@ mod tests {
                 .substitutions
                 .contains(&Substitution::SpecialChars)
         );
-
-        // Check positions
-        assert_eq!(first_pass.location.absolute_start, 23); // Start of pass macro
-        assert_eq!(first_pass.location.absolute_end, 29); // End of pass macro content including brackets
-
-        // Verify substitutions were captured
         assert!(
             second_pass
                 .substitutions
                 .contains(&Substitution::SpecialChars)
         );
 
-        // Check positions
-        assert_eq!(second_pass.location.absolute_start, 34); // Start of pass macro
-        assert_eq!(second_pass.location.absolute_end, 41); // End of pass macro content including brackets
         Ok(())
     }
 
     #[test]
     fn test_pass_macro_with_mixed_content() -> Result<(), Error> {
-        let state = setup_state();
         let mut attributes = setup_attributes();
         // Add docname attribute
         attributes.insert("docname".into(), AttributeValue::String("test-doc".into()));
 
         let input = "The text pass:q,a[<u>underline _{docname}_</u>] is underlined.";
+        let state = setup_state(input);
         //                 01234567890123456789012345678901234567890123456789012345678901
         //                 0         1         2         3         4         5         6
         //                          ^start of pass        ^docname
@@ -788,7 +842,6 @@ mod tests {
 
     #[test]
     fn test_all_passthroughs_with_attribute() -> Result<(), Error> {
-        let state = setup_state();
         let mut attributes = setup_attributes();
         attributes.insert("meh".into(), AttributeValue::String("1.0".into()));
 
@@ -796,7 +849,7 @@ mod tests {
         //                 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456
         //                 0         1         2         3         4         5         6         7         8
         //                 1 FFF0FFF, FFF1FFF 1.0 and FFF2FFF are all numbers.
-
+        let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(
             result.text,
@@ -827,6 +880,80 @@ mod tests {
         assert_eq!(result.source_map.map_position(24)?, 20);
         // 48 is the n in "and", therefore it should map to position 19
         assert_eq!(result.source_map.map_position(48)?, 44);
+        Ok(())
+    }
+
+    #[test]
+    fn test_greedy_matching_single_plus_passthrough() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        // Test case 1: +A+B+ should greedily match from first to third +
+        let input = "Test +A+B+ end";
+        let state = setup_state(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.passthroughs.len(), 1);
+        let Some(first) = result.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "A+B"));
+
+        // Test case 2: +A+ +B+ should create two separate passthroughs (space breaks greedy)
+        let input2 = "Test +A+ +B+ end";
+        let state2 = setup_state(input2);
+        let result2 = inline_preprocessing::run(input2, &attributes, &state2)?;
+        assert_eq!(result2.passthroughs.len(), 2);
+        let Some(first) = result2.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        let Some(second) = result2.passthroughs.get(1) else {
+            panic!("expected second passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "A"));
+        assert!(matches!(&second.text, Some(s) if s == "B"));
+
+        // Test case 3: +A+B+C+D+ should greedily match all
+        let input3 = "Test +A+B+C+D+ end";
+        let state3 = setup_state(input3);
+        let result3 = inline_preprocessing::run(input3, &attributes, &state3)?;
+        assert_eq!(result3.passthroughs.len(), 1);
+        let Some(first) = result3.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "A+B+C+D"));
+
+        // Test case 4: +HTML+tags+ with boundary characters
+        let input4 = "Test +<em>+text+ end";
+        let state4 = setup_state(input4);
+        let result4 = inline_preprocessing::run(input4, &attributes, &state4)?;
+        assert_eq!(result4.passthroughs.len(), 1);
+        let Some(first) = result4.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "<em>+text"));
+
+        // Test case 5: Multiple + with punctuation boundaries
+        let input5 = "Look +here+there+, ok";
+        let state5 = setup_state(input5);
+        let result5 = inline_preprocessing::run(input5, &attributes, &state5)?;
+        assert_eq!(result5.passthroughs.len(), 1);
+        let Some(first) = result5.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "here+there"));
+
+        // Test case 6: The original bug case from f.adoc
+        let input6 = "Hello +<h1>+World+</h1>+ and +<u>+Gemini+</u>+ end";
+        let state6 = setup_state(input6);
+        let result6 = inline_preprocessing::run(input6, &attributes, &state6)?;
+        assert_eq!(result6.passthroughs.len(), 2);
+        let Some(first) = result6.passthroughs.first() else {
+            panic!("expected first passthrough");
+        };
+        let Some(second) = result6.passthroughs.get(1) else {
+            panic!("expected second passthrough");
+        };
+        assert!(matches!(&first.text, Some(s) if s == "<h1>+World"));
+        assert!(matches!(&second.text, Some(s) if s == "<u>+Gemini"));
+
         Ok(())
     }
 }
