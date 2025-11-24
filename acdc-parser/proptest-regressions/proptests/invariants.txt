@@ -10,3 +10,7 @@ cc aa9cb0bbaf19f2d370e3251d9a1118722646efc34bbf39c8d840cae1d969dcd9 # shrinks to
 cc 7da12780c3f105339032c94f7c730d115133bb08a5232c69cef82c3576837d7f # shrinks to input = "\n\n\t"
 cc b22a1103866f9fb0ca7547011b27de6fa185b10f5bd7a09e96310013cdc9477e # shrinks to input = " \u{200b} \n\u{200b}"
 cc 2e8f726771153fd06c9a2b33877f9b11e0855adcc6af6e0eeb6fa591b33f579d # shrinks to input = " \n\u{200b}"
+cc 4ca14355ae73103e6e3da9dac48ffca687b4c1bd5e57fb49450997f0deeb609e # shrinks to input = "! 0\t_0_ +0+a"
+cc e05f914bc4225aae5e0cc339320c6e462c6fe3e78473216f03fa851b5a652b9d # shrinks to input = "A+A+\t`a`"
+cc 12cead0ba22142bc6943adcaf3f6aa69a2aebc982edcf000f48f20028ed332ed # shrinks to input = "!A\tA\t A+A+"
+cc 9ce96c0a6da0d892083ce2955eaca1757f7d6fd83e12dcfe98c4f8a4edcf4c02 # shrinks to input = "*'++)*\t"

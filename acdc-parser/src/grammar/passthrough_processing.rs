@@ -2,7 +2,7 @@ use crate::{InlineNode, Location, Pass, Plain, ProcessedContent, Raw, Substituti
 
 use super::{
     ParserState,
-    location_mapping::remap_inline_node_location,
+    location_mapping::{clamp_inline_node_locations, remap_inline_node_location},
     markup_patterns::{
         MarkupMatch, find_constrained_bold_pattern, find_curved_apostrophe_pattern,
         find_curved_quotation_pattern, find_highlight_constrained_pattern,
@@ -557,6 +557,11 @@ pub(crate) fn process_passthrough_placeholders(
             content: content.to_string(),
             location: base_location.clone(),
         }));
+    }
+
+    // Clamp all locations to valid bounds within the input string
+    for node in &mut result {
+        clamp_inline_node_locations(node, &state.input);
     }
 
     // Merge adjacent plain text nodes

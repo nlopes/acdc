@@ -6,6 +6,148 @@ use crate::{
 
 use super::{ParserState, marked_text::WithLocationMappingContext};
 
+/// Clamp a Location's byte offsets to valid bounds within the input string
+/// and ensure they fall on UTF-8 character boundaries.
+pub(crate) fn clamp_location_bounds(location: &mut Location, input: &str) {
+    let input_len = input.len();
+
+    // Clamp to input bounds
+    location.absolute_start = location.absolute_start.min(input_len);
+    location.absolute_end = location.absolute_end.min(input_len);
+    location.start.offset = location.start.offset.min(input_len);
+    location.end.offset = location.end.offset.min(input_len);
+
+    // Ensure start is on a valid UTF-8 boundary (round backward)
+    if location.absolute_start > 0
+        && location.absolute_start < input_len
+        && !input.is_char_boundary(location.absolute_start)
+    {
+        while location.absolute_start > 0 && !input.is_char_boundary(location.absolute_start) {
+            location.absolute_start -= 1;
+        }
+    }
+
+    // Ensure end is on a valid UTF-8 boundary (round forward)
+    if location.absolute_end > 0
+        && location.absolute_end < input_len
+        && !input.is_char_boundary(location.absolute_end)
+    {
+        while location.absolute_end < input_len && !input.is_char_boundary(location.absolute_end) {
+            location.absolute_end += 1;
+        }
+    }
+
+    // Also clamp Position offsets
+    if location.start.offset > 0
+        && location.start.offset < input_len
+        && !input.is_char_boundary(location.start.offset)
+    {
+        while location.start.offset > 0 && !input.is_char_boundary(location.start.offset) {
+            location.start.offset -= 1;
+        }
+    }
+
+    if location.end.offset > 0
+        && location.end.offset < input_len
+        && !input.is_char_boundary(location.end.offset)
+    {
+        while location.end.offset < input_len && !input.is_char_boundary(location.end.offset) {
+            location.end.offset += 1;
+        }
+    }
+
+    // Ensure start <= end
+    if location.absolute_start > location.absolute_end {
+        location.absolute_end = location.absolute_start;
+    }
+    if location.start.offset > location.end.offset {
+        location.end.offset = location.start.offset;
+    }
+}
+
+/// Recursively clamp all locations in an `InlineNode` to valid bounds
+pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
+    match node {
+        InlineNode::PlainText(plain) => clamp_location_bounds(&mut plain.location, input),
+        InlineNode::RawText(raw) => clamp_location_bounds(&mut raw.location, input),
+        InlineNode::VerbatimText(verbatim) => clamp_location_bounds(&mut verbatim.location, input),
+        InlineNode::BoldText(bold) => {
+            clamp_location_bounds(&mut bold.location, input);
+            for child in &mut bold.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::ItalicText(italic) => {
+            clamp_location_bounds(&mut italic.location, input);
+            for child in &mut italic.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::MonospaceText(mono) => {
+            clamp_location_bounds(&mut mono.location, input);
+            for child in &mut mono.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::HighlightText(highlight) => {
+            clamp_location_bounds(&mut highlight.location, input);
+            for child in &mut highlight.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::SubscriptText(sub) => {
+            clamp_location_bounds(&mut sub.location, input);
+            for child in &mut sub.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::SuperscriptText(sup) => {
+            clamp_location_bounds(&mut sup.location, input);
+            for child in &mut sup.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::CurvedQuotationText(cq) => {
+            clamp_location_bounds(&mut cq.location, input);
+            for child in &mut cq.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::CurvedApostropheText(ca) => {
+            clamp_location_bounds(&mut ca.location, input);
+            for child in &mut ca.content {
+                clamp_inline_node_locations(child, input);
+            }
+        }
+        InlineNode::StandaloneCurvedApostrophe(sca) => {
+            clamp_location_bounds(&mut sca.location, input);
+        }
+        InlineNode::LineBreak(lb) => clamp_location_bounds(&mut lb.location, input),
+        InlineNode::InlineAnchor(anchor) => clamp_location_bounds(&mut anchor.location, input),
+        InlineNode::Macro(m) => match m {
+            crate::InlineMacro::Footnote(f) => {
+                clamp_location_bounds(&mut f.location, input);
+                for child in &mut f.content {
+                    clamp_inline_node_locations(child, input);
+                }
+            }
+            crate::InlineMacro::Icon(i) => clamp_location_bounds(&mut i.location, input),
+            crate::InlineMacro::Image(img) => clamp_location_bounds(&mut img.location, input),
+            crate::InlineMacro::Keyboard(k) => clamp_location_bounds(&mut k.location, input),
+            crate::InlineMacro::Button(b) => clamp_location_bounds(&mut b.location, input),
+            crate::InlineMacro::Menu(menu) => clamp_location_bounds(&mut menu.location, input),
+            crate::InlineMacro::Url(u) => clamp_location_bounds(&mut u.location, input),
+            crate::InlineMacro::Link(l) => clamp_location_bounds(&mut l.location, input),
+            crate::InlineMacro::Autolink(a) => clamp_location_bounds(&mut a.location, input),
+            crate::InlineMacro::CrossReference(x) => {
+                clamp_location_bounds(&mut x.location, input);
+            }
+            crate::InlineMacro::Pass(p) => clamp_location_bounds(&mut p.location, input),
+            crate::InlineMacro::Stem(s) => clamp_location_bounds(&mut s.location, input),
+        },
+    }
+}
+
 /// Context for location mapping operations
 pub(crate) struct LocationMappingContext<'a> {
     pub state: &'a ParserState,
@@ -106,6 +248,11 @@ pub(crate) fn create_location_mapper<'a>(
         // Map those through the preprocessor source map back to original source
         let mut mapped_abs_start = processed.source_map.map_position(processed_abs_start)?;
         let mut mapped_abs_end = processed.source_map.map_position(processed_abs_end)?;
+
+        // Clamp to input bounds - preprocessor expansion can produce positions beyond input length
+        let input_len = state.input.len();
+        mapped_abs_start = mapped_abs_start.min(input_len);
+        mapped_abs_end = mapped_abs_end.min(input_len);
 
         // Ensure mapped positions are on valid UTF-8 boundaries
         if mapped_abs_start > 0
