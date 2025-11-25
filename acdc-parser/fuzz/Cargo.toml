@@ -1,0 +1,47 @@
+[package]
+name = "acdc-parser-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.acdc-parser]
+path = ".."
+
+[dependencies.acdc-core]
+path = "../../acdc-core"
+
+[[bin]]
+name = "parser_document"
+path = "fuzz_targets/parser_document.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parser_inline"
+path = "fuzz_targets/parser_inline.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "preprocessor"
+path = "fuzz_targets/preprocessor.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "include_directive"
+path = "fuzz_targets/include_directive.rs"
+test = false
+doc = false
+bench = false
