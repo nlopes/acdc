@@ -16,11 +16,11 @@ fn has_checklist_items(items: &[ListItem]) -> bool {
 /// Cycles through: arabic -> loweralpha -> lowerroman -> upperalpha -> upperroman -> arabic...
 fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
     match depth % 5 {
-        2 => ("loweralpha", Some("a")),     // a, b, c
-        3 => ("lowerroman", Some("i")),     // i, ii, iii
-        4 => ("upperalpha", Some("A")),     // A, B, C
-        0 => ("upperroman", Some("I")),     // I, II, III (depth 5, 10, 15...)
-        _ => ("arabic", None),              // 1, 2, 3 (default type for depth 1, 6, 11...)
+        2 => ("loweralpha", Some("a")), // a, b, c
+        3 => ("lowerroman", Some("i")), // i, ii, iii
+        4 => ("upperalpha", Some("A")), // A, B, C
+        0 => ("upperroman", Some("I")), // I, II, III (depth 5, 10, 15...)
+        _ => ("arabic", None),          // 1, 2, 3 (default type for depth 1, 6, 11...)
     }
 }
 
@@ -217,22 +217,29 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
                 let next_level = inner_item.level;
 
                 writer = visitor.writer_mut();
-                render_checked_status_list(is_ordered, inner_item.checked.as_ref(), depth + 1, writer)?;
+                render_checked_status_list(
+                    is_ordered,
+                    inner_item.checked.as_ref(),
+                    depth + 1,
+                    writer,
+                )?;
                 let _ = writer;
 
                 // Recursively render nested items
                 i += 1;
                 let nested_start = i;
                 // Find all consecutive items at or deeper than next_level
-                while i < items.len()
-                    && items
-                        .get(i)
-                        .is_some_and(|item| item.level >= next_level)
-                {
+                while i < items.len() && items.get(i).is_some_and(|item| item.level >= next_level) {
                     i += 1;
                 }
                 if let Some(inner_items) = items.get(nested_start..i) {
-                    render_nested_list_items(inner_items, visitor, next_level, is_ordered, depth + 1)?;
+                    render_nested_list_items(
+                        inner_items,
+                        visitor,
+                        next_level,
+                        is_ordered,
+                        depth + 1,
+                    )?;
                 }
                 writer = visitor.writer_mut();
                 // Close nested list
