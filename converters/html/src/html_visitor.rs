@@ -252,8 +252,9 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                 self.visit_inline_nodes(subtitle)?;
             }
             writeln!(self.writer, "</h1>")?;
-            writeln!(self.writer, "<div class=\"details\">")?;
+            // Only output details div if there are authors
             if !header.authors.is_empty() {
+                writeln!(self.writer, "<div class=\"details\">")?;
                 for (i, author) in header.authors.iter().enumerate() {
                     write!(
                         self.writer,
@@ -285,8 +286,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                         writeln!(self.writer, "<br>")?;
                     }
                 }
+                writeln!(self.writer, "</div>")?;
             }
-            writeln!(self.writer, "</div>")?;
         }
 
         // Render TOC after header if toc="auto"
