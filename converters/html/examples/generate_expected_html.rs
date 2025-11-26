@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "footnotes",
         "url_macro",
         "basic_image_block",
+        "macros_with_quoted_attributes",
     ];
 
     let input_dir = PathBuf::from("acdc-parser/fixtures/tests");
