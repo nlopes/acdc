@@ -7,10 +7,28 @@ use acdc_parser::{
 
 use crate::Error;
 
+/// Check if any list item has a checkbox
+fn has_checklist_items(items: &[ListItem]) -> bool {
+    items.iter().any(|item| item.checked.is_some())
+}
+
+/// Get the ordered list style for a given nesting depth
+/// Cycles through: arabic -> loweralpha -> lowerroman -> upperalpha -> upperroman -> arabic...
+fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
+    match depth % 5 {
+        2 => ("loweralpha", Some("a")),     // a, b, c
+        3 => ("lowerroman", Some("i")),     // i, ii, iii
+        4 => ("upperalpha", Some("A")),     // A, B, C
+        0 => ("upperroman", Some("I")),     // I, II, III (depth 5, 10, 15...)
+        _ => ("arabic", None),              // 1, 2, 3 (default type for depth 1, 6, 11...)
+    }
+}
+
 pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     list: &UnorderedList,
     visitor: &mut V,
 ) -> Result<(), Error> {
+    let is_checklist = has_checklist_items(&list.items);
     let mut writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor
@@ -19,10 +37,15 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
-    writeln!(writer, " class=\"ulist\">")?;
-    writeln!(writer, "<ul>")?;
+    if is_checklist {
+        writeln!(writer, " class=\"ulist checklist\">")?;
+        writeln!(writer, "<ul class=\"checklist\">")?;
+    } else {
+        writeln!(writer, " class=\"ulist\">")?;
+        writeln!(writer, "<ul>")?;
+    }
     let _ = writer;
-    render_nested_list_items(&list.items, visitor, 1, false)?;
+    render_nested_list_items(&list.items, visitor, 1, false, 1)?;
     writer = visitor.writer_mut();
     writeln!(writer, "</ul>")?;
     writeln!(writer, "</div>")?;
@@ -33,6 +56,7 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
     list: &OrderedList,
     visitor: &mut V,
 ) -> Result<(), Error> {
+    let (style, type_attr) = ordered_list_style(1);
     let mut writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor
@@ -41,10 +65,14 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
-    writeln!(writer, " class=\"olist arabic\">")?;
-    writeln!(writer, "<ol class=\"arabic\">")?;
+    writeln!(writer, " class=\"olist {style}\">")?;
+    if let Some(t) = type_attr {
+        writeln!(writer, "<ol class=\"{style}\" type=\"{t}\">")?;
+    } else {
+        writeln!(writer, "<ol class=\"{style}\">")?;
+    }
     let _ = writer;
-    render_nested_list_items(&list.items, visitor, 1, true)?;
+    render_nested_list_items(&list.items, visitor, 1, true, 1)?;
     writer = visitor.writer_mut();
     writeln!(writer, "</ol>")?;
     writeln!(writer, "</div>")?;
@@ -96,22 +124,29 @@ pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
 fn render_checked_status_list<W: Write + ?Sized>(
     is_ordered: bool,
     checked: Option<&ListItemCheckedStatus>,
+    depth: u8,
     writer: &mut W,
 ) -> Result<(), Error> {
     // Open nested list
     if is_ordered {
-        writeln!(writer, "<div class=\"olist arabic")?;
+        let (style, type_attr) = ordered_list_style(depth);
+        write!(writer, "<div class=\"olist {style}")?;
         if checked.is_some() {
             writeln!(writer, " checklist\">")?;
         } else {
             writeln!(writer, "\">")?;
         }
 
-        write!(writer, "<ol class=\"arabic")?;
+        write!(writer, "<ol class=\"{style}")?;
         if checked.is_some() {
-            writeln!(writer, " checklist\">")?;
+            write!(writer, " checklist\"")?;
         } else {
-            writeln!(writer, "\">")?;
+            write!(writer, "\"")?;
+        }
+        if let Some(t) = type_attr {
+            writeln!(writer, " type=\"{t}\">")?;
+        } else {
+            writeln!(writer, ">")?;
         }
     } else {
         // check if the item is a checkbox item
@@ -132,12 +167,14 @@ fn render_checked_status_list<W: Write + ?Sized>(
 }
 
 /// Render nested list items hierarchically
+/// `depth` tracks the nesting level for ordered list style cycling (1 = top level)
 #[tracing::instrument(skip(visitor))]
 fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
     items: &[ListItem],
     visitor: &mut V,
     expected_level: u8,
     is_ordered: bool,
+    depth: u8,
 ) -> Result<(), Error> {
     let mut i = 0;
     while i < items.len() {
@@ -155,10 +192,11 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             // Render item at current level
             let mut writer = visitor.writer_mut();
             writeln!(writer, "<li>")?;
-            render_checked_status(item.checked.as_ref(), writer)?;
             // Render principal text as bare <p> (if not empty)
-            if !item.principal.is_empty() {
+            // Checkbox goes inside the <p> tag
+            if !item.principal.is_empty() || item.checked.is_some() {
                 write!(writer, "<p>")?;
+                render_checked_status(item.checked.as_ref(), writer)?;
                 let _ = writer;
                 visitor.visit_inline_nodes(&item.principal)?;
                 writer = visitor.writer_mut();
@@ -179,25 +217,22 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
                 let next_level = inner_item.level;
 
                 writer = visitor.writer_mut();
-                render_checked_status_list(is_ordered, inner_item.checked.as_ref(), writer)?;
+                render_checked_status_list(is_ordered, inner_item.checked.as_ref(), depth + 1, writer)?;
                 let _ = writer;
 
                 // Recursively render nested items
                 i += 1;
                 let nested_start = i;
-                while items
-                    .get(i)
-                    .ok_or(Error::IndexOutOfBounds(
-                        "Index out of bounds for inner nested items",
-                        i,
-                    ))?
-                    .level
-                    >= next_level
+                // Find all consecutive items at or deeper than next_level
+                while i < items.len()
+                    && items
+                        .get(i)
+                        .is_some_and(|item| item.level >= next_level)
                 {
                     i += 1;
                 }
                 if let Some(inner_items) = items.get(nested_start..i) {
-                    render_nested_list_items(inner_items, visitor, next_level, is_ordered)?;
+                    render_nested_list_items(inner_items, visitor, next_level, is_ordered, depth + 1)?;
                 }
                 writer = visitor.writer_mut();
                 // Close nested list
@@ -221,9 +256,10 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             // but handle gracefully by treating as same level - render the item inline
             let mut writer = visitor.writer_mut();
             writeln!(writer, "<li>")?;
-            render_checked_status(item.checked.as_ref(), writer)?;
-            if !item.principal.is_empty() {
+            // Checkbox goes inside the <p> tag
+            if !item.principal.is_empty() || item.checked.is_some() {
                 write!(writer, "<p>")?;
+                render_checked_status(item.checked.as_ref(), writer)?;
                 let _ = writer;
                 visitor.visit_inline_nodes(&item.principal)?;
                 writer = visitor.writer_mut();
