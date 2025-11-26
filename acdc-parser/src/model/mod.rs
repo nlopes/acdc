@@ -1196,681 +1196,375 @@ impl Serialize for Paragraph {
     }
 }
 
+// =============================================================================
+// Block Deserialization Infrastructure
+// =============================================================================
+
+/// Raw field collector for Block deserialization.
+/// Uses derived Deserialize to handle JSON field parsing, then dispatches to constructors.
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct RawBlockFields {
+    name: Option<String>,
+    r#type: Option<String>,
+    value: Option<String>,
+    form: Option<String>,
+    target: Option<String>,
+    source: Option<Source>,
+    sources: Option<Vec<Source>>,
+    delimiter: Option<String>,
+    reftext: Option<String>,
+    id: Option<String>,
+    title: Option<Vec<InlineNode>>,
+    anchors: Option<Vec<Anchor>>,
+    level: Option<SectionLevel>,
+    metadata: Option<BlockMetadata>,
+    variant: Option<String>,
+    content: Option<serde_json::Value>,
+    notation: Option<serde_json::Value>,
+    blocks: Option<serde_json::Value>,
+    inlines: Option<Vec<InlineNode>>,
+    marker: Option<String>,
+    items: Option<serde_json::Value>,
+    location: Option<Location>,
+}
+
+/// Helper to parse `Vec<Block>` from `serde_json::Value`
+fn parse_blocks<E: de::Error>(value: Option<serde_json::Value>) -> Result<Vec<Block>, E> {
+    match value {
+        Some(serde_json::Value::Array(arr)) => arr
+            .into_iter()
+            .map(|v| serde_json::from_value(v).map_err(E::custom))
+            .collect(),
+        Some(_) => Err(E::custom("blocks must be an array")),
+        None => Ok(Vec::new()),
+    }
+}
+
+/// Helper to require `Vec<Block>` from `serde_json::Value`
+fn require_blocks<E: de::Error>(value: Option<serde_json::Value>) -> Result<Vec<Block>, E> {
+    match value {
+        Some(serde_json::Value::Array(arr)) => arr
+            .into_iter()
+            .map(|v| serde_json::from_value(v).map_err(E::custom))
+            .collect(),
+        Some(_) => Err(E::custom("blocks must be an array")),
+        None => Err(E::missing_field("blocks")),
+    }
+}
+
+/// Helper to parse `Vec<ListItem>` from `serde_json::Value`
+fn parse_list_items<E: de::Error>(value: Option<serde_json::Value>) -> Result<Vec<ListItem>, E> {
+    match value {
+        Some(serde_json::Value::Array(arr)) => arr
+            .into_iter()
+            .map(|v| serde_json::from_value(v).map_err(E::custom))
+            .collect(),
+        Some(_) => Err(E::custom("items must be an array")),
+        None => Err(E::missing_field("items")),
+    }
+}
+
+/// Helper to parse `Vec<DescriptionListItem>` from `serde_json::Value`
+fn parse_dlist_items<E: de::Error>(
+    value: Option<serde_json::Value>,
+) -> Result<Vec<DescriptionListItem>, E> {
+    match value {
+        Some(serde_json::Value::Array(arr)) => arr
+            .into_iter()
+            .map(|v| serde_json::from_value(v).map_err(E::custom))
+            .collect(),
+        Some(_) => Err(E::custom("items must be an array")),
+        None => Err(E::missing_field("items")),
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Per-variant Block constructors
+// -----------------------------------------------------------------------------
+
+fn construct_section<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    Ok(Block::Section(Section {
+        metadata: raw.metadata.unwrap_or_default(),
+        title: raw.title.unwrap_or_default(),
+        level: raw.level.ok_or_else(|| E::missing_field("level"))?,
+        content: parse_blocks(raw.blocks)?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_paragraph<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    Ok(Block::Paragraph(Paragraph {
+        metadata: raw.metadata.unwrap_or_default(),
+        title: raw.title.unwrap_or_default(),
+        content: raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_image<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
+    if form != "macro" {
+        return Err(E::custom(format!("unexpected form: {form}")));
+    }
+    Ok(Block::Image(Image {
+        title: raw.title.unwrap_or_default(),
+        source: raw.source.ok_or_else(|| E::missing_field("source"))?,
+        metadata: raw.metadata.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_audio<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
+    if form != "macro" {
+        return Err(E::custom(format!("unexpected form: {form}")));
+    }
+    Ok(Block::Audio(Audio {
+        title: raw.title.unwrap_or_default(),
+        source: raw.source.ok_or_else(|| E::missing_field("source"))?,
+        metadata: raw.metadata.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_video<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let sources = if let Some(sources_value) = raw.sources {
+        sources_value
+    } else {
+        // Fallback to simplified format with target
+        let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
+        if form != "macro" {
+            return Err(E::custom(format!("unexpected form: {form}")));
+        }
+        let target = raw.target.ok_or_else(|| E::missing_field("target"))?;
+        let source = Source::from_str(&target).map_err(E::custom)?;
+        vec![source]
+    };
+    Ok(Block::Video(Video {
+        title: raw.title.unwrap_or_default(),
+        sources,
+        metadata: raw.metadata.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_break<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+    match variant.as_str() {
+        "page" => Ok(Block::PageBreak(PageBreak {
+            title: raw.title.unwrap_or_default(),
+            metadata: raw.metadata.unwrap_or_default(),
+            location,
+        })),
+        "thematic" => Ok(Block::ThematicBreak(ThematicBreak {
+            title: raw.title.unwrap_or_default(),
+            anchors: raw.anchors.unwrap_or_default(),
+            location,
+        })),
+        _ => Err(E::custom(format!("unexpected 'break' variant: {variant}"))),
+    }
+}
+
+fn construct_heading<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    Ok(Block::DiscreteHeader(DiscreteHeader {
+        title: raw.title.unwrap_or_default(),
+        level: raw.level.ok_or_else(|| E::missing_field("level"))?,
+        metadata: raw.metadata.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_toc<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    Ok(Block::TableOfContents(TableOfContents {
+        metadata: raw.metadata.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_admonition<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
+    Ok(Block::Admonition(Admonition {
+        metadata: raw.metadata.unwrap_or_default(),
+        variant: AdmonitionVariant::from_str(&variant).map_err(E::custom)?,
+        blocks: require_blocks(raw.blocks)?,
+        title: raw.title.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_dlist<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    Ok(Block::DescriptionList(DescriptionList {
+        title: raw.title.unwrap_or_default(),
+        metadata: raw.metadata.unwrap_or_default(),
+        items: parse_dlist_items(raw.items)?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_list<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+    let title = raw.title.unwrap_or_default();
+    let metadata = raw.metadata.unwrap_or_default();
+    let items = parse_list_items(raw.items)?;
+
+    match variant.as_str() {
+        "unordered" => Ok(Block::UnorderedList(UnorderedList {
+            title,
+            metadata,
+            marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
+            items,
+            location,
+        })),
+        "ordered" => Ok(Block::OrderedList(OrderedList {
+            title,
+            metadata,
+            marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
+            items,
+            location,
+        })),
+        "callout" => Ok(Block::CalloutList(CalloutList {
+            title,
+            metadata,
+            items,
+            location,
+        })),
+        _ => Err(E::custom(format!("unexpected 'list' variant: {variant}"))),
+    }
+}
+
+fn construct_delimited<E: de::Error>(name: &str, raw: RawBlockFields) -> Result<Block, E> {
+    let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
+    if form != "delimited" {
+        return Err(E::custom(format!("unexpected form: {form}")));
+    }
+    let delimiter = raw.delimiter.ok_or_else(|| E::missing_field("delimiter"))?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+    let metadata = raw.metadata.unwrap_or_default();
+    let title = raw.title.unwrap_or_default();
+
+    let inner = match name {
+        "example" => DelimitedBlockType::DelimitedExample(require_blocks(raw.blocks)?),
+        "sidebar" => DelimitedBlockType::DelimitedSidebar(require_blocks(raw.blocks)?),
+        "open" => DelimitedBlockType::DelimitedOpen(require_blocks(raw.blocks)?),
+        "quote" => DelimitedBlockType::DelimitedQuote(require_blocks(raw.blocks)?),
+        "verse" => DelimitedBlockType::DelimitedVerse(
+            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
+        ),
+        "listing" => DelimitedBlockType::DelimitedListing(
+            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
+        ),
+        "literal" => DelimitedBlockType::DelimitedLiteral(
+            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
+        ),
+        "pass" => DelimitedBlockType::DelimitedPass(
+            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
+        ),
+        "stem" => {
+            let serde_json::Value::String(content) =
+                raw.content.ok_or_else(|| E::missing_field("content"))?
+            else {
+                return Err(E::custom("content must be a string"));
+            };
+            let notation = match raw.notation {
+                Some(serde_json::Value::String(n)) => {
+                    StemNotation::from_str(&n).map_err(E::custom)?
+                }
+                Some(
+                    serde_json::Value::Null
+                    | serde_json::Value::Bool(_)
+                    | serde_json::Value::Number(_)
+                    | serde_json::Value::Array(_)
+                    | serde_json::Value::Object(_),
+                )
+                | None => StemNotation::Latexmath,
+            };
+            DelimitedBlockType::DelimitedStem(StemContent { content, notation })
+        }
+        "table" => {
+            let table =
+                serde_json::from_value(raw.content.ok_or_else(|| E::missing_field("content"))?)
+                    .map_err(|e| {
+                        tracing::error!("content must be compatible with `Table` type: {e}");
+                        E::custom("content must be compatible with `Table` type")
+                    })?;
+            DelimitedBlockType::DelimitedTable(table)
+        }
+        _ => return Err(E::custom(format!("unexpected delimited block: {name}"))),
+    };
+
+    Ok(Block::DelimitedBlock(DelimitedBlock {
+        metadata,
+        inner,
+        delimiter,
+        title,
+        location,
+    }))
+}
+
+fn construct_document_attribute<E: de::Error>(name: &str, raw: RawBlockFields) -> Result<Block, E> {
+    let value = if let Some(value) = raw.value {
+        if value.is_empty() {
+            AttributeValue::None
+        } else if value.eq_ignore_ascii_case("true") {
+            AttributeValue::Bool(true)
+        } else if value.eq_ignore_ascii_case("false") {
+            AttributeValue::Bool(false)
+        } else {
+            AttributeValue::String(value)
+        }
+    } else {
+        AttributeValue::None
+    };
+    Ok(Block::DocumentAttribute(DocumentAttribute {
+        name: name.to_string(),
+        value,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+/// Dispatch to the appropriate Block constructor based on name/type
+fn dispatch_block<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    // Take ownership of name/type for dispatch, avoiding borrow issues
+    let name = raw.name.clone().ok_or_else(|| E::missing_field("name"))?;
+    let ty = raw.r#type.clone().ok_or_else(|| E::missing_field("type"))?;
+
+    match (name.as_str(), ty.as_str()) {
+        ("section", "block") => construct_section(raw),
+        ("paragraph", "block") => construct_paragraph(raw),
+        ("image", "block") => construct_image(raw),
+        ("audio", "block") => construct_audio(raw),
+        ("video", "block") => construct_video(raw),
+        ("break", "block") => construct_break(raw),
+        ("heading", "block") => construct_heading(raw),
+        ("toc", "block") => construct_toc(raw),
+        ("admonition", "block") => construct_admonition(raw),
+        ("dlist", "block") => construct_dlist(raw),
+        ("list", "block") => construct_list(raw),
+        // Delimited blocks
+        (
+            "example" | "sidebar" | "open" | "quote" | "verse" | "listing" | "literal" | "pass"
+            | "stem" | "table",
+            "block",
+        ) => construct_delimited(&name, raw),
+        // Document attribute (type != "block")
+        (_, "attribute") => construct_document_attribute(&name, raw),
+        _ => Err(E::custom(format!(
+            "unexpected name/type combination: {name}/{ty}"
+        ))),
+    }
+}
+
 impl<'de> Deserialize<'de> for Block {
-    #[allow(clippy::too_many_lines)]
     fn deserialize<D>(deserializer: D) -> Result<Block, D::Error>
     where
         D: Deserializer<'de>,
     {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = Block;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<Block, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_name = None;
-                let mut my_type = None;
-                let mut my_value: Option<String> = None;
-                let mut my_id = None;
-                let mut my_title = None;
-                let mut my_level = None;
-                let mut my_metadata = None;
-                let mut my_location = None;
-                let mut my_ref_text = None;
-                let mut my_form = None;
-                let mut my_target = None;
-                let mut my_source = None;
-                let mut my_sources = None;
-                let mut my_variant = None;
-                let mut my_anchors = None;
-                let mut my_marker = None;
-                let mut my_blocks = None;
-                let mut my_items = None;
-                let mut my_inlines = None;
-                let mut my_content: Option<serde_json::Value> = None;
-                let mut my_notation: Option<serde_json::Value> = None;
-                let mut my_delimiter = None;
-
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "type" => {
-                            if my_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            my_type = Some(map.next_value::<String>()?);
-                        }
-                        "value" => {
-                            if my_value.is_some() {
-                                return Err(de::Error::duplicate_field("value"));
-                            }
-                            my_value = Some(map.next_value::<String>()?);
-                        }
-                        "form" => {
-                            if my_form.is_some() {
-                                return Err(de::Error::duplicate_field("form"));
-                            }
-                            my_form = Some(map.next_value::<String>()?);
-                        }
-                        "target" => {
-                            if my_target.is_some() {
-                                return Err(de::Error::duplicate_field("target"));
-                            }
-                            my_target = Some(map.next_value::<String>()?);
-                        }
-                        "source" => {
-                            if my_source.is_some() {
-                                return Err(de::Error::duplicate_field("source"));
-                            }
-                            my_source = Some(map.next_value::<Source>()?);
-                        }
-                        "sources" => {
-                            if my_sources.is_some() {
-                                return Err(de::Error::duplicate_field("sources"));
-                            }
-                            my_sources = Some(map.next_value::<Vec<Source>>()?);
-                        }
-                        "delimiter" => {
-                            if my_delimiter.is_some() {
-                                return Err(de::Error::duplicate_field("delimiter"));
-                            }
-                            my_delimiter = Some(map.next_value::<String>()?);
-                        }
-                        "reftext" => {
-                            if my_ref_text.is_some() {
-                                return Err(de::Error::duplicate_field("reftext"));
-                            }
-                            my_ref_text = Some(map.next_value::<String>()?);
-                        }
-                        "id" => {
-                            if my_id.is_some() {
-                                return Err(de::Error::duplicate_field("id"));
-                            }
-                            my_id = Some(map.next_value::<String>()?);
-                        }
-                        "title" => {
-                            if my_title.is_some() {
-                                return Err(de::Error::duplicate_field("title"));
-                            }
-                            my_title = Some(map.next_value()?);
-                        }
-                        "anchors" => {
-                            if my_anchors.is_some() {
-                                return Err(de::Error::duplicate_field("anchors"));
-                            }
-                            my_anchors = Some(map.next_value()?);
-                        }
-                        "level" => {
-                            if my_level.is_some() {
-                                return Err(de::Error::duplicate_field("level"));
-                            }
-                            my_level = Some(map.next_value::<SectionLevel>()?);
-                        }
-                        "metadata" => {
-                            if my_metadata.is_some() {
-                                return Err(de::Error::duplicate_field("metadata"));
-                            }
-                            my_metadata = Some(map.next_value()?);
-                        }
-                        "variant" => {
-                            if my_variant.is_some() {
-                                return Err(de::Error::duplicate_field("variant"));
-                            }
-                            my_variant = Some(map.next_value::<String>()?);
-                        }
-                        "content" => {
-                            if my_content.is_some() {
-                                return Err(de::Error::duplicate_field("content"));
-                            }
-                            my_content = Some(map.next_value()?);
-                        }
-                        "notation" => {
-                            if my_notation.is_some() {
-                                return Err(de::Error::duplicate_field("notation"));
-                            }
-                            my_notation = Some(map.next_value()?);
-                        }
-                        "blocks" => {
-                            if my_blocks.is_some() {
-                                return Err(de::Error::duplicate_field("blocks"));
-                            }
-                            my_blocks = Some(map.next_value()?);
-                        }
-                        "inlines" => {
-                            if my_inlines.is_some() {
-                                return Err(de::Error::duplicate_field("inlines"));
-                            }
-                            my_inlines = Some(map.next_value()?);
-                        }
-                        "marker" => {
-                            if my_marker.is_some() {
-                                return Err(de::Error::duplicate_field("marker"));
-                            }
-                            my_marker = Some(map.next_value::<String>()?);
-                        }
-                        "items" => {
-                            if my_items.is_some() {
-                                return Err(de::Error::duplicate_field("items"));
-                            }
-                            my_items = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_title = my_title.unwrap_or_else(Vec::new);
-                let my_anchors = my_anchors.unwrap_or_else(Vec::new);
-                let my_metadata = my_metadata.unwrap_or_else(BlockMetadata::default);
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-
-                match (my_name.as_str(), my_type.as_str()) {
-                    ("section", "block") => {
-                        let my_level = my_level.ok_or_else(|| de::Error::missing_field("level"))?;
-                        let my_blocks = if let Some(blocks) = my_blocks {
-                            #[allow(clippy::wildcard_enum_match_arm)]
-                            match blocks {
-                                serde_json::Value::Array(blocks) => blocks
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("blocks must be an array")),
-                            }
-                        } else {
-                            // blocks can be empty
-                            Vec::new()
-                        };
-                        Ok(Block::Section(Section {
-                            metadata: my_metadata,
-                            title: my_title,
-                            level: my_level,
-                            content: my_blocks,
-                            location: my_location,
-                        }))
-                    }
-                    ("paragraph", "block") => {
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        Ok(Block::Paragraph(Paragraph {
-                            metadata: my_metadata,
-                            title: my_title,
-                            content: my_inlines,
-                            location: my_location,
-                        }))
-                    }
-                    ("image", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "macro" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let source = my_source.ok_or_else(|| de::Error::missing_field("source"))?;
-                        Ok(Block::Image(Image {
-                            title: my_title,
-                            source,
-                            metadata: my_metadata,
-                            location: my_location,
-                        }))
-                    }
-                    ("audio", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "macro" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let source = my_source.ok_or_else(|| de::Error::missing_field("source"))?;
-                        Ok(Block::Audio(Audio {
-                            title: my_title,
-                            source,
-                            metadata: my_metadata,
-                            location: my_location,
-                        }))
-                    }
-                    ("video", "block") => {
-                        // Handle both simplified format with "target" and full format with "sources"
-                        let sources = if let Some(sources_value) = my_sources {
-                            sources_value
-                        } else {
-                            // Fallback to simplified format with target
-                            let my_form =
-                                my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                            if my_form != "macro" {
-                                return Err(de::Error::custom(format!(
-                                    "unexpected form: {my_form}"
-                                )));
-                            }
-                            let target =
-                                my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                            let source = Source::from_str(&target).map_err(de::Error::custom)?;
-                            vec![source]
-                        };
-                        Ok(Block::Video(Video {
-                            title: my_title,
-                            sources,
-                            metadata: my_metadata,
-                            location: my_location,
-                        }))
-                    }
-                    ("break", "block") => {
-                        let my_variant =
-                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        match my_variant.as_str() {
-                            "page" => Ok(Block::PageBreak(PageBreak {
-                                title: my_title,
-                                metadata: my_metadata,
-                                location: my_location,
-                            })),
-                            "thematic" => Ok(Block::ThematicBreak(ThematicBreak {
-                                title: my_title,
-                                anchors: my_anchors,
-                                location: my_location,
-                            })),
-                            _ => Err(de::Error::custom(format!(
-                                "unexpected 'break' variant: {my_variant}",
-                            ))),
-                        }
-                    }
-                    ("heading", "block") => Ok(Block::DiscreteHeader(DiscreteHeader {
-                        title: my_title,
-                        level: my_level.ok_or_else(|| de::Error::missing_field("level"))?,
-                        metadata: my_metadata,
-                        location: my_location,
-                    })),
-                    ("example", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        let my_blocks =
-                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("blocks must be an array")),
-                            };
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedExample(my_blocks),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("sidebar", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        let my_blocks =
-                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("blocks must be an array")),
-                            };
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedSidebar(my_blocks),
-                            delimiter: my_delimiter,
-                            title: my_title,
-                            location: my_location,
-                        }))
-                    }
-                    ("open", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        let my_blocks =
-                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("blocks must be an array")),
-                            };
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedOpen(my_blocks),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("quote", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        let my_blocks =
-                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("blocks must be an array")),
-                            };
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedQuote(my_blocks),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("verse", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedVerse(my_inlines),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("listing", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedListing(my_inlines),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("literal", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedLiteral(my_inlines),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("pass", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedPass(my_inlines),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("stem", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        let serde_json::Value::String(content) =
-                            my_content.ok_or_else(|| de::Error::missing_field("content"))?
-                        else {
-                            return Err(de::Error::custom("content must be a string"));
-                        };
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        let notation = match my_notation {
-                            Some(serde_json::Value::String(n)) => {
-                                StemNotation::from_str(&n).map_err(de::Error::custom)?
-                            }
-                            _ => StemNotation::Latexmath, // Default
-                        };
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner: DelimitedBlockType::DelimitedStem(StemContent {
-                                content,
-                                notation,
-                            }),
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("table", "block") => {
-                        let my_form = my_form.ok_or_else(|| de::Error::missing_field("form"))?;
-                        if my_form != "delimited" {
-                            return Err(de::Error::custom(format!("unexpected form: {my_form}")));
-                        }
-                        let my_delimiter =
-                            my_delimiter.ok_or_else(|| de::Error::missing_field("delimiter"))?;
-                        let inner = DelimitedBlockType::DelimitedTable(
-                            serde_json::from_value(
-                                my_content.ok_or_else(|| de::Error::missing_field("content"))?,
-                            )
-                            .map_err(|_| {
-                                tracing::error!("content must be compatible with `Table` type");
-                                de::Error::custom("content must be compatible with `Table` type")
-                            })?,
-                        );
-                        Ok(Block::DelimitedBlock(DelimitedBlock {
-                            metadata: my_metadata,
-                            inner,
-                            title: my_title,
-                            delimiter: my_delimiter,
-                            location: my_location,
-                        }))
-                    }
-                    ("dlist", "block") => {
-                        let _my_marker = my_marker.unwrap_or_else(String::new); // TODO: what is this marker?
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        Ok(Block::DescriptionList(DescriptionList {
-                            title: my_title,
-                            metadata: my_metadata,
-                            items: match my_items
-                                .ok_or_else(|| de::Error::missing_field("items"))?
-                            {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<DescriptionListItem>, _>>()?,
-                                _ => return Err(de::Error::custom("items must be an array")),
-                            },
-                            location: my_location,
-                        }))
-                    }
-                    ("list", "block") => {
-                        let my_variant =
-                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        match my_variant.as_str() {
-                            "unordered" => {
-                                let my_marker =
-                                    my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
-                                #[allow(clippy::wildcard_enum_match_arm)]
-                                Ok(Block::UnorderedList(UnorderedList {
-                                    title: my_title,
-                                    metadata: my_metadata,
-                                    marker: my_marker,
-                                    items: match my_items
-                                        .ok_or_else(|| de::Error::missing_field("items"))?
-                                    {
-                                        serde_json::Value::Array(a) => a
-                                            .into_iter()
-                                            .map(|v| {
-                                                serde_json::from_value(v).map_err(de::Error::custom)
-                                            })
-                                            .collect::<Result<Vec<ListItem>, _>>()?,
-                                        _ => {
-                                            return Err(de::Error::custom(
-                                                "items must be an array",
-                                            ));
-                                        }
-                                    },
-                                    location: my_location,
-                                }))
-                            }
-                            "ordered" => {
-                                let my_marker =
-                                    my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
-                                #[allow(clippy::wildcard_enum_match_arm)]
-                                Ok(Block::OrderedList(OrderedList {
-                                    title: my_title,
-                                    metadata: my_metadata,
-                                    marker: my_marker,
-                                    items: match my_items
-                                        .ok_or_else(|| de::Error::missing_field("items"))?
-                                    {
-                                        serde_json::Value::Array(a) => a
-                                            .into_iter()
-                                            .map(|v| {
-                                                serde_json::from_value(v).map_err(de::Error::custom)
-                                            })
-                                            .collect::<Result<Vec<ListItem>, _>>()?,
-                                        _ => {
-                                            return Err(de::Error::custom(
-                                                "items must be an array",
-                                            ));
-                                        }
-                                    },
-                                    location: my_location,
-                                }))
-                            }
-                            "callout" =>
-                            {
-                                #[allow(clippy::wildcard_enum_match_arm)]
-                                Ok(Block::CalloutList(CalloutList {
-                                    title: my_title,
-                                    metadata: my_metadata,
-                                    items: match my_items
-                                        .ok_or_else(|| de::Error::missing_field("items"))?
-                                    {
-                                        serde_json::Value::Array(a) => a
-                                            .into_iter()
-                                            .map(|v| {
-                                                serde_json::from_value(v).map_err(de::Error::custom)
-                                            })
-                                            .collect::<Result<Vec<ListItem>, _>>()?,
-                                        _ => {
-                                            return Err(de::Error::custom(
-                                                "items must be an array",
-                                            ));
-                                        }
-                                    },
-                                    location: my_location,
-                                }))
-                            }
-                            _ => Err(de::Error::custom(format!(
-                                "unexpected 'list' variant: {my_variant}",
-                            ))),
-                        }
-                    }
-                    ("admonition", "block") => {
-                        let my_variant =
-                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        #[allow(clippy::wildcard_enum_match_arm)]
-                        let my_blocks =
-                            match my_blocks.ok_or_else(|| de::Error::missing_field("blocks"))? {
-                                serde_json::Value::Array(a) => a
-                                    .into_iter()
-                                    .map(|v| serde_json::from_value(v).map_err(de::Error::custom))
-                                    .collect::<Result<Vec<Block>, _>>()?,
-                                _ => return Err(de::Error::custom("blocks must be an array")),
-                            };
-                        Ok(Block::Admonition(Admonition {
-                            metadata: my_metadata,
-                            variant: AdmonitionVariant::from_str(my_variant.as_str())
-                                .map_err(de::Error::custom)?,
-                            blocks: my_blocks,
-                            title: my_title,
-                            location: my_location,
-                        }))
-                    }
-                    ("toc", "block") => Ok(Block::TableOfContents(TableOfContents {
-                        metadata: my_metadata,
-                        location: my_location,
-                    })),
-                    // Document attribute is not something that currently the TCK
-                    // supports. I've added it because I believe it should be there. Where
-                    // in the document an attribute appears has implications on its scope.
-                    (name, "attribute") => Ok(Block::DocumentAttribute(DocumentAttribute {
-                        name: name.to_string(),
-                        value: if let Some(value) = my_value {
-                            if value.is_empty() {
-                                AttributeValue::None
-                            } else if value.eq_ignore_ascii_case("true") {
-                                AttributeValue::Bool(true)
-                            } else if value.eq_ignore_ascii_case("false") {
-                                AttributeValue::Bool(false)
-                            } else {
-                                AttributeValue::String(value.clone())
-                            }
-                        } else {
-                            AttributeValue::None
-                        },
-                        location: my_location,
-                    })),
-                    _ => Err(de::Error::custom(format!(
-                        "unexpected name/type combination: {my_name}/{my_type}",
-                    ))),
-                }
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
+        // Deserialize into RawBlockFields using derived Deserialize, then dispatch
+        let raw: RawBlockFields = RawBlockFields::deserialize(deserializer)?;
+        dispatch_block(raw)
     }
 }
 

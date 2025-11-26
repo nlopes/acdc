@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use serde::{
     Deserialize, Serialize,
-    de::{self, Deserializer, MapAccess, Visitor},
+    de::{self, Deserializer},
     ser::{Error as _, SerializeMap, Serializer},
 };
 
@@ -258,425 +260,302 @@ where
     Ok(())
 }
 
+// =============================================================================
+// InlineNode Deserialization Infrastructure
+// =============================================================================
+
+/// Raw field collector for `InlineNode` deserialization.
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct RawInlineFields {
+    name: Option<String>,
+    r#type: Option<String>,
+    value: Option<String>,
+    variant: Option<String>,
+    form: Option<Form>,
+    location: Option<crate::Location>,
+    inlines: Option<Vec<InlineNode>>,
+    title: Option<Vec<InlineNode>>,
+    target: Option<serde_json::Value>,
+    attributes: Option<ElementAttributes>,
+    role: Option<String>,
+    id: Option<String>,
+    text: Option<String>,
+    items: Option<Vec<String>>,
+    keys: Option<Vec<String>>,
+    label: Option<String>,
+    content: Option<String>,
+    notation: Option<StemNotation>,
+    substitutions: Option<HashSet<crate::Substitution>>,
+}
+
+// -----------------------------------------------------------------------------
+// Per-variant InlineNode constructors
+// -----------------------------------------------------------------------------
+
+fn construct_plain_text<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::PlainText(Plain {
+        content: raw.value.ok_or_else(|| E::missing_field("value"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_raw_text<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::RawText(Raw {
+        content: raw.value.ok_or_else(|| E::missing_field("value"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_verbatim_text<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::VerbatimText(Verbatim {
+        content: raw.value.ok_or_else(|| E::missing_field("value"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_standalone_curved_apostrophe<E: de::Error>(
+    raw: RawInlineFields,
+) -> Result<InlineNode, E> {
+    Ok(InlineNode::StandaloneCurvedApostrophe(
+        StandaloneCurvedApostrophe {
+            location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+        },
+    ))
+}
+
+fn construct_line_break<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::LineBreak(LineBreak {
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_anchor<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::InlineAnchor(Anchor {
+        id: raw.id.ok_or_else(|| E::missing_field("id"))?,
+        xreflabel: None,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
+fn construct_icon<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let target_val = raw.target.ok_or_else(|| E::missing_field("target"))?;
+    let target: Source = serde_json::from_value(target_val).map_err(E::custom)?;
+    Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
+        attributes: raw.attributes.unwrap_or_default(),
+        target,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_image<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let title = raw.title.ok_or_else(|| E::missing_field("title"))?;
+    let target_val = raw.target.ok_or_else(|| E::missing_field("target"))?;
+    let source: Source = serde_json::from_value(target_val).map_err(E::custom)?;
+    Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
+        title,
+        source,
+        metadata: BlockMetadata::default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))))
+}
+
+fn construct_footnote<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let inlines = raw.inlines.ok_or_else(|| E::missing_field("inlines"))?;
+    Ok(InlineNode::Macro(InlineMacro::Footnote(Footnote {
+        id: raw.id,
+        content: inlines,
+        number: 0,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_keyboard<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
+        keys: raw.keys.ok_or_else(|| E::missing_field("keys"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_button<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::Macro(InlineMacro::Button(Button {
+        label: raw.label.ok_or_else(|| E::missing_field("label"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_menu<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let target_val = raw.target.ok_or_else(|| E::missing_field("target"))?;
+    let target: String = serde_json::from_value(target_val).map_err(E::custom)?;
+    Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
+        target,
+        items: raw.items.unwrap_or_default(),
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_stem<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    Ok(InlineNode::Macro(InlineMacro::Stem(Stem {
+        content: raw.content.ok_or_else(|| E::missing_field("content"))?,
+        notation: raw.notation.ok_or_else(|| E::missing_field("notation"))?,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_xref<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let target_val = raw.target.ok_or_else(|| E::missing_field("target"))?;
+    let target: String = serde_json::from_value(target_val).map_err(E::custom)?;
+    Ok(InlineNode::Macro(InlineMacro::CrossReference(
+        crate::model::CrossReference {
+            target,
+            text: raw.text,
+            location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+        },
+    )))
+}
+
+fn construct_ref<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
+    let target_val = raw.target.ok_or_else(|| E::missing_field("target"))?;
+    let target: Source = serde_json::from_value(target_val).map_err(E::custom)?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+
+    match variant.as_str() {
+        "url" => Ok(InlineNode::Macro(InlineMacro::Url(Url {
+            text: vec![],
+            attributes: raw.attributes.unwrap_or_default(),
+            target,
+            location,
+        }))),
+        "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
+            text: None,
+            attributes: raw.attributes.unwrap_or_default(),
+            target,
+            location,
+        }))),
+        "autolink" => Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
+            url: target,
+            location,
+        }))),
+        "pass" => Ok(InlineNode::Macro(InlineMacro::Pass(Pass {
+            text: raw.text,
+            substitutions: raw.substitutions.unwrap_or_default(),
+            location,
+            kind: PassthroughKind::default(),
+        }))),
+        _ => {
+            tracing::error!(variant = %variant, "invalid inline macro variant");
+            Err(E::custom("invalid inline macro variant"))
+        }
+    }
+}
+
+fn construct_span<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
+    let inlines = raw.inlines.ok_or_else(|| E::missing_field("inlines"))?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+    let role = raw.role;
+    let id = raw.id;
+
+    match variant.as_str() {
+        "strong" => Ok(InlineNode::BoldText(Bold {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Constrained),
+            content: inlines,
+            location,
+        })),
+        "emphasis" => Ok(InlineNode::ItalicText(Italic {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Constrained),
+            content: inlines,
+            location,
+        })),
+        "code" => Ok(InlineNode::MonospaceText(Monospace {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Constrained),
+            content: inlines,
+            location,
+        })),
+        "mark" => Ok(InlineNode::HighlightText(Highlight {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Constrained),
+            content: inlines,
+            location,
+        })),
+        "subscript" => Ok(InlineNode::SubscriptText(Subscript {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Unconstrained),
+            content: inlines,
+            location,
+        })),
+        "superscript" => Ok(InlineNode::SuperscriptText(Superscript {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Unconstrained),
+            content: inlines,
+            location,
+        })),
+        "curved_quotation" => Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Unconstrained),
+            content: inlines,
+            location,
+        })),
+        "curved_apostrophe" => Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
+            role,
+            id,
+            form: raw.form.unwrap_or(Form::Unconstrained),
+            content: inlines,
+            location,
+        })),
+        _ => {
+            tracing::error!(variant = %variant, "invalid inline node variant");
+            Err(E::custom("invalid inline node variant"))
+        }
+    }
+}
+
+/// Dispatch to the appropriate `InlineNode` constructor based on name/type
+fn dispatch_inline<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let name = raw.name.clone().ok_or_else(|| E::missing_field("name"))?;
+    let ty = raw.r#type.clone().ok_or_else(|| E::missing_field("type"))?;
+
+    match (name.as_str(), ty.as_str()) {
+        ("text", "string") => construct_plain_text(raw),
+        ("raw", "string") => construct_raw_text(raw),
+        ("verbatim", "string") => construct_verbatim_text(raw),
+        ("curved_apostrophe", "string") => construct_standalone_curved_apostrophe(raw),
+        ("break", "inline") => construct_line_break(raw),
+        ("anchor", "inline") => construct_anchor(raw),
+        ("icon", "inline") => construct_icon(raw),
+        ("image", "inline") => construct_image(raw),
+        ("footnote", "inline") => construct_footnote(raw),
+        ("keyboard", "inline") => construct_keyboard(raw),
+        ("btn" | "button", "inline") => construct_button(raw),
+        ("menu", "inline") => construct_menu(raw),
+        ("stem", "inline") => construct_stem(raw),
+        ("xref", "inline") => construct_xref(raw),
+        ("ref", "inline") => construct_ref(raw),
+        ("span", "inline") => construct_span(raw),
+        _ => {
+            tracing::error!(name = %name, r#type = %ty, "invalid inline node");
+            Err(E::custom("invalid inline node"))
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for InlineNode {
-    #[allow(clippy::too_many_lines)]
     fn deserialize<D>(deserializer: D) -> Result<InlineNode, D::Error>
     where
         D: Deserializer<'de>,
     {
-        struct MyStructVisitor;
-
-        impl<'de> Visitor<'de> for MyStructVisitor {
-            type Value = InlineNode;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing MyStruct")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<InlineNode, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_name = None;
-                let mut my_type = None;
-                let mut my_value = None;
-                let mut my_variant = None;
-                let mut my_form = None;
-                let mut my_location = None;
-                let mut my_inlines = None;
-                let mut my_title = None;
-                let mut my_target = None;
-                let mut my_attributes = None;
-                let mut my_role = None;
-                let mut my_id = None;
-                let mut my_text = None;
-                let mut my_items = None;
-                let mut my_keys = None;
-                let mut my_label = None;
-                let mut my_content = None;
-                let mut my_notation = None;
-                let mut my_substitutions = None;
-
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "name" => {
-                            if my_name.is_some() {
-                                return Err(de::Error::duplicate_field("name"));
-                            }
-                            my_name = Some(map.next_value::<String>()?);
-                        }
-                        "type" => {
-                            if my_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            my_type = Some(map.next_value::<String>()?);
-                        }
-                        "value" => {
-                            if my_value.is_some() {
-                                return Err(de::Error::duplicate_field("value"));
-                            }
-                            my_value = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        "variant" => {
-                            if my_variant.is_some() {
-                                return Err(de::Error::duplicate_field("variant"));
-                            }
-                            my_variant = Some(map.next_value::<String>()?);
-                        }
-                        "title" => {
-                            if my_title.is_some() {
-                                return Err(de::Error::duplicate_field("title"));
-                            }
-                            my_title = Some(map.next_value::<Vec<InlineNode>>()?);
-                        }
-                        "target" => {
-                            if my_target.is_some() {
-                                return Err(de::Error::duplicate_field("target"));
-                            }
-                            my_target = Some(map.next_value::<serde_json::Value>()?);
-                        }
-                        "form" => {
-                            if my_form.is_some() {
-                                return Err(de::Error::duplicate_field("form"));
-                            }
-                            my_form = Some(map.next_value::<Form>()?);
-                        }
-                        "inlines" => {
-                            if my_inlines.is_some() {
-                                return Err(de::Error::duplicate_field("inlines"));
-                            }
-                            my_inlines = Some(map.next_value::<Vec<InlineNode>>()?);
-                        }
-                        "attributes" => {
-                            if my_attributes.is_some() {
-                                return Err(de::Error::duplicate_field("attributes"));
-                            }
-                            my_attributes = Some(map.next_value::<ElementAttributes>()?);
-                        }
-                        "role" => {
-                            if my_role.is_some() {
-                                return Err(de::Error::duplicate_field("role"));
-                            }
-                            my_role = Some(map.next_value::<Option<String>>()?);
-                        }
-                        "id" => {
-                            if my_id.is_some() {
-                                return Err(de::Error::duplicate_field("id"));
-                            }
-                            my_id = Some(map.next_value::<Option<String>>()?);
-                        }
-                        "text" => {
-                            if my_text.is_some() {
-                                return Err(de::Error::duplicate_field("text"));
-                            }
-                            my_text = Some(map.next_value::<String>()?);
-                        }
-                        "items" => {
-                            if my_items.is_some() {
-                                return Err(de::Error::duplicate_field("items"));
-                            }
-                            my_items = Some(map.next_value::<Vec<String>>()?);
-                        }
-                        "keys" => {
-                            if my_keys.is_some() {
-                                return Err(de::Error::duplicate_field("keys"));
-                            }
-                            my_keys = Some(map.next_value::<Vec<String>>()?);
-                        }
-                        "label" => {
-                            if my_label.is_some() {
-                                return Err(de::Error::duplicate_field("label"));
-                            }
-                            my_label = Some(map.next_value::<String>()?);
-                        }
-                        "content" => {
-                            if my_content.is_some() {
-                                return Err(de::Error::duplicate_field("content"));
-                            }
-                            my_content = Some(map.next_value::<String>()?);
-                        }
-                        "notation" => {
-                            if my_notation.is_some() {
-                                return Err(de::Error::duplicate_field("notation"));
-                            }
-                            my_notation = Some(map.next_value::<StemNotation>()?);
-                        }
-                        "substitutions" => {
-                            if my_substitutions.is_some() {
-                                return Err(de::Error::duplicate_field("substitutions"));
-                            }
-                            my_substitutions = Some(map.next_value()?);
-                        }
-                        _ => {
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                let my_name = my_name.ok_or_else(|| de::Error::missing_field("name"))?;
-                let my_type = my_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                let my_location =
-                    my_location.ok_or_else(|| de::Error::missing_field("location"))?;
-
-                match (my_name.as_str(), my_type.as_str()) {
-                    ("text", "string") => {
-                        let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
-
-                        Ok(InlineNode::PlainText(Plain {
-                            content: my_value,
-                            location: my_location,
-                        }))
-                    }
-                    ("raw", "string") => {
-                        let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
-
-                        Ok(InlineNode::RawText(Raw {
-                            content: my_value,
-                            location: my_location,
-                        }))
-                    }
-                    ("verbatim", "string") => {
-                        let my_value = my_value.ok_or_else(|| de::Error::missing_field("value"))?;
-
-                        Ok(InlineNode::VerbatimText(Verbatim {
-                            content: my_value,
-                            location: my_location,
-                        }))
-                    }
-                    ("curved_apostrophe", "string") => Ok(InlineNode::StandaloneCurvedApostrophe(
-                        StandaloneCurvedApostrophe {
-                            location: my_location,
-                        },
-                    )),
-                    ("break", "inline") => Ok(InlineNode::LineBreak(LineBreak {
-                        location: my_location,
-                    })),
-                    ("anchor", "inline") => {
-                        let id = my_id.ok_or_else(|| de::Error::missing_field("id"))?;
-                        Ok(InlineNode::InlineAnchor(Anchor {
-                            id: id.ok_or_else(|| de::Error::custom("anchor id cannot be null"))?,
-                            xreflabel: None, // xreflabel can be added later if needed
-                            location: my_location,
-                        }))
-                    }
-                    ("icon", "inline") => {
-                        let my_target =
-                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let target: Source =
-                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
-                        Ok(InlineNode::Macro(InlineMacro::Icon(Icon {
-                            attributes: my_attributes.unwrap_or_default(),
-                            target,
-                            location: my_location,
-                        })))
-                    }
-                    ("image", "inline") => {
-                        let my_title = my_title.ok_or_else(|| de::Error::missing_field("title"))?;
-                        let my_target =
-                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let source: Source =
-                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
-                        Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {
-                            title: my_title,
-                            source,
-                            metadata: BlockMetadata::default(),
-                            location: my_location,
-                        }))))
-                    }
-                    ("footnote", "inline") => {
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        Ok(InlineNode::Macro(InlineMacro::Footnote(Footnote {
-                            id: my_id.flatten(),
-                            content: my_inlines,
-                            // TODO(nlopes): This will be set by the footnote
-                            // tracker during parsing - should serialize and
-                            // deserialize it too?
-                            number: 0,
-                            location: my_location,
-                        })))
-                    }
-                    ("keyboard", "inline") => {
-                        let keys = my_keys.ok_or_else(|| de::Error::missing_field("keys"))?;
-                        Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
-                            keys,
-                            location: my_location,
-                        })))
-                    }
-                    ("btn" | "button", "inline") => {
-                        let label = my_label.ok_or_else(|| de::Error::missing_field("label"))?;
-
-                        Ok(InlineNode::Macro(InlineMacro::Button(Button {
-                            label,
-                            location: my_location,
-                        })))
-                    }
-                    ("menu", "inline") => {
-                        let my_target =
-                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let target: String =
-                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
-
-                        Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
-                            target,
-                            items: my_items.unwrap_or_default(),
-                            location: my_location,
-                        })))
-                    }
-                    ("stem", "inline") => {
-                        let content =
-                            my_content.ok_or_else(|| de::Error::missing_field("content"))?;
-                        let notation =
-                            my_notation.ok_or_else(|| de::Error::missing_field("notation"))?;
-
-                        Ok(InlineNode::Macro(InlineMacro::Stem(Stem {
-                            content,
-                            notation,
-                            location: my_location,
-                        })))
-                    }
-                    ("xref", "inline") => {
-                        let my_target =
-                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let target: String =
-                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
-                        Ok(InlineNode::Macro(InlineMacro::CrossReference(
-                            crate::model::CrossReference {
-                                target,
-                                text: my_text,
-                                location: my_location,
-                            },
-                        )))
-                    }
-                    ("ref", "inline") => {
-                        let my_variant =
-                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        let my_target =
-                            my_target.ok_or_else(|| de::Error::missing_field("target"))?;
-                        let target: Source =
-                            serde_json::from_value(my_target).map_err(de::Error::custom)?;
-                        // TODO(nlopes): need to deserialize the attributes (of which the first positional attribute is the text)!
-                        //
-                        // Also need to handle the other inline macros!
-                        //
-                        //
-                        match my_variant.as_str() {
-                            "url" => Ok(InlineNode::Macro(InlineMacro::Url(Url {
-                                text: vec![],
-                                attributes: my_attributes.unwrap_or_default(),
-                                target,
-                                location: my_location,
-                            }))),
-                            "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
-                                text: None,
-                                attributes: my_attributes.unwrap_or_default(),
-                                target,
-                                location: my_location,
-                            }))),
-
-                            "autolink" => Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
-                                url: target,
-                                location: my_location,
-                            }))),
-                            "pass" => Ok(InlineNode::Macro(InlineMacro::Pass(Pass {
-                                text: my_text,
-                                substitutions: my_substitutions.unwrap_or_default(),
-                                location: my_location,
-                                kind: PassthroughKind::default(),
-                            }))),
-                            _ => {
-                                tracing::error!(variant = %my_variant, "invalid inline macro variant");
-                                Err(de::Error::custom("invalid inline macro variant"))
-                            }
-                        }
-                    }
-                    ("span", "inline") => {
-                        let my_variant =
-                            my_variant.ok_or_else(|| de::Error::missing_field("variant"))?;
-                        let my_inlines =
-                            my_inlines.ok_or_else(|| de::Error::missing_field("inlines"))?;
-                        match my_variant.as_str() {
-                            "strong" => Ok(InlineNode::BoldText(Bold {
-                                role: my_role.flatten(),
-                                id: my_id.flatten(),
-                                form: my_form.unwrap_or(Form::Constrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "emphasis" => Ok(InlineNode::ItalicText(Italic {
-                                role: my_role.flatten(),
-                                id: my_id.flatten(),
-                                form: my_form.unwrap_or(Form::Constrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "code" => Ok(InlineNode::MonospaceText(Monospace {
-                                role: my_role.flatten(),
-                                id: my_id.flatten(),
-                                form: my_form.unwrap_or(Form::Constrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "mark" => Ok(InlineNode::HighlightText(Highlight {
-                                role: my_role.flatten(),
-                                id: my_id.flatten(),
-                                form: my_form.unwrap_or(Form::Constrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "subscript" => Ok(InlineNode::SubscriptText(Subscript {
-                                role: my_role.flatten(),
-                                id: my_id.flatten(),
-                                form: my_form.unwrap_or(Form::Unconstrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "superscript" => Ok(InlineNode::SuperscriptText(Superscript {
-                                role: my_role.flatten(),
-                                id: my_id.flatten(),
-                                form: my_form.unwrap_or(Form::Unconstrained),
-                                content: my_inlines,
-                                location: my_location,
-                            })),
-                            "curved_quotation" => {
-                                Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
-                                    role: my_role.flatten(),
-                                    id: my_id.flatten(),
-                                    form: my_form.unwrap_or(Form::Unconstrained),
-                                    content: my_inlines,
-                                    location: my_location,
-                                }))
-                            }
-                            "curved_apostrophe" => {
-                                Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
-                                    role: my_role.flatten(),
-                                    id: my_id.flatten(),
-                                    form: my_form.unwrap_or(Form::Unconstrained),
-                                    content: my_inlines,
-                                    location: my_location,
-                                }))
-                            }
-                            _ => {
-                                tracing::error!(variant = %my_variant, "invalid inline node variant");
-                                Err(de::Error::custom("invalid inline node variant"))
-                            }
-                        }
-                    }
-                    _ => {
-                        tracing::error!(name = %my_name, r#type = %my_type, "invalid inline node");
-                        Err(de::Error::custom("invalid inline node"))
-                    }
-                }
-            }
-        }
-
-        deserializer.deserialize_map(MyStructVisitor)
+        let raw: RawInlineFields = RawInlineFields::deserialize(deserializer)?;
+        dispatch_inline(raw)
     }
 }
