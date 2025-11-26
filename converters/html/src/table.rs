@@ -4,24 +4,32 @@ use acdc_parser::{AttributeValue, Block, BlockMetadata, InlineNode, Table};
 use crate::{Error, Processor, RenderOptions};
 
 /// Render cell content with support for nested blocks
+/// `wrap_paragraph` controls whether paragraphs get <p class="tableblock"> wrappers.
+/// Headers should NOT have wrappers, body cells should have them.
 fn render_cell_content<V>(
     blocks: &[Block],
     visitor: &mut V,
     _processor: &Processor,
     _options: &RenderOptions,
+    wrap_paragraph: bool,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<Error = Error>,
 {
     for block in blocks {
-        // For paragraphs in table cells, use <p class="tableblock"> instead of the default paragraph rendering
+        // For paragraphs in table cells, use <p class="tableblock"> for body cells only
         if let Block::Paragraph(para) = block {
-            let writer = visitor.writer_mut();
-            write!(writer, "<p class=\"tableblock\">")?;
-            let _ = writer;
-            visitor.visit_inline_nodes(&para.content)?;
-            let writer = visitor.writer_mut();
-            write!(writer, "</p>")?;
+            if wrap_paragraph {
+                let writer = visitor.writer_mut();
+                write!(writer, "<p class=\"tableblock\">")?;
+                let _ = writer;
+                visitor.visit_inline_nodes(&para.content)?;
+                let writer = visitor.writer_mut();
+                write!(writer, "</p>")?;
+            } else {
+                // Header cells: output content directly without <p> wrapper
+                visitor.visit_inline_nodes(&para.content)?;
+            }
         } else {
             // For other block types, use visitor
             visitor.visit_block(block)?;
@@ -126,7 +134,7 @@ where
             let writer = visitor.writer_mut();
             write!(writer, "<th class=\"tableblock halign-left valign-top\">")?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options)?;
+            render_cell_content(&cell.content, visitor, processor, options, false)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</th>")?;
         }
@@ -147,7 +155,7 @@ where
             let writer = visitor.writer_mut();
             write!(writer, "<td class=\"tableblock halign-left valign-top\">")?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options)?;
+            render_cell_content(&cell.content, visitor, processor, options, true)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</td>")?;
         }
@@ -167,7 +175,7 @@ where
             let writer = visitor.writer_mut();
             write!(writer, "<td class=\"tableblock halign-left valign-top\">")?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options)?;
+            render_cell_content(&cell.content, visitor, processor, options, true)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</td>")?;
         }
