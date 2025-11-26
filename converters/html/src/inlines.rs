@@ -239,7 +239,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             if options.inlines_basic {
                 write!(w, "{content}")?;
             } else {
-                write!(w, "<a href=\"{content}\">{content}</a>")?;
+                write!(w, "<a href=\"{content}\" class=\"bare\">{content}</a>")?;
             }
         }
         InlineMacro::Link(l) => {
