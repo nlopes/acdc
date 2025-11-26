@@ -71,6 +71,23 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             }
             writer = visitor.writer_mut();
             writeln!(writer, "</blockquote>")?;
+
+            // Extract author and cite from positional attributes
+            // [quote, author, cite] -> positional_attributes[0] = author, [1] = cite
+            let author = block.metadata.positional_attributes.first();
+            let cite = block.metadata.positional_attributes.get(1);
+
+            if author.is_some() || cite.is_some() {
+                writeln!(writer, "<div class=\"attribution\">")?;
+                if let Some(author) = author {
+                    writeln!(writer, "&#8212; {author}<br>")?;
+                }
+                if let Some(cite) = cite {
+                    writeln!(writer, "<cite>{cite}</cite>")?;
+                }
+                writeln!(writer, "</div>")?;
+            }
+
             writeln!(writer, "</div>")?;
         }
         DelimitedBlockType::DelimitedOpen(blocks) => {
@@ -252,21 +269,22 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             visitor.visit_inline_nodes(inlines)?;
             w = visitor.writer_mut();
             writeln!(w, "</pre>")?;
-            writeln!(w, "<div class=\"attribution\">")?;
 
             // Extract author and cite from positional attributes
             // [verse, author, cite] -> positional_attributes[0] = author, [1] = cite
             let author = metadata.positional_attributes.first();
             let cite = metadata.positional_attributes.get(1);
 
-            if let Some(author) = author {
-                writeln!(w, "&#8212; {author}<br>")?;
+            if author.is_some() || cite.is_some() {
+                writeln!(w, "<div class=\"attribution\">")?;
+                if let Some(author) = author {
+                    writeln!(w, "&#8212; {author}<br>")?;
+                }
+                if let Some(cite) = cite {
+                    writeln!(w, "<cite>{cite}</cite>")?;
+                }
+                writeln!(w, "</div>")?;
             }
-            if let Some(cite) = cite {
-                writeln!(w, "<cite>{cite}</cite>")?;
-            }
-
-            writeln!(w, "</div>")?;
             writeln!(w, "</div>")?;
         }
         DelimitedBlockType::DelimitedQuote(_)
