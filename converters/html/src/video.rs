@@ -108,7 +108,7 @@ fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(),
         write!(w, " autoplay")?;
     }
 
-    if !video.metadata.options.iter().any(|o| o == "muted") {
+    if video.metadata.options.iter().any(|o| o == "muted") {
         write!(w, " muted")?;
     }
 
