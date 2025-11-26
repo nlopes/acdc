@@ -344,10 +344,22 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 } else {
                     write!(w, "<a href=\"#{}\">{text}</a>", xref.target)?;
                 }
-            } else if options.inlines_basic {
-                write!(w, "[{}]", xref.target)?;
             } else {
-                write!(w, "<a href=\"#{}\">[{}]</a>", xref.target, xref.target)?;
+                // Look up section title from toc_entries
+                let display_text = processor
+                    .toc_entries()
+                    .iter()
+                    .find(|entry| entry.id == xref.target)
+                    .map_or_else(
+                        || format!("[{}]", xref.target),
+                        |entry| inlines_to_string(&entry.title),
+                    );
+
+                if options.inlines_basic {
+                    write!(w, "{display_text}")?;
+                } else {
+                    write!(w, "<a href=\"#{}\">{display_text}</a>", xref.target)?;
+                }
             }
         }
         InlineMacro::Stem(s) => match s.notation {
