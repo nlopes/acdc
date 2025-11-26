@@ -1,21 +1,148 @@
-# acdc
+= acdc - AsciiDoc Compiler & Converter
 
-This is a collection of tools to handle `AsciiDoc` documents.
+Fast, correct AsciiDoc parser and converter written in Rust using PEG grammar.
 
-For architecture and design decisions, see `link:./ARCHITECTURE.adoc[ARCHITECTURE.adoc]`.
+For architecture and design decisions, see link:./ARCHITECTURE.adoc[ARCHITECTURE.adoc].
 
-Developers will probably want to look at `link:./acdc-parser[acdc-parser]`.
+== Quick start
 
-Users will likely want to look at `link:./acdc-cli[acdc-cli]`.
+[source,bash]
+----
+# Parse and convert AsciiDoc to HTML
+cargo run -- convert document.adoc
 
-## Tooling
+# View the parsed AST structure
+cargo run --features inspect -- inspect document.adoc
 
-- `link:./acdc-cli[acdc-cli]` - `AsciiDoc` processor
-- `link:./acdc-parser[acdc-parser]` - `AsciiDoc` parser library
-- `link:./converters[converters]` - collection of `AsciiDoc` converters
+# Run the test suite
+cargo nextest run
 
-## Validating AST against harness
+# Check TCK compliance
+cargo run --features tck -- tck
+----
 
-```shell
+== Project structure
+
+----
+acdc/
+├── acdc-cli/                 # Command-line interface
+│   └── src/
+│       └── main.rs          # CLI entry point
+├── acdc-parser/             # Core parser and AST
+│   ├── src/
+│   │   ├── grammar/         # PEG grammar definitions
+│   │   ├── model/           # AST data structures
+│   │   ├── preprocessor/    # Include and conditional handling
+│   │   └── proptests/       # Property-based testing
+│   └── fixtures/            # Test fixtures
+└── converters/              # Output converters
+    ├── html/               # HTML5 converter
+    ├── terminal/           # Rich terminal output
+    └── common/             # Shared converter utilities
+----
+
+== Tooling
+
+* link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)
+* link:./acdc-parser[acdc-parser] - AsciiDoc parser library
+* link:./converters[converters] - collection of AsciiDoc converters
+
+== Architecture overview
+
+=== Parser design
+
+* **PEG-based**: Uses the `peg` crate for grammar definition
+* **Two-pass inline processing**: First identifies boundaries, then parses content
+* **Fail-fast**: Stops on first error (by design)
+* **Preprocessor**: Handles includes and conditionals before parsing
+
+=== Testing strategy
+
+1. **Fixture tests**: Compare against known good outputs
+2. **Property tests**: Verify invariants hold for any input (proptest)
+3. **TCK tests**: Check specification compliance
+4. **Integration tests**: End-to-end conversion testing
+
+== Known limitations
+
+NOTE: As of 2025/11/26.
+
+[cols="1,2"]
+|===
+|Feature |Status
+
+|Multiple list continuations
+|Single `+` works; multiple `+` per item not yet supported
+
+|List separators
+|`//` and `[]` separators don't force separate lists
+
+|Table spanning
+|Row/column spanning not implemented
+
+|Inline markup in code/links
+|Bold/italic inside code spans and link text not parsed
+|===
+
+== Building & testing
+
+[source,bash]
+----
+# Build all crates
+cargo build --all
+
+# Run tests with detailed output
+RUST_LOG=error cargo nextest run --no-fail-fast
+
+# Run clippy with pedantic lints
+cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+
+# Run property-based tests
+PROPTEST_CASES=1000 cargo test --package acdc-parser --lib proptests
+----
+
+=== Validating AST against TCK harness
+
+[source,shell]
+----
 node harness/bin/asciidoc-tck.js cli -c '../../personal/acdc/target/debug/acdc tck'
-```
+----
+
+== Development workflow
+
+=== Run tests
+
+[source,bash]
+----
+# Quick test
+RUST_LOG=error cargo nextest run --no-fail-fast
+----
+
+=== Debug parser issues
+
+[source,bash]
+----
+# Enable trace logging for grammar module
+RUST_LOG=acdc_parser::grammar::document=trace cargo run -- convert file.adoc
+----
+
+=== Compare with reference implementation
+
+[source,bash]
+----
+# asciidoctor is our reference
+asciidoctor -o file.asciidoctor.html file.adoc
+cargo run -- convert file.adoc
+diff -u file.asciidoctor.html file.html
+----
+
+== Contributing
+
+1. Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)
+2. Run the full test suite before committing
+
+== Acknowledgments
+
+* https://asciidoctor.org[asciidoctor] - Reference implementation
+* https://docs.asciidoctor.org/asciidoc/latest/[AsciiDoc documentation]
+* https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads[Language Specification]
