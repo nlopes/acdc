@@ -956,20 +956,97 @@ peg::parser! {
                 "|".to_string()
             };
 
-            let ncols = if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
-                // Parse cols attribute, handling both "1,2,3" and "3*" notation
-                let count: usize = cols.split(',').map(|s| {
-                    let s = s.trim().trim_matches('"');
-                    // Check for "N*" notation (e.g., "3*" means 3 columns)
-                    if let Some(stripped) = s.strip_suffix('*') {
-                        stripped.parse::<usize>().unwrap_or(1)
+            let (ncols, column_formats) = if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
+                // Parse cols attribute
+                // Full syntax: [multiplier*][halign][valign][width][style]
+                // Examples: "3*", "^.>2a", "2*>.^1m", "<,^,>", "15%,30%,55%"
+                let mut specs = Vec::new();
+
+                for part in cols.split(',') {
+                    let s = part.trim().trim_matches('"');
+
+                    // Check for "N*" notation (e.g., "3*" means 3 columns with same spec)
+                    let (multiplier, spec_str) = if let Some(pos) = s.find('*') {
+                        let mult_str = &s[..pos];
+                        let mult = mult_str.parse::<usize>().unwrap_or(1);
+                        (mult, &s[pos + 1..])
                     } else {
-                        1
+                        (1, s)
+                    };
+
+                    let mut halign = crate::HorizontalAlignment::default();
+                    let mut valign = crate::VerticalAlignment::default();
+                    let mut width = crate::ColumnWidth::default();
+                    let mut style = crate::ColumnStyle::default();
+
+                    // Parse style (last character if it's a letter: a, d, e, h, l, m, s)
+                    let spec_str = if let Some(last_char) = spec_str.chars().last() {
+                        match last_char {
+                            'a' => { style = crate::ColumnStyle::AsciiDoc; &spec_str[..spec_str.len()-1] }
+                            'd' => { style = crate::ColumnStyle::Default; &spec_str[..spec_str.len()-1] }
+                            'e' => { style = crate::ColumnStyle::Emphasis; &spec_str[..spec_str.len()-1] }
+                            'h' => { style = crate::ColumnStyle::Header; &spec_str[..spec_str.len()-1] }
+                            'l' => { style = crate::ColumnStyle::Literal; &spec_str[..spec_str.len()-1] }
+                            'm' => { style = crate::ColumnStyle::Monospace; &spec_str[..spec_str.len()-1] }
+                            's' => { style = crate::ColumnStyle::Strong; &spec_str[..spec_str.len()-1] }
+                            _ => spec_str
+                        }
+                    } else {
+                        spec_str
+                    };
+
+                    // Parse vertical alignment markers: .<, .^, .>
+                    if spec_str.contains(".<") {
+                        valign = crate::VerticalAlignment::Top;
+                    } else if spec_str.contains(".^") {
+                        valign = crate::VerticalAlignment::Middle;
+                    } else if spec_str.contains(".>") {
+                        valign = crate::VerticalAlignment::Bottom;
                     }
-                }).sum();
-                Some(count)
+
+                    // Parse horizontal alignment markers: <, ^, > (not preceded by .)
+                    for (i, c) in spec_str.char_indices() {
+                        let prev_char = if i > 0 { spec_str.chars().nth(i - 1) } else { None };
+                        if prev_char == Some('.') {
+                            continue; // This is a vertical alignment marker
+                        }
+                        match c {
+                            '<' => halign = crate::HorizontalAlignment::Left,
+                            '^' => halign = crate::HorizontalAlignment::Center,
+                            '>' => halign = crate::HorizontalAlignment::Right,
+                            _ => {}
+                        }
+                    }
+
+                    // Parse width: integer (proportional), percentage, or ~ (auto)
+                    // The ~ (tilde) for auto-width was added in Asciidoctor 1.5.7
+                    // See: https://github.com/asciidoctor/asciidoctor/issues/1844
+                    // Remove alignment markers to find the width
+                    let width_str: String = spec_str.chars()
+                        .filter(|c| !matches!(c, '<' | '^' | '>' | '.'))
+                        .collect();
+                    if !width_str.is_empty() {
+                        if width_str == "~" {
+                            width = crate::ColumnWidth::Auto;
+                        } else if width_str.ends_with('%') {
+                            if let Ok(pct) = width_str.trim_end_matches('%').parse::<u32>() {
+                                width = crate::ColumnWidth::Percentage(pct);
+                            }
+                        } else if let Ok(prop) = width_str.parse::<u32>() {
+                            width = crate::ColumnWidth::Proportional(prop);
+                        }
+                    }
+
+                    // Add the spec for each column in the multiplier (including defaults)
+                    let spec = crate::ColumnFormat { halign, valign, width, style };
+                    for _ in 0..multiplier {
+                        specs.push(spec.clone());
+                    }
+                }
+
+                (Some(specs.len()), specs)
             } else {
-                None
+                (None, Vec::new())
             };
 
             // Set this to true if the user mandates it!
@@ -1036,6 +1113,7 @@ peg::parser! {
                 header,
                 footer,
                 rows,
+                columns: column_formats,
                 location: table_location.clone(),
             };
 

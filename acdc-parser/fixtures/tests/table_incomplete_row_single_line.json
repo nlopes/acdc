@@ -485,6 +485,23 @@
             ]
           }
         ],
+        "columns": [
+          {
+            "width": {
+              "percentage": 34
+            }
+          },
+          {
+            "width": {
+              "percentage": 36
+            }
+          },
+          {
+            "width": {
+              "percentage": 31
+            }
+          }
+        ],
         "location": [
           {
             "line": 4,

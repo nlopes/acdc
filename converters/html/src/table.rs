@@ -1,7 +1,33 @@
 use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
-use acdc_parser::{AttributeValue, Block, BlockMetadata, InlineNode, Table};
+use acdc_parser::{
+    AttributeValue, Block, BlockMetadata, ColumnFormat, HorizontalAlignment, InlineNode, Table,
+    VerticalAlignment,
+};
 
 use crate::{Error, Processor, RenderOptions};
+
+/// Convert horizontal alignment to CSS class name
+fn halign_class(halign: HorizontalAlignment) -> &'static str {
+    match halign {
+        HorizontalAlignment::Left => "halign-left",
+        HorizontalAlignment::Center => "halign-center",
+        HorizontalAlignment::Right => "halign-right",
+    }
+}
+
+/// Convert vertical alignment to CSS class name
+fn valign_class(valign: VerticalAlignment) -> &'static str {
+    match valign {
+        VerticalAlignment::Top => "valign-top",
+        VerticalAlignment::Middle => "valign-middle",
+        VerticalAlignment::Bottom => "valign-bottom",
+    }
+}
+
+/// Get column format for a given column index, defaulting to left/top if not specified
+fn get_column_format(columns: &[ColumnFormat], col_index: usize) -> ColumnFormat {
+    columns.get(col_index).cloned().unwrap_or_default()
+}
 
 /// Render cell content with support for nested blocks
 /// `wrap_paragraph` controls whether paragraphs get <p class="tableblock"> wrappers.
@@ -130,9 +156,12 @@ where
         writeln!(writer, "<thead>")?;
         writeln!(writer, "<tr>")?;
         let _ = writer;
-        for cell in &header.columns {
+        for (col_index, cell) in header.columns.iter().enumerate() {
+            let spec = get_column_format(&table.columns, col_index);
+            let halign = halign_class(spec.halign);
+            let valign = valign_class(spec.valign);
             let writer = visitor.writer_mut();
-            write!(writer, "<th class=\"tableblock halign-left valign-top\">")?;
+            write!(writer, "<th class=\"tableblock {halign} {valign}\">")?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, false)?;
             let writer = visitor.writer_mut();
@@ -151,9 +180,12 @@ where
         let writer = visitor.writer_mut();
         writeln!(writer, "<tr>")?;
         let _ = writer;
-        for cell in &row.columns {
+        for (col_index, cell) in row.columns.iter().enumerate() {
+            let spec = get_column_format(&table.columns, col_index);
+            let halign = halign_class(spec.halign);
+            let valign = valign_class(spec.valign);
             let writer = visitor.writer_mut();
-            write!(writer, "<td class=\"tableblock halign-left valign-top\">")?;
+            write!(writer, "<td class=\"tableblock {halign} {valign}\">")?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, true)?;
             let writer = visitor.writer_mut();
@@ -171,9 +203,12 @@ where
         writeln!(writer, "<tfoot>")?;
         writeln!(writer, "<tr>")?;
         let _ = writer;
-        for cell in &footer.columns {
+        for (col_index, cell) in footer.columns.iter().enumerate() {
+            let spec = get_column_format(&table.columns, col_index);
+            let halign = halign_class(spec.halign);
+            let valign = valign_class(spec.valign);
             let writer = visitor.writer_mut();
-            write!(writer, "<td class=\"tableblock halign-left valign-top\">")?;
+            write!(writer, "<td class=\"tableblock {halign} {valign}\">")?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, true)?;
             let writer = visitor.writer_mut();

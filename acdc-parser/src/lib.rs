@@ -50,15 +50,16 @@ use preprocessor::Preprocessor;
 pub use error::{Error, Positioning, SourceLocation};
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
-    Block, BlockMetadata, Bold, Button, CalloutList, CrossReference, CurvedApostrophe,
-    CurvedQuotation, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem,
-    DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote,
-    Form, Header, Highlight, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak,
-    Link, ListItem, ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak,
-    Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source,
-    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
-    Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, TocEntry,
-    UnorderedList, Url, Verbatim, Video, inlines_to_string,
+    Block, BlockMetadata, Bold, Button, CalloutList, ColumnFormat, ColumnStyle, ColumnWidth,
+    CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
+    DocumentAttributes, ElementAttributes, Footnote, Form, Header, Highlight, HorizontalAlignment,
+    Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
+    ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass,
+    PassthroughKind, Plain, Position, Raw, Role, Section, Source, StandaloneCurvedApostrophe, Stem,
+    StemContent, StemNotation, Subscript, Substitution, Superscript, Table, TableColumn,
+    TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url, Verbatim,
+    VerticalAlignment, Video, inlines_to_string,
 };
 pub use options::{Options, OptionsBuilder};
 

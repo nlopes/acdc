@@ -186,6 +186,7 @@ mod tests {
                     },
                 ],
             }),
+            columns: Vec::new(),
             location: Location::default(),
         };
 
@@ -228,6 +229,7 @@ mod tests {
                 }],
             }],
             footer: None,
+            columns: Vec::new(),
             location: Location::default(),
         };
 

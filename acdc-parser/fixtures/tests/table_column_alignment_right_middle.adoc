@@ -1,0 +1,8 @@
+= Table Column Alignment Right Middle
+
+[cols=">.^1,2"]
+|===
+| Right+Middle | Default
+
+| A | B
+|===

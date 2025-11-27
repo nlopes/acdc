@@ -1,0 +1,8 @@
+= Table Column Alignment Multiplier
+
+[cols="2*.^"]
+|===
+| Middle1 | Middle2
+
+| A | B
+|===
