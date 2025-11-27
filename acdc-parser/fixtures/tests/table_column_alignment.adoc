@@ -1,0 +1,8 @@
+= Table Column Alignment
+
+[cols="<,^,>"]
+|===
+| Left | Center | Right
+
+| A | B | C
+|===

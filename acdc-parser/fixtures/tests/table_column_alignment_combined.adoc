@@ -1,0 +1,8 @@
+= Table Column Alignment Combined
+
+[cols="^.>2,1"]
+|===
+| Center+Bottom | Default
+
+| A | B
+|===
