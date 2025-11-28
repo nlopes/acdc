@@ -72,10 +72,30 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             writer = visitor.writer_mut();
             writeln!(writer, "</blockquote>")?;
 
-            // Extract author and cite from positional attributes
-            // [quote, author, cite] -> positional_attributes[0] = author, [1] = cite
-            let author = block.metadata.positional_attributes.first();
-            let cite = block.metadata.positional_attributes.get(1);
+            // Extract author and cite from named attributes.
+            //
+            // Parser extracts [quote, attribution(author), citation] into "attribution"
+            // and "citation" attributes
+            let author = block
+                .metadata
+                .attributes
+                .get("attribution")
+                .and_then(|v| match v {
+                    AttributeValue::String(s) => Some(s.as_str()),
+                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
+                        None
+                    }
+                });
+            let cite = block
+                .metadata
+                .attributes
+                .get("citation")
+                .and_then(|v| match v {
+                    AttributeValue::String(s) => Some(s.as_str()),
+                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
+                        None
+                    }
+                });
 
             if author.is_some() || cite.is_some() {
                 writeln!(writer, "<div class=\"attribution\">")?;
@@ -270,18 +290,31 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             w = visitor.writer_mut();
             writeln!(w, "</pre>")?;
 
-            // Extract author and cite from positional attributes
-            // [verse, author, cite] -> positional_attributes[0] = author, [1] = cite
-            let author = metadata.positional_attributes.first();
-            let cite = metadata.positional_attributes.get(1);
+            // Extract author and cite from named attributes
+            //
+            // Parser extracts [verse, attribution(author), citation] into "attribution"
+            // and "citation" attributes
+            let author = metadata
+                .attributes
+                .get("attribution")
+                .and_then(|v| match v {
+                    AttributeValue::String(s) => Some(s.as_str()),
+                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
+                        None
+                    }
+                });
+            let citation = metadata.attributes.get("citation").and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_str()),
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+            });
 
-            if author.is_some() || cite.is_some() {
+            if author.is_some() || citation.is_some() {
                 writeln!(w, "<div class=\"attribution\">")?;
                 if let Some(author) = author {
                     writeln!(w, "&#8212; {author}<br>")?;
                 }
-                if let Some(cite) = cite {
-                    writeln!(w, "<cite>{cite}</cite>")?;
+                if let Some(citation) = citation {
+                    writeln!(w, "<cite>{citation}</cite>")?;
                 }
                 writeln!(w, "</div>")?;
             }

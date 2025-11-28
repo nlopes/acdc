@@ -1184,6 +1184,18 @@ peg::parser! {
         {
             check_delimiters(open_delim, close_delim, "quote", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
+            // Extract quote/verse attribution from positional attributes
+            //
+            // [quote, attribution(author), citation] or
+            // [verse, attribution(author), citation]
+            if metadata.positional_attributes.len() >= 2 {
+                metadata.attributes.insert("citation".into(),
+                    AttributeValue::String(metadata.positional_attributes.remove(1).trim().to_string()));
+            }
+            if !metadata.positional_attributes.is_empty() {
+                metadata.attributes.insert("attribution".into(),
+                    AttributeValue::String(metadata.positional_attributes.remove(0).trim().to_string()));
+            }
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
