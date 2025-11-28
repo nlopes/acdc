@@ -1,0 +1,56 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "attributes": {
+          "attribution": "Carl Sandburg",
+          "citation": "Fog"
+        },
+        "style": "verse"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The fog comes\non little cat feet.\n\nIt sits looking\nover harbor and city\non silent haunches\nand then moves on.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 4
+    }
+  ]
+}
