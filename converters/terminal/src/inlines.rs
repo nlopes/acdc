@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_common::{substitutions::strip_backslash_escapes, visitor::WritableVisitor};
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
@@ -34,12 +34,15 @@ fn render_inline_node_to_writer<W: Write>(
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
-            write!(w, "{}", p.content)?;
+            // Strip backslash escapes (e.g., \^ -> ^) for plain text
+            let text = strip_backslash_escapes(&p.content);
+            write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
             write!(w, "{}", r.content)?;
         }
         InlineNode::VerbatimText(v) => {
+            // Verbatim text preserves backslashes
             write!(w, "{}", v.content)?;
         }
         InlineNode::ItalicText(i) => {
@@ -122,8 +125,10 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
 ) -> Result<(), crate::Error> {
     match node {
         InlineNode::PlainText(p) => {
+            // Strip backslash escapes (e.g., \^ -> ^) for plain text
+            let text = strip_backslash_escapes(&p.content);
             let w = visitor.writer_mut();
-            write!(w, "{}", p.content)?;
+            write!(w, "{text}")?;
         }
         InlineNode::ItalicText(i) => {
             let text = render_inline_nodes_to_string(&i.content, processor)?;

@@ -44,7 +44,7 @@
 
 use std::io::{self, Write};
 
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_common::{substitutions::strip_backslash_escapes, visitor::WritableVisitor};
 use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string};
 
 use crate::{
@@ -431,29 +431,6 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
         }
     }
     Ok(())
-}
-
-/// Remove backslash escapes from `AsciiDoc` formatting characters.
-/// `\*` → `*`, `\_` → `_`, `\\` → `\`, etc.
-fn strip_backslash_escapes(text: &str) -> String {
-    let mut result = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '\\'
-            && let Some(&next) = chars.peek()
-            && matches!(next, '*' | '_' | '`' | '#' | '^' | '~' | '\\' | '[' | ']')
-        {
-            // Skip the backslash, output the next character
-            // We just verified peek() returned Some, so next() is safe
-            if let Some(escaped) = chars.next() {
-                result.push(escaped);
-                continue;
-            }
-        }
-        result.push(c);
-    }
-    result
 }
 
 fn substitution_text(text: &str, options: &RenderOptions) -> String {

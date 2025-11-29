@@ -2914,10 +2914,10 @@ peg::parser! {
         end:position!()
         {
             tracing::info!(?content, "Found plain text inline");
-            // Strip backslash escapes for ^ and ~
-            let content = content.replace("\\^", "^").replace("\\~", "~");
+            // Note: Backslash escape stripping (e.g., \^ -> ^) is handled by the converter,
+            // not here, so that verbatim contexts (like monospace) preserve backslashes.
             InlineNode::PlainText(Plain {
-                content,
+                content: content.to_string(),
                 location: state.create_block_location(start_pos, end, offset),
             })
         }

@@ -2,6 +2,7 @@ use acdc_core::{Doctype, SafeMode};
 use acdc_parser::{AttributeValue, DocumentAttributes};
 
 pub mod code;
+pub mod substitutions;
 pub mod toc;
 pub mod video;
 

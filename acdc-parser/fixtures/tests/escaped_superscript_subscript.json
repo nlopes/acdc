@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped caret ^not superscript^ and real ",
+          "value": "Escaped caret \\^not superscript^ and real ",
           "location": [
             {
               "line": 1,
@@ -88,7 +88,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped tilde ~not subscript~ and real ",
+          "value": "Escaped tilde \\~not subscript~ and real ",
           "location": [
             {
               "line": 3,
@@ -167,7 +167,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Mixed: H~2~O and E=mc^2^ vs H",
+          "value": "Mixed: H\\~2~O and E=mc\\^2^ vs H",
           "location": [
             {
               "line": 5,
