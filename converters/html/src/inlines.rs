@@ -438,23 +438,30 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
         return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
     }
 
-    // Escape HTML special characters that are dangerous (<, >, &)
-    // and apply typography transformations (ellipsis, smart quotes)
-    let text = text
-        .replace('&', "&amp;")
-        .replace('>', "&gt;")
-        .replace('<', "&lt;")
-        .replace("...", "&#8230;&#8203;")
-        .replace('\'', "&#8217;"); // Convert straight apostrophe to curly (smart quote)
+    // Escape & first (before arrow replacements that produce & entities)
+    let text = text.replace('&', "&amp;");
 
-    // Apply additional text transformations only when not in basic or verbatim mode
-    if options.inlines_basic || options.inlines_verbatim {
+    // Apply arrow and dash substitutions before escaping < and >
+    // (arrow patterns contain these characters)
+    let text = if options.inlines_basic || options.inlines_verbatim {
         text
     } else {
         text.replace(" -- ", "&thinsp;&mdash;&thinsp;")
             .replace(" --", "&thinsp;&mdash;")
             .replace("-- ", "&mdash;&thinsp;")
-    }
+            // Arrow replacements (double arrows first to avoid partial matches)
+            .replace("=>", "&#8658;") // ⇒ rightwards double arrow
+            .replace("<=", "&#8656;") // ⇐ leftwards double arrow
+            .replace("->", "&#8594;") // → rightwards arrow
+            .replace("<-", "&#8592;") // ← leftwards arrow
+    };
+
+    // Now escape remaining < and > (after arrow patterns have been replaced)
+    // and apply typography transformations (ellipsis, smart quotes)
+    text.replace('>', "&gt;")
+        .replace('<', "&lt;")
+        .replace("...", "&#8230;&#8203;")
+        .replace('\'', "&#8217;")
 }
 
 fn mark_callouts(text: &str) -> String {
