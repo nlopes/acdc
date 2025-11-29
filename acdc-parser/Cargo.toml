@@ -22,8 +22,8 @@ url = "2.5"
 criterion = { version = "0.7", features = ["html_reports"] }
 pretty_assertions.workspace = true
 proptest = "1.9"
-rstest = "0.26"
-tracing-test = "0.2"
+rstest.workspace = true
+tracing-test.workspace = true
 
 [[bench]]
 name = "parser_bench"

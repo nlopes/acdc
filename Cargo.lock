@@ -49,9 +49,12 @@ dependencies = [
  "acdc-core",
  "acdc-parser",
  "chrono",
+ "crossterm",
  "pretty_assertions",
+ "rstest",
  "thiserror 2.0.17",
  "tracing",
+ "tracing-test",
 ]
 
 [[package]]

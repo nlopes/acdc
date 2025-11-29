@@ -1,0 +1,9 @@
+= Arrow Replacements Test
+
+The arrow -> points right.
+
+The arrow <- points left.
+
+The double arrow => implies.
+
+The double arrow <= is implied by.

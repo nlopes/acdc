@@ -17,26 +17,10 @@ use std::path::PathBuf;
 use acdc_converters_common::{Options, Processable};
 use acdc_html::{Processor, RenderOptions};
 use acdc_parser::Options as ParserOptions;
+use crossterm::style::{PrintStyledContent, Stylize};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Comprehensive list of fixtures that cover all structural elements
-    let fixtures = vec![
-        "document",
-        "nested_sections",
-        "ordered_list",
-        "unordered_list",
-        "description_list_mixed_content",
-        "table_multi_cell_per_line",
-        "delimited_block",
-        "quote_block_with_paragraphs",
-        "admonition_block",
-        "footnotes",
-        "url_macro",
-        "basic_image_block",
-        "macros_with_quoted_attributes",
-    ];
-
-    let input_dir = PathBuf::from("acdc-parser/fixtures/tests");
+    let input_dir = PathBuf::from("converters/html/tests/fixtures/source");
     let output_dir = PathBuf::from("converters/html/tests/fixtures/expected");
 
     // Ensure output directory exists
@@ -44,13 +28,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Generating expected HTML outputs...\n");
 
-    for fixture_name in fixtures {
-        let input_path = input_dir.join(format!("{fixture_name}.adoc"));
-        let output_path = output_dir.join(format!("{fixture_name}.html"));
+    for fixture_filename in input_dir
+        .read_dir()?
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "adoc"))
+        .map(|e| e.path())
+    {
+        let input_path = &fixture_filename;
+        let output_path = if let Some(file_path) = fixture_filename
+            .file_stem()
+            .map(|name| output_dir.join(name))
+        {
+            file_path.with_extension("html")
+        } else {
+            eprintln!(
+                "{} Skipping {}: unable to determine output file name",
+                PrintStyledContent("?".yellow()),
+                input_path.display()
+            );
+            continue;
+        };
 
         // Skip if input doesn't exist
         if !input_path.exists() {
-            println!("⚠️  Skipping {fixture_name}: input file not found");
+            eprintln!(
+                "{} Skipping generating {}: input file ({}) not found",
+                PrintStyledContent("?".yellow()),
+                output_path.display(),
+                input_path.display()
+            );
             continue;
         }
 
@@ -59,10 +65,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             document_attributes: acdc_converters_common::default_rendering_attributes(),
             ..Default::default()
         };
-        let doc = match acdc_parser::parse_file(&input_path, &parser_options) {
+        let doc = match acdc_parser::parse_file(input_path, &parser_options) {
             Ok(doc) => doc,
             Err(e) => {
-                println!("❌ Error parsing {fixture_name}: {e}");
+                println!(
+                    "{} Error parsing {}: {e}",
+                    PrintStyledContent("❌".red()),
+                    input_path.display()
+                );
                 continue;
             }
         };
@@ -77,14 +87,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let render_options = RenderOptions::default();
 
         if let Err(e) = processor.convert_to_writer(&doc, &mut output, &render_options) {
-            println!("❌ Error converting {fixture_name}: {e}");
+            println!(
+                "{} Error converting {} to {}: {e}",
+                PrintStyledContent("❌".red()),
+                input_path.display(),
+                output_path.display()
+            );
             continue;
         }
 
         // Write to file
         fs::write(&output_path, &output)?;
 
-        println!("✓ Generated {fixture_name}.html ({} bytes)", output.len());
+        println!(
+            "{} Generated {} ({} bytes)",
+            PrintStyledContent("✓".green()),
+            output_path.display(),
+            output.len()
+        );
     }
 
     println!(

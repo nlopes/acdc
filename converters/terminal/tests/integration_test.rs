@@ -6,6 +6,41 @@ use acdc_terminal::Processor;
 
 type Error = Box<dyn std::error::Error>;
 
+macro_rules! generate_tests {
+    ( [ $( ($name:ident, $uses_osc8_links:expr) ),* $(,)? ] ) => {
+        $(
+            #[cfg(test)]
+            mod $name {
+                use super::*;
+                #[test]
+                fn test() -> Result<(), Error> {
+                    let fixture_name = stringify!($name);
+                    test_fixture(fixture_name, $uses_osc8_links)
+                }
+            }
+        )*
+    };
+}
+
+// List of test fixtures: (fixture_name, uses_osc8_links)
+generate_tests!([
+    (document, false),
+    (nested_sections, false),
+    (ordered_list, false),
+    (unordered_list, false),
+    (description_list_mixed_content, false),
+    (table_multi_cell_per_line, false),
+    (delimited_block, false),
+    (quote_block_with_paragraphs, false),
+    (admonition_block, false),
+    (footnotes, false),
+    (url_macro, true),
+    (basic_image_block, false),
+    (source_block_with_attribute_in_title, false),
+    (source_block_complete, false),
+    (macros_with_quoted_attributes, false),
+]);
+
 /// Normalizes terminal output for comparison.
 ///
 /// This removes trailing whitespace and normalizes line endings.
@@ -21,8 +56,7 @@ fn normalize_output(output: &str) -> String {
 ///
 /// Parses the input `.adoc` file, converts to Terminal output, and compares with expected output.
 fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
-    let input_path =
-        PathBuf::from("../../acdc-parser/fixtures/tests").join(format!("{fixture_name}.adoc"));
+    let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
 
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options = ParserOptions {
@@ -63,79 +97,4 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     );
 
     Ok(())
-}
-
-#[test]
-fn test_document() -> Result<(), Error> {
-    test_fixture("document", false)
-}
-
-#[test]
-fn test_nested_sections() -> Result<(), Error> {
-    test_fixture("nested_sections", false)
-}
-
-#[test]
-fn test_ordered_list() -> Result<(), Error> {
-    test_fixture("ordered_list", false)
-}
-
-#[test]
-fn test_unordered_list() -> Result<(), Error> {
-    test_fixture("unordered_list", false)
-}
-
-#[test]
-fn test_description_list_mixed_content() -> Result<(), Error> {
-    test_fixture("description_list_mixed_content", false)
-}
-
-#[test]
-fn test_table_multi_cell_per_line() -> Result<(), Error> {
-    test_fixture("table_multi_cell_per_line", false)
-}
-
-#[test]
-fn test_delimited_block() -> Result<(), Error> {
-    test_fixture("delimited_block", false)
-}
-
-#[test]
-fn test_quote_block_with_paragraphs() -> Result<(), Error> {
-    test_fixture("quote_block_with_paragraphs", false)
-}
-
-#[test]
-fn test_admonition_block() -> Result<(), Error> {
-    test_fixture("admonition_block", false)
-}
-
-#[test]
-fn test_footnotes() -> Result<(), Error> {
-    test_fixture("footnotes", false)
-}
-
-#[test]
-fn test_url_macro() -> Result<(), Error> {
-    test_fixture("url_macro", true)
-}
-
-#[test]
-fn test_basic_image_block() -> Result<(), Error> {
-    test_fixture("basic_image_block", false)
-}
-
-#[test]
-fn test_source_block_with_attribute_in_title() -> Result<(), Error> {
-    test_fixture("source_block_with_attribute_in_title", false)
-}
-
-#[test]
-fn test_source_block_complete() -> Result<(), Error> {
-    test_fixture("source_block_complete", false)
-}
-
-#[test]
-fn test_macros_with_quoted_attributes() -> Result<(), Error> {
-    test_fixture("macros_with_quoted_attributes", false)
 }

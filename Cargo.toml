@@ -23,10 +23,12 @@ clap = { version = "4.5.53", features = ["derive"] }
 crossterm = "0.29"
 pretty_assertions = "1.4"
 rayon = "1.11"
+rstest = "0.26"
 rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
+tracing-test = "0.2"
 thiserror = "2"
 
 [workspace.lints.rust]
