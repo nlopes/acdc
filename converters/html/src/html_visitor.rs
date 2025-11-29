@@ -252,8 +252,15 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                 self.visit_inline_nodes(subtitle)?;
             }
             writeln!(self.writer, "</h1>")?;
-            // Only output details div if there are authors
-            if !header.authors.is_empty() {
+            // Output details div if there are authors or revision info
+            let has_revision = matches!(
+                self.processor.document_attributes.get("revnumber"),
+                Some(AttributeValue::String(_))
+            ) || matches!(
+                self.processor.document_attributes.get("revdate"),
+                Some(AttributeValue::String(_))
+            );
+            if !header.authors.is_empty() || has_revision {
                 writeln!(self.writer, "<div class=\"details\">")?;
                 for (i, author) in header.authors.iter().enumerate() {
                     write!(
@@ -285,6 +292,27 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                         writeln!(self.writer, "</span>")?;
                         writeln!(self.writer, "<br>")?;
                     }
+                }
+                // Render revision info spans
+                if let Some(AttributeValue::String(revnumber)) =
+                    self.processor.document_attributes.get("revnumber")
+                {
+                    // Strip leading "v" if present (asciidoctor behavior)
+                    let version = revnumber.strip_prefix('v').unwrap_or(revnumber);
+                    writeln!(
+                        self.writer,
+                        "<span id=\"revnumber\">version {version},</span>"
+                    )?;
+                }
+                if let Some(AttributeValue::String(revdate)) =
+                    self.processor.document_attributes.get("revdate")
+                {
+                    writeln!(self.writer, "<span id=\"revdate\">{revdate}</span>")?;
+                }
+                if let Some(AttributeValue::String(revremark)) =
+                    self.processor.document_attributes.get("revremark")
+                {
+                    writeln!(self.writer, "<br><span id=\"revremark\">{revremark}</span>")?;
                 }
                 writeln!(self.writer, "</div>")?;
             }
