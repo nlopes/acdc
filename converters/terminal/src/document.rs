@@ -1,7 +1,7 @@
 use std::io::{self, BufWriter, Write};
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
-use acdc_parser::Author;
+use acdc_parser::{AttributeValue, Author};
 use crossterm::{
     QueueableCommand,
     style::{Print, PrintStyledContent, Stylize},
@@ -14,10 +14,10 @@ pub(crate) fn visit_header<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &crate::Processor,
 ) -> Result<(), Error> {
-    let processor = processor.clone();
+    let cloned_processor = processor.clone();
     let buffer = Vec::new();
     let inner = BufWriter::new(buffer);
-    let mut temp_visitor = TerminalVisitor::new(inner, processor);
+    let mut temp_visitor = TerminalVisitor::new(inner, cloned_processor);
 
     for node in &header.title {
         temp_visitor.visit_inline_node(node)?;
@@ -64,6 +64,31 @@ pub(crate) fn visit_header<V: WritableVisitor<Error = Error>>(
             })?;
         writeln!(w)?;
     }
+
+    // Render revision info if present
+    let revnumber = processor.document_attributes.get("revnumber");
+    let revdate = processor.document_attributes.get("revdate");
+    let revremark = processor.document_attributes.get("revremark");
+
+    if revnumber.is_some() || revdate.is_some() {
+        if let Some(AttributeValue::String(revnumber)) = revnumber {
+            // Strip leading "v" if present (asciidoctor behavior)
+            let version = revnumber.strip_prefix('v').unwrap_or(revnumber);
+            w.queue(PrintStyledContent(format!("version {version}").dim()))?;
+            if revdate.is_some() {
+                w.queue(PrintStyledContent(", ".dim()))?;
+            }
+        }
+        if let Some(AttributeValue::String(revdate)) = revdate {
+            w.queue(PrintStyledContent(revdate.clone().dim()))?;
+        }
+        writeln!(w)?;
+        if let Some(AttributeValue::String(revremark)) = revremark {
+            w.queue(PrintStyledContent(revremark.clone().dim().italic()))?;
+            writeln!(w)?;
+        }
+    }
+
     w.queue(Print("\n"))?;
     Ok(())
 }

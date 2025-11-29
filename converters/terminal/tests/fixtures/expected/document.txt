@@ -1,3 +1,5 @@
 [1m[4mDocument Title[0m
 [3mby [0m[3mLorn_Kismet [0m[3mR. [0m[3mLee[0m[3m <kismet@asciidoctor.org>[0m, [3mNorberto [0m[3mM. [0m[3mLopes[0m[3m <nlopesml@gmail.com>[0m
+[2mversion 2.9[0m[2m, [0m[2m01-09-2024[0m
+[2m[3mFall incarnation[0m
 
