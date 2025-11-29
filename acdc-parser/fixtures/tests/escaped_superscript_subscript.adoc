@@ -1,0 +1,5 @@
+Escaped caret \^not superscript^ and real ^superscript^ text.
+
+Escaped tilde \~not subscript~ and real ~subscript~ text.
+
+Mixed: H\~2~O and E=mc\^2^ vs H~2~O and E=mc^2^.

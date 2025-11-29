@@ -433,10 +433,40 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
     Ok(())
 }
 
+/// Remove backslash escapes from `AsciiDoc` formatting characters.
+/// `\*` → `*`, `\_` → `_`, `\\` → `\`, etc.
+fn strip_backslash_escapes(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\'
+            && let Some(&next) = chars.peek()
+            && matches!(next, '*' | '_' | '`' | '#' | '^' | '~' | '\\' | '[' | ']')
+        {
+            // Skip the backslash, output the next character
+            // We just verified peek() returned Some, so next() is safe
+            if let Some(escaped) = chars.next() {
+                result.push(escaped);
+                continue;
+            }
+        }
+        result.push(c);
+    }
+    result
+}
+
 fn substitution_text(text: &str, options: &RenderOptions) -> String {
     if text.is_empty() {
         return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
     }
+
+    // Strip backslash escapes first (before any other processing)
+    let text = if options.inlines_basic || options.inlines_verbatim {
+        text.to_string()
+    } else {
+        strip_backslash_escapes(text)
+    };
 
     // Escape & first (before arrow replacements that produce & entities)
     let text = text.replace('&', "&amp;");

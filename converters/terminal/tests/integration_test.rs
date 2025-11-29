@@ -39,6 +39,7 @@ generate_tests!([
     (source_block_with_attribute_in_title, false),
     (source_block_complete, false),
     (macros_with_quoted_attributes, false),
+    (escaped_superscript_subscript, false),
 ]);
 
 /// Normalizes terminal output for comparison.
