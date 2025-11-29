@@ -11,6 +11,35 @@ use acdc_parser::{
 
 use crate::{Error, Processor, RenderOptions};
 
+/// Extract a string value from block metadata attributes
+fn get_string_attr<'a>(metadata: &'a BlockMetadata, key: &str) -> Option<&'a str> {
+    metadata.attributes.get(key).and_then(|v| match v {
+        AttributeValue::String(s) => Some(s.as_str()),
+        AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+    })
+}
+
+/// Write attribution div for quote/verse blocks if author or citation present
+fn write_attribution<W: Write>(
+    writer: &mut W,
+    metadata: &BlockMetadata,
+) -> Result<(), std::io::Error> {
+    let author = get_string_attr(metadata, "attribution");
+    let citation = get_string_attr(metadata, "citation");
+
+    if author.is_some() || citation.is_some() {
+        writeln!(writer, "<div class=\"attribution\">")?;
+        if let Some(author) = author {
+            writeln!(writer, "&#8212; {author}<br>")?;
+        }
+        if let Some(citation) = citation {
+            writeln!(writer, "<cite>{citation}</cite>")?;
+        }
+        writeln!(writer, "</div>")?;
+    }
+    Ok(())
+}
+
 fn write_example_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     block: &DelimitedBlock,
@@ -71,43 +100,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             }
             writer = visitor.writer_mut();
             writeln!(writer, "</blockquote>")?;
-
-            // Extract author and cite from named attributes.
-            //
-            // Parser extracts [quote, attribution(author), citation] into "attribution"
-            // and "citation" attributes
-            let author = block
-                .metadata
-                .attributes
-                .get("attribution")
-                .and_then(|v| match v {
-                    AttributeValue::String(s) => Some(s.as_str()),
-                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
-                        None
-                    }
-                });
-            let cite = block
-                .metadata
-                .attributes
-                .get("citation")
-                .and_then(|v| match v {
-                    AttributeValue::String(s) => Some(s.as_str()),
-                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
-                        None
-                    }
-                });
-
-            if author.is_some() || cite.is_some() {
-                writeln!(writer, "<div class=\"attribution\">")?;
-                if let Some(author) = author {
-                    writeln!(writer, "&#8212; {author}<br>")?;
-                }
-                if let Some(cite) = cite {
-                    writeln!(writer, "<cite>{cite}</cite>")?;
-                }
-                writeln!(writer, "</div>")?;
-            }
-
+            write_attribution(&mut writer, &block.metadata)?;
             writeln!(writer, "</div>")?;
         }
         DelimitedBlockType::DelimitedOpen(blocks) => {
@@ -175,7 +168,63 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-#[allow(clippy::too_many_lines)]
+fn render_listing_block<V: WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    title: &[InlineNode],
+    metadata: &BlockMetadata,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let mut w = visitor.writer_mut();
+    writeln!(w, "<div class=\"listingblock\">")?;
+    let _ = w;
+
+    // Check if listing-caption is set and block has a title
+    if !title.is_empty() {
+        if let Some(AttributeValue::String(caption)) =
+            processor.document_attributes.get("listing-caption")
+        {
+            let count = processor.listing_counter.get() + 1;
+            processor.listing_counter.set(count);
+            visitor.render_title_with_wrapper(
+                title,
+                &format!("<div class=\"title\">{caption} {count}. "),
+                "</div>\n",
+            )?;
+        } else {
+            // No listing-caption, render title without numbering
+            visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+        }
+    }
+
+    w = visitor.writer_mut();
+    writeln!(w, "<div class=\"content\">")?;
+    // Check if this is a source block with a language
+    let language = detect_language(metadata);
+    if let Some(lang) = language {
+        write!(
+            w,
+            "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+        )?;
+    } else {
+        write!(w, "<pre>")?;
+    }
+
+    let _ = w;
+    visitor.visit_inline_nodes(inlines)?;
+
+    w = visitor.writer_mut();
+    if language.is_some() {
+        writeln!(w, "</code></pre>")?;
+    } else {
+        writeln!(w, "</pre>")?;
+    }
+
+    writeln!(w, "</div>")?;
+    writeln!(w, "</div>")?;
+    Ok(())
+}
+
 fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
     inner: &DelimitedBlockType,
     title: &[InlineNode],
@@ -189,58 +238,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             visitor.visit_inline_nodes(inlines)?;
         }
         DelimitedBlockType::DelimitedListing(inlines) => {
-            let mut w = visitor.writer_mut();
-            writeln!(w, "<div class=\"listingblock\">")?;
-            let _ = w;
-
-            // Check if listing-caption is set and block has a title
-            if !title.is_empty() {
-                if let Some(AttributeValue::String(caption)) =
-                    processor.document_attributes.get("listing-caption")
-                {
-                    let count = processor.listing_counter.get() + 1;
-                    processor.listing_counter.set(count);
-                    visitor.render_title_with_wrapper(
-                        title,
-                        &format!("<div class=\"title\">{caption} {count}. "),
-                        "</div>\n",
-                    )?;
-                } else {
-                    // No listing-caption, render title without numbering
-                    visitor.render_title_with_wrapper(
-                        title,
-                        "<div class=\"title\">",
-                        "</div>\n",
-                    )?;
-                }
-            }
-
-            w = visitor.writer_mut();
-            writeln!(w, "<div class=\"content\">")?;
-            // Check if this is a source block with a language
-            // The language is the first positional attribute (after style), which gets moved to attributes map
-            let language = detect_language(metadata);
-            if let Some(lang) = language {
-                write!(
-                    w,
-                    "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-                )?;
-            } else {
-                write!(w, "<pre>")?;
-            }
-
-            let _ = w;
-            visitor.visit_inline_nodes(inlines)?;
-
-            w = visitor.writer_mut();
-            if language.is_some() {
-                writeln!(w, "</code></pre>")?;
-            } else {
-                writeln!(w, "</pre>")?;
-            }
-
-            writeln!(w, "</div>")?;
-            writeln!(w, "</div>")?;
+            render_listing_block(inlines, title, metadata, visitor, processor)?;
         }
         DelimitedBlockType::DelimitedLiteral(inlines) => {
             // Check for custom style other than "source" - I've done this because
@@ -289,35 +287,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             visitor.visit_inline_nodes(inlines)?;
             w = visitor.writer_mut();
             writeln!(w, "</pre>")?;
-
-            // Extract author and cite from named attributes
-            //
-            // Parser extracts [verse, attribution(author), citation] into "attribution"
-            // and "citation" attributes
-            let author = metadata
-                .attributes
-                .get("attribution")
-                .and_then(|v| match v {
-                    AttributeValue::String(s) => Some(s.as_str()),
-                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
-                        None
-                    }
-                });
-            let citation = metadata.attributes.get("citation").and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
-            });
-
-            if author.is_some() || citation.is_some() {
-                writeln!(w, "<div class=\"attribution\">")?;
-                if let Some(author) = author {
-                    writeln!(w, "&#8212; {author}<br>")?;
-                }
-                if let Some(citation) = citation {
-                    writeln!(w, "<cite>{citation}</cite>")?;
-                }
-                writeln!(w, "</div>")?;
-            }
+            write_attribution(&mut w, metadata)?;
             writeln!(w, "</div>")?;
         }
         DelimitedBlockType::DelimitedQuote(_)
