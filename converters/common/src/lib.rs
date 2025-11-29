@@ -3,6 +3,7 @@ use acdc_parser::{AttributeValue, DocumentAttributes};
 
 pub mod code;
 pub mod substitutions;
+pub mod table;
 pub mod toc;
 pub mod video;
 

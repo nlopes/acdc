@@ -1,3 +1,4 @@
+use acdc_converters_common::table::calculate_column_widths;
 use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{
     AttributeValue, Block, BlockMetadata, ColumnFormat, HorizontalAlignment, InlineNode, Table,
@@ -93,28 +94,12 @@ where
     Ok(())
 }
 
-/// Render table with support for nested blocks in cells
-pub(crate) fn render_table<V>(
+/// Render colgroup with column width styles
+fn render_colgroup<W: std::io::Write + ?Sized>(
+    writer: &mut W,
     table: &Table,
-    visitor: &mut V,
-    processor: &Processor,
-    options: &RenderOptions,
     metadata: &BlockMetadata,
-    title: &[InlineNode],
-) -> Result<(), Error>
-where
-    V: WritableVisitor<Error = Error>,
-{
-    let mut writer = visitor.writer_mut();
-    let classes = ["tableblock", "frame-all", "grid-all", "stretch"];
-
-    writeln!(writer, "<table class=\"{}\">", classes.join(" "))?;
-
-    // Render caption with table number if title exists
-    let _ = writer;
-    render_table_caption(visitor, title, processor)?;
-    writer = visitor.writer_mut();
-
+) -> Result<(), Error> {
     // Generate colgroup - either from cols attribute or inferred from table structure
     let col_count = if let Some(cols_value) = metadata.attributes.get("cols") {
         let cols_str = match cols_value {
@@ -142,17 +127,58 @@ where
     };
 
     if col_count > 0 {
-        let col_count_f64 = f64::from(u32::try_from(col_count).unwrap_or(1));
-        let width_percent = 100.0 / col_count_f64;
         writeln!(writer, "<colgroup>")?;
-        for _ in 0..col_count {
-            writeln!(writer, "<col style=\"width: {width_percent:.0}%;\" />")?;
+
+        // Use parsed column widths if available, otherwise fall back to equal distribution
+        let widths = if table.columns.is_empty() {
+            // Fall back to equal distribution
+            let width = 100.0 / f64::from(u32::try_from(col_count).unwrap_or(1));
+            vec![width; col_count]
+        } else {
+            calculate_column_widths(&table.columns)
+        };
+
+        for width in widths {
+            // Match asciidoctor's 4-decimal precision for non-round percentages
+            if (width - width.round()).abs() < 0.0001 {
+                writeln!(writer, "<col style=\"width: {width:.0}%;\" />")?;
+            } else {
+                writeln!(writer, "<col style=\"width: {width:.4}%;\" />")?;
+            }
         }
         writeln!(writer, "</colgroup>")?;
     }
 
+    Ok(())
+}
+
+/// Render table with support for nested blocks in cells
+pub(crate) fn render_table<V>(
+    table: &Table,
+    visitor: &mut V,
+    processor: &Processor,
+    options: &RenderOptions,
+    metadata: &BlockMetadata,
+    title: &[InlineNode],
+) -> Result<(), Error>
+where
+    V: WritableVisitor<Error = Error>,
+{
+    let writer = visitor.writer_mut();
+    let classes = ["tableblock", "frame-all", "grid-all", "stretch"];
+
+    writeln!(writer, "<table class=\"{}\">", classes.join(" "))?;
+
+    // Render caption with table number if title exists
+    let _ = writer;
+    render_table_caption(visitor, title, processor)?;
+
+    // Render colgroup with column widths
+    render_colgroup(visitor.writer_mut(), table, metadata)?;
+
     // Render header
     if let Some(header) = &table.header {
+        let writer = visitor.writer_mut();
         writeln!(writer, "<thead>")?;
         writeln!(writer, "<tr>")?;
         let _ = writer;

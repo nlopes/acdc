@@ -1,7 +1,8 @@
 use std::io::{self, BufWriter};
 
+use acdc_converters_common::table::calculate_column_widths;
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
-use comfy_table::{Attribute, Cell, ContentArrangement, Table};
+use comfy_table::{Attribute, Cell, ColumnConstraint, ContentArrangement, Table, Width};
 
 use crate::{Error, Processor, TerminalVisitor};
 
@@ -17,6 +18,28 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
         .load_preset(comfy_table::presets::UTF8_FULL)
         .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS)
         .enforce_styling();
+
+    // Apply proportional column widths if specified - uses set_constraints which
+    // applies to all columns at once (columns are created lazily when rows are added)
+    if !tbl.columns.is_empty() {
+        let widths = calculate_column_widths(&tbl.columns);
+        let constraints: Vec<ColumnConstraint> = widths
+            .iter()
+            .map(|width| {
+                // Percentages from calculate_column_widths are in [0.0, 100.0]
+                // Convert to u16 without unsafe casts by parsing the formatted value
+                let clamped = width.clamp(0.0, 100.0).round();
+                format!("{clamped:.0}")
+                    .parse::<u16>()
+                    .ok()
+                    .filter(|&p| p > 0)
+                    .map_or(ColumnConstraint::ContentWidth, |percent| {
+                        ColumnConstraint::Absolute(Width::Percentage(percent))
+                    })
+            })
+            .collect();
+        table_widget.set_constraints(constraints);
+    }
 
     if let Some(header) = &tbl.header {
         let header_cells = header
