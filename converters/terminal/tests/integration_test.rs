@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use acdc_converters_common::{Options as ConverterOptions, Processable};
+use acdc_converters_terminal::Processor;
 use acdc_parser::Options as ParserOptions;
-use acdc_terminal::Processor;
 
 type Error = Box<dyn std::error::Error>;
 

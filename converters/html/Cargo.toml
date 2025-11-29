@@ -1,5 +1,5 @@
 [package]
-name = "acdc-html"
+name = "acdc-converters-html"
 description = "HTML converter"
 version.workspace = true
 edition.workspace = true

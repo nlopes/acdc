@@ -1,6 +1,6 @@
-# `acdc-terminal`
+# `acdc-converters-terminal`
 
-A simple terminal parser for `AsciiDoc` documents.
+A simple terminal converter for `AsciiDoc` documents.
 
 ## Usage
 

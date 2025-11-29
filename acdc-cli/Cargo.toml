@@ -14,9 +14,9 @@ doc = false
 [dependencies]
 acdc-converters-common.workspace = true
 acdc-core.workspace = true
-acdc-html = { path = "../converters/html", optional = true }
+acdc-converters-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
-acdc-terminal = { path = "../converters/terminal", optional = true }
+acdc-converters-terminal = { path = "../converters/terminal", optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
 crossterm.workspace = true
@@ -33,8 +33,8 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 default = ["html"]
 
 # Output converters
-html = ["dep:acdc-html"]            # HTML5 converter with Asciidoctor-compatible styling
-terminal = ["dep:acdc-terminal"]    # Terminal converter with ANSI color support
+html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
+terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
 # Development tools
 inspect = []  # AST inspection tool for debugging parser output

@@ -15,8 +15,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use acdc_converters_common::{Options, Processable};
+use acdc_converters_terminal::Processor;
 use acdc_parser::Options as ParserOptions;
-use acdc_terminal::Processor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Comprehensive list of fixtures that cover all structural elements

@@ -80,15 +80,25 @@ pub fn run(args: &Args) -> miette::Result<()> {
         #[cfg(feature = "html")]
         Backend::Html => {
             // HTML can process files in parallel - each file writes to separate output
-            run_processor::<acdc_html::Processor>(args, options, document_attributes, true)
-                .map_err(|e| error::display(&e))
+            run_processor::<acdc_converters_html::Processor>(
+                args,
+                options,
+                document_attributes,
+                true,
+            )
+            .map_err(|e| error::display(&e))
         }
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {
             // Terminal outputs to stdout - must process files sequentially to avoid interleaving
-            run_processor::<acdc_terminal::Processor>(args, options, document_attributes, false)
-                .map_err(|e| error::display(&e))
+            run_processor::<acdc_converters_terminal::Processor>(
+                args,
+                options,
+                document_attributes,
+                false,
+            )
+            .map_err(|e| error::display(&e))
         }
     }
 }

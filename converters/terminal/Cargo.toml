@@ -1,5 +1,5 @@
 [package]
-name = "acdc-terminal"
+name = "acdc-converters-terminal"
 description = "`cat` like converter for `AsciiDoc` documents"
 version.workspace = true
 edition.workspace = true

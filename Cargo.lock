@@ -7,10 +7,10 @@ name = "acdc-cli"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
+ "acdc-converters-html",
+ "acdc-converters-terminal",
  "acdc-core",
- "acdc-html",
  "acdc-parser",
- "acdc-terminal",
  "anyhow",
  "clap",
  "crossterm",
@@ -35,14 +35,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "acdc-core"
-version = "0.1.0"
-dependencies = [
- "clap",
-]
-
-[[package]]
-name = "acdc-html"
+name = "acdc-converters-html"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
@@ -55,6 +48,30 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "tracing-test",
+]
+
+[[package]]
+name = "acdc-converters-terminal"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-common",
+ "acdc-core",
+ "acdc-parser",
+ "clap",
+ "comfy-table",
+ "crossterm",
+ "pretty_assertions",
+ "syntect",
+ "thiserror 2.0.17",
+ "tracing",
+ "viuer",
+]
+
+[[package]]
+name = "acdc-core"
+version = "0.1.0"
+dependencies = [
+ "clap",
 ]
 
 [[package]]
@@ -77,23 +94,6 @@ dependencies = [
  "tracing-test",
  "ureq",
  "url",
-]
-
-[[package]]
-name = "acdc-terminal"
-version = "0.1.0"
-dependencies = [
- "acdc-converters-common",
- "acdc-core",
- "acdc-parser",
- "clap",
- "comfy-table",
- "crossterm",
- "pretty_assertions",
- "syntect",
- "thiserror 2.0.17",
- "tracing",
- "viuer",
 ]
 
 [[package]]

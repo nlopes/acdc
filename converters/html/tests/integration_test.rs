@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use acdc_converters_common::{Options as ConverterOptions, Processable};
-use acdc_html::{Processor, RenderOptions};
+use acdc_converters_html::{Processor, RenderOptions};
 use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
