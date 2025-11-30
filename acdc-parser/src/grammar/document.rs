@@ -385,9 +385,15 @@ peg::parser! {
             block
         }
 
-        // Check if the upcoming content is a section at same or higher level (which should not be parsed as content)
+        // Check if the upcoming content is a section at same or higher level (which
+        // should not be parsed as content)
+        //
+        // This rule skips optional metadata (anchors, attributes, etc.) before checking
+        // the section level, so that `[[anchor]]\n== Section` is correctly identified as
+        // a sibling section.
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
-        = level:section_level(offset, parent_section_level)
+        = (anchor() / attributes_line() / document_attribute_line() / title_line(offset))*
+          level:section_level(offset, parent_section_level)
         {?
             if let Some(parent_level) = parent_section_level {
                 let upcoming_level = level.1 + 1; // Convert to 1-based

@@ -77,15 +77,25 @@ impl Section {
 
     /// Generate a section ID based on its title and metadata.
     ///
-    /// This function checks if the section has an explicit ID in its metadata. If not, it
-    /// generates an ID from the title by converting it to lowercase, replacing spaces and
-    /// hyphens with underscores, and removing non-alphanumeric characters.
+    /// This function checks for explicit IDs in the following order:
+    /// 1. `metadata.id` - from attribute list syntax like `[id=foo]`
+    /// 2. `metadata.anchors` - from anchor syntax like `[[foo]]` or `[#foo]`
+    ///
+    /// If no explicit ID is found, it generates one from the title by converting
+    /// to lowercase, replacing spaces and hyphens with underscores, and removing
+    /// non-alphanumeric characters.
     #[must_use]
     pub fn generate_id(metadata: &BlockMetadata, title: &[InlineNode]) -> SafeId {
-        // Check if section has an explicit ID in metadata
+        // Check explicit ID from attribute list first
         if let Some(anchor) = &metadata.id {
             return SafeId::Explicit(anchor.id.clone());
         }
+        // Check last anchor from block metadata lines (e.g., [[id]] or [#id])
+        // asciidoctor uses the last anchor when multiple are present
+        if let Some(anchor) = metadata.anchors.last() {
+            return SafeId::Explicit(anchor.id.clone());
+        }
+        // Fall back to auto-generated ID from title
         let id = Self::id_from_inlines(title);
         SafeId::Generated(id)
     }
@@ -151,7 +161,7 @@ mod tests {
             SafeId::Generated("this_is_a_big_title".to_string())
         );
 
-        // metadata has a specific id
+        // metadata has a specific id in metadata.id
         let metadata = BlockMetadata {
             id: Some(Anchor {
                 id: "custom_id".to_string(),
@@ -163,6 +173,60 @@ mod tests {
         assert_eq!(
             Section::generate_id(&metadata, inlines),
             SafeId::Explicit("custom_id".to_string())
+        );
+
+        // metadata has anchor in metadata.anchors (from [[id]] or [#id] syntax)
+        let metadata = BlockMetadata {
+            anchors: vec![Anchor {
+                id: "anchor_id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }],
+            ..Default::default()
+        };
+        assert_eq!(
+            Section::generate_id(&metadata, inlines),
+            SafeId::Explicit("anchor_id".to_string())
+        );
+
+        // with multiple anchors, the last one is used (matches asciidoctor behavior)
+        let metadata = BlockMetadata {
+            anchors: vec![
+                Anchor {
+                    id: "first_anchor".to_string(),
+                    xreflabel: None,
+                    location: Location::default(),
+                },
+                Anchor {
+                    id: "last_anchor".to_string(),
+                    xreflabel: None,
+                    location: Location::default(),
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            Section::generate_id(&metadata, inlines),
+            SafeId::Explicit("last_anchor".to_string())
+        );
+
+        // metadata.id takes precedence over metadata.anchors
+        let metadata = BlockMetadata {
+            id: Some(Anchor {
+                id: "from_id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            anchors: vec![Anchor {
+                id: "from_anchors".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }],
+            ..Default::default()
+        };
+        assert_eq!(
+            Section::generate_id(&metadata, inlines),
+            SafeId::Explicit("from_id".to_string())
         );
     }
 }
