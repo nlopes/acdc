@@ -400,7 +400,17 @@ impl Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Source::Path(path) => write!(f, "{}", path.display()),
-            Source::Url(url) => write!(f, "{url}"),
+            Source::Url(url) => {
+                // The url crate normalizes domain-only URLs by adding a trailing slash
+                // (e.g., "https://example.com" -> "https://example.com/").
+                // Strip it to match asciidoctor's output behavior.
+                let url_str = url.as_str();
+                if url.path() == "/" && !url_str.ends_with("://") {
+                    write!(f, "{}", url_str.trim_end_matches('/'))
+                } else {
+                    write!(f, "{url}")
+                }
+            }
             Source::Name(name) => write!(f, "{name}"),
         }
     }
