@@ -12,13 +12,13 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-authors = ["Norberto Lopes <nlopesml@gmail.com>"]
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
 acdc-converters-common = { path = "./converters/common" }
 acdc-core = { path = "./acdc-core" }
 acdc-parser = { path = "./acdc-parser" }
+chrono = "0.4"
 clap = { version = "4.5.53", features = ["derive"] }
 crossterm = "0.29"
 pretty_assertions = "1.4"

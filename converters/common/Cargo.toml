@@ -2,7 +2,6 @@
 name = "acdc-converters-common"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 description.workspace = true
 
 [dependencies]

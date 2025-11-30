@@ -3,7 +3,6 @@ name = "acdc-converters-terminal"
 description = "`cat` like converter for `AsciiDoc` documents"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 
 [dependencies]
 acdc-converters-common.workspace = true

@@ -47,7 +47,18 @@ impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
+    fn document_attributes_defaults() -> DocumentAttributes {
+        // Terminal converter uses environment detection (Appearance::detect())
+        // rather than document attributes for its configuration.
+        // No terminal-specific attribute defaults needed.
+        DocumentAttributes::default()
+    }
+
     fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+        let mut document_attributes = document_attributes;
+        for (name, value) in Self::document_attributes_defaults().iter() {
+            document_attributes.insert(name.clone(), value.clone());
+        }
         let appearance = Appearance::detect();
 
         Self {
@@ -69,6 +80,10 @@ impl Processable for Processor {
         let writer = BufWriter::new(stdout.lock());
         self.convert_to_writer(doc, writer)?;
         Ok(())
+    }
+
+    fn document_attributes(&self) -> DocumentAttributes {
+        self.document_attributes.clone()
     }
 }
 

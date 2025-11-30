@@ -7,7 +7,7 @@ use std::{
 };
 
 use acdc_converters_common::{Options, PrettyDuration, Processable, visitor::Visitor};
-use acdc_parser::{Document, DocumentAttributes, TocEntry};
+use acdc_parser::{AttributeValue, Document, DocumentAttributes, TocEntry};
 
 #[derive(Clone, Debug)]
 pub struct Processor {
@@ -75,7 +75,21 @@ impl Processable for Processor {
     type Options = Options;
     type Error = Error;
 
+    fn document_attributes_defaults() -> DocumentAttributes {
+        let mut attrs = DocumentAttributes::default();
+        // HTML-specific defaults from asciidoctor spec
+        attrs.insert("stylesdir".into(), AttributeValue::String(".".into()));
+        attrs.insert("toc-class".into(), AttributeValue::String("toc".into()));
+        attrs.insert("webfonts".into(), AttributeValue::String(String::new()));
+        attrs
+    }
+
     fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+        let mut document_attributes = document_attributes;
+        for (name, value) in Self::document_attributes_defaults().iter() {
+            document_attributes.insert(name.clone(), value.clone());
+        }
+
         Self {
             options,
             document_attributes,
@@ -134,6 +148,10 @@ impl Processable for Processor {
             self.convert_to_writer(doc, writer, &render_options)?;
             Ok(())
         }
+    }
+
+    fn document_attributes(&self) -> DocumentAttributes {
+        self.document_attributes.clone()
     }
 }
 

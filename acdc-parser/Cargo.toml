@@ -3,7 +3,6 @@ name = "acdc-parser"
 description = "`AsciiDoc` parser using PEG grammars"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 
 [dependencies]
 acdc-core.workspace = true

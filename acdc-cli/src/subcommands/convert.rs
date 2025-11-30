@@ -125,7 +125,7 @@ where
         let parser_options = acdc_parser::Options {
             safe_mode: base_options.safe_mode.clone(),
             timings: base_options.timings,
-            document_attributes: document_attributes.clone(),
+            document_attributes: processor.document_attributes(),
         };
         let stdin = std::io::stdin();
         let mut reader = std::io::BufReader::new(stdin.lock());
@@ -190,11 +190,9 @@ where
     };
 
     // Separate successes from errors
-    let (successes, errors): (Vec<_>, Vec<_>) =
-        results.into_iter().partition(|(_, result)| result.is_ok());
-
-    // Count successful conversions (we don't need to do anything with them)
-    let _success_count = successes.len();
+    let (_successes, errors): (Vec<_>, Vec<_>) = results
+        .into_iter()
+        .partition(|(_file, result)| result.is_ok());
 
     // If there are errors, collect and display them
     if !errors.is_empty() {

@@ -17,12 +17,11 @@ pub enum Doctype {
     /// each contain one or more chapters or special sections.
     Book,
 
-    /// Used for producing a roff or HTML-formatted manual page (man page) for Unix and
-    /// Unix-like operating systems. This doctype instructs the parser to recognize a
-    /// special document header and section naming conventions for organizing the
-    /// `AsciiDoc` content as a man page. See Generate Manual Pages from `AsciiDoc` for
-    /// details on how structure a man page using `AsciiDoc` and generate it using
-    /// Asciidoctor.
+    /// Used for producing a groff manpage for Unix and Unix-like operating systems. This
+    /// doctype instructs the parser to recognize a special document header and section
+    /// naming conventions for organizing the `AsciiDoc` content as a man page. See
+    /// Generate Manual Pages from `AsciiDoc` for details on how structure a man page
+    /// using `AsciiDoc` and generate it using Asciidoctor.
     Manpage,
 
     /// There may be cases when you only want to apply inline `AsciiDoc` formatting to input

@@ -169,9 +169,37 @@ impl std::fmt::Display for GeneratorMetadata {
     }
 }
 
+/// Trait for document converters (HTML, Terminal, Manpage, etc.)
+///
+/// ## Attribute layering
+///
+/// Document attributes follow a layered precedence system (lowest to highest priority):
+///
+/// 1. **Base rendering defaults** - from `default_rendering_attributes()` (admonition captions, toclevels, etc.)
+/// 2. **Converter-specific defaults** - from `document_attributes_defaults()` (e.g., `man-linkstyle` for manpage)
+/// 3. **CLI attributes** - user-provided via `-a name=value`
+/// 4. **Document attributes** - `:name: value` in document header
+///
+/// Converters should use `converter_defaults()` to provide backend-specific attribute defaults.
 pub trait Processable {
     type Options;
     type Error;
+
+    /// Returns converter-specific default attributes.
+    ///
+    /// Override this in converters that need backend-specific defaults.
+    /// These defaults are merged into the attribute map in `new()`, but won't
+    /// overwrite user-provided values (CLI or document attributes).
+    ///
+    /// # Examples
+    ///
+    /// - HTML: `stylesdir`, `toc-class`, `webfonts`
+    /// - Manpage: `man-linkstyle`, `manname-title`
+    /// - Terminal: (none - uses environment detection)
+    #[must_use]
+    fn document_attributes_defaults() -> DocumentAttributes {
+        DocumentAttributes::default()
+    }
 
     fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
 
@@ -194,6 +222,10 @@ pub trait Processable {
         doc: &acdc_parser::Document,
         file: Option<&std::path::Path>,
     ) -> Result<(), Self::Error>;
+
+    /// Get a reference to the document attributes.
+    #[must_use]
+    fn document_attributes(&self) -> DocumentAttributes;
 }
 
 /// Walk the error source chain to find a parser error
