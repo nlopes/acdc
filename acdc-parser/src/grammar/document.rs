@@ -462,8 +462,12 @@ peg::parser! {
             let title = title?;
             let section_id = Section::generate_id(&block_metadata.metadata, &title).to_string();
 
+            // Extract xreflabel from the last anchor (same anchor used for section ID)
+            // This matches asciidoctor behavior: [[id,xreflabel]] provides custom cross-reference text
+            let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel.clone());
+
             // Register section for TOC immediately after title is parsed, before content
-            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone());
+            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel);
 
             Ok::<(Vec<InlineNode>, String), Error>((title, section_id))
         })

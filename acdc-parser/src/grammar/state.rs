@@ -70,8 +70,19 @@ pub(crate) struct TocTracker {
 
 impl TocTracker {
     /// Register a section for inclusion in the TOC
-    pub(crate) fn register_section(&mut self, title: Vec<InlineNode>, level: u8, id: String) {
-        self.entries.push(TocEntry { id, title, level });
+    pub(crate) fn register_section(
+        &mut self,
+        title: Vec<InlineNode>,
+        level: u8,
+        id: String,
+        xreflabel: Option<String>,
+    ) {
+        self.entries.push(TocEntry {
+            id,
+            title,
+            level,
+            xreflabel,
+        });
     }
 }
 

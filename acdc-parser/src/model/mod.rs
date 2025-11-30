@@ -155,6 +155,9 @@ pub struct TocEntry {
     pub title: Vec<InlineNode>,
     /// Section level (1 for top-level, 2 for subsection, etc.)
     pub level: u8,
+    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub xreflabel: Option<String>,
 }
 
 /// A `Block` represents a block in a document.

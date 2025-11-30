@@ -1,0 +1,41 @@
+= Section Anchor Tests
+
+== Auto-generated ID
+
+This section has no explicit anchor.
+
+[[explicit-block-anchor]]
+== Block Anchor Section
+
+Uses `[[id]]` syntax before section.
+
+[#shorthand-id]
+== Shorthand ID Section
+
+Uses `[#id]` syntax before section.
+
+[[anchor-with-reftext,Custom Ref Text]]
+== Anchor with Reference Text
+
+Has custom reference text for cross-references.
+
+[[first-anchor]]
+[[second-anchor]]
+== Multiple Anchors
+
+Multiple anchors - last one becomes section ID (matches asciidoctor).
+
+[.custom-role]
+[[anchor-with-role]]
+== Mixed Metadata
+
+Role attribute combined with anchor.
+
+[[nested-anchor]]
+=== Nested Section with Anchor
+
+Child section with explicit anchor.
+
+== Cross-reference Tests
+
+See <<explicit-block-anchor>>, <<shorthand-id>>, and <<anchor-with-reftext>>.

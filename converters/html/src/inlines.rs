@@ -364,14 +364,20 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     write!(w, "<a href=\"#{}\">{text}</a>", xref.target)?;
                 }
             } else {
-                // Look up section title from toc_entries
+                // Look up section from toc_entries
+                // Priority: xreflabel (from [[id,Custom Text]]) > section title > fallback
                 let display_text = processor
                     .toc_entries()
                     .iter()
                     .find(|entry| entry.id == xref.target)
                     .map_or_else(
                         || format!("[{}]", xref.target),
-                        |entry| inlines_to_string(&entry.title),
+                        |entry| {
+                            entry
+                                .xreflabel
+                                .clone()
+                                .unwrap_or_else(|| inlines_to_string(&entry.title))
+                        },
                     );
 
                 if options.inlines_basic {
