@@ -4,4 +4,4 @@ Another foo [38;5;14m[1m[2][0m.
 
 ─────
 [38;5;14m[1m[1][0m Simple footnote content
-[38;5;14m[1m[2][0m A [1mnaff[0m footnote
+[38;5;14m[1m[2][0m A [1mnaff[21m footnote

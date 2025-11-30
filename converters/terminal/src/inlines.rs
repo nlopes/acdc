@@ -4,7 +4,10 @@ use acdc_converters_common::{substitutions::strip_backslash_escapes, visitor::Wr
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
-    style::{Print, PrintStyledContent, Stylize},
+    style::{
+        Attribute, Color, Print, PrintStyledContent, ResetColor, SetAttribute, SetBackgroundColor,
+        SetForegroundColor, Stylize,
+    },
 };
 
 use crate::{Error, Processor};
@@ -131,26 +134,35 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
             write!(w, "{text}")?;
         }
         InlineNode::ItalicText(i) => {
-            let text = render_inline_nodes_to_string(&i.content, processor)?;
             let w = visitor.writer_mut();
-            w.queue(PrintStyledContent(text.italic()))?;
+            w.queue(SetAttribute(Attribute::Italic))?;
+            visitor.visit_inline_nodes(&i.content)?;
+            let w = visitor.writer_mut();
+            w.queue(SetAttribute(Attribute::NoItalic))?;
         }
         InlineNode::BoldText(b) => {
-            let text = render_inline_nodes_to_string(&b.content, processor)?;
             let w = visitor.writer_mut();
-            w.queue(PrintStyledContent(text.bold()))?;
+            w.queue(SetAttribute(Attribute::Bold))?;
+            visitor.visit_inline_nodes(&b.content)?;
+            let w = visitor.writer_mut();
+            w.queue(SetAttribute(Attribute::NoBold))?;
         }
         InlineNode::HighlightText(h) => {
-            let text = render_inline_nodes_to_string(&h.content, processor)?;
             let w = visitor.writer_mut();
-            w.queue(PrintStyledContent(text.black().on_yellow()))?;
+            w.queue(SetForegroundColor(Color::Black))?;
+            w.queue(SetBackgroundColor(Color::Yellow))?;
+            visitor.visit_inline_nodes(&h.content)?;
+            let w = visitor.writer_mut();
+            w.queue(ResetColor)?;
         }
         InlineNode::MonospaceText(m) => {
-            let text = render_inline_nodes_to_string(&m.content, processor)?;
             let w = visitor.writer_mut();
-            w.queue(PrintStyledContent(
-                text.with(processor.appearance.colors.inline_monospace),
+            w.queue(SetForegroundColor(
+                processor.appearance.colors.inline_monospace,
             ))?;
+            visitor.visit_inline_nodes(&m.content)?;
+            let w = visitor.writer_mut();
+            w.queue(ResetColor)?;
         }
         InlineNode::Macro(m) => {
             let w = visitor.writer_mut();
