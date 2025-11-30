@@ -1,0 +1,11 @@
+This has [line-through]#strikethrough# text using bare role syntax.
+
+This has [.line-through]#strikethrough# text using dot-prefixed role syntax.
+
+This has #plain highlight# without role.
+
+Built-in text decoration roles: [underline]#underlined#, [overline]#overlined#.
+
+Built-in whitespace roles: [nobreak]#no break#, [nowrap]#no wrap#, [pre-wrap]#pre wrap#.
+
+Deprecated roles: [big]#big text#, [small]#small text#.

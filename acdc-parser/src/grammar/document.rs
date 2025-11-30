@@ -3188,6 +3188,11 @@ peg::parser! {
         /// Role pattern for inline contexts - allows % as literal character
         rule inline_role() -> &'input str = $([^(',' | ']' | '#' | '.')]+)
 
+        /// Bare role pattern for inline contexts (no prefix) - matches CSS-like identifiers
+        /// Starts with letter, followed by letters, numbers, or hyphens
+        /// Used for syntax like [line-through]#text# (asciidoctor compatibility)
+        rule bare_inline_role() -> &'input str = $(['a'..='z' | 'A'..='Z'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '-']*)
+
         /// ID pattern for inline contexts - allows % as literal character
         rule inline_id() -> &'input str = $(id_start_char() inline_id_subsequent_char()*)
         rule inline_id_subsequent_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '%']
@@ -3199,13 +3204,15 @@ peg::parser! {
         / "." role:role() { Shorthand::Role(role.to_string()) }
         / "%" option:option() { Shorthand::Option(option.to_string()) }
 
-        /// Parse inline attribute shorthand: .role, #id, or %role
+        /// Parse inline attribute shorthand: .role, #id, %role, or bare role
         /// In inline context, % is not an option separator - it's a literal character
         /// Leading % is treated as part of the role name
+        /// Bare roles (no prefix) are supported for asciidoctor compatibility
         rule inline_shorthand() -> Shorthand
         = "#" id:inline_id() { Shorthand::Id(id.to_string()) }
         / "." role:inline_role() { Shorthand::Role(role.to_string()) }
         / "%" role:inline_role() { Shorthand::Role(format!("%{role}")) }
+        / role:bare_inline_role() { Shorthand::Role(role.to_string()) }
 
         // The option rule is used to parse options in the form of "option=value" or
         // "%option" (we don't capture the % here).

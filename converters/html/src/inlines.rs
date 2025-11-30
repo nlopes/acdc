@@ -132,13 +132,32 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineNode::HighlightText(h) => {
+            // Warn about deprecated built-in roles
+            if let Some(ref role) = h.role {
+                for r in role.split_whitespace() {
+                    match r {
+                        "big" => tracing::warn!(
+                            role = %r,
+                            "Role is deprecated. Consider using `+++<big>+++text+++</big>+++` or CSS font-size instead."
+                        ),
+                        "small" => tracing::warn!(
+                            role = %r,
+                            "Role is deprecated. Consider using `+++<small>+++text+++</small>+++` or CSS font-size instead."
+                        ),
+                        _ => {}
+                    }
+                }
+            }
             if !options.inlines_basic {
-                write_tag_with_attrs(w, "mark", h.id.as_ref(), h.role.as_ref())?;
+                // asciidoctor behavior: use <span> when role is present, <mark> otherwise
+                let tag = if h.role.is_some() { "span" } else { "mark" };
+                write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
             }
             visitor.visit_inline_nodes(&h.content)?;
             if !options.inlines_basic {
                 let w = visitor.writer_mut();
-                write!(w, "</mark>")?;
+                let tag = if h.role.is_some() { "span" } else { "mark" };
+                write!(w, "</{tag}>")?;
             }
         }
         InlineNode::MonospaceText(m) => {

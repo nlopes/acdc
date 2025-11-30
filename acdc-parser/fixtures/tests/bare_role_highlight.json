@@ -1,0 +1,691 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This has ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "line-through",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "strikethrough",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 25
+                },
+                {
+                  "line": 1,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 24
+            },
+            {
+              "line": 1,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " text using bare role syntax.",
+          "location": [
+            {
+              "line": 1,
+              "col": 39
+            },
+            {
+              "line": 1,
+              "col": 67
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 67
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This has ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "line-through",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "strikethrough",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 26
+                },
+                {
+                  "line": 3,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 25
+            },
+            {
+              "line": 3,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " text using dot-prefixed role syntax.",
+          "location": [
+            {
+              "line": 3,
+              "col": 40
+            },
+            {
+              "line": 3,
+              "col": 76
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 76
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This has ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "plain highlight",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 11
+                },
+                {
+                  "line": 5,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 10
+            },
+            {
+              "line": 5,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " without role.",
+          "location": [
+            {
+              "line": 5,
+              "col": 27
+            },
+            {
+              "line": 5,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 40
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Built-in text decoration roles: ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "underline",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "underlined",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 45
+                },
+                {
+                  "line": 7,
+                  "col": 54
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 44
+            },
+            {
+              "line": 7,
+              "col": 55
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 7,
+              "col": 56
+            },
+            {
+              "line": 7,
+              "col": 57
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "overline",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "overlined",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 69
+                },
+                {
+                  "line": 7,
+                  "col": 77
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 68
+            },
+            {
+              "line": 7,
+              "col": 78
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 79
+            },
+            {
+              "line": 7,
+              "col": 79
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 79
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Built-in whitespace roles: ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "nobreak",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "no break",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 38
+                },
+                {
+                  "line": 9,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 37
+            },
+            {
+              "line": 9,
+              "col": 46
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 9,
+              "col": 47
+            },
+            {
+              "line": 9,
+              "col": 48
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "nowrap",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "no wrap",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 58
+                },
+                {
+                  "line": 9,
+                  "col": 64
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 57
+            },
+            {
+              "line": 9,
+              "col": 65
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 9,
+              "col": 66
+            },
+            {
+              "line": 9,
+              "col": 67
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "pre-wrap",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "pre wrap",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 79
+                },
+                {
+                  "line": 9,
+                  "col": 86
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 78
+            },
+            {
+              "line": 9,
+              "col": 87
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 88
+            },
+            {
+              "line": 9,
+              "col": 88
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 88
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Deprecated roles: ",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "big",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "big text",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 25
+                },
+                {
+                  "line": 11,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 24
+            },
+            {
+              "line": 11,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 11,
+              "col": 34
+            },
+            {
+              "line": 11,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "mark",
+          "form": "constrained",
+          "role": "small",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "small text",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 44
+                },
+                {
+                  "line": 11,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 43
+            },
+            {
+              "line": 11,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 11,
+              "col": 55
+            },
+            {
+              "line": 11,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 55
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 55
+    }
+  ]
+}
