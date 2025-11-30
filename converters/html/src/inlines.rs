@@ -164,17 +164,7 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             if !options.inlines_basic {
                 write_tag_with_attrs(w, "code", m.id.as_ref(), m.role.as_ref())?;
             }
-            for inline in &m.content {
-                visit_inline_node(
-                    inline,
-                    visitor,
-                    processor,
-                    &RenderOptions {
-                        inlines_basic: true,
-                        ..*options
-                    },
-                )?;
-            }
+            visitor.visit_inline_nodes(&m.content)?;
             if !options.inlines_basic {
                 let w = visitor.writer_mut();
                 write!(w, "</code>")?;
