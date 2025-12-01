@@ -53,6 +53,7 @@ Run TCK (Test Compatibility Kit) compliance tests. Reads JSON from stdin and out
 Check the `link:../converters/README.adoc[converters README]` for details.
 
 - `link:../converters/html[html]` (default)
+- `link:../converters/manpage[manpage]` (available with `--features manpage`)
 - `link:../converters/terminal[terminal]` (available with `--features terminal`)
 
 ### Building an optional backend or tool
@@ -78,6 +79,7 @@ cargo build --all-features
 ### Output Converters
 
 * `html` (default) - HTML5 converter with Asciidoctor-compatible styling
+* `manpage` - Manpage converter
 * `terminal` - Terminal converter with ANSI color support
 
 ### Development Tools

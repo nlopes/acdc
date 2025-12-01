@@ -18,6 +18,10 @@ use crate::{
             adjust_and_log_parse_error, parse_inlines, preprocess_inline_content, process_inlines,
         },
         location_mapping::map_inline_locations,
+        manpage::{
+            derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text,
+            is_manpage_doctype,
+        },
         table::parse_table_cell,
     },
     model::{ListLevel, SectionLevel},
@@ -222,12 +226,20 @@ peg::parser! {
                 let mut location = state.create_location(start, end);
                 location.absolute_end = location.absolute_end.saturating_sub(1);
                 location.end.column = location.end.column.saturating_sub(1);
-                Some(Header {
+                let header = Header {
                     title,
                     subtitle,
                     authors,
                     location
-                })
+                };
+
+                // Derive manpage attributes from header if doctype=manpage
+                // This must happen during parsing so {mantitle} etc. work in body
+                if is_manpage_doctype(&state.document_attributes) {
+                    derive_manpage_header_attrs(Some(&header), &mut state.document_attributes);
+                }
+
+                Some(header)
             } else {
                 tracing::info!("No title or authors found in the document header.");
                 None
@@ -488,6 +500,21 @@ peg::parser! {
 
             let level = section_level.1;
             let location = state.create_block_location(start, end, offset);
+
+            // Derive manname/manpurpose from NAME section in manpage documents
+            //
+            // This must happen before subsequent sections are parsed so {manname} works
+            // in SYNOPSIS, DESCRIPTION, etc.
+            if level == 1 && is_manpage_doctype(&state.document_attributes) {
+                let title_text = extract_plain_text(&title);
+                if title_text.eq_ignore_ascii_case("NAME")
+                    && let Some(Ok(ref blocks)) = content
+                    && let Some(Block::Paragraph(para)) = blocks.first()
+                {
+                    let para_text = extract_plain_text(&para.content);
+                    derive_name_section_attrs(&para_text, &mut state.document_attributes);
+                }
+            }
 
             Ok(Block::Section(Section {
                 metadata: block_metadata.metadata,

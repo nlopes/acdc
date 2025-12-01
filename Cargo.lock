@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
  "acdc-converters-html",
+ "acdc-converters-manpage",
  "acdc-converters-terminal",
  "acdc-core",
  "acdc-parser",
@@ -43,6 +44,21 @@ dependencies = [
  "acdc-parser",
  "chrono",
  "crossterm",
+ "pretty_assertions",
+ "rstest",
+ "thiserror 2.0.17",
+ "tracing",
+ "tracing-test",
+]
+
+[[package]]
+name = "acdc-converters-manpage"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-common",
+ "acdc-core",
+ "acdc-parser",
+ "chrono",
  "pretty_assertions",
  "rstest",
  "thiserror 2.0.17",

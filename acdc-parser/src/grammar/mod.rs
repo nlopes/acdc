@@ -3,6 +3,7 @@ mod document;
 mod inline_preprocessor;
 mod inline_processing;
 mod location_mapping;
+pub(crate) mod manpage;
 mod marked_text;
 mod markup_patterns;
 mod passthrough_processing;

@@ -167,10 +167,9 @@ pub trait Processable {
 
 Right now I have three converters:
 
-. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility
-attributes
+. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes
+. Manpage (`converters/manpage`) for native roff/troff output suitable for the `man` command
 . Terminal (`converters/terminal`) for ANSI-formatted terminal display
-. TCK (`converters/tck`) for spec compliance testing.
 
 Why this trait-based design? I didn't think it over too much, honestly. It keeps things clean - the parser doesn't know anything about output formats. Each converter defines its own options and error types, which gives type safety. And implementing the trait to add a new output format is straightforward.
 
@@ -182,7 +181,7 @@ I went a different route. I created distinct Rust types for each element - `Bloc
 
 Why? Because it lets me leverage Rust's type system as much as possible. The compiler catches mistakes at compile time instead of runtime. Pattern matching is exhaustive - if I add a new block type and forget to handle it in a converter, the compiler won't let me build. And converters get better ergonomics because they can destructure specific types rather than checking string properties.
 
-The trade-off is that my AST structure doesn't map one-to-one with the spec's JSON representation. But that's fine - the TCK converter handles the translation to spec-compatible JSON for compliance testing.
+The trade-off is that my AST structure doesn't map one-to-one with the spec's JSON representation. But that's fine - the `tck` command handles the translation to spec-compatible JSON for compliance testing.
 
 == Key design decisions
 
@@ -209,8 +208,8 @@ acdc/
 └── converters/
     ├── common/        # Shared converter infrastructure
     ├── html/          # HTML5 output
-    ├── terminal/      # ANSI terminal output
-    └── tck/           # Test compatibility kit
+    ├── manpage/       # Native roff/troff manpage output
+    └── terminal/      # ANSI terminal output
 ----
 
 This keeps clear boundaries - parser, CLI, and converters are independently testable. The parser has no knowledge of output formats. Converters depend on the parser, not the other way around. New features can be scoped to specific modules without touching everything else.
@@ -335,7 +334,9 @@ Error: Unexpected section level
 
 === Following the spec
 
-I'm following the AsciiDoc Language specification wherever it's been formalized. When there's a formal spec decision, that's what I implement - it's the primary source of truth. I reference the relevant Specification Document Requirement (SDRs) in the implementation, and I'm feeding implementation experience back to the spec process. The test suite includes spec compliance tests via the TCK converter.
+I'm following the AsciiDoc Language specification wherever it's been formalized. When there's a formal spec decision, that's what I implement - it's the primary source of truth. I reference the relevant Specification Document Requirement (SDRs) in the implementation, and I'm feeding implementation experience back to the spec process.
+
+The test suite includes spec compliance tests via the `tck` command.
 
 === Asciidoctor compatibility
 
@@ -343,7 +344,7 @@ Where the spec is undefined or ambiguous, I match Asciidoctor behavior to keep t
 
 === Testing
 
-The TCK converter produces output compatible with the AsciiDoc Language TCK test harness,
+The `tck` command produces output compatible with the AsciiDoc Language TCK test harness,
 which means automated spec compliance validation. I've got over 115 test fixtures that
 validate parsing correctness against golden JSON files. The CI pipeline runs the full test
 suite on every change to catch regressions. Currently my test fixtures are much more comprehensive than the TCK tests are - on the one hand that's great (I'm testing more stuff), on the other hand when more gets added to the harness, I may find my fixtures and parser are wrong - we'll sort when we get there.

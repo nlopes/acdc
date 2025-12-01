@@ -5,6 +5,7 @@ members = [
   "acdc-parser",
   "converters/common",
   "converters/html",
+  "converters/manpage",
   "converters/terminal",
 ]
 resolver = "2"

@@ -1,5 +1,5 @@
 # `acdc` converters
 
 - `link:./html[html]` - `AsciiDoc` html backend
-- `link:./tck[tck]` - `AsciiDoc` TCK output backend (this should only be used to validate against the `asciidoc-tck` test suite)
+- `link:./manpage[manpage]` - `AsciiDoc` manpage backend
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)

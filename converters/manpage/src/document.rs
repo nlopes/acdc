@@ -1,0 +1,139 @@
+//! Document-level rendering for manpages.
+//!
+//! Handles the `.TH` title header macro and document preamble.
+
+use std::io::Write;
+
+use acdc_converters_common::visitor::WritableVisitor;
+use acdc_parser::{AttributeValue, Document, InlineNode};
+
+use crate::{Error, ManpageVisitor, escape::escape_quoted};
+
+/// Extract plain text from inline nodes (for code blocks, title parsing, etc.).
+pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
+    let mut result = String::new();
+    for node in nodes {
+        match node {
+            InlineNode::PlainText(text) => result.push_str(&text.content),
+            InlineNode::RawText(text) => result.push_str(&text.content),
+            InlineNode::VerbatimText(text) => result.push_str(&text.content),
+            InlineNode::BoldText(bold) => result.push_str(&extract_plain_text(&bold.content)),
+            InlineNode::ItalicText(italic) => result.push_str(&extract_plain_text(&italic.content)),
+            InlineNode::MonospaceText(mono) => result.push_str(&extract_plain_text(&mono.content)),
+            InlineNode::HighlightText(highlight) => {
+                result.push_str(&extract_plain_text(&highlight.content));
+            }
+            InlineNode::SubscriptText(sub) => result.push_str(&extract_plain_text(&sub.content)),
+            InlineNode::SuperscriptText(sup) => result.push_str(&extract_plain_text(&sup.content)),
+            InlineNode::CurvedQuotationText(quoted) => {
+                result.push_str(&extract_plain_text(&quoted.content));
+            }
+            InlineNode::CurvedApostropheText(quoted) => {
+                result.push_str(&extract_plain_text(&quoted.content));
+            }
+            // These nodes don't contribute plain text (and future variants via wildcard)
+            // InlineNode is #[non_exhaustive], so wildcard arm handles future variants
+            #[allow(clippy::match_same_arms, clippy::wildcard_enum_match_arm)]
+            InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | _ => {}
+        }
+    }
+    result
+}
+
+/// Helper to get a string attribute value, returning None if not set or not a string.
+fn get_string_attr<'a>(doc: &'a Document, key: &str) -> Option<&'a str> {
+    doc.attributes.get(key).and_then(|v| match v {
+        AttributeValue::String(s) => Some(s.as_str()),
+        AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+    })
+}
+
+/// Visit document start - generates the .TH header and preamble.
+///
+/// Reads manpage attributes that were derived by the parser:
+/// - `mantitle`: The program name from the document title
+/// - `manvolnum`: The volume number from the document title
+/// - `manname`: From NAME section (or falls back to mantitle)
+/// - `manpurpose`: From NAME section (after ` - `)
+pub fn visit_document_start<W: Write>(
+    doc: &Document,
+    visitor: &mut ManpageVisitor<W>,
+) -> Result<(), Error> {
+    // Ensure we have a header
+    if doc.header.is_none() {
+        return Err(Error::MissingHeader);
+    }
+
+    // Get mantitle and manvolnum from document attributes (set by parser)
+    let mantitle = get_string_attr(doc, "mantitle")
+        .ok_or_else(|| Error::InvalidManpageTitle("missing mantitle attribute".to_string()))?
+        .to_string();
+
+    let manvolnum = get_string_attr(doc, "manvolnum").unwrap_or("1").to_string();
+
+    // Copy parser-derived attributes to visitor for use during conversion.
+    // These are already set by the parser (from NAME section), but we need
+    // to ensure they're in the visitor's attribute map for rendering.
+    let attrs = &mut visitor.processor.document_attributes;
+
+    // manname: from parser (NAME section) or fall back to mantitle
+    if let Some(manname) = get_string_attr(doc, "manname") {
+        attrs.insert(
+            "manname".to_string(),
+            AttributeValue::String(manname.to_string()),
+        );
+    } else {
+        attrs.insert(
+            "manname".to_string(),
+            AttributeValue::String(mantitle.clone()),
+        );
+    }
+
+    // manpurpose: from parser (NAME section), if available
+    if let Some(manpurpose) = get_string_attr(doc, "manpurpose") {
+        attrs.insert(
+            "manpurpose".to_string(),
+            AttributeValue::String(manpurpose.to_string()),
+        );
+    }
+
+    // Get optional attributes (user-provided or defaults)
+    let mansource = get_string_attr(doc, "mansource").unwrap_or("");
+    let manmanual = get_string_attr(doc, "manmanual").unwrap_or("");
+
+    // Get date - use revdate attribute or current date
+    let date = get_string_attr(doc, "revdate").map_or_else(
+        || chrono::Local::now().format("%Y-%m-%d").to_string(),
+        ToString::to_string,
+    );
+
+    let w = visitor.writer_mut();
+
+    // Write comment header (enables tbl preprocessor)
+    writeln!(w, r#"'\" t"#)?;
+    writeln!(w, r#".\"  Generated by acdc"#)?;
+
+    // Write .TH macro
+    // Format: .TH "NAME" "VOLUME" "DATE" "SOURCE" "MANUAL"
+    writeln!(
+        w,
+        ".TH \"{}\" \"{}\" \"{}\" \"{}\" \"{}\"",
+        escape_quoted(&mantitle.to_uppercase()),
+        escape_quoted(&manvolnum),
+        escape_quoted(&date),
+        escape_quoted(mansource),
+        escape_quoted(manmanual)
+    )?;
+
+    // Write preamble settings (targeting modern groff)
+    writeln!(w, r#".\" Disable hyphenation"#)?;
+    writeln!(w, ".nh")?;
+    writeln!(w, r#".\" Left-align only"#)?;
+    writeln!(w, ".ad l")?;
+
+    Ok(())
+}

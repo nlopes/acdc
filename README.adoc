@@ -37,6 +37,7 @@ acdc/
 │   └── fixtures/            # Test fixtures
 └── converters/              # Output converters
     ├── html/               # HTML5 converter
+    ├── manpage/            # Native roff/troff manpage output
     ├── terminal/           # Rich terminal output
     └── common/             # Shared converter utilities
 ----

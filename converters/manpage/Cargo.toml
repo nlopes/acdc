@@ -1,0 +1,34 @@
+[package]
+name = "acdc-converters-manpage"
+description = "Manpage converter"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+acdc-converters-common.workspace = true
+acdc-core.workspace = true
+acdc-parser.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+rstest.workspace = true
+tracing-test.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+# Defensive programming
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+fallible_impl_from = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+pedantic = "deny"
+unreachable = "deny"
+todo = "deny"
+unimplemented = "deny"

@@ -16,6 +16,7 @@ acdc-core.workspace = true
 acdc-converters-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
 acdc-converters-terminal = { path = "../converters/terminal", optional = true }
+acdc-converters-manpage = { path = "../converters/manpage", optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
 crossterm.workspace = true
@@ -33,6 +34,7 @@ default = ["html"]
 
 # Output converters
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
+manpage = ["dep:acdc-converters-manpage"]      # Manpage (roff/troff) converter for man pages
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
 # Development tools
@@ -40,7 +42,7 @@ inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 
 # Feature groups for convenience
-all-backends = ["html", "terminal"]  # Enable all output converters
+all-backends = ["html", "manpage", "terminal"]  # Enable all output converters
 dev-tools = ["inspect"]              # Enable development utilities
 test-tools = ["tck"]                 # Enable testing and compliance tools
 

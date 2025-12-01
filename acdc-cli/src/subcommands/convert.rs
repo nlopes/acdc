@@ -15,6 +15,9 @@ pub enum Backend {
 
     #[cfg(feature = "terminal")]
     Terminal,
+
+    #[cfg(feature = "manpage")]
+    Manpage,
 }
 
 /// Convert `AsciiDoc` documents to various output formats
@@ -97,6 +100,18 @@ pub fn run(args: &Args) -> miette::Result<()> {
                 options,
                 document_attributes,
                 false,
+            )
+            .map_err(|e| error::display(&e))
+        }
+
+        #[cfg(feature = "manpage")]
+        Backend::Manpage => {
+            // Manpage outputs to separate files - can process in parallel
+            run_processor::<acdc_converters_manpage::Processor>(
+                args,
+                options,
+                document_attributes,
+                true,
             )
             .map_err(|e| error::display(&e))
         }

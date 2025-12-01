@@ -1,0 +1,64 @@
+= `acdc-converters-manpage`
+
+Manpage converter for `AsciiDoc` documents. Generates native roff/troff output suitable for the `man` command.
+
+== Usage
+
+[source,console]
+....
+acdc convert --backend manpage mycommand.adoc
+....
+
+This generates `mycommand.1` (or another extension based on the manual section) in the same directory as the source file.
+
+== Output Format
+
+Generates roff/troff format compatible with:
+
+- GNU groff
+- mandoc (OpenBSD)
+- Traditional Unix nroff/troff
+
+=== Roff Macros Used
+
+- `.TH` - Title header with name, section, date, source, manual
+- `.SH` - Section headings (NAME, SYNOPSIS, DESCRIPTION, etc.)
+- `.SS` - Subsection headings
+- `.PP` - Paragraph breaks
+- `.IP`, `.TP` - Indented and tagged paragraphs for lists
+- `.EX`/`.EE` - Example blocks (literal/listing content)
+- `.TS`/`.TE` - Table start/end (tbl preprocessor)
+- `\fB`, `\fI`, `\fP` - Bold, italic, previous font
+
+== Viewing Output
+
+View the generated manpage:
+
+[source,console]
+....
+man ./mycommand.1
+....
+
+Or with groff directly:
+
+[source,console]
+....
+groff -man -Tascii mycommand.1 | less
+....
+
+== Technical Details
+
+The manpage converter:
+
+- Escapes special roff characters (backslash, period at line start, apostrophe)
+- Disables hyphenation (`.nh`) for consistent formatting
+- Uses left-alignment only (`.ad l`) as is standard for manpages
+- Includes the tbl preprocessor directive (`'\" t`) when tables are present
+- Preserves inline formatting (bold, italic, monospace) using roff font escapes
+
+== Differences from Asciidoctor
+
+The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage backend, but some features may differ:
+
+- Some advanced table features not yet implemented
+- Custom macro extensions not supported
