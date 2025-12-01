@@ -18,7 +18,7 @@ thiserror.workspace = true
 url = "2.5"
 
 [dev-dependencies]
-criterion = { version = "0.7", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 pretty_assertions.workspace = true
 proptest = "1.9"
 rstest.workspace = true
