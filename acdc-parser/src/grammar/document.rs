@@ -24,7 +24,7 @@ use crate::{
         },
         table::parse_table_cell,
     },
-    model::{ListLevel, SectionLevel},
+    model::{ListLevel, Locateable, SectionLevel},
 };
 
 #[derive(Debug)]
@@ -1414,6 +1414,10 @@ peg::parser! {
         // Helper rule to check if we're at the start of a new list item (lookahead)
         rule at_list_item_start() = whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace()
 
+        // Helper rule to check if we're at the start of a section heading (lookahead)
+        // This is used to terminate list continuations when a section follows
+        rule at_section_start() = ("=" / "#")+ " "
+
         // Helper rule to check if we're at an ordered list marker ahead (after newlines)
         rule at_ordered_marker_ahead() = eol()+ whitespace()* ordered_list_marker()
 
@@ -1520,7 +1524,8 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+") cont_line:$((!(eol()) [_])*) { cont_line })*
+        // Stop at: blank line, list item start, explicit continuation marker, or section heading
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Try to parse nested ordered list (only if followed by newline)
         nested:(eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
@@ -1604,7 +1609,8 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+") cont_line:$((!(eol()) [_])*) { cont_line })*
+        // Stop at: blank line, list item start, explicit continuation marker, or section heading
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Try to parse nested unordered list (only if followed by newline)
         nested:(eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
@@ -1915,13 +1921,32 @@ peg::parser! {
                 }
             }
 
+            // Calculate actual end from last attached block, or fall back to end of principal/term
+            // Note: end:position!() captures position after consuming blank lines looking for more
+            // continuations, which ends up at the start of the next item. We need the actual content end.
+            let actual_end = description.last().map_or_else(
+                || {
+                    // No attached content: use end of principal text line
+                    if principal_content.is_empty() {
+                        // Just term + delimiter
+                        principal_start
+                    } else {
+                        principal_start + principal_content.len()
+                    }
+                },
+                |b| {
+                    let loc = b.location();
+                    loc.absolute_end - offset
+                },
+            );
+
             Ok(DescriptionListItem {
                 anchors: vec![],
                 term,
                 delimiter: delimiter.to_string(),
                 principal_text,
                 description,
-                location: state.create_location(start+offset, end+offset),
+                location: state.create_location(start+offset, actual_end+offset),
             })
         }
 
@@ -1947,47 +1972,30 @@ peg::parser! {
             Ok(vec![list?])
         }
 
+        // Parse one or more explicit continuations for description lists
+        // Same pattern as list_explicit_continuation: + marker followed by a single block
         rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
-        = "+" eol()
-        continuation_start:position!()
-        // Capture lines until we see another description list item
-        // This consumes everything until it hits a line that starts with a description list term
-        content:$((!(eol() check_start_of_description_list()) [_])*)
-        end:position!()
+        = continuations:(
+            eol()* "+" eol()
+            block:block(offset, block_metadata.parent_section_level)
+            { block }
+          )+
         {
-            tracing::info!(?content, start = ?continuation_start, ?end, "Explicit continuation content");
-
-            let trimmed = content.trim_end();
-            if trimmed.is_empty() {
-                Ok(Vec::new())
-            } else {
-                document_parser::blocks(trimmed, state, continuation_start+offset, block_metadata.parent_section_level)
-                    .unwrap_or_else(|e| {
-                        adjust_and_log_parse_error(&e, trimmed, continuation_start+offset, state, "Error parsing continuation content");
-                        Ok(Vec::new())
-                    })
-            }
+            tracing::info!(count = continuations.len(), "Description list explicit continuation blocks");
+            Ok(continuations.into_iter().filter_map(Result::ok).collect())
         }
 
+        // Parse one or more explicit continuations (+ marker followed by a single block each)
+        // A blank line after a block naturally terminates the continuation unless another + follows
         rule list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
-        = "+" eol()
-        continuation_start:position!()
-        // Capture lines until we see another list item at same level or higher
-        content:$((!(eol() at_list_item_start()) [_])*)
-        end:position!()
+        = continuations:(
+            eol()* "+" eol()
+            block:block(offset, block_metadata.parent_section_level)
+            { block }
+          )+
         {
-            tracing::info!(?content, start = ?continuation_start, ?end, "List explicit continuation content");
-
-            let trimmed = content.trim_end();
-            if trimmed.is_empty() {
-                Ok(Vec::new())
-            } else {
-                document_parser::blocks(trimmed, state, continuation_start+offset, block_metadata.parent_section_level)
-                    .unwrap_or_else(|e| {
-                        adjust_and_log_parse_error(&e, trimmed, continuation_start+offset, state, "Error parsing list continuation content");
-                        Ok(Vec::new())
-                    })
-            }
+            tracing::info!(count = continuations.len(), "List explicit continuation blocks");
+            Ok(continuations.into_iter().filter_map(Result::ok).collect())
         }
 
         pub(crate) rule inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
@@ -3051,7 +3059,7 @@ peg::parser! {
                         title: Vec::new(),
                         location: state.create_block_location(content_start.offset, end, offset),
                     })],
-                    location: state.create_block_location(0, end, offset),
+                    location: state.create_block_location(start, end, offset),
                     variant: parsed_variant,
 
                 }))

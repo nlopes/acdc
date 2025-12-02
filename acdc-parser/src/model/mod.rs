@@ -190,6 +190,29 @@ pub enum Block {
     Video(Video),
 }
 
+impl Locateable for Block {
+    fn location(&self) -> &Location {
+        match self {
+            Block::Section(s) => &s.location,
+            Block::Paragraph(p) => &p.location,
+            Block::UnorderedList(l) => &l.location,
+            Block::OrderedList(l) => &l.location,
+            Block::DescriptionList(l) => &l.location,
+            Block::CalloutList(l) => &l.location,
+            Block::DelimitedBlock(d) => &d.location,
+            Block::Admonition(a) => &a.location,
+            Block::TableOfContents(t) => &t.location,
+            Block::DiscreteHeader(h) => &h.location,
+            Block::DocumentAttribute(a) => &a.location,
+            Block::ThematicBreak(tb) => &tb.location,
+            Block::PageBreak(pb) => &pb.location,
+            Block::Image(i) => &i.location,
+            Block::Audio(a) => &a.location,
+            Block::Video(v) => &v.location,
+        }
+    }
+}
+
 /// A `DocumentAttribute` represents a document attribute in a document.
 ///
 /// A document attribute is a key-value pair that can be used to set metadata in a

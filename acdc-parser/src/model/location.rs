@@ -4,6 +4,11 @@ use serde::{
     ser::{SerializeSeq, Serializer},
 };
 
+pub(crate) trait Locateable {
+    /// Get a reference to the location.
+    fn location(&self) -> &Location;
+}
+
 /// A `Location` represents a location in a document.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 pub struct Location {
