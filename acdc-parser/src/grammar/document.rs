@@ -3,12 +3,12 @@ use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CalloutList, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, Error, Footnote, Form, Header, Highlight, Icon, Image, InlineMacro,
-    InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Menu,
-    Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
-    Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Substitution, Superscript, Table, TableOfContents, TableRow, ThematicBreak, UnorderedList, Url,
-    Verbatim, Video,
+    DocumentAttribute, Error, Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image,
+    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
+    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain,
+    Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
+    StemNotation, Subscript, Substitution, Superscript, Table, TableOfContents, TableRow,
+    ThematicBreak, UnorderedList, Url, Verbatim, Video,
     grammar::{
         ParserState,
         author_revision::{RevisionInfo, generate_initials, process_revision_info},
@@ -2264,11 +2264,37 @@ peg::parser! {
             let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
             metadata.move_positional_attributes_to_attributes();
+            // For font mode, the first positional (style) can be a size value (1x, 2x,
+            // lg, fw) -> stored as "size" attribute;
+            //
+            // For image mode, the first positional (style) can be alt text.
+            if let Some(ref style) = metadata.style {
+                // Strip surrounding quotes if present (quoted positional attributes)
+                let style_value = style.trim_matches('"');
+                if ICON_SIZES.contains(&style_value) {
+                    metadata.attributes.set(
+                        "size".to_string(),
+                        AttributeValue::String(style_value.to_string()),
+                    );
+                } else {
+                    // Other value become alt (fa-{value} in image mode)
+                    metadata.attributes.set(
+                        "alt".to_string(),
+                        AttributeValue::String(style_value.to_string()),
+                    );
+                }
+            }
+            // Copy roles to attributes so they're accessible in the converter
+            if !metadata.roles.is_empty() {
+                metadata.attributes.set(
+                    "role".to_string(),
+                    AttributeValue::String(metadata.roles.join(" ")),
+                );
+            }
             InlineNode::Macro(InlineMacro::Icon(Icon {
                 target: source,
                 attributes: metadata.attributes.clone(),
                 location: state.create_block_location(start.offset, end, offset),
-
             }))
         }
 
@@ -2276,9 +2302,9 @@ peg::parser! {
         = start:position!() "stem:[" content:balanced_bracket_content() "]" end:position!()
         {
             // Get notation from :stem: document attribute
-            let notation = match state.document_attributes.get("stem") {
-                Some(AttributeValue::String(s)) => {
-                    StemNotation::from_str(s).unwrap_or(StemNotation::Asciimath)
+            let notation = match state.document_attributes.get_string("stem") {
+                Some(s) => {
+                    StemNotation::from_str(&s).unwrap_or(StemNotation::Asciimath)
                 }
                 _ => StemNotation::Asciimath,
             };

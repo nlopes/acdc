@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
 
+pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
+
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Pass {

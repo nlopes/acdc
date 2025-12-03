@@ -235,6 +235,9 @@
                 "type": "name",
                 "value": "heart"
               },
+              "attributes": {
+                "alt": "Favorite"
+              },
               "location": [
                 {
                   "line": 13,

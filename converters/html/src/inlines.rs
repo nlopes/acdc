@@ -49,6 +49,7 @@ use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_t
 
 use crate::{
     Error, Processor, RenderOptions,
+    icon::write_icon,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
 
@@ -386,23 +387,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         },
         InlineMacro::Icon(i) => {
-            if let Some(icons_value) = processor.document_attributes.get("icons") {
-                if icons_value.to_string() == "font" {
-                    write!(
-                        w,
-                        "<span class=\"icon\"><i class=\"fa fa-{}\"></i></span>",
-                        i.target
-                    )?;
-                } else {
-                    write!(
-                        w,
-                        "<span class=\"image\"><img src=\"./images/icons/{}.png\" alt=\"{}\"></span>",
-                        i.target, i.target
-                    )?;
-                }
-            } else {
-                write!(w, "<span class=\"icon\">[{}]</span>", i.target)?;
-            }
+            write_icon(w, processor, i)?;
         }
         InlineMacro::Keyboard(k) => {
             if k.keys.len() == 1

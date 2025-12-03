@@ -178,6 +178,21 @@ impl DocumentAttributes {
     pub fn merge(&mut self, other: Self) {
         self.0.merge(other.0);
     }
+
+    /// Helper to get a string value.
+    ///
+    /// Strips surrounding quotes from the value if present (parser quirk workaround).
+    #[must_use]
+    pub fn get_string(&self, name: &str) -> Option<String> {
+        self.get(name).and_then(|v| match v {
+            AttributeValue::String(s) => {
+                // Strip surrounding quotes if present (parser includes them for quoted values)
+                let trimmed = s.trim_matches('"');
+                Some(trimmed.to_string())
+            }
+            AttributeValue::None | AttributeValue::Bool(_) | AttributeValue::Inlines(_) => None,
+        })
+    }
 }
 
 impl Serialize for DocumentAttributes {
@@ -267,6 +282,21 @@ impl ElementAttributes {
     /// Merge another attribute map into this one.
     pub fn merge(&mut self, other: Self) {
         self.0.merge(other.0);
+    }
+
+    /// Helper to get a string value.
+    ///
+    /// Strips surrounding quotes from the value if present (parser quirk workaround).
+    #[must_use]
+    pub fn get_string(&self, name: &str) -> Option<String> {
+        self.get(name).and_then(|v| match v {
+            AttributeValue::String(s) => {
+                // Strip surrounding quotes if present (parser includes them for quoted values)
+                let trimmed = s.trim_matches('"');
+                Some(trimmed.to_string())
+            }
+            AttributeValue::None | AttributeValue::Bool(_) | AttributeValue::Inlines(_) => None,
+        })
     }
 }
 

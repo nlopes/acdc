@@ -161,6 +161,7 @@ mod delimited;
 mod document;
 mod error;
 mod html_visitor;
+mod icon;
 mod image;
 mod image_helpers;
 mod inlines;

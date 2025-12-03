@@ -11,21 +11,13 @@ use acdc_parser::{
 
 use crate::{Error, Processor, RenderOptions};
 
-/// Extract a string value from block metadata attributes
-fn get_string_attr<'a>(metadata: &'a BlockMetadata, key: &str) -> Option<&'a str> {
-    metadata.attributes.get(key).and_then(|v| match v {
-        AttributeValue::String(s) => Some(s.as_str()),
-        AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
-    })
-}
-
 /// Write attribution div for quote/verse blocks if author or citation present
 fn write_attribution<W: Write>(
     writer: &mut W,
     metadata: &BlockMetadata,
 ) -> Result<(), std::io::Error> {
-    let author = get_string_attr(metadata, "attribution");
-    let citation = get_string_attr(metadata, "citation");
+    let author = metadata.attributes.get_string("attribution");
+    let citation = metadata.attributes.get_string("citation");
 
     if author.is_some() || citation.is_some() {
         writeln!(writer, "<div class=\"attribution\">")?;

@@ -44,14 +44,6 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
     result
 }
 
-/// Helper to get a string attribute value, returning None if not set or not a string.
-fn get_string_attr<'a>(doc: &'a Document, key: &str) -> Option<&'a str> {
-    doc.attributes.get(key).and_then(|v| match v {
-        AttributeValue::String(s) => Some(s.as_str()),
-        AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
-    })
-}
-
 /// Visit document start - generates the .TH header and preamble.
 ///
 /// Reads manpage attributes that were derived by the parser:
@@ -69,11 +61,15 @@ pub fn visit_document_start<W: Write>(
     }
 
     // Get mantitle and manvolnum from document attributes (set by parser)
-    let mantitle = get_string_attr(doc, "mantitle")
-        .ok_or_else(|| Error::InvalidManpageTitle("missing mantitle attribute".to_string()))?
-        .to_string();
+    let mantitle = doc
+        .attributes
+        .get_string("mantitle")
+        .ok_or_else(|| Error::InvalidManpageTitle("missing mantitle attribute".to_string()))?;
 
-    let manvolnum = get_string_attr(doc, "manvolnum").unwrap_or("1").to_string();
+    let manvolnum = doc
+        .attributes
+        .get_string("manvolnum")
+        .unwrap_or(String::from("1"));
 
     // Copy parser-derived attributes to visitor for use during conversion.
     // These are already set by the parser (from NAME section), but we need
@@ -81,11 +77,8 @@ pub fn visit_document_start<W: Write>(
     let attrs = &mut visitor.processor.document_attributes;
 
     // manname: from parser (NAME section) or fall back to mantitle
-    if let Some(manname) = get_string_attr(doc, "manname") {
-        attrs.insert(
-            "manname".to_string(),
-            AttributeValue::String(manname.to_string()),
-        );
+    if let Some(manname) = doc.attributes.get_string("manname") {
+        attrs.insert("manname".to_string(), AttributeValue::String(manname));
     } else {
         attrs.insert(
             "manname".to_string(),
@@ -94,22 +87,19 @@ pub fn visit_document_start<W: Write>(
     }
 
     // manpurpose: from parser (NAME section), if available
-    if let Some(manpurpose) = get_string_attr(doc, "manpurpose") {
-        attrs.insert(
-            "manpurpose".to_string(),
-            AttributeValue::String(manpurpose.to_string()),
-        );
+    if let Some(manpurpose) = doc.attributes.get_string("manpurpose") {
+        attrs.insert("manpurpose".to_string(), AttributeValue::String(manpurpose));
     }
 
     // Get optional attributes (user-provided or defaults)
-    let mansource = get_string_attr(doc, "mansource").unwrap_or("");
-    let manmanual = get_string_attr(doc, "manmanual").unwrap_or("");
+    let mansource = doc.attributes.get_string("mansource").unwrap_or_default();
+    let manmanual = doc.attributes.get_string("manmanual").unwrap_or_default();
 
     // Get date - use revdate attribute or current date
-    let date = get_string_attr(doc, "revdate").map_or_else(
-        || chrono::Local::now().format("%Y-%m-%d").to_string(),
-        ToString::to_string,
-    );
+    let date = doc
+        .attributes
+        .get_string("revdate")
+        .unwrap_or(chrono::Local::now().format("%Y-%m-%d").to_string());
 
     let w = visitor.writer_mut();
 
@@ -125,8 +115,8 @@ pub fn visit_document_start<W: Write>(
         escape_quoted(&mantitle.to_uppercase()),
         escape_quoted(&manvolnum),
         escape_quoted(&date),
-        escape_quoted(mansource),
-        escape_quoted(manmanual)
+        escape_quoted(&mansource),
+        escape_quoted(&manmanual)
     )?;
 
     // Write preamble settings (targeting modern groff)

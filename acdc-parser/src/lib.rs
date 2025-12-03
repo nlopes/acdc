@@ -54,7 +54,7 @@ pub use model::{
     CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
     DocumentAttributes, ElementAttributes, Footnote, Form, Header, Highlight, HorizontalAlignment,
-    Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
+    ICON_SIZES, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
     ListItemCheckedStatus, Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass,
     PassthroughKind, Plain, Position, Raw, Role, Section, Source, StandaloneCurvedApostrophe, Stem,
     StemContent, StemNotation, Subscript, Substitution, Superscript, Table, TableColumn,
