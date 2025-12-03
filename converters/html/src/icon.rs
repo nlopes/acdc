@@ -149,10 +149,12 @@ fn write_image_icon<W: Write + ?Sized>(
 /// Wrap icon content with a link if the `link` attribute is present.
 fn wrap_icon_with_link(content: &str, attrs: &ElementAttributes) -> String {
     if let Some(link) = get_attr_string(attrs, "link") {
+        // HTML-escape ampersands in URLs for valid HTML
+        let escaped_link = link.replace('&', "&amp;");
         let window_attrs = get_attr_string(attrs, "window")
             .map(|w| format!(" target=\"{w}\" rel=\"noopener\""))
             .unwrap_or_default();
-        format!("<a class=\"image\" href=\"{link}\"{window_attrs}>{content}</a>")
+        format!("<a class=\"image\" href=\"{escaped_link}\"{window_attrs}>{content}</a>")
     } else {
         content.to_string()
     }

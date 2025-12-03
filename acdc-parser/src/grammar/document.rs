@@ -2272,7 +2272,9 @@ peg::parser! {
                 // Strip surrounding quotes if present (quoted positional attributes)
                 let style_value = style.trim_matches('"');
                 if ICON_SIZES.contains(&style_value) {
-                    metadata.attributes.set(
+                    // Named size= attribute takes precedence over positional size so we
+                    // insert rather than set (set overrides).
+                    metadata.attributes.insert(
                         "size".to_string(),
                         AttributeValue::String(style_value.to_string()),
                     );
