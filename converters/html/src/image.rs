@@ -12,13 +12,33 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let mut w = visitor.writer_mut();
-    write!(w, "<div class=\"imageblock\">")?;
+
+    // Build class list: imageblock + alignment + float + roles
+    let mut classes = vec!["imageblock".to_string()];
+
+    // align=left|center|right → text-left|text-center|text-right
+    if let Some(align) = img.metadata.attributes.get_string("align") {
+        classes.push(format!("text-{align}"));
+    }
+
+    // float=left|right → left|right
+    if let Some(float) = img.metadata.attributes.get_string("float") {
+        classes.push(float.clone());
+    }
+
+    // roles → added as classes
+    for role in &img.metadata.roles {
+        classes.push(role.clone());
+    }
+
+    write!(w, "<div class=\"{}\">", classes.join(" "))?;
     write!(w, "<div class=\"content\">")?;
     // Get alt text from attribute or generate from filename
-    let alt_text = img.metadata.attributes.get("alt").map_or_else(
-        || alt_text_from_filename(&img.source),
-        std::string::ToString::to_string,
-    );
+    let alt_text = img
+        .metadata
+        .attributes
+        .get_string("alt")
+        .unwrap_or(alt_text_from_filename(&img.source));
 
     // Wrap in link if link attribute exists
     let link = img.metadata.attributes.get("link");

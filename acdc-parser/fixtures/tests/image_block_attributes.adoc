@@ -1,0 +1,27 @@
+= Image Block Attributes
+
+== Alignment
+
+image::left.png[align=left]
+
+image::center.png[align=center]
+
+image::right.png[align=right]
+
+== Float
+
+image::float-left.png[float=left]
+
+image::float-right.png[float=right]
+
+== Role
+
+image::thumb.png[role=thumb]
+
+== Combined
+
+image::combined.png[align=center, role="thumb bordered", width=300]
+
+== Named Attributes
+
+image::photo.png[alt="A photo", width=400, height=300]
