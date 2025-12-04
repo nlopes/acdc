@@ -39,7 +39,7 @@
       "delimiter": "|===",
       "metadata": {
         "attributes": {
-          "cols": "\"2*.^\""
+          "cols": "2*.^"
         }
       },
       "content": {

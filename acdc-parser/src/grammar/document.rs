@@ -3299,7 +3299,7 @@ peg::parser! {
         rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
         pub(crate) rule attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
-            = att:named_attribute() { att }
+            = whitespace()* att:named_attribute() { att }
               / att:positional_attribute_value() {
                   let substituted = String::substitute_attributes(&att, &state.document_attributes);
                   Some((substituted, AttributeValue::None, None))
@@ -3389,8 +3389,10 @@ peg::parser! {
         rule named_attribute_value() -> String
         = &"\"" inner:inner_attribute_value()
         {
-            tracing::debug!(%inner, "Found named attribute value (inner)");
-            inner.clone()
+            // Strip surrounding quotes from quoted values
+            let trimmed = inner.trim_matches('"');
+            tracing::debug!(%inner, %trimmed, "Found named attribute value (inner)");
+            trimmed.to_string()
         }
         / s:$([^(',' | '"' | ']')]+)
         {
@@ -3406,8 +3408,9 @@ peg::parser! {
         }
         / s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
         {
-            tracing::debug!(%s, "Found unquoted positional attribute value");
-            s.to_string()
+            let trimmed = s.trim();
+            tracing::debug!(%s, %trimmed, "Found unquoted positional attribute value");
+            trimmed.to_string()
         }
 
         rule inner_attribute_value() -> String

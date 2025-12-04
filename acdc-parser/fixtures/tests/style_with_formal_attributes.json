@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "\"Hello,world\"",
+          "value": "Hello,world",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,7 @@
             },
             {
               "line": 1,
-              "col": 13
+              "col": 11
             }
           ]
         }
@@ -41,7 +41,7 @@
       ],
       "metadata": {
         "attributes": {
-          "title": "\"Hello,world\""
+          "title": "Hello,world"
         },
         "options": [
           "nolines"
