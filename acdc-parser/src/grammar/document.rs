@@ -1455,7 +1455,7 @@ peg::parser! {
         }
 
         rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<(ListItem, usize), Error>
-        = !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata)
+        = eol()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Ok(item)
@@ -1463,7 +1463,7 @@ peg::parser! {
                 Err("skip")
             }
         }
-        / item:unordered_list_item(offset, block_metadata)
+        / eol()* item:unordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Err("skip")
@@ -1497,7 +1497,7 @@ peg::parser! {
         }
 
         rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<(ListItem, usize), Error>
-        = !at_ordered_marker_ahead() item:ordered_list_item(offset, block_metadata)
+        = eol()* !at_ordered_marker_ahead() item:ordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Ok(item)
@@ -1505,7 +1505,7 @@ peg::parser! {
                 Err("skip")
             }
         }
-        / item:ordered_list_item(offset, block_metadata)
+        / eol()* item:ordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Err("skip")

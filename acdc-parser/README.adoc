@@ -95,9 +95,9 @@ I've implemented basic description list support with several features:
 
 ### What doesn't work
 
-**List continuations for ordered/unordered lists**
+**Multiple list continuations**
 
-This is the big one. According to the https://docs.asciidoctor.org/asciidoc/latest/lists/continuation/[AsciiDoc spec], you should be able to use `+` on a line by itself to attach block content to list items:
+Single `+` continuation now works for attaching blocks to list items:
 
 ```asciidoc
 * List item text
@@ -105,11 +105,18 @@ This is the big one. According to the https://docs.asciidoctor.org/asciidoc/late
 ----
 Block content here
 ----
+* Next item (stays in same list)
 ```
 
-I don't support this yet. The reason is "I haven't gotten to it yet". When I do, I should first look from an architectural point of view: `ListItem` only holds `Vec<InlineNode>`, not `Vec<Block>`. So list items can only contain inline content (bold, italic, links, etc.), not block-level content like paragraphs, delimited blocks, admonitions, or even other lists as attached content.
+However, multiple consecutive `+` continuations in the same item don't work correctly yet:
 
-Description lists work differently - `DescriptionListItem` has a `description: Vec<Block>` field, which is why continuation works there.
+```asciidoc
+* Item
++
+Paragraph 1
++
+Paragraph 2   <-- This doesn't attach properly
+```
 
 **List separators**
 
@@ -135,10 +142,8 @@ While basic description lists work, there are gaps:
 
 ### Why these limitations exist
 
-The main issue is that I designed list items to only hold inline content. This made sense early on but now limits what lists can do. To properly support continuations, I'd need to:
+The model now supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and single `+` continuations work. The remaining issues are parser grammar limitations:
 
-1. Change `ListItem.content` from `Vec<InlineNode>` to something that can hold both inline and block content
-2. Update the parser grammar to handle `+` continuations for ordered/unordered lists
-3. Add support for open blocks and other complex attachment scenarios
-
-I'll get to this, but it's not trivial and affects a lot of code.
+1. Multiple consecutive `+` markers in the same item aren't parsed correctly
+2. List separators (`//` and `[]`) aren't recognized
+3. Ancestor list continuation (blank line before `+`) isn't supported
