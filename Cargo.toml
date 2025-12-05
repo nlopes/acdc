@@ -39,6 +39,21 @@ unsafe_code = "forbid"
 # Defensive programming - prevent missing cases when enums evolve
 wildcard_enum_match_arm = "deny"
 
+[profile.dev]
+# Skip LLVM optimization for your code (faster compile)
+opt-level = 0
+
+# But keep dependencies optimized (faster runtime, one-time cost)
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.test]
+# Same strategy for test builds
+opt-level = 0
+
+[profile.test.package."*"]
+opt-level = 2
+
 [profile.release]
 # Enable link-time optimization for better cross-crate inlining
 lto = "thin"
