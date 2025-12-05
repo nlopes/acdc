@@ -21,6 +21,7 @@ pub enum Error {
     )]
     InvalidAdmonitionCaption(String),
 
+    #[cfg(feature = "highlighting")]
     #[error("Invalid theme: {0} - theme not found in syntect themes")]
     InvalidTheme(String),
 }

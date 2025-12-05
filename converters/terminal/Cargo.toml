@@ -7,6 +7,7 @@ edition.workspace = true
 [features]
 default = []
 images = ["dep:viuer"]
+highlighting = ["dep:syntect"]
 
 [dependencies]
 acdc-converters-common.workspace = true
@@ -15,9 +16,10 @@ acdc-parser.workspace = true
 clap.workspace = true
 comfy-table = "7.2"
 crossterm.workspace = true
-syntect = "5.3"
 thiserror.workspace = true
 tracing.workspace = true
+# syntax highlighting (optional - saves ~7s compile time when disabled)
+syntect = { version = "5.3", optional = true }
 # images on the terminal (optional - saves ~16s compile time when disabled)
 viuer = { version = "0.10", features = ["print-file"], optional = true }
 

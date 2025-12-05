@@ -31,6 +31,7 @@ impl Theme {
     }
 
     /// Get the appropriate syntax highlighting theme name
+    #[cfg(feature = "highlighting")]
     #[must_use]
     pub const fn syntect_theme(self) -> &'static str {
         match self {
@@ -167,6 +168,7 @@ mod tests {
         let _theme = Theme::detect();
     }
 
+    #[cfg(feature = "highlighting")]
     #[test]
     fn test_syntect_theme_names() {
         assert_eq!(Theme::Dark.syntect_theme(), "Solarized (dark)");

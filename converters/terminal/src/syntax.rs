@@ -1,30 +1,25 @@
 use std::io::Write;
 
 use acdc_parser::InlineNode;
-use crossterm::{
-    QueueableCommand,
-    style::{Color, PrintStyledContent, Stylize},
-};
-use syntect::{
-    easy::HighlightLines,
-    highlighting::{Style, ThemeSet},
-    parsing::SyntaxSet,
-    util::LinesWithEndings,
-};
 
 use crate::{Error, Processor};
 
-/// Highlight code using syntect and render to terminal with crossterm colors.
+/// Highlight code and render to terminal.
 ///
-/// This function takes inline nodes (which may contain verbatim or plain text),
-/// extracts the text content, and applies syntax highlighting based on the
-/// specified language. The theme is chosen based on the terminal background.
+/// When the `highlighting` feature is enabled, this uses syntect for syntax
+/// highlighting. Otherwise, it outputs plain text.
+#[cfg(feature = "highlighting")]
 pub fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     language: &str,
     processor: &Processor,
 ) -> Result<(), Error> {
+    use crossterm::{QueueableCommand, style::PrintStyledContent};
+    use syntect::{
+        easy::HighlightLines, highlighting::ThemeSet, parsing::SyntaxSet, util::LinesWithEndings,
+    };
+
     let code = extract_text_from_inlines(inlines);
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
@@ -48,6 +43,36 @@ pub fn highlight_code<W: Write + ?Sized>(
         }
     }
 
+    Ok(())
+}
+
+/// Convert syntect's Style to crossterm styled content.
+#[cfg(feature = "highlighting")]
+fn apply_syntect_style(
+    text: &str,
+    style: syntect::highlighting::Style,
+) -> crossterm::style::StyledContent<&str> {
+    use crossterm::style::Stylize;
+
+    let fg = style.foreground;
+    text.with(crossterm::style::Color::Rgb {
+        r: fg.r,
+        g: fg.g,
+        b: fg.b,
+    })
+}
+
+/// Fallback implementation when syntax highlighting is disabled.
+/// Outputs plain text without any highlighting.
+#[cfg(not(feature = "highlighting"))]
+pub fn highlight_code<W: Write + ?Sized>(
+    writer: &mut W,
+    inlines: &[InlineNode],
+    _language: &str,
+    _processor: &Processor,
+) -> Result<(), Error> {
+    let code = extract_text_from_inlines(inlines);
+    write!(writer, "{code}")?;
     Ok(())
 }
 
@@ -122,23 +147,7 @@ fn process_callouts(text: &str) -> String {
     result
 }
 
-/// Convert syntect's Style to crossterm styled content.
-///
-/// Maps RGB colors from syntect to crossterm's `Color::Rgb` for true color support.
-fn apply_syntect_style(text: &str, style: Style) -> crossterm::style::StyledContent<&str> {
-    let fg = style.foreground;
-
-    // Apply bold if the style indicates it
-    // Syntect doesn't provide bold/italic info in the Style struct directly,
-    // but some themes use specific colors to indicate emphasis
-    text.with(Color::Rgb {
-        r: fg.r,
-        g: fg.g,
-        b: fg.b,
-    })
-}
-
-#[cfg(test)]
+#[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
     use acdc_converters_common::Options;
