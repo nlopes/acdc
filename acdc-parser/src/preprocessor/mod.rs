@@ -382,14 +382,11 @@ impl Preprocessor {
             // while following the specs at
             // https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads#user-content-preprocessor
 
-            // Skip single-line comments (lines starting with //) ONLY if not in verbatim block
-            else if line.starts_with("//") && !in_verbatim_block {
-                tracing::debug!(line, "Filtering out comment line (outside verbatim block)");
-                // Return an empty line to preserve line numbering
-                output.push(String::new());
-            } else if line.starts_with("//") && in_verbatim_block {
-                // Preserve comment inside verbatim block
-                tracing::trace!(line, "Preserving comment line inside verbatim block");
+            // Preserve single-line comments (lines starting with //) for the parser to handle.
+            // Comments serve as semantic list separators in AsciiDoc, so the parser needs to see them.
+            // The grammar's comment() rule handles skipping them during parsing.
+            else if line.starts_with("//") {
+                tracing::trace!(line, "Preserving comment line for parser");
                 output.push(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 if line.starts_with("\\include")

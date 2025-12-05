@@ -56,6 +56,21 @@
   },
   "blocks": [
     {
+      "name": "comment",
+      "type": "block",
+      "content": " this comment line is ignored",
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 32
+        }
+      ]
+    },
+    {
       "name": "paragraph",
       "type": "block",
       "inlines": [
@@ -137,7 +152,7 @@
   ],
   "location": [
     {
-      "line": 2,
+      "line": 1,
       "col": 1
     },
     {

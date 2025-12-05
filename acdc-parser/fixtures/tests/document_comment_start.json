@@ -1,14 +1,31 @@
 {
   "name": "document",
   "type": "block",
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " this comment line is ignored",
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 32
+        }
+      ]
+    }
+  ],
   "location": [
     {
       "line": 1,
-      "col": 0
+      "col": 1
     },
     {
       "line": 1,
-      "col": 0
+      "col": 31
     }
   ]
 }

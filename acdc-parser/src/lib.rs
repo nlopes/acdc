@@ -51,7 +51,7 @@ pub use error::{Error, Positioning, SourceLocation};
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
     Block, BlockMetadata, Bold, Button, CalloutList, ColumnFormat, ColumnStyle, ColumnWidth,
-    CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType,
+    Comment, CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
     DocumentAttributes, ElementAttributes, Footnote, Form, Header, Highlight, HorizontalAlignment,
     ICON_SIZES, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,

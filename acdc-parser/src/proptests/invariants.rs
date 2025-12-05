@@ -219,6 +219,9 @@ fn verify_block_locations_bounded(block: &Block, input_len: usize) {
         Block::Video(video) => {
             verify_location_bounded(&video.location, input_len, "video");
         }
+        Block::Comment(comment) => {
+            verify_location_bounded(&comment.location, input_len, "comment");
+        }
     }
 }
 
@@ -456,6 +459,9 @@ fn verify_block_utf8_boundaries(block: &Block, input: &str) {
         Block::Video(video) => {
             verify_location_utf8(&video.location, input, "video");
         }
+        Block::Comment(comment) => {
+            verify_location_utf8(&comment.location, input, "comment");
+        }
     }
 }
 
@@ -619,6 +625,7 @@ fn get_block_location(block: &Block) -> &Location {
         Block::Image(i) => &i.location,
         Block::Audio(a) => &a.location,
         Block::Video(v) => &v.location,
+        Block::Comment(c) => &c.location,
     }
 }
 
@@ -662,7 +669,8 @@ fn verify_block_monotonic(block: &Block) {
         | Block::UnorderedList(_)
         | Block::OrderedList(_)
         | Block::DescriptionList(_)
-        | Block::CalloutList(_) => {
+        | Block::CalloutList(_)
+        | Block::Comment(_) => {
             // Add other block types as needed
         }
     }

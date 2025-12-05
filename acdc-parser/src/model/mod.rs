@@ -160,6 +160,16 @@ pub struct TocEntry {
     pub xreflabel: Option<String>,
 }
 
+/// A single-line comment in a document.
+///
+/// Line comments begin with `//` and continue to end of line.
+/// They act as block boundaries but produce no output.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Comment {
+    pub content: String,
+    pub location: Location,
+}
+
 /// A `Block` represents a block in a document.
 ///
 /// A block is a structural element in a document that can contain other blocks.
@@ -188,6 +198,7 @@ pub enum Block {
     Image(Image),
     Audio(Audio),
     Video(Video),
+    Comment(Comment),
 }
 
 impl Locateable for Block {
@@ -209,6 +220,7 @@ impl Locateable for Block {
             Block::Image(i) => &i.location,
             Block::Audio(a) => &a.location,
             Block::Video(v) => &v.location,
+            Block::Comment(c) => &c.location,
         }
     }
 }
@@ -301,6 +313,22 @@ impl Serialize for PageBreak {
         }
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for Comment {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "comment")?;
+        state.serialize_entry("type", "block")?;
+        if !self.content.is_empty() {
+            state.serialize_entry("content", &self.content)?;
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
@@ -1520,6 +1548,18 @@ fn construct_toc<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     }))
 }
 
+fn construct_comment<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
+    let content = match raw.content {
+        Some(serde_json::Value::String(s)) => s,
+        Some(_) => return Err(E::custom("comment content must be a string")),
+        None => String::new(),
+    };
+    Ok(Block::Comment(Comment {
+        content,
+        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    }))
+}
+
 fn construct_admonition<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
     Ok(Block::Admonition(Admonition {
@@ -1677,6 +1717,7 @@ fn dispatch_block<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
         ("break", "block") => construct_break(raw),
         ("heading", "block") => construct_heading(raw),
         ("toc", "block") => construct_toc(raw),
+        ("comment", "block") => construct_comment(raw),
         ("admonition", "block") => construct_admonition(raw),
         ("dlist", "block") => construct_dlist(raw),
         ("list", "block") => construct_list(raw),

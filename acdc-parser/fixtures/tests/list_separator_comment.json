@@ -3,112 +3,117 @@
   "type": "block",
   "blocks": [
     {
-      "name": "paragraph",
+      "name": "list",
       "type": "block",
-      "inlines": [
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "This is a paragraph.",
-          "location": [
-            {
-              "line": 1,
-              "col": 1
-            },
-            {
-              "line": 1,
-              "col": 20
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 1,
-          "col": 1
-        },
-        {
-          "line": 1,
-          "col": 20
-        }
-      ]
-    },
-    {
-      "name": "comment",
-      "type": "block",
-      "content": " A comment block",
-      "location": [
-        {
-          "line": 3,
-          "col": 1
-        },
-        {
-          "line": 3,
-          "col": 19
-        }
-      ]
-    },
-    {
-      "name": "comment",
-      "type": "block",
-      "content": " that spans multiple lines.",
-      "location": [
-        {
-          "line": 4,
-          "col": 1
-        },
-        {
-          "line": 4,
-          "col": 30
-        }
-      ]
-    },
-    {
-      "name": "example",
-      "type": "block",
-      "form": "delimited",
-      "delimiter": "====",
-      "blocks": [
-        {
-          "name": "paragraph",
+          "name": "listItem",
           "type": "block",
-          "inlines": [
+          "marker": "*",
+          "principal": [
             {
               "name": "text",
               "type": "string",
-              "value": "This is an example of an example block.\nThat's so meta.",
+              "value": "Item 1",
               "location": [
                 {
-                  "line": 7,
-                  "col": 1
+                  "line": 1,
+                  "col": 3
                 },
                 {
-                  "line": 8,
-                  "col": 15
+                  "line": 1,
+                  "col": 8
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 7,
+              "line": 1,
               "col": 1
             },
             {
-              "line": 8,
-              "col": 15
+              "line": 1,
+              "col": 8
             }
           ]
         }
       ],
       "location": [
         {
-          "line": 6,
+          "line": 1,
           "col": 1
         },
         {
-          "line": 9,
+          "line": 1,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": "-",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
           "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Item 2",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 3
+                },
+                {
+                  "line": 5,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 8
         }
       ]
     }
@@ -119,8 +124,8 @@
       "col": 1
     },
     {
-      "line": 9,
-      "col": 4
+      "line": 5,
+      "col": 8
     }
   ]
 }

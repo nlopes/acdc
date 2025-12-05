@@ -25,8 +25,8 @@
         "col": 1
       },
       {
-        "line": 1,
-        "col": 30
+        "line": 3,
+        "col": 50
       }
     ]
   },
@@ -60,6 +60,21 @@
         {
           "line": 5,
           "col": 18
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Another comment to filter",
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 29
         }
       ]
     },
@@ -110,6 +125,21 @@
         {
           "line": 14,
           "col": 4
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " This comment should be FILTERED (between blocks)",
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 52
         }
       ]
     },
@@ -176,6 +206,21 @@
           "col": 4
         }
       ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Final comment to filter (outside all blocks)",
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 48
+        }
+      ]
     }
   ],
   "location": [
@@ -184,8 +229,8 @@
       "col": 1
     },
     {
-      "line": 24,
-      "col": 4
+      "line": 26,
+      "col": 47
     }
   ]
 }

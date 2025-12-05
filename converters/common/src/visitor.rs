@@ -174,8 +174,13 @@ pub trait Visitor {
             None => (doc.blocks.as_slice(), &[][..]),
         };
 
-        // 5. Walk preamble blocks (if any exist)
-        if !preamble.is_empty() {
+        // Check if preamble has substantive content (not just comments/attributes)
+        let has_substantive_preamble = preamble
+            .iter()
+            .any(|b| !matches!(b, Block::Comment(_) | Block::DocumentAttribute(_)));
+
+        // 5. Walk preamble blocks (if any substantive content exists)
+        if has_substantive_preamble {
             // Hook before preamble blocks
             self.visit_preamble_start(doc)?;
 
@@ -223,8 +228,8 @@ pub trait Visitor {
             Block::PageBreak(br) => self.visit_page_break(br),
             Block::TableOfContents(toc) => self.visit_table_of_contents(toc),
             Block::DiscreteHeader(header) => self.visit_discrete_header(header),
-            // DocumentAttribute blocks are metadata and typically don't need rendering
-            Block::DocumentAttribute(_) => Ok(()),
+            // DocumentAttribute blocks are metadata and comments produce no output
+            Block::DocumentAttribute(_) | Block::Comment(_) => Ok(()),
             // Handle any future block types (Block is marked non-exhaustive)
             _ => {
                 // Default behavior: ignore unknown blocks

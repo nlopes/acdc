@@ -1,9 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
-    BlockMetadata, Bold, Button, CalloutList, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, Error, Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image,
+    BlockMetadata, Bold, Button, CalloutList, Comment, CurvedApostrophe, CurvedQuotation,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
+    Document, DocumentAttribute, Error, Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image,
     InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
     Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain,
     Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
@@ -153,9 +153,13 @@ peg::parser! {
         // We ignore empty lines before we set the start position of the document because
         // the asciidoc document should not consider empty lines at the beginning or end
         // of the file.
+        //
+        // We also ignore comments before the header - maybe we should change this but as
+        // it stands in our current model, it makes no sense to have comments in the
+        // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document, Error>
-        = eol()* start:position() newline_or_comment()* header:header() newline_or_comment()* blocks:blocks(0, None) end:position() (eol()* / ![_]) {
-            let blocks = blocks?;
+        = eol()* start:position() comments_before_header:comment_line_block(0)* header:header() blocks:blocks(0, None) end:position() (eol()* / ![_]) {
+            let blocks = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
             let mut document_end_offset = end.offset;
@@ -388,6 +392,7 @@ peg::parser! {
         pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = eol()*
         block:(
+            comment_line_block(offset) /
             document_attribute_block(offset) /
             &"[discrete" dh:discrete_header(offset) { dh } /
             !same_or_higher_level_section(offset, parent_section_level) section:section(offset, parent_section_level) { section } /
@@ -395,6 +400,17 @@ peg::parser! {
         )
         {
             block
+        }
+
+        /// Single-line comment that becomes a block in the AST.
+        /// Line comments begin with `//` (but not `///` or `////` which are block comment delimiters).
+        rule comment_line_block(offset: usize) -> Result<Block, Error>
+        = start:position!() "//" !("/") content:$([^'\n']*) end:position!() (eol() / ![_])
+        {
+            Ok(Block::Comment(Comment {
+                content: content.to_string(),
+                location: state.create_location(start + offset, end + offset),
+            }))
         }
 
         // Check if the upcoming content is a section at same or higher level (which
@@ -1430,6 +1446,19 @@ peg::parser! {
         // Helper rule to check if we're at a root-level (non-indented) unordered marker (current position)
         rule at_root_unordered_marker() = !whitespace() unordered_list_marker()
 
+        // Helper rule to check if we're at a list separator (forces list termination)
+        // Matches either a line comment (//) or empty block attributes ([]) on their own line
+        // Note: Separator must be preceded by at least one blank line (2+ newlines)
+        // Without a blank line before it, a comment is just skipped, not a separator
+        rule at_list_separator()
+        = eol()*<2,> at_list_separator_content()
+
+        // Helper rule to check for separator content at current position (no leading newlines)
+        // Used by continuation_lines to stop at separators
+        rule at_list_separator_content()
+        = "//" [^'\n']* (&eol() / ![_])  // Line comment separator
+        / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
+
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<Block, Error>
         = &(whitespace()* unordered_list_marker() whitespace())
         first:unordered_list_item(offset, block_metadata)
@@ -1455,7 +1484,8 @@ peg::parser! {
         }
 
         rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<(ListItem, usize), Error>
-        = eol()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata)
+        // Skip comments between list items (that aren't separators - already checked by !at_list_separator())
+        = !at_list_separator() eol()* comment_line()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Ok(item)
@@ -1463,7 +1493,7 @@ peg::parser! {
                 Err("skip")
             }
         }
-        / eol()* item:unordered_list_item(offset, block_metadata)
+        / !at_list_separator() eol()* comment_line()* item:unordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Err("skip")
@@ -1497,7 +1527,8 @@ peg::parser! {
         }
 
         rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool) -> Result<(ListItem, usize), Error>
-        = eol()* !at_ordered_marker_ahead() item:ordered_list_item(offset, block_metadata)
+        // Skip comments between list items (that aren't separators - already checked by !at_list_separator())
+        = !at_list_separator() eol()* comment_line()* !at_ordered_marker_ahead() item:ordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Ok(item)
@@ -1505,7 +1536,7 @@ peg::parser! {
                 Err("skip")
             }
         }
-        / eol()* item:ordered_list_item(offset, block_metadata)
+        / !at_list_separator() eol()* comment_line()* item:ordered_list_item(offset, block_metadata)
         {?
             if parent_is_ordered {
                 Err("skip")
@@ -1524,13 +1555,15 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        // Stop at: blank line, list item start, explicit continuation marker, or section heading
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Try to parse nested ordered list (only if followed by newline)
-        nested:(eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
+        // Don't consume newlines if we're at a list separator (comment or [])
+        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
         // Try to parse explicit continuation (+ marker)
-        explicit_continuation:(eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
+        // Don't consume newlines if we're at a list separator (comment or [])
+        explicit_continuation:(!at_list_separator() eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
         end:position!()
         {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
@@ -1609,13 +1642,15 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        // Stop at: blank line, list item start, explicit continuation marker, or section heading
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Try to parse nested unordered list (only if followed by newline)
-        nested:(eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
+        // Don't consume newlines if we're at a list separator (comment or [])
+        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
         // Try to parse explicit continuation (+ marker)
-        explicit_continuation:(eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
+        // Don't consume newlines if we're at a list separator (comment or [])
+        explicit_continuation:(!at_list_separator() eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
         end:position!()
         {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
@@ -3013,6 +3048,7 @@ peg::parser! {
             / eol() comment_delimiter()
             / eol() open_delimiter()
             / eol() list(start, offset, block_metadata)
+            / eol() &"+"  // Stop at list continuation marker
             / eol()* &(section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
         ) [_])+)
         end:position!()
@@ -3150,10 +3186,15 @@ peg::parser! {
         = double_open_square_bracket() [^'\'' | ',' | ']' | '.']+ double_close_square_bracket()
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
-            = attributes:attributes() eol() {
+            // Don't match empty [] followed by blank line - that's a list separator, not block attributes
+            = !empty_list_separator() attributes:attributes() eol() {
                 let (discrete, metadata, _title_position) = attributes;
                 (discrete, metadata)
             }
+
+        // Empty brackets followed by a blank line is a list separator
+        rule empty_list_separator()
+            = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
         pub(crate) rule attributes() -> (bool, BlockMetadata, Option<(usize, usize)>)
             = start:position!() open_square_bracket() content:(
@@ -3489,10 +3530,10 @@ peg::parser! {
 
         rule digits() = ['0'..='9']+
 
+        rule whitespace() = quiet!{ " " / "\t" }
         rule eol() = quiet!{ "\n" }
 
-        rule newline_or_comment() = quiet!{ eol() / (comment() (eol() / ![_])) }
-
+        rule comment_line() = quiet!{ comment() (eol() / ![_]) }
         rule comment() = quiet!{ "//" [^'\n']+ (&eol() / ![_]) }
 
         rule document_attribute_key_match() -> (bool, &'input str)
@@ -3541,8 +3582,6 @@ peg::parser! {
             let (unset, key) = key;
             (key, parse_attribute_value(value.as_deref(), unset))
         }
-
-        rule whitespace() = quiet!{ " " / "\t" }
 
         rule position() -> PositionWithOffset = offset:position!() {
             PositionWithOffset {
