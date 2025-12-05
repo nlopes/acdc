@@ -4,6 +4,10 @@ description = "`cat` like converter for `AsciiDoc` documents"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+images = ["dep:viuer"]
+
 [dependencies]
 acdc-converters-common.workspace = true
 acdc-core.workspace = true
@@ -14,8 +18,8 @@ crossterm.workspace = true
 syntect = "5.3"
 thiserror.workspace = true
 tracing.workspace = true
-# images on the terminal
-viuer = { version = "0.10", features = ["print-file"] }
+# images on the terminal (optional - saves ~16s compile time when disabled)
+viuer = { version = "0.10", features = ["print-file"], optional = true }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
