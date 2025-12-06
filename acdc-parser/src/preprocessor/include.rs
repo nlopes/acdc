@@ -1,9 +1,10 @@
 use std::{
-    fs::File,
-    io,
     path::{Path, PathBuf},
     str::FromStr,
 };
+
+#[cfg(feature = "network")]
+use std::{fs::File, io};
 
 use acdc_core::SafeMode;
 use url::Url;
@@ -386,23 +387,34 @@ impl Include {
                     );
                     return Ok(lines);
                 }
-                let mut temp_path = std::env::temp_dir();
-                if let Some(file_name) = url.path_segments().and_then(std::iter::Iterator::last) {
-                    temp_path.push(file_name);
-                } else {
-                    tracing::error!(url=?url, "failed to extract file name from URL");
+
+                #[cfg(not(feature = "network"))]
+                {
+                    tracing::warn!(url=?url, "network support is disabled, cannot fetch remote includes");
                     return Ok(lines);
                 }
+
+                #[cfg(feature = "network")]
                 {
-                    let mut response = ureq::get(url.as_str())
-                        .call()
-                        .map_err(|e| Error::HttpRequest(e.to_string()))?;
-                    // Create and write to the file
-                    let mut file = File::create(&temp_path)?;
-                    io::copy(&mut response.body_mut().as_reader(), &mut file)?;
+                    let mut temp_path = std::env::temp_dir();
+                    if let Some(file_name) = url.path_segments().and_then(std::iter::Iterator::last)
+                    {
+                        temp_path.push(file_name);
+                    } else {
+                        tracing::error!(url=?url, "failed to extract file name from URL");
+                        return Ok(lines);
+                    }
+                    {
+                        let mut response = ureq::get(url.as_str())
+                            .call()
+                            .map_err(|e| Error::HttpRequest(e.to_string()))?;
+                        // Create and write to the file
+                        let mut file = File::create(&temp_path)?;
+                        io::copy(&mut response.body_mut().as_reader(), &mut file)?;
+                    }
+                    tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
+                    temp_path
                 }
-                tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
-                temp_path
             }
         };
         // If the path doesn't exist, we still need to return an empty list of

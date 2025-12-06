@@ -65,8 +65,15 @@ pub enum Error {
     #[error("Unrecognized encoding in file: {0}")]
     UnrecognizedEncodingInFile(String),
 
+    #[cfg(feature = "network")]
     #[error("Unable to retrieve HTTP response: {0}")]
     HttpRequest(String),
+
+    #[cfg(not(feature = "network"))]
+    #[error(
+        "Network support is disabled (compile with 'network' feature to enable remote includes)"
+    )]
+    NetworkDisabled,
 
     #[error("Could not convert from int: {0}")]
     #[serde(skip_deserializing)]
@@ -103,8 +110,11 @@ impl Error {
             | Self::ParseInt(_)
             | Self::UnknownEncoding(_)
             | Self::UnrecognizedEncodingInFile(_)
-            | Self::HttpRequest(_)
             | Self::TryFromIntError(_) => None,
+            #[cfg(feature = "network")]
+            Self::HttpRequest(_) => None,
+            #[cfg(not(feature = "network"))]
+            Self::NetworkDisabled => None,
         }
     }
 
@@ -152,8 +162,13 @@ impl Error {
             Self::Url(..) => Some(
                 "Verify the URL syntax is correct (e.g., https://example.com/file.adoc). Check for typos in the protocol, domain, or path",
             ),
+            #[cfg(feature = "network")]
             Self::HttpRequest(..) => Some(
                 "Check that the URL is accessible, the server is reachable, and you have network connectivity. For includes, consider using safe mode restrictions",
+            ),
+            #[cfg(not(feature = "network"))]
+            Self::NetworkDisabled => Some(
+                "Remote includes require the 'network' feature. Rebuild with `cargo build --features network` or use local file includes instead",
             ),
             Self::UnknownEncoding(..) | Self::UnrecognizedEncodingInFile(..) => Some(
                 "We only support UTF-8 or UTF-16 encoded files. Ensure the specified encoding is correct and the file is saved with that encoding",

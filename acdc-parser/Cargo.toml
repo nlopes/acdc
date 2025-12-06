@@ -4,18 +4,23 @@ description = "`AsciiDoc` parser using PEG grammars"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+network = ["dep:ureq"]
+
 [dependencies]
 acdc-core.workspace = true
 encoding_rs = "0.8"
 evalexpr = "13"
 peg = "0.8"
 rustc-hash.workspace = true
-ureq = "3.1"
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 url = "2.5"
+# Network support for remote includes (optional - saves ~8s compile time when disabled)
+ureq = { version = "3.1", optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
