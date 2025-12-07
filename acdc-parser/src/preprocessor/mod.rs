@@ -97,17 +97,12 @@ impl Preprocessor {
     /// Since the preprocessor operates line-by-line and doesn't track column positions,
     /// we use column=1 as a placeholder. The line number and offset still provide
     /// useful location information for error messages.
-    fn create_source_location(
-        line_number: usize,
-        current_offset: usize,
-        file_parent: Option<&Path>,
-    ) -> SourceLocation {
-        let _ = current_offset; // Reserved for future use
+    fn create_source_location(line_number: usize, file_parent: Option<&Path>) -> SourceLocation {
         SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             positioning: Positioning::Position(Position {
                 line: line_number,
-                column: 1, // Preprocessor doesn't track column - use 1 as placeholder
+                column: 0, // Preprocessor doesn't track column - use 0 as placeholder
             }),
         }
     }
@@ -157,7 +152,7 @@ impl Preprocessor {
             self.process_either(&input, Some(file_path.as_ref()), options)
         } else {
             Err(Error::InvalidIncludePath(
-                Box::new(Self::create_source_location(1, 0, Some(file_path.as_ref()))),
+                Box::new(Self::create_source_location(1, Some(file_path.as_ref()))),
                 file_path.as_ref().to_path_buf(),
             ))
         }
@@ -224,7 +219,7 @@ impl Preprocessor {
                 if !endif.closes(&condition) {
                     tracing::warn!("attribute mismatch between if and endif directives");
                     return Err(Error::InvalidConditionalDirective(Box::new(
-                        Self::create_source_location(endif_line_number, endif_offset, file_parent),
+                        Self::create_source_location(endif_line_number, file_parent),
                     )));
                 }
                 tracing::trace!(?content, "multiline if directive");
