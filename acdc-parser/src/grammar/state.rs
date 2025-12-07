@@ -101,41 +101,64 @@ impl ParserState {
         }
     }
 
-    /// Create a Location from raw byte offsets
+    /// Create a Location from raw byte offsets.
+    ///
+    /// This method enforces UTF-8 character boundaries:
+    /// - Clamps offsets to input bounds
+    /// - Rounds both start and end backward to nearest char boundary
+    /// - Ensures start <= end
+    ///
+    /// We round end backward (not forward) because `absolute_end` has inclusive
+    /// semantics - it represents the last byte of the range, not one past it.
+    /// When a byte lands mid-character, rounding backward includes that character.
     pub(crate) fn create_location(&self, start: usize, end: usize) -> Location {
-        let start_pos = self.line_map.offset_to_position(start, &self.input);
-        let end_pos = self.line_map.offset_to_position(end, &self.input);
+        use crate::grammar::utf8_utils::ensure_char_boundary;
+
+        // Clamp to input bounds first
+        let clamped_start = start.min(self.input.len());
+        let clamped_end = end.min(self.input.len());
+
+        // Ensure UTF-8 boundaries (both round backward for inclusive semantics)
+        let safe_start = ensure_char_boundary(&self.input, clamped_start);
+        let safe_end = ensure_char_boundary(&self.input, clamped_end);
+
+        // Ensure start <= end
+        let safe_end = safe_end.max(safe_start);
+
+        let start_pos = self.line_map.offset_to_position(safe_start, &self.input);
+        let end_pos = self.line_map.offset_to_position(safe_end, &self.input);
 
         Location {
-            absolute_start: start,
-            absolute_end: end,
+            absolute_start: safe_start,
+            absolute_end: safe_end,
             start: start_pos,
             end: end_pos,
         }
     }
 
-    /// Helper to create block location with standard offset calculation
+    /// Helper to create block location with standard offset calculation.
+    ///
+    /// Adds `offset` to both start and end, then decrements end by one character
+    /// (to exclude trailing delimiter/newline). UTF-8 safety is handled by `create_location`.
     pub(crate) fn create_block_location(
         &self,
         start: usize,
         end: usize,
         offset: usize,
     ) -> Location {
-        // First, ensure the end position is on a valid UTF-8 boundary
-        let original_end = end + offset;
-        let mut adjusted_end = original_end;
-        if adjusted_end > 0 && adjusted_end <= self.input.len() {
-            // If not on a boundary, round forward to the next valid boundary
-            while adjusted_end < self.input.len() && !self.input.is_char_boundary(adjusted_end) {
-                adjusted_end += 1;
-            }
-        }
+        use crate::grammar::utf8_utils::safe_decrement_offset;
 
-        let end_offset = if adjusted_end == 0 {
+        let adjusted_start = start + offset;
+        let adjusted_end = end + offset;
+
+        // Decrement end by one character (safely handling UTF-8)
+        let final_end = if adjusted_end == 0 {
             0
         } else {
-            crate::grammar::utf8_utils::safe_decrement_offset(&self.input, adjusted_end)
+            safe_decrement_offset(&self.input, adjusted_end)
         };
-        self.create_location(start + offset, end_offset)
+
+        // create_location handles all UTF-8 boundary enforcement
+        self.create_location(adjusted_start, final_end)
     }
 }

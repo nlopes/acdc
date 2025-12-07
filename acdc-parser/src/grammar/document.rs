@@ -228,7 +228,8 @@ peg::parser! {
         {
             if let Some((title, subtitle, authors)) = title_authors {
                 let mut location = state.create_location(start, end);
-                location.absolute_end = location.absolute_end.saturating_sub(1);
+                // Decrement end by one character (for byte offset, use safe UTF-8 decrement)
+                location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(&state.input, location.absolute_end);
                 location.end.column = location.end.column.saturating_sub(1);
                 let header = Header {
                     title,
