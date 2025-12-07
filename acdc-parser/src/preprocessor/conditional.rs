@@ -244,7 +244,6 @@ impl Ifeval {
                         positioning: Positioning::Position(Position {
                             line: line_number,
                             column: 1,
-                            offset: current_offset,
                         }),
                     },
                 )));
@@ -311,7 +310,6 @@ pub(crate) fn parse_line(
             positioning: Positioning::Position(Position {
                 line: line_number,
                 column: 1,
-                offset: current_offset,
             }),
         }))
     })
@@ -331,7 +329,6 @@ pub(crate) fn parse_endif(
             positioning: Positioning::Position(Position {
                 line: line_number,
                 column: 1,
-                offset: current_offset,
             }),
         }))
     })

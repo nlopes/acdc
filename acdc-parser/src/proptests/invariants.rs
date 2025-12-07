@@ -340,8 +340,8 @@ fn verify_inline_locations_bounded(inline: &InlineNode, input_len: usize) {
 }
 
 fn verify_location_bounded(loc: &Location, input_len: usize, context: &str) {
-    let start_byte = loc.start.offset;
-    let end_byte = loc.end.offset;
+    let start_byte = loc.absolute_start;
+    let end_byte = loc.absolute_end;
 
     assert!(
         start_byte <= input_len,
@@ -576,8 +576,8 @@ fn verify_inline_utf8_boundaries(inline: &InlineNode, input: &str) {
 }
 
 fn verify_location_utf8(loc: &Location, input: &str, context: &str) {
-    let start_byte = loc.start.offset;
-    let end_byte = loc.end.offset;
+    let start_byte = loc.absolute_start;
+    let end_byte = loc.absolute_end;
 
     assert!(
         input.is_char_boundary(start_byte),
@@ -595,12 +595,12 @@ fn verify_monotonic_positions(doc: &Document) {
     let mut last_end = 0;
     for block in &doc.blocks {
         let loc = get_block_location(block);
-        let start = loc.start.offset;
+        let start = loc.absolute_start;
         assert!(
             start >= last_end,
             "Block starts at {start} but previous ended at {last_end}"
         );
-        last_end = loc.end.offset;
+        last_end = loc.absolute_end;
 
         // Recursively check within blocks
         verify_block_monotonic(block);
@@ -635,12 +635,12 @@ fn verify_block_monotonic(block: &Block) {
             let mut last_end = 0;
             for child in &section.content {
                 let loc = get_block_location(child);
-                let start = loc.start.offset;
+                let start = loc.absolute_start;
                 assert!(
                     start >= last_end,
                     "Section child starts at {start} but previous ended at {last_end}"
                 );
-                last_end = loc.end.offset;
+                last_end = loc.absolute_end;
                 verify_block_monotonic(child);
             }
         }
@@ -648,12 +648,12 @@ fn verify_block_monotonic(block: &Block) {
             let mut last_end = 0;
             for inline in &para.content {
                 let loc = get_inline_location(inline);
-                let start = loc.start.offset;
+                let start = loc.absolute_start;
                 assert!(
                     start >= last_end,
                     "Inline starts at {start} but previous ended at {last_end}"
                 );
-                last_end = loc.end.offset;
+                last_end = loc.absolute_end;
             }
         }
         Block::Admonition(_)

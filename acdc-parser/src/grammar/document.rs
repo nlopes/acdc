@@ -191,8 +191,8 @@ peg::parser! {
             let (start_position, end_position) = if state.input.is_empty() || (absolute_start == 0 && absolute_end == 0) {
                 // Whitespace-only documents should use column 1
                 (
-                    crate::Position { line: 1, column: 0, offset: 0 },
-                    crate::Position { line: 1, column: 0, offset: 0 }
+                    crate::Position { line: 1, column: 0 },
+                    crate::Position { line: 1, column: 0 }
                 )
             } else {
                 (
@@ -3680,15 +3680,10 @@ v2.9, 01-09-2024: Fall incarnation
                 location: Location {
                     absolute_start: 34,
                     absolute_end: 47,
-                    start: crate::Position {
-                        line: 2,
-                        column: 3,
-                        offset: 34
-                    },
+                    start: crate::Position { line: 2, column: 3 },
                     end: crate::Position {
                         line: 2,
                         column: 16,
-                        offset: 47,
                     },
                 }
             })
@@ -3861,15 +3856,10 @@ v2.9, 01-09-2024: Fall incarnation
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position {
-                        line: 1,
-                        column: 3,
-                        offset: 2
-                    },
+                    start: crate::Position { line: 1, column: 3 },
                     end: crate::Position {
                         line: 1,
                         column: 16,
-                        offset: 15,
                     },
                 }
             })
@@ -3891,15 +3881,10 @@ v2.9, 01-09-2024: Fall incarnation
                     location: Location {
                         absolute_start: 2,
                         absolute_end: 15,
-                        start: crate::Position {
-                            line: 1,
-                            column: 3,
-                            offset: 2
-                        },
+                        start: crate::Position { line: 1, column: 3 },
                         end: crate::Position {
                             line: 1,
                             column: 16,
-                            offset: 15,
                         },
                     }
                 })],
@@ -3911,12 +3896,10 @@ v2.9, 01-09-2024: Fall incarnation
                         start: crate::Position {
                             line: 1,
                             column: 18,
-                            offset: 17,
                         },
                         end: crate::Position {
                             line: 1,
                             column: 32,
-                            offset: 31,
                         },
                     }
                 })])
@@ -3940,15 +3923,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position {
-                        line: 1,
-                        column: 3,
-                        offset: 2
-                    },
+                    start: crate::Position { line: 1, column: 3 },
                     end: crate::Position {
                         line: 1,
                         column: 16,
-                        offset: 15,
                     },
                 }
             })
@@ -4017,15 +3995,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 4,
                     absolute_end: 9,
-                    start: crate::Position {
-                        line: 1,
-                        column: 5,
-                        offset: 4
-                    },
+                    start: crate::Position { line: 1, column: 5 },
                     end: crate::Position {
                         line: 1,
                         column: 10,
-                        offset: 9,
                     }
                 }
             })
@@ -4052,15 +4025,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position {
-                        line: 1,
-                        column: 9,
-                        offset: 8
-                    },
+                    start: crate::Position { line: 1, column: 9 },
                     end: crate::Position {
                         line: 1,
                         column: 13,
-                        offset: 12,
                     }
                 }
             })
@@ -4087,15 +4055,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position {
-                        line: 1,
-                        column: 9,
-                        offset: 8
-                    },
+                    start: crate::Position { line: 1, column: 9 },
                     end: crate::Position {
                         line: 1,
                         column: 13,
-                        offset: 12,
                     }
                 }
             })

@@ -4,64 +4,29 @@ use crate::{
     Monospace, Plain, ProcessedContent, StandaloneCurvedApostrophe, Subscript, Superscript,
 };
 
-use super::{ParserState, marked_text::WithLocationMappingContext};
+use super::{ParserState, marked_text::WithLocationMappingContext, utf8_utils};
 
 /// Clamp a Location's byte offsets to valid bounds within the input string
 /// and ensure they fall on UTF-8 character boundaries.
+///
+/// This only operates on `absolute_start/end` - the canonical byte offsets.
+/// `Position` fields (line/column) are not modified.
 pub(crate) fn clamp_location_bounds(location: &mut Location, input: &str) {
     let input_len = input.len();
 
     // Clamp to input bounds
     location.absolute_start = location.absolute_start.min(input_len);
     location.absolute_end = location.absolute_end.min(input_len);
-    location.start.offset = location.start.offset.min(input_len);
-    location.end.offset = location.end.offset.min(input_len);
 
     // Ensure start is on a valid UTF-8 boundary (round backward)
-    if location.absolute_start > 0
-        && location.absolute_start < input_len
-        && !input.is_char_boundary(location.absolute_start)
-    {
-        while location.absolute_start > 0 && !input.is_char_boundary(location.absolute_start) {
-            location.absolute_start -= 1;
-        }
-    }
+    location.absolute_start = utf8_utils::ensure_char_boundary(input, location.absolute_start);
 
     // Ensure end is on a valid UTF-8 boundary (round forward)
-    if location.absolute_end > 0
-        && location.absolute_end < input_len
-        && !input.is_char_boundary(location.absolute_end)
-    {
-        while location.absolute_end < input_len && !input.is_char_boundary(location.absolute_end) {
-            location.absolute_end += 1;
-        }
-    }
-
-    // Also clamp Position offsets
-    if location.start.offset > 0
-        && location.start.offset < input_len
-        && !input.is_char_boundary(location.start.offset)
-    {
-        while location.start.offset > 0 && !input.is_char_boundary(location.start.offset) {
-            location.start.offset -= 1;
-        }
-    }
-
-    if location.end.offset > 0
-        && location.end.offset < input_len
-        && !input.is_char_boundary(location.end.offset)
-    {
-        while location.end.offset < input_len && !input.is_char_boundary(location.end.offset) {
-            location.end.offset += 1;
-        }
-    }
+    location.absolute_end = utf8_utils::ensure_char_boundary_forward(input, location.absolute_end);
 
     // Ensure start <= end
     if location.absolute_start > location.absolute_end {
         location.absolute_end = location.absolute_start;
-    }
-    if location.start.offset > location.end.offset {
-        location.end.offset = location.start.offset;
     }
 }
 

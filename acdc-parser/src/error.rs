@@ -227,16 +227,8 @@ mod tests {
             positioning: Positioning::Location(Location {
                 absolute_start: 2,
                 absolute_end: 20,
-                start: Position {
-                    line: 1,
-                    column: 2,
-                    offset: 2,
-                },
-                end: Position {
-                    line: 3,
-                    column: 4,
-                    offset: 20,
-                },
+                start: Position { line: 1, column: 2 },
+                end: Position { line: 3, column: 4 },
             }),
         };
         assert_eq!(
@@ -253,16 +245,8 @@ mod tests {
                 positioning: Positioning::Location(Location {
                     absolute_start: 2,
                     absolute_end: 20,
-                    start: Position {
-                        line: 1,
-                        column: 2,
-                        offset: 2,
-                    },
-                    end: Position {
-                        line: 3,
-                        column: 4,
-                        offset: 20,
-                    },
+                    start: Position { line: 1, column: 2 },
+                    end: Position { line: 3, column: 4 },
                 }),
             }),
             1,
@@ -282,15 +266,10 @@ mod tests {
                 positioning: Positioning::Location(Location {
                     absolute_start: 10,
                     absolute_end: 25,
-                    start: Position {
-                        line: 2,
-                        column: 1,
-                        offset: 10,
-                    },
+                    start: Position { line: 2, column: 1 },
                     end: Position {
                         line: 2,
                         column: 15,
-                        offset: 25,
                     },
                 }),
             }),
@@ -310,16 +289,8 @@ mod tests {
                 positioning: Positioning::Location(Location {
                     absolute_start: 0,
                     absolute_end: 50,
-                    start: Position {
-                        line: 1,
-                        column: 1,
-                        offset: 0,
-                    },
-                    end: Position {
-                        line: 5,
-                        column: 5,
-                        offset: 50,
-                    },
+                    start: Position { line: 1, column: 1 },
+                    end: Position { line: 5, column: 5 },
                 }),
             }),
             "example".to_string(),
@@ -335,11 +306,7 @@ mod tests {
         let error = Error::Parse(
             Box::new(SourceLocation {
                 file: None,
-                positioning: Positioning::Position(Position {
-                    line: 1,
-                    column: 6,
-                    offset: 5,
-                }),
+                positioning: Positioning::Position(Position { line: 1, column: 6 }),
             }),
             "unexpected token".to_string(),
         );

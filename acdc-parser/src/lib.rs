@@ -293,7 +293,6 @@ fn peg_error_to_source_location(
         positioning: Positioning::Position(Position {
             line: error.location.line,
             column: error.location.column,
-            offset: error.location.offset,
         }),
     }
 }
@@ -434,14 +433,7 @@ mod tests {
 
                 match result {
                     Ok(doc) => {
-                        // Validate the invariant
-                        assert!(
-                            doc.location.start.offset <= doc.location.end.offset,
-                            "Failed for input {input:?}: start {} > end {}",
-                            doc.location.start.offset,
-                            doc.location.end.offset
-                        );
-
+                        // Validate the invariant using absolute offsets
                         assert!(
                             doc.location.absolute_start <= doc.location.absolute_end,
                             "Failed for input {input:?}: absolute_start {} > absolute_end {}",
@@ -469,13 +461,6 @@ mod tests {
                 let options = Options::default();
                 let doc =
                     parse(input, &options).unwrap_or_else(|_| panic!("Should parse {input:?}"));
-
-                assert!(
-                    doc.location.start.offset <= doc.location.end.offset,
-                    "Failed for input {input:?}: start {} > end {}",
-                    doc.location.start.offset,
-                    doc.location.end.offset
-                );
 
                 assert!(
                     doc.location.absolute_start <= doc.location.absolute_end,
@@ -508,16 +493,6 @@ mod tests {
                 match result {
                     Ok(doc) => {
                         // All offsets should be on UTF-8 boundaries
-                        assert!(
-                            input.is_char_boundary(doc.location.start.offset),
-                            "Start offset {} not on UTF-8 boundary for {input:?}",
-                            doc.location.start.offset,
-                        );
-                        assert!(
-                            input.is_char_boundary(doc.location.end.offset),
-                            "End offset {} not on UTF-8 boundary for {input:?}",
-                            doc.location.end.offset,
-                        );
                         assert!(
                             input.is_char_boundary(doc.location.absolute_start),
                             "Absolute start {} not on UTF-8 boundary for {input:?}",

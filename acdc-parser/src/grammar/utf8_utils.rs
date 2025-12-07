@@ -43,25 +43,46 @@ pub fn safe_decrement_offset(input: &str, offset: usize) -> usize {
     }
 }
 
+/// Ensure an offset is on a valid UTF-8 character boundary.
+/// If not, round backward to the nearest valid boundary.
+///
+/// This is the "safe" way to adjust an offset that might be mid-character.
+/// Use this for start positions where you want to include the current character.
+pub fn ensure_char_boundary(input: &str, offset: usize) -> usize {
+    if offset >= input.len() {
+        input.len()
+    } else if input.is_char_boundary(offset) {
+        offset
+    } else {
+        // Find the previous valid character boundary
+        (0..=offset)
+            .rev()
+            .find(|&i| input.is_char_boundary(i))
+            .unwrap_or(0)
+    }
+}
+
+/// Ensure an offset is on a valid UTF-8 character boundary.
+/// If not, round forward to the nearest valid boundary.
+///
+/// This is the "safe" way to adjust an offset that might be mid-character.
+/// Use this for end positions where you want to include the current character.
+pub fn ensure_char_boundary_forward(input: &str, offset: usize) -> usize {
+    if offset >= input.len() {
+        input.len()
+    } else if input.is_char_boundary(offset) {
+        offset
+    } else {
+        // Find the next valid character boundary
+        (offset..=input.len())
+            .find(|&i| input.is_char_boundary(i))
+            .unwrap_or(input.len())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Ensure an offset is on a valid UTF-8 character boundary.
-    /// If not, round backward to the nearest valid boundary.
-    fn ensure_char_boundary(input: &str, offset: usize) -> usize {
-        if offset > input.len() {
-            input.len()
-        } else if input.is_char_boundary(offset) {
-            offset
-        } else {
-            // Find the previous valid character boundary
-            (0..=offset)
-                .rev()
-                .find(|&i| input.is_char_boundary(i))
-                .unwrap_or(0)
-        }
-    }
 
     #[test]
     fn test_safe_decrement_ascii() {
@@ -107,5 +128,33 @@ mod tests {
         assert_eq!(ensure_char_boundary(input, 2), 0); // Round back
         assert_eq!(ensure_char_boundary(input, 3), 0); // Round back
         assert_eq!(ensure_char_boundary(input, 4), 4);
+    }
+
+    #[test]
+    fn test_ensure_boundary_forward() {
+        let input = "😀"; // 4 bytes
+        assert_eq!(ensure_char_boundary_forward(input, 0), 0);
+        assert_eq!(ensure_char_boundary_forward(input, 1), 4); // Round forward
+        assert_eq!(ensure_char_boundary_forward(input, 2), 4); // Round forward
+        assert_eq!(ensure_char_boundary_forward(input, 3), 4); // Round forward
+        assert_eq!(ensure_char_boundary_forward(input, 4), 4);
+    }
+
+    #[test]
+    fn test_ensure_boundary_forward_mixed() {
+        let input = "a😀b"; // 1 + 4 + 1 = 6 bytes
+        assert_eq!(ensure_char_boundary_forward(input, 0), 0);
+        assert_eq!(ensure_char_boundary_forward(input, 1), 1); // Already valid
+        assert_eq!(ensure_char_boundary_forward(input, 2), 5); // Mid-emoji, round forward to 'b'
+        assert_eq!(ensure_char_boundary_forward(input, 3), 5);
+        assert_eq!(ensure_char_boundary_forward(input, 4), 5);
+        assert_eq!(ensure_char_boundary_forward(input, 5), 5);
+        assert_eq!(ensure_char_boundary_forward(input, 6), 6);
+    }
+
+    #[test]
+    fn test_ensure_boundary_forward_beyond_input() {
+        let input = "hello";
+        assert_eq!(ensure_char_boundary_forward(input, 100), 5);
     }
 }

@@ -24,68 +24,44 @@ pub struct Location {
 }
 
 impl Location {
-    /// Validates that this location satisfies all invariants
+    /// Validates that this location satisfies all invariants.
+    ///
+    /// Checks:
+    /// - `absolute_start <= absolute_end` (valid range)
+    /// - `absolute_end <= input.len()` (within bounds)
+    /// - Both offsets are on UTF-8 character boundaries
     ///
     /// # Errors
     /// Returned as strings for easier debugging.
     pub fn validate(&self, input: &str) -> Result<(), String> {
-        // Check range validity
-        if self.start.offset > self.end.offset {
-            return Err(format!(
-                "Invalid range: start offset {} > end offset {}",
-                self.start.offset, self.end.offset
-            ));
-        }
-
+        // Check range validity using the canonical byte offsets
         if self.absolute_start > self.absolute_end {
             return Err(format!(
-                "Invalid absolute range: start {} > end {}",
+                "Invalid range: start {} > end {}",
                 self.absolute_start, self.absolute_end
             ));
         }
 
         // Check bounds
-        if self.end.offset > input.len() {
-            return Err(format!(
-                "End offset {} exceeds input length {}",
-                self.end.offset,
-                input.len()
-            ));
-        }
-
         if self.absolute_end > input.len() {
             return Err(format!(
-                "Absolute end {} exceeds input length {}",
+                "End offset {} exceeds input length {}",
                 self.absolute_end,
                 input.len()
             ));
         }
 
-        // Check UTF-8 boundaries
-        if !input.is_char_boundary(self.start.offset) {
-            return Err(format!(
-                "Start offset {} not on UTF-8 boundary",
-                self.start.offset
-            ));
-        }
-
-        if !input.is_char_boundary(self.end.offset) {
-            return Err(format!(
-                "End offset {} not on UTF-8 boundary",
-                self.end.offset
-            ));
-        }
-
+        // Check UTF-8 boundaries on the canonical offsets
         if !input.is_char_boundary(self.absolute_start) {
             return Err(format!(
-                "Absolute start {} not on UTF-8 boundary",
+                "Start offset {} not on UTF-8 boundary",
                 self.absolute_start
             ));
         }
 
         if !input.is_char_boundary(self.absolute_end) {
             return Err(format!(
-                "Absolute end {} not on UTF-8 boundary",
+                "End offset {} not on UTF-8 boundary",
                 self.absolute_end
             ));
         }
@@ -199,17 +175,17 @@ impl std::fmt::Display for Location {
     }
 }
 
-/// A `Position` represents a position in a document.
+/// A `Position` represents a human-readable position in a document.
+///
+/// This is purely for display/error reporting purposes. For byte offsets,
+/// use `Location.absolute_start` and `Location.absolute_end`.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Position {
-    /// The line number of the position.
+    /// The line number of the position (1-indexed).
     pub line: usize,
-    /// The column number of the position.
+    /// The column number of the position (1-indexed, counted as Unicode scalar values).
     #[serde(rename = "col")]
     pub column: usize,
-    /// The byte offset of the position.
-    #[serde(skip)]
-    pub offset: usize,
 }
 
 impl std::fmt::Display for Position {

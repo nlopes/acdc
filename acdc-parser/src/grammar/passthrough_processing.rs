@@ -74,12 +74,10 @@ pub(crate) fn parse_inline_markup_in_passthrough(
             start: crate::Position {
                 line: 1,
                 column: start + 1,
-                offset: start,
             },
             end: crate::Position {
                 line: 1,
                 column: end + 1,
-                offset: end,
             },
         }
     };
@@ -486,12 +484,10 @@ pub(crate) fn process_passthrough_placeholders(
                         start: crate::Position {
                             line: base_location.start.line,
                             column: base_location.start.column + processed_offset,
-                            offset: base_location.start.offset + processed_offset,
                         },
                         end: crate::Position {
                             line: base_location.start.line,
                             column: base_location.start.column + processed_offset + before.len(),
-                            offset: base_location.start.offset + processed_offset + before.len(),
                         },
                     },
                 }));
@@ -543,7 +539,6 @@ pub(crate) fn process_passthrough_placeholders(
                     start: crate::Position {
                         line: base_location.start.line,
                         column: base_location.start.column + processed_offset,
-                        offset: base_location.start.offset + processed_offset,
                     },
                     end: base_location.end.clone(),
                 },

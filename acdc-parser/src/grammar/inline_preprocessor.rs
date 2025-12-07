@@ -246,7 +246,7 @@ parser!(
         } / expected!("passthrough parser failed")
 
         rule single_plus_passthrough() -> String
-        = start:position()
+        = start:position() start_offset:byte_offset()
         "+"
         // Content: must not start with whitespace, can contain + if not followed by boundary
         content:$(![(' '|'\t'|'\n'|'\r')] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])*)
@@ -255,7 +255,7 @@ parser!(
             // Check if we're at start OR preceded by word boundary character
             // Convert absolute offset to relative offset within the substring
             let substring_start = state.substring_start_offset.get();
-            let relative_offset = start.offset - substring_start;
+            let relative_offset = start_offset - substring_start;
 
             let input_bytes = state.input.borrow();
             let prev_byte_value = if relative_offset > 0 {
@@ -462,6 +462,8 @@ parser!(
         rule ANY() = [_]
 
         rule position() -> Position = { state.tracker.borrow().get_position() }
+
+        rule byte_offset() -> usize = { state.tracker.borrow().get_offset() }
     }
 );
 

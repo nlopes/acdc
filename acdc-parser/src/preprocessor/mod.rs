@@ -102,12 +102,12 @@ impl Preprocessor {
         current_offset: usize,
         file_parent: Option<&Path>,
     ) -> SourceLocation {
+        let _ = current_offset; // Reserved for future use
         SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             positioning: Positioning::Position(Position {
                 line: line_number,
                 column: 1, // Preprocessor doesn't track column - use 1 as placeholder
-                offset: current_offset,
             }),
         }
     }

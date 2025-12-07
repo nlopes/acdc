@@ -161,14 +161,13 @@ impl FromStr for LinesRange {
 impl LinesRange {
     /// Helper to create error with location information
     fn create_error(line_range: &str, location: Option<(usize, usize, Option<&Path>)>) -> Error {
-        let (line_number, current_offset, current_file) = location.unwrap_or((1, 0, None));
+        let (line_number, _current_offset, current_file) = location.unwrap_or((1, 0, None));
         Error::InvalidLineRange(
             Box::new(SourceLocation {
                 file: current_file.map(Path::to_path_buf),
                 positioning: Positioning::Position(Position {
                     line: line_number,
                     column: 1,
-                    offset: current_offset,
                 }),
             }),
             line_range.to_string(),
@@ -238,7 +237,6 @@ impl Include {
                                 positioning: Positioning::Position(Position {
                                     line: self.line_number,
                                     column: 1,
-                                    offset: self.current_offset,
                                 }),
                             }),
                             value.clone(),
@@ -267,7 +265,6 @@ impl Include {
                                 positioning: Positioning::Position(Position {
                                     line: self.line_number,
                                     column: 1,
-                                    offset: self.current_offset,
                                 }),
                             }),
                             value.clone(),
@@ -288,7 +285,6 @@ impl Include {
                             positioning: Positioning::Position(Position {
                                 line: self.line_number,
                                 column: 1,
-                                offset: self.current_offset,
                             }),
                         }),
                         unknown.to_string(),
@@ -324,9 +320,6 @@ impl Include {
                         // PEG parser location.line is always 1 for a single line parse
                         line: line_number,
                         column: location.column,
-                        // Calculate absolute offset in document:
-                        // line_start_offset + column offset (0-indexed)
-                        offset: line_start_offset + location.column - 1,
                     }),
                 }),
                 e.expected.to_string(),
