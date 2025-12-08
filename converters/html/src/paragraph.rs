@@ -1,7 +1,30 @@
+use std::io::Write;
+
 use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
-use acdc_parser::Paragraph;
+use acdc_parser::{BlockMetadata, Paragraph};
 
 use crate::Error;
+
+/// Write attribution div for quote/verse blocks if author or citation present
+fn write_attribution<W: Write>(
+    writer: &mut W,
+    metadata: &BlockMetadata,
+) -> Result<(), std::io::Error> {
+    let author = metadata.attributes.get_string("attribution");
+    let citation = metadata.attributes.get_string("citation");
+
+    if author.is_some() || citation.is_some() {
+        writeln!(writer, "<div class=\"attribution\">")?;
+        if let Some(author) = author {
+            writeln!(writer, "&#8212; {author}<br>")?;
+        }
+        if let Some(citation) = citation {
+            writeln!(writer, "<cite>{citation}</cite>")?;
+        }
+        writeln!(writer, "</div>")?;
+    }
+    Ok(())
+}
 
 /// Visit a paragraph using the visitor pattern
 ///
@@ -28,6 +51,43 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         writeln!(w, "</div>")?;
         writeln!(w, "</div>")?;
         return Ok(());
+    }
+
+    if let Some(style) = &para.metadata.style {
+        // Check if this paragraph should be rendered as a quote block
+        if style == "quote" {
+            let mut w = visitor.writer_mut();
+            writeln!(w, "<div class=\"quoteblock\">")?;
+            let _ = w;
+            visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+            w = visitor.writer_mut();
+            writeln!(w, "<blockquote>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&para.content)?;
+            w = visitor.writer_mut();
+            writeln!(w)?;
+            writeln!(w, "</blockquote>")?;
+            write_attribution(&mut w, &para.metadata)?;
+            writeln!(w, "</div>")?;
+            return Ok(());
+        }
+
+        // Check if this paragraph should be rendered as a verse block
+        if style == "verse" {
+            let mut w = visitor.writer_mut();
+            writeln!(w, "<div class=\"verseblock\">")?;
+            let _ = w;
+            visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+            w = visitor.writer_mut();
+            write!(w, "<pre class=\"content\">")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&para.content)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</pre>")?;
+            write_attribution(&mut w, &para.metadata)?;
+            writeln!(w, "</div>")?;
+            return Ok(());
+        }
     }
 
     // Regular paragraph rendering

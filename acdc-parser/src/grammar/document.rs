@@ -123,6 +123,56 @@ fn create_source_location(location: Location, file: Option<std::path::PathBuf>) 
     }
 }
 
+fn get_literal_paragraph(
+    state: &ParserState,
+    content: &str,
+    start: usize,
+    end: usize,
+    offset: usize,
+    block_metadata: &BlockParsingMetadata,
+) -> Block {
+    tracing::debug!(
+        content,
+        "paragraph starts with a space - switching to literal block"
+    );
+    let mut metadata = block_metadata.metadata.clone();
+    metadata.move_positional_attributes_to_attributes();
+    metadata.style = Some("literal".to_string());
+    let location = state.create_block_location(start, end, offset);
+
+    // Strip leading space from each line ONLY if ALL lines consistently have leading space
+    // This matches asciidoctor's behavior
+    let lines: Vec<&str> = content.lines().collect();
+    let all_lines_have_leading_space = lines
+        .iter()
+        .all(|line| line.is_empty() || line.starts_with(' '));
+
+    let content = if all_lines_have_leading_space {
+        lines
+            .iter()
+            .map(|line| line.strip_prefix(' ').unwrap_or(line))
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        content.to_string()
+    };
+
+    tracing::debug!(
+        content,
+        all_lines_have_leading_space,
+        "created literal paragraph"
+    );
+    Block::Paragraph(Paragraph {
+        content: vec![InlineNode::PlainText(Plain {
+            content,
+            location: location.clone(),
+        })],
+        metadata,
+        title: block_metadata.title.clone(),
+        location,
+    })
+}
+
 /// Helper to parse document attribute value with proper type conversion
 /// Handles unset attributes, boolean conversion, and string values
 fn parse_attribute_value(value_opt: Option<&str>, unset: bool) -> AttributeValue {
@@ -3058,38 +3108,11 @@ peg::parser! {
             state.last_block_was_verbatim = false;
 
             // Check if this is a literal paragraph BEFORE preprocessing
-            // Literal paragraphs start with a space and should not have inline preprocessing applied
+            //
+            // Literal paragraphs start with a space and should not have inline
+            // preprocessing applied
             if content.starts_with(' ') {
-                tracing::debug!(content, "paragraph starts with a space - switching to literal block");
-                let mut metadata = block_metadata.metadata.clone();
-                metadata.move_positional_attributes_to_attributes();
-                metadata.style = Some("literal".to_string());
-                let location = state.create_block_location(start, end, offset);
-
-                // Strip leading space from each line ONLY if ALL lines consistently have leading space
-                // This matches asciidoctor's behavior
-                let lines: Vec<&str> = content.lines().collect();
-                let all_lines_have_leading_space = lines.iter().all(|line| line.is_empty() || line.starts_with(' '));
-
-                let content = if all_lines_have_leading_space {
-                    lines.iter()
-                        .map(|line| line.strip_prefix(' ').unwrap_or(line))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                } else {
-                    content.to_string()
-                };
-
-                tracing::debug!(content, all_lines_have_leading_space, "created literal paragraph");
-                return Ok(Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(Plain {
-                        content,
-                        location: location.clone(),
-                    })],
-                    metadata,
-                    title: block_metadata.title.clone(),
-                    location,
-                }));
+                return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
             }
 
             let (initial_location, location, processed) = preprocess_inline_content(state, start, &content_start, end, offset, content)?;
@@ -3129,10 +3152,32 @@ peg::parser! {
 
                 }))
             } else {
+                // For quote/verse styled paragraphs, extract attribution/citation
+                let mut metadata = block_metadata.metadata.clone();
+                if let Some(ref style) = metadata.style
+                    && (style == "quote" || style == "verse")
+                {
+                    // Extract attribution/citation from positional attributes
+                    // [quote, attribution, citation] or [verse, attribution, citation]
+                    if metadata.positional_attributes.len() >= 2 {
+                        metadata.attributes.insert(
+                            "citation".into(),
+                            AttributeValue::String(metadata.positional_attributes.remove(1).trim().to_string()),
+                        );
+                    }
+                    if !metadata.positional_attributes.is_empty() {
+                        metadata.attributes.insert(
+                            "attribution".into(),
+                            AttributeValue::String(metadata.positional_attributes.remove(0).trim().to_string()),
+                        );
+                    }
+                }
+                metadata.move_positional_attributes_to_attributes();
+
                 tracing::info!(?content, ?location, "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {
                     content,
-                    metadata: block_metadata.metadata.clone(),
+                    metadata,
                     title,
                     location: initial_location,
                 }))
