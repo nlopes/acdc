@@ -1,0 +1,22 @@
+[1m[4mStyled Paragraphs Test[0m
+
+[38;2;215;0;135m[1m┄[0m[38;2;215;0;135m[1mQuote Style[0m
+[3mEverything should be made as simple as possible, but not simpler.[0m
+[2m—[0m [2m[3mAlbert Einstein[0m
+
+[3mFour score and seven years ago our fathers brought forth on this continent a new nation.[0m
+[2m—[0m [2m[3mAbraham Lincoln[0m, [2m[3mGettysburg Address[0m
+
+
+[38;2;215;0;135m[1m┄[0m[38;2;215;0;135m[1mVerse Style[0m
+[38;5;13m[1mVERSE[0m
+The fog comes
+on little cat feet.
+[2m—[0m [2m[3mCarl Sandburg[0m, [2m[3mFog[0m
+[38;5;13m[1m• • •[0m
+
+[38;2;215;0;135m[1m┄[0m[38;2;215;0;135m[1mLiteral Style[0m
+[38;5;8m────────────────────[39m
+This is literal text.
+  It preserves   spacing.
+[38;5;8m────────────────────[39m

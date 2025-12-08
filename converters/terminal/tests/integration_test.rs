@@ -40,6 +40,7 @@ generate_tests!([
     (source_block_complete, false),
     (macros_with_quoted_attributes, false),
     (escaped_superscript_subscript, false),
+    (styled_paragraphs, false),
 ]);
 
 /// Normalizes terminal output for comparison.

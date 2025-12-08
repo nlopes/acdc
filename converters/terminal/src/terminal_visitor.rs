@@ -86,7 +86,8 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        crate::paragraph::visit_paragraph(para, self)
+        let processor = self.processor.clone();
+        crate::paragraph::visit_paragraph(para, self, &processor)
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
