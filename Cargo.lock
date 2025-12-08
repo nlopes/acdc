@@ -31,6 +31,7 @@ dependencies = [
  "acdc-core",
  "acdc-parser",
  "clap",
+ "crossterm",
  "thiserror",
  "tracing",
 ]
@@ -43,7 +44,6 @@ dependencies = [
  "acdc-core",
  "acdc-parser",
  "chrono",
- "crossterm",
  "pretty_assertions",
  "rstest",
  "thiserror",

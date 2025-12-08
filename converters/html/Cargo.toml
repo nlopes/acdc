@@ -13,7 +13,6 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-crossterm.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 tracing-test.workspace = true

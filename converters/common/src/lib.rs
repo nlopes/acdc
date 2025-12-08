@@ -2,7 +2,9 @@ use acdc_core::{Doctype, SafeMode};
 use acdc_parser::{AttributeValue, DocumentAttributes};
 
 pub mod code;
+pub mod generate_fixtures;
 pub mod icon;
+pub mod output;
 pub mod substitutions;
 pub mod table;
 pub mod toc;

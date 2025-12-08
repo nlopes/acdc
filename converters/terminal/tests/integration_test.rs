@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{Options as ConverterOptions, Processable};
+use acdc_converters_common::{
+    Options as ConverterOptions, Processable, output::remove_lines_trailing_whitespace,
+};
 use acdc_converters_terminal::Processor;
 use acdc_parser::Options as ParserOptions;
 
@@ -43,17 +45,6 @@ generate_tests!([
     (styled_paragraphs, false),
 ]);
 
-/// Normalizes terminal output for comparison.
-///
-/// This removes trailing whitespace and normalizes line endings.
-fn normalize_output(output: &str) -> String {
-    output
-        .lines()
-        .map(str::trim_end)
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 /// Helper function to run a single integration test.
 ///
 /// Parses the input `.adoc` file, converts to Terminal output, and compares with expected output.
@@ -89,8 +80,8 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
 
     // Compare (with normalization)
     let actual = String::from_utf8(output)?;
-    let expected_normalized = normalize_output(&expected);
-    let actual_normalized = normalize_output(&actual);
+    let expected_normalized = remove_lines_trailing_whitespace(&expected);
+    let actual_normalized = remove_lines_trailing_whitespace(&actual);
 
     pretty_assertions::assert_eq!(
         expected_normalized,

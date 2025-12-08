@@ -3,12 +3,12 @@ use std::path::{Path, PathBuf};
 use acdc_converters_common::{
     Options as ConverterOptions, Processable, output::remove_lines_trailing_whitespace,
 };
-use acdc_converters_html::{Processor, RenderOptions};
+use acdc_converters_manpage::Processor;
 use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
-/// Parses the input `.adoc` file, converts to HTML, and compares with expected output.
+/// Parses the input `.adoc` file, converts to manpage output, and compares with expected output.
 #[rstest::rstest]
 #[tracing_test::traced_test]
 fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
@@ -20,7 +20,7 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
         .join("fixtures")
         .join("expected")
         .join(file_name)
-        .with_extension("html");
+        .with_extension("man");
 
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options = ParserOptions {
@@ -29,15 +29,14 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
     };
     let doc = acdc_parser::parse_file(&path, &parser_options)?;
 
-    // Convert to HTML
+    // Convert to manpage output
     let mut output = Vec::new();
     let converter_options = ConverterOptions {
         generator_metadata: acdc_converters_common::GeneratorMetadata::new("acdc", "0.1.0"),
         ..Default::default()
     };
     let processor = Processor::new(converter_options, doc.attributes.clone());
-    let render_options = RenderOptions::default();
-    processor.convert_to_writer(&doc, &mut output, &render_options)?;
+    processor.convert_to_writer(&doc, &mut output)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -50,7 +49,8 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
     pretty_assertions::assert_eq!(
         expected_normalized,
         actual_normalized,
-        "HTML output mismatch for fixture: {file_name}",
+        "Manpage output mismatch for fixture: {file_name}",
     );
+
     Ok(())
 }

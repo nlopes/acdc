@@ -1,0 +1,32 @@
+= styled_paragraphs(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+
+== Name
+
+styled_paragraphs - test styled paragraph rendering
+
+== Synopsis
+
+*styled_paragraphs* [_OPTIONS_]
+
+== Quote Style
+
+[quote, Albert Einstein]
+Everything should be made as simple as possible, but not simpler.
+
+[quote, Abraham Lincoln, Gettysburg Address]
+Four score and seven years ago our fathers brought forth on this continent a new nation.
+
+== Verse Style
+
+[verse, Carl Sandburg, Fog]
+The fog comes
+on little cat feet.
+
+== Literal Style
+
+[literal]
+This is literal text.
+  It preserves   spacing.

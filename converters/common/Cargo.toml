@@ -8,6 +8,7 @@ description.workspace = true
 acdc-core.workspace = true
 acdc-parser = { path = "../../acdc-parser" }
 clap.workspace = true
+crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
