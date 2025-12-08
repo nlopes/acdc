@@ -1,3 +1,4 @@
+mod attributes;
 mod author_revision;
 mod document;
 mod inline_preprocessor;

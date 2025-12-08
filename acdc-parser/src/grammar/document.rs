@@ -11,6 +11,7 @@ use crate::{
     ThematicBreak, UnorderedList, Url, Verbatim, Video,
     grammar::{
         ParserState,
+        attributes::AttributeEntry,
         author_revision::{RevisionInfo, generate_initials, process_revision_info},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -171,25 +172,6 @@ fn get_literal_paragraph(
         title: block_metadata.title.clone(),
         location,
     })
-}
-
-/// Helper to parse document attribute value with proper type conversion
-/// Handles unset attributes, boolean conversion, and string values
-fn parse_attribute_value(value_opt: Option<&str>, unset: bool) -> AttributeValue {
-    if unset {
-        // e.g: :!attr: or :attr!:
-        AttributeValue::Bool(false)
-    } else if let Some(v) = value_opt {
-        match v.trim() {
-            // Handle boolean strings
-            "true" => AttributeValue::Bool(true),
-            "false" => AttributeValue::Bool(false),
-            _ => AttributeValue::String(v.to_string()),
-        }
-    } else {
-        // No value means true (e.g: :toc:)
-        AttributeValue::Bool(true)
-    }
 }
 
 peg::parser! {
@@ -425,8 +407,8 @@ peg::parser! {
         rule document_attribute() -> ()
         = att:document_attribute_match() (&eol() / ![_])
         {
-            tracing::info!(?att, "Found document attribute in the document header");
-            let (key, value) = att;
+            let AttributeEntry{key, value, set} = att;
+            tracing::info!(%set, %key, %value, "Found document attribute in the document header");
             state.document_attributes.set(key.into(), value);
         }
 
@@ -511,8 +493,7 @@ peg::parser! {
         pub(crate) rule document_attribute_block(offset: usize) -> Result<Block, Error>
         = start:position!() att:document_attribute_match() end:position!()
         {
-            let (key, value) = att;
-
+            let AttributeEntry{ key, value, .. } = att;
             state.document_attributes.set(key.into(), value.clone());
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
@@ -593,7 +574,7 @@ peg::parser! {
         = lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes(attr)) }
-            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1)) }
+            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.key, doc_attr.value)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )*
         {
@@ -650,7 +631,7 @@ peg::parser! {
         // A document attribute line in block metadata context
         // This allows document attributes to be set between block attributes and the block content
         // Uses the same parsing logic as document attributes in the header
-        rule document_attribute_line() -> (&'input str, AttributeValue)
+        rule document_attribute_line() -> AttributeEntry<'input>
         = attr:document_attribute_match() eol()
         {
             tracing::info!(?attr, "Found document attribute in block metadata");
@@ -3579,19 +3560,6 @@ peg::parser! {
         rule comment_line() = quiet!{ comment() (eol() / ![_]) }
         rule comment() = quiet!{ "//" [^'\n']+ (&eol() / ![_]) }
 
-        rule document_attribute_key_match() -> (bool, &'input str)
-        = ":"
-        key:(
-            "!" key:$([^':']+) { (true, key) }
-            / key:$([^('!' | ':')]+) "!" { (true, key) }
-            / key:$([^':']+) { (false, key) }
-        )
-        ":" &" "?
-        {
-            key
-        }
-        / expected!("document attribute key starting with ':'")
-
         // Value parsing for document attributes
         // Handles both single-line values and values with continuation markers (" \" or " + \")
         // The preprocessor preserves these markers for the parser to handle
@@ -3619,12 +3587,20 @@ peg::parser! {
 
         // Document attribute parsing
         // Works identically in both header and block metadata contexts
-        rule document_attribute_match() -> (&'input str, AttributeValue)
-        = key:document_attribute_key_match() value:document_attribute_value()?
+        rule document_attribute_match() -> AttributeEntry<'input>
+        = ":"
+        key_entry:(
+            "!" key:$([^':']+) { (false, key) }
+            / key:$([^('!' | ':')]+) "!" { (false, key) }
+            / key:$([^':']+) { (true, key) }
+        )
+        ":" &" "?
+        value:document_attribute_value()?
         {
-            let (unset, key) = key;
-            (key, parse_attribute_value(value.as_deref(), unset))
+            let (set, key) = key_entry;
+            AttributeEntry::new(key, set, value.as_deref())
         }
+        / expected!("document attribute key starting with ':'")
 
         rule position() -> PositionWithOffset = offset:position!() {
             PositionWithOffset {
