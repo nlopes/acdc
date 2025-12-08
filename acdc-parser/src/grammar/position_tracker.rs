@@ -24,6 +24,7 @@ impl PositionTracker {
         }
     }
 
+    #[tracing::instrument(level = "debug")]
     pub(crate) fn set_initial_position(&mut self, location: &Location, absolute_offset: usize) {
         self.line = location.start.line;
         self.column = location.start.column;
@@ -43,6 +44,7 @@ impl PositionTracker {
     }
 
     // TODO(nlopes): check if `#[inline(always)]` will help
+    #[tracing::instrument(level = "debug")]
     pub(crate) fn advance(&mut self, s: &str) {
         // TODO(nlopes): we need a better way to handle this due to unicode characters.
         for c in s.chars() {
@@ -107,6 +109,7 @@ impl LineMap {
     /// Convert byte offset to Position using binary search - O(log n) lookup.
     /// This is a pure function with no side effects, safe for use in PEG action blocks.
     /// Columns are counted as Unicode scalar values (characters), not bytes.
+    #[tracing::instrument(level = "debug")]
     pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
         // Find which line this offset belongs to
         let line = match self.line_starts.binary_search(&offset) {
