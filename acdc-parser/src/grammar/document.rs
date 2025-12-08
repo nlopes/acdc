@@ -180,14 +180,11 @@ fn parse_attribute_value(value_opt: Option<&str>, unset: bool) -> AttributeValue
         // e.g: :!attr: or :attr!:
         AttributeValue::Bool(false)
     } else if let Some(v) = value_opt {
-        let v = v.trim();
-        // Handle boolean strings
-        if v == "true" {
-            AttributeValue::Bool(true)
-        } else if v == "false" {
-            AttributeValue::Bool(false)
-        } else {
-            AttributeValue::String(v.to_string())
+        match v.trim() {
+            // Handle boolean strings
+            "true" => AttributeValue::Bool(true),
+            "false" => AttributeValue::Bool(false),
+            _ => AttributeValue::String(v.to_string()),
         }
     } else {
         // No value means true (e.g: :toc:)
