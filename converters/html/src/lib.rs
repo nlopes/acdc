@@ -174,3 +174,26 @@ mod video;
 
 pub(crate) use error::Error;
 pub use html_visitor::HtmlVisitor;
+
+/// Write attribution div for quote/verse blocks if author or citation present
+pub(crate) fn write_attribution<W: std::io::Write>(
+    writer: &mut W,
+    metadata: &acdc_parser::BlockMetadata,
+) -> Result<(), std::io::Error> {
+    let author = metadata.attributes.get_string("attribution");
+    let citation = metadata.attributes.get_string("citation");
+
+    if author.is_some() || citation.is_some() {
+        writeln!(writer, "<div class=\"attribution\">")?;
+        match (author, &citation) {
+            (Some(author), Some(citation)) => {
+                writeln!(writer, "&#8212; {author}<br>\n<cite>{citation}</cite>")?;
+            }
+            (Some(author), None) => writeln!(writer, "&#8212; {author}")?,
+            (None, Some(citation)) => writeln!(writer, "<cite>{citation}</cite>")?,
+            (None, None) => {}
+        }
+        writeln!(writer, "</div>")?;
+    }
+    Ok(())
+}

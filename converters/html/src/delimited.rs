@@ -9,28 +9,7 @@ use acdc_parser::{
     StemContent, StemNotation,
 };
 
-use crate::{Error, Processor, RenderOptions};
-
-/// Write attribution div for quote/verse blocks if author or citation present
-fn write_attribution<W: Write>(
-    writer: &mut W,
-    metadata: &BlockMetadata,
-) -> Result<(), std::io::Error> {
-    let author = metadata.attributes.get_string("attribution");
-    let citation = metadata.attributes.get_string("citation");
-
-    if author.is_some() || citation.is_some() {
-        writeln!(writer, "<div class=\"attribution\">")?;
-        if let Some(author) = author {
-            writeln!(writer, "&#8212; {author}<br>")?;
-        }
-        if let Some(citation) = citation {
-            writeln!(writer, "<cite>{citation}</cite>")?;
-        }
-        writeln!(writer, "</div>")?;
-    }
-    Ok(())
-}
+use crate::{Error, Processor, RenderOptions, write_attribution};
 
 fn write_example_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,

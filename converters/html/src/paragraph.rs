@@ -1,30 +1,7 @@
-use std::io::Write;
-
 use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
-use acdc_parser::{BlockMetadata, Paragraph};
+use acdc_parser::Paragraph;
 
-use crate::Error;
-
-/// Write attribution div for quote/verse blocks if author or citation present
-fn write_attribution<W: Write>(
-    writer: &mut W,
-    metadata: &BlockMetadata,
-) -> Result<(), std::io::Error> {
-    let author = metadata.attributes.get_string("attribution");
-    let citation = metadata.attributes.get_string("citation");
-
-    if author.is_some() || citation.is_some() {
-        writeln!(writer, "<div class=\"attribution\">")?;
-        if let Some(author) = author {
-            writeln!(writer, "&#8212; {author}<br>")?;
-        }
-        if let Some(citation) = citation {
-            writeln!(writer, "<cite>{citation}</cite>")?;
-        }
-        writeln!(writer, "</div>")?;
-    }
-    Ok(())
-}
+use crate::{Error, write_attribution};
 
 /// Visit a paragraph using the visitor pattern
 ///

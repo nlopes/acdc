@@ -1,0 +1,11 @@
+= Quoted Paragraph Test
+
+"I hold it that a little rebellion now and then is a good thing."
+-- Thomas Jefferson, Papers of Thomas Jefferson
+
+"Everything should be made as simple as possible, but not simpler."
+-- Albert Einstein
+
+"Multi-line quote
+spanning two lines."
+-- Anonymous

@@ -690,6 +690,7 @@ peg::parser! {
             / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break }
             / page_break:page_break(start, offset, &block_metadata) { page_break }
             / list:list(start, offset, &block_metadata) { list }
+            / quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph }
             / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
         ) {
             block
@@ -3057,6 +3058,66 @@ peg::parser! {
                 content: content.to_string(),
                 location: state.create_block_location(start_pos, end, offset),
             })
+        }
+
+        /// Parse a quoted paragraph: "content" followed by `-- attribution[, citation]`
+        ///
+        /// This matches the AsciiDoc shorthand syntax for blockquotes:
+        /// ```
+        /// "I hold it that a little rebellion now and then is a good thing."
+        /// -- Thomas Jefferson, Papers of Thomas Jefferson
+        /// ```
+        rule quoted_paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = content_start:position()
+          "\"" quoted_content:$((!"\"" [_])+) "\""
+          eol()
+          "-- " attribution_line:$([^'\n']+)
+          end:position!()
+        {
+            tracing::info!(?quoted_content, ?attribution_line, "found quoted paragraph");
+
+            // Parse attribution line: "Author Name, Source Title" or just "Author Name"
+            let (attribution, citation) = match attribution_line.split(',').collect::<Vec<_>>()[..] {
+                [attr, cite] => (attr.trim().to_string(), Some(cite.trim().to_string())),
+                [attr] => (attr.trim().to_string(), None),
+                _ => {
+                    tracing::warn!(?attribution_line, "attribution line has unexpected format, using full line as attribution");
+                    (attribution_line.trim().to_string(), None)
+                }
+            };
+
+            // Process the quoted content as inlines
+            let (initial_location, location, processed) = preprocess_inline_content(
+                state,
+                start,
+                &content_start,
+                end,
+                offset,
+                quoted_content,
+            )?;
+            let content = parse_inlines(&processed, state, block_metadata, &location)?;
+            let content = map_inline_locations(state, &processed, &content, &location)?;
+
+            // Build metadata with quote style and attribution
+            let mut metadata = block_metadata.metadata.clone();
+            metadata.style = Some("quote".to_string());
+            metadata.attributes.insert(
+                "attribution".into(),
+                AttributeValue::String(attribution),
+            );
+            if let Some(cite) = citation {
+                metadata.attributes.insert(
+                    "citation".into(),
+                    AttributeValue::String(cite),
+                );
+            }
+
+            Ok(Block::Paragraph(Paragraph {
+                content,
+                metadata,
+                title: block_metadata.title.clone(),
+                location: initial_location,
+            }))
         }
 
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
