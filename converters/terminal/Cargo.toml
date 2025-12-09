@@ -21,7 +21,7 @@ tracing.workspace = true
 # syntax highlighting (optional - saves ~7s compile time when disabled)
 syntect = { version = "5.3", optional = true }
 # images on the terminal (optional - saves ~16s compile time when disabled)
-viuer = { version = "0.10", features = ["print-file"], optional = true }
+viuer = { version = "0.11", features = ["print-file"], optional = true }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
