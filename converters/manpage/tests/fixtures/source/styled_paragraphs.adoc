@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Test Manual
 :mansource: acdc
+:revdate: 2025-12-08
 
 == Name
 
