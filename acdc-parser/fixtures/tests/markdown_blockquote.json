@@ -1,0 +1,628 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Markdown-Style Blockquotes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 28
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Simple blockquote",
+          "location": [
+            {
+              "line": 3,
+              "col": 4
+            },
+            {
+              "line": 3,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "quote",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ">",
+          "metadata": {
+            "style": "quote"
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "This is a simple markdown-style blockquote.",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 43
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Blockquote with attribution",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "quote",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ">",
+          "metadata": {
+            "attributes": {
+              "attribution": "Thomas Jefferson",
+              "citation": "Papers of Thomas Jefferson"
+            },
+            "style": "quote"
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "I hold it that a little rebellion now and then is a good thing,\nand as necessary in the political world as storms in the physical.",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 10,
+                      "col": 64
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 64
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 50
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Blockquote with author only",
+          "location": [
+            {
+              "line": 13,
+              "col": 4
+            },
+            {
+              "line": 13,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "quote",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ">",
+          "metadata": {
+            "attributes": {
+              "attribution": "William Shakespeare"
+            },
+            "style": "quote"
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "To be or not to be, that is the question.",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 1
+                    },
+                    {
+                      "line": 15,
+                      "col": 41
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Multi-paragraph blockquote",
+          "location": [
+            {
+              "line": 18,
+              "col": 4
+            },
+            {
+              "line": 18,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "quote",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ">",
+          "metadata": {
+            "style": "quote"
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First paragraph of the quote.",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 1
+                    },
+                    {
+                      "line": 20,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Second paragraph of the quote.",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 32
+                    },
+                    {
+                      "line": 22,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 32
+                },
+                {
+                  "line": 22,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Blockquote with list",
+          "location": [
+            {
+              "line": 24,
+              "col": 4
+            },
+            {
+              "line": 24,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "quote",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": ">",
+          "metadata": {
+            "style": "quote"
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Reasons to use AsciiDoc:",
+                  "location": [
+                    {
+                      "line": 26,
+                      "col": 1
+                    },
+                    {
+                      "line": 26,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 26,
+                  "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "unordered",
+              "marker": "*",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "*",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Clean syntax",
+                      "location": [
+                        {
+                          "line": 27,
+                          "col": 2
+                        },
+                        {
+                          "line": 28,
+                          "col": 11
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 26,
+                      "col": 27
+                    },
+                    {
+                      "line": 28,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "*",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Powerful features",
+                      "location": [
+                        {
+                          "line": 28,
+                          "col": 15
+                        },
+                        {
+                          "line": 29,
+                          "col": 14
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 13
+                    },
+                    {
+                      "line": 29,
+                      "col": 14
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "*",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Great tooling",
+                      "location": [
+                        {
+                          "line": 29,
+                          "col": 18
+                        },
+                        {
+                          "line": 30,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 16
+                    },
+                    {
+                      "line": 30,
+                      "col": 8
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 26,
+                  "col": 27
+                },
+                {
+                  "line": 30,
+                  "col": 8
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 17
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 30,
+      "col": 17
+    }
+  ]
+}

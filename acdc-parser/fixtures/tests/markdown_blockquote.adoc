@@ -1,0 +1,30 @@
+= Markdown-Style Blockquotes
+
+== Simple blockquote
+
+> This is a simple markdown-style blockquote.
+
+== Blockquote with attribution
+
+> I hold it that a little rebellion now and then is a good thing,
+> and as necessary in the political world as storms in the physical.
+> -- Thomas Jefferson, Papers of Thomas Jefferson
+
+== Blockquote with author only
+
+> To be or not to be, that is the question.
+> -- William Shakespeare
+
+== Multi-paragraph blockquote
+
+> First paragraph of the quote.
+>
+> Second paragraph of the quote.
+
+== Blockquote with list
+
+> Reasons to use AsciiDoc:
+>
+> * Clean syntax
+> * Powerful features
+> * Great tooling

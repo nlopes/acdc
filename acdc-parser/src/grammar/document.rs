@@ -691,6 +691,7 @@ peg::parser! {
             / page_break:page_break(start, offset, &block_metadata) { page_break }
             / list:list(start, offset, &block_metadata) { list }
             / quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph }
+            / markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote }
             / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
         ) {
             block
@@ -3120,6 +3121,84 @@ peg::parser! {
             }))
         }
 
+        /// Parse a markdown-style blockquote: lines starting with `> `
+        ///
+        /// This matches the Markdown-compatible syntax for blockquotes:
+        /// ```
+        /// > I hold it that a little rebellion now and then is a good thing,
+        /// > and as necessary in the political world as storms in the physical.
+        /// > -- Thomas Jefferson, Papers of Thomas Jefferson: Volume 11
+        /// ```
+        ///
+        /// The content after `> ` on each line is joined and parsed as blocks.
+        /// Attribution is extracted from a line matching `> -- Author[, Citation]`.
+        rule markdown_blockquote(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = lines:markdown_blockquote_content_line()+ attribution:markdown_blockquote_attribution()? end:position!()
+        {
+            tracing::info!(?lines, ?attribution, "found markdown blockquote");
+
+            let content = lines.join("\n");
+            let content_start = start;
+
+            // Build metadata with quote style and attribution
+            let mut metadata = block_metadata.metadata.clone();
+            metadata.style = Some("quote".to_string());
+            if let Some((author, citation)) = attribution {
+                metadata.attributes.insert(
+                    "attribution".into(),
+                    AttributeValue::String(author),
+                );
+                if let Some(cite) = citation {
+                    metadata.attributes.insert(
+                        "citation".into(),
+                        AttributeValue::String(cite),
+                    );
+                }
+            }
+
+            let location = state.create_block_location(start, end, offset);
+
+            // Parse the content as blocks
+            let blocks = if content.trim().is_empty() {
+                Vec::new()
+            } else {
+                document_parser::blocks(&content, state, content_start + offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                    adjust_and_log_parse_error(&e, &content, content_start + offset, state, "Error parsing content as blocks in markdown blockquote");
+                    Ok(Vec::new())
+                })?
+            };
+
+            Ok(Block::DelimitedBlock(DelimitedBlock {
+                metadata,
+                delimiter: ">".to_string(),
+                inner: DelimitedBlockType::DelimitedQuote(blocks),
+                title: block_metadata.title.clone(),
+                location,
+            }))
+        }
+
+        /// Match a content line of a markdown-style blockquote
+        /// A line is content if:
+        /// 1. It's followed by another `>` line (so `> -- ...` mid-blockquote is content)
+        /// 2. OR it doesn't start with `-- ` (so it can't be attribution)
+        rule markdown_blockquote_content_line() -> &'input str
+        = "> " content:$([^'\n']*) eol() &">" { content }
+        / "> " !("-- ") content:$([^'\n']*) (eol() / ![_]) { content }
+        / ">" eol() &">" { "" }
+        / ">" eol() { "" }
+        / ">" ![_] { "" }
+
+        /// Match an attribution line: `> -- Author[, Citation]`
+        /// Only matches at the END of a blockquote (not followed by more `>` lines)
+        /// Returns (author, Option<citation>)
+        rule markdown_blockquote_attribution() -> (String, Option<String>)
+        = "> -- " author:$([^(',' | '\n')]+) ", " citation:$([^'\n']+) ((eol() !">") / ![_]) {
+            (author.trim().to_string(), Some(citation.trim().to_string()))
+        }
+        / "> -- " author:$([^'\n']+) ((eol() !">") / ![_]) {
+            (author.trim().to_string(), None)
+        }
+
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = admonition:admonition()?
         content_start:position()
@@ -3136,7 +3215,7 @@ peg::parser! {
             / eol() table_delimiter()
             / eol() markdown_code_delimiter()
             / eol() comment_delimiter()
-            / eol() open_delimiter()
+            / eol() open_delimiter() &(whitespace()* eol())
             / eol() list(start, offset, block_metadata)
             / eol() &"+"  // Stop at list continuation marker
             / eol()* &(section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
