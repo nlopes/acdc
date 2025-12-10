@@ -9,7 +9,7 @@ use acdc_parser::{
     StemContent, StemNotation,
 };
 
-use crate::{Error, Processor, RenderOptions, write_attribution};
+use crate::{Error, Processor, RenderOptions, build_class, write_attribution};
 
 fn write_example_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
@@ -59,11 +59,13 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     match &block.inner {
         DelimitedBlockType::DelimitedQuote(blocks) => {
             let mut writer = visitor.writer_mut();
-            if let Some(style) = &block.metadata.style {
-                writeln!(writer, "<div class=\"{style}block\">")?;
+            let base_class = if let Some(style) = &block.metadata.style {
+                format!("{style}block")
             } else {
-                writeln!(writer, "<div class=\"quoteblock\">")?;
-            }
+                "quoteblock".to_string()
+            };
+            let class = build_class(&base_class, &block.metadata.roles);
+            writeln!(writer, "<div class=\"{class}\">")?;
             writeln!(writer, "<blockquote>")?;
             let _ = writer;
             for nested_block in blocks {

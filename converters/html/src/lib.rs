@@ -175,6 +175,15 @@ mod video;
 pub(crate) use error::Error;
 pub use html_visitor::HtmlVisitor;
 
+/// Build a class string from a base class and optional roles
+pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
+    if roles.is_empty() {
+        base.to_string()
+    } else {
+        format!("{base} {}", roles.join(" "))
+    }
+}
+
 /// Write attribution div for quote/verse blocks if author or citation present
 pub(crate) fn write_attribution<W: std::io::Write>(
     writer: &mut W,

@@ -1,7 +1,7 @@
 use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::Paragraph;
 
-use crate::{Error, write_attribution};
+use crate::{Error, build_class, write_attribution};
 
 /// Visit a paragraph using the visitor pattern
 ///
@@ -15,7 +15,8 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         && style == "literal"
     {
         let mut w = visitor.writer_mut();
-        writeln!(w, "<div class=\"literalblock\">")?;
+        let class = build_class("literalblock", &para.metadata.roles);
+        writeln!(w, "<div class=\"{class}\">")?;
         let _ = w;
         visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
         w = visitor.writer_mut();
@@ -34,7 +35,8 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         // Check if this paragraph should be rendered as a quote block
         if style == "quote" {
             let mut w = visitor.writer_mut();
-            writeln!(w, "<div class=\"quoteblock\">")?;
+            let class = build_class("quoteblock", &para.metadata.roles);
+            writeln!(w, "<div class=\"{class}\">")?;
             let _ = w;
             visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
@@ -52,7 +54,8 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         // Check if this paragraph should be rendered as a verse block
         if style == "verse" {
             let mut w = visitor.writer_mut();
-            writeln!(w, "<div class=\"verseblock\">")?;
+            let class = build_class("verseblock", &para.metadata.roles);
+            writeln!(w, "<div class=\"{class}\">")?;
             let _ = w;
             visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
@@ -69,7 +72,8 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
 
     // Regular paragraph rendering
     let mut w = visitor.writer_mut();
-    writeln!(w, "<div class=\"paragraph\">")?;
+    let class = build_class("paragraph", &para.metadata.roles);
+    writeln!(w, "<div class=\"{class}\">")?;
     let _ = w;
     visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
     w = visitor.writer_mut();
