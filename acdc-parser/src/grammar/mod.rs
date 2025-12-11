@@ -9,6 +9,7 @@ mod marked_text;
 mod markup_patterns;
 mod passthrough_processing;
 mod position_tracker;
+pub(crate) mod setext;
 mod state;
 mod table;
 pub(crate) mod utf8_utils;

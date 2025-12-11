@@ -7,6 +7,15 @@ pub struct Options {
     pub safe_mode: SafeMode,
     pub timings: bool,
     pub document_attributes: DocumentAttributes,
+    /// Enable Setext-style (underlined) header parsing.
+    ///
+    /// When enabled, headers can use the legacy two-line syntax:
+    /// ```text
+    /// Document Title
+    /// ==============
+    /// ```
+    #[cfg(feature = "setext")]
+    pub setext: bool,
 }
 
 impl Options {
@@ -80,6 +89,8 @@ pub struct OptionsBuilder {
     safe_mode: SafeMode,
     timings: bool,
     document_attributes: DocumentAttributes,
+    #[cfg(feature = "setext")]
+    setext: bool,
 }
 
 impl OptionsBuilder {
@@ -165,6 +176,27 @@ impl OptionsBuilder {
         self
     }
 
+    /// Enable Setext-style (underlined) header parsing.
+    ///
+    /// When enabled, headers can use the legacy two-line syntax where
+    /// the title is underlined with `=`, `-`, `~`, `^`, or `+` characters.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use acdc_parser::Options;
+    ///
+    /// let options = Options::builder()
+    ///     .with_setext()
+    ///     .build();
+    /// ```
+    #[cfg(feature = "setext")]
+    #[must_use]
+    pub fn with_setext(mut self) -> Self {
+        self.setext = true;
+        self
+    }
+
     /// Build the `Options` from this builder.
     ///
     /// # Example
@@ -183,6 +215,8 @@ impl OptionsBuilder {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes,
+            #[cfg(feature = "setext")]
+            setext: self.setext,
         }
     }
 }

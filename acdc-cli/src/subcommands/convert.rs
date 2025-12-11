@@ -22,6 +22,7 @@ pub enum Backend {
 
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
+#[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
 pub struct Args {
     /// List of files to convert
     #[arg(conflicts_with = "stdin")]
@@ -59,6 +60,14 @@ pub struct Args {
         action = ArgAction::Append
     )]
     pub attributes: Vec<String>,
+
+    /// Enable Setext-style (underlined) header parsing
+    ///
+    /// When enabled, headers can use the legacy two-line syntax where
+    /// the title is underlined with `=`, `-`, `~`, `^`, or `+` characters.
+    #[cfg(feature = "setext")]
+    #[arg(long)]
+    pub enable_setext_compatibility: bool,
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
@@ -137,11 +146,8 @@ where
     // Handle stdin separately (no parallelization)
     if args.stdin {
         let processor = P::new(base_options.clone(), document_attributes.clone());
-        let parser_options = acdc_parser::Options {
-            safe_mode: base_options.safe_mode.clone(),
-            timings: base_options.timings,
-            document_attributes: processor.document_attributes(),
-        };
+        let parser_options =
+            build_parser_options(args, &base_options, processor.document_attributes());
         let stdin = std::io::stdin();
         let mut reader = std::io::BufReader::new(stdin.lock());
         let doc = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
@@ -153,11 +159,8 @@ where
         .files
         .par_iter()
         .map(|file| {
-            let parser_options = acdc_parser::Options {
-                safe_mode: base_options.safe_mode.clone(),
-                timings: base_options.timings,
-                document_attributes: document_attributes.clone(),
-            };
+            let parser_options =
+                build_parser_options(args, &base_options, document_attributes.clone());
 
             if base_options.timings {
                 let now = std::time::Instant::now();
@@ -242,4 +245,27 @@ fn build_attributes_map(values: &[String]) -> DocumentAttributes {
         map.set(name, val); // use set() to override defaults
     }
     map
+}
+
+/// Build parser options from CLI args and base options
+#[allow(unused_variables)]
+fn build_parser_options(
+    args: &Args,
+    base_options: &Options,
+    document_attributes: DocumentAttributes,
+) -> acdc_parser::Options {
+    let mut builder = acdc_parser::Options::builder()
+        .with_safe_mode(base_options.safe_mode.clone())
+        .with_attributes(document_attributes);
+
+    if base_options.timings {
+        builder = builder.with_timings();
+    }
+
+    #[cfg(feature = "setext")]
+    if args.enable_setext_compatibility {
+        builder = builder.with_setext();
+    }
+
+    builder.build()
 }

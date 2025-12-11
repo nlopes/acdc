@@ -28,6 +28,8 @@ use crate::{
     model::{ListLevel, Locateable, SectionLevel},
 };
 
+use super::setext;
+
 #[derive(Debug)]
 pub(crate) struct PositionWithOffset {
     pub(crate) offset: usize,
@@ -294,6 +296,11 @@ peg::parser! {
         }
 
         pub(crate) rule document_title() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
+        = document_title_atx()
+        / document_title_setext()
+
+        /// ATX-style document title: `= Title` or `# Title`
+        rule document_title_atx() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
         = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {
             let mut subtitle = None;
@@ -313,6 +320,66 @@ peg::parser! {
                 content: title[..title_end - start].trim().to_string(),
                 location: title_location,
             })], subtitle)
+        }
+
+        /// Setext-style document title: Title underlined with `=` characters
+        ///
+        /// ```text
+        /// Document Title
+        /// ==============
+        /// ```
+        ///
+        /// The underline must be within ±2 characters of the title width.
+        /// Only enabled when the setext feature is compiled in AND the runtime
+        /// option is enabled.
+        rule document_title_setext() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
+        = start:position!() title:$([^'\n']+) end:position!() eol()
+          underline:$("="+) &(eol() / ![_])
+        {?
+            // Check if setext mode is enabled
+            if !setext::is_enabled(state) {
+                return Err("setext mode not enabled");
+            }
+
+            let title_text = title.trim();
+            let title_width = title_text.chars().count();
+            let underline_width = underline.chars().count();
+
+            // Check underline width tolerance (±2 characters)
+            if !setext::width_ok(title_width, underline_width) {
+                return Err("underline width out of tolerance");
+            }
+
+            // Check underline is level 0 (document title uses =)
+            if !underline.starts_with('=') {
+                return Err("document title must use = underline");
+            }
+
+            // Parse subtitle (text after last colon)
+            let mut subtitle = None;
+            let mut title_content = title_text.to_string();
+            if let Some(subtitle_start) = title_text.rfind(':') &&
+            let Some(subtitle_text) = title_text.get(subtitle_start + 1..) {
+                let subtitle_text = subtitle_text.trim();
+                if !subtitle_text.is_empty() {
+                    if let Some(text) = title_text.get(..subtitle_start) {
+                        title_content = text.trim().to_string();
+                    }
+                    subtitle = Some(vec![InlineNode::PlainText(Plain {
+                        content: subtitle_text.to_string(),
+                        location: state.create_location(
+                            start + subtitle_start + 1,
+                            end.saturating_sub(1),
+                        ),
+                    })]);
+                }
+            }
+
+            let title_location = state.create_location(start, end.saturating_sub(1));
+            Ok((vec![InlineNode::PlainText(Plain {
+                content: title_content,
+                location: title_location,
+            })], subtitle))
         }
 
         rule document_title_token() = "=" / "#"
@@ -421,11 +488,16 @@ peg::parser! {
 
         pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = eol()*
+        // First check: if we're at a same-or-higher-level section, fail the entire block
+        // This prevents section content from consuming sibling/parent sections as paragraphs
+        !same_or_higher_level_section(offset, parent_section_level)
         block:(
             comment_line_block(offset) /
             document_attribute_block(offset) /
             &"[discrete" dh:discrete_header(offset) { dh } /
-            !same_or_higher_level_section(offset, parent_section_level) section:section(offset, parent_section_level) { section } /
+            section:section(offset, parent_section_level) { section } /
+            // Try setext-style sections (only enabled with setext feature + runtime flag)
+            section_setext:section_setext(offset, parent_section_level) { section_setext } /
             block_generic(offset, parent_section_level)
         )
         {
@@ -449,14 +521,60 @@ peg::parser! {
         // This rule skips optional metadata (anchors, attributes, etc.) before checking
         // the section level, so that `[[anchor]]\n== Section` is correctly identified as
         // a sibling section.
+        //
+        // Checks both ATX-style (= or #) and setext-style (underlined) sections.
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
         = (anchor() / attributes_line() / document_attribute_line() / title_line(offset))*
-          level:section_level(offset, parent_section_level)
+          (
+            // ATX-style section check
+            level:section_level(offset, parent_section_level)
+            {?
+                if let Some(parent_level) = parent_section_level {
+                    let upcoming_level = level.1 + 1; // Convert to 1-based
+                    if upcoming_level <= parent_level {
+                        Ok(()) // This IS a same or higher level section
+                    } else {
+                        Err("not a same or higher level section")
+                    }
+                } else {
+                    Err("no parent section level to compare")
+                }
+            }
+            /
+            // Setext-style section check (title followed by underline)
+            &setext_section_lookahead(parent_section_level)
+          )
+
+        /// Lookahead rule to detect setext sections at same or higher level.
+        /// Used by same_or_higher_level_section to properly terminate sections.
+        rule setext_section_lookahead(parent_section_level: Option<SectionLevel>) -> ()
+        = title:$([^'\n']+) eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
         {?
+            // Only check if setext mode is enabled
+            if !setext::is_enabled(state) {
+                return Err("setext mode not enabled");
+            }
+
+            // Validate underline width
+            let title_width = title.trim().chars().count();
+            let underline_width = underline.chars().count();
+            if !setext::width_ok(title_width, underline_width) {
+                return Err("underline width out of tolerance");
+            }
+
+            // Get level from underline character
+            let underline_char = underline.chars().next().ok_or("empty underline")?;
+            let level = setext::char_to_level(underline_char).ok_or("invalid setext char")?;
+
+            // Level 0 (=) is document title, not section
+            if level == 0 {
+                return Err("not a section, seems like you're trying to define a document title");
+            }
+
+            // Check if this is a same-or-higher level section
             if let Some(parent_level) = parent_section_level {
-                let upcoming_level = level.1 + 1; // Convert to 1-based
-                if upcoming_level <= parent_level {
-                    Ok(()) // This IS a same or higher level section, so the negative lookahead will fail
+                if level <= parent_level {
+                    Ok(()) // This IS a same or higher level setext section
                 } else {
                     Err("not a same or higher level section")
                 }
@@ -567,6 +685,111 @@ peg::parser! {
                 level,
                 content: content.unwrap_or(Ok(Vec::new()))?,
                 location
+            }))
+        }
+
+        /// Setext-style section header: Title underlined with `-`, `~`, `^`, or `+`
+        ///
+        /// ```text
+        /// Section Title
+        /// -------------
+        /// ```
+        ///
+        /// The underline character determines the section level:
+        /// - `-` = Level 1
+        /// - `~` = Level 2
+        /// - `^` = Level 3
+        /// - `+` = Level 4
+        ///
+        /// The underline must be within ±2 characters of the title width.
+        /// Only enabled when the setext feature is compiled in AND the runtime
+        /// option is enabled.
+        /// Parse a setext section level from the underline character.
+        /// Returns the level (1-4) corresponding to -, ~, ^, +
+        rule setext_section_level(title_width: usize, parent_section_level: Option<SectionLevel>) -> u8
+        = underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
+        {?
+            // Check if setext mode is enabled
+            if !setext::is_enabled(state) {
+                return Err("setext mode not enabled");
+            }
+
+            let underline_width = underline.chars().count();
+
+            // Check underline width tolerance (±2 characters)
+            if !setext::width_ok(title_width, underline_width) {
+                return Err("underline width out of tolerance");
+            }
+
+            // Get the underline character and determine section level
+            let underline_char = underline.chars().next().ok_or("empty underline")?;
+            let level = setext::char_to_level(underline_char).ok_or("invalid setext underline character")?;
+
+            // Document title (level 0) uses =, not allowed here
+            if level == 0 {
+                return Err("use = underline for document title, not section");
+            }
+
+            // Validate section level against parent section level if any is provided
+            if let Some(parent_level) = parent_section_level
+                && (level < parent_level || level > parent_level + 1 || level > 5)
+            {
+                return Err("section level mismatch with parent");
+            }
+
+            Ok(level)
+        }
+
+        pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        = start:position!()
+        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+            bm.map_err(|e| {
+                tracing::error!(?e, "error parsing block metadata in section_setext");
+                "block metadata parse error"
+            })
+        })
+        title_start:position() title:$([^'\n']+) title_end:position!() eol()
+        setext_level:setext_section_level(title.trim().chars().count(), parent_section_level)
+        section_header:({
+            // Parse the title using inline processing
+            match process_inlines(state, &block_metadata, start, &title_start, title_end, offset, title) {
+                Ok((processed_title, _)) => {
+                    let section_id = Section::generate_id(&block_metadata.metadata, &processed_title).to_string();
+
+                    // Extract xreflabel from the last anchor
+                    let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel.clone());
+
+                    // Register section for TOC
+                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel);
+
+                    Ok::<(Vec<InlineNode>, String), Error>((processed_title, section_id))
+                }
+                Err(e) => Err(e),
+            }
+        })
+        content:section_content(offset, Some(setext_level + 1))? end:position!()
+        {
+            let (title, _section_id) = section_header?;
+            let location = state.create_block_location(start, end, offset);
+
+            // Derive manname/manpurpose from NAME section in manpage documents
+            if setext_level == 1 && is_manpage_doctype(&state.document_attributes) {
+                let title_text = extract_plain_text(&title);
+                if title_text.eq_ignore_ascii_case("NAME")
+                    && let Some(Ok(ref blocks)) = content
+                    && let Some(Block::Paragraph(para)) = blocks.first()
+                {
+                    let para_text = extract_plain_text(&para.content);
+                    derive_name_section_attrs(&para_text, &mut state.document_attributes);
+                }
+            }
+
+            Ok(Block::Section(Section {
+                metadata: block_metadata.metadata,
+                title,
+                level: setext_level,
+                content: content.unwrap_or(Ok(Vec::new()))?,
+                location,
             }))
         }
 
@@ -4268,6 +4491,282 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let mut state = ParserState::new(input);
         let result = document_parser::document(input, &mut state)??;
         assert_eq!(result.toc_entries.len(), 0);
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_document_title() -> Result<(), Error> {
+        let input = "Document Title
+==============
+
+Some content.
+";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+        let header = result.header.expect("document has a header");
+        assert_eq!(header.title.len(), 1);
+        assert!(
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+        );
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_section() -> Result<(), Error> {
+        let input = "= Document Title
+
+Section One
+-----------
+
+Content.
+";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+
+        // Find the section
+        let section = result.blocks.iter().find_map(|b| {
+            if let Block::Section(s) = b {
+                Some(s)
+            } else {
+                None
+            }
+        });
+        let section = section.expect("should have a section");
+        assert_eq!(section.level, 1);
+        assert!(
+            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section One")
+        );
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_disabled_by_default() {
+        let input = "Document Title
+==============
+
+Some content.
+";
+        let mut state = ParserState::new(input);
+        // setext is disabled by default
+        assert!(!state.options.setext);
+        // Should not parse as setext title when disabled
+        let result = document_parser::document(input, &mut state);
+        // The document will be parsed but without recognizing the setext title
+        // The title line will be parsed as a paragraph or similar
+        if let Ok(Ok(doc)) = result {
+            // No header should be found when setext is disabled
+            assert!(doc.header.is_none());
+        }
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_single_section_per_level() -> Result<(), Error> {
+        // Test a single setext section with document title
+        // Note: Multiple same-level setext sections currently nest incorrectly
+        // (tracked as known limitation). This test verifies basic functionality.
+        let input = "Document Title
+==============
+
+Section One
+-----------
+
+Content here.
+";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+
+        // Check document title (level 0)
+        let header = result.header.expect("document has a header");
+        assert!(
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+        );
+
+        // Find the section
+        let section = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("should have a section");
+
+        assert_eq!(section.level, 1);
+        assert!(
+            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section One")
+        );
+
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_sibling_sections() -> Result<(), Error> {
+        // Test that multiple same-level setext sections are parsed as siblings, not nested
+        let input = "Document Title
+==============
+
+Section A
+---------
+
+Content A.
+
+Section B
+---------
+
+Content B.
+
+Section C
+---------
+
+Content C.
+";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+
+        // Check document title
+        let header = result.header.expect("document has a header");
+        assert!(
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+        );
+
+        // All three sections should be at the top level (siblings, not nested)
+        let sections: Vec<&Section> = result
+            .blocks
+            .iter()
+            .filter_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(
+            sections.len(),
+            3,
+            "should have 3 top-level sibling sections"
+        );
+
+        // Verify all are level 1
+        for (i, section) in sections.iter().enumerate() {
+            assert_eq!(section.level, 1, "section {i} should be level 1");
+        }
+
+        // Verify titles
+        assert!(
+            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section A")
+        );
+        assert!(
+            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section B")
+        );
+        assert!(
+            matches!(&sections[2].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section C")
+        );
+
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_all_underline_characters() -> Result<(), Error> {
+        // Test each setext underline character individually
+        // = → level 0 (document title)
+        // - → level 1
+        // ~ → level 2
+        // ^ → level 3
+        // + → level 4
+
+        // Test level 1 with -
+        let input = "= Doc\n\nLevel One\n---------\n\nContent.\n";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+        let section = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("level 1 section");
+        assert_eq!(section.level, 1);
+
+        // Test level 2 with ~
+        let input = "= Doc\n\nLevel Two\n~~~~~~~~~\n\nContent.\n";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+        let section = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("level 2 section");
+        assert_eq!(section.level, 2);
+
+        // Test level 3 with ^
+        let input = "= Doc\n\nLevel Three\n^^^^^^^^^^^\n\nContent.\n";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+        let section = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("level 3 section");
+        assert_eq!(section.level, 3);
+
+        // Test level 4 with +
+        let input = "= Doc\n\nLevel Four\n++++++++++\n\nContent.\n";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+        let section = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("level 4 section");
+        assert_eq!(section.level, 4);
+
         Ok(())
     }
 }

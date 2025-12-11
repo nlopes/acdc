@@ -7,6 +7,7 @@ edition.workspace = true
 [features]
 default = []
 network = ["dep:ureq"]
+setext = []  # Enable Setext-style (underlined) header parsing
 
 [dependencies]
 acdc-core.workspace = true

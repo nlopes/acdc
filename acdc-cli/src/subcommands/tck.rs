@@ -25,7 +25,6 @@
 
 use std::io::{self, BufReader, Write};
 
-use acdc_parser::DocumentAttributes;
 use serde::Deserialize;
 
 #[derive(Debug, thiserror::Error)]
@@ -63,11 +62,9 @@ pub fn run(_args: &Args) -> Result<(), Error> {
     );
 
     // Parse the AsciiDoc content based on type
-    let parser_options = acdc_parser::Options {
-        safe_mode: acdc_core::SafeMode::Unsafe,
-        timings: false,
-        document_attributes: DocumentAttributes::default(),
-    };
+    let parser_options = acdc_parser::Options::builder()
+        .with_safe_mode(acdc_core::SafeMode::Unsafe)
+        .build();
 
     let mut stdout = io::stdout();
     match tck_input.r#type.as_str() {

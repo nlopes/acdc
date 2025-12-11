@@ -1,3 +1,9 @@
+// In Rust 1.92 without this, miette generates warnings about unused assignments.
+//
+// See issue https://github.com/zkat/miette/issues/458 and PR
+// https://github.com/zkat/miette/pull/459 for more details.
+#![allow(unused_assignments)]
+
 use std::process::exit;
 
 use acdc_parser::SourceLocation;

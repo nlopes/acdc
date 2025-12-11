@@ -82,8 +82,8 @@ pub use options::{Options, OptionsBuilder};
 /// With options:
 ///
 /// ```
-/// use acdc_parser::{Parser, Options};
 /// use acdc_core::SafeMode;
+/// use acdc_parser::{Parser, Options};
 ///
 /// let content = "= Document Title\n\nParagraph text.";
 /// let options = Options::builder()
@@ -142,8 +142,8 @@ impl<'input> Parser<'input> {
     /// # Example
     ///
     /// ```
-    /// use acdc_parser::{Parser, Options};
     /// use acdc_core::SafeMode;
+    /// use acdc_parser::{Parser, Options};
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
@@ -206,14 +206,13 @@ impl<'input> Parser<'input> {
 /// # Example
 ///
 /// ```
-/// use acdc_parser::parse_from_reader;
+/// use acdc_core::SafeMode;
+/// use acdc_parser::{Options, parse_from_reader};
 /// use std::fs::File;
 ///
-/// let options = acdc_parser::Options {
-///     safe_mode: acdc_core::SafeMode::Unsafe,
-///     timings: false,
-///     document_attributes: acdc_parser::DocumentAttributes::default(),
-/// };
+/// let options = Options::builder()
+///     .with_safe_mode(SafeMode::Unsafe)
+///     .build();
 /// let file = File::open("fixtures/samples/README.adoc").unwrap();
 /// let document = parse_from_reader(file, &options).unwrap();
 /// ```
@@ -236,13 +235,12 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// # Example
 ///
 /// ```
-/// use acdc_parser::parse;
+/// use acdc_core::SafeMode;
+/// use acdc_parser::{Options, parse};
 ///
-/// let options = acdc_parser::Options {
-///     safe_mode: acdc_core::SafeMode::Unsafe,
-///     timings: false,
-///     document_attributes: acdc_parser::DocumentAttributes::default(),
-/// };
+/// let options = Options::builder()
+///     .with_safe_mode(SafeMode::Unsafe)
+///     .build();
 /// let content = "= Document Title\n\nThis is a paragraph.\n\n== Section Title\n\nThis is a subsection.";
 /// let document = parse(content, &options).unwrap();
 /// ```
@@ -262,14 +260,14 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 /// # Example
 ///
 /// ```
-/// use acdc_parser::parse_file;
 /// use std::path::Path;
 ///
-/// let options = acdc_parser::Options {
-///     safe_mode: acdc_core::SafeMode::Unsafe,
-///     timings: false,
-///     document_attributes: acdc_parser::DocumentAttributes::default(),
-/// };
+/// use acdc_core::SafeMode;
+/// use acdc_parser::{Options, parse_file};
+///
+/// let options = Options::builder()
+///     .with_safe_mode(SafeMode::Unsafe)
+///     .build();
 /// let file_path = Path::new("fixtures/samples/README.adoc");
 /// let document = parse_file(file_path, &options).unwrap();
 /// ```
@@ -331,13 +329,12 @@ fn parse_input(
 /// # Example
 ///
 /// ```
-/// use acdc_parser::parse_inline;
+/// use acdc_core::SafeMode;
+/// use acdc_parser::{parse_inline, Options};
 ///
-/// let options = acdc_parser::Options {
-///     safe_mode: acdc_core::SafeMode::Unsafe,
-///     timings: false,
-///     document_attributes: acdc_parser::DocumentAttributes::default(),
-/// };
+/// let options = Options::builder()
+///     .with_safe_mode(SafeMode::Unsafe)
+///     .build();
 /// let content = "This is *strong* text with a https://example.com[link].";
 /// let inline_nodes = parse_inline(content, &options).unwrap();
 /// ```
@@ -385,11 +382,7 @@ mod tests {
         #[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf,
     ) -> Result<(), Error> {
         let test_file_path = path.with_extension("json");
-        let options = Options {
-            safe_mode: SafeMode::Unsafe,
-            timings: false,
-            document_attributes: DocumentAttributes::default(),
-        };
+        let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
 
         // We do this check because we have files that won't have a test file, namely ones
         // that are supposed to error out!

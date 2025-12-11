@@ -41,6 +41,9 @@ terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI co
 inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 
+# Compatibility features
+setext = ["acdc-parser/setext"]  # Enable Setext-style (underlined) header parsing
+
 # Feature groups for convenience
 all-backends = ["html", "manpage", "terminal"]  # Enable all output converters
 dev-tools = ["inspect"]              # Enable development utilities
