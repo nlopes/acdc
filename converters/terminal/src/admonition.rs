@@ -21,19 +21,28 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     writeln!(w)?;
 
     // Get icon, caption attribute, and theme color for this admonition type
-    let (caption_attr, color) = match admon.variant {
-        AdmonitionVariant::Note => ("note-caption", processor.appearance.colors.admon_note),
-        AdmonitionVariant::Tip => ("tip-caption", processor.appearance.colors.admon_tip),
+    let (icon, caption_attr, color) = match admon.variant {
+        AdmonitionVariant::Note => (
+            "ℹ️ ",
+            "note-caption",
+            processor.appearance.colors.admon_note,
+        ),
+        AdmonitionVariant::Tip => ("💡", "tip-caption", processor.appearance.colors.admon_tip),
         AdmonitionVariant::Important => (
+            "❗",
             "important-caption",
             processor.appearance.colors.admon_important,
         ),
-        AdmonitionVariant::Warning => {
-            ("warning-caption", processor.appearance.colors.admon_warning)
-        }
-        AdmonitionVariant::Caution => {
-            ("caution-caption", processor.appearance.colors.admon_caution)
-        }
+        AdmonitionVariant::Warning => (
+            "⚠️ ",
+            "warning-caption",
+            processor.appearance.colors.admon_warning,
+        ),
+        AdmonitionVariant::Caution => (
+            "🔥",
+            "caution-caption",
+            processor.appearance.colors.admon_caution,
+        ),
     };
 
     let caption = processor
@@ -52,8 +61,8 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
         "|"
     };
 
-    // Header line with bold caption and left border
-    write!(w, "{} ", border.with(color))?;
+    // Header line with icon, bold caption, and left border
+    write!(w, "{} {icon}", border.with(color))?;
     let styled_caption = format!("{caption}:").bold();
     QueueableCommand::queue(w, PrintStyledContent(styled_caption))?;
 
