@@ -1,4 +1,4 @@
-= acdc - AsciiDoc Compiler & Converter
+= acdc - AsciiDoc Parser & Converter
 
 Fast, correct AsciiDoc parser and converter written in Rust using PEG grammar.
 
