@@ -1908,14 +1908,17 @@ peg::parser! {
                 blocks.extend(continuation_blocks);
             }
 
+            // Use end position after all blocks if we have any, otherwise use item_end
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
             Ok((ListItem {
                 principal,
                 blocks,
                 level,
                 marker: marker.to_string(),
                 checked,
-                location: state.create_location(start+offset, item_end+offset),
-            }, item_end))
+                location: state.create_location(start+offset, actual_end+offset),
+            }, actual_end))
         }
 
         // Version without explicit continuation (for nested items to prevent consuming parent-level continuations)
@@ -1951,14 +1954,17 @@ peg::parser! {
                 blocks.push(nested_list);
             }
 
+            // Use end position after nested blocks if we have any, otherwise use item_end
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
             Ok((ListItem {
                 principal,
                 blocks,
                 level,
                 marker: marker.to_string(),
                 checked,
-                location: state.create_location(start+offset, item_end+offset),
-            }, item_end))
+                location: state.create_location(start+offset, actual_end+offset),
+            }, actual_end))
         }
 
         /// Parse nested content within an unordered list item (e.g., nested ordered list)
@@ -2016,14 +2022,17 @@ peg::parser! {
                 blocks.extend(continuation_blocks);
             }
 
+            // Use end position after all blocks if we have any, otherwise use item_end
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
             Ok((ListItem {
                 principal,
                 blocks,
                 level,
                 marker: marker.to_string(),
                 checked,
-                location: state.create_location(start+offset, item_end+offset),
-            }, item_end))
+                location: state.create_location(start+offset, actual_end+offset),
+            }, actual_end))
         }
 
         // Version without explicit continuation (for nested items to prevent consuming parent-level continuations)
@@ -2059,14 +2068,17 @@ peg::parser! {
                 blocks.push(nested_list);
             }
 
+            // Use end position after nested blocks if we have any, otherwise use item_end
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
             Ok((ListItem {
                 principal,
                 blocks,
                 level,
                 marker: marker.to_string(),
                 checked,
-                location: state.create_location(start+offset, item_end+offset),
-            }, item_end))
+                location: state.create_location(start+offset, actual_end+offset),
+            }, actual_end))
         }
 
         /// Parse nested content within an ordered list item (e.g., nested unordered list)
