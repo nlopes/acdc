@@ -1,0 +1,11 @@
+= minimal-cmd(1)
+:doctype: manpage
+:revdate: 2025-01-20
+
+== Name
+
+minimal-cmd - a minimal manpage test
+
+== Description
+
+This manpage has no mansource or manmanual attributes.

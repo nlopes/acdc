@@ -1,0 +1,38 @@
+'\" t
+."     Title: minimal-cmd(1)
+."    Author: [see the "AUTHOR(S)" section]
+." Generator: acdc 0.1.0
+."      Date: 2025-01-20
+."    Manual: \ \&
+."    Source: \ \&
+."  Language: English
+."
+.TH "MINIMAL-CMD" "1" "2025-01-20" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.\" Disable hyphenation
+.nh
+.\" Left-align only
+.ad l
+.\" URL/email macros
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+.PP
+minimal\-cmd \- a minimal manpage test
+.SH "DESCRIPTION"
+.PP
+This manpage has no mansource or manmanual attributes.

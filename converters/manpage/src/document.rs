@@ -2,7 +2,7 @@
 //!
 //! Handles the `.TH` title header macro and document preamble.
 
-use std::io::Write;
+use std::{borrow::Cow, io::Write};
 
 use acdc_converters_common::visitor::WritableVisitor;
 use acdc_parser::{AttributeValue, Author, Document, InlineNode};
@@ -41,6 +41,26 @@ fn write_comment_line<W: Write + ?Sized>(
     // Labels are right-aligned to 11 characters (including the colon)
     // This matches asciidoctor's comment header alignment
     writeln!(w, r#"."{:>11} {value}"#, format!("{label}:"))
+}
+
+/// Write URL and MTO macro definitions for link handling.
+fn write_url_macros<W: Write + ?Sized>(w: &mut W, linkstyle: &str) -> std::io::Result<()> {
+    writeln!(w, r#".\" URL/email macros"#)?;
+    writeln!(w, ".de URL")?;
+    writeln!(w, r"\fI\\$2\fP <\\$1>\\$3")?;
+    writeln!(w, "..")?;
+    writeln!(w, ".als MTO URL")?;
+    writeln!(w, r".if \n[.g] \{{")?;
+    writeln!(w, ".  mso www.tmac")?;
+    writeln!(w, ".  am URL")?;
+    writeln!(w, ".    ad l")?;
+    writeln!(w, ".  .")?;
+    writeln!(w, ".  am MTO")?;
+    writeln!(w, ".    ad l")?;
+    writeln!(w, ".  .")?;
+    writeln!(w, ".  LINKSTYLE {linkstyle}")?;
+    writeln!(w, r".\}}")?;
+    Ok(())
 }
 
 /// Extract plain text from inline nodes (for code blocks, title parsing, etc.).
@@ -179,14 +199,26 @@ pub fn visit_document_start<W: Write>(
 
     // Write .TH macro
     // Format: .TH "NAME" "VOLUME" "DATE" "SOURCE" "MANUAL"
+    // Use `\ \&` for empty fields (roff idiom for "intentionally blank")
+    // Note: Don't escape the special `\ \&` value - backslashes are intentional roff escapes
+    let th_source = if mansource.is_empty() {
+        Cow::Borrowed(r"\ \&")
+    } else {
+        escape_quoted(&mansource)
+    };
+    let th_manual = if manmanual.is_empty() {
+        Cow::Borrowed(r"\ \&")
+    } else {
+        escape_quoted(&manmanual)
+    };
     writeln!(
         w,
         ".TH \"{}\" \"{}\" \"{}\" \"{}\" \"{}\"",
         escape_quoted(&mantitle.to_uppercase()),
         escape_quoted(&manvolnum),
         escape_quoted(&date),
-        escape_quoted(&mansource),
-        escape_quoted(&manmanual)
+        th_source,
+        th_manual
     )?;
 
     // Define portable apostrophe string:
@@ -210,22 +242,7 @@ pub fn visit_document_start<W: Write>(
         .get_string("man-linkstyle")
         .unwrap_or_else(|| "blue R < >".to_string());
 
-    // Define URL and MTO macros for link handling (matches asciidoctor)
-    writeln!(w, r#".\" URL/email macros"#)?;
-    writeln!(w, ".de URL")?;
-    writeln!(w, r"\fI\\$2\fP <\\$1>\\$3")?;
-    writeln!(w, "..")?;
-    writeln!(w, ".als MTO URL")?;
-    writeln!(w, r".if \n[.g] \{{")?;
-    writeln!(w, ".  mso www.tmac")?;
-    writeln!(w, ".  am URL")?;
-    writeln!(w, ".    ad l")?;
-    writeln!(w, ".  .")?;
-    writeln!(w, ".  am MTO")?;
-    writeln!(w, ".    ad l")?;
-    writeln!(w, ".  .")?;
-    writeln!(w, ".  LINKSTYLE {linkstyle}")?;
-    writeln!(w, r".\}}")?;
+    write_url_macros(w, &linkstyle)?;
 
     Ok(())
 }
