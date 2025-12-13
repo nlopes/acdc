@@ -515,7 +515,13 @@ pub(crate) fn map_inline_locations(
                     vec![InlineNode::StandaloneCurvedApostrophe(mapped_standalone)]
                 }
                 InlineNode::Macro(inline_macro) => {
-                    vec![map_inline_macro(inline_macro, state, processed, location, &map_loc)?]
+                    vec![map_inline_macro(
+                        inline_macro,
+                        state,
+                        processed,
+                        location,
+                        &map_loc,
+                    )?]
                 }
                 InlineNode::LineBreak(lb) => {
                     let mut mapped_lb = lb.clone();
