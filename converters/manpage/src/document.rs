@@ -195,6 +195,9 @@ pub fn visit_document_start<W: Write>(
     writeln!(w, r".ie \n(.g .ds Aq \(aq")?;
     writeln!(w, r".el       .ds Aq '")?;
 
+    // Disable extra space after sentence-ending punctuation (modern convention)
+    writeln!(w, r".ss \n[.ss] 0")?;
+
     // Write preamble settings (targeting modern groff)
     writeln!(w, r#".\" Disable hyphenation"#)?;
     writeln!(w, ".nh")?;

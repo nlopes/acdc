@@ -10,6 +10,7 @@
 .TH "SAMPLE-COMMAND" "1" "2025-01-01" "Sample Project 1.0" "Sample Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
+.ss \n[.ss] 0
 .\" Disable hyphenation
 .nh
 .\" Left-align only

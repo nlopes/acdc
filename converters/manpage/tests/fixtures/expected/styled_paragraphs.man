@@ -10,6 +10,7 @@
 .TH "STYLED_PARAGRAPHS" "1" "2025-12-08" "acdc" "Test Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
+.ss \n[.ss] 0
 .\" Disable hyphenation
 .nh
 .\" Left-align only
