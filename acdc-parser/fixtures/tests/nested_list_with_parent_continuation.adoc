@@ -1,0 +1,24 @@
+= Nested List with Parent Continuation
+
+This tests that explicit continuations (+) after nested lists attach to the parent item, not the last nested item.
+
+== Pattern from BreakingChanges.adoc
+
+This is the exact pattern causing issues:
+
+* Parent item with text that spans multiple lines. The content
+  continues here:
++
+  ** Nested item 1 with text
+  ** Nested item 2 with text
+  ** Nested item 3 with text
++
+This paragraph should attach to parent, not "Nested item 3".
++
+--
+. Step one
+. Step two
+. Step three
+--
++
+Another paragraph that should attach to parent.

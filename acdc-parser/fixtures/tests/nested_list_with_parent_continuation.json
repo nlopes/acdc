@@ -1,0 +1,502 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Nested List with Parent Continuation",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 38
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 38
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This tests that explicit continuations (+) after nested lists attach to the parent item, not the last nested item.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 114
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 114
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Pattern from BreakingChanges.adoc",
+          "location": [
+            {
+              "line": 5,
+              "col": 4
+            },
+            {
+              "line": 5,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This is the exact pattern causing issues:",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Parent item with text that spans multiple lines. The content\n  continues here:",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 3
+                    },
+                    {
+                      "line": 10,
+                      "col": 17
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "unordered",
+                  "marker": "**",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "**",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Nested item 1 with text",
+                          "location": [
+                            {
+                              "line": 12,
+                              "col": 6
+                            },
+                            {
+                              "line": 12,
+                              "col": 28
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 12,
+                          "col": 1
+                        },
+                        {
+                          "line": 12,
+                          "col": 28
+                        }
+                      ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "**",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Nested item 2 with text",
+                          "location": [
+                            {
+                              "line": 13,
+                              "col": 6
+                            },
+                            {
+                              "line": 13,
+                              "col": 28
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 13,
+                          "col": 1
+                        },
+                        {
+                          "line": 13,
+                          "col": 28
+                        }
+                      ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "**",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Nested item 3 with text",
+                          "location": [
+                            {
+                              "line": 14,
+                              "col": 6
+                            },
+                            {
+                              "line": 14,
+                              "col": 28
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 14,
+                          "col": 1
+                        },
+                        {
+                          "line": 14,
+                          "col": 28
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 1
+                    },
+                    {
+                      "line": 14,
+                      "col": 28
+                    }
+                  ]
+                },
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "This paragraph should attach to parent, not \"Nested item 3\".",
+                      "location": [
+                        {
+                          "line": 16,
+                          "col": 1
+                        },
+                        {
+                          "line": 16,
+                          "col": 60
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 1
+                    },
+                    {
+                      "line": 16,
+                      "col": 60
+                    }
+                  ]
+                },
+                {
+                  "name": "open",
+                  "type": "block",
+                  "form": "delimited",
+                  "delimiter": "--",
+                  "blocks": [
+                    {
+                      "name": "list",
+                      "type": "block",
+                      "variant": "ordered",
+                      "marker": ".",
+                      "items": [
+                        {
+                          "name": "listItem",
+                          "type": "block",
+                          "marker": ".",
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Step one",
+                              "location": [
+                                {
+                                  "line": 19,
+                                  "col": 3
+                                },
+                                {
+                                  "line": 19,
+                                  "col": 10
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 19,
+                              "col": 1
+                            },
+                            {
+                              "line": 19,
+                              "col": 10
+                            }
+                          ]
+                        },
+                        {
+                          "name": "listItem",
+                          "type": "block",
+                          "marker": ".",
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Step two",
+                              "location": [
+                                {
+                                  "line": 20,
+                                  "col": 3
+                                },
+                                {
+                                  "line": 20,
+                                  "col": 10
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 20,
+                              "col": 1
+                            },
+                            {
+                              "line": 20,
+                              "col": 10
+                            }
+                          ]
+                        },
+                        {
+                          "name": "listItem",
+                          "type": "block",
+                          "marker": ".",
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Step three",
+                              "location": [
+                                {
+                                  "line": 21,
+                                  "col": 3
+                                },
+                                {
+                                  "line": 21,
+                                  "col": 12
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 21,
+                              "col": 1
+                            },
+                            {
+                              "line": 21,
+                              "col": 12
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 19,
+                          "col": 1
+                        },
+                        {
+                          "line": 21,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 1
+                    },
+                    {
+                      "line": 22,
+                      "col": 2
+                    }
+                  ]
+                },
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Another paragraph that should attach to parent.",
+                      "location": [
+                        {
+                          "line": 24,
+                          "col": 1
+                        },
+                        {
+                          "line": 24,
+                          "col": 47
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 1
+                    },
+                    {
+                      "line": 24,
+                      "col": 47
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 47
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 24,
+      "col": 47
+    }
+  ]
+}
