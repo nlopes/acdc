@@ -564,9 +564,13 @@ pub(crate) fn map_inline_locations(
                     }
                     vec![InlineNode::Macro(mapped_macro)]
                 }
+                InlineNode::LineBreak(lb) => {
+                    let mut mapped_lb = lb.clone();
+                    mapped_lb.location = map_loc(&lb.location)?;
+                    vec![InlineNode::LineBreak(mapped_lb)]
+                }
                 other @ (InlineNode::RawText(_)
                 | InlineNode::VerbatimText(_)
-                | InlineNode::LineBreak(_)
                 | InlineNode::InlineAnchor(_)) => {
                     vec![other.clone()]
                 }

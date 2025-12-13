@@ -1,0 +1,23 @@
+= Indented Plus Sign Test
+
+This tests that indented `+` at start of a line is treated as literal text, not a hard line break.
+
+== Valid hard line break
+
+This text has a hard break +
+and continues here.
+
+== Indented plus (should be literal)
+
+* Parent item
+  +
+  Indented text
+
+== Multiple cases
+
+Regular text +
+with break.
+
+But this:
+  +
+should be literal.

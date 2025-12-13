@@ -2650,11 +2650,27 @@ peg::parser! {
 
         rule inline_line_break(offset: usize) -> InlineNode
         = start:position!() " +" end:position!() eol()
-        {
+        {?
+            // Hard line break requires `text +` where text is actual content (non-whitespace)
+            // When `+` appears indented at the start of a line (after newline + whitespace),
+            // it should be treated as literal text, not a hard break.
+            // See: https://github.com/nlopes/acdc/issues/234
+            let absolute_pos = start + offset;
+            let valid = absolute_pos > 0 && {
+                let prev_byte_pos = absolute_pos.saturating_sub(1);
+                state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| {
+                    !b.is_ascii_whitespace()
+                })
+            };
+
+            if !valid {
+                return Err("hard line break requires preceding non-whitespace");
+            }
+
             tracing::info!("Found inline line break");
-            InlineNode::LineBreak(LineBreak {
+            Ok(InlineNode::LineBreak(LineBreak {
                 location: state.create_block_location(start, end, offset),
-            })
+            }))
         }
 
         rule hard_wrap(offset: usize) -> InlineNode
