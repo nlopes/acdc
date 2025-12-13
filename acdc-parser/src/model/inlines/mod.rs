@@ -287,6 +287,7 @@ struct RawInlineFields {
     content: Option<String>,
     notation: Option<StemNotation>,
     substitutions: Option<HashSet<crate::Substitution>>,
+    xreflabel: Option<String>,
 }
 
 // -----------------------------------------------------------------------------
@@ -333,7 +334,7 @@ fn construct_line_break<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode
 fn construct_anchor<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
     Ok(InlineNode::InlineAnchor(Anchor {
         id: raw.id.ok_or_else(|| E::missing_field("id"))?,
-        xreflabel: None,
+        xreflabel: raw.xreflabel,
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
     }))
 }

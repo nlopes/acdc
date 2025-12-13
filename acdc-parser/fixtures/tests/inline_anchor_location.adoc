@@ -1,0 +1,9 @@
+= Inline Anchor Location Test
+
+== Section One
+
+This paragraph has [[my-anchor]]an inline anchor in the middle.
+
+== Section Two
+
+Another paragraph with [[second-anchor,Custom Label]]a labeled anchor.

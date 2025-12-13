@@ -3705,7 +3705,7 @@ peg::parser! {
             }
 
         rule inline_anchor_match() -> ()
-        = double_open_square_bracket() [^'\'' | ',' | ']' | '.']+ double_close_square_bracket()
+        = double_open_square_bracket() [^'\'' | ',' | ']' | '.']+ (comma() [^']']+)? double_close_square_bracket()
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
             // Don't match empty [] followed by blank line - that's a list separator, not block attributes

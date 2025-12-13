@@ -1,0 +1,9 @@
+= Raw Text Location Test
+
+== Section One
+
+This has pass:[<b>raw HTML</b>] in the middle of a sentence.
+
+== Section Two
+
+Triple plus +++<em>also raw</em>+++ produces raw text too.
