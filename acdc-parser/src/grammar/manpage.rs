@@ -95,15 +95,17 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
     result
 }
 
-/// Sanitize a title for use as mantitle when it doesn't conform to name(volume) format.
+/// Sanitize a name for use as mantitle when the title doesn't conform to name(volume) format.
 ///
-/// Transforms the title by:
+/// Transforms the input by:
 /// - Converting to lowercase
 /// - Replacing non-alphanumeric characters (except `-` and `_`) with hyphens
 /// - Collapsing multiple hyphens into one
 /// - Trimming leading/trailing hyphens
-fn sanitize_mantitle(title: &str) -> String {
-    let sanitized: String = title
+///
+/// Used primarily to sanitize filenames (without extension) for mantitle fallback.
+fn sanitize_mantitle(name: &str) -> String {
+    let sanitized: String = name
         .to_lowercase()
         .chars()
         .map(|c| {
@@ -143,13 +145,14 @@ fn sanitize_mantitle(title: &str) -> String {
 ///
 /// When the title doesn't conform to `name(volume)` format:
 /// - In strict mode: returns an error
-/// - Otherwise: uses fallback values (sanitized title, volume "1")
+/// - Otherwise: uses fallback values (filename without extension, volume "1")
 ///
 /// # Arguments
 ///
 /// * `header` - The parsed document header (may be None)
 /// * `attrs` - Mutable reference to document attributes
 /// * `strict` - Whether to fail on non-conforming titles
+/// * `source_file` - Optional source filename (used for mantitle fallback)
 ///
 /// # Returns
 ///
@@ -160,6 +163,7 @@ pub fn derive_manpage_header_attrs(
     header: Option<&Header>,
     attrs: &mut DocumentAttributes,
     strict: bool,
+    source_file: Option<&std::path::Path>,
 ) -> Result<bool, Error> {
     let Some(header) = header else {
         return Ok(false);
@@ -188,20 +192,29 @@ pub fn derive_manpage_header_attrs(
         if strict {
             return Err(Error::NonConformingManpageTitle(
                 Box::new(SourceLocation {
-                    file: None,
+                    file: source_file.map(std::path::Path::to_path_buf),
                     positioning: Positioning::Location(header.location.clone()),
                 }),
                 format!("title '{title_text}' does not match 'name(volume)' format"),
             ));
         }
 
-        // Use fallbacks (matching asciidoctor behavior)
+        // Use fallbacks (matching asciidoctor behavior):
+        // - mantitle: filename without extension (or sanitized title if no file)
+        // - manvolnum: "1"
+        let fallback_name = source_file
+            .and_then(|p| p.file_stem())
+            .and_then(|s| s.to_str())
+            .unwrap_or(&title_text);
+
+        let sanitized = sanitize_mantitle(fallback_name);
+
         tracing::warn!(
             ?title_text,
-            "doctype=manpage but title doesn't match name(volume) format; using fallback values"
+            ?source_file,
+            mantitle = %sanitized,
+            "doctype=manpage but title doesn't match name(volume) format; using filename as fallback"
         );
-
-        let sanitized = sanitize_mantitle(&title_text);
 
         attrs.insert("mantitle".to_string(), AttributeValue::String(sanitized));
         attrs.insert(

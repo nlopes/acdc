@@ -142,9 +142,12 @@ pub fn visit_document_start<W: Write>(
     // Write comment header (enables tbl preprocessor)
     writeln!(w, r#"'\" t"#)?;
 
-    // Get the document title for the header comment (without volume number suffix)
-    // Use mantitle directly since it's already extracted without the volume number
-    let title_for_comment = &mantitle;
+    // Get the document title for the header comment
+    // Use the original document title (not mantitle) to match asciidoctor behavior
+    let title_for_comment = doc.header.as_ref().map_or_else(
+        || mantitle.clone(),
+        |h| extract_plain_text(&h.title),
+    );
 
     // Get author information from the header
     let author_line = doc.header.as_ref().map_or_else(
@@ -165,7 +168,7 @@ pub fn visit_document_start<W: Write>(
     };
 
     // Write metadata comment block (matches asciidoctor format)
-    write_comment_line(w, "Title", title_for_comment)?;
+    write_comment_line(w, "Title", &title_for_comment)?;
     write_comment_line(w, "Author", &author_line)?;
     write_comment_line(w, "Generator", &format!("acdc {VERSION}"))?;
     write_comment_line(w, "Date", &date)?;

@@ -1,0 +1,11 @@
+= Upcoming breaking changes
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test Project 1.0
+:revdate: 2025-01-15
+
+== Description
+
+This document has a non-conforming title (not matching name(volume) format).
+
+The mantitle should be derived from the filename, not the document title.

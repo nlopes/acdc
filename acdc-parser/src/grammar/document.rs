@@ -301,6 +301,7 @@ peg::parser! {
                         Some(&header),
                         &mut state.document_attributes,
                         state.options.strict,
+                        state.current_file.as_deref(),
                     )?;
                 }
 

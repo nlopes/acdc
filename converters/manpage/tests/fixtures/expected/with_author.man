@@ -1,5 +1,5 @@
 '\" t
-."     Title: sample-command
+."     Title: sample-command(1)
 ."    Author: John Doe
 ." Generator: acdc 0.1.0
 ."      Date: 2025-01-01
