@@ -8,6 +8,8 @@
 ."  Language: English
 ."
 .TH "NONCONFORMING_TITLE" "1" "2025-01-15" "Test Project 1.0" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" Disable hyphenation
 .nh
 .\" Left-align only

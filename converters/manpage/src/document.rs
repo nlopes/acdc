@@ -144,10 +144,10 @@ pub fn visit_document_start<W: Write>(
 
     // Get the document title for the header comment
     // Use the original document title (not mantitle) to match asciidoctor behavior
-    let title_for_comment = doc.header.as_ref().map_or_else(
-        || mantitle.clone(),
-        |h| extract_plain_text(&h.title),
-    );
+    let title_for_comment = doc
+        .header
+        .as_ref()
+        .map_or_else(|| mantitle.clone(), |h| extract_plain_text(&h.title));
 
     // Get author information from the header
     let author_line = doc.header.as_ref().map_or_else(
@@ -188,6 +188,12 @@ pub fn visit_document_start<W: Write>(
         escape_quoted(&mansource),
         escape_quoted(&manmanual)
     )?;
+
+    // Define portable apostrophe string:
+    // - GNU troff (.g register set): use proper typographic apostrophe \(aq
+    // - Other implementations: fall back to ASCII apostrophe '
+    writeln!(w, r".ie \n(.g .ds Aq \(aq")?;
+    writeln!(w, r".el       .ds Aq '")?;
 
     // Write preamble settings (targeting modern groff)
     writeln!(w, r#".\" Disable hyphenation"#)?;
