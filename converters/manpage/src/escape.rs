@@ -153,18 +153,31 @@ fn needs_escaping(text: &str, mode: EscapeMode) -> bool {
 }
 
 /// Collapse multiple whitespace characters to single space.
+/// Also strips leading whitespace from each line (important for roff output
+/// where leading spaces on continuation lines would be rendered incorrectly).
 fn collapse_whitespace(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let mut prev_whitespace = false;
+    let mut at_line_start = true;
 
     for ch in text.chars() {
-        if ch.is_ascii_whitespace() && ch != '\n' {
+        if ch == '\n' {
+            result.push(ch);
+            at_line_start = true;
+            prev_whitespace = false;
+        } else if ch.is_ascii_whitespace() {
+            // Skip leading whitespace at line start
+            if at_line_start {
+                continue;
+            }
+            // Collapse consecutive whitespace to single space
             if !prev_whitespace {
                 result.push(' ');
                 prev_whitespace = true;
             }
         } else {
             result.push(ch);
+            at_line_start = false;
             prev_whitespace = false;
         }
     }
@@ -294,5 +307,18 @@ mod tests {
     fn test_uppercase_title() {
         assert_eq!(uppercase_title("description"), "DESCRIPTION");
         assert_eq!(uppercase_title("See Also"), "SEE ALSO");
+    }
+
+    #[test]
+    fn test_collapse_whitespace_strips_leading() {
+        // Should strip leading whitespace on continuation lines
+        assert_eq!(
+            manify("line one\n  line two", EscapeMode::Normalize),
+            "line one\nline two"
+        );
+        assert_eq!(
+            manify("first\n   second\n\tthird", EscapeMode::Normalize),
+            "first\nsecond\nthird"
+        );
     }
 }

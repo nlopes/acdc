@@ -68,14 +68,47 @@ pub struct Args {
     #[cfg(feature = "setext")]
     #[arg(long)]
     pub enable_setext_compatibility: bool,
+
+    /// Strict mode
+    ///
+    /// When enabled, some errors related with non-conformance (but still recoverable)
+    /// will not allow conversion. For example: non-conforming manpage titles (not
+    /// matching `name(volume)` format) will cause conversion to fail instead of using
+    /// fallback values.
+    #[arg(long)]
+    pub strict: bool,
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
-    let document_attributes = build_attributes_map(&args.attributes);
     let safe_mode = if args.safe {
         SafeMode::Safe
     } else {
         args.safe_mode.clone()
+    };
+
+    let (document_attributes, doctype) = {
+        #[cfg(feature = "manpage")]
+        {
+            let mut document_attributes = build_attributes_map(&args.attributes);
+            // Auto-set doctype to Manpage when using manpage backend
+            // This matches asciidoctor behavior where --backend manpage implies --doctype manpage
+            let doctype = if matches!(args.backend, Backend::Manpage) {
+                // Set doctype attribute for the parser (parser checks this to derive manpage attrs)
+                document_attributes.insert(
+                    "doctype".to_string(),
+                    AttributeValue::String("manpage".to_string()),
+                );
+                Doctype::Manpage
+            } else {
+                args.doctype.clone()
+            };
+            (document_attributes, doctype)
+        }
+        #[cfg(not(feature = "manpage"))]
+        {
+            let document_attributes = build_attributes_map(&args.attributes);
+            (document_attributes, args.doctype.clone())
+        }
     };
 
     let options = Options {
@@ -83,7 +116,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_VERSION"),
         ),
-        doctype: args.doctype.clone(),
+        doctype,
         safe_mode,
         timings: args.timings,
     };
@@ -260,6 +293,10 @@ fn build_parser_options(
 
     if base_options.timings {
         builder = builder.with_timings();
+    }
+
+    if args.strict {
+        builder = builder.with_strict();
     }
 
     #[cfg(feature = "setext")]

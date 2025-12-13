@@ -51,6 +51,7 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
 /// - `manvolnum`: The volume number from the document title
 /// - `manname`: From NAME section (or falls back to mantitle)
 /// - `manpurpose`: From NAME section (after ` - `)
+/// - `_manpage_title_conforming`: Whether the title conforms to name(volume) format
 pub fn visit_document_start<W: Write>(
     doc: &Document,
     visitor: &mut ManpageVisitor<W>,
@@ -61,6 +62,7 @@ pub fn visit_document_start<W: Write>(
     }
 
     // Get mantitle and manvolnum from document attributes (set by parser)
+    // The parser always sets these now (either from conforming title or fallbacks)
     let mantitle = doc
         .attributes
         .get_string("mantitle")
@@ -124,6 +126,29 @@ pub fn visit_document_start<W: Write>(
     writeln!(w, ".nh")?;
     writeln!(w, r#".\" Left-align only"#)?;
     writeln!(w, ".ad l")?;
+
+    // Get linkstyle from document attributes (default: "blue R < >")
+    let linkstyle = doc
+        .attributes
+        .get_string("man-linkstyle")
+        .unwrap_or_else(|| "blue R < >".to_string());
+
+    // Define URL and MTO macros for link handling (matches asciidoctor)
+    writeln!(w, r#".\" URL/email macros"#)?;
+    writeln!(w, ".de URL")?;
+    writeln!(w, r"\fI\\$2\fP <\\$1>\\$3")?;
+    writeln!(w, "..")?;
+    writeln!(w, ".als MTO URL")?;
+    writeln!(w, r".if \n[.g] \{{")?;
+    writeln!(w, ".  mso www.tmac")?;
+    writeln!(w, ".  am URL")?;
+    writeln!(w, ".    ad l")?;
+    writeln!(w, ".  .")?;
+    writeln!(w, ".  am MTO")?;
+    writeln!(w, ".    ad l")?;
+    writeln!(w, ".  .")?;
+    writeln!(w, ".  LINKSTYLE {linkstyle}")?;
+    writeln!(w, r".\}}")?;
 
     Ok(())
 }

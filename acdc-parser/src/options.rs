@@ -7,6 +7,12 @@ pub struct Options {
     pub safe_mode: SafeMode,
     pub timings: bool,
     pub document_attributes: DocumentAttributes,
+    /// Strict mode - fail on non-conformance instead of warn-and-continue.
+    ///
+    /// When enabled, issues that would normally result in a warning and fallback
+    /// behavior will instead cause parsing to fail. For example:
+    /// - Non-conforming manpage titles (not matching `name(volume)` format)
+    pub strict: bool,
     /// Enable Setext-style (underlined) header parsing.
     ///
     /// When enabled, headers can use the legacy two-line syntax:
@@ -89,6 +95,7 @@ pub struct OptionsBuilder {
     safe_mode: SafeMode,
     timings: bool,
     document_attributes: DocumentAttributes,
+    strict: bool,
     #[cfg(feature = "setext")]
     setext: bool,
 }
@@ -126,6 +133,26 @@ impl OptionsBuilder {
     #[must_use]
     pub fn with_timings(mut self) -> Self {
         self.timings = true;
+        self
+    }
+
+    /// Enable strict mode.
+    ///
+    /// When enabled, issues that would normally result in a warning and fallback
+    /// behavior will instead cause parsing to fail.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::Options;
+    ///
+    /// let options = Options::builder()
+    ///     .with_strict()
+    ///     .build();
+    /// ```
+    #[must_use]
+    pub fn with_strict(mut self) -> Self {
+        self.strict = true;
         self
     }
 
@@ -215,6 +242,7 @@ impl OptionsBuilder {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes,
+            strict: self.strict,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }

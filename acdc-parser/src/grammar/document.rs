@@ -213,7 +213,8 @@ peg::parser! {
         // it stands in our current model, it makes no sense to have comments in the
         // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document, Error>
-        = eol()* start:position() comments_before_header:comment_line_block(0)* header:header() blocks:blocks(0, None) end:position() (eol()* / ![_]) {
+        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() blocks:blocks(0, None) end:position() (eol()* / ![_]) {
+            let header = header_result?;
             let blocks = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
@@ -273,7 +274,7 @@ peg::parser! {
             })
         }
 
-        pub(crate) rule header() -> Option<Header>
+        pub(crate) rule header() -> Result<Option<Header>, Error>
             = start:position!()
             ((document_attribute() / comment()) (eol()+ / ![_]))*
             title_authors:(title_authors:title_authors() { title_authors })?
@@ -296,13 +297,17 @@ peg::parser! {
                 // Derive manpage attributes from header if doctype=manpage
                 // This must happen during parsing so {mantitle} etc. work in body
                 if is_manpage_doctype(&state.document_attributes) {
-                    derive_manpage_header_attrs(Some(&header), &mut state.document_attributes);
+                    derive_manpage_header_attrs(
+                        Some(&header),
+                        &mut state.document_attributes,
+                        state.options.strict,
+                    )?;
                 }
 
-                Some(header)
+                Ok(Some(header))
             } else {
                 tracing::info!("No title or authors found in the document header.");
-                None
+                Ok(None)
             }
         }
 
@@ -4431,7 +4436,8 @@ v2.9, 01-09-2024: Fall incarnation
         let input = "= Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
         let mut state = ParserState::new(input);
-        let result = document_parser::header(input, &mut state)?.expect("header should be present");
+        let result =
+            document_parser::header(input, &mut state)??.expect("header should be present");
         assert_eq!(result.title.len(), 1);
         assert_eq!(
             result.title[0],

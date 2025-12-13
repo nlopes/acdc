@@ -78,6 +78,9 @@ pub enum Error {
     #[error("Could not convert from int: {0}")]
     #[serde(skip_deserializing)]
     TryFromIntError(#[from] std::num::TryFromIntError),
+
+    #[error("Non-conforming manpage title: {1}, position: {0}")]
+    NonConformingManpageTitle(Box<SourceLocation>, String),
 }
 
 impl Error {
@@ -103,7 +106,8 @@ impl Error {
             | Self::InvalidIncludeDirective(detail, ..)
             | Self::InvalidIndent(detail, ..)
             | Self::InvalidLevelOffset(detail, ..)
-            | Self::InvalidIfEvalDirectiveMismatchedTypes(detail) => Some(detail),
+            | Self::InvalidIfEvalDirectiveMismatchedTypes(detail)
+            | Self::NonConformingManpageTitle(detail, ..) => Some(detail),
             Self::ParseGrammar(_)
             | Self::Io(_)
             | Self::Url(_)
@@ -172,6 +176,9 @@ impl Error {
             ),
             Self::UnknownEncoding(..) | Self::UnrecognizedEncodingInFile(..) => Some(
                 "We only support UTF-8 or UTF-16 encoded files. Ensure the specified encoding is correct and the file is saved with that encoding",
+            ),
+            Self::NonConformingManpageTitle(..) => Some(
+                "Manpage document titles must be in the format 'name(volume)', e.g., 'git-commit(1)'. Remove --strict flag to use fallback values.",
             ),
             Self::ParseGrammar(_) | Self::Io(_) | Self::ParseInt(_) | Self::TryFromIntError(_) => {
                 None

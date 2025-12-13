@@ -4,7 +4,10 @@
 //! following the asciidoctor pattern where these attributes are set during parsing
 //! (not conversion) so they're available for attribute substitution in the body.
 
-use crate::{AttributeValue, DocumentAttributes, Header, InlineNode};
+use crate::{
+    AttributeValue, DocumentAttributes, Header, InlineNode,
+    error::{Error, Positioning, SourceLocation},
+};
 
 /// Parsed manpage title components.
 #[derive(Debug, Clone)]
@@ -92,6 +95,43 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
     result
 }
 
+/// Sanitize a title for use as mantitle when it doesn't conform to name(volume) format.
+///
+/// Transforms the title by:
+/// - Converting to lowercase
+/// - Replacing non-alphanumeric characters (except `-` and `_`) with hyphens
+/// - Collapsing multiple hyphens into one
+/// - Trimming leading/trailing hyphens
+fn sanitize_mantitle(title: &str) -> String {
+    let sanitized: String = title
+        .to_lowercase()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+
+    // Collapse multiple hyphens and trim
+    let mut result = String::new();
+    let mut prev_hyphen = false;
+    for c in sanitized.chars() {
+        if c == '-' {
+            if !prev_hyphen && !result.is_empty() {
+                result.push(c);
+            }
+            prev_hyphen = true;
+        } else {
+            result.push(c);
+            prev_hyphen = false;
+        }
+    }
+    result.trim_end_matches('-').to_string()
+}
+
 /// Derive manpage attributes from the document header.
 ///
 /// This function should be called during parsing, after the header is parsed but
@@ -101,50 +141,82 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
 ///
 /// These attributes are set using `insert()` which won't overwrite user-provided values.
 ///
+/// When the title doesn't conform to `name(volume)` format:
+/// - In strict mode: returns an error
+/// - Otherwise: uses fallback values (sanitized title, volume "1")
+///
 /// # Arguments
 ///
 /// * `header` - The parsed document header (may be None)
 /// * `attrs` - Mutable reference to document attributes
+/// * `strict` - Whether to fail on non-conforming titles
 ///
 /// # Returns
 ///
-/// true if manpage attributes were derived, false otherwise
+/// `Ok(true)` if manpage attributes were derived,
+/// `Ok(false)` if no header was provided,
+/// `Err` if strict mode and title doesn't conform
 pub fn derive_manpage_header_attrs(
     header: Option<&Header>,
     attrs: &mut DocumentAttributes,
-) -> bool {
+    strict: bool,
+) -> Result<bool, Error> {
     let Some(header) = header else {
-        return false;
+        return Ok(false);
     };
 
     let title_text = extract_plain_text(&header.title);
-    let Some(manpage_title) = parse_manpage_title(&title_text) else {
+
+    if let Some(manpage_title) = parse_manpage_title(&title_text) {
+        // Conforming title: use parsed name and volume
+        attrs.insert(
+            "mantitle".to_string(),
+            AttributeValue::String(manpage_title.name.to_lowercase()),
+        );
+        attrs.insert(
+            "manvolnum".to_string(),
+            AttributeValue::String(manpage_title.volume),
+        );
+
+        tracing::debug!(
+            mantitle = manpage_title.name,
+            manvolnum = ?attrs.get("manvolnum"),
+            "derived manpage attributes from header"
+        );
+    } else {
+        // Non-conforming title
+        if strict {
+            return Err(Error::NonConformingManpageTitle(
+                Box::new(SourceLocation {
+                    file: None,
+                    positioning: Positioning::Location(header.location.clone()),
+                }),
+                format!("title '{title_text}' does not match 'name(volume)' format"),
+            ));
+        }
+
+        // Use fallbacks (matching asciidoctor behavior)
         tracing::warn!(
             ?title_text,
-            "doctype=manpage but title doesn't match name(volume) format"
+            "doctype=manpage but title doesn't match name(volume) format; using fallback values"
         );
-        return false;
-    };
 
-    // Set mantitle (lowercase, matching asciidoctor behavior)
-    attrs.insert(
-        "mantitle".to_string(),
-        AttributeValue::String(manpage_title.name.to_lowercase()),
-    );
+        let sanitized = sanitize_mantitle(&title_text);
 
-    // Set manvolnum
-    attrs.insert(
-        "manvolnum".to_string(),
-        AttributeValue::String(manpage_title.volume),
-    );
+        attrs.insert("mantitle".to_string(), AttributeValue::String(sanitized));
+        attrs.insert(
+            "manvolnum".to_string(),
+            AttributeValue::String("1".to_string()),
+        );
 
-    tracing::debug!(
-        mantitle = manpage_title.name,
-        manvolnum = ?attrs.get("manvolnum"),
-        "derived manpage attributes from header"
-    );
+        tracing::debug!(
+            mantitle = ?attrs.get("mantitle"),
+            manvolnum = "1",
+            "using fallback manpage attributes for non-conforming title"
+        );
+    }
 
-    true
+    Ok(true)
 }
 
 /// Parse NAME section content to extract manname and manpurpose.
@@ -261,5 +333,44 @@ mod tests {
         let mut attrs = DocumentAttributes::default();
         assert!(!derive_name_section_attrs("just a name", &mut attrs));
         assert!(attrs.get("manname").is_none());
+    }
+
+    #[test]
+    fn test_sanitize_mantitle_simple() {
+        assert_eq!(sanitize_mantitle("My Document"), "my-document");
+    }
+
+    #[test]
+    fn test_sanitize_mantitle_with_special_chars() {
+        assert_eq!(
+            sanitize_mantitle("Upcoming breaking changes"),
+            "upcoming-breaking-changes"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_mantitle_collapses_hyphens() {
+        assert_eq!(sanitize_mantitle("foo  bar   baz"), "foo-bar-baz");
+    }
+
+    #[test]
+    fn test_sanitize_mantitle_trims_hyphens() {
+        assert_eq!(
+            sanitize_mantitle("  Leading and trailing  "),
+            "leading-and-trailing"
+        );
+    }
+
+    #[test]
+    fn test_sanitize_mantitle_preserves_underscores() {
+        assert_eq!(sanitize_mantitle("my_document_name"), "my_document_name");
+    }
+
+    #[test]
+    fn test_sanitize_mantitle_mixed_chars() {
+        assert_eq!(
+            sanitize_mantitle("Git 3.0: Breaking Changes!"),
+            "git-3-0-breaking-changes"
+        );
     }
 }
