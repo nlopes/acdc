@@ -1,0 +1,18 @@
+= sample-command(1)
+John Doe <john@example.com>
+:doctype: manpage
+:manmanual: Sample Manual
+:mansource: Sample Project 1.0
+:revdate: 2025-01-01
+
+== Name
+
+sample-command - A sample command
+
+== Synopsis
+
+*sample-command* [_OPTIONS_]
+
+== Description
+
+This is a sample command.

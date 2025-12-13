@@ -1,0 +1,38 @@
+'\" t
+."     Title: sample-command
+."    Author: John Doe
+." Generator: acdc 0.1.0
+."      Date: 2025-01-01
+."    Manual: Sample Manual
+."    Source: Sample Project 1.0
+."  Language: English
+."
+.TH "SAMPLE-COMMAND" "1" "2025-01-01" "Sample Project 1.0" "Sample Manual"
+.\" Disable hyphenation
+.nh
+.\" Left-align only
+.ad l
+.\" URL/email macros
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+.PP
+sample\-command \- A sample command
+.SH "SYNOPSIS"
+.PP
+\fBsample\-command\fP [\fIOPTIONS\fP]
+.SH "DESCRIPTION"
+.PP
+This is a sample command.
