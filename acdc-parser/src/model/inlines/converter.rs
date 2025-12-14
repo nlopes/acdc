@@ -38,6 +38,13 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
                         inlines_to_string(&url.text)
                     }
                 }
+                InlineMacro::Mailto(mailto) => {
+                    if mailto.text.is_empty() {
+                        mailto.target.to_string()
+                    } else {
+                        inlines_to_string(&mailto.text)
+                    }
+                }
                 InlineMacro::Autolink(autolink) => autolink.url.to_string(),
                 InlineMacro::CrossReference(xref) => {
                     xref.text.clone().unwrap_or_else(|| xref.target.clone())

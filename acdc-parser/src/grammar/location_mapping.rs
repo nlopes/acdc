@@ -103,6 +103,7 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
             crate::InlineMacro::Menu(menu) => clamp_location_bounds(&mut menu.location, input),
             crate::InlineMacro::Url(u) => clamp_location_bounds(&mut u.location, input),
             crate::InlineMacro::Link(l) => clamp_location_bounds(&mut l.location, input),
+            crate::InlineMacro::Mailto(m) => clamp_location_bounds(&mut m.location, input),
             crate::InlineMacro::Autolink(a) => clamp_location_bounds(&mut a.location, input),
             crate::InlineMacro::CrossReference(x) => {
                 clamp_location_bounds(&mut x.location, input);
@@ -565,6 +566,7 @@ fn map_inline_macro(
             footnote.content = map_inline_locations(state, processed, &footnote.content, location)?;
         }
         InlineMacro::Url(url) => url.location = map_loc(&url.location)?,
+        InlineMacro::Mailto(mailto) => mailto.location = map_loc(&mailto.location)?,
         InlineMacro::Link(link) => link.location = map_loc(&link.location)?,
         InlineMacro::Icon(icon) => icon.location = map_loc(&icon.location)?,
         InlineMacro::Button(button) => button.location = map_loc(&button.location)?,

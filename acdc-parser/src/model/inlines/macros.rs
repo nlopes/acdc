@@ -71,6 +71,18 @@ pub struct Url {
     pub location: Location,
 }
 
+/// An `Mailto` represents an inline `mailto:` in a document.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Mailto {
+    // We don't serialize the text here because it's already serialized in the attributes
+    // (that's how it's represented in the ASG)
+    #[serde(skip_serializing)]
+    pub text: Vec<InlineNode>,
+    pub target: Source,
+    pub attributes: ElementAttributes,
+    pub location: Location,
+}
+
 /// A `Button` represents an inline button in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Button {

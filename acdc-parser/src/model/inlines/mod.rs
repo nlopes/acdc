@@ -55,6 +55,7 @@ pub enum InlineMacro {
     Menu(Menu),
     Url(Url),
     Link(Link),
+    Mailto(Mailto),
     Autolink(Autolink),
     CrossReference(CrossReference),
     Pass(Pass),
@@ -219,6 +220,14 @@ where
             map.serialize_entry("target", &url.target)?;
             map.serialize_entry("location", &url.location)?;
             map.serialize_entry("attributes", &url.attributes)?;
+        }
+        InlineMacro::Mailto(mailto) => {
+            map.serialize_entry("name", "ref")?;
+            map.serialize_entry("type", "inline")?;
+            map.serialize_entry("variant", "mailto")?;
+            map.serialize_entry("target", &mailto.target)?;
+            map.serialize_entry("location", &mailto.location)?;
+            map.serialize_entry("attributes", &mailto.attributes)?;
         }
         InlineMacro::Link(link) => {
             map.serialize_entry("name", "ref")?;
@@ -430,6 +439,12 @@ fn construct_ref<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
         }))),
         "link" => Ok(InlineNode::Macro(InlineMacro::Link(Link {
             text: None,
+            attributes: raw.attributes.unwrap_or_default(),
+            target,
+            location,
+        }))),
+        "mailto" => Ok(InlineNode::Macro(InlineMacro::Mailto(Mailto {
+            text: vec![],
             attributes: raw.attributes.unwrap_or_default(),
             target,
             location,

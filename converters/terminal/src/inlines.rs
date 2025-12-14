@@ -267,6 +267,14 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
                 processor,
             )?;
         }
+        InlineMacro::Mailto(m) => {
+            maybe_render_osc8_link(
+                m.target.to_string().as_str(),
+                &render_inline_nodes_to_string(&m.text, processor)?,
+                w,
+                processor,
+            )?;
+        }
         InlineMacro::Autolink(a) => {
             let target = a.url.to_string();
             maybe_render_osc8_link(&target, &target, w, processor)?;

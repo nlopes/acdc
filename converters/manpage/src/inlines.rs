@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{InlineMacro, InlineNode, Link};
+use acdc_parser::{InlineMacro, InlineNode, Link, Mailto};
 
 use crate::{
     Error, ManpageVisitor,
@@ -141,6 +141,20 @@ fn write_link<W: Write>(visitor: &mut ManpageVisitor<W>, link: &Link) -> Result<
     Ok(())
 }
 
+fn write_mailto<W: Write>(visitor: &mut ManpageVisitor<W>, mailto: &Mailto) -> Result<(), Error> {
+    let target_str = mailto.target.to_string();
+    let escaped_target = manify(&target_str, EscapeMode::Normalize);
+    if mailto.text.is_empty() {
+        let w = visitor.writer_mut();
+        write!(w, "\\(la{escaped_target}\\(ra")?;
+    } else {
+        visitor.visit_inline_nodes(&mailto.text)?;
+        let w = visitor.writer_mut();
+        write!(w, " \\(la{escaped_target}\\(ra")?;
+    }
+    Ok(())
+}
+
 /// Visit an inline macro.
 fn visit_inline_macro<W: Write>(
     macro_node: &InlineMacro,
@@ -159,6 +173,10 @@ fn visit_inline_macro<W: Write>(
                 let w = visitor.writer_mut();
                 write!(w, " \\(la{escaped_target}\\(ra")?;
             }
+        }
+
+        InlineMacro::Mailto(mailto) => {
+            write_mailto(visitor, mailto)?;
         }
 
         InlineMacro::Link(link) => {

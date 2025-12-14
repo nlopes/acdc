@@ -5,8 +5,8 @@ use crate::{
     DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
     Document, DocumentAttribute, Error, Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image,
     InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
-    Location, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain,
-    Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
+    Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind,
+    Plain, Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
     StemNotation, Subscript, Substitution, Superscript, Table, TableOfContents, TableRow,
     ThematicBreak, UnorderedList, Url, Verbatim, Video,
     grammar::{
@@ -2742,6 +2742,9 @@ peg::parser! {
             / keyboard:inline_keyboard(offset) { keyboard }
             / button:inline_button(offset) { button }
             / menu:inline_menu(offset) { menu }
+            // mailto has to come before the url_macro because url_macro calls url() which
+            // also matches against mailto:
+            / mailto_macro:mailto_macro(offset, block_metadata) { mailto_macro }
             / url_macro:url_macro(offset, block_metadata) { url_macro }
             / pass:inline_pass(offset) { pass }
             / link_macro:link_macro(offset) { link_macro }
@@ -2952,11 +2955,61 @@ peg::parser! {
             })))
         }
 
+        /// Parse `mailto:` macros with attribute handling.
+        ///
+        /// `mailto:` macros have the format: `mailto:joe@example.com[text,attr1=value1,attr2=value2]`
+        ///
+        /// This is similar to link macros but the `mailto:` is directly specified rather
+        /// than using the `link:` prefix.
+        rule mailto_macro(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position()
+        &"mailto:"
+        target:url()
+        "["
+        content:(
+            title:link_title() attributes:("," att:attribute() { att })* {
+                (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
+            } /
+            attributes:(att:attribute() comma()? { att })* {
+                (None, attributes.into_iter().flatten().collect::<Vec<_>>())
+            }
+        )
+        "]"
+        end:position!()
+        {?
+            tracing::info!(?target, "Found mailto macro");
+            let (text, attributes) = content;
+            let mut metadata = BlockMetadata::default();
+            for (k, v, _pos) in attributes {
+                if let AttributeValue::String(v) = v {
+                    metadata.attributes.insert(k, AttributeValue::String(v));
+                }
+            }
+            let text = if let Some(text) = text {
+                process_inlines(state, block_metadata, start.offset, &start, end, offset, &text)
+                    .map_err(|e| {
+                        tracing::error!(?e, url_text = text, "could not process mailto macro text");
+                        "could not process mailto macro text"
+                    })?.0
+            } else {
+                vec![]
+            };
+            let target_source = Source::from_str(&target).map_err(|_| "failed to parse mailto target")?;
+            Ok(InlineNode::Macro(InlineMacro::Mailto(Mailto {
+                text,
+                target: target_source,
+                attributes: metadata.attributes.clone(),
+                location: state.create_block_location(start.offset, end, offset),
+            })))
+        }
+
         rule inline_autolink(offset: usize) -> InlineNode
         = start:position!()
         url:(
             "<" url:url() ">" { url }
+            / "<" url:email_address() ">" { format!("mailto:{url}") }
             / url:url() { url }
+            / url:email_address() { format!("mailto:{url}") }
         )
         end:position!()
         {?
@@ -3726,7 +3779,7 @@ peg::parser! {
         = start_pos:position!()
         content:$((
             "\\" ['^' | '~']  // Escape sequences for superscript/subscript markers
-            / (!(eol()*<2,> / ![_] / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            / (!(eol()*<2,> / ![_] / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
         {
@@ -4300,9 +4353,47 @@ peg::parser! {
         rule inner_attribute_value() -> String
         = s:$("\"" [^('"' | ']')]* "\"") { s.to_string() }
 
-        pub rule url() -> String = proto:proto() "://" path:url_path() { format!("{}{}{}", proto, "://", path) }
+        /// URL rule matches both web URLs (proto://) and mailto: URLs
+        pub rule url() -> String =
+        proto:$("https" / "http" / "ftp" / "irc") "://" path:url_path() { format!("{proto}://{path}") }
+        / "mailto:" email:email_address() { format!("mailto:{email}") }
 
-        rule proto() -> &'input str = $("https" / "http" / "ftp" / "irc" / "mailto")
+        /// Email address pattern (RFC 822 simplified)
+        ///
+        /// Local part: alphanumeric plus . _ % + -
+        /// Domain: alphanumeric plus . - (must contain TLD, must end with alphanumeric)
+        ///
+        /// - Domain must contain at least one dot (e.g., `foo@bar` is not valid,
+        ///   `foo@bar.com` is)
+        ///
+        /// - Domain must end with alphanumeric (prevents capturing trailing punctuation
+        ///   like `user@example.com.` - the dot stays outside the email for sentence
+        ///   endings)
+        rule email_address() -> String
+        = local:$(
+            // Quoted local part: "Jane Doe"@example.com
+            // Quotes allow spaces and special chars in the local part (RFC 5321).
+            "\"" [^'"']+ "\""
+            // Unquoted local part (no spaces allowed)
+            / ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '%' | '+' | '-']+
+        )
+        "@"
+        // Format: alphanumeric+ (separator alphanumeric+)*
+        // This ensures domain ends with alphanumeric (not . or -) and has proper structure.
+        // e.g., `example.com.` -> matches `example.com`, trailing dot stays outside
+        domain:$(
+            ['a'..='z' | 'A'..='Z' | '0'..='9']+
+            (['.' | '-'] ['a'..='z' | 'A'..='Z' | '0'..='9']+)*
+        )
+        {?
+            // Require TLD - domain must contain at least one dot. This prevents `foo@bar`
+            // from becoming a mailto link.
+            if !domain.contains('.') {
+                return Err("email domain must have TLD (contain a dot)");
+            }
+
+            Ok(format!("{local}@{domain}"))
+        }
 
         /// URL path component - supports query params, fragments, encoding, etc.
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries

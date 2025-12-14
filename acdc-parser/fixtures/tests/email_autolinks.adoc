@@ -1,0 +1,43 @@
+= Email Autolinks Test
+
+== Bare email addresses
+
+Bare email: user@example.com
+
+Multiple emails: alice@example.com and bob@test.org in one line.
+
+== Quoted email addresses
+
+Quoted with spaces: "Jane Doe"@example.com
+
+Another quoted: "john smith"@test.org
+
+== Mailto URL macros
+
+Mailto with text: mailto:support@example.com[Contact Support]
+
+Mailto empty brackets: mailto:info@example.com[]
+
+Mailto with attributes: mailto:sales@example.com[Sales Team,role=highlight]
+
+== Angle-bracketed emails
+
+Angle bracket email: <admin@example.com>
+
+== Link macro with mailto
+
+Link macro: link:mailto:help@example.com[Help Desk]
+
+== Non-email patterns (should stay plain)
+
+No TLD stays plain: foo@bar
+
+== Edge cases
+
+Email at end of sentence: Contact john@example.com.
+
+Email in parentheses: (reach out to team@example.org)
+
+Complex local part: user.name+tag@example.com
+
+Hyphenated domain: test@my-company.example.com

@@ -319,6 +319,9 @@ fn verify_inline_locations_bounded(inline: &InlineNode, input_len: usize) {
                 crate::InlineMacro::Url(u) => {
                     verify_location_bounded(&u.location, input_len, "url");
                 }
+                crate::InlineMacro::Mailto(m) => {
+                    verify_location_bounded(&m.location, input_len, "mailto");
+                }
                 crate::InlineMacro::Link(l) => {
                     verify_location_bounded(&l.location, input_len, "link");
                 }
@@ -556,6 +559,9 @@ fn verify_inline_utf8_boundaries(inline: &InlineNode, input: &str) {
             crate::InlineMacro::Url(u) => {
                 verify_location_utf8(&u.location, input, "url");
             }
+            crate::InlineMacro::Mailto(m) => {
+                verify_location_utf8(&m.location, input, "mailto");
+            }
             crate::InlineMacro::Link(l) => {
                 verify_location_utf8(&l.location, input, "link");
             }
@@ -700,6 +706,7 @@ fn get_inline_location(inline: &InlineNode) -> &Location {
             crate::InlineMacro::Button(b) => &b.location,
             crate::InlineMacro::Menu(m) => &m.location,
             crate::InlineMacro::Url(u) => &u.location,
+            crate::InlineMacro::Mailto(m) => &m.location,
             crate::InlineMacro::Link(l) => &l.location,
             crate::InlineMacro::Autolink(a) => &a.location,
             crate::InlineMacro::CrossReference(x) => &x.location,

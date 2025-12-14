@@ -245,11 +245,20 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
     let w = visitor.writer_mut();
     match m {
         InlineMacro::Autolink(al) => {
-            let content = &al.url;
+            let href = &al.url;
+            // For mailto: URLs, display just the email address without the mailto: prefix
+            let display_text = {
+                let url_str = href.to_string();
+                if let Some(email) = url_str.strip_prefix("mailto:") {
+                    email.to_string()
+                } else {
+                    url_str
+                }
+            };
             if options.inlines_basic {
-                write!(w, "{content}")?;
+                write!(w, "{display_text}")?;
             } else {
-                write!(w, "<a href=\"{content}\" class=\"bare\">{content}</a>")?;
+                write!(w, "<a href=\"{href}\" class=\"bare\">{display_text}</a>")?;
             }
         }
         InlineMacro::Link(l) => {
@@ -257,7 +266,15 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 .text
                 .as_ref()
                 .map(|t| substitution_text(t, options))
-                .unwrap_or(format!("{}", l.target));
+                .filter(|t| !t.is_empty()) // Treat empty string as None
+                .unwrap_or_else(|| {
+                    // For mailto: links without custom text, show just the email address
+                    let target_str = l.target.to_string();
+                    target_str
+                        .strip_prefix("mailto:")
+                        .unwrap_or(&target_str)
+                        .to_string()
+                });
             if options.inlines_basic {
                 write!(w, "{text}")?;
             } else {
@@ -316,9 +333,27 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
         InlineMacro::Url(u) => {
             write!(w, "<a href=\"{}\">", u.target)?;
             if u.text.is_empty() {
-                write!(w, "{}", u.target)?;
+                // For mailto: URLs, display just the email address without the mailto: prefix
+                let target_str = u.target.to_string();
+                let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                write!(w, "{display}")?;
             } else {
                 for inline in &u.text {
+                    visit_inline_node(inline, visitor, processor, options)?;
+                }
+            }
+            let w = visitor.writer_mut();
+            write!(w, "</a>")?;
+        }
+        InlineMacro::Mailto(m) => {
+            write!(w, "<a href=\"{}\">", m.target)?;
+            if m.text.is_empty() {
+                // For mailto: URLs, display just the email address without the mailto: prefix
+                let target_str = m.target.to_string();
+                let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                write!(w, "{display}")?;
+            } else {
+                for inline in &m.text {
                     visit_inline_node(inline, visitor, processor, options)?;
                 }
             }
