@@ -1763,6 +1763,22 @@ peg::parser! {
         // Helper rule to check if we're at a root-level (non-indented) unordered marker (current position)
         rule at_root_unordered_marker() = !whitespace() unordered_list_marker()
 
+        // Helper rule to check if we're at a shallower unordered marker
+        // Used to terminate nested lists when a blank line precedes a shallower item
+        // Same-level markers continue the list as siblings; only shallower markers end it
+        rule at_shallower_unordered_marker(base_marker: &str)
+        = whitespace()* marker:unordered_list_marker() whitespace() {?
+            if marker.len() < base_marker.len() { Ok(()) } else { Err("same-or-deeper") }
+        }
+
+        // Helper rule to check if we're at a shallower ordered marker
+        // Used to terminate nested lists when a blank line precedes a shallower item
+        // Same-level markers continue the list as siblings; only shallower markers end it
+        rule at_shallower_ordered_marker(base_marker: &str)
+        = whitespace()* marker:ordered_list_marker() whitespace() {?
+            if marker.len() < base_marker.len() { Ok(()) } else { Err("same-or-deeper") }
+        }
+
         // Helper rule to check if we're at a list separator (forces list termination)
         // Matches either a line comment (//) or empty block attributes ([]) on their own line
         // Note: Separator must be preceded by at least one blank line (2+ newlines)
@@ -1777,9 +1793,11 @@ peg::parser! {
         / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
 
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<Block, Error>
-        = &(whitespace()* unordered_list_marker() whitespace())
-        first:unordered_list_item(offset, block_metadata, allow_continuation)
-        rest:(unordered_list_rest_item(offset, block_metadata, parent_is_ordered, allow_continuation))*
+        // Parse whitespace + marker first to capture base_marker for rest items
+        // marker_start captures position before marker for correct first item location
+        = whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
+        first:unordered_list_item_after_marker(offset, block_metadata, allow_continuation, base_marker, marker_start)
+        rest:(unordered_list_rest_item(offset, block_metadata, parent_is_ordered, allow_continuation, base_marker))*
         end:position!()
         {
             tracing::info!("Found unordered list block");
@@ -1800,9 +1818,21 @@ peg::parser! {
             }))
         }
 
-        rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<(ListItem, usize), Error>
-        // Skip comments between list items (that aren't separators - already checked by !at_list_separator())
-        = !at_list_separator() eol()* comment_line()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation)
+        // Parse first item content after marker has been consumed by unordered_list
+        // marker_start is the position where the marker began, for correct location tracking
+        rule unordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool, marker: &'input str, marker_start: usize) -> Result<(ListItem, usize), Error>
+        = item:unordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start) {? if allow_continuation { Ok(item) } else { Err("skip") } }
+        / item:unordered_list_item_no_continuation_after_marker(offset, block_metadata, marker, marker_start) { item }
+
+        rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool, base_marker: &str) -> Result<(ListItem, usize), Error>
+        // Case 1: No blank lines (directly at content) - accept any depth for consecutive items
+        //
+        // OPTIMIZATION: `!at_ordered_marker_ahead()` (only in parent_is_ordered=true branch)
+        // This lookahead is purely for performance - it fails fast when an ordered marker (`.`)
+        // appears after nested unordered items. Without it, `unordered_list_item` would attempt
+        // to parse the ordered marker, fail, and backtrack - same result, just slower.
+        // See fixtures: nested_unordered_in_ordered.adoc, nested_ordered_in_unordered.adoc
+        = !at_list_separator() !eol() comment_line()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation)
         {?
             if parent_is_ordered {
                 Ok(item)
@@ -1810,7 +1840,24 @@ peg::parser! {
                 Err("skip")
             }
         }
-        / !at_list_separator() eol()* comment_line()* item:unordered_list_item(offset, block_metadata, allow_continuation)
+        / !at_list_separator() !eol() comment_line()* item:unordered_list_item(offset, block_metadata, allow_continuation)
+        {?
+            if parent_is_ordered {
+                Err("skip")
+            } else {
+                Ok(item)
+            }
+        }
+        // Case 2: Blank lines present (at newline(s)) - reject shallower markers (they belong to parent list)
+        / !at_list_separator() eol()+ comment_line()* !at_shallower_unordered_marker(base_marker) !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation)
+        {?
+            if parent_is_ordered {
+                Ok(item)
+            } else {
+                Err("skip")
+            }
+        }
+        / !at_list_separator() eol()+ comment_line()* !at_shallower_unordered_marker(base_marker) item:unordered_list_item(offset, block_metadata, allow_continuation)
         {?
             if parent_is_ordered {
                 Err("skip")
@@ -1820,9 +1867,11 @@ peg::parser! {
         }
 
         rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<Block, Error>
-        = &(whitespace()* ordered_list_marker() whitespace())
-        first:ordered_list_item(offset, block_metadata, allow_continuation)
-        rest:(ordered_list_rest_item(offset, block_metadata, parent_is_ordered, allow_continuation))*
+        // Parse whitespace + marker first to capture base_marker for rest items
+        // marker_start captures position before marker for correct first item location
+        = whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
+        first:ordered_list_item_after_marker(offset, block_metadata, allow_continuation, base_marker, marker_start)
+        rest:(ordered_list_rest_item(offset, block_metadata, parent_is_ordered, allow_continuation, base_marker))*
         end:position!()
         {
             tracing::info!("Found ordered list block");
@@ -1843,9 +1892,21 @@ peg::parser! {
             }))
         }
 
-        rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<(ListItem, usize), Error>
-        // Skip comments between list items (that aren't separators - already checked by !at_list_separator())
-        = !at_list_separator() eol()* comment_line()* !at_ordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation)
+        // Parse first item content after marker has been consumed by ordered_list
+        // marker_start is the position where the marker began, for correct location tracking
+        rule ordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool, marker: &'input str, marker_start: usize) -> Result<(ListItem, usize), Error>
+        = item:ordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start) {? if allow_continuation { Ok(item) } else { Err("skip") } }
+        / item:ordered_list_item_no_continuation_after_marker(offset, block_metadata, marker, marker_start) { item }
+
+        rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool, base_marker: &str) -> Result<(ListItem, usize), Error>
+        // Case 1: No blank lines (directly at content) - accept any depth for consecutive items
+        //
+        // OPTIMIZATION: `!at_unordered_marker_ahead()` (only in parent_is_ordered=false branch)
+        // This lookahead is purely for performance - it fails fast when an unordered marker (`*`)
+        // appears after nested ordered items. Without it, `ordered_list_item` would attempt
+        // to parse the unordered marker, fail, and backtrack - same result, just slower.
+        // See fixtures: nested_unordered_in_ordered.adoc, nested_ordered_in_unordered.adoc
+        = !at_list_separator() !eol() comment_line()* !at_unordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation)
         {?
             if parent_is_ordered {
                 Ok(item)
@@ -1853,7 +1914,24 @@ peg::parser! {
                 Err("skip")
             }
         }
-        / !at_list_separator() eol()* comment_line()* item:ordered_list_item(offset, block_metadata, allow_continuation)
+        / !at_list_separator() !eol() comment_line()* item:ordered_list_item(offset, block_metadata, allow_continuation)
+        {?
+            if parent_is_ordered {
+                Err("skip")
+            } else {
+                Ok(item)
+            }
+        }
+        // Case 2: Blank lines present (at newline(s)) - reject shallower markers (they belong to parent list)
+        / !at_list_separator() eol()+ comment_line()* !at_shallower_ordered_marker(base_marker) !at_unordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation)
+        {?
+            if parent_is_ordered {
+                Ok(item)
+            } else {
+                Err("skip")
+            }
+        }
+        / !at_list_separator() eol()+ comment_line()* !at_shallower_ordered_marker(base_marker) item:ordered_list_item(offset, block_metadata, allow_continuation)
         {?
             if parent_is_ordered {
                 Err("skip")
@@ -1887,10 +1965,19 @@ peg::parser! {
         // Try to parse nested ordered list (only if followed by newline)
         // Don't consume newlines if we're at a list separator (comment or [])
         // Nested items cannot consume parent-level continuations (allow_continuation: false)
-        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
-        // Try to parse explicit continuation (+ marker)
+        // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
+        // alternative fails and backtracks, leaving eol() unconsumed for explicit_continuation
+        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        // Try to parse explicit continuations (+ marker)
         // Don't consume newlines if we're at a list separator (comment or [])
-        explicit_continuation:(!at_list_separator() eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
+        // Parent items accept both:
+        // - Immediate continuations (0 empty lines) for content directly after principal text
+        // - Ancestor continuations (1+ empty lines) for content that bubbles up from nested items
+        // Use * to match a mixed sequence of immediate and ancestor continuations
+        explicit_continuations:(!at_list_separator() cont:(
+            list_explicit_continuation_immediate(offset, block_metadata)
+            / list_explicit_continuation_ancestor(offset, block_metadata)
+        ) { cont })*
         end:position!()
         {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
@@ -1907,12 +1994,12 @@ peg::parser! {
             };
 
             let mut blocks = Vec::new();
-            if let Some(Some(Some(Ok(nested_list)))) = nested {
+            // nested_content is no longer optional in the grammar, so one less Some level
+            if let Some(Some(Ok(nested_list))) = nested {
                 blocks.push(nested_list);
             }
-            if let Some(Some(Ok(continuation_blocks))) = explicit_continuation {
-                blocks.extend(continuation_blocks);
-            }
+            // Collect all continuation blocks (each is a Result<Block, Error>)
+            blocks.extend(explicit_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
             let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
@@ -1927,7 +2014,9 @@ peg::parser! {
             }, actual_end))
         }
 
-        // Version without explicit continuation (for nested items to prevent consuming parent-level continuations)
+        // Version with immediate continuations only (for nested items)
+        // Nested items consume continuations with 0 empty lines (immediate attachment).
+        // Continuations with 1+ empty lines bubble up to ancestor items.
         rule unordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
         = start:position!()
         whitespace()*
@@ -1939,11 +2028,15 @@ peg::parser! {
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Nested items can still have nested lists, but those also cannot consume parent continuations
-        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
-        // NO explicit continuation parsing - parent will consume it
+        // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
+        // alternative fails and backtracks, leaving eol() unconsumed for immediate_continuation
+        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        // Parse immediate continuations (0 empty lines) - these attach to this item
+        // Ancestor continuations (1+ empty lines) bubble up to parent items
+        immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (no continuation)");
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text = assemble_principal_text(first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
@@ -1956,11 +2049,14 @@ peg::parser! {
             };
 
             let mut blocks = Vec::new();
-            if let Some(Some(Some(Ok(nested_list)))) = nested {
+            // nested_content is no longer optional in the grammar, so one less Some level
+            if let Some(Some(Ok(nested_list))) = nested {
                 blocks.push(nested_list);
             }
+            // Collect all immediate continuation blocks
+            blocks.extend(immediate_continuations.into_iter().flatten());
 
-            // Use end position after nested blocks if we have any, otherwise use item_end
+            // Use end position after all blocks if we have any, otherwise use item_end
             let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
 
             Ok((ListItem {
@@ -1973,9 +2069,102 @@ peg::parser! {
             }, actual_end))
         }
 
+        // After-marker variants: used when marker has already been consumed by parent rule
+        // These are identical to the regular variants except they take marker as a parameter
+        // instead of parsing it, and start after the marker position
+        rule unordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize) -> Result<(ListItem, usize), Error>
+        = start:position!()
+        whitespace()
+        checked:checklist_item()?
+        first_line_start:position()
+        first_line:$((!(eol()) [_])*)
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        first_line_end:position!()
+        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        explicit_continuations:(!at_list_separator() cont:(
+            list_explicit_continuation_immediate(offset, block_metadata)
+            / list_explicit_continuation_ancestor(offset, block_metadata)
+        ) { cont })*
+        end:position!()
+        {
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker)");
+            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
+            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
+
+            let mut blocks = Vec::new();
+            if let Some(Some(Ok(nested_list))) = nested {
+                blocks.push(nested_list);
+            }
+            blocks.extend(explicit_continuations.into_iter().flatten());
+
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
+            Ok((ListItem {
+                principal,
+                blocks,
+                level,
+                marker: marker.to_string(),
+                checked,
+                location: state.create_location(marker_start+offset, actual_end+offset),
+            }, actual_end))
+        }
+
+        rule unordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize) -> Result<(ListItem, usize), Error>
+        = start:position!()
+        whitespace()
+        checked:checklist_item()?
+        first_line_start:position()
+        first_line:$((!(eol()) [_])*)
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        first_line_end:position!()
+        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
+        end:position!()
+        {
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker, immediate only)");
+            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
+            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
+
+            let mut blocks = Vec::new();
+            if let Some(Some(Ok(nested_list))) = nested {
+                blocks.push(nested_list);
+            }
+            blocks.extend(immediate_continuations.into_iter().flatten());
+
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
+            Ok((ListItem {
+                principal,
+                blocks,
+                level,
+                marker: marker.to_string(),
+                checked,
+                location: state.create_location(marker_start+offset, actual_end+offset),
+            }, actual_end))
+        }
+
         /// Parse nested content within an unordered list item (e.g., nested ordered list)
         /// Note: allow_continuation is false to prevent nested items from consuming parent-level continuations
         rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
+        // FUNCTIONAL: !at_root_ordered_marker() prevents root-level ordered items (no leading whitespace)
+        // from being incorrectly parsed as nested. Without this, `. item` at column 1 would be nested
+        // inside the parent unordered item instead of being a sibling list.
         = !at_root_ordered_marker() nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, true, false) {
             Some(list)
         }
@@ -2001,10 +2190,19 @@ peg::parser! {
         // Try to parse nested unordered list (only if followed by newline)
         // Don't consume newlines if we're at a list separator (comment or [])
         // Nested items cannot consume parent-level continuations (allow_continuation: false)
-        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
-        // Try to parse explicit continuation (+ marker)
+        // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
+        // alternative fails and backtracks, leaving eol() unconsumed for explicit_continuation
+        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        // Try to parse explicit continuations (+ marker)
         // Don't consume newlines if we're at a list separator (comment or [])
-        explicit_continuation:(!at_list_separator() eol()* continuation:list_explicit_continuation(offset, block_metadata)? { continuation })?
+        // Parent items accept both:
+        // - Immediate continuations (0 empty lines) for content directly after principal text
+        // - Ancestor continuations (1+ empty lines) for content that bubbles up from nested items
+        // Use * to match a mixed sequence of immediate and ancestor continuations
+        explicit_continuations:(!at_list_separator() cont:(
+            list_explicit_continuation_immediate(offset, block_metadata)
+            / list_explicit_continuation_ancestor(offset, block_metadata)
+        ) { cont })*
         end:position!()
         {
             tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
@@ -2021,12 +2219,12 @@ peg::parser! {
             };
 
             let mut blocks = Vec::new();
-            if let Some(Some(Some(Ok(nested_list)))) = nested {
+            // nested_content is no longer optional in the grammar, so one less Some level
+            if let Some(Some(Ok(nested_list))) = nested {
                 blocks.push(nested_list);
             }
-            if let Some(Some(Ok(continuation_blocks))) = explicit_continuation {
-                blocks.extend(continuation_blocks);
-            }
+            // Collect all continuation blocks (each is a Result<Block, Error>)
+            blocks.extend(explicit_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
             let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
@@ -2041,7 +2239,9 @@ peg::parser! {
             }, actual_end))
         }
 
-        // Version without explicit continuation (for nested items to prevent consuming parent-level continuations)
+        // Version with immediate continuations only (for nested items)
+        // Nested items consume continuations with 0 empty lines (immediate attachment).
+        // Continuations with 1+ empty lines bubble up to ancestor items.
         rule ordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(ListItem, usize), Error>
         = start:position!()
         whitespace()*
@@ -2053,11 +2253,15 @@ peg::parser! {
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
         // Nested items can still have nested lists, but those also cannot consume parent continuations
-        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata)? { nested_content })?
-        // NO explicit continuation parsing - parent will consume it
+        // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
+        // alternative fails and backtracks, leaving eol() unconsumed for immediate_continuation
+        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        // Parse immediate continuations (0 empty lines) - these attach to this item
+        // Ancestor continuations (1+ empty lines) bubble up to parent items
+        immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (no continuation)");
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text = assemble_principal_text(first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
@@ -2070,11 +2274,14 @@ peg::parser! {
             };
 
             let mut blocks = Vec::new();
-            if let Some(Some(Some(Ok(nested_list)))) = nested {
+            // nested_content is no longer optional in the grammar, so one less Some level
+            if let Some(Some(Ok(nested_list))) = nested {
                 blocks.push(nested_list);
             }
+            // Collect all immediate continuation blocks
+            blocks.extend(immediate_continuations.into_iter().flatten());
 
-            // Use end position after nested blocks if we have any, otherwise use item_end
+            // Use end position after all blocks if we have any, otherwise use item_end
             let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
 
             Ok((ListItem {
@@ -2087,9 +2294,100 @@ peg::parser! {
             }, actual_end))
         }
 
+        // After-marker variants for ordered lists: used when marker has already been consumed by parent rule
+        rule ordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize) -> Result<(ListItem, usize), Error>
+        = start:position!()
+        whitespace()
+        checked:checklist_item()?
+        first_line_start:position()
+        first_line:$((!(eol()) [_])*)
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        first_line_end:position!()
+        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        explicit_continuations:(!at_list_separator() cont:(
+            list_explicit_continuation_immediate(offset, block_metadata)
+            / list_explicit_continuation_ancestor(offset, block_metadata)
+        ) { cont })*
+        end:position!()
+        {
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker)");
+            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
+            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
+
+            let mut blocks = Vec::new();
+            if let Some(Some(Ok(nested_list))) = nested {
+                blocks.push(nested_list);
+            }
+            blocks.extend(explicit_continuations.into_iter().flatten());
+
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
+            Ok((ListItem {
+                principal,
+                blocks,
+                level,
+                marker: marker.to_string(),
+                checked,
+                location: state.create_location(marker_start+offset, actual_end+offset),
+            }, actual_end))
+        }
+
+        rule ordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize) -> Result<(ListItem, usize), Error>
+        = start:position!()
+        whitespace()
+        checked:checklist_item()?
+        first_line_start:position()
+        first_line:$((!(eol()) [_])*)
+        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        first_line_end:position!()
+        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata) { nested_content })?
+        immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
+        end:position!()
+        {
+            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker, immediate only)");
+            let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
+            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+
+            let principal = if principal_text.trim().is_empty() {
+                vec![]
+            } else {
+                let (inlines, _) = process_inlines(state, block_metadata, first_line_start.offset, &first_line_start, first_line_end, offset, &principal_text)?;
+                inlines
+            };
+
+            let mut blocks = Vec::new();
+            if let Some(Some(Ok(nested_list))) = nested {
+                blocks.push(nested_list);
+            }
+            blocks.extend(immediate_continuations.into_iter().flatten());
+
+            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+
+            Ok((ListItem {
+                principal,
+                blocks,
+                level,
+                marker: marker.to_string(),
+                checked,
+                location: state.create_location(marker_start+offset, actual_end+offset),
+            }, actual_end))
+        }
+
         /// Parse nested content within an ordered list item (e.g., nested unordered list)
         /// Note: allow_continuation is false to prevent nested items from consuming parent-level continuations
         rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
+        // FUNCTIONAL: !at_root_unordered_marker() prevents root-level unordered items (no leading whitespace)
+        // from being incorrectly parsed as nested. Without this, `* item` at column 1 would be nested
+        // inside the parent ordered item instead of being a sibling list.
         = !at_root_unordered_marker() nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, true, false) {
             Some(list)
         }
@@ -2106,7 +2404,11 @@ peg::parser! {
         }
 
         rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        // !not_after_verbatim_block(): FUNCTIONAL - callout lists only make sense after source/listing blocks
+        // The double negative succeeds only when last_block_was_verbatim is true
         = !not_after_verbatim_block()
+        // OPTIMIZATION: This positive lookahead fails fast when not at a callout marker (<1>, <.>, etc.)
+        // Without it, callout_list_item would be called and fail - same result, just slower
         &(whitespace()* callout_list_marker() whitespace())
         first:callout_list_item(offset, block_metadata)
         rest:(callout_list_rest_item(offset, block_metadata))*
@@ -2397,19 +2699,31 @@ peg::parser! {
             Ok(continuations.into_iter().filter_map(Result::ok).collect())
         }
 
-        // Parse one or more explicit continuations (+ marker followed by a single block each)
-        // A blank line after a block naturally terminates the continuation unless another + follows
+        // Parse a single immediate continuation (0 empty lines before +)
+        // These attach to the current (most recent) list item per AsciiDoc spec.
         // Uses block_in_continuation to prevent lists inside continuations from consuming
-        // further continuations that belong to the parent item
-        rule list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
-        = continuations:(
-            eol()* "+" eol()
-            block:block_in_continuation(offset, block_metadata.parent_section_level)
-            { block }
-          )+
+        // further continuations that belong to the parent item.
+        // Pattern: exactly one newline before + (content\n+\nblock)
+        rule list_explicit_continuation_immediate(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = eol() !eol() "+" eol()
+          block:block_in_continuation(offset, block_metadata.parent_section_level)
         {
-            tracing::info!(count = continuations.len(), "List explicit continuation blocks");
-            Ok(continuations.into_iter().filter_map(Result::ok).collect())
+            tracing::info!("List immediate continuation block (0 empty lines)");
+            block
+        }
+
+        // Parse a single ancestor continuation (1+ empty lines before +)
+        // Per AsciiDoc spec: each empty line before + moves attachment up one nesting level.
+        // 1 empty line = parent, 2 empty lines = grandparent, etc.
+        // Uses block_in_continuation to prevent lists inside continuations from consuming
+        // further continuations that belong to the parent item.
+        // Pattern: two or more newlines before + (content\n\n+\nblock)
+        rule list_explicit_continuation_ancestor(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        = eol() eol()+ "+" eol()
+          block:block_in_continuation(offset, block_metadata.parent_section_level)
+        {
+            tracing::info!("List ancestor continuation block (1+ empty lines)");
+            block
         }
 
         pub(crate) rule inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
@@ -3714,7 +4028,8 @@ peg::parser! {
         = double_open_square_bracket() [^'\'' | ',' | ']' | '.']+ (comma() [^']']+)? double_close_square_bracket()
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
-            // Don't match empty [] followed by blank line - that's a list separator, not block attributes
+            // FUNCTIONAL: Don't match empty [] followed by blank line - that's a list separator, not block attributes
+            // Without this, `[]\n\n` would be parsed as an empty attributes line, breaking list separation
             = !empty_list_separator() attributes:attributes() eol() {
                 let (discrete, metadata, _title_position) = attributes;
                 (discrete, metadata)

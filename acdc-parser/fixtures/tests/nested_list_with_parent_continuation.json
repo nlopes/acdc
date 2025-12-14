@@ -174,7 +174,7 @@
                       "location": [
                         {
                           "line": 12,
-                          "col": 1
+                          "col": 3
                         },
                         {
                           "line": 12,
@@ -235,149 +235,151 @@
                           ]
                         }
                       ],
-                      "location": [
+                      "blocks": [
                         {
-                          "line": 14,
-                          "col": 1
-                        },
-                        {
-                          "line": 14,
-                          "col": 28
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 12,
-                      "col": 1
-                    },
-                    {
-                      "line": 14,
-                      "col": 28
-                    }
-                  ]
-                },
-                {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "This paragraph should attach to parent, not \"Nested item 3\".",
-                      "location": [
-                        {
-                          "line": 16,
-                          "col": 1
-                        },
-                        {
-                          "line": 16,
-                          "col": 60
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 16,
-                      "col": 1
-                    },
-                    {
-                      "line": 16,
-                      "col": 60
-                    }
-                  ]
-                },
-                {
-                  "name": "open",
-                  "type": "block",
-                  "form": "delimited",
-                  "delimiter": "--",
-                  "blocks": [
-                    {
-                      "name": "list",
-                      "type": "block",
-                      "variant": "ordered",
-                      "marker": ".",
-                      "items": [
-                        {
-                          "name": "listItem",
+                          "name": "paragraph",
                           "type": "block",
-                          "marker": ".",
-                          "principal": [
+                          "inlines": [
                             {
                               "name": "text",
                               "type": "string",
-                              "value": "Step one",
+                              "value": "This paragraph should attach to parent, not \"Nested item 3\".",
                               "location": [
                                 {
-                                  "line": 19,
-                                  "col": 3
+                                  "line": 16,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 19,
-                                  "col": 10
+                                  "line": 16,
+                                  "col": 60
                                 }
                               ]
                             }
                           ],
                           "location": [
                             {
-                              "line": 19,
+                              "line": 16,
                               "col": 1
                             },
                             {
-                              "line": 19,
-                              "col": 10
+                              "line": 16,
+                              "col": 60
                             }
                           ]
                         },
                         {
-                          "name": "listItem",
+                          "name": "open",
                           "type": "block",
-                          "marker": ".",
-                          "principal": [
+                          "form": "delimited",
+                          "delimiter": "--",
+                          "blocks": [
                             {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Step two",
-                              "location": [
+                              "name": "list",
+                              "type": "block",
+                              "variant": "ordered",
+                              "marker": ".",
+                              "items": [
                                 {
-                                  "line": 20,
-                                  "col": 3
+                                  "name": "listItem",
+                                  "type": "block",
+                                  "marker": ".",
+                                  "principal": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Step one",
+                                      "location": [
+                                        {
+                                          "line": 19,
+                                          "col": 3
+                                        },
+                                        {
+                                          "line": 19,
+                                          "col": 10
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 19,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 19,
+                                      "col": 10
+                                    }
+                                  ]
                                 },
                                 {
-                                  "line": 20,
-                                  "col": 10
+                                  "name": "listItem",
+                                  "type": "block",
+                                  "marker": ".",
+                                  "principal": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Step two",
+                                      "location": [
+                                        {
+                                          "line": 20,
+                                          "col": 3
+                                        },
+                                        {
+                                          "line": 20,
+                                          "col": 10
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 20,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 20,
+                                      "col": 10
+                                    }
+                                  ]
+                                },
+                                {
+                                  "name": "listItem",
+                                  "type": "block",
+                                  "marker": ".",
+                                  "principal": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Step three",
+                                      "location": [
+                                        {
+                                          "line": 21,
+                                          "col": 3
+                                        },
+                                        {
+                                          "line": 21,
+                                          "col": 12
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 21,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 21,
+                                      "col": 12
+                                    }
+                                  ]
                                 }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 20,
-                              "col": 1
-                            },
-                            {
-                              "line": 20,
-                              "col": 10
-                            }
-                          ]
-                        },
-                        {
-                          "name": "listItem",
-                          "type": "block",
-                          "marker": ".",
-                          "principal": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Step three",
+                              ],
                               "location": [
                                 {
-                                  "line": 21,
-                                  "col": 3
+                                  "line": 19,
+                                  "col": 1
                                 },
                                 {
                                   "line": 21,
@@ -388,50 +390,50 @@
                           ],
                           "location": [
                             {
-                              "line": 21,
+                              "line": 18,
                               "col": 1
                             },
                             {
-                              "line": 21,
-                              "col": 12
+                              "line": 22,
+                              "col": 2
+                            }
+                          ]
+                        },
+                        {
+                          "name": "paragraph",
+                          "type": "block",
+                          "inlines": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Another paragraph that should attach to parent.",
+                              "location": [
+                                {
+                                  "line": 24,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 24,
+                                  "col": 47
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 24,
+                              "col": 1
+                            },
+                            {
+                              "line": 24,
+                              "col": 47
                             }
                           ]
                         }
                       ],
                       "location": [
                         {
-                          "line": 19,
-                          "col": 1
-                        },
-                        {
-                          "line": 21,
-                          "col": 12
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 18,
-                      "col": 1
-                    },
-                    {
-                      "line": 22,
-                      "col": 2
-                    }
-                  ]
-                },
-                {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Another paragraph that should attach to parent.",
-                      "location": [
-                        {
-                          "line": 24,
+                          "line": 14,
                           "col": 1
                         },
                         {
@@ -443,7 +445,7 @@
                   ],
                   "location": [
                     {
-                      "line": 24,
+                      "line": 12,
                       "col": 1
                     },
                     {
