@@ -17,6 +17,8 @@ pub struct ManpageVisitor<W: Write> {
     pub(crate) processor: Processor,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
+    /// Whether we're currently in the NAME section (which shouldn't have .PP before content).
+    pub(crate) in_name_section: bool,
 }
 
 impl<W: Write> ManpageVisitor<W> {
@@ -26,6 +28,7 @@ impl<W: Write> ManpageVisitor<W> {
             writer,
             processor,
             list_depth: 0,
+            in_name_section: false,
         }
     }
 

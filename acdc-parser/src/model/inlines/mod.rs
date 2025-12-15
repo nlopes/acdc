@@ -297,6 +297,7 @@ struct RawInlineFields {
     notation: Option<StemNotation>,
     substitutions: Option<HashSet<crate::Substitution>>,
     xreflabel: Option<String>,
+    bracketed: Option<bool>,
 }
 
 // -----------------------------------------------------------------------------
@@ -451,6 +452,7 @@ fn construct_ref<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
         }))),
         "autolink" => Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
             url: target,
+            bracketed: raw.bracketed.unwrap_or(false),
             location,
         }))),
         "pass" => Ok(InlineNode::Macro(InlineMacro::Pass(Pass {

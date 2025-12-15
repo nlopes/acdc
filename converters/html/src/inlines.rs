@@ -249,16 +249,28 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             // For mailto: URLs, display just the email address without the mailto: prefix
             let display_text = {
                 let url_str = href.to_string();
+                let url_str = if al.bracketed {
+                    url_str
+                        .strip_prefix('<')
+                        .and_then(|s| s.strip_suffix('>'))
+                        .unwrap_or(&url_str)
+                } else {
+                    &url_str
+                };
                 if let Some(email) = url_str.strip_prefix("mailto:") {
                     email.to_string()
                 } else {
-                    url_str
+                    url_str.to_string()
                 }
             };
+
             if options.inlines_basic {
                 write!(w, "{display_text}")?;
+            } else if al.bracketed {
+                // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
+                write!(w, "&lt;<a href=\"{href}\">{display_text}</a>&gt;")?;
             } else {
-                write!(w, "<a href=\"{href}\" class=\"bare\">{display_text}</a>")?;
+                write!(w, "<a href=\"{href}\">{display_text}</a>")?;
             }
         }
         InlineMacro::Link(l) => {
@@ -346,7 +358,25 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             write!(w, "</a>")?;
         }
         InlineMacro::Mailto(m) => {
-            write!(w, "<a href=\"{}\">", m.target)?;
+            // Check for role attribute to apply as CSS class
+            let class_attr = m
+                .attributes
+                .get("role")
+                .and_then(|v| match v {
+                    acdc_parser::AttributeValue::String(s) => {
+                        let role = s.trim_matches('"');
+                        if role.is_empty() {
+                            None
+                        } else {
+                            Some(format!(" class=\"{role}\""))
+                        }
+                    }
+                    acdc_parser::AttributeValue::Bool(_)
+                    | acdc_parser::AttributeValue::None
+                    | acdc_parser::AttributeValue::Inlines(_) => None,
+                })
+                .unwrap_or_default();
+            write!(w, "<a href=\"{}\"{class_attr}>", m.target)?;
             if m.text.is_empty() {
                 // For mailto: URLs, display just the email address without the mailto: prefix
                 let target_str = m.target.to_string();

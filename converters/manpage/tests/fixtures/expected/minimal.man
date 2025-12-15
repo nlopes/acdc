@@ -7,7 +7,7 @@
 ."    Source: \ \&
 ."  Language: English
 ."
-.TH "MINIMAL-CMD" "1" "2025-01-20" "\ \&" "\ \&"
+.TH "MINIMAL\-CMD" "1" "2025-01-20" "\ \&" "\ \&"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -31,7 +31,6 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-.PP
 minimal\-cmd \- a minimal manpage test
 .SH "DESCRIPTION"
 .PP

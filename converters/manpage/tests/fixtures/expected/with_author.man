@@ -7,7 +7,7 @@
 ."    Source: Sample Project 1.0
 ."  Language: English
 ."
-.TH "SAMPLE-COMMAND" "1" "2025-01-01" "Sample Project 1.0" "Sample Manual"
+.TH "SAMPLE\-COMMAND" "1" "2025-01-01" "Sample Project 1.0" "Sample Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -31,7 +31,6 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-.PP
 sample\-command \- A sample command
 .SH "SYNOPSIS"
 .PP

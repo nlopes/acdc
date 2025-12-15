@@ -31,7 +31,6 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-.PP
 styled_paragraphs \- test styled paragraph rendering
 .SH "SYNOPSIS"
 .PP

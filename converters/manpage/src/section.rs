@@ -20,6 +20,9 @@ pub fn visit_section<W: Write>(
 ) -> Result<(), Error> {
     let title_text = extract_plain_text(&section.title);
 
+    // Check if this is the NAME section (which has special formatting rules)
+    let is_name_section = title_text.eq_ignore_ascii_case("name");
+
     // Level 1 sections use .SH, level 2+ use .SS
     // Manpage convention: uppercase section titles for level 1
     let w = visitor.writer_mut();
@@ -42,9 +45,19 @@ pub fn visit_section<W: Write>(
         writeln!(w, ".SS \"{}\"", escape_quoted(&title))?;
     }
 
+    // Set NAME section flag for content rendering
+    if is_name_section {
+        visitor.in_name_section = true;
+    }
+
     // Visit section content
     for block in &section.content {
         visitor.visit_block(block)?;
+    }
+
+    // Reset NAME section flag
+    if is_name_section {
+        visitor.in_name_section = false;
     }
 
     Ok(())

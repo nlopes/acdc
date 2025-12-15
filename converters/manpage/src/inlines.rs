@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{InlineMacro, InlineNode, Link, Mailto};
+use acdc_parser::{Autolink, InlineMacro, InlineNode, Link, Mailto};
 
 use crate::{
     Error, ManpageVisitor,
@@ -142,15 +142,46 @@ fn write_link<W: Write>(visitor: &mut ManpageVisitor<W>, link: &Link) -> Result<
 }
 
 fn write_mailto<W: Write>(visitor: &mut ManpageVisitor<W>, mailto: &Mailto) -> Result<(), Error> {
+    // Use .MTO macro for email links (matches asciidoctor output)
+    // Format: .MTO "email\(atdomain" "display text" "trailing"
+    // TODO: Handle trailing punctuation (3rd arg) - requires lookahead to next sibling node
     let target_str = mailto.target.to_string();
-    let escaped_target = manify(&target_str, EscapeMode::Normalize);
-    if mailto.text.is_empty() {
-        let w = visitor.writer_mut();
-        write!(w, "\\(la{escaped_target}\\(ra")?;
+    let email = target_str
+        .strip_prefix("mailto:")
+        .unwrap_or(&target_str)
+        .replace('@', "\\(at");
+
+    // Render display text if present
+    let display_text = if mailto.text.is_empty() {
+        String::new()
     } else {
-        visitor.visit_inline_nodes(&mailto.text)?;
+        // Render inline nodes to a string buffer
+        let mut buf = Vec::new();
+        let processor = visitor.processor.clone();
+        let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
+        text_visitor.visit_inline_nodes(&mailto.text)?;
+        String::from_utf8_lossy(&buf).trim().to_string()
+    };
+
+    let w = visitor.writer_mut();
+    // Use \c to continue on same line, then .MTO on next line
+    write!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"\"")?;
+    Ok(())
+}
+
+fn write_autolink<W: Write>(
+    visitor: &mut ManpageVisitor<W>,
+    autolink: &Autolink,
+) -> Result<(), Error> {
+    let url_str = autolink.url.to_string();
+    // Use .MTO macro for mailto autolinks
+    if let Some(email) = url_str.strip_prefix("mailto:") {
+        let escaped_email = email.replace('@', "\\(at");
         let w = visitor.writer_mut();
-        write!(w, " \\(la{escaped_target}\\(ra")?;
+        write!(w, "\\c\n.MTO \"{escaped_email}\" \"\" \"\"")?;
+    } else {
+        let w = visitor.writer_mut();
+        write!(w, "\\(la{}\\(ra", manify(&url_str, EscapeMode::Normalize))?;
     }
     Ok(())
 }
@@ -184,9 +215,7 @@ fn visit_inline_macro<W: Write>(
         }
 
         InlineMacro::Autolink(autolink) => {
-            let w = visitor.writer_mut();
-            let url_str = autolink.url.to_string();
-            write!(w, "\\(la{}\\(ra", manify(&url_str, EscapeMode::Normalize))?;
+            write_autolink(visitor, autolink)?;
         }
 
         InlineMacro::CrossReference(xref) => {

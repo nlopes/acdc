@@ -3005,18 +3005,20 @@ peg::parser! {
 
         rule inline_autolink(offset: usize) -> InlineNode
         = start:position!()
-        url:(
-            "<" url:url() ">" { url }
-            / "<" url:email_address() ">" { format!("mailto:{url}") }
-            / url:url() { url }
-            / url:email_address() { format!("mailto:{url}") }
+        url_info:(
+            "<" url:url() ">" { (url, true) }
+            / "<" url:email_address() ">" { (format!("mailto:{url}"), true) }
+            / url:url() { (url, false) }
+            / url:email_address() { (format!("mailto:{url}"), false) }
         )
         end:position!()
         {?
-            tracing::info!(?url, "Found autolink inline");
+            let (url, bracketed) = url_info;
+            tracing::info!(?url, bracketed, "Found autolink inline");
             let url_source = Source::from_str(&url).map_err(|_| "failed to parse autolink URL")?;
             Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
                 url: url_source,
+                bracketed,
                 location: state.create_block_location(start, end, offset),
             })))
         }

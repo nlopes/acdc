@@ -28,10 +28,12 @@ pub fn visit_paragraph<W: Write>(
         }
     }
 
+    // Paragraph break (skip in NAME section per manpage convention)
+    let skip_pp = visitor.in_name_section;
     let w = visitor.writer_mut();
-
-    // Paragraph break
-    writeln!(w, ".PP")?;
+    if !skip_pp {
+        writeln!(w, ".PP")?;
+    }
 
     // Optional title (rendered as bold)
     if !para.title.is_empty() {

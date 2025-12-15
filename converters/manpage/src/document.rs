@@ -211,10 +211,15 @@ pub fn visit_document_start<W: Write>(
     } else {
         escape_quoted(&manmanual)
     };
+    // Escape hyphens in the title to prevent line breaking (roff convention)
+    // Note: Apply escape_quoted first, then replace hyphens to avoid double-escaping
+    let uppercase_title = mantitle.to_uppercase();
+    let quoted_title = escape_quoted(&uppercase_title);
+    let escaped_title = quoted_title.replace('-', r"\-");
     writeln!(
         w,
         ".TH \"{}\" \"{}\" \"{}\" \"{}\" \"{}\"",
-        escape_quoted(&mantitle.to_uppercase()),
+        escaped_title,
         escape_quoted(&manvolnum),
         escape_quoted(&date),
         th_source,

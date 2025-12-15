@@ -122,6 +122,10 @@ pub struct CrossReference {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Autolink {
     pub url: Source,
+    /// Whether the autolink was written with angle brackets (e.g., `<user@example.com>`).
+    /// When true, the renderer should preserve the brackets in the output.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bracketed: bool,
     pub location: Location,
 }
 
