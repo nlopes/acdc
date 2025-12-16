@@ -69,18 +69,88 @@ impl<W: Write> HtmlVisitor<W> {
             )?;
         }
 
+        // Render Google Fonts link
         writeln!(
             self.writer,
-            r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
-<style>
+            r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">"#
+        )?;
+
+        // Handle stylesheet rendering based on linkcss attribute
+        let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+
+        if linkcss {
+            // Link to external stylesheet
+            let stylesdir = self
+                .processor
+                .document_attributes
+                .get("stylesdir")
+                .map_or_else(|| ".".to_string(), |v| v.to_string());
+
+            let stylesheet = self
+                .processor
+                .document_attributes
+                .get("stylesheet")
+                .and_then(|v| {
+                    let s = v.to_string();
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s)
+                    }
+                })
+                .unwrap_or_else(|| "asciidoctor.css".to_string());
+
+            let stylesheet_path = if stylesdir.is_empty() || stylesdir == "." {
+                stylesheet.clone()
+            } else {
+                format!("{}/{}", stylesdir.as_str().trim_end_matches('/'), stylesheet)
+            };
+
+            writeln!(
+                self.writer,
+                r#"<link rel="stylesheet" href="{}">"#,
+                stylesheet_path
+            )?;
+
+            // Add supplementary styles for stem blocks
+            writeln!(
+                self.writer,
+                r#"<style>
+.stemblock .content {{
+  text-align: center;
+}}
+</style>"#
+            )?;
+        } else {
+            // Embed stylesheet directly (default behavior)
+            writeln!(
+                self.writer,
+                r#"<style>
 {}
 .stemblock .content {{
   text-align: center;
 }}
-</style>
-"#,
-            include_str!("../static/asciidoctor.css")
-        )?;
+</style>"#,
+                include_str!("../static/asciidoctor.css")
+            )?;
+        }
+
+        // Add max-width constraint if specified
+        if let Some(AttributeValue::String(max_width)) =
+            self.processor.document_attributes.get("max-width")
+        {
+            if !max_width.is_empty() {
+                writeln!(
+                    self.writer,
+                    r#"<style>
+#content {{
+  max-width: {};
+}}
+</style>"#,
+                    max_width
+                )?;
+            }
+        }
 
         // Add MathJax if stem is enabled
         if self.processor.document_attributes.get("stem").is_some() {
@@ -207,11 +277,31 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         }
 
         self.render_head(doc)?;
-        writeln!(
-            self.writer,
-            "<body class=\"{}\">",
-            self.processor.options.doctype
-        )?;
+
+        // Render body tag with optional css-signature id
+        if let Some(AttributeValue::String(css_sig)) =
+            self.processor.document_attributes.get("css-signature")
+        {
+            if !css_sig.is_empty() {
+                writeln!(
+                    self.writer,
+                    "<body id=\"{}\" class=\"{}\">",
+                    css_sig, self.processor.options.doctype
+                )?;
+            } else {
+                writeln!(
+                    self.writer,
+                    "<body class=\"{}\">",
+                    self.processor.options.doctype
+                )?;
+            }
+        } else {
+            writeln!(
+                self.writer,
+                "<body class=\"{}\">",
+                self.processor.options.doctype
+            )?;
+        }
         Ok(())
     }
 
