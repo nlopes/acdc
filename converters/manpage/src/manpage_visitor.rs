@@ -49,10 +49,7 @@ impl<W: Write> ManpageVisitor<W> {
     /// Collects and renders all inline nodes following the mailto until whitespace
     /// is encountered (in `PlainText`). Returns the rendered trailing string and the
     /// number of complete nodes to skip.
-    fn collect_trailing_for_mailto(
-        &self,
-        nodes: &[InlineNode],
-    ) -> Result<(String, usize), Error> {
+    fn collect_trailing_for_mailto(&self, nodes: &[InlineNode]) -> Result<(String, usize), Error> {
         let mut buf = Vec::new();
         let processor = self.processor.clone();
         let mut trailing_visitor = ManpageVisitor::new(&mut buf, processor);

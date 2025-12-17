@@ -194,7 +194,11 @@ pub fn write_autolink_with_trailing<W: Write>(
         write!(w, "\\c\n.MTO \"{escaped_email}\" \"\" \"{trailing}\"")?;
     } else {
         let w = visitor.writer_mut();
-        write!(w, "\\(la{}\\(ra{trailing}", manify(&url_str, EscapeMode::Normalize))?;
+        write!(
+            w,
+            "\\(la{}\\(ra{trailing}",
+            manify(&url_str, EscapeMode::Normalize)
+        )?;
     }
     Ok(())
 }
