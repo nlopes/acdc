@@ -1,0 +1,29 @@
+= email-test(1)
+:doctype: manpage
+:revdate: 2025-01-20
+
+== Name
+
+email-test - test email autolink trailing punctuation
+
+== Description
+
+Contact user@example.com.
+
+In parentheses (user@example.com)
+
+No trailing: user@example.com
+
+URL should not capture: https://example.com.
+
+Multiple trailing: user@example.com.,;
+
+In braces {user@example.com}
+
+In quotes "user@example.com"
+
+Exclamation: user@example.com!
+
+Punct then bold: user@example.com.*bold* text
+
+Space then text: user@example.com more text here

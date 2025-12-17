@@ -5,7 +5,7 @@ use std::io::Write;
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
-    Header, Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
+    Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
     TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
@@ -42,6 +42,69 @@ impl<W: Write> ManpageVisitor<W> {
     pub(crate) fn write_sp(&mut self) -> Result<(), Error> {
         writeln!(self.writer, ".sp")?;
         Ok(())
+    }
+
+    /// Collect trailing content for a mailto autolink.
+    ///
+    /// Collects and renders all inline nodes following the mailto until whitespace
+    /// is encountered (in `PlainText`). Returns the rendered trailing string and the
+    /// number of complete nodes to skip.
+    fn collect_trailing_for_mailto(
+        &self,
+        nodes: &[InlineNode],
+    ) -> Result<(String, usize), Error> {
+        let mut buf = Vec::new();
+        let processor = self.processor.clone();
+        let mut trailing_visitor = ManpageVisitor::new(&mut buf, processor);
+        let mut skip_count = 0;
+
+        for next_node in nodes {
+            match next_node {
+                InlineNode::PlainText(text) => {
+                    // Stop if text starts with whitespace
+                    if text.content.starts_with(char::is_whitespace) {
+                        break;
+                    }
+                    // If text contains whitespace, render only up to it and stop
+                    if let Some(ws_pos) = text.content.find(char::is_whitespace) {
+                        let partial = &text.content[..ws_pos];
+                        // For trailing content inside quotes, only escape hyphens
+                        // (don't escape leading periods - they won't be interpreted as macros)
+                        let escaped = partial.replace('-', "\\-");
+                        write!(trailing_visitor.writer, "{escaped}")?;
+                        // Don't increment skip_count - we only consumed part of this node
+                        break;
+                    }
+                    // Render entire PlainText - only escape hyphens for trailing content
+                    let escaped = text.content.replace('-', "\\-");
+                    write!(trailing_visitor.writer, "{escaped}")?;
+                    skip_count += 1;
+                }
+                // Render formatted text nodes
+                InlineNode::BoldText(_)
+                | InlineNode::ItalicText(_)
+                | InlineNode::MonospaceText(_)
+                | InlineNode::HighlightText(_)
+                | InlineNode::SubscriptText(_)
+                | InlineNode::SuperscriptText(_)
+                | InlineNode::CurvedQuotationText(_)
+                | InlineNode::CurvedApostropheText(_) => {
+                    trailing_visitor.visit_inline_node(next_node)?;
+                    skip_count += 1;
+                }
+                // Stop on these node types
+                InlineNode::RawText(_)
+                | InlineNode::VerbatimText(_)
+                | InlineNode::StandaloneCurvedApostrophe(_)
+                | InlineNode::LineBreak(_)
+                | InlineNode::InlineAnchor(_)
+                | InlineNode::Macro(_)
+                | _ => break,
+            }
+        }
+
+        let trailing = String::from_utf8_lossy(&buf).to_string();
+        Ok((trailing, skip_count))
     }
 }
 
@@ -163,8 +226,26 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 
     fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
-        for node in nodes {
+        let mut i = 0;
+        while i < nodes.len() {
+            let Some(node) = nodes.get(i) else {
+                break;
+            };
+
+            // Check if this is a mailto autolink - collect all trailing non-whitespace
+            if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
+                && al.url.to_string().starts_with("mailto:")
+            {
+                let (trailing, skip_count) =
+                    self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
+
+                crate::inlines::write_autolink_with_trailing(self, al, &trailing)?;
+                i += 1 + skip_count;
+                continue;
+            }
+
             self.visit_inline_node(node)?;
+            i += 1;
         }
         Ok(())
     }
