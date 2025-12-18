@@ -20,7 +20,7 @@ acdc-converters-common = { path = "./converters/common" }
 acdc-core = { path = "./acdc-core" }
 acdc-parser = { path = "./acdc-parser" }
 chrono = "0.4"
-clap = { version = "4.5.53", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"
 pretty_assertions = "1.4"
 rayon = "1.11"
