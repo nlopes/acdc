@@ -1,92 +1,54 @@
 //! Visitor implementation for HTML conversion.
 
-use std::io::Write;
+use std::{io::Write, string::ToString};
 
 use acdc_converters_common::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DescriptionList,
-    DiscreteHeader, Document, Footnote, Header, Image, InlineNode, ListItem, OrderedList,
-    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
+    DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image, InlineNode, ListItem,
+    OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList,
+    Video,
 };
 
 use crate::{Error, Processor, RenderOptions};
 
-/// HTML visitor that generates HTML from `AsciiDoc` AST
-pub struct HtmlVisitor<W: Write> {
-    writer: W,
-    pub(crate) processor: Processor,
-    pub(crate) render_options: RenderOptions,
-}
+fn link_css<W: Write>(writer: &mut W, attributes: &DocumentAttributes) -> Result<(), Error> {
+    // Link to external stylesheet
+    let stylesdir = attributes
+        .get("stylesdir")
+        .map_or_else(|| crate::STYLESDIR_DEFAULT.to_string(), ToString::to_string);
 
-impl<W: Write> HtmlVisitor<W> {
-    pub fn new(writer: W, processor: Processor, render_options: RenderOptions) -> Self {
-        Self {
-            writer,
-            processor,
-            render_options,
-        }
-    }
+    let stylesheet = attributes
+        .get("stylesheet")
+        .and_then(|v| {
+            let s = v.to_string();
+            if s.is_empty() { None } else { Some(s) }
+        })
+        .unwrap_or_else(|| crate::STYLESHEET_FILENAME_DEFAULT.to_string());
 
-    /// Consume the visitor and return the writer
-    pub fn into_writer(self) -> W {
-        self.writer
-    }
+    writeln!(
+        writer,
+        r#"<link rel="stylesheet" href="{}/{}">"#,
+        stylesdir.as_str().trim_end_matches('/'),
+        stylesheet
+    )?;
 
-    fn render_head(&mut self, document: &Document) -> Result<(), Error> {
-        writeln!(self.writer, "<head>")?;
-        writeln!(self.writer, "<meta charset=\"UTF-8\">")?;
-        writeln!(
-            self.writer,
-            "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">"
-        )?;
-        writeln!(
-            self.writer,
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-        )?;
-        writeln!(
-            self.writer,
-            "<meta name=\"generator\" content=\"{}\">",
-            self.processor.options.generator_metadata
-        )?;
-
-        if let Some(header) = &document.header {
-            // Create a temporary visitor with inlines_basic mode
-            let mut temp_visitor = HtmlVisitor {
-                writer: &mut self.writer,
-                processor: self.processor.clone(),
-                render_options: RenderOptions {
-                    inlines_basic: true,
-                    ..self.render_options.clone()
-                },
-            };
-            let processor = temp_visitor.processor.clone();
-            let options = temp_visitor.render_options.clone();
-            crate::document::render_header_metadata(
-                header,
-                &mut temp_visitor,
-                &processor,
-                &options,
-            )?;
-        }
-
-        writeln!(
-            self.writer,
-            r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
-<style>
-{}
+    // Add supplementary styles for stem blocks
+    writeln!(
+        writer,
+        "<style>
 .stemblock .content {{
   text-align: center;
 }}
-</style>
-"#,
-            include_str!("../static/asciidoctor.css")
-        )?;
+</style>"
+    )?;
+    Ok(())
+}
 
-        // Add MathJax if stem is enabled
-        if self.processor.document_attributes.get("stem").is_some() {
-            writeln!(
-                self.writer,
-                r#"<script>
+fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
+    writeln!(
+        writer,
+        r#"<script>
 MathJax = {{
       loader: {{load: ['input/asciimath']}},
       tex: {{
@@ -122,7 +84,106 @@ MathJax = {{
 }};
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>"#
+    )?;
+    Ok(())
+}
+
+/// HTML visitor that generates HTML from `AsciiDoc` AST
+pub struct HtmlVisitor<W: Write> {
+    writer: W,
+    pub(crate) processor: Processor,
+    pub(crate) render_options: RenderOptions,
+}
+
+impl<W: Write> HtmlVisitor<W> {
+    pub fn new(writer: W, processor: Processor, render_options: RenderOptions) -> Self {
+        Self {
+            writer,
+            processor,
+            render_options,
+        }
+    }
+
+    /// Consume the visitor and return the writer
+    pub fn into_writer(self) -> W {
+        self.writer
+    }
+
+    fn render_head(&mut self, document: &Document) -> Result<(), Error> {
+        writeln!(
+            self.writer,
+            r#"<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="{}">"#,
+            self.processor.options.generator_metadata
+        )?;
+
+        if let Some(header) = &document.header {
+            // Create a temporary visitor with inlines_basic mode
+            let mut temp_visitor = HtmlVisitor {
+                writer: &mut self.writer,
+                processor: self.processor.clone(),
+                render_options: RenderOptions {
+                    inlines_basic: true,
+                    ..self.render_options.clone()
+                },
+            };
+            let processor = temp_visitor.processor.clone();
+            let options = temp_visitor.render_options.clone();
+            crate::document::render_header_metadata(
+                header,
+                &mut temp_visitor,
+                &processor,
+                &options,
             )?;
+        }
+
+        // Render Google Fonts link
+        writeln!(
+            self.writer,
+            r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">"#
+        )?;
+
+        // Handle stylesheet rendering based on linkcss attribute
+        let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+
+        if linkcss {
+            link_css(&mut self.writer, &self.processor.document_attributes)?;
+        } else {
+            // Embed stylesheet directly (default behavior)
+            writeln!(
+                self.writer,
+                "<style>
+{}
+.stemblock .content {{
+  text-align: center;
+}}
+</style>",
+                include_str!("../static/asciidoctor.css")
+            )?;
+        }
+
+        // Add max-width constraint if specified
+        if let Some(AttributeValue::String(max_width)) =
+            self.processor.document_attributes.get("max-width")
+            && !max_width.is_empty()
+        {
+            tracing::warn!(%max_width, "`max-width` usage is not recommended. Use CSS stylesheet instead.");
+            writeln!(
+                self.writer,
+                "<style>
+#content {{
+  max-width: {max_width};
+}}
+</style>"
+            )?;
+        }
+
+        // Add MathJax if stem is enabled
+        if self.processor.document_attributes.get("stem").is_some() {
+            add_mathjax(&mut self.writer)?;
         }
 
         // Add Font Awesome if icons are set to font mode
@@ -207,11 +268,24 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         }
 
         self.render_head(doc)?;
-        writeln!(
-            self.writer,
-            "<body class=\"{}\">",
-            self.processor.options.doctype
-        )?;
+
+        // Render body tag with optional css-signature id
+        if let Some(AttributeValue::String(css_sig)) =
+            self.processor.document_attributes.get("css-signature")
+            && !css_sig.is_empty()
+        {
+            writeln!(
+                self.writer,
+                "<body id=\"{css_sig}\" class=\"{}\">",
+                self.processor.options.doctype
+            )?;
+        } else {
+            writeln!(
+                self.writer,
+                "<body class=\"{}\">",
+                self.processor.options.doctype
+            )?;
+        }
         Ok(())
     }
 

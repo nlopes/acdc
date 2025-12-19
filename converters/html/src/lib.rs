@@ -71,6 +71,12 @@ pub struct RenderOptions {
     pub inlines_verbatim: bool,
 }
 
+pub(crate) const COPYCSS_DEFAULT: &str = "";
+pub(crate) const STYLESDIR_DEFAULT: &str = ".";
+pub(crate) const STYLESHEET_DEFAULT: &str = "";
+pub(crate) const STYLESHEET_FILENAME_DEFAULT: &str = "asciidoctor.css";
+pub(crate) const WEBFONTS_DEFAULT: &str = "";
+
 impl Processable for Processor {
     type Options = Options;
     type Error = Error;
@@ -78,9 +84,23 @@ impl Processable for Processor {
     fn document_attributes_defaults() -> DocumentAttributes {
         let mut attrs = DocumentAttributes::default();
         // HTML-specific defaults from asciidoctor spec
-        attrs.insert("stylesdir".into(), AttributeValue::String(".".into()));
-        attrs.insert("toc-class".into(), AttributeValue::String("toc".into()));
-        attrs.insert("webfonts".into(), AttributeValue::String(String::new()));
+        attrs.insert(
+            "copycss".into(),
+            AttributeValue::String(COPYCSS_DEFAULT.into()),
+        );
+        attrs.insert(
+            "stylesdir".into(),
+            AttributeValue::String(STYLESDIR_DEFAULT.into()),
+        );
+        attrs.insert(
+            "stylesheet".into(),
+            AttributeValue::String(STYLESHEET_DEFAULT.into()),
+        );
+        // Additional CSS styling attributes
+        attrs.insert(
+            "webfonts".into(),
+            AttributeValue::String(WEBFONTS_DEFAULT.into()),
+        );
         attrs
     }
 
@@ -138,6 +158,63 @@ impl Processable for Processor {
                 println!("  Time to convert document: {}", elapsed.pretty_print());
             }
             println!("Generated HTML file: {}", html_path.display());
+
+            // Handle copycss if linkcss is set
+            let linkcss = doc.attributes.get("linkcss").is_some();
+            if linkcss {
+                // Check if copycss is set (empty string means copy, unset means don't copy)
+                let should_copy = doc.attributes.contains_key("copycss");
+                tracing::debug!("linkcss={}, copycss exists={}", linkcss, should_copy);
+
+                if should_copy {
+                    // Get stylesheet name
+                    let stylesheet = doc
+                        .attributes
+                        .get("stylesheet")
+                        .and_then(|v| {
+                            let s = v.to_string();
+                            if s.is_empty() { None } else { Some(s) }
+                        })
+                        .unwrap_or_else(|| STYLESHEET_FILENAME_DEFAULT.into());
+
+                    // Get stylesdir
+                    let stylesdir = doc
+                        .attributes
+                        .get("stylesdir")
+                        .map_or_else(|| STYLESDIR_DEFAULT.into(), ToString::to_string);
+
+                    // Build source path
+                    let source_path = if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
+                        std::path::Path::new(&stylesheet).to_path_buf()
+                    } else {
+                        std::path::Path::new(&stylesdir).join(&stylesheet)
+                    };
+
+                    // Get output directory (same as HTML output)
+                    let output_dir = html_path
+                        .parent()
+                        .unwrap_or_else(|| std::path::Path::new("."));
+                    let dest_path = output_dir.join(&stylesheet);
+
+                    // Copy the CSS file if source exists and is different from destination
+                    if source_path != dest_path && source_path.exists() {
+                        if let Err(e) = std::fs::copy(&source_path, &dest_path) {
+                            tracing::warn!(
+                                "Failed to copy stylesheet from {} to {}: {}",
+                                source_path.display(),
+                                dest_path.display(),
+                                e
+                            );
+                        } else {
+                            tracing::debug!(
+                                "Copied stylesheet from {} to {}",
+                                source_path.display(),
+                                dest_path.display()
+                            );
+                        }
+                    }
+                }
+            }
 
             Ok(())
         } else {
