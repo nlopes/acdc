@@ -1,0 +1,11 @@
+= Document with Custom TOC Class Left
+:toc: left
+:toc-class: sidebar-nav
+
+== Section One
+
+First section content.
+
+== Section Two
+
+Second section content.

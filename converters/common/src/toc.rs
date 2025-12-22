@@ -5,6 +5,11 @@ pub struct Config {
     pub placement: String,
     pub title: Option<String>,
     pub levels: u8,
+    /// CSS class for the TOC container div.
+    /// Default is "toc2" for sidebar positions (left, right, top, bottom),
+    /// "toc" for content positions (auto, preamble, macro).
+    /// Can be overridden with `:toc-class:` attribute.
+    pub toc_class: String,
 }
 
 impl Config {
@@ -54,10 +59,28 @@ impl Config {
             })
             .unwrap_or(2);
 
+        // Compute toc-class: custom value, or "toc2" for sidebar positions, or "toc" otherwise
+        // Sidebar positions (left, right, top, bottom) use "toc2" class for fixed positioning CSS
+        // Content positions (auto, preamble, macro) use "toc" class for inline styling
+        let toc_class = attributes
+            .get("toc-class")
+            .and_then(|v| match v {
+                AttributeValue::String(s) if !s.is_empty() => Some(s.clone()),
+                AttributeValue::String(_)
+                | AttributeValue::Bool(_)
+                | AttributeValue::None
+                | AttributeValue::Inlines(_) => None,
+            })
+            .unwrap_or_else(|| match placement.as_str() {
+                "left" | "right" | "top" | "bottom" => "toc2".to_string(),
+                _ => "toc".to_string(),
+            });
+
         Config {
             placement,
             title,
             levels,
+            toc_class,
         }
     }
 }

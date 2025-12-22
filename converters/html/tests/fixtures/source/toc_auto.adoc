@@ -1,0 +1,14 @@
+= Document with Auto TOC
+:toc:
+
+== Section One
+
+First section content.
+
+== Section Two
+
+Second section content.
+
+=== Subsection 2.1
+
+Subsection content.

@@ -1,0 +1,11 @@
+= Document with Custom TOC Class
+:toc:
+:toc-class: my-custom-nav
+
+== Section One
+
+First section content.
+
+== Section Two
+
+Second section content.

@@ -79,9 +79,22 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
-    if config.placement == placement && !processor.toc_entries.is_empty() {
+
+    // Determine if TOC should render at this placement point
+    // - "auto" placement point accepts: auto, left, right, top, bottom (all render in header)
+    // - "preamble" placement point accepts: preamble
+    // - "macro" placement point accepts: macro
+    let should_render = match placement {
+        "auto" => matches!(
+            config.placement.as_str(),
+            "auto" | "left" | "right" | "top" | "bottom"
+        ),
+        other => config.placement == other,
+    };
+
+    if should_render && !processor.toc_entries.is_empty() {
         let w = visitor.writer_mut();
-        writeln!(w, "<div id=\"toc\" class=\"toc\">")?;
+        writeln!(w, "<div id=\"toc\" class=\"{}\">", config.toc_class)?;
         if let Some(title) = &config.title {
             writeln!(w, "<div id=\"toctitle\">{title}</div>")?;
         } else {

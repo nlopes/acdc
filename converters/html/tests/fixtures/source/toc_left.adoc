@@ -1,0 +1,10 @@
+= Document with Left TOC
+:toc: left
+
+== Section One
+
+First section content.
+
+== Section Two
+
+Second section content.
