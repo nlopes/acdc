@@ -46,6 +46,14 @@ enum BlockMetadataLine<'input> {
     DocumentAttribute(&'input str, AttributeValue),
 }
 
+#[derive(Debug)]
+// Used purely in the grammar to break down header metadata lines (anchors and attributes
+// that appear before the document title).
+enum HeaderMetadataLine {
+    Anchor(Anchor),
+    Attributes((bool, BlockMetadata)),
+}
+
 #[derive(Debug, Default)]
 // Used purely in the grammar to represent the parsed block details
 pub(crate) struct BlockParsingMetadata {
@@ -277,6 +285,8 @@ peg::parser! {
         pub(crate) rule header() -> Result<Option<Header>, Error>
             = start:position!()
             ((document_attribute() / comment()) (eol()+ / ![_]))*
+            // Parse header metadata (anchors and attributes) before the document title
+            metadata:header_metadata()
             title_authors:(title_authors:title_authors() { title_authors })?
             (eol()+ (document_attribute() / comment()))*
             end:position!()
@@ -288,10 +298,11 @@ peg::parser! {
                 location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(&state.input, location.absolute_end);
                 location.end.column = location.end.column.saturating_sub(1);
                 let header = Header {
+                    metadata,
                     title,
                     subtitle,
                     authors,
-                    location
+                    location,
                 };
 
                 // Derive manpage attributes from header if doctype=manpage
@@ -311,6 +322,39 @@ peg::parser! {
                 Ok(None)
             }
         }
+
+        /// Parse block metadata lines (anchors and attributes) that can appear before a document title.
+        /// Only consumes metadata if followed by a document title to avoid stealing attributes
+        /// meant for the first block when there's no document title.
+        rule header_metadata() -> BlockMetadata
+            = lines:(
+                anchor:anchor() { HeaderMetadataLine::Anchor(anchor) }
+                / attr:attributes_line() { HeaderMetadataLine::Attributes(attr) }
+            )+ &document_title()
+            {
+                let mut metadata = BlockMetadata::default();
+
+                for line in lines {
+                    match line {
+                        HeaderMetadataLine::Anchor(anchor) => metadata.anchors.push(anchor),
+                        HeaderMetadataLine::Attributes((_, attr_metadata)) => {
+                            // Merge attribute metadata - last one wins for id/style
+                            if attr_metadata.id.is_some() {
+                                metadata.id = attr_metadata.id;
+                            }
+                            if attr_metadata.style.is_some() {
+                                metadata.style = attr_metadata.style;
+                            }
+                            metadata.roles.extend(attr_metadata.roles);
+                            metadata.options.extend(attr_metadata.options);
+                            metadata.attributes = attr_metadata.attributes;
+                            metadata.positional_attributes = attr_metadata.positional_attributes;
+                        }
+                    }
+                }
+                metadata
+            }
+            / { BlockMetadata::default() }
 
         pub(crate) rule title_authors() -> (Vec<InlineNode>, Option<Vec<InlineNode>>, Vec<Author>)
         = title_and_subtitle:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])

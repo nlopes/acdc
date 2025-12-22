@@ -1,0 +1,5 @@
+[[my-doc-id]]
+[.special-role.another-role]
+= Document Title
+
+Some content here.
