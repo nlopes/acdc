@@ -4087,16 +4087,18 @@ peg::parser! {
 
         rule anchor() -> Anchor
         = result:(
+            // Double-bracket [[id]] syntax - allows dots in ID since no role shorthand possible
             start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() end:position!() eol() {
                 (start, id, Some(reftext), end)
             } /
             start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) double_close_square_bracket() end:position!() eol() {
                 (start, id, None, end)
             } /
-            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) close_square_bracket() end:position!() eol() {
+            // Single-bracket [#id] shorthand - exclude '.', '%' as they start role/option shorthands
+            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']' | '.' | '%']+) comma() reftext:$([^']']+) close_square_bracket() end:position!() eol() {
                 (start, id, Some(reftext), end)
             } /
-            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']']+) close_square_bracket() end:position!() eol() {
+            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']' | '.' | '%']+) close_square_bracket() end:position!() eol() {
                 (start, id, None, end)
             }) {
                 let (start, id, reftext, end) = result;
@@ -5043,6 +5045,105 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert!(metadata.roles.contains(&"admin".to_string()));
         assert!(metadata.options.contains(&"read".to_string()));
         assert!(metadata.options.contains(&"write".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_shorthand_id_role_combined() -> Result<(), Error> {
+        // Test [#id.role] syntax - ID with role, no style
+        let input = "[#bracket-id.some-role]";
+        let mut state = ParserState::new(input);
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
+        assert!(!discrete);
+        assert_eq!(
+            metadata.id,
+            Some(Anchor {
+                id: "bracket-id".to_string(),
+                xreflabel: None,
+                location: Location {
+                    absolute_start: 2,
+                    absolute_end: 12,
+                    start: crate::Position { line: 1, column: 3 },
+                    end: crate::Position {
+                        line: 1,
+                        column: 13,
+                    }
+                }
+            })
+        );
+        assert_eq!(metadata.style, None);
+        assert!(metadata.roles.contains(&"some-role".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
+        // Test [#id.role%option] syntax - ID with role and option
+        let input = "[#my-id.my-role%my-option]";
+        let mut state = ParserState::new(input);
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
+        assert!(!discrete);
+        assert_eq!(
+            metadata.id,
+            Some(Anchor {
+                id: "my-id".to_string(),
+                xreflabel: None,
+                location: Location {
+                    absolute_start: 2,
+                    absolute_end: 7,
+                    start: crate::Position { line: 1, column: 3 },
+                    end: crate::Position { line: 1, column: 8 }
+                }
+            })
+        );
+        assert_eq!(metadata.style, None);
+        assert!(metadata.roles.contains(&"my-role".to_string()));
+        assert!(metadata.options.contains(&"my-option".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_shorthand_multiple_roles() -> Result<(), Error> {
+        // Test [#id.role1.role2] syntax - ID with multiple roles
+        let input = "[#my-id.role-one.role-two]";
+        let mut state = ParserState::new(input);
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
+        assert!(!discrete);
+        assert_eq!(metadata.id.as_ref().map(|a| a.id.as_str()), Some("my-id"));
+        assert!(metadata.roles.contains(&"role-one".to_string()));
+        assert!(metadata.roles.contains(&"role-two".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_shorthand_style_id_role() -> Result<(), Error> {
+        // Test [style#id.role] syntax - already tested in test_document_attribute_with_id_mixed
+        // but let's verify it still works
+        let input = "[quote#my-id.my-role]";
+        let mut state = ParserState::new(input);
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
+        assert!(!discrete);
+        assert_eq!(metadata.id.as_ref().map(|a| a.id.as_str()), Some("my-id"));
+        assert_eq!(metadata.style, Some("quote".to_string()));
+        assert!(metadata.roles.contains(&"my-role".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_shorthand_just_roles() -> Result<(), Error> {
+        // Test [.role1.role2] syntax - just roles, no ID
+        let input = "[.role-one.role-two]";
+        let mut state = ParserState::new(input);
+        let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
+        assert!(!discrete);
+        assert_eq!(metadata.id, None);
+        assert!(metadata.roles.contains(&"role-one".to_string()));
+        assert!(metadata.roles.contains(&"role-two".to_string()));
         Ok(())
     }
 
