@@ -269,6 +269,15 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
         self.render_head(doc)?;
 
+        // Check for unsupported css-signature attribute
+        if self
+            .processor
+            .document_attributes
+            .contains_key("css-signature")
+        {
+            return Err(Error::UnsupportedCssSignature);
+        }
+
         // Build body class with doctype and optional TOC placement classes
         let mut body_classes = vec![self.processor.options.doctype.to_string()];
 
@@ -293,17 +302,32 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             }
         }
 
+        // Add roles from document title metadata to body classes
+        if let Some(header) = &doc.header {
+            for role in &header.metadata.roles {
+                body_classes.push(role.clone());
+            }
+        }
+
         let body_class = body_classes.join(" ");
 
-        // Render body tag with optional css-signature id
-        if let Some(AttributeValue::String(css_sig)) =
-            self.processor.document_attributes.get("css-signature")
-            && !css_sig.is_empty()
-        {
-            writeln!(
-                self.writer,
-                "<body id=\"{css_sig}\" class=\"{body_class}\">"
-            )?;
+        // Get body ID from document title metadata (anchors or explicit id)
+        let body_id = doc.header.as_ref().and_then(|header| {
+            // Check explicit ID from attribute list first (e.g., [id=my-id])
+            if let Some(anchor) = &header.metadata.id {
+                return Some(anchor.id.clone());
+            }
+            // Check anchors from [[id]] or [#id] syntax - use last one like asciidoctor
+            header
+                .metadata
+                .anchors
+                .last()
+                .map(|anchor| anchor.id.clone())
+        });
+
+        // Render body tag with optional id from title metadata
+        if let Some(id) = body_id {
+            writeln!(self.writer, "<body id=\"{id}\" class=\"{body_class}\">")?;
         } else {
             writeln!(self.writer, "<body class=\"{body_class}\">")?;
         }

@@ -23,4 +23,9 @@ pub enum Error {
 
     #[error("Index out of bounds for {0}: {1}")]
     IndexOutOfBounds(&'static str, usize),
+
+    #[error(
+        "The 'css-signature' attribute is not supported. Set an ID on your document title instead:\n\n  [[my-id]]\n  = Document Title\n\nThis will set id=\"my-id\" on the <body> element."
+    )]
+    UnsupportedCssSignature,
 }

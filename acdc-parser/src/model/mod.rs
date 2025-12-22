@@ -59,9 +59,12 @@ type Subtitle = Vec<InlineNode>;
 
 /// A `Header` represents the header of a document.
 ///
-/// The header contains the title, subtitle, and authors
+/// The header contains the title, subtitle, authors, and optional metadata
+/// (such as ID and roles) that can be applied to the document title.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Header {
+    #[serde(default, skip_serializing_if = "BlockMetadata::is_default")]
+    pub metadata: BlockMetadata,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub title: Vec<InlineNode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

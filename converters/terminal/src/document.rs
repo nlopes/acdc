@@ -147,6 +147,7 @@ mod tests {
             location: Location::default(),
         })];
         doc.header = Some(Header {
+            metadata: BlockMetadata::default(),
             title,
             subtitle: None,
             authors: vec![Author {
