@@ -11,6 +11,24 @@ use acdc_parser::{
 
 use crate::{Error, Processor, RenderOptions, build_class, write_attribution};
 
+/// Write the opening `<div>` tag with optional ID and class attributes.
+/// Follows the pattern used in lists: metadata.id takes precedence, fallback to anchors.
+fn write_block_div_open<W: Write>(
+    w: &mut W,
+    metadata: &BlockMetadata,
+    base_class: &str,
+) -> Result<(), Error> {
+    write!(w, "<div")?;
+    if let Some(id) = &metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = metadata.anchors.first() {
+        write!(w, " id=\"{}\"", anchor.id)?;
+    }
+    let class = build_class(base_class, &metadata.roles);
+    writeln!(w, " class=\"{class}\">")?;
+    Ok(())
+}
+
 fn write_example_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     block: &DelimitedBlock,
@@ -18,7 +36,7 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
     blocks: &[Block],
 ) -> Result<(), Error> {
     let mut writer = visitor.writer_mut();
-    writeln!(writer, "<div class=\"exampleblock\">")?;
+    write_block_div_open(&mut writer, &block.metadata, "exampleblock")?;
     let _ = writer;
 
     // Render title with caption prefix if title exists
@@ -64,8 +82,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             } else {
                 "quoteblock".to_string()
             };
-            let class = build_class(&base_class, &block.metadata.roles);
-            writeln!(writer, "<div class=\"{class}\">")?;
+            write_block_div_open(&mut writer, &block.metadata, &base_class)?;
             writeln!(writer, "<blockquote>")?;
             let _ = writer;
             for nested_block in blocks {
@@ -78,7 +95,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
         }
         DelimitedBlockType::DelimitedOpen(blocks) => {
             let mut writer = visitor.writer_mut();
-            writeln!(writer, "<div class=\"openblock\">")?;
+            write_block_div_open(&mut writer, &block.metadata, "openblock")?;
             let _ = writer;
             visitor.render_title_with_wrapper(&block.title, "<div class=\"title\">", "</div>\n")?;
             writer = visitor.writer_mut();
@@ -96,7 +113,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
         }
         DelimitedBlockType::DelimitedSidebar(blocks) => {
             let mut writer = visitor.writer_mut();
-            writeln!(writer, "<div class=\"sidebarblock\">")?;
+            write_block_div_open(&mut writer, &block.metadata, "sidebarblock")?;
             writeln!(writer, "<div class=\"content\">")?;
             let _ = writer;
             visitor.render_title_with_wrapper(&block.title, "<div class=\"title\">", "</div>\n")?;
@@ -149,7 +166,7 @@ fn render_listing_block<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let mut w = visitor.writer_mut();
-    writeln!(w, "<div class=\"listingblock\">")?;
+    write_block_div_open(&mut w, metadata, "listingblock")?;
     let _ = w;
 
     // Check if listing-caption is set and block has a title
@@ -218,13 +235,14 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             // `asciidoctor` seems to always use "literalblock" for source blocks or
             // so I think!
             let mut w = visitor.writer_mut();
-            if let Some(style) = &metadata.style
+            let base_class = if let Some(style) = &metadata.style
                 && style != "source"
             {
-                writeln!(w, "<div class=\"{style}block\">")?;
+                format!("{style}block")
             } else {
-                writeln!(w, "<div class=\"literalblock\">")?;
-            }
+                "literalblock".to_string()
+            };
+            write_block_div_open(&mut w, metadata, &base_class)?;
             let _ = w;
             visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
@@ -239,7 +257,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
         }
         DelimitedBlockType::DelimitedStem(stem) => {
             let mut w = visitor.writer_mut();
-            writeln!(w, "<div class=\"stemblock\">")?;
+            write_block_div_open(&mut w, metadata, "stemblock")?;
             let _ = w;
             visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
@@ -251,7 +269,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
         }
         DelimitedBlockType::DelimitedVerse(inlines) => {
             let mut w = visitor.writer_mut();
-            writeln!(w, "<div class=\"verseblock\">")?;
+            write_block_div_open(&mut w, metadata, "verseblock")?;
             let _ = w;
             visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
@@ -563,6 +581,230 @@ mod tests {
             processor.listing_counter.get(),
             2,
             "Counter should be incremented to 2"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_listing_block_with_id_and_role() -> Result<(), Error> {
+        use acdc_parser::Anchor;
+
+        let metadata = BlockMetadata {
+            id: Some(Anchor {
+                id: "my-listing-id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            roles: vec!["highlight".to_string(), "special".to_string()],
+            ..Default::default()
+        };
+
+        let block = DelimitedBlock {
+            metadata,
+            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            delimiter: "----".to_string(),
+            title: Vec::new(),
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<div id=\"my-listing-id\" class=\"listingblock highlight special\">"),
+            "Expected listing block with ID and roles, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_example_block_with_id_and_role() -> Result<(), Error> {
+        use acdc_parser::Anchor;
+
+        let metadata = BlockMetadata {
+            id: Some(Anchor {
+                id: "example-id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            roles: vec!["special".to_string()],
+            ..Default::default()
+        };
+
+        let block = DelimitedBlock {
+            metadata,
+            inner: DelimitedBlockType::DelimitedExample(vec![]),
+            delimiter: "====".to_string(),
+            title: Vec::new(),
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<div id=\"example-id\" class=\"exampleblock special\">"),
+            "Expected example block with ID and role, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_quote_block_with_id_and_role() -> Result<(), Error> {
+        use acdc_parser::Anchor;
+
+        let metadata = BlockMetadata {
+            id: Some(Anchor {
+                id: "quote-id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            roles: vec!["highlight".to_string()],
+            ..Default::default()
+        };
+
+        let block = DelimitedBlock {
+            metadata,
+            inner: DelimitedBlockType::DelimitedQuote(vec![]),
+            delimiter: "____".to_string(),
+            title: Vec::new(),
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<div id=\"quote-id\" class=\"quoteblock highlight\">"),
+            "Expected quote block with ID and role, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_sidebar_block_with_id_and_role() -> Result<(), Error> {
+        use acdc_parser::Anchor;
+
+        let metadata = BlockMetadata {
+            id: Some(Anchor {
+                id: "sidebar-id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            roles: vec!["sidebar-role".to_string()],
+            ..Default::default()
+        };
+
+        let block = DelimitedBlock {
+            metadata,
+            inner: DelimitedBlockType::DelimitedSidebar(vec![]),
+            delimiter: "****".to_string(),
+            title: Vec::new(),
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<div id=\"sidebar-id\" class=\"sidebarblock sidebar-role\">"),
+            "Expected sidebar block with ID and role, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_open_block_with_id_and_role() -> Result<(), Error> {
+        use acdc_parser::Anchor;
+
+        let metadata = BlockMetadata {
+            id: Some(Anchor {
+                id: "open-id".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }),
+            roles: vec!["open-role".to_string()],
+            ..Default::default()
+        };
+
+        let block = DelimitedBlock {
+            metadata,
+            inner: DelimitedBlockType::DelimitedOpen(vec![]),
+            delimiter: "--".to_string(),
+            title: Vec::new(),
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<div id=\"open-id\" class=\"openblock open-role\">"),
+            "Expected open block with ID and role, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_block_with_anchor_fallback() -> Result<(), Error> {
+        use acdc_parser::Anchor;
+
+        // Test that anchors are used as fallback when id is None
+        let metadata = BlockMetadata {
+            id: None,
+            anchors: vec![Anchor {
+                id: "anchor-fallback".to_string(),
+                xreflabel: None,
+                location: Location::default(),
+            }],
+            roles: vec!["my-role".to_string()],
+            ..Default::default()
+        };
+
+        let block = DelimitedBlock {
+            metadata,
+            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code")),
+            delimiter: "----".to_string(),
+            title: Vec::new(),
+            location: Location::default(),
+        };
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<div id=\"anchor-fallback\" class=\"listingblock my-role\">"),
+            "Expected listing block with anchor fallback ID, got: {html}",
         );
         Ok(())
     }
