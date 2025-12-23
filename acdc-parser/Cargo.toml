@@ -3,6 +3,11 @@ name = "acdc-parser"
 description = "`AsciiDoc` parser using PEG grammars"
 version.workspace = true
 edition.workspace = true
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/acdc-parser"
+keywords = ["asciidoc", "parser", "markup"]
+categories = ["parsing", "text-processing"]
 
 [features]
 default = []
