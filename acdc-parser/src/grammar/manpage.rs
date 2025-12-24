@@ -169,7 +169,7 @@ pub fn derive_manpage_header_attrs(
         return Ok(false);
     };
 
-    let title_text = extract_plain_text(&header.title);
+    let title_text = extract_plain_text(header.title.as_ref());
 
     if let Some(manpage_title) = parse_manpage_title(&title_text) {
         // Conforming title: use parsed name and volume

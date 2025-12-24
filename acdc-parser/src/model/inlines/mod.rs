@@ -14,7 +14,7 @@ pub use converter::inlines_to_string;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, BlockMetadata, ElementAttributes, Image, Source, StemNotation};
+use crate::{Anchor, BlockMetadata, ElementAttributes, Image, Source, StemNotation, Title};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -360,7 +360,7 @@ fn construct_icon<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
 }
 
 fn construct_image<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
-    let title = raw.title.ok_or_else(|| E::missing_field("title"))?;
+    let title = Title::new(raw.title.ok_or_else(|| E::missing_field("title"))?);
     let target_val = raw.target.ok_or_else(|| E::missing_field("target"))?;
     let source: Source = serde_json::from_value(target_val).map_err(E::custom)?;
     Ok(InlineNode::Macro(InlineMacro::Image(Box::new(Image {

@@ -1,6 +1,4 @@
-use crate::{
-    DocumentAttributes, Footnote, InlineNode, Location, Options, TocEntry, grammar::LineMap,
-};
+use crate::{DocumentAttributes, Footnote, Location, Options, Title, TocEntry, grammar::LineMap};
 
 #[derive(Debug)]
 pub(crate) struct ParserState {
@@ -72,7 +70,7 @@ impl TocTracker {
     /// Register a section for inclusion in the TOC
     pub(crate) fn register_section(
         &mut self,
-        title: Vec<InlineNode>,
+        title: Title,
         level: u8,
         id: String,
         xreflabel: Option<String>,

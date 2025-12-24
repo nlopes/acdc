@@ -14,6 +14,7 @@ use crate::{Error, Positioning, SourceLocation};
 use super::inlines::InlineNode;
 use super::location::{Location, Position};
 use super::metadata::BlockMetadata;
+use super::title::Title;
 
 /// A `Source` represents the source of content (images, audio, video, etc.).
 ///
@@ -186,7 +187,7 @@ impl<'de> Deserialize<'de> for Source {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Audio {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub source: Source,
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -197,7 +198,7 @@ impl Audio {
     #[must_use]
     pub fn new(source: Source, location: Location) -> Self {
         Self {
-            title: Vec::new(),
+            title: Title::default(),
             source,
             metadata: BlockMetadata::default(),
             location,
@@ -206,7 +207,7 @@ impl Audio {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+    pub fn with_title(mut self, title: Title) -> Self {
         self.title = title;
         self
     }
@@ -223,7 +224,7 @@ impl Audio {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Video {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub sources: Vec<Source>,
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -234,7 +235,7 @@ impl Video {
     #[must_use]
     pub fn new(sources: Vec<Source>, location: Location) -> Self {
         Self {
-            title: Vec::new(),
+            title: Title::default(),
             sources,
             metadata: BlockMetadata::default(),
             location,
@@ -243,7 +244,7 @@ impl Video {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+    pub fn with_title(mut self, title: Title) -> Self {
         self.title = title;
         self
     }
@@ -260,7 +261,7 @@ impl Video {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Image {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub source: Source,
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -271,7 +272,7 @@ impl Image {
     #[must_use]
     pub fn new(source: Source, location: Location) -> Self {
         Self {
-            title: Vec::new(),
+            title: Title::default(),
             source,
             metadata: BlockMetadata::default(),
             location,
@@ -280,7 +281,7 @@ impl Image {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+    pub fn with_title(mut self, title: Title) -> Self {
         self.title = title;
         self
     }
@@ -386,7 +387,7 @@ impl<'de> Deserialize<'de> for Audio {
                 V: MapAccess<'de>,
             {
                 let mut metadata = None;
-                let mut title = None;
+                let mut title: Option<Vec<InlineNode>> = None;
                 let mut source = None;
                 let mut location = None;
 
@@ -408,7 +409,7 @@ impl<'de> Deserialize<'de> for Audio {
                 }
 
                 Ok(Audio {
-                    title: title.unwrap_or_default(),
+                    title: title.unwrap_or_default().into(),
                     source: source.ok_or_else(|| serde::de::Error::missing_field("source"))?,
                     metadata: metadata.unwrap_or_default(),
                     location: location
@@ -453,7 +454,7 @@ impl<'de> Deserialize<'de> for Image {
                 V: MapAccess<'de>,
             {
                 let mut metadata = None;
-                let mut title = None;
+                let mut title: Option<Vec<InlineNode>> = None;
                 let mut source = None;
                 let mut location = None;
 
@@ -475,7 +476,7 @@ impl<'de> Deserialize<'de> for Image {
                 }
 
                 Ok(Image {
-                    title: title.unwrap_or_default(),
+                    title: title.unwrap_or_default().into(),
                     source: source.ok_or_else(|| serde::de::Error::missing_field("source"))?,
                     metadata: metadata.unwrap_or_default(),
                     location: location
@@ -521,7 +522,7 @@ impl<'de> Deserialize<'de> for Video {
                 V: MapAccess<'de>,
             {
                 let mut metadata = None;
-                let mut title = None;
+                let mut title: Option<Vec<InlineNode>> = None;
                 let mut sources = None;
                 let mut location = None;
 
@@ -535,7 +536,7 @@ impl<'de> Deserialize<'de> for Video {
                 }
 
                 Ok(Video {
-                    title: title.unwrap_or_default(),
+                    title: title.unwrap_or_default().into(),
                     sources: sources.unwrap_or_default(),
                     metadata: metadata.unwrap_or_default(),
                     location: location

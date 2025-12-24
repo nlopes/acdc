@@ -112,7 +112,7 @@ mod tests {
     use super::*;
     use crate::{Options, Processor};
     use acdc_parser::{
-        Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section,
+        Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section, Title,
     };
 
     #[test]
@@ -141,13 +141,13 @@ mod tests {
     fn test_render_document_with_header() -> Result<(), Error> {
         use crate::Appearance;
         let mut doc = Document::default();
-        let title = vec![InlineNode::PlainText(Plain {
+        let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Title".to_string(),
             location: Location::default(),
-        })];
+        })]);
         doc.header = Some(Header::new(title, Location::default()).with_authors(vec![
             Author::new("John", Some("M"), Some("Doe"))
-                    .with_email(Some("johndoe@example.com".to_string())),
+                    .with_email("johndoe@example.com".to_string()),
             ]));
         doc.blocks = vec![];
         let buffer = Vec::new();
@@ -180,10 +180,10 @@ mod tests {
                 Location::default(),
             )),
             Block::Section(Section::new(
-                vec![InlineNode::PlainText(Plain {
+                Title::new(vec![InlineNode::PlainText(Plain {
                     content: "Section".to_string(),
                     location: Location::default(),
-                })],
+                })]),
                 1,
                 vec![Block::Paragraph(Paragraph::new(
                     vec![InlineNode::PlainText(Plain {

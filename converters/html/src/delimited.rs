@@ -316,9 +316,12 @@ fn render_stem_content<W: Write + ?Sized>(stem: &StemContent, w: &mut W) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::{cell::Cell, rc::Rc};
+
     use acdc_converters_common::{GeneratorMetadata, Options, visitor::Visitor};
     use acdc_core::{Doctype, SafeMode};
-    use acdc_parser::{BlockMetadata, DocumentAttributes, InlineNode, Location, Plain};
+    use acdc_parser::{BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, Title};
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
         vec![InlineNode::PlainText(Plain {
@@ -339,10 +342,10 @@ mod tests {
             options,
             document_attributes,
             toc_entries: Vec::new(),
-            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            table_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            figure_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            listing_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            example_counter: Rc::new(Cell::new(0)),
+            table_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
         }
     }
 
@@ -466,10 +469,10 @@ mod tests {
     #[test]
     fn test_listing_block_without_listing_caption_renders_title_without_number() -> Result<(), Error>
     {
-        let title = vec![InlineNode::PlainText(Plain {
+        let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "My Code Example".to_string(),
             location: Location::default(),
-        })];
+        })]);
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
@@ -506,15 +509,15 @@ mod tests {
     fn test_listing_block_with_listing_caption_renders_title_with_number() -> Result<(), Error> {
         use acdc_parser::AttributeValue;
 
-        let title1 = vec![InlineNode::PlainText(Plain {
+        let title1 = Title::new(vec![InlineNode::PlainText(Plain {
             content: "First Example".to_string(),
             location: Location::default(),
-        })];
+        })]);
 
-        let title2 = vec![InlineNode::PlainText(Plain {
+        let title2 = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Second Example".to_string(),
             location: Location::default(),
-        })];
+        })]);
 
         let block1 = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),

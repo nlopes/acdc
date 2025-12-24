@@ -11,9 +11,9 @@ use serde::{
 use crate::{Error, Positioning, SourceLocation};
 
 use super::Block;
-use super::inlines::InlineNode;
 use super::location::{Location, Position};
 use super::metadata::BlockMetadata;
+use super::title::Title;
 
 /// An `Admonition` represents an admonition in a document.
 #[derive(Clone, Debug, PartialEq)]
@@ -22,7 +22,7 @@ pub struct Admonition {
     pub metadata: BlockMetadata,
     pub variant: AdmonitionVariant,
     pub blocks: Vec<Block>,
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub location: Location,
 }
 
@@ -78,7 +78,7 @@ impl Admonition {
             metadata: BlockMetadata::default(),
             variant,
             blocks,
-            title: Vec::new(),
+            title: Title::default(),
             location,
         }
     }
@@ -92,7 +92,7 @@ impl Admonition {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+    pub fn with_title(mut self, title: Title) -> Self {
         self.title = title;
         self
     }

@@ -7,8 +7,8 @@ use crate::{
     InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
     Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind,
     Plain, Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
-    StemNotation, Subscript, Substitution, Superscript, Table, TableOfContents, TableRow,
-    ThematicBreak, UnorderedList, Url, Verbatim, Video,
+    StemNotation, Subscript, Substitution, Subtitle, Superscript, Table, TableOfContents, TableRow,
+    ThematicBreak, Title, UnorderedList, Url, Verbatim, Video,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -42,7 +42,7 @@ pub(crate) struct PositionWithOffset {
 enum BlockMetadataLine<'input> {
     Anchor(Anchor),
     Attributes((bool, BlockMetadata)),
-    Title(Vec<InlineNode>),
+    Title(Title),
     DocumentAttribute(&'input str, AttributeValue),
 }
 
@@ -58,7 +58,7 @@ enum HeaderMetadataLine {
 // Used purely in the grammar to represent the parsed block details
 pub(crate) struct BlockParsingMetadata {
     pub(crate) metadata: BlockMetadata,
-    title: Vec<InlineNode>,
+    title: Title,
     parent_section_level: Option<SectionLevel>,
 }
 
@@ -356,7 +356,7 @@ peg::parser! {
             }
             / { BlockMetadata::default() }
 
-        pub(crate) rule title_authors() -> (Vec<InlineNode>, Option<Vec<InlineNode>>, Vec<Author>)
+        pub(crate) rule title_authors() -> (Title, Option<Subtitle>, Vec<Author>)
         = title_and_subtitle:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
         {
             let (title, subtitle) = title_and_subtitle;
@@ -369,31 +369,31 @@ peg::parser! {
             (title, subtitle, vec![])
         }
 
-        pub(crate) rule document_title() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
+        pub(crate) rule document_title() -> (Title, Option<Subtitle>)
         = document_title_atx()
         / document_title_setext()
 
         /// ATX-style document title: `= Title` or `# Title`
-        rule document_title_atx() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
+        rule document_title_atx() -> (Title, Option<Subtitle>)
         = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {
             let mut subtitle = None;
             let mut title_end = end;
             if let Some(subtitle_start) = title.rfind(':') {
                 title_end = start+subtitle_start;
-                subtitle = Some(vec![InlineNode::PlainText(Plain {
+                subtitle = Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
                     content: title[subtitle_start + 1..].trim().to_string(),
                     location: state.create_location(
                         title_end + 1,
                         end.saturating_sub(1),
                     ),
-                })]);
+                })]));
             }
             let title_location = state.create_location(start, title_end.saturating_sub(1));
-            (vec![InlineNode::PlainText(Plain {
+            (Title::new(vec![InlineNode::PlainText(Plain {
                 content: title[..title_end - start].trim().to_string(),
                 location: title_location,
-            })], subtitle)
+            })]), subtitle)
         }
 
         /// Setext-style document title: Title underlined with `=` characters
@@ -406,7 +406,7 @@ peg::parser! {
         /// The underline must be within ±2 characters of the title width.
         /// Only enabled when the setext feature is compiled in AND the runtime
         /// option is enabled.
-        rule document_title_setext() -> (Vec<InlineNode>, Option<Vec<InlineNode>>)
+        rule document_title_setext() -> (Title, Option<Subtitle>)
         = start:position!() title:$([^'\n']+) end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
@@ -439,21 +439,21 @@ peg::parser! {
                     if let Some(text) = title_text.get(..subtitle_start) {
                         title_content = text.trim().to_string();
                     }
-                    subtitle = Some(vec![InlineNode::PlainText(Plain {
+                    subtitle = Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
                         content: subtitle_text.to_string(),
                         location: state.create_location(
                             start + subtitle_start + 1,
                             end.saturating_sub(1),
                         ),
-                    })]);
+                    })]));
                 }
             }
 
             let title_location = state.create_location(start, end.saturating_sub(1));
-            Ok((vec![InlineNode::PlainText(Plain {
+            Ok((Title::new(vec![InlineNode::PlainText(Plain {
                 content: title_content,
                 location: title_location,
-            })], subtitle))
+            })]), subtitle))
         }
 
         rule document_title_token() = "=" / "#"
@@ -700,7 +700,7 @@ peg::parser! {
             // Register section for TOC immediately after title is parsed, before content
             state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel);
 
-            Ok::<(Vec<InlineNode>, String), Error>((title, section_id))
+            Ok::<(Title, String), Error>((title, section_id))
         })
         content:section_content(offset, Some(section_level.1+1))? end:position!()
         {
@@ -810,6 +810,7 @@ peg::parser! {
             // Parse the title using inline processing
             match process_inlines(state, &block_metadata, start, &title_start, title_end, offset, title) {
                 Ok((processed_title, _)) => {
+                    let processed_title = Title::new(processed_title);
                     let section_id = Section::generate_id(&block_metadata.metadata, &processed_title).to_string();
 
                     // Extract xreflabel from the last anchor
@@ -818,7 +819,7 @@ peg::parser! {
                     // Register section for TOC
                     state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel);
 
-                    Ok::<(Vec<InlineNode>, String), Error>((processed_title, section_id))
+                    Ok::<(Title, String), Error>((processed_title, section_id))
                 }
                 Err(e) => Err(e),
             }
@@ -859,7 +860,7 @@ peg::parser! {
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
-            let mut title = Vec::new();
+            let mut title = Title::default();
 
             for line in lines {
                 // Skip errors from title parsing (e.g., empty titles like "." + newline)
@@ -898,13 +899,13 @@ peg::parser! {
         // A title line can be a simple title or a section title
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
-        rule title_line(offset: usize) -> Result<Vec<InlineNode>, Error>
+        rule title_line(offset: usize) -> Result<Title, Error>
         = period() start:position() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
         {
             tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
             let (title, _) = process_inlines(state, &block_metadata, start.offset, &start, end, offset, title)?;
-            Ok(title)
+            Ok(title.into())
         }
 
         // A document attribute line in block metadata context
@@ -941,12 +942,12 @@ peg::parser! {
             Ok((level, level.len().try_into().unwrap_or(1)-1))
         }
 
-        rule section_title(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<InlineNode>, Error>
+        rule section_title(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Title, Error>
         = title_start:position() title:$([^'\n']*) end:position!()
         {
             tracing::info!(?title, ?title_start, start, ?end, offset, "Found section title");
             let (content, _) = process_inlines(state, block_metadata, start, &title_start, end, offset, title)?;
-            Ok(content)
+            Ok(Title::new(content))
         }
 
         rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
@@ -3142,14 +3143,14 @@ peg::parser! {
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
-            let mut title = Vec::new();
+            let mut title = Title::default();
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
                 // For inline images, the first positional attribute is the alt text (title)
-                title = vec![InlineNode::PlainText(Plain {
+                title = Title::new(vec![InlineNode::PlainText(Plain {
                     content: style,
                     location: state.create_block_location(start.offset, end, offset),
-                })];
+                })]);
             }
             if metadata.positional_attributes.len() >= 2 {
                 metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
@@ -3171,10 +3172,10 @@ peg::parser! {
                     offset: title_start,
                     position: state.line_map.offset_to_position(title_start, &state.input),
                 };
-                title = process_inlines_or_err!(
+                title = Title::new(process_inlines_or_err!(
                     process_inlines(state, block_metadata, title_start, &title_start_pos, title_end, offset, content),
                     "could not process title in inline image macro"
-                )?.0;
+                )?.0);
             }
             // Note: We do NOT remove the title attribute - it's needed for the HTML title attribute
 
@@ -3991,11 +3992,11 @@ peg::parser! {
             let content = map_inline_locations(state, &processed, &content, &location)?;
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
-            let title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
+            let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
                 vec![InlineNode::PlainText(Plain {
                     content: title.clone(),
                     location: state.create_location(start+offset, (start+offset).saturating_add(title.len()).saturating_sub(1)),
-                })]
+                })].into()
             } else {
                 block_metadata.title.clone()
             };
@@ -4015,7 +4016,7 @@ peg::parser! {
                     blocks: vec![Block::Paragraph(Paragraph {
                         content,
                         metadata: block_metadata.metadata.clone(),
-                        title: Vec::new(),
+                        title: Title::default(),
                         location: state.create_block_location(content_start.offset, end, offset),
                     })],
                     location: state.create_block_location(start, end, offset),
@@ -4829,7 +4830,7 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(
             result,
             (
-                vec![InlineNode::PlainText(Plain {
+                Title::new(vec![InlineNode::PlainText(Plain {
                     content: "Document Title".to_string(),
                     location: Location {
                         absolute_start: 2,
@@ -4840,8 +4841,8 @@ v2.9, 01-09-2024: Fall incarnation
                             column: 16,
                         },
                     }
-                })],
-                Some(vec![InlineNode::PlainText(Plain {
+                })]),
+                Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
                     content: "And a subtitle".to_string(),
                     location: Location {
                         absolute_start: 17,
@@ -4855,7 +4856,7 @@ v2.9, 01-09-2024: Fall incarnation
                             column: 32,
                         },
                     }
-                })])
+                })]))
             )
         );
         Ok(())

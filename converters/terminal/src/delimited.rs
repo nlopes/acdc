@@ -372,7 +372,7 @@ mod tests {
     use super::*;
     use crate::{Options, TerminalVisitor};
     use acdc_converters_common::visitor::Visitor;
-    use acdc_parser::{DocumentAttributes, Location, Paragraph, Plain};
+    use acdc_parser::{DocumentAttributes, Location, Paragraph, Plain, Title};
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
@@ -380,6 +380,14 @@ mod tests {
             content: content.to_string(),
             location: Location::default(),
         })]
+    }
+
+    /// Create simple plain text title for testing
+    fn create_test_title(content: &str) -> Title {
+        Title::new(vec![InlineNode::PlainText(Plain {
+            content: content.to_string(),
+            location: Location::default(),
+        })])
     }
 
     /// Create test processor with default options
@@ -433,7 +441,7 @@ mod tests {
             "----".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("My Code Listing"));
+        .with_title(create_test_title("My Code Listing"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -489,7 +497,7 @@ mod tests {
             "....".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Literal Block Title"));
+        .with_title(create_test_title("Literal Block Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -556,7 +564,7 @@ mod tests {
             "====".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Custom Example Title"));
+        .with_title(create_test_title("Custom Example Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -620,7 +628,7 @@ mod tests {
             "____".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Quote Title"));
+        .with_title(create_test_title("Quote Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -719,7 +727,7 @@ mod tests {
             "****".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Sidebar Title"));
+        .with_title(create_test_title("Sidebar Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -823,7 +831,7 @@ mod tests {
             "--".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Open Block Title"));
+        .with_title(create_test_title("Open Block Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -876,7 +884,7 @@ mod tests {
             "____".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Poem Title"));
+        .with_title(create_test_title("Poem Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1058,7 +1066,7 @@ mod tests {
             "====".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Nested Content"));
+        .with_title(create_test_title("Nested Content"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1092,7 +1100,7 @@ mod tests {
             "====".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("First Example"));
+        .with_title(create_test_title("First Example"));
 
         // Create second example with title
         let block2 = DelimitedBlock::new(
@@ -1103,7 +1111,7 @@ mod tests {
             "====".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Second Example"));
+        .with_title(create_test_title("Second Example"));
 
         // Create third example with title
         let block3 = DelimitedBlock::new(
@@ -1114,7 +1122,7 @@ mod tests {
             "====".to_string(),
             Location::default(),
         )
-        .with_title(create_test_inlines("Third Example"));
+        .with_title(create_test_title("Third Example"));
 
         // Render all three examples
         let mut buffer1 = Vec::new();

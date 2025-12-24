@@ -11,6 +11,7 @@ use super::anchor::Anchor;
 use super::inlines::InlineNode;
 use super::location::Location;
 use super::metadata::BlockMetadata;
+use super::title::Title;
 
 pub type ListLevel = u8;
 
@@ -45,7 +46,7 @@ pub struct ListItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct DescriptionList {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub metadata: BlockMetadata,
     pub items: Vec<DescriptionListItem>,
     pub location: Location,
@@ -70,7 +71,7 @@ pub struct DescriptionListItem {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct UnorderedList {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub metadata: BlockMetadata,
     pub items: Vec<ListItem>,
     pub marker: String,
@@ -81,7 +82,7 @@ pub struct UnorderedList {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct OrderedList {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub metadata: BlockMetadata,
     pub items: Vec<ListItem>,
     pub marker: String,
@@ -94,7 +95,7 @@ pub struct OrderedList {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct CalloutList {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub metadata: BlockMetadata,
     pub items: Vec<ListItem>,
     pub location: Location,

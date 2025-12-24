@@ -4,6 +4,8 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{Block, BlockMetadata, InlineNode, Location, model::inlines::converter};
 
+use super::title::Title;
+
 /// A `SectionLevel` represents a section depth in a document.
 pub type SectionLevel = u8;
 
@@ -12,7 +14,7 @@ pub type SectionLevel = u8;
 #[non_exhaustive]
 pub struct Section {
     pub metadata: BlockMetadata,
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub level: SectionLevel,
     pub content: Vec<Block>,
     pub location: Location,
@@ -21,12 +23,7 @@ pub struct Section {
 impl Section {
     /// Create a new section with the given title, level, content, and location.
     #[must_use]
-    pub fn new(
-        title: Vec<InlineNode>,
-        level: SectionLevel,
-        content: Vec<Block>,
-        location: Location,
-    ) -> Self {
+    pub fn new(title: Title, level: SectionLevel, content: Vec<Block>, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             title,
@@ -62,7 +59,7 @@ impl Display for SafeId {
 }
 
 impl Section {
-    fn id_from_inlines(title: &[InlineNode]) -> String {
+    fn id_from_title(title: &[InlineNode]) -> String {
         // Generate ID from title
         let title_text = converter::inlines_to_string(title);
         let mut id = title_text
@@ -124,7 +121,7 @@ impl Section {
             return SafeId::Explicit(anchor.id.clone());
         }
         // Fall back to auto-generated ID from title
-        let id = Self::id_from_inlines(title);
+        let id = Self::id_from_title(title);
         SafeId::Generated(id)
     }
 }
@@ -157,13 +154,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_id_from_inlines() {
+    fn test_id_from_title() {
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
             content: "This is a title.".to_string(),
             location: Location::default(),
         })];
         assert_eq!(
-            Section::id_from_inlines(inlines),
+            Section::id_from_title(inlines),
             "this_is_a_title".to_string()
         );
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
@@ -171,7 +168,7 @@ mod tests {
             location: Location::default(),
         })];
         assert_eq!(
-            Section::id_from_inlines(inlines),
+            Section::id_from_title(inlines),
             "this_is_a_title".to_string()
         );
     }

@@ -18,6 +18,7 @@ mod metadata;
 mod section;
 mod substitution;
 mod tables;
+mod title;
 
 pub use admonition::{Admonition, AdmonitionVariant};
 pub use anchor::{Anchor, TocEntry};
@@ -36,6 +37,7 @@ pub use tables::{
     ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, Table, TableColumn, TableRow,
     VerticalAlignment,
 };
+pub use title::{Subtitle, Title};
 
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -56,8 +58,6 @@ pub struct Document {
     pub location: Location,
 }
 
-type Subtitle = Vec<InlineNode>;
-
 /// A `Header` represents the header of a document.
 ///
 /// The header contains the title, subtitle, authors, and optional metadata
@@ -67,8 +67,8 @@ type Subtitle = Vec<InlineNode>;
 pub struct Header {
     #[serde(default, skip_serializing_if = "BlockMetadata::is_default")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub title: Vec<InlineNode>,
+    #[serde(default, skip_serializing_if = "Title::is_empty")]
+    pub title: Title,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<Subtitle>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -98,7 +98,7 @@ pub struct Author {
 impl Header {
     /// Create a new header with the given title and location.
     #[must_use]
-    pub fn new(title: Vec<InlineNode>, location: Location) -> Self {
+    pub fn new(title: Title, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             title,
@@ -117,8 +117,8 @@ impl Header {
 
     /// Set the subtitle.
     #[must_use]
-    pub fn with_subtitle(mut self, subtitle: Option<Subtitle>) -> Self {
-        self.subtitle = subtitle;
+    pub fn with_subtitle(mut self, subtitle: Subtitle) -> Self {
+        self.subtitle = Some(subtitle);
         self
     }
 
@@ -147,8 +147,8 @@ impl Author {
 
     /// Set the email address.
     #[must_use]
-    pub fn with_email(mut self, email: Option<String>) -> Self {
-        self.email = email;
+    pub fn with_email(mut self, email: String) -> Self {
+        self.email = Some(email);
         self
     }
 
@@ -265,8 +265,7 @@ impl Serialize for DocumentAttribute {
 #[non_exhaustive]
 pub struct DiscreteHeader {
     pub metadata: BlockMetadata,
-    //#[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub level: u8,
     pub location: Location,
 }
@@ -276,7 +275,7 @@ pub struct DiscreteHeader {
 #[non_exhaustive]
 pub struct ThematicBreak {
     pub anchors: Vec<Anchor>,
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub location: Location,
 }
 
@@ -304,7 +303,7 @@ impl Serialize for ThematicBreak {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct PageBreak {
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub metadata: BlockMetadata,
     pub location: Location,
 }
@@ -374,7 +373,7 @@ impl Serialize for TableOfContents {
 #[non_exhaustive]
 pub struct Paragraph {
     pub metadata: BlockMetadata,
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub content: Vec<InlineNode>,
     pub location: Location,
 }
@@ -385,7 +384,7 @@ impl Paragraph {
     pub fn new(content: Vec<InlineNode>, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
-            title: Vec::new(),
+            title: Title::default(),
             content,
             location,
         }
@@ -400,7 +399,7 @@ impl Paragraph {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+    pub fn with_title(mut self, title: Title) -> Self {
         self.title = title;
         self
     }
@@ -413,7 +412,7 @@ pub struct DelimitedBlock {
     pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
     pub delimiter: String,
-    pub title: Vec<InlineNode>,
+    pub title: Title,
     pub location: Location,
 }
 
@@ -425,7 +424,7 @@ impl DelimitedBlock {
             metadata: BlockMetadata::default(),
             inner,
             delimiter,
-            title: Vec::new(),
+            title: Title::default(),
             location,
         }
     }
@@ -439,7 +438,7 @@ impl DelimitedBlock {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+    pub fn with_title(mut self, title: Title) -> Self {
         self.title = title;
         self
     }
@@ -724,7 +723,7 @@ fn parse_dlist_items<E: de::Error>(
 fn construct_section<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     Ok(Block::Section(Section {
         metadata: raw.metadata.unwrap_or_default(),
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         level: raw.level.ok_or_else(|| E::missing_field("level"))?,
         content: parse_blocks(raw.blocks)?,
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
@@ -734,7 +733,7 @@ fn construct_section<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
 fn construct_paragraph<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     Ok(Block::Paragraph(Paragraph {
         metadata: raw.metadata.unwrap_or_default(),
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         content: raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
     }))
@@ -746,7 +745,7 @@ fn construct_image<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
         return Err(E::custom(format!("unexpected form: {form}")));
     }
     Ok(Block::Image(Image {
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         source: raw.source.ok_or_else(|| E::missing_field("source"))?,
         metadata: raw.metadata.unwrap_or_default(),
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
@@ -759,7 +758,7 @@ fn construct_audio<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
         return Err(E::custom(format!("unexpected form: {form}")));
     }
     Ok(Block::Audio(Audio {
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         source: raw.source.ok_or_else(|| E::missing_field("source"))?,
         metadata: raw.metadata.unwrap_or_default(),
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
@@ -780,7 +779,7 @@ fn construct_video<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
         vec![source]
     };
     Ok(Block::Video(Video {
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         sources,
         metadata: raw.metadata.unwrap_or_default(),
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
@@ -792,12 +791,12 @@ fn construct_break<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
     match variant.as_str() {
         "page" => Ok(Block::PageBreak(PageBreak {
-            title: raw.title.unwrap_or_default(),
+            title: raw.title.unwrap_or_default().into(),
             metadata: raw.metadata.unwrap_or_default(),
             location,
         })),
         "thematic" => Ok(Block::ThematicBreak(ThematicBreak {
-            title: raw.title.unwrap_or_default(),
+            title: raw.title.unwrap_or_default().into(),
             anchors: raw.anchors.unwrap_or_default(),
             location,
         })),
@@ -807,7 +806,7 @@ fn construct_break<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
 
 fn construct_heading<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     Ok(Block::DiscreteHeader(DiscreteHeader {
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         level: raw.level.ok_or_else(|| E::missing_field("level"))?,
         metadata: raw.metadata.unwrap_or_default(),
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
@@ -839,14 +838,14 @@ fn construct_admonition<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
         metadata: raw.metadata.unwrap_or_default(),
         variant: AdmonitionVariant::from_str(&variant).map_err(E::custom)?,
         blocks: require_blocks(raw.blocks)?,
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
     }))
 }
 
 fn construct_dlist<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     Ok(Block::DescriptionList(DescriptionList {
-        title: raw.title.unwrap_or_default(),
+        title: raw.title.unwrap_or_default().into(),
         metadata: raw.metadata.unwrap_or_default(),
         items: parse_dlist_items(raw.items)?,
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
@@ -856,7 +855,7 @@ fn construct_dlist<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
 fn construct_list<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
     let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
-    let title = raw.title.unwrap_or_default();
+    let title: Title = raw.title.unwrap_or_default().into();
     let metadata = raw.metadata.unwrap_or_default();
     let items = parse_list_items(raw.items)?;
 
@@ -893,7 +892,7 @@ fn construct_delimited<E: de::Error>(name: &str, raw: RawBlockFields) -> Result<
     let delimiter = raw.delimiter.ok_or_else(|| E::missing_field("delimiter"))?;
     let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
     let metadata = raw.metadata.unwrap_or_default();
-    let title = raw.title.unwrap_or_default();
+    let title: Title = raw.title.unwrap_or_default().into();
 
     let inner = match name {
         "example" => DelimitedBlockType::DelimitedExample(require_blocks(raw.blocks)?),

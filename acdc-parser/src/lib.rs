@@ -57,11 +57,11 @@ pub use model::{
     ICON_SIZES, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
     ListItemCheckedStatus, Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph,
     Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source, StandaloneCurvedApostrophe,
-    Stem, StemContent, StemNotation, Subscript, Substitution, Superscript, Table, TableColumn,
-    TableOfContents, TableRow, ThematicBreak, TocEntry, UnorderedList, Url, Verbatim,
-    VerticalAlignment, Video, inlines_to_string,
+    Stem, StemContent, StemNotation, Subscript, Substitution, Subtitle, Superscript, Table,
+    TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Url,
+    Verbatim, VerticalAlignment, Video, inlines_to_string,
 };
-pub use options::{Options, OptionsBuilder};
+pub use options::{Options, OptionsBuilder, SafeMode};
 
 /// Type-based parser for `AsciiDoc` content.
 ///
@@ -373,7 +373,6 @@ mod proptests;
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
-    use acdc_core::SafeMode;
     use pretty_assertions::assert_eq;
 
     #[rstest::rstest]
