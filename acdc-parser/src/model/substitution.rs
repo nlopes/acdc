@@ -60,7 +60,7 @@ pub const VERBATIM: &[Substitution] = &[Substitution::SpecialChars, Substitution
 impl Substitute for &str {}
 impl Substitute for String {}
 
-pub trait Substitute: ToString {
+pub(crate) trait Substitute: ToString {
     fn substitute(
         &self,
         substitutions: &[Substitution],

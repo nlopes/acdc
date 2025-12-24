@@ -9,7 +9,7 @@ use super::{
 ///
 /// This trait uses Generic Associated Types (GATs) to provide a unified interface for all
 /// marked text node types while maintaining compile-time type safety and zero runtime cost.
-pub trait MarkedText: Sized {
+pub(crate) trait MarkedText: Sized {
     /// The type of content this formatted node contains (typically Vec<InlineNode>)
     type Content: LocationMappable;
 
