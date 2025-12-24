@@ -1,4 +1,4 @@
-use acdc_core::SafeMode;
+pub use acdc_core::SafeMode;
 
 use crate::{AttributeValue, DocumentAttributes};
 
