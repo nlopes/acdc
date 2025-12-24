@@ -375,10 +375,10 @@ mod tests {
     use crate::{Options, TerminalVisitor};
     use acdc_converters_common::visitor::Visitor;
     use acdc_parser::{
-        Anchor, BlockMetadata, Bold, CrossReference, CurvedApostrophe, CurvedQuotation,
-        DocumentAttributes, ElementAttributes, Form, Highlight, Image, InlineMacro, Italic,
-        Keyboard, LineBreak, Link, Location, Monospace, Paragraph, Plain, Source,
-        StandaloneCurvedApostrophe, Subscript, Superscript,
+        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, DocumentAttributes,
+        ElementAttributes, Form, Highlight, Image, InlineMacro, Italic, Keyboard, LineBreak, Link,
+        Location, Monospace, Paragraph, Plain, Source, StandaloneCurvedApostrophe, Subscript,
+        Superscript,
     };
 
     /// Create simple plain text inline node for testing
@@ -407,12 +407,7 @@ mod tests {
 
     /// Helper to render a paragraph with inline nodes and return the output
     fn render_paragraph(inlines: Vec<InlineNode>) -> Result<String, Error> {
-        let paragraph = Paragraph {
-            content: inlines,
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        };
+        let paragraph = Paragraph::new(inlines, Location::default());
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -666,12 +661,10 @@ mod tests {
 
     #[test]
     fn test_image_macro_placeholder() -> Result<(), Error> {
-        let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image {
-            source: Source::Name("logo.png".to_string()),
-            title: Vec::new(),
-            metadata: BlockMetadata::default(),
-            location: Location::default(),
-        })));
+        let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image::new(
+            Source::Name("logo.png".to_string()),
+            Location::default(),
+        ))));
 
         let output = render_paragraph(vec![image])?;
         assert!(
@@ -754,11 +747,7 @@ mod tests {
     fn test_inline_anchor_invisible() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Before"),
-            InlineNode::InlineAnchor(Anchor {
-                id: "anchor-id".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }),
+            InlineNode::InlineAnchor(Anchor::new("anchor-id".to_string(), Location::default())),
             create_plain_text("After"),
         ])?;
 

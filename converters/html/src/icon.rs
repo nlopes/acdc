@@ -15,7 +15,7 @@ fn get_attr_string(attrs: &ElementAttributes, name: &str) -> Option<String> {
             let trimmed = s.trim_matches('"');
             Some(trimmed.to_string())
         }
-        AttributeValue::None | AttributeValue::Bool(_) | AttributeValue::Inlines(_) => None,
+        AttributeValue::None | AttributeValue::Bool(_) | AttributeValue::Inlines(_) | _ => None,
     })
 }
 

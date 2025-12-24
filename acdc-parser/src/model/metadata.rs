@@ -9,6 +9,7 @@ pub type Role = String;
 
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BlockMetadata {
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes,
@@ -27,6 +28,47 @@ pub struct BlockMetadata {
 }
 
 impl BlockMetadata {
+    /// Create a new block metadata with default values.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the attributes.
+    #[must_use]
+    pub fn with_attributes(mut self, attributes: ElementAttributes) -> Self {
+        self.attributes = attributes;
+        self
+    }
+
+    /// Set the options.
+    #[must_use]
+    pub fn with_options(mut self, options: Vec<String>) -> Self {
+        self.options = options;
+        self
+    }
+
+    /// Set the roles.
+    #[must_use]
+    pub fn with_roles(mut self, roles: Vec<Role>) -> Self {
+        self.roles = roles;
+        self
+    }
+
+    /// Set the style.
+    #[must_use]
+    pub fn with_style(mut self, style: Option<String>) -> Self {
+        self.style = style;
+        self
+    }
+
+    /// Set the ID.
+    #[must_use]
+    pub fn with_id(mut self, id: Option<Anchor>) -> Self {
+        self.id = id;
+        self
+    }
+
     pub fn move_positional_attributes_to_attributes(&mut self) {
         for positional_attribute in self.positional_attributes.drain(..) {
             self.attributes

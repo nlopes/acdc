@@ -48,7 +48,9 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
             .get("example-caption")
             .and_then(|v| match v {
                 AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
+                    None
+                }
             })
             .unwrap_or("Example");
         let prefix = format!("<div class=\"title\">{caption} {count}. ");
@@ -346,13 +348,11 @@ mod tests {
 
     #[test]
     fn test_listing_block_renders_as_listingblock() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            metadata: BlockMetadata::default(),
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            delimiter: "----".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            "----".to_string(),
+            Location::default(),
+        );
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -371,13 +371,11 @@ mod tests {
 
     #[test]
     fn test_literal_block_renders_as_literalblock() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            metadata: BlockMetadata::default(),
-            inner: DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            delimiter: "....".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
+            "....".to_string(),
+            Location::default(),
+        );
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -401,19 +399,16 @@ mod tests {
         let mut attributes = ElementAttributes::default();
         attributes.insert("bash".to_string(), AttributeValue::None);
 
-        let metadata = BlockMetadata {
-            style: Some("source".to_string()),
-            attributes,
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new()
+            .with_style(Some("source".to_string()))
+            .with_attributes(attributes);
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            delimiter: "----".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -440,18 +435,14 @@ mod tests {
 
     #[test]
     fn test_literal_block_with_style_attribute() -> Result<(), Error> {
-        let metadata = BlockMetadata {
-            style: Some("verse".to_string()),
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new().with_style(Some("verse".to_string()));
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            delimiter: "....".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
+            "....".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -480,13 +471,12 @@ mod tests {
             location: Location::default(),
         })];
 
-        let block = DelimitedBlock {
-            metadata: BlockMetadata::default(),
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            delimiter: "----".to_string(),
-            title,
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_title(title);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -526,21 +516,19 @@ mod tests {
             location: Location::default(),
         })];
 
-        let block1 = DelimitedBlock {
-            metadata: BlockMetadata::default(),
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),
-            delimiter: "----".to_string(),
-            title: title1,
-            location: Location::default(),
-        };
+        let block1 = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_title(title1);
 
-        let block2 = DelimitedBlock {
-            metadata: BlockMetadata::default(),
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code 2")),
-            delimiter: "----".to_string(),
-            title: title2,
-            location: Location::default(),
-        };
+        let block2 = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code 2")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_title(title2);
 
         let output = Vec::new();
         let mut processor = create_test_processor();
@@ -589,23 +577,19 @@ mod tests {
     fn test_listing_block_with_id_and_role() -> Result<(), Error> {
         use acdc_parser::Anchor;
 
-        let metadata = BlockMetadata {
-            id: Some(Anchor {
-                id: "my-listing-id".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }),
-            roles: vec!["highlight".to_string(), "special".to_string()],
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new()
+            .with_id(Some(Anchor::new(
+                "my-listing-id".to_string(),
+                Location::default(),
+            )))
+            .with_roles(vec!["highlight".to_string(), "special".to_string()]);
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            delimiter: "----".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -626,23 +610,19 @@ mod tests {
     fn test_example_block_with_id_and_role() -> Result<(), Error> {
         use acdc_parser::Anchor;
 
-        let metadata = BlockMetadata {
-            id: Some(Anchor {
-                id: "example-id".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }),
-            roles: vec!["special".to_string()],
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new()
+            .with_id(Some(Anchor::new(
+                "example-id".to_string(),
+                Location::default(),
+            )))
+            .with_roles(vec!["special".to_string()]);
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedExample(vec![]),
-            delimiter: "====".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -663,23 +643,19 @@ mod tests {
     fn test_quote_block_with_id_and_role() -> Result<(), Error> {
         use acdc_parser::Anchor;
 
-        let metadata = BlockMetadata {
-            id: Some(Anchor {
-                id: "quote-id".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }),
-            roles: vec!["highlight".to_string()],
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new()
+            .with_id(Some(Anchor::new(
+                "quote-id".to_string(),
+                Location::default(),
+            )))
+            .with_roles(vec!["highlight".to_string()]);
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedQuote(vec![]),
-            delimiter: "____".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedQuote(vec![]),
+            "____".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -700,23 +676,19 @@ mod tests {
     fn test_sidebar_block_with_id_and_role() -> Result<(), Error> {
         use acdc_parser::Anchor;
 
-        let metadata = BlockMetadata {
-            id: Some(Anchor {
-                id: "sidebar-id".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }),
-            roles: vec!["sidebar-role".to_string()],
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new()
+            .with_id(Some(Anchor::new(
+                "sidebar-id".to_string(),
+                Location::default(),
+            )))
+            .with_roles(vec!["sidebar-role".to_string()]);
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedSidebar(vec![]),
-            delimiter: "****".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedSidebar(vec![]),
+            "****".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -737,23 +709,19 @@ mod tests {
     fn test_open_block_with_id_and_role() -> Result<(), Error> {
         use acdc_parser::Anchor;
 
-        let metadata = BlockMetadata {
-            id: Some(Anchor {
-                id: "open-id".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }),
-            roles: vec!["open-role".to_string()],
-            ..Default::default()
-        };
+        let metadata = BlockMetadata::new()
+            .with_id(Some(Anchor::new(
+                "open-id".to_string(),
+                Location::default(),
+            )))
+            .with_roles(vec!["open-role".to_string()]);
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedOpen(vec![]),
-            delimiter: "--".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedOpen(vec![]),
+            "--".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();
@@ -775,24 +743,18 @@ mod tests {
         use acdc_parser::Anchor;
 
         // Test that anchors are used as fallback when id is None
-        let metadata = BlockMetadata {
-            id: None,
-            anchors: vec![Anchor {
-                id: "anchor-fallback".to_string(),
-                xreflabel: None,
-                location: Location::default(),
-            }],
-            roles: vec!["my-role".to_string()],
-            ..Default::default()
-        };
+        let mut metadata = BlockMetadata::new().with_roles(vec!["my-role".to_string()]);
+        metadata.anchors = vec![Anchor::new(
+            "anchor-fallback".to_string(),
+            Location::default(),
+        )];
 
-        let block = DelimitedBlock {
-            metadata,
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code")),
-            delimiter: "----".to_string(),
-            title: Vec::new(),
-            location: Location::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
 
         let output = Vec::new();
         let processor = create_test_processor();

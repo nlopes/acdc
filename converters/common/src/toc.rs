@@ -26,8 +26,8 @@ impl Config {
                 AttributeValue::String(s) if s.is_empty() => "auto",
                 AttributeValue::String(s) => s.as_str(),
                 AttributeValue::Bool(true) => "auto",
-                // Bool(false) or None means toc is disabled
-                AttributeValue::Bool(false) | AttributeValue::None | AttributeValue::Inlines(_) => {
+                // Bool(false), None, or unknown means toc is disabled
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
                     "none"
                 }
             })
@@ -37,7 +37,9 @@ impl Config {
             .get("toc-title")
             .and_then(|v| match v {
                 AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
+                    None
+                }
             })
             .map(String::from);
 
@@ -46,15 +48,18 @@ impl Config {
             .and_then(|toc| toc.metadata.attributes.get("levels"))
             .and_then(|v| match v {
                 AttributeValue::String(s) => s.parse::<u8>().ok(),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
+                    None
+                }
             })
             .or_else(|| {
                 // Fall back to document-level toclevels attribute
                 attributes.get("toclevels").and_then(|v| match v {
                     AttributeValue::String(s) => s.parse::<u8>().ok(),
-                    AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => {
-                        None
-                    }
+                    AttributeValue::Bool(_)
+                    | AttributeValue::None
+                    | AttributeValue::Inlines(_)
+                    | _ => None,
                 })
             })
             .unwrap_or(2);
@@ -69,7 +74,8 @@ impl Config {
                 AttributeValue::String(_)
                 | AttributeValue::Bool(_)
                 | AttributeValue::None
-                | AttributeValue::Inlines(_) => None,
+                | AttributeValue::Inlines(_)
+                | _ => None,
             })
             .unwrap_or_else(|| match placement.as_str() {
                 "left" | "right" | "top" | "bottom" => "toc2".to_string(),

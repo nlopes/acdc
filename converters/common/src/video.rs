@@ -234,19 +234,18 @@ mod tests {
         attributes: ElementAttributes,
         options: Vec<String>,
     ) -> Video {
-        Video {
-            sources: sources
+        Video::new(
+            sources
                 .into_iter()
                 .map(|s| Source::Path(std::path::PathBuf::from(s)))
                 .collect(),
-            metadata: BlockMetadata {
-                attributes,
-                options,
-                ..Default::default()
-            },
-            title: vec![],
-            location: Location::default(),
-        }
+            Location::default(),
+        )
+        .with_metadata(
+            BlockMetadata::new()
+                .with_attributes(attributes)
+                .with_options(options),
+        )
     }
 
     #[test]
@@ -517,15 +516,8 @@ mod tests {
     fn test_empty_sources_returns_error() {
         let mut attrs = ElementAttributes::default();
         attrs.insert("youtube".to_string(), AttributeValue::Bool(true));
-        let video = Video {
-            sources: vec![],
-            metadata: BlockMetadata {
-                attributes: attrs,
-                ..Default::default()
-            },
-            title: vec![],
-            location: Location::default(),
-        };
+        let video = Video::new(vec![], Location::default())
+            .with_metadata(BlockMetadata::new().with_attributes(attrs));
 
         // Should return an error instead of panicking
         let result = video.try_url(false);

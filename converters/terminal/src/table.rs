@@ -118,8 +118,7 @@ mod tests {
     use super::*;
     use acdc_converters_common::Options;
     use acdc_parser::{
-        Block, BlockMetadata, DocumentAttributes, InlineNode, Location, Paragraph, Plain,
-        TableColumn, TableRow,
+        Block, DocumentAttributes, InlineNode, Location, Paragraph, Plain, TableColumn, TableRow,
     };
 
     /// Create simple plain text inline nodes for testing
@@ -146,72 +145,31 @@ mod tests {
         }
     }
 
+    /// Helper to create a paragraph block with plain text content
+    fn create_paragraph_block(text: &str) -> Block {
+        Block::Paragraph(Paragraph::new(
+            create_test_inlines(text),
+            Location::default(),
+        ))
+    }
+
     #[test]
     fn test_table_with_footer() -> Result<(), Error> {
-        let table = acdc_parser::Table {
-            header: Some(TableRow {
-                columns: vec![
-                    TableColumn {
-                        content: vec![Block::Paragraph(Paragraph {
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(),
-                            content: create_test_inlines("Header 1"),
-                            location: Location::default(),
-                        })],
-                    },
-                    TableColumn {
-                        content: vec![Block::Paragraph(Paragraph {
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(),
-                            content: create_test_inlines("Header 2"),
-                            location: Location::default(),
-                        })],
-                    },
-                ],
-            }),
-            rows: vec![TableRow {
-                columns: vec![
-                    TableColumn {
-                        content: vec![Block::Paragraph(Paragraph {
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(),
-                            content: create_test_inlines("Cell 1"),
-                            location: Location::default(),
-                        })],
-                    },
-                    TableColumn {
-                        content: vec![Block::Paragraph(Paragraph {
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(),
-                            content: create_test_inlines("Cell 2"),
-                            location: Location::default(),
-                        })],
-                    },
-                ],
-            }],
-            footer: Some(TableRow {
-                columns: vec![
-                    TableColumn {
-                        content: vec![Block::Paragraph(Paragraph {
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(),
-                            content: create_test_inlines("Footer 1"),
-                            location: Location::default(),
-                        })],
-                    },
-                    TableColumn {
-                        content: vec![Block::Paragraph(Paragraph {
-                            metadata: BlockMetadata::default(),
-                            title: Vec::new(),
-                            content: create_test_inlines("Footer 2"),
-                            location: Location::default(),
-                        })],
-                    },
-                ],
-            }),
-            columns: Vec::new(),
-            location: Location::default(),
-        };
+        let table = acdc_parser::Table::new(
+            vec![TableRow::new(vec![
+                TableColumn::new(vec![create_paragraph_block("Cell 1")]),
+                TableColumn::new(vec![create_paragraph_block("Cell 2")]),
+            ])],
+            Location::default(),
+        )
+        .with_header(Some(TableRow::new(vec![
+            TableColumn::new(vec![create_paragraph_block("Header 1")]),
+            TableColumn::new(vec![create_paragraph_block("Header 2")]),
+        ])))
+        .with_footer(Some(TableRow::new(vec![
+            TableColumn::new(vec![create_paragraph_block("Footer 1")]),
+            TableColumn::new(vec![create_paragraph_block("Footer 2")]),
+        ])));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -239,22 +197,12 @@ mod tests {
 
     #[test]
     fn test_table_without_footer() -> Result<(), Error> {
-        let table = acdc_parser::Table {
-            header: None,
-            rows: vec![TableRow {
-                columns: vec![TableColumn {
-                    content: vec![Block::Paragraph(Paragraph {
-                        metadata: BlockMetadata::default(),
-                        title: Vec::new(),
-                        content: create_test_inlines("Cell"),
-                        location: Location::default(),
-                    })],
-                }],
-            }],
-            footer: None,
-            columns: Vec::new(),
-            location: Location::default(),
-        };
+        let table = acdc_parser::Table::new(
+            vec![TableRow::new(vec![TableColumn::new(vec![
+                create_paragraph_block("Cell"),
+            ])])],
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();

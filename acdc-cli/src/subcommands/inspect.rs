@@ -283,7 +283,7 @@ impl<W: Write> Visitor for TreeVisitor<W> {
                         AttributeValue::String(s) => s.clone(),
                         AttributeValue::Bool(b) => b.to_string(),
                         AttributeValue::None => "(null)".to_string(),
-                        AttributeValue::Inlines(_) => "(inline content)".to_string(),
+                        AttributeValue::Inlines(_) | _ => "(inline content)".to_string(),
                     };
                     visitor.print_tree_line(&format!("Attribute: {key}"), Some(&detail), None)?;
                 }

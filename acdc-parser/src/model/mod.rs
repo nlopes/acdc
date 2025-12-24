@@ -1,5 +1,5 @@
 //! The data models for the `AsciiDoc` document.
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, string::ToString};
 
 use serde::{
     Deserialize, Serialize,
@@ -39,6 +39,7 @@ pub use tables::{
 
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[non_exhaustive]
 pub struct Document {
     pub(crate) name: String,
     pub(crate) r#type: String,
@@ -62,6 +63,7 @@ type Subtitle = Vec<InlineNode>;
 /// The header contains the title, subtitle, authors, and optional metadata
 /// (such as ID and roles) that can be applied to the document title.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Header {
     #[serde(default, skip_serializing_if = "BlockMetadata::is_default")]
     pub metadata: BlockMetadata,
@@ -76,6 +78,7 @@ pub struct Header {
 
 /// An `Author` represents the author of a document.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Author {
     #[serde(rename = "firstname")]
     pub first_name: String,
@@ -92,11 +95,82 @@ pub struct Author {
     pub email: Option<String>,
 }
 
+impl Header {
+    /// Create a new header with the given title and location.
+    #[must_use]
+    pub fn new(title: Vec<InlineNode>, location: Location) -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            title,
+            subtitle: None,
+            authors: Vec::new(),
+            location,
+        }
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
+    /// Set the subtitle.
+    #[must_use]
+    pub fn with_subtitle(mut self, subtitle: Option<Subtitle>) -> Self {
+        self.subtitle = subtitle;
+        self
+    }
+
+    /// Set the authors.
+    #[must_use]
+    pub fn with_authors(mut self, authors: Vec<Author>) -> Self {
+        self.authors = authors;
+        self
+    }
+}
+
+impl Author {
+    /// Create a new author with the given names and initials.
+    #[must_use]
+    pub fn new(first_name: &str, middle_name: Option<&str>, last_name: Option<&str>) -> Self {
+        let initials = Self::generate_initials(first_name, middle_name, last_name);
+        let last_name = last_name.unwrap_or_default().to_string();
+        Self {
+            first_name: first_name.to_string(),
+            middle_name: middle_name.map(ToString::to_string),
+            last_name,
+            initials,
+            email: None,
+        }
+    }
+
+    /// Set the email address.
+    #[must_use]
+    pub fn with_email(mut self, email: Option<String>) -> Self {
+        self.email = email;
+        self
+    }
+
+    /// Generate initials from first, optional middle, and last name parts
+    fn generate_initials(first: &str, middle: Option<&str>, last: Option<&str>) -> String {
+        let first_initial = first.chars().next().unwrap_or_default().to_string();
+        let middle_initial = middle
+            .map(|m| m.chars().next().unwrap_or_default().to_string())
+            .unwrap_or_default();
+        let last_initial = last
+            .map(|m| m.chars().next().unwrap_or_default().to_string())
+            .unwrap_or_default();
+        first_initial + &middle_initial + &last_initial
+    }
+}
+
 /// A single-line comment in a document.
 ///
 /// Line comments begin with `//` and continue to end of line.
 /// They act as block boundaries but produce no output.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Comment {
     pub content: String,
     pub location: Location,
@@ -162,6 +236,7 @@ impl Locateable for Block {
 /// A document attribute is a key-value pair that can be used to set metadata in a
 /// document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct DocumentAttribute {
     pub name: AttributeName,
     pub value: AttributeValue,
@@ -187,6 +262,7 @@ impl Serialize for DocumentAttribute {
 /// Discrete headings are useful for making headings inside of other blocks, like a
 /// sidebar.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct DiscreteHeader {
     pub metadata: BlockMetadata,
     //#[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -197,6 +273,7 @@ pub struct DiscreteHeader {
 
 /// A `ThematicBreak` represents a thematic break in a document.
 #[derive(Clone, Default, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ThematicBreak {
     pub anchors: Vec<Anchor>,
     pub title: Vec<InlineNode>,
@@ -225,6 +302,7 @@ impl Serialize for ThematicBreak {
 
 /// A `PageBreak` represents a page break in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct PageBreak {
     pub title: Vec<InlineNode>,
     pub metadata: BlockMetadata,
@@ -269,6 +347,7 @@ impl Serialize for Comment {
 
 /// A `TableOfContents` represents a table of contents block.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct TableOfContents {
     pub metadata: BlockMetadata,
     pub location: Location,
@@ -292,6 +371,7 @@ impl Serialize for TableOfContents {
 
 /// A `Paragraph` represents a paragraph in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Paragraph {
     pub metadata: BlockMetadata,
     pub title: Vec<InlineNode>,
@@ -299,14 +379,70 @@ pub struct Paragraph {
     pub location: Location,
 }
 
+impl Paragraph {
+    /// Create a new paragraph with the given content and location.
+    #[must_use]
+    pub fn new(content: Vec<InlineNode>, location: Location) -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            title: Vec::new(),
+            content,
+            location,
+        }
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+        self.title = title;
+        self
+    }
+}
+
 /// A `DelimitedBlock` represents a delimited block in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct DelimitedBlock {
     pub metadata: BlockMetadata,
     pub inner: DelimitedBlockType,
     pub delimiter: String,
     pub title: Vec<InlineNode>,
     pub location: Location,
+}
+
+impl DelimitedBlock {
+    /// Create a new delimited block.
+    #[must_use]
+    pub fn new(inner: DelimitedBlockType, delimiter: String, location: Location) -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            inner,
+            delimiter,
+            title: Vec::new(),
+            location,
+        }
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+        self.title = title;
+        self
+    }
 }
 
 /// Notation type for mathematical expressions.
@@ -340,9 +476,18 @@ impl FromStr for StemNotation {
 
 /// Content of a stem block with math notation.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct StemContent {
     pub content: String,
     pub notation: StemNotation,
+}
+
+impl StemContent {
+    /// Create a new stem content with the given content and notation.
+    #[must_use]
+    pub fn new(content: String, notation: StemNotation) -> Self {
+        Self { content, notation }
+    }
 }
 
 /// A `DelimitedBlockType` represents the type of a delimited block in a document.

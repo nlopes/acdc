@@ -5,6 +5,7 @@ use crate::{AttributeValue, DocumentAttributes};
 /// A `Substitution` represents a substitution in a passthrough macro.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum Substitution {
     SpecialChars,
     Attributes,

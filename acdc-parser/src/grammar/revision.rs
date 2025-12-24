@@ -1,15 +1,5 @@
 use crate::{AttributeValue, DocumentAttributes};
 
-/// Generate initials from first, optional middle, and last name parts
-pub(crate) fn generate_initials(first: &str, middle: Option<&str>, last: &str) -> String {
-    let first_initial = first.chars().next().unwrap_or_default().to_string();
-    let middle_initial = middle
-        .map(|m| m.chars().next().unwrap_or_default().to_string())
-        .unwrap_or_default();
-    let last_initial = last.chars().next().unwrap_or_default().to_string();
-    first_initial + &middle_initial + &last_initial
-}
-
 /// Parsed revision information
 #[derive(Debug)]
 pub(crate) struct RevisionInfo {

@@ -184,6 +184,7 @@ impl<'de> Deserialize<'de> for Source {
 
 /// An `Audio` represents an audio block in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Audio {
     pub title: Vec<InlineNode>,
     pub source: Source,
@@ -191,8 +192,36 @@ pub struct Audio {
     pub location: Location,
 }
 
+impl Audio {
+    /// Create a new audio with the given source and location.
+    #[must_use]
+    pub fn new(source: Source, location: Location) -> Self {
+        Self {
+            title: Vec::new(),
+            source,
+            metadata: BlockMetadata::default(),
+            location,
+        }
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+        self.title = title;
+        self
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+}
+
 /// A `Video` represents a video block in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Video {
     pub title: Vec<InlineNode>,
     pub sources: Vec<Source>,
@@ -200,13 +229,68 @@ pub struct Video {
     pub location: Location,
 }
 
+impl Video {
+    /// Create a new video with the given sources and location.
+    #[must_use]
+    pub fn new(sources: Vec<Source>, location: Location) -> Self {
+        Self {
+            title: Vec::new(),
+            sources,
+            metadata: BlockMetadata::default(),
+            location,
+        }
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+        self.title = title;
+        self
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+}
+
 /// An `Image` represents an image block in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Image {
     pub title: Vec<InlineNode>,
     pub source: Source,
     pub metadata: BlockMetadata,
     pub location: Location,
+}
+
+impl Image {
+    /// Create a new image with the given source and location.
+    #[must_use]
+    pub fn new(source: Source, location: Location) -> Self {
+        Self {
+            title: Vec::new(),
+            source,
+            metadata: BlockMetadata::default(),
+            location,
+        }
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+        self.title = title;
+        self
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
 }
 
 impl Serialize for Audio {

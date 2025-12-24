@@ -18,14 +18,9 @@ impl From<&DocumentAttributes> for IconMode {
                 AttributeValue::String(s) if s == "font" => IconMode::Font,
                 AttributeValue::String(_)
                 | AttributeValue::Bool(_)
-                | AttributeValue::Inlines(_) => {
-                    tracing::warn!(
-                        ?icons_value,
-                        "Unknown icons attribute value, defaulting to Text mode"
-                    );
-                    IconMode::Text
-                }
-                AttributeValue::None => IconMode::Text,
+                | AttributeValue::None
+                | AttributeValue::Inlines(_)
+                | _ => IconMode::Text,
             }
         } else {
             IconMode::Text

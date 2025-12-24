@@ -50,7 +50,7 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
         .get(caption_attr)
         .and_then(|v| match v {
             AttributeValue::String(s) => Some(s.clone()),
-            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => None,
         })
         .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
 

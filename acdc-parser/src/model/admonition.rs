@@ -17,6 +17,7 @@ use super::metadata::BlockMetadata;
 
 /// An `Admonition` represents an admonition in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Admonition {
     pub metadata: BlockMetadata,
     pub variant: AdmonitionVariant,
@@ -52,12 +53,12 @@ impl FromStr for AdmonitionVariant {
     type Err = Error;
 
     fn from_str(variant: &str) -> Result<Self, Self::Err> {
-        match variant {
-            "NOTE" | "note" => Ok(AdmonitionVariant::Note),
-            "TIP" | "tip" => Ok(AdmonitionVariant::Tip),
-            "IMPORTANT" | "important" => Ok(AdmonitionVariant::Important),
-            "CAUTION" | "caution" => Ok(AdmonitionVariant::Caution),
-            "WARNING" | "warning" => Ok(AdmonitionVariant::Warning),
+        match variant.to_lowercase().as_str() {
+            "note" => Ok(AdmonitionVariant::Note),
+            "tip" => Ok(AdmonitionVariant::Tip),
+            "important" => Ok(AdmonitionVariant::Important),
+            "caution" => Ok(AdmonitionVariant::Caution),
+            "warning" => Ok(AdmonitionVariant::Warning),
             _ => Err(Error::Parse(
                 Box::new(SourceLocation {
                     file: None,
@@ -66,6 +67,34 @@ impl FromStr for AdmonitionVariant {
                 format!("unknown admonition variant: {variant}"),
             )),
         }
+    }
+}
+
+impl Admonition {
+    /// Create a new admonition with the given variant, blocks, and location.
+    #[must_use]
+    pub fn new(variant: AdmonitionVariant, blocks: Vec<Block>, location: Location) -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            variant,
+            blocks,
+            title: Vec::new(),
+            location,
+        }
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Vec<InlineNode>) -> Self {
+        self.title = title;
+        self
     }
 }
 

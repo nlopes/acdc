@@ -341,7 +341,7 @@ fn render_checked_status<W: Write + ?Sized>(
         Some(ListItemCheckedStatus::Unchecked) => {
             write!(w, "&#10063; ")?; // Unchecked box
         }
-        None => {}
+        Some(_) | None => {}
     }
     Ok(())
 }

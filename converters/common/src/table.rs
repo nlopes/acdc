@@ -34,7 +34,7 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
         .iter()
         .filter_map(|c| match c.width {
             ColumnWidth::Proportional(w) => Some(w),
-            ColumnWidth::Percentage(_) | ColumnWidth::Auto => None,
+            ColumnWidth::Percentage(_) | ColumnWidth::Auto | _ => None,
         })
         .sum();
 
@@ -45,9 +45,9 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
             ColumnWidth::Proportional(w) if total_proportional > 0 => {
                 (f64::from(w) / f64::from(total_proportional)) * 100.0
             }
-            // No proportional context or auto width - let renderer decide
-            ColumnWidth::Proportional(_) | ColumnWidth::Auto => 0.0,
             ColumnWidth::Percentage(p) => f64::from(p),
+            // No proportional context, auto, or unknown width - let renderer decide
+            ColumnWidth::Proportional(_) | ColumnWidth::Auto | _ => 0.0,
         })
         .collect()
 }
@@ -56,15 +56,9 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
 #[allow(clippy::indexing_slicing)]
 mod tests {
     use super::*;
-    use acdc_parser::{ColumnStyle, HorizontalAlignment, VerticalAlignment};
 
     fn make_column(width: ColumnWidth) -> ColumnFormat {
-        ColumnFormat {
-            halign: HorizontalAlignment::Left,
-            valign: VerticalAlignment::Top,
-            width,
-            style: ColumnStyle::Default,
-        }
+        ColumnFormat::new().with_width(width)
     }
 
     #[test]

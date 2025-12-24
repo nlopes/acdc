@@ -373,7 +373,8 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     }
                     acdc_parser::AttributeValue::Bool(_)
                     | acdc_parser::AttributeValue::None
-                    | acdc_parser::AttributeValue::Inlines(_) => None,
+                    | acdc_parser::AttributeValue::Inlines(_)
+                    | _ => None,
                 })
                 .unwrap_or_default();
             write!(w, "<a href=\"{}\"{class_attr}>", m.target)?;

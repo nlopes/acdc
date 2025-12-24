@@ -16,6 +16,7 @@ pub type ListLevel = u8;
 
 /// A `ListItemCheckedStatus` represents the checked status of a list item.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum ListItemCheckedStatus {
     Checked,
     Unchecked,
@@ -28,6 +29,7 @@ pub enum ListItemCheckedStatus {
 /// AST structure where principal text renders as bare `<p>` and attached blocks render
 /// with their full wrapper divs.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ListItem {
     pub level: ListLevel,
     pub marker: String,
@@ -41,6 +43,7 @@ pub struct ListItem {
 
 /// A `DescriptionList` represents a description list in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct DescriptionList {
     pub title: Vec<InlineNode>,
     pub metadata: BlockMetadata,
@@ -50,6 +53,7 @@ pub struct DescriptionList {
 
 /// A `DescriptionListItem` represents a description list item in a document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct DescriptionListItem {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
@@ -64,6 +68,7 @@ pub struct DescriptionListItem {
 
 /// A `UnorderedList` represents an unordered list in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct UnorderedList {
     pub title: Vec<InlineNode>,
     pub metadata: BlockMetadata,
@@ -74,6 +79,7 @@ pub struct UnorderedList {
 
 /// An `OrderedList` represents an ordered list in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct OrderedList {
     pub title: Vec<InlineNode>,
     pub metadata: BlockMetadata,
@@ -86,6 +92,7 @@ pub struct OrderedList {
 ///
 /// Callout lists are used to annotate code blocks with numbered references.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct CalloutList {
     pub title: Vec<InlineNode>,
     pub metadata: BlockMetadata,

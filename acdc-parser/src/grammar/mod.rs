@@ -1,5 +1,4 @@
 mod attributes;
-mod author_revision;
 mod document;
 mod inline_preprocessor;
 mod inline_processing;
@@ -9,6 +8,7 @@ mod marked_text;
 mod markup_patterns;
 mod passthrough_processing;
 mod position_tracker;
+mod revision;
 pub(crate) mod setext;
 mod state;
 mod table;

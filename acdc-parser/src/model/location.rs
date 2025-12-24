@@ -11,6 +11,7 @@ pub(crate) trait Locateable {
 
 /// A `Location` represents a location in a document.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Location {
     /// The absolute start position of the location.
     pub absolute_start: usize,
@@ -180,6 +181,7 @@ impl std::fmt::Display for Location {
 /// This is purely for display/error reporting purposes. For byte offsets,
 /// use `Location.absolute_start` and `Location.absolute_end`.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Position {
     /// The line number of the position (1-indexed).
     pub line: usize,

@@ -255,7 +255,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                 AttributeValue::String(_)
                 | AttributeValue::Bool(_)
                 | AttributeValue::Inlines(_)
-                | AttributeValue::None => {
+                | AttributeValue::None
+                | _ => {
                     writeln!(self.writer, "<html>")?;
                 }
             }

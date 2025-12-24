@@ -193,7 +193,7 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
         .get("example-caption")
         .and_then(|v| match v {
             AttributeValue::String(s) => Some(s.to_uppercase()),
-            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) => None,
+            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => None,
         })
         .unwrap_or_else(|| "EXAMPLE".to_string());
 
@@ -372,7 +372,7 @@ mod tests {
     use super::*;
     use crate::{Options, TerminalVisitor};
     use acdc_converters_common::visitor::Visitor;
-    use acdc_parser::{BlockMetadata, DocumentAttributes, Location, Paragraph, Plain};
+    use acdc_parser::{DocumentAttributes, Location, Paragraph, Plain};
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
@@ -400,13 +400,11 @@ mod tests {
 
     #[test]
     fn test_listing_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code content here")),
-            title: Vec::new(),
-            delimiter: "----".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code content here")),
+            "----".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -430,13 +428,12 @@ mod tests {
 
     #[test]
     fn test_listing_block_with_title() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            title: create_test_inlines("My Code Listing"),
-            delimiter: "----".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
+            "----".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("My Code Listing"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -460,13 +457,11 @@ mod tests {
 
     #[test]
     fn test_literal_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            title: Vec::new(),
-            delimiter: "....".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
+            "....".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -489,13 +484,12 @@ mod tests {
 
     #[test]
     fn test_literal_block_with_title() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal content")),
-            title: create_test_inlines("Literal Block Title"),
-            delimiter: "....".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal content")),
+            "....".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Literal Block Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -522,20 +516,16 @@ mod tests {
 
     #[test]
     fn test_example_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("example text"),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("example text"),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedExample(content),
-            title: Vec::new(),
-            delimiter: "====".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(content),
+            "====".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -556,20 +546,17 @@ mod tests {
 
     #[test]
     fn test_example_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("example content"),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("example content"),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedExample(content),
-            title: create_test_inlines("Custom Example Title"),
-            delimiter: "====".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(content),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Custom Example Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -594,20 +581,16 @@ mod tests {
 
     #[test]
     fn test_quote_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("This is a quote."),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("This is a quote."),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedQuote(content),
-            title: Vec::new(),
-            delimiter: "____".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedQuote(content),
+            "____".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -627,20 +610,17 @@ mod tests {
 
     #[test]
     fn test_quote_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("Quote content here."),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("Quote content here."),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedQuote(content),
-            title: create_test_inlines("Quote Title"),
-            delimiter: "____".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedQuote(content),
+            "____".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Quote Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -662,27 +642,21 @@ mod tests {
     #[test]
     fn test_quote_block_multiple_paragraphs() -> Result<(), Error> {
         let content = vec![
-            Block::Paragraph(Paragraph {
-                content: create_test_inlines("First paragraph."),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            }),
-            Block::Paragraph(Paragraph {
-                content: create_test_inlines("Second paragraph."),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            }),
+            Block::Paragraph(Paragraph::new(
+                create_test_inlines("First paragraph."),
+                Location::default(),
+            )),
+            Block::Paragraph(Paragraph::new(
+                create_test_inlines("Second paragraph."),
+                Location::default(),
+            )),
         ];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedQuote(content),
-            title: Vec::new(),
-            delimiter: "____".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedQuote(content),
+            "____".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -705,20 +679,16 @@ mod tests {
 
     #[test]
     fn test_sidebar_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("Sidebar content."),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("Sidebar content."),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedSidebar(content),
-            title: Vec::new(),
-            delimiter: "****".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedSidebar(content),
+            "****".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -739,20 +709,17 @@ mod tests {
 
     #[test]
     fn test_sidebar_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("Sidebar text here."),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("Sidebar text here."),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedSidebar(content),
-            title: create_test_inlines("Sidebar Title"),
-            delimiter: "****".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedSidebar(content),
+            "****".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Sidebar Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -775,27 +742,21 @@ mod tests {
     #[test]
     fn test_sidebar_block_multiple_paragraphs() -> Result<(), Error> {
         let content = vec![
-            Block::Paragraph(Paragraph {
-                content: create_test_inlines("First sidebar paragraph."),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            }),
-            Block::Paragraph(Paragraph {
-                content: create_test_inlines("Second sidebar paragraph."),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            }),
+            Block::Paragraph(Paragraph::new(
+                create_test_inlines("First sidebar paragraph."),
+                Location::default(),
+            )),
+            Block::Paragraph(Paragraph::new(
+                create_test_inlines("Second sidebar paragraph."),
+                Location::default(),
+            )),
         ];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedSidebar(content),
-            title: Vec::new(),
-            delimiter: "****".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedSidebar(content),
+            "****".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -818,20 +779,16 @@ mod tests {
 
     #[test]
     fn test_open_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("Open block content."),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("Open block content."),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedOpen(content),
-            title: Vec::new(),
-            delimiter: "--".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedOpen(content),
+            "--".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -856,20 +813,17 @@ mod tests {
 
     #[test]
     fn test_open_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("Content here."),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("Content here."),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedOpen(content),
-            title: create_test_inlines("Open Block Title"),
-            delimiter: "--".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedOpen(content),
+            "--".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Open Block Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -892,15 +846,13 @@ mod tests {
 
     #[test]
     fn test_verse_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedVerse(create_test_inlines(
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedVerse(create_test_inlines(
                 "Roses are red\nViolets are blue",
             )),
-            title: Vec::new(),
-            delimiter: "____".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+            "____".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -919,15 +871,12 @@ mod tests {
 
     #[test]
     fn test_verse_block_with_title() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedVerse(create_test_inlines(
-                "Poetry line 1\nPoetry line 2",
-            )),
-            title: create_test_inlines("Poem Title"),
-            delimiter: "____".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedVerse(create_test_inlines("Poetry line 1\nPoetry line 2")),
+            "____".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Poem Title"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -947,13 +896,11 @@ mod tests {
 
     #[test]
     fn test_pass_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedPass(create_test_inlines("<raw>passthrough</raw>")),
-            title: Vec::new(),
-            delimiter: "++++".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedPass(create_test_inlines("<raw>passthrough</raw>")),
+            "++++".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -974,18 +921,13 @@ mod tests {
     fn test_stem_block_placeholder() -> Result<(), Error> {
         use acdc_parser::{StemContent, StemNotation};
 
-        let stem_content = StemContent {
-            content: "x = y^2".to_string(),
-            notation: StemNotation::Latexmath,
-        };
+        let stem_content = StemContent::new("x = y^2".to_string(), StemNotation::Latexmath);
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedStem(stem_content),
-            title: Vec::new(),
-            delimiter: "++++".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedStem(stem_content),
+            "++++".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1004,13 +946,11 @@ mod tests {
 
     #[test]
     fn test_comment_block_not_rendered() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedComment(create_test_inlines("This is a comment")),
-            title: Vec::new(),
-            delimiter: "////".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedComment(create_test_inlines("This is a comment")),
+            "////".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1032,13 +972,11 @@ mod tests {
 
     #[test]
     fn test_empty_listing_block() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedListing(Vec::new()),
-            title: Vec::new(),
-            delimiter: "----".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(Vec::new()),
+            "----".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1058,13 +996,11 @@ mod tests {
 
     #[test]
     fn test_empty_quote_block() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedQuote(Vec::new()),
-            title: Vec::new(),
-            delimiter: "____".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedQuote(Vec::new()),
+            "____".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1085,15 +1021,13 @@ mod tests {
 
     #[test]
     fn test_listing_with_special_characters() -> Result<(), Error> {
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedListing(create_test_inlines(
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(create_test_inlines(
                 "<html>&amp; special chars \"quotes\" 'apostrophes'",
             )),
-            title: Vec::new(),
-            delimiter: "----".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+            "----".to_string(),
+            Location::default(),
+        );
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1114,20 +1048,17 @@ mod tests {
     #[test]
     fn test_nested_example_with_listing() -> Result<(), Error> {
         // Test an example block containing a paragraph with listing-like content
-        let content = vec![Block::Paragraph(Paragraph {
-            content: create_test_inlines("This example shows: code snippet"),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-            title: Vec::new(),
-        })];
+        let content = vec![Block::Paragraph(Paragraph::new(
+            create_test_inlines("This example shows: code snippet"),
+            Location::default(),
+        ))];
 
-        let block = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedExample(content),
-            title: create_test_inlines("Nested Content"),
-            delimiter: "====".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(content),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Nested Content"));
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -1153,46 +1084,37 @@ mod tests {
         let processor = create_test_processor();
 
         // Create first example with title
-        let block1 = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph {
-                content: create_test_inlines("first example"),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            })]),
-            title: create_test_inlines("First Example"),
-            delimiter: "====".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block1 = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
+                create_test_inlines("first example"),
+                Location::default(),
+            ))]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("First Example"));
 
         // Create second example with title
-        let block2 = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph {
-                content: create_test_inlines("second example"),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            })]),
-            title: create_test_inlines("Second Example"),
-            delimiter: "====".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block2 = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
+                create_test_inlines("second example"),
+                Location::default(),
+            ))]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Second Example"));
 
         // Create third example with title
-        let block3 = DelimitedBlock {
-            inner: DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph {
-                content: create_test_inlines("third example"),
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            })]),
-            title: create_test_inlines("Third Example"),
-            delimiter: "====".to_string(),
-            location: Location::default(),
-            metadata: BlockMetadata::default(),
-        };
+        let block3 = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
+                create_test_inlines("third example"),
+                Location::default(),
+            ))]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_title(create_test_inlines("Third Example"));
 
         // Render all three examples
         let mut buffer1 = Vec::new();

@@ -12,7 +12,6 @@ use crate::{
     grammar::{
         ParserState,
         attributes::AttributeEntry,
-        author_revision::{RevisionInfo, generate_initials, process_revision_info},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{
@@ -23,6 +22,7 @@ use crate::{
             derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text,
             is_manpage_doctype,
         },
+        revision::{RevisionInfo, process_revision_info},
         table::parse_table_cell,
     },
     model::{ListLevel, Locateable, SectionLevel},
@@ -484,33 +484,15 @@ peg::parser! {
 
         /// Parse author name in format: "First [Middle] Last" or just "First"
         rule author_name() -> Author
-            = first:name_part() whitespace()+ middle:name_part() whitespace()+ last:$(name_part() ++ whitespace()) {
-                Author {
-                    first_name: first.to_string(),
-                    middle_name: Some(middle.to_string()),
-                    last_name: last.to_string(),
-                    initials: generate_initials(first, Some(middle), last),
-                    email: None,
-                }
-            }
-            / first:name_part() whitespace()+ last:name_part() {
-                Author {
-                    first_name: first.to_string(),
-                    middle_name: None,
-                    last_name: last.to_string(),
-                    initials: generate_initials(first, None, last),
-                    email: None,
-                }
-            }
-            / first:name_part() {
-                Author {
-                    first_name: first.to_string(),
-                    middle_name: None,
-                    last_name: String::new(),
-                    initials: generate_initials(first, None, ""),
-                    email: None,
-                }
-            }
+        = first:name_part() whitespace()+ middle:name_part() whitespace()+ last:$(name_part() ++ whitespace()) {
+            Author::new(first, Some(middle), Some(last))
+        }
+        / first:name_part() whitespace()+ last:name_part() {
+            Author::new(first, None, Some(last))
+        }
+        / first:name_part() {
+            Author::new(first, None, None)
+        }
 
         /// Parse email address in format: " <email@domain>"
         rule author_email() -> &'input str
@@ -1141,13 +1123,7 @@ peg::parser! {
             let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
                 tracing::debug!(?admonition_variant, "Detected admonition block with variant");
                 metadata.style = None; // Clear style to avoid confusion (reuse existing clone)
-                return Ok(Block::Admonition(Admonition {
-                    variant: admonition_variant,
-                    blocks,
-                    metadata,
-                    title: block_metadata.title.clone(),
-                    location,
-                }));
+                return Ok(Block::Admonition(Admonition::new(admonition_variant, blocks, location).with_metadata(metadata).with_title(block_metadata.title.clone())));
             }
 
             Ok(Block::DelimitedBlock(DelimitedBlock {

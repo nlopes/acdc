@@ -9,6 +9,7 @@ pub type SectionLevel = u8;
 
 /// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Section {
     pub metadata: BlockMetadata,
     pub title: Vec<InlineNode>,
@@ -17,8 +18,35 @@ pub struct Section {
     pub location: Location,
 }
 
+impl Section {
+    /// Create a new section with the given title, level, content, and location.
+    #[must_use]
+    pub fn new(
+        title: Vec<InlineNode>,
+        level: SectionLevel,
+        content: Vec<Block>,
+        location: Location,
+    ) -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            title,
+            level,
+            content,
+            location,
+        }
+    }
+
+    /// Set the metadata.
+    #[must_use]
+    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+        self.metadata = metadata;
+        self
+    }
+}
+
 /// A `SafeId` represents a sanitised ID.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum SafeId {
     Generated(String),
     Explicit(String),

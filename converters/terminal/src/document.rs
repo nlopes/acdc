@@ -112,8 +112,7 @@ mod tests {
     use super::*;
     use crate::{Options, Processor};
     use acdc_parser::{
-        Author, Block, BlockMetadata, Document, Header, InlineNode, Location, Paragraph, Plain,
-        Section,
+        Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section,
     };
 
     #[test]
@@ -146,19 +145,10 @@ mod tests {
             content: "Title".to_string(),
             location: Location::default(),
         })];
-        doc.header = Some(Header {
-            metadata: BlockMetadata::default(),
-            title,
-            subtitle: None,
-            authors: vec![Author {
-                first_name: "John".to_string(),
-                middle_name: Some("M".to_string()),
-                last_name: "Doe".to_string(),
-                initials: "JMD".to_string(),
-                email: Some("johndoe@example.com".to_string()),
-            }],
-            location: Location::default(),
-        });
+        doc.header = Some(Header::new(title, Location::default()).with_authors(vec![
+            Author::new("John", Some("M"), Some("Doe"))
+                    .with_email(Some("johndoe@example.com".to_string())),
+            ]));
         doc.blocks = vec![];
         let buffer = Vec::new();
         let options = Options::default();
@@ -182,33 +172,28 @@ mod tests {
         use crate::Appearance;
         let mut doc = Document::default();
         doc.blocks = vec![
-            Block::Paragraph(Paragraph {
-                content: vec![InlineNode::PlainText(Plain {
+            Block::Paragraph(Paragraph::new(
+                vec![InlineNode::PlainText(Plain {
                     content: "Hello, world!".to_string(),
                     location: Location::default(),
                 })],
-                location: Location::default(),
-                metadata: BlockMetadata::default(),
-                title: Vec::new(),
-            }),
-            Block::Section(Section {
-                title: vec![InlineNode::PlainText(Plain {
+                Location::default(),
+            )),
+            Block::Section(Section::new(
+                vec![InlineNode::PlainText(Plain {
                     content: "Section".to_string(),
                     location: Location::default(),
                 })],
-                content: vec![Block::Paragraph(Paragraph {
-                    content: vec![InlineNode::PlainText(Plain {
+                1,
+                vec![Block::Paragraph(Paragraph::new(
+                    vec![InlineNode::PlainText(Plain {
                         content: "Hello, section!".to_string(),
                         location: Location::default(),
                     })],
-                    location: Location::default(),
-                    metadata: BlockMetadata::default(),
-                    title: Vec::new(),
-                })],
-                location: Location::default(),
-                level: 1,
-                metadata: BlockMetadata::default(),
-            }),
+                    Location::default(),
+                ))],
+                Location::default(),
+            )),
         ];
         let buffer = Vec::new();
         let options = Options::default();

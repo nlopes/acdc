@@ -326,6 +326,7 @@ pub type AttributeName = String;
 /// An attribute value can be a string, a boolean, or nothing
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum AttributeValue {
     /// A string attribute value.
     String(String),
