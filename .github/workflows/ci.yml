@@ -44,3 +44,22 @@ jobs:
 
     - name: Run clippy
       run: cargo clippy --all-targets --all-features --tests -- --deny clippy::pedantic
+
+    - name: Check parser fixtures
+      run: |
+        echo "::group::Checking parser fixtures"
+        # Generate fresh fixtures to temp directory
+        cargo run -p acdc-parser --example generate_parser_fixtures -- --output-dir /tmp/fixtures
+
+        # Compare with committed fixtures
+        if ! diff -r acdc-parser/fixtures/tests /tmp/fixtures > /tmp/fixture-diff.txt 2>&1; then
+          echo "::warning::Fixtures are out of sync with current parser output"
+          echo "Differences found:"
+          head -100 /tmp/fixture-diff.txt
+          echo ""
+          echo "If these changes are intentional, run: cargo run -p acdc-parser --example generate_parser_fixtures"
+        else
+          echo "✓ Fixtures are up to date"
+        fi
+        echo "::endgroup::"
+      continue-on-error: true
