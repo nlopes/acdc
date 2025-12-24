@@ -193,7 +193,7 @@ fn render_example_block<V: WritableVisitor<Error = Error>>(
         .get("example-caption")
         .and_then(|v| match v {
             AttributeValue::String(s) => Some(s.to_uppercase()),
-            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => None,
+            AttributeValue::Bool(_) | AttributeValue::None | _ => None,
         })
         .unwrap_or_else(|| "EXAMPLE".to_string());
 

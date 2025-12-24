@@ -98,8 +98,7 @@ impl Serialize for AttributeMap {
                     }
                     value @ (AttributeValue::Bool(false)
                     | AttributeValue::String(_)
-                    | AttributeValue::None
-                    | AttributeValue::Inlines(_)) => {
+                    | AttributeValue::None) => {
                         state.serialize_entry(key, value)?;
                     }
                 }
@@ -190,7 +189,7 @@ impl DocumentAttributes {
                 let trimmed = s.trim_matches('"');
                 Some(trimmed.to_string())
             }
-            AttributeValue::None | AttributeValue::Bool(_) | AttributeValue::Inlines(_) => None,
+            AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }
 }
@@ -295,7 +294,7 @@ impl ElementAttributes {
                 let trimmed = s.trim_matches('"');
                 Some(trimmed.to_string())
             }
-            AttributeValue::None | AttributeValue::Bool(_) | AttributeValue::Inlines(_) => None,
+            AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }
 }
@@ -334,9 +333,6 @@ pub enum AttributeValue {
     Bool(bool),
     /// No value (or it was unset)
     None,
-
-    /// A list of inline elements - used for the inline preprocessor only!
-    Inlines(Vec<crate::InlineNode>),
 }
 
 impl std::fmt::Display for AttributeValue {
@@ -345,10 +341,6 @@ impl std::fmt::Display for AttributeValue {
             AttributeValue::String(value) => write!(f, "{value}"),
             AttributeValue::Bool(value) => write!(f, "{value}"),
             AttributeValue::None => write!(f, "null"),
-            inlines @ AttributeValue::Inlines(_) => {
-                tracing::error!(?inlines, "Attempted to display Inlines attribute value");
-                Ok(())
-            }
         }
     }
 }

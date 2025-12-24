@@ -16,11 +16,9 @@ impl From<&DocumentAttributes> for IconMode {
                 AttributeValue::String(s) if s == "image" => IconMode::Image,
                 AttributeValue::Bool(true) => IconMode::Image,
                 AttributeValue::String(s) if s == "font" => IconMode::Font,
-                AttributeValue::String(_)
-                | AttributeValue::Bool(_)
-                | AttributeValue::None
-                | AttributeValue::Inlines(_)
-                | _ => IconMode::Text,
+                AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => {
+                    IconMode::Text
+                }
             }
         } else {
             IconMode::Text

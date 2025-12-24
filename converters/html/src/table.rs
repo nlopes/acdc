@@ -82,9 +82,7 @@ where
             .get("table-caption")
             .and_then(|v| match v {
                 AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
-                    None
-                }
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             })
             .unwrap_or("Table");
         visitor.render_title_with_wrapper(
@@ -106,7 +104,7 @@ fn render_colgroup<W: std::io::Write + ?Sized>(
     let col_count = if let Some(cols_value) = metadata.attributes.get("cols") {
         let cols_str = match cols_value {
             AttributeValue::String(s) => s.trim_matches('"'),
-            AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => "",
+            AttributeValue::Bool(_) | AttributeValue::None | _ => "",
         };
 
         // Handle multiplier syntax like "3*" or "2*~"

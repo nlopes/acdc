@@ -82,10 +82,9 @@ impl Processor {
             .get("manvolnum")
             .and_then(|v| match v {
                 acdc_parser::AttributeValue::String(s) => Some(s.clone()),
-                acdc_parser::AttributeValue::Bool(_)
-                | acdc_parser::AttributeValue::None
-                | acdc_parser::AttributeValue::Inlines(_)
-                | _ => None,
+                acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => {
+                    None
+                }
             })
             .unwrap_or_else(|| String::from("1"))
     }

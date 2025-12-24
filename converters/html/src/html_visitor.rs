@@ -252,11 +252,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                 AttributeValue::String(lang_value) if !lang_value.is_empty() => {
                     writeln!(self.writer, "<html lang=\"{lang_value}\">")?;
                 }
-                AttributeValue::String(_)
-                | AttributeValue::Bool(_)
-                | AttributeValue::Inlines(_)
-                | AttributeValue::None
-                | _ => {
+                AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => {
                     writeln!(self.writer, "<html>")?;
                 }
             }

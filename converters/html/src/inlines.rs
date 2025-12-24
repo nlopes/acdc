@@ -373,7 +373,6 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     }
                     acdc_parser::AttributeValue::Bool(_)
                     | acdc_parser::AttributeValue::None
-                    | acdc_parser::AttributeValue::Inlines(_)
                     | _ => None,
                 })
                 .unwrap_or_default();

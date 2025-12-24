@@ -27,9 +27,7 @@ impl Config {
                 AttributeValue::String(s) => s.as_str(),
                 AttributeValue::Bool(true) => "auto",
                 // Bool(false), None, or unknown means toc is disabled
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
-                    "none"
-                }
+                AttributeValue::Bool(_) | AttributeValue::None | _ => "none",
             })
             .to_lowercase();
 
@@ -37,9 +35,7 @@ impl Config {
             .get("toc-title")
             .and_then(|v| match v {
                 AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
-                    None
-                }
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             })
             .map(String::from);
 
@@ -48,18 +44,13 @@ impl Config {
             .and_then(|toc| toc.metadata.attributes.get("levels"))
             .and_then(|v| match v {
                 AttributeValue::String(s) => s.parse::<u8>().ok(),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
-                    None
-                }
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             })
             .or_else(|| {
                 // Fall back to document-level toclevels attribute
                 attributes.get("toclevels").and_then(|v| match v {
                     AttributeValue::String(s) => s.parse::<u8>().ok(),
-                    AttributeValue::Bool(_)
-                    | AttributeValue::None
-                    | AttributeValue::Inlines(_)
-                    | _ => None,
+                    AttributeValue::Bool(_) | AttributeValue::None | _ => None,
                 })
             })
             .unwrap_or(2);
@@ -71,11 +62,9 @@ impl Config {
             .get("toc-class")
             .and_then(|v| match v {
                 AttributeValue::String(s) if !s.is_empty() => Some(s.clone()),
-                AttributeValue::String(_)
-                | AttributeValue::Bool(_)
-                | AttributeValue::None
-                | AttributeValue::Inlines(_)
-                | _ => None,
+                AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => {
+                    None
+                }
             })
             .unwrap_or_else(|| match placement.as_str() {
                 "left" | "right" | "top" | "bottom" => "toc2".to_string(),

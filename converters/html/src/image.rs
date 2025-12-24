@@ -64,9 +64,7 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
             .get("figure-caption")
             .and_then(|v| match v {
                 AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | AttributeValue::Inlines(_) | _ => {
-                    None
-                }
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             })
             .unwrap_or("Figure");
         let _ = w;
