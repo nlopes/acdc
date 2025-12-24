@@ -4051,39 +4051,79 @@ peg::parser! {
             (variant.to_string(), start, end)
         }
 
-        rule anchor() -> Anchor
-        = result:(
-            // Double-bracket [[id]] syntax - allows dots in ID since no role shorthand possible
-            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) comma() reftext:$([^']']+) double_close_square_bracket() end:position!() eol() {
-                (start, id, Some(reftext), end)
-            } /
-            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']']+) double_close_square_bracket() end:position!() eol() {
-                (start, id, None, end)
-            } /
-            // Single-bracket [#id] shorthand - exclude '.', '%' as they start role/option shorthands
-            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']' | '.' | '%']+) comma() reftext:$([^']']+) close_square_bracket() end:position!() eol() {
-                (start, id, Some(reftext), end)
-            } /
-            start:position!() open_square_bracket() "#" id:$([^'\'' | ',' | ']' | '.' | '%']+) close_square_bracket() end:position!() eol() {
-                (start, id, None, end)
-            }) {
-                let (start, id, reftext, end) = result;
-                Anchor {
-                    id: id.to_string(),
-                    xreflabel: reftext.map(ToString::to_string),
-                    location: state.create_location(start, end)
+        // Lookahead rule that warns about anchor ID-like patterns containing whitespace.
+        //
+        // This uses negative lookahead and emits a warning if it detects whitespace. It
+        // does not consume the input.
+        rule warn_anchor_id_with_whitespace() -> ()
+        = start:position!()
+        &(
+            id:$([^'\'' | ',' | ']' | '.' | '#']+)
+            end:position!()
+            {?
+                if id.chars().any(char::is_whitespace) {
+                    tracing::warn!(anchor_id = %id, location = ?state.create_location(start, end), "anchor id contains whitespace which is not allowed, treating as literal text");
                 }
+                // Always fail so the lookahead doesn't match - we just want the side
+                // effect
+                Err::<(), &'static str>("")
             }
+        )
+
+        rule anchor() -> Anchor
+        = start:position!()
+        result:(
+            // Double-bracket [[id]] syntax - allows dots in ID since no role shorthand
+            // possible.
+            //
+            // Whitespace is excluded per AsciiDoc documentation at
+            // https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#valid-id-characters
+            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) double_close_square_bracket() {
+                (id, Some(reftext))
+            } /
+            start:position!() double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) double_close_square_bracket() {
+                (id, None)
+            } /
+            // Single-bracket [#id] shorthand - exclude '.', '%' as they start role/option
+            // shorthands
+            //
+            // Whitespace is excluded per AsciiDoc documentation at
+            // https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#valid-id-characters
+            start:position!() open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) close_square_bracket() {
+                (id, Some(reftext))
+            } /
+            start:position!() open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) close_square_bracket() {
+                (id, None)
+            }
+        )
+        end:position!()
+        eol()
+        {
+            let (id, reftext) = result;
+            Anchor {
+                id: id.to_string(),
+                xreflabel: reftext.map(ToString::to_string),
+                location: state.create_location(start, end)
+            }
+        }
 
         rule inline_anchor(offset: usize) -> InlineNode
-        = result:(
-            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']' | '.']+) comma() reftext:$([^']']+) double_close_square_bracket() end:position!() {
-                (start, id, Some(reftext), end)
+        = start:position!()
+        double_open_square_bracket()
+        // Whitespace is excluded - IDs must not contain spaces
+        warn_anchor_id_with_whitespace()?
+        id:$([^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+)
+        reftext:(
+            comma() reftext:$([^']']+) {
+                Some(reftext)
             } /
-            start:position!() double_open_square_bracket() id:$([^'\'' | ',' | ']' | '.']+) double_close_square_bracket() end:position!() {
-                (start, id, None, end)
-            }) {
-                let (start, id, reftext, end) = result;
+            {
+                None
+            }
+        )
+        double_close_square_bracket()
+        end:position!()
+        {
                 InlineNode::InlineAnchor(Anchor {
                     id: id.to_string(),
                     xreflabel: reftext.map(ToString::to_string),
@@ -4092,7 +4132,7 @@ peg::parser! {
             }
 
         rule inline_anchor_match() -> ()
-        = double_open_square_bracket() [^'\'' | ',' | ']' | '.']+ (comma() [^']']+)? double_close_square_bracket()
+        = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
             // FUNCTIONAL: Don't match empty [] followed by blank line - that's a list separator, not block attributes

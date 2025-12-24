@@ -1,0 +1,20 @@
+= Anchor with Spaces Test
+
+IDs with spaces are not valid per HTML5 spec.
+The anchor syntax should not match, treating the text as literal content.
+
+[[my section id]]
+== Section with Space in Anchor
+
+This section's anchor has spaces, so it should NOT be parsed as an anchor.
+Instead, the [[...]] should become literal text in the preamble.
+
+[#another space id]
+== Section with Space in Shorthand
+
+Same behavior for shorthand syntax with spaces.
+
+[[valid-id]]
+== Valid ID Section
+
+This section has a valid ID without spaces.
