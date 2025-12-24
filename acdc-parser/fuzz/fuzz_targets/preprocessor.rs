@@ -1,7 +1,7 @@
 #![no_main]
 
+use acdc_parser::{AttributeValue, DocumentAttributes, Options, parse};
 use libfuzzer_sys::fuzz_target;
-use acdc_parser::{parse, DocumentAttributes, AttributeValue, Options};
 
 fuzz_target!(|data: &[u8]| {
     // Convert bytes to string, ignoring invalid UTF-8
@@ -10,13 +10,16 @@ fuzz_target!(|data: &[u8]| {
         let mut attributes = DocumentAttributes::default();
 
         // Add some attributes that might trigger substitutions
-        attributes.insert("myattr".to_string(), AttributeValue::String("value".to_string()));
-        attributes.insert("version".to_string(), AttributeValue::String("1.0".to_string()));
+        attributes.insert(
+            "myattr".to_string(),
+            AttributeValue::String("value".to_string()),
+        );
+        attributes.insert(
+            "version".to_string(),
+            AttributeValue::String("1.0".to_string()),
+        );
 
-        let options = Options {
-            document_attributes: attributes,
-            ..Default::default()
-        };
+        let options = Options::builder().with_attributes(attributes).build();
 
         // Parse input which will exercise:
         // - Attribute reference substitutions
