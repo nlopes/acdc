@@ -211,6 +211,7 @@ impl fmt::Display for Positioning {
 
 /// Source location information combining file path and positioning
 #[derive(Debug, PartialEq, Deserialize)]
+#[non_exhaustive]
 pub struct SourceLocation {
     #[serde(skip)]
     pub file: Option<PathBuf>,

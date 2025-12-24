@@ -375,10 +375,9 @@ mod tests {
     use crate::{Options, TerminalVisitor};
     use acdc_converters_common::visitor::Visitor;
     use acdc_parser::{
-        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, DocumentAttributes,
-        ElementAttributes, Form, Highlight, Image, InlineMacro, Italic, Keyboard, LineBreak, Link,
-        Location, Monospace, Paragraph, Plain, Source, StandaloneCurvedApostrophe, Subscript,
-        Superscript,
+        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, DocumentAttributes, Form,
+        Highlight, Image, InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace,
+        Paragraph, Plain, Source, StandaloneCurvedApostrophe, Subscript, Superscript,
     };
 
     /// Create simple plain text inline node for testing
@@ -644,12 +643,10 @@ mod tests {
 
     #[test]
     fn test_link_macro() -> Result<(), Error> {
-        let link = InlineNode::Macro(InlineMacro::Link(Link {
-            target: Source::Name("https://example.com".to_string()),
-            text: None,
-            attributes: ElementAttributes::default(),
-            location: Location::default(),
-        }));
+        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+            Source::Name("https://example.com".to_string()),
+            Location::default(),
+        )));
 
         let output = render_paragraph(vec![link])?;
         assert!(
@@ -676,10 +673,10 @@ mod tests {
 
     #[test]
     fn test_keyboard_macro() -> Result<(), Error> {
-        let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
-            keys: vec!["Ctrl".to_string(), "C".to_string()],
-            location: Location::default(),
-        }));
+        let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard::new(
+            vec!["Ctrl".to_string(), "C".to_string()],
+            Location::default(),
+        )));
 
         let output = render_paragraph(vec![kbd])?;
         assert!(
@@ -691,11 +688,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_with_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference {
-            target: "section-id".to_string(),
-            text: Some("See Section 1".to_string()),
-            location: Location::default(),
-        }));
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(
+            CrossReference::new("section-id", Location::default())
+                .with_text(Some("See Section 1".to_string())),
+        ));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -711,11 +707,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_without_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference {
-            target: "section-id".to_string(),
-            text: None,
-            location: Location::default(),
-        }));
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference::new(
+            "section-id",
+            Location::default(),
+        )));
 
         let output = render_paragraph(vec![xref])?;
         assert!(

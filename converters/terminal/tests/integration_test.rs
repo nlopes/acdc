@@ -52,10 +52,8 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
 
     // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options = ParserOptions {
-        document_attributes: acdc_converters_common::default_rendering_attributes(),
-        ..Default::default()
-    };
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_common::default_rendering_attributes());
     let doc = acdc_parser::parse_file(&input_path, &parser_options)?;
 
     // Convert to Terminal output

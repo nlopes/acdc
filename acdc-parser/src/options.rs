@@ -3,6 +3,7 @@ use acdc_core::SafeMode;
 use crate::{AttributeValue, DocumentAttributes};
 
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct Options {
     pub safe_mode: SafeMode,
     pub timings: bool,
@@ -91,6 +92,7 @@ impl Options {
 ///     .build();
 /// ```
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct OptionsBuilder {
     safe_mode: SafeMode,
     timings: bool,
