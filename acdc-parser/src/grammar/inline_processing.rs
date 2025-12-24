@@ -61,15 +61,14 @@ pub(crate) fn adjust_and_log_parse_error(
     tracing::error!(?adjusted_error, ?context, "Parsing error occurred");
 }
 
-#[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
 pub(crate) fn preprocess_inline_content(
     state: &ParserState,
-    start: usize,
     content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
     content: &str,
-) -> Result<(Location, Location, ProcessedContent), Error> {
+) -> Result<(Location, ProcessedContent), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
     let mut adjusted_end = end + offset;
     if adjusted_end > 0 && adjusted_end <= state.input.len() {
@@ -79,14 +78,6 @@ pub(crate) fn preprocess_inline_content(
         }
     }
 
-    // Create initial location for the entire content before inline processing
-    let initial_end_offset = if adjusted_end == 0 {
-        0
-    } else {
-        crate::grammar::utf8_utils::safe_decrement_offset(&state.input, adjusted_end)
-    };
-    let initial_location = state.create_location(start + offset, initial_end_offset);
-    // parse the inline content - this needs to be handed over to the inline preprocessing
     let mut inline_state = InlinePreprocessorParserState::new(content);
 
     // We adjust the start and end positions to account for the content start offset
@@ -107,7 +98,7 @@ pub(crate) fn preprocess_inline_content(
     );
 
     let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)?;
-    Ok((initial_location, location, processed))
+    Ok((location, processed))
 }
 
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
@@ -143,21 +134,17 @@ pub(crate) fn parse_inlines(
 /// This function processes inline content by first preprocessing it and then parsing it
 /// into inline nodes. Then, it maps the locations of the parsed inline nodes back to their
 /// original positions in the source.
-#[tracing::instrument(skip_all, fields(?start, ?content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
 pub(crate) fn process_inlines(
     state: &mut ParserState,
     block_metadata: &BlockParsingMetadata,
-    start: usize,
     content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
     content: &str,
-) -> Result<(Vec<InlineNode>, Location), Error> {
-    // Preprocess the inline content first
-    let (initial_location, location, processed) =
-        preprocess_inline_content(state, start, content_start, end, offset, content)?;
+) -> Result<Vec<InlineNode>, Error> {
+    let (location, processed) =
+        preprocess_inline_content(state, content_start, end, offset, content)?;
     let content = parse_inlines(&processed, state, block_metadata, &location)?;
-    let content =
-        super::location_mapping::map_inline_locations(state, &processed, &content, &location)?;
-    Ok((content, initial_location))
+    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
 }
