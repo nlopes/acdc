@@ -20,6 +20,11 @@ pub fn visit_section<W: Write>(
 ) -> Result<(), Error> {
     let title_text = extract_plain_text(&section.title);
 
+    // Track level-1 section titles for convention validation
+    if section.level == 1 {
+        visitor.record_section_title(&title_text);
+    }
+
     // Check if this is the NAME section (which has special formatting rules)
     let is_name_section = title_text.eq_ignore_ascii_case("name");
 

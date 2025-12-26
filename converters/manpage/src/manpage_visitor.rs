@@ -19,6 +19,10 @@ pub struct ManpageVisitor<W: Write> {
     pub(crate) list_depth: usize,
     /// Whether we're currently in the NAME section (which shouldn't have .PP before content).
     pub(crate) in_name_section: bool,
+    /// Title of the first level-1 section (for NAME validation).
+    first_section_title: Option<String>,
+    /// Title of the second level-1 section (for SYNOPSIS validation).
+    second_section_title: Option<String>,
 }
 
 impl<W: Write> ManpageVisitor<W> {
@@ -29,6 +33,17 @@ impl<W: Write> ManpageVisitor<W> {
             processor,
             list_depth: 0,
             in_name_section: false,
+            first_section_title: None,
+            second_section_title: None,
+        }
+    }
+
+    /// Record a level-1 section title for validation.
+    pub(crate) fn record_section_title(&mut self, title: &str) {
+        if self.first_section_title.is_none() {
+            self.first_section_title = Some(title.to_string());
+        } else if self.second_section_title.is_none() {
+            self.second_section_title = Some(title.to_string());
         }
     }
 
@@ -113,7 +128,23 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        // No special cleanup needed for manpages
+        // Validate manpage section order conventions
+        if let Some(ref first) = self.first_section_title
+            && !first.eq_ignore_ascii_case("NAME")
+        {
+            tracing::warn!(
+                first_section = %first,
+                "manpage convention: NAME should be the first section"
+            );
+        }
+        if let Some(ref second) = self.second_section_title
+            && !second.eq_ignore_ascii_case("SYNOPSIS")
+        {
+            tracing::warn!(
+                second_section = %second,
+                "manpage convention: SYNOPSIS should be the second section"
+            );
+        }
         Ok(())
     }
 
