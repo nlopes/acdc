@@ -2,6 +2,7 @@
 members = [
   "acdc-cli",
   "acdc-core",
+  "acdc-lsp",
   "acdc-parser",
   "converters/common",
   "converters/html",
