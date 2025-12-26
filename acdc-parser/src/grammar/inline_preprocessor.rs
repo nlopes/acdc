@@ -71,6 +71,22 @@ pub(crate) enum ProcessedKind {
     Passthrough,
 }
 
+/// Convert usize to i32, logging on overflow.
+fn to_signed(value: usize, context: &str) -> Result<i32, Error> {
+    i32::try_from(value).map_err(|e| {
+        tracing::error!(value, context, error = %e, "position overflow");
+        e.into()
+    })
+}
+
+/// Convert i32 back to usize, logging on underflow.
+fn to_unsigned(value: i32, context: &str) -> Result<usize, Error> {
+    usize::try_from(value).map_err(|e| {
+        tracing::error!(value, context, error = %e, "negative position");
+        e.into()
+    })
+}
+
 impl SourceMap {
     /// Record a substitution.
     /// - `absolute_start`: where in the processed text the placeholder was inserted.
@@ -93,83 +109,50 @@ impl SourceMap {
         // Ensure replacements are sorted by where they occur in the processed text.
         self.replacements.sort_by_key(|r| r.absolute_start);
     }
+
     /// Map a position in the processed text back to the original source.
     pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
-        let signed_pos = i32::try_from(pos).inspect_err(|error| {
-            tracing::error!(?error, "could not convert pos to i32");
-        })?;
+        let signed_pos = to_signed(pos, "pos")?;
 
         // The adjustment is the total number of characters removed/added during preprocessing.
-        //
-        // For example, if we have a passthrough like `+a+`: the original text is 3 characters long,
-        // but the processed text is 7 characters long (FFF0FFF). So the adjustment is 7 - 3 = 4.
+        // For example, if we have a passthrough like `+a+`: the original text is 3 characters,
+        // but the processed text is 7 characters (FFF0FFF). So the adjustment is 7 - 3 = 4.
         let mut adjustment: i32 = 0;
 
         for rep in &self.replacements {
-            let rep_absolute_start = i32::try_from(rep.absolute_start).inspect_err(|error| {
-                tracing::error!(?error, "could not convert rep.absolute_start to i32");
-            })?;
-            let rep_absolute_end = i32::try_from(rep.absolute_end).inspect_err(|error| {
-                tracing::error!(?error, "could not convert rep.absolute_end to i32");
-            })?;
-            let rep_processed_end = i32::try_from(rep.processed_end).inspect_err(|error| {
-                tracing::error!(?error, "could not convert rep.processed_end to i32");
-            })?;
+            let rep_start = to_signed(rep.absolute_start, "rep.absolute_start")?;
+            let rep_end = to_signed(rep.absolute_end, "rep.absolute_end")?;
+            let rep_processed_end = to_signed(rep.processed_end, "rep.processed_end")?;
 
-            // If our position is less than or equal to the start of the replacement, then
-            // we can break and return whatever is in adjusted (which is likely to be pos).
-            if signed_pos <= rep_absolute_start {
+            // Position is before this replacement - done adjusting
+            if signed_pos <= rep_start {
                 break;
             }
 
-            // If this matches, we're within a passthrough, attribute or pass macro.
-            //
-            // This usually means we can simply return because it's "easy" to calculate
-            // the position.
+            // Position is within this replacement
             if signed_pos < rep_processed_end {
-                // pos is within this replacement.
-                match rep.kind {
+                return match rep.kind {
                     ProcessedKind::Attribute => {
-                        // All inserted characters map to the left-most original character.
-                        return Ok(rep.absolute_start);
+                        // All inserted characters map to the left-most original position
+                        Ok(rep.absolute_start)
+                    }
+                    ProcessedKind::Passthrough if signed_pos >= rep_end => {
+                        // Position is past the original passthrough end
+                        Ok(rep.absolute_end - 1)
                     }
                     ProcessedKind::Passthrough => {
-                        if signed_pos >= rep_absolute_end {
-                            // if we're here, it means we need to return the end of the
-                            // passthrough (our position, even though within a passthrough
-                            // is at a position *after* the original end of the
-                            // passthrough
-                            return Ok(rep.absolute_end - 1);
-                        }
-
-                        // If we're here, it means we're within the passthrough and it's
-                        // safe to just subtract the adjustment.
-                        return Ok(usize::try_from(signed_pos - adjustment).inspect_err(
-                            |error| {
-                                tracing::error!(
-                                    ?error,
-                                    "could not convert back to usize post all replacements"
-                                );
-                            },
-                        )?);
+                        // Within passthrough - apply current adjustment
+                        to_unsigned(signed_pos - adjustment, "within_passthrough")
                     }
-                }
+                };
             }
 
-            // adjust the total of characters removed/added during preprocessing.
-            adjustment += rep_processed_end - rep_absolute_end;
+            // Position is past this replacement - accumulate adjustment
+            adjustment += rep_processed_end - rep_end;
         }
 
-        // If we're here, it means we're not within any replacement, so we can just
-        // subtract the adjustment.
-        Ok(
-            usize::try_from(signed_pos - adjustment).inspect_err(|error| {
-                tracing::error!(
-                    ?error,
-                    "could not convert back to usize post all replacements"
-                );
-            })?,
-        )
+        // Not within any replacement - apply total adjustment
+        to_unsigned(signed_pos - adjustment, "final_position")
     }
 }
 
