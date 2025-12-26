@@ -17,6 +17,170 @@ use crate::{
     Superscript,
 };
 
+/// Markup type for passthrough inline content parsing.
+#[derive(Debug, Clone, Copy)]
+enum MarkupType {
+    UnconstrainedBold,
+    UnconstrainedItalic,
+    ConstrainedBold,
+    ConstrainedItalic,
+    Superscript,
+    Subscript,
+    CurvedQuotation,
+    CurvedApostrophe,
+    UnconstrainedMonospace,
+    ConstrainedMonospace,
+    UnconstrainedHighlight,
+    ConstrainedHighlight,
+}
+
+impl MarkupType {
+    /// Returns the delimiter length for this markup type.
+    const fn delimiter_len(self) -> usize {
+        match self {
+            Self::UnconstrainedBold
+            | Self::UnconstrainedItalic
+            | Self::CurvedQuotation
+            | Self::CurvedApostrophe
+            | Self::UnconstrainedMonospace
+            | Self::UnconstrainedHighlight => 2,
+            Self::ConstrainedBold
+            | Self::ConstrainedItalic
+            | Self::Superscript
+            | Self::Subscript
+            | Self::ConstrainedMonospace
+            | Self::ConstrainedHighlight => 1,
+        }
+    }
+
+    /// Returns the Form for this markup type.
+    const fn form(self) -> Form {
+        match self {
+            Self::UnconstrainedBold
+            | Self::UnconstrainedItalic
+            | Self::Superscript
+            | Self::Subscript
+            | Self::CurvedQuotation
+            | Self::CurvedApostrophe
+            | Self::UnconstrainedMonospace
+            | Self::UnconstrainedHighlight => Form::Unconstrained,
+            Self::ConstrainedBold
+            | Self::ConstrainedItalic
+            | Self::ConstrainedMonospace
+            | Self::ConstrainedHighlight => Form::Constrained,
+        }
+    }
+
+    /// Whether this pattern uses <= priority (curved quotes take precedence at same position).
+    const fn uses_lte_priority(self) -> bool {
+        matches!(self, Self::CurvedQuotation | Self::CurvedApostrophe)
+    }
+
+    /// Find this pattern in the input.
+    fn find(self, input: &str) -> Option<MarkupMatch> {
+        match self {
+            Self::UnconstrainedBold => find_unconstrained_bold_pattern(input),
+            Self::UnconstrainedItalic => find_unconstrained_italic_pattern(input),
+            Self::ConstrainedBold => find_constrained_bold_pattern(input),
+            Self::ConstrainedItalic => find_italic_pattern(input),
+            Self::Superscript => find_superscript_pattern(input),
+            Self::Subscript => find_subscript_pattern(input),
+            Self::CurvedQuotation => find_curved_quotation_pattern(input),
+            Self::CurvedApostrophe => find_curved_apostrophe_pattern(input),
+            Self::UnconstrainedMonospace => find_monospace_unconstrained_pattern(input),
+            Self::ConstrainedMonospace => find_monospace_constrained_pattern(input),
+            Self::UnconstrainedHighlight => find_highlight_unconstrained_pattern(input),
+            Self::ConstrainedHighlight => find_highlight_constrained_pattern(input),
+        }
+    }
+
+    /// Create an `InlineNode` for this markup type.
+    fn create_node(self, inner_content: InlineNode, outer_location: Location) -> InlineNode {
+        let form = self.form();
+        match self {
+            Self::UnconstrainedBold | Self::ConstrainedBold => InlineNode::BoldText(Bold {
+                content: vec![inner_content],
+                form,
+                role: None,
+                id: None,
+                location: outer_location,
+            }),
+            Self::UnconstrainedItalic | Self::ConstrainedItalic => {
+                InlineNode::ItalicText(Italic {
+                    content: vec![inner_content],
+                    form,
+                    role: None,
+                    id: None,
+                    location: outer_location,
+                })
+            }
+            Self::Superscript => InlineNode::SuperscriptText(Superscript {
+                content: vec![inner_content],
+                form,
+                role: None,
+                id: None,
+                location: outer_location,
+            }),
+            Self::Subscript => InlineNode::SubscriptText(Subscript {
+                content: vec![inner_content],
+                form,
+                role: None,
+                id: None,
+                location: outer_location,
+            }),
+            Self::CurvedQuotation => InlineNode::CurvedQuotationText(CurvedQuotation {
+                content: vec![inner_content],
+                form,
+                role: None,
+                id: None,
+                location: outer_location,
+            }),
+            Self::CurvedApostrophe => InlineNode::CurvedApostropheText(CurvedApostrophe {
+                content: vec![inner_content],
+                form,
+                role: None,
+                id: None,
+                location: outer_location,
+            }),
+            Self::UnconstrainedMonospace | Self::ConstrainedMonospace => {
+                InlineNode::MonospaceText(Monospace {
+                    content: vec![inner_content],
+                    form,
+                    role: None,
+                    id: None,
+                    location: outer_location,
+                })
+            }
+            Self::UnconstrainedHighlight | Self::ConstrainedHighlight => {
+                InlineNode::HighlightText(Highlight {
+                    content: vec![inner_content],
+                    form,
+                    role: None,
+                    id: None,
+                    location: outer_location,
+                })
+            }
+        }
+    }
+}
+
+/// All markup types to check, in priority order.
+const MARKUP_TYPES: &[MarkupType] = &[
+    MarkupType::UnconstrainedBold,
+    MarkupType::UnconstrainedItalic,
+    MarkupType::ConstrainedBold,
+    MarkupType::ConstrainedItalic,
+    MarkupType::Superscript,
+    MarkupType::Subscript,
+    // Curved quotes checked before monospace since they start with backticks
+    MarkupType::CurvedQuotation,
+    MarkupType::CurvedApostrophe,
+    MarkupType::UnconstrainedMonospace,
+    MarkupType::ConstrainedMonospace,
+    MarkupType::UnconstrainedHighlight,
+    MarkupType::ConstrainedHighlight,
+];
+
 /// Process passthrough content that contains quote substitutions, parsing nested markup
 pub(crate) fn process_passthrough_with_quotes(
     content: &str,
@@ -54,8 +218,7 @@ pub(crate) fn process_passthrough_with_quotes(
     parse_inline_markup_in_passthrough(content, passthrough, state)
 }
 
-/// Parse inline markup (bold, italic) within passthrough content manually
-#[allow(clippy::too_many_lines)]
+/// Parse inline markup (bold, italic) within passthrough content manually.
 pub(crate) fn parse_inline_markup_in_passthrough(
     content: &str,
     _passthrough: &Pass,
@@ -65,121 +228,17 @@ pub(crate) fn parse_inline_markup_in_passthrough(
     let mut remaining = content;
     let mut current_offset = 0;
 
-    // Helper function to create location - this will be properly set during the final location mapping phase
-    // For now, we use relative positions within the passthrough content
-    let create_location = |start: usize, end: usize| -> Location {
-        Location {
-            absolute_start: start,
-            absolute_end: end,
-            start: crate::Position {
-                line: 1,
-                column: start + 1,
-            },
-            end: crate::Position {
-                line: 1,
-                column: end + 1,
-            },
-        }
-    };
-
     while !remaining.is_empty() {
         // Find the earliest pattern in the remaining text
-        let mut earliest_pattern: Option<(MarkupMatch, &str)> = None;
+        let earliest = find_earliest_pattern(remaining);
 
-        // Check all pattern types and find the one that starts earliest
-        if let Some(markup_match) = find_unconstrained_bold_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "unconstrained_bold"));
-        }
-        if let Some(markup_match) = find_unconstrained_italic_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "unconstrained_italic"));
-        }
-        if let Some(markup_match) = find_constrained_bold_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "constrained_bold"));
-        }
-        if let Some(markup_match) = find_italic_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "italic"));
-        }
-        if let Some(markup_match) = find_superscript_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "superscript"));
-        }
-        if let Some(markup_match) = find_subscript_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "subscript"));
-        }
-        // Check curved quotes BEFORE monospace patterns since they start with backticks
-        if let Some(markup_match) = find_curved_quotation_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start <= earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "curved_quotation"));
-        }
-        if let Some(markup_match) = find_curved_apostrophe_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start <= earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "curved_apostrophe"));
-        }
-        if let Some(markup_match) = find_monospace_unconstrained_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "monospace_unconstrained"));
-        }
-        if let Some(markup_match) = find_monospace_constrained_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "monospace_constrained"));
-        }
-        if let Some(markup_match) = find_highlight_unconstrained_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "highlight_unconstrained"));
-        }
-        if let Some(markup_match) = find_highlight_constrained_pattern(remaining)
-            && earliest_pattern
-                .as_ref()
-                .is_none_or(|(earliest, _)| markup_match.start < earliest.start)
-        {
-            earliest_pattern = Some((markup_match, "highlight_constrained"));
-        }
-
-        if let Some((markup_match, pattern_type)) = earliest_pattern {
+        if let Some((markup_match, markup_type)) = earliest {
             // Add any content before the markup as plain text
             if markup_match.start > 0 {
                 let before_content = &remaining[..markup_match.start];
                 result.push(InlineNode::PlainText(Plain {
                     content: before_content.to_string(),
-                    location: create_location(
+                    location: create_relative_location(
                         current_offset,
                         current_offset + before_content.len(),
                     ),
@@ -187,252 +246,44 @@ pub(crate) fn parse_inline_markup_in_passthrough(
                 current_offset += before_content.len();
             }
 
-            // Add the appropriate markup node based on pattern type
-            match pattern_type {
-                "unconstrained_bold" => {
-                    result.push(InlineNode::BoldText(Bold {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 2,
-                                current_offset + 2 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "unconstrained_italic" => {
-                    result.push(InlineNode::ItalicText(Italic {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 2,
-                                current_offset + 2 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "constrained_bold" => {
-                    result.push(InlineNode::BoldText(Bold {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 1,
-                                current_offset + 1 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Constrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "italic" => {
-                    result.push(InlineNode::ItalicText(Italic {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 1,
-                                current_offset + 1 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Constrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "superscript" => {
-                    result.push(InlineNode::SuperscriptText(Superscript {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 1,
-                                current_offset + 1 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "subscript" => {
-                    result.push(InlineNode::SubscriptText(Subscript {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 1,
-                                current_offset + 1 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "curved_quotation" => {
-                    result.push(InlineNode::CurvedQuotationText(CurvedQuotation {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 2,
-                                current_offset + 2 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "curved_apostrophe" => {
-                    result.push(InlineNode::CurvedApostropheText(CurvedApostrophe {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 2,
-                                current_offset + 2 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "monospace_unconstrained" => {
-                    result.push(InlineNode::MonospaceText(Monospace {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 2,
-                                current_offset + 2 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "monospace_constrained" => {
-                    result.push(InlineNode::MonospaceText(Monospace {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 1,
-                                current_offset + 1 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Constrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "highlight_unconstrained" => {
-                    result.push(InlineNode::HighlightText(Highlight {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 2,
-                                current_offset + 2 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Unconstrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                "highlight_constrained" => {
-                    result.push(InlineNode::HighlightText(Highlight {
-                        content: vec![InlineNode::PlainText(Plain {
-                            content: markup_match.content.clone(),
-                            location: create_location(
-                                current_offset + 1,
-                                current_offset + 1 + markup_match.content.len(),
-                            ),
-                        })],
-                        form: Form::Constrained,
-                        role: None,
-                        id: None,
-                        location: create_location(
-                            current_offset,
-                            current_offset + markup_match.end - markup_match.start,
-                        ),
-                    }));
-                }
-                _ => {
-                    // This shouldn't happen but handle it gracefully
-                    result.push(InlineNode::PlainText(Plain {
-                        content: markup_match.content.clone(),
-                        location: create_location(
-                            current_offset + markup_match.start,
-                            current_offset + markup_match.end,
-                        ),
-                    }));
-                }
-            }
+            // Create inner content location
+            let delim_len = markup_type.delimiter_len();
+            let inner_location = create_relative_location(
+                current_offset + delim_len,
+                current_offset + delim_len + markup_match.content.len(),
+            );
+            let inner_content = InlineNode::PlainText(Plain {
+                content: markup_match.content.clone(),
+                location: inner_location,
+            });
 
-            // Move past the markup pattern (markup_match.end is exclusive)
+            // Create outer location
+            let outer_location = create_relative_location(
+                current_offset,
+                current_offset + markup_match.end - markup_match.start,
+            );
+
+            // Create the appropriate node
+            result.push(markup_type.create_node(inner_content, outer_location));
+
+            // Move past the markup pattern
             remaining = &remaining[markup_match.end..];
             current_offset += markup_match.end - markup_match.start;
         } else {
             // No patterns found, add remaining content as plain text and exit
             if !remaining.is_empty() {
                 if let Some(InlineNode::PlainText(last_plain)) = result.last_mut() {
-                    // Merge with the last plain text node if it exists
+                    // Merge with the last plain text node
                     last_plain.content.push_str(remaining);
                     last_plain.location.absolute_end = current_offset + remaining.len();
                     last_plain.location.end.column = current_offset + remaining.len() + 1;
                 } else {
-                    // Create a new plain text node
                     result.push(InlineNode::PlainText(Plain {
                         content: remaining.to_string(),
-                        location: create_location(current_offset, current_offset + remaining.len()),
+                        location: create_relative_location(
+                            current_offset,
+                            current_offset + remaining.len(),
+                        ),
                     }));
                 }
             }
@@ -441,6 +292,46 @@ pub(crate) fn parse_inline_markup_in_passthrough(
     }
 
     result
+}
+
+/// Find the earliest matching pattern in the input.
+fn find_earliest_pattern(input: &str) -> Option<(MarkupMatch, MarkupType)> {
+    let mut earliest: Option<(MarkupMatch, MarkupType)> = None;
+
+    for &markup_type in MARKUP_TYPES {
+        if let Some(markup_match) = markup_type.find(input) {
+            let dominated = earliest.as_ref().is_some_and(|(e, _)| {
+                if markup_type.uses_lte_priority() {
+                    markup_match.start > e.start
+                } else {
+                    markup_match.start >= e.start
+                }
+            });
+
+            if !dominated {
+                earliest = Some((markup_match, markup_type));
+            }
+        }
+    }
+
+    earliest
+}
+
+/// Create a location for relative positions within passthrough content.
+/// These positions will be remapped later during final location mapping.
+fn create_relative_location(start: usize, end: usize) -> Location {
+    Location {
+        absolute_start: start,
+        absolute_end: end,
+        start: crate::Position {
+            line: 1,
+            column: start + 1,
+        },
+        end: crate::Position {
+            line: 1,
+            column: end + 1,
+        },
+    }
 }
 
 /// Process passthrough placeholders in content, returning expanded `InlineNode`s.
