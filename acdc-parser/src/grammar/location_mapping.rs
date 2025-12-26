@@ -10,6 +10,24 @@ use super::{
     utf8_utils::{self, RoundDirection, snap_to_boundary},
 };
 
+/// Maximum base length for constrained formatting heuristic.
+///
+/// When no `Form` parameter is provided, we use the base location's length to guess
+/// whether formatting is constrained (single-char delimiters like `*bold*`) or
+/// unconstrained (double-char delimiters like `**bold**`).
+///
+/// Constrained examples: `*s*` (3), `_it_` (4), `*abc*` (5)
+/// The heuristic assumes short spans are constrained formatting.
+const MAX_CONSTRAINED_BASE_LENGTH: usize = 5;
+
+/// Offset to skip the opening delimiter in constrained formatting.
+/// For `*s*`, position 1 is where 's' starts.
+const CONSTRAINED_CONTENT_START_OFFSET: usize = 1;
+
+/// End offset for single character content after opening delimiter.
+/// For `*s*`, position 2 is where 's' ends.
+const CONSTRAINED_CONTENT_END_OFFSET: usize = 2;
+
 /// Clamp a Location's byte offsets to valid bounds within the input string
 /// and ensure they fall on UTF-8 character boundaries.
 ///
@@ -189,16 +207,17 @@ pub(crate) fn create_location_mapper<'a>(
                 let is_constrained_single_char = if let Some(form) = form {
                     matches!(form, Form::Constrained)
                 } else {
-                    // Fallback: use magic number for backward compatibility
+                    // Fallback heuristic when form is unavailable (e.g., plain text nodes)
                     let base_length = base_location.absolute_end - base_location.absolute_start;
-                    base_length <= 5
+                    base_length <= MAX_CONSTRAINED_BASE_LENGTH
                 };
 
                 if is_constrained_single_char {
-                    // "*s*" has length 3, constrained formatting uses single delimiters
-                    // The "s" should be at position 1-2, not 0-0
-                    processed_abs_start = base_location.absolute_start + 1;
-                    processed_abs_end = base_location.absolute_start + 2;
+                    // Constrained formatting: skip single-char delimiter to point at content
+                    processed_abs_start =
+                        base_location.absolute_start + CONSTRAINED_CONTENT_START_OFFSET;
+                    processed_abs_end =
+                        base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
                 } else {
                     // General case: expand collapsed locations to the next UTF-8 boundary
                     processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
@@ -245,9 +264,9 @@ pub(crate) fn create_location_mapper<'a>(
             let is_constrained_single_char = if let Some(form) = form {
                 matches!(form, Form::Constrained)
             } else {
-                // Fallback: use magic number for backward compatibility
+                // Fallback heuristic when form is unavailable
                 let base_length = base_location.absolute_end - base_location.absolute_start;
-                base_length <= 5
+                base_length <= MAX_CONSTRAINED_BASE_LENGTH
             };
 
             if is_constrained_single_char {
