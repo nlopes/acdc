@@ -4,7 +4,11 @@ use crate::{
     Monospace, Plain, ProcessedContent, StandaloneCurvedApostrophe, Subscript, Superscript,
 };
 
-use super::{ParserState, marked_text::WithLocationMappingContext, utf8_utils};
+use super::{
+    ParserState,
+    marked_text::WithLocationMappingContext,
+    utf8_utils::{self, RoundDirection, snap_to_boundary},
+};
 
 /// Clamp a Location's byte offsets to valid bounds within the input string
 /// and ensure they fall on UTF-8 character boundaries.
@@ -221,26 +225,8 @@ pub(crate) fn create_location_mapper<'a>(
         mapped_abs_end = mapped_abs_end.min(input_len);
 
         // Ensure mapped positions are on valid UTF-8 boundaries
-        if mapped_abs_start > 0
-            && mapped_abs_start < state.input.len()
-            && !state.input.is_char_boundary(mapped_abs_start)
-        {
-            // Round backward to previous boundary
-            while mapped_abs_start > 0 && !state.input.is_char_boundary(mapped_abs_start) {
-                mapped_abs_start -= 1;
-            }
-        }
-        if mapped_abs_end > 0
-            && mapped_abs_end < state.input.len()
-            && !state.input.is_char_boundary(mapped_abs_end)
-        {
-            // Round forward to next boundary
-            while mapped_abs_end < state.input.len()
-                && !state.input.is_char_boundary(mapped_abs_end)
-            {
-                mapped_abs_end += 1;
-            }
-        }
+        mapped_abs_start = snap_to_boundary(&state.input, mapped_abs_start, RoundDirection::Backward);
+        mapped_abs_end = snap_to_boundary(&state.input, mapped_abs_end, RoundDirection::Forward);
 
         // Compute human positions from the document's line map
         let start_pos = state
