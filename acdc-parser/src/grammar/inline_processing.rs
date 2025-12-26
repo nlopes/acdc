@@ -78,7 +78,8 @@ pub(crate) fn preprocess_inline_content(
         }
     }
 
-    let mut inline_state = InlinePreprocessorParserState::new(content);
+    let mut inline_state =
+        InlinePreprocessorParserState::new(content, state.line_map.clone(), &state.input);
 
     // We adjust the start and end positions to account for the content start offset
     let content_end_offset = if adjusted_end == 0 {

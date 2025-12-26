@@ -18,5 +18,5 @@ pub(crate) use document::{BlockParsingMetadata, document_parser};
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,
 };
-pub(crate) use position_tracker::{LineMap, PositionTracker};
+pub(crate) use position_tracker::LineMap;
 pub(crate) use state::ParserState;

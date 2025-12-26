@@ -7,41 +7,97 @@ use peg::parser;
 
 use crate::{
     AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
-    Substitution, grammar::PositionTracker,
+    Substitution, grammar::LineMap,
 };
 
-// The parser state for the inline preprocessor.
-//
-// It should use internal mutability to allow the parser to modify the state.
+/// Parser state for the inline preprocessor.
+///
+/// Uses `Cell` for simple values and `RefCell` for collections to support
+/// interior mutability within PEG action blocks.
+///
+/// Position tracking uses `LineMap` (immutable, O(log n) lookups) instead of
+/// incremental `PositionTracker` - we only maintain the byte offset and compute
+/// line/column on demand.
 #[derive(Debug)]
 pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) pass_found_count: Cell<usize>,
     pub(crate) passthroughs: RefCell<Vec<Pass>>,
     pub(crate) attributes: RefCell<HashMap<usize, Location>>,
-    pub(crate) tracker: RefCell<PositionTracker>,
+    /// Current byte offset in the full document input.
+    pub(crate) current_offset: Cell<usize>,
+    /// Pre-computed line map for O(log n) offset→position lookups.
+    pub(crate) line_map: LineMap,
+    /// Full document input (for `LineMap` position lookups).
+    pub(crate) full_input: &'a str,
     pub(crate) source_map: RefCell<SourceMap>,
+    /// The substring currently being parsed.
     pub(crate) input: RefCell<&'a str>,
     pub(crate) substring_start_offset: Cell<usize>,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
-    pub(crate) fn new(input: &'a str) -> Self {
+    /// Create a new inline preprocessor state.
+    ///
+    /// # Arguments
+    /// * `input` - The substring to parse
+    /// * `line_map` - Pre-computed line map for the full document
+    /// * `full_input` - The full document input (for position lookups)
+    pub(crate) fn new(input: &'a str, line_map: LineMap, full_input: &'a str) -> Self {
         Self {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
-            tracker: RefCell::new(PositionTracker::new()),
+            current_offset: Cell::new(0),
+            line_map,
+            full_input,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(input),
             substring_start_offset: Cell::new(0),
         }
     }
 
-    pub(crate) fn set_initial_position(&mut self, location: &Location, absolute_offset: usize) {
+    /// Set the initial position for parsing a substring within the document.
+    pub(crate) fn set_initial_position(&mut self, _location: &Location, absolute_offset: usize) {
         self.substring_start_offset.set(absolute_offset);
-        self.tracker
-            .borrow_mut()
-            .set_initial_position(location, absolute_offset);
+        self.current_offset.set(absolute_offset);
+    }
+
+    /// Get current position using `LineMap` lookup.
+    fn get_position(&self) -> Position {
+        self.line_map
+            .offset_to_position(self.current_offset.get(), self.full_input)
+    }
+
+    /// Get current byte offset.
+    fn get_offset(&self) -> usize {
+        self.current_offset.get()
+    }
+
+    /// Advance offset by string length (bytes).
+    fn advance(&self, s: &str) {
+        self.current_offset
+            .set(self.current_offset.get() + s.len());
+    }
+
+    /// Advance offset by a fixed byte count.
+    fn advance_by(&self, n: usize) {
+        self.current_offset.set(self.current_offset.get() + n);
+    }
+
+    /// Calculate location for a matched construct.
+    ///
+    /// Advances the offset by `content.len() + padding` and returns a Location
+    /// spanning from the current position to the new position.
+    fn calculate_location(&self, start: Position, content: &str, padding: usize) -> Location {
+        let absolute_start = self.get_offset();
+        self.advance(content);
+        self.advance_by(padding);
+        Location {
+            absolute_start,
+            absolute_end: self.get_offset(),
+            start,
+            end: self.get_position(),
+        }
     }
 }
 
@@ -186,19 +242,19 @@ parser!(
             // Unconstrained (double backticks) or constrained (single backticks)
             = text:$("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`") {
                 tracing::debug!(text, "monospace matched");
-                state.tracker.borrow_mut().advance(text);
+                state.advance(text);
                 text.to_string()
             }
 
         rule kbd_macro() -> String
             = text:$("kbd:[" (!"]" [_])* "]") {
-                state.tracker.borrow_mut().advance(text);
+                state.advance(text);
                 text.to_string()
             }
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
-                let location = state.tracker.borrow_mut().calculate_location(start, attribute_name, 2);
+                let location = state.calculate_location(start, attribute_name, 2);
                 let mut attributes = state.attributes.borrow_mut();
                 match document_attributes.get(attribute_name) {
                     Some(AttributeValue::String(value)) => {
@@ -280,8 +336,8 @@ parser!(
                 }
             };
 
-            // Calculate location to advance the tracker (even for invalid boundaries)
-            let location = state.tracker.borrow_mut().calculate_location(start, content, 2);
+            // Calculate location to advance offset (even for invalid boundaries)
+            let location = state.calculate_location(start, content, 2);
 
             if !valid_boundary || !trailing_valid {
                 // Not a valid constrained passthrough - return literal text without creating passthrough
@@ -309,7 +365,7 @@ parser!(
 
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
-                let location = state.tracker.borrow_mut().calculate_location(start, content, 4);
+                let location = state.calculate_location(start, content, 4);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
                     // We add SpecialChars here for single and double but we don't do
@@ -332,7 +388,7 @@ parser!(
 
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
-                let location = state.tracker.borrow_mut().calculate_location(start, content, 6);
+                let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
                     substitutions: HashSet::new(),
@@ -362,7 +418,7 @@ parser!(
                 substitutions.len() + (substitutions.len().saturating_sub(1))
             };
             let padding = 5 + subs_len + 1 + 1; // "pass:" + subs + "[" + "]"
-            let location = state.tracker.borrow_mut().calculate_location(start, content, padding);
+            let location = state.calculate_location(start, content, padding);
             let content = if substitutions.contains(&Substitution::Attributes) {
                     inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.to_string())
                 } else {
@@ -399,7 +455,7 @@ parser!(
 
         rule unprocessed_text() -> String
             = text:$((!(passthrough_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_])+) {
-                state.tracker.borrow_mut().advance(text);
+                state.advance(text);
                 text.to_string()
             }
 
@@ -444,9 +500,9 @@ parser!(
 
         rule ANY() = [_]
 
-        rule position() -> Position = { state.tracker.borrow().get_position() }
+        rule position() -> Position = { state.get_position() }
 
-        rule byte_offset() -> usize = { state.tracker.borrow().get_offset() }
+        rule byte_offset() -> usize = { state.get_offset() }
     }
 );
 
@@ -469,7 +525,9 @@ mod tests {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
-            tracker: RefCell::new(PositionTracker::new()),
+            current_offset: Cell::new(0),
+            line_map: LineMap::new(content),
+            full_input: content,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(content),
             substring_start_offset: Cell::new(0),

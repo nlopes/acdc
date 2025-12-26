@@ -1,112 +1,4 @@
-use crate::{Location, Position};
-
-/// Mutable position tracker for incremental parsing.
-///
-/// `PositionTracker` maintains position state (line, column, byte offset) as text is consumed.
-/// It's designed for linear parsing scenarios where positions are computed incrementally.
-///
-/// # When to Use
-///
-/// Use `PositionTracker` when:
-/// - Parsing linearly without backtracking (e.g., inline preprocessor)
-/// - You need to create `Location` objects as you parse
-/// - Position computation happens during text consumption
-///
-/// Use [`LineMap`] instead when:
-/// - You need random access to positions from byte offsets
-/// - The input is fully available and you want O(log n) lookups
-/// - You're in a backtracking parser (PEG) where mutable state is problematic
-///
-/// # Note on `LineMap` Migration
-///
-/// The inline preprocessor currently uses `PositionTracker` because:
-/// 1. It parses linearly and computes positions as it goes
-/// 2. Migrating to `LineMap` would require threading it through PEG rules
-/// 3. Both produce identical results (verified by tests)
-///
-/// A future optimization could migrate to `LineMap` if the inline preprocessor
-/// gains access to the main parser state's `LineMap`.
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub(crate) struct PositionTracker {
-    line: usize,
-    column: usize,
-    offset: usize,
-}
-
-impl Default for PositionTracker {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl PositionTracker {
-    #[must_use]
-    pub(crate) fn new() -> Self {
-        Self {
-            line: 1,
-            column: 1,
-            offset: 0,
-        }
-    }
-
-    #[tracing::instrument(level = "debug")]
-    pub(crate) fn set_initial_position(&mut self, location: &Location, absolute_offset: usize) {
-        self.line = location.start.line;
-        self.column = location.start.column;
-        self.offset = absolute_offset;
-    }
-
-    #[tracing::instrument(level = "debug")]
-    pub(crate) fn get_position(&self) -> Position {
-        Position {
-            line: self.line,
-            column: self.column,
-        }
-    }
-
-    pub(crate) fn get_offset(&self) -> usize {
-        self.offset
-    }
-
-    // TODO(nlopes): check if `#[inline(always)]` will help
-    #[tracing::instrument(level = "debug")]
-    pub(crate) fn advance(&mut self, s: &str) {
-        // TODO(nlopes): we need a better way to handle this due to unicode characters.
-        for c in s.chars() {
-            if c == '\n' {
-                self.line += 1;
-                self.column = 1;
-            } else {
-                self.column += 1;
-            }
-        }
-        self.offset += s.len();
-    }
-
-    pub(crate) fn advance_by(&mut self, n: usize) {
-        self.column += n;
-        self.offset += n;
-    }
-
-    pub(crate) fn calculate_location(
-        &mut self,
-        start: Position,
-        content: &str,
-        padding: usize,
-    ) -> Location {
-        let absolute_start = self.get_offset();
-        self.advance(content);
-        self.advance_by(padding);
-        let absolute_end = self.get_offset();
-        let end = self.get_position();
-        Location {
-            absolute_start,
-            absolute_end,
-            start,
-            end,
-        }
-    }
-}
+use crate::Position;
 
 /// Pre-calculated line position map for efficient offset-to-position conversion.
 ///
@@ -125,8 +17,6 @@ impl PositionTracker {
 /// let line_map = LineMap::new(input);
 /// let position = line_map.offset_to_position(byte_offset, input);
 /// ```
-///
-/// See [`PositionTracker`] for an alternative that computes positions incrementally.
 #[derive(Debug, Clone)]
 pub(crate) struct LineMap {
     /// Byte offsets where each line starts in the input
@@ -268,30 +158,6 @@ mod tests {
         let pos = line_map.offset_to_position(8, input);
         assert_eq!(pos.line, 3);
         assert_eq!(pos.column, 1);
-    }
-
-    #[test]
-    fn test_line_map_matches_position_tracker() {
-        let input = "= Document Title\nAuthor Name\nv1.0, 2024: Revision";
-        let line_map = LineMap::new(input);
-
-        // Test various positions and compare with position tracker
-        for i in 0..input.len() {
-            let line_map_pos = line_map.offset_to_position(i, input);
-
-            let mut tracker = PositionTracker::new();
-            tracker.advance(&input[..i]);
-            let tracker_pos = tracker.get_position();
-
-            assert_eq!(
-                line_map_pos.line, tracker_pos.line,
-                "Line mismatch at offset {i}",
-            );
-            assert_eq!(
-                line_map_pos.column, tracker_pos.column,
-                "Column mismatch at offset {i}",
-            );
-        }
     }
 
     #[test]
