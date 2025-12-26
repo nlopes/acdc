@@ -1,6 +1,31 @@
 use crate::{Location, Position};
 
-/// A `PositionTracker` is used to track the position of a parser.
+/// Mutable position tracker for incremental parsing.
+///
+/// `PositionTracker` maintains position state (line, column, byte offset) as text is consumed.
+/// It's designed for linear parsing scenarios where positions are computed incrementally.
+///
+/// # When to Use
+///
+/// Use `PositionTracker` when:
+/// - Parsing linearly without backtracking (e.g., inline preprocessor)
+/// - You need to create `Location` objects as you parse
+/// - Position computation happens during text consumption
+///
+/// Use [`LineMap`] instead when:
+/// - You need random access to positions from byte offsets
+/// - The input is fully available and you want O(log n) lookups
+/// - You're in a backtracking parser (PEG) where mutable state is problematic
+///
+/// # Note on `LineMap` Migration
+///
+/// The inline preprocessor currently uses `PositionTracker` because:
+/// 1. It parses linearly and computes positions as it goes
+/// 2. Migrating to `LineMap` would require threading it through PEG rules
+/// 3. Both produce identical results (verified by tests)
+///
+/// A future optimization could migrate to `LineMap` if the inline preprocessor
+/// gains access to the main parser state's `LineMap`.
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub(crate) struct PositionTracker {
     line: usize,
@@ -84,7 +109,24 @@ impl PositionTracker {
 }
 
 /// Pre-calculated line position map for efficient offset-to-position conversion.
-/// This provides O(log n) position lookups and is backtrack-safe since it's immutable.
+///
+/// `LineMap` scans the input once to build a sorted list of line start offsets,
+/// then provides O(log n) binary search lookups for any byte offset.
+///
+/// # Key Properties
+///
+/// - **Immutable**: Safe for use in PEG action blocks and backtracking parsers
+/// - **Efficient**: O(n) construction, O(log n) lookups
+/// - **UTF-8 aware**: Handles multi-byte characters correctly
+///
+/// # Usage
+///
+/// ```ignore
+/// let line_map = LineMap::new(input);
+/// let position = line_map.offset_to_position(byte_offset, input);
+/// ```
+///
+/// See [`PositionTracker`] for an alternative that computes positions incrementally.
 #[derive(Debug, Clone)]
 pub(crate) struct LineMap {
     /// Byte offsets where each line starts in the input
