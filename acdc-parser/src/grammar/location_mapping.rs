@@ -244,7 +244,8 @@ pub(crate) fn create_location_mapper<'a>(
         mapped_abs_end = mapped_abs_end.min(input_len);
 
         // Ensure mapped positions are on valid UTF-8 boundaries
-        mapped_abs_start = snap_to_boundary(&state.input, mapped_abs_start, RoundDirection::Backward);
+        mapped_abs_start =
+            snap_to_boundary(&state.input, mapped_abs_start, RoundDirection::Backward);
         mapped_abs_end = snap_to_boundary(&state.input, mapped_abs_end, RoundDirection::Forward);
 
         // Compute human positions from the document's line map

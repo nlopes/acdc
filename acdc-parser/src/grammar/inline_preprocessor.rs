@@ -75,8 +75,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
     /// Advance offset by string length (bytes).
     fn advance(&self, s: &str) {
-        self.current_offset
-            .set(self.current_offset.get() + s.len());
+        self.current_offset.set(self.current_offset.get() + s.len());
     }
 
     /// Advance offset by a fixed byte count.

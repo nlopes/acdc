@@ -105,15 +105,13 @@ impl MarkupType {
                 id: None,
                 location: outer_location,
             }),
-            Self::UnconstrainedItalic | Self::ConstrainedItalic => {
-                InlineNode::ItalicText(Italic {
-                    content: vec![inner_content],
-                    form,
-                    role: None,
-                    id: None,
-                    location: outer_location,
-                })
-            }
+            Self::UnconstrainedItalic | Self::ConstrainedItalic => InlineNode::ItalicText(Italic {
+                content: vec![inner_content],
+                form,
+                role: None,
+                id: None,
+                location: outer_location,
+            }),
             Self::Superscript => InlineNode::SuperscriptText(Superscript {
                 content: vec![inner_content],
                 form,
