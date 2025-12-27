@@ -4,14 +4,16 @@
 
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
-    InitializeParams, InitializeResult, InitializedParams, OneOf, ServerCapabilities, ServerInfo,
-    TextDocumentSyncCapability, TextDocumentSyncKind, Url,
+    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbolParams,
+    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
+    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, OneOf,
+    ReferenceParams, ServerCapabilities, ServerInfo, TextDocumentSyncCapability,
+    TextDocumentSyncKind, Url,
 };
 use tower_lsp::{Client, LanguageServer};
 
-use crate::capabilities::{definition, symbols};
+use crate::capabilities::{completion, definition, hover, references, symbols};
 use crate::state::Workspace;
 
 /// LSP backend for `AsciiDoc` documents
@@ -57,6 +59,19 @@ impl LanguageServer for Backend {
                 document_symbol_provider: Some(OneOf::Left(true)),
                 // Enable go-to-definition for xrefs
                 definition_provider: Some(OneOf::Left(true)),
+                // Enable hover for xrefs, anchors, and links
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
+                // Enable find references for anchors and xrefs
+                references_provider: Some(OneOf::Left(true)),
+                // Enable completion for xrefs, attributes, and includes
+                completion_provider: Some(CompletionOptions {
+                    trigger_characters: Some(vec![
+                        "<".to_string(), // for <<
+                        ":".to_string(), // for xref: and attributes
+                        "{".to_string(), // for attribute references
+                    ]),
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -143,6 +158,57 @@ impl LanguageServer for Backend {
                     range: crate::convert::location_to_range(&loc),
                 })
             })
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            hover::compute_hover(&doc, position)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn references(
+        &self,
+        params: ReferenceParams,
+    ) -> Result<Option<Vec<tower_lsp::lsp_types::Location>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let include_declaration = params.context.include_declaration;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            references::find_references(&doc, position, include_declaration).map(|ranges| {
+                ranges
+                    .into_iter()
+                    .map(|range| tower_lsp::lsp_types::Location {
+                        uri: uri.clone(),
+                        range,
+                    })
+                    .collect()
+            })
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            completion::compute_completions(&doc, position).map(CompletionResponse::Array)
         } else {
             None
         };
