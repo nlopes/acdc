@@ -330,8 +330,7 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::indexing_slicing, clippy::expect_used)]
-    fn test_complete_anchors() {
+    fn test_complete_anchors() -> Result<(), acdc_parser::Error> {
         use crate::capabilities::definition::{collect_anchors, collect_xrefs};
         use acdc_parser::Options;
 
@@ -342,17 +341,20 @@ mod tests {
 == Second Section
 ";
         let options = Options::default();
-        let ast = acdc_parser::parse(content, &options).expect("Test content should parse");
+        let ast = acdc_parser::parse(content, &options)?;
         let anchors = collect_anchors(&ast);
         let xrefs = collect_xrefs(&ast);
         let doc = DocumentState::new_success(content.to_string(), 1, ast, anchors, xrefs);
 
         let items = complete_cross_references(&doc, "first");
         assert_eq!(items.len(), 1);
-        assert_eq!(items[0].label, "first-section");
+        let item = items.first();
+        assert!(item.is_some(), "expected at least one item");
+        assert_eq!(item.map(|i| &i.label), Some(&"first-section".to_string()));
 
         // Test with empty prefix gets all anchors
         let items = complete_cross_references(&doc, "");
         assert_eq!(items.len(), 2);
+        Ok(())
     }
 }

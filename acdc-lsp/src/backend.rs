@@ -5,15 +5,21 @@
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbolParams,
-    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
-    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, OneOf,
-    ReferenceParams, ServerCapabilities, ServerInfo, TextDocumentSyncCapability,
-    TextDocumentSyncKind, Url,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentLink, DocumentLinkOptions,
+    DocumentLinkParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
+    FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
+    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
+    InitializeResult, InitializedParams, OneOf, PrepareRenameResponse, ReferenceParams,
+    RenameOptions, RenameParams, SemanticTokensParams, SemanticTokensResult, ServerCapabilities,
+    ServerInfo, TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
+    WorkDoneProgressOptions, WorkspaceEdit,
 };
 use tower_lsp::{Client, LanguageServer};
 
-use crate::capabilities::{completion, definition, hover, references, symbols};
+use crate::capabilities::{
+    completion, definition, document_links, folding, hover, references, rename, semantic_tokens,
+    symbols,
+};
 use crate::state::Workspace;
 
 /// LSP backend for `AsciiDoc` documents
@@ -63,6 +69,24 @@ impl LanguageServer for Backend {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 // Enable find references for anchors and xrefs
                 references_provider: Some(OneOf::Left(true)),
+                // Enable clickable links for URLs, includes, and images
+                document_link_provider: Some(DocumentLinkOptions {
+                    resolve_provider: Some(false),
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                }),
+                // Enable folding for sections and delimited blocks
+                folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+                // Enable rename for anchor IDs and xrefs
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                })),
+                // Enable semantic tokens for syntax highlighting
+                semantic_tokens_provider: Some(
+                    tower_lsp::lsp_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
+                        semantic_tokens::create_options(),
+                    ),
+                ),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -209,6 +233,77 @@ impl LanguageServer for Backend {
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             completion::compute_completions(&doc, position).map(CompletionResponse::Array)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
+        let uri = params.text_document.uri;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            doc.ast.as_ref().map(document_links::collect_document_links)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
+        let uri = params.text_document.uri;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            doc.ast.as_ref().map(folding::compute_folding_ranges)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let uri = params.text_document.uri;
+        let position = params.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            rename::prepare_rename(&doc, position)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+        let new_name = params.new_name;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            rename::compute_rename(&doc, &uri, position, &new_name)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn semantic_tokens_full(
+        &self,
+        params: SemanticTokensParams,
+    ) -> Result<Option<SemanticTokensResult>> {
+        let uri = params.text_document.uri;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            doc.ast.as_ref().map(|ast| {
+                SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(ast))
+            })
         } else {
             None
         };
