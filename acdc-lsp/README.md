@@ -2,11 +2,28 @@
 
 A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered by `acdc-parser`.
 
+> **Note**: This tool was heavily built using [Claude Code](https://claude.ai/claude-code) and has not yet been fully reviewed. Use with appropriate caution and please report any issues you encounter.
+
 ## Features
 
-- **Diagnostics** - Parse errors appear as warnings/errors in your editor
+### Core
+
+- **Diagnostics** - Parse errors and validation warnings (unresolved xrefs, duplicate anchors)
 - **Document Symbols** - Section outline for navigation (breadcrumbs, outline panel)
 - **Go-to-Definition** - Jump from `xref:target[]` to the corresponding `[[target]]` anchor or section
+- **Find References** - Find all xrefs pointing to an anchor
+- **Rename** - Refactor anchor IDs and automatically update all xrefs
+
+### Navigation & Editing
+
+- **Hover** - Information about xrefs, anchors, and links at cursor position
+- **Completion** - Suggestions for xref targets, attribute references, and includes
+- **Document Links** - Clickable URLs and file references
+- **Folding Ranges** - Collapse sections, delimited blocks, and lists
+
+### Syntax
+
+- **Semantic Tokens** - Rich syntax highlighting for sections, macros, attributes, formatting, comments, and anchors
 
 ## Installation
 
@@ -34,6 +51,24 @@ RUST_LOG=acdc_lsp=debug acdc-lsp
 ```
 
 ## Editor setup
+
+### Emacs (eglot)
+
+Add to your Emacs config:
+
+```elisp
+(require 'eglot)
+
+;; Register acdc-lsp for adoc-mode
+(add-to-list 'eglot-server-programs
+             '(adoc-mode . ("acdc-lsp")))
+
+;; Auto-start eglot for AsciiDoc files
+(add-hook 'adoc-mode-hook 'eglot-ensure)
+
+;; Optional: enable semantic highlighting
+(setq eglot-enable-semantic-highlighting t)
+```
 
 ### Zed
 
@@ -151,8 +186,7 @@ Valid targets:
 
 ## Limitations
 
-- Single-file only (no cross-file references yet)
+- Single-file only (no cross-file references or workspace support yet)
 - Full document sync (reparsing on every change)
-- No semantic tokens/highlighting
-- No hover documentation
-- No completion
+- No incremental parsing
+- No code actions (quick fixes)
