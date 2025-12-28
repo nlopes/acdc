@@ -85,7 +85,6 @@ pub(crate) fn find_xref_at_offset(doc: &Document, offset: usize) -> Option<(Stri
 }
 
 fn find_xref_in_block(block: &Block, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match block {
         Block::Section(section) => {
             for child in &section.content {
@@ -144,23 +143,12 @@ fn find_xref_in_block(block: &Block, offset: usize) -> Option<(String, Location)
             }
             None
         }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other block types don't contain xrefs (Block is non_exhaustive)
         _ => None,
     }
 }
 
 fn find_xref_in_delimited(inner: &DelimitedBlockType, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
@@ -178,8 +166,7 @@ fn find_xref_in_delimited(inner: &DelimitedBlockType, offset: usize) -> Option<(
         | DelimitedBlockType::DelimitedPass(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines)
         | DelimitedBlockType::DelimitedComment(inlines) => find_xref_in_inlines(inlines, offset),
-        DelimitedBlockType::DelimitedTable(_) | DelimitedBlockType::DelimitedStem(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other types don't contain xrefs (DelimitedBlockType is non_exhaustive)
         _ => None,
     }
 }
@@ -194,7 +181,6 @@ fn find_xref_in_inlines(inlines: &[InlineNode], offset: usize) -> Option<(String
 }
 
 fn find_xref_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match inline {
         InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
             if offset_in_location(offset, &xref.location) {
@@ -208,16 +194,7 @@ fn find_xref_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
         InlineNode::HighlightText(h) => find_xref_in_inlines(&h.content, offset),
         InlineNode::SubscriptText(s) => find_xref_in_inlines(&s.content, offset),
         InlineNode::SuperscriptText(s) => find_xref_in_inlines(&s.content, offset),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other inlines don't contain xrefs (InlineNode is non_exhaustive)
         _ => None,
     }
 }
@@ -245,7 +222,6 @@ pub(crate) fn find_anchor_at_offset(
 }
 
 fn find_inline_anchor_in_block(block: &Block, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match block {
         Block::Section(section) => {
             for child in &section.content {
@@ -306,17 +282,7 @@ fn find_inline_anchor_in_block(block: &Block, offset: usize) -> Option<(String, 
             }
             None
         }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other block types don't contain inline anchors (Block is non_exhaustive)
         _ => None,
     }
 }
@@ -325,7 +291,6 @@ fn find_inline_anchor_in_delimited(
     inner: &DelimitedBlockType,
     offset: usize,
 ) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
@@ -345,8 +310,7 @@ fn find_inline_anchor_in_delimited(
         | DelimitedBlockType::DelimitedComment(inlines) => {
             find_inline_anchor_in_inlines(inlines, offset)
         }
-        DelimitedBlockType::DelimitedTable(_) | DelimitedBlockType::DelimitedStem(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other types don't contain inline anchors (DelimitedBlockType is non_exhaustive)
         _ => None,
     }
 }
@@ -364,7 +328,6 @@ fn find_inline_anchor_in_inlines(
 }
 
 fn find_inline_anchor_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match inline {
         InlineNode::InlineAnchor(anchor) => {
             if offset_in_location(offset, &anchor.location) {
@@ -378,15 +341,7 @@ fn find_inline_anchor_in_inline(inline: &InlineNode, offset: usize) -> Option<(S
         InlineNode::HighlightText(h) => find_inline_anchor_in_inlines(&h.content, offset),
         InlineNode::SubscriptText(s) => find_inline_anchor_in_inlines(&s.content, offset),
         InlineNode::SuperscriptText(s) => find_inline_anchor_in_inlines(&s.content, offset),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::Macro(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other inlines don't contain inline anchors (InlineNode is non_exhaustive)
         _ => None,
     }
 }
@@ -402,7 +357,6 @@ fn find_link_at_offset(doc: &Document, offset: usize) -> Option<(String, Locatio
 }
 
 fn find_link_in_block(block: &Block, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match block {
         Block::Section(section) => {
             for child in &section.content {
@@ -461,23 +415,12 @@ fn find_link_in_block(block: &Block, offset: usize) -> Option<(String, Location)
             }
             None
         }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other block types don't contain links (Block is non_exhaustive)
         _ => None,
     }
 }
 
 fn find_link_in_delimited(inner: &DelimitedBlockType, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
@@ -495,8 +438,7 @@ fn find_link_in_delimited(inner: &DelimitedBlockType, offset: usize) -> Option<(
         | DelimitedBlockType::DelimitedPass(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines)
         | DelimitedBlockType::DelimitedComment(inlines) => find_link_in_inlines(inlines, offset),
-        DelimitedBlockType::DelimitedTable(_) | DelimitedBlockType::DelimitedStem(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other types don't contain links (DelimitedBlockType is non_exhaustive)
         _ => None,
     }
 }
@@ -511,7 +453,6 @@ fn find_link_in_inlines(inlines: &[InlineNode], offset: usize) -> Option<(String
 }
 
 fn find_link_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Location)> {
-    #[allow(clippy::match_same_arms)]
     match inline {
         InlineNode::Macro(InlineMacro::Link(link)) => {
             if offset_in_location(offset, &link.location) {
@@ -537,16 +478,7 @@ fn find_link_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
         InlineNode::HighlightText(h) => find_link_in_inlines(&h.content, offset),
         InlineNode::SubscriptText(s) => find_link_in_inlines(&s.content, offset),
         InlineNode::SuperscriptText(s) => find_link_in_inlines(&s.content, offset),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other inlines don't contain links (InlineNode is non_exhaustive)
         _ => None,
     }
 }
@@ -562,7 +494,6 @@ fn find_section_title_at_location(doc: &Document, loc: &Location) -> Option<Stri
 }
 
 fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<String> {
-    #[allow(clippy::match_same_arms)]
     match block {
         Block::Section(section) => {
             // Check if this section's location matches
@@ -577,23 +508,7 @@ fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<S
             }
             None
         }
-        Block::Paragraph(_)
-        | Block::DelimitedBlock(_)
-        | Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::DescriptionList(_)
-        | Block::Admonition(_)
-        | Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_) => None,
-        #[allow(unreachable_patterns)]
+        // Other block types don't contain section titles (Block is non_exhaustive)
         _ => None,
     }
 }
@@ -618,7 +533,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::expect_used)]
     fn test_hover_on_xref() {
         let content = r"[[my-section]]
 == My Section
@@ -634,12 +548,17 @@ See <<my-section>> for details.
         };
 
         let result = compute_hover(&doc, position);
-        let hover = result.expect("Expected hover result for xref position");
-        #[allow(clippy::unreachable)]
-        let HoverContents::Markup(markup) = hover.contents else {
-            unreachable!("Expected HoverContents::Markup")
-        };
-        assert!(markup.value.contains("Cross-reference"));
-        assert!(markup.value.contains("my-section"));
+        assert!(result.is_some(), "Expected hover result for xref position");
+        let hover = result;
+        assert!(
+            matches!(&hover, Some(h) if matches!(&h.contents, HoverContents::Markup(_))),
+            "Expected HoverContents::Markup"
+        );
+        if let Some(hover) = hover
+            && let HoverContents::Markup(markup) = hover.contents
+        {
+            assert!(markup.value.contains("Cross-reference"));
+            assert!(markup.value.contains("my-section"));
+        }
     }
 }

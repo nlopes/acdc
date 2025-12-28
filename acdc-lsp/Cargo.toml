@@ -28,7 +28,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 unsafe_code = "forbid"
 
 [lints.clippy]
-wildcard_enum_match_arm = "deny"
 indexing_slicing = "deny"
 fallible_impl_from = "deny"
 unwrap_used = "deny"
@@ -38,3 +37,5 @@ pedantic = "deny"
 todo = "warn"
 unimplemented = "warn"
 unreachable = "warn"
+# Allow truncation casts for LSP position types (LSP uses u32, parser uses usize)
+cast_possible_truncation = "allow"

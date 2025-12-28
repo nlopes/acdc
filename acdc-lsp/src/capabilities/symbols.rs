@@ -38,28 +38,9 @@ pub fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
 }
 
 fn block_to_symbol(block: &Block) -> Option<DocumentSymbol> {
-    #[allow(clippy::match_same_arms)] // Explicit arms for compile-time check when variants added
     match block {
         Block::Section(section) => Some(section_to_symbol(section)),
-        // MVP: only sections in outline, all other block types return None
-        Block::TableOfContents(_)
-        | Block::Admonition(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::CalloutList(_)
-        | Block::DescriptionList(_)
-        | Block::DelimitedBlock(_)
-        | Block::Paragraph(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_) => None,
-        // Handle future block types gracefully (Block is non_exhaustive)
-        #[allow(unreachable_patterns)]
+        // MVP: only sections in outline (Block is non_exhaustive)
         _ => None,
     }
 }
@@ -107,8 +88,7 @@ mod tests {
     use acdc_parser::Options;
 
     #[test]
-    #[allow(clippy::indexing_slicing, clippy::expect_used)]
-    fn test_document_symbols_extraction() {
+    fn test_document_symbols_extraction() -> Result<(), acdc_parser::Error> {
         let content = r"= Document Title
 
 == Section One
@@ -121,20 +101,37 @@ Some content.
 
 More content.
 ";
-        let doc = acdc_parser::parse(content, &Options::default()).expect("parse should succeed");
+        let doc = acdc_parser::parse(content, &Options::default())?;
         let symbols = document_symbols(&doc);
 
         // Header + 2 top-level sections
         assert_eq!(symbols.len(), 3);
-        assert_eq!(symbols[0].name, "Document Title");
-        assert_eq!(symbols[1].name, "Section One");
-        assert_eq!(symbols[2].name, "Section Two");
+
+        // Check each symbol by index using .get()
+        assert_eq!(
+            symbols.first().map(|s| &s.name),
+            Some(&"Document Title".to_string())
+        );
+        assert_eq!(
+            symbols.get(1).map(|s| &s.name),
+            Some(&"Section One".to_string())
+        );
+        assert_eq!(
+            symbols.get(2).map(|s| &s.name),
+            Some(&"Section Two".to_string())
+        );
 
         // Section Two has a subsection
-        let section_two_children = symbols[2].children.as_ref();
-        assert!(section_two_children.is_some());
-        let children = section_two_children.expect("should have children");
-        assert_eq!(children.len(), 1);
-        assert_eq!(children[0].name, "Subsection");
+        let section_two = symbols.get(2);
+        assert!(section_two.is_some(), "expected Section Two");
+        let children = section_two.and_then(|s| s.children.as_ref());
+        assert!(children.is_some(), "Section Two should have children");
+        let children = children.map(Vec::as_slice);
+        assert_eq!(children.map(<[_]>::len), Some(1));
+        assert_eq!(
+            children.and_then(|c| c.first()).map(|s| &s.name),
+            Some(&"Subsection".to_string())
+        );
+        Ok(())
     }
 }

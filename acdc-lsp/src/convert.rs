@@ -3,6 +3,15 @@
 use acdc_parser::Location;
 use tower_lsp::lsp_types::{Position, Range};
 
+/// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
+///
+/// LSP uses u32 for line/column numbers while the parser uses usize.
+/// In practice, source files won't have 4 billion+ lines/columns,
+/// so saturation is a safe fallback.
+fn to_lsp_u32(val: usize) -> u32 {
+    val.try_into().unwrap_or(u32::MAX)
+}
+
 /// Convert LSP position to byte offset in source text.
 ///
 /// Returns `None` if the position is out of bounds.
@@ -35,17 +44,27 @@ pub fn offset_in_location(offset: usize, location: &Location) -> bool {
 ///
 /// Note: acdc-parser uses 1-indexed lines/columns, LSP uses 0-indexed
 #[must_use]
-#[allow(clippy::cast_possible_truncation)] // Line/column numbers won't exceed u32::MAX
 pub fn location_to_range(loc: &Location) -> Range {
     Range {
         start: Position {
-            line: loc.start.line.saturating_sub(1) as u32,
-            character: loc.start.column.saturating_sub(1) as u32,
+            line: to_lsp_u32(loc.start.line.saturating_sub(1)),
+            character: to_lsp_u32(loc.start.column.saturating_sub(1)),
         },
         end: Position {
-            line: loc.end.line.saturating_sub(1) as u32,
-            character: loc.end.column.saturating_sub(1) as u32,
+            line: to_lsp_u32(loc.end.line.saturating_sub(1)),
+            character: to_lsp_u32(loc.end.column.saturating_sub(1)),
         },
+    }
+}
+
+/// Convert a parser Position to an LSP Position
+///
+/// Note: acdc-parser uses 1-indexed, LSP uses 0-indexed
+#[must_use]
+pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
+    Position {
+        line: to_lsp_u32(pos.line.saturating_sub(1)),
+        character: to_lsp_u32(pos.column.saturating_sub(1)),
     }
 }
 

@@ -48,7 +48,13 @@ impl Workspace {
             Ok(doc) => {
                 let anchors = definition::collect_anchors(&doc);
                 let xrefs = definition::collect_xrefs(&doc);
-                DocumentState::new_success(text, version, doc, anchors, xrefs)
+
+                // Compute validation warnings (unresolved xrefs, etc.)
+                let warnings = diagnostics::compute_warnings(&anchors, &xrefs);
+
+                let mut state = DocumentState::new_success(text, version, doc, anchors, xrefs);
+                state.diagnostics = warnings;
+                state
             }
             Err(error) => {
                 let diags = vec![diagnostics::error_to_diagnostic(&error)];
