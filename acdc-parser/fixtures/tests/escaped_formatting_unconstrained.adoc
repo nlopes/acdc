@@ -1,0 +1,7 @@
+Escaped unconstrained bold: \**not bold**
+
+Escaped unconstrained italic: \__not italic__
+
+Escaped unconstrained mono: \``not mono``
+
+Escaped unconstrained highlight: \##not highlight##

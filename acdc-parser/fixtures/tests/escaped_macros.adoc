@@ -1,0 +1,5 @@
+Escaped xref macro: \xref:document.adoc[link text]
+
+Escaped link macro: \link:http://example.com[click here]
+
+Escaped image macro: \image:photo.png[alt text]

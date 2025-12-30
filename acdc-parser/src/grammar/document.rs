@@ -2816,30 +2816,81 @@ peg::parser! {
             })
         }
 
-        /// Content after backslash - smart delimiter matching.
+        /// Content after backslash - matches only escapable patterns.
         ///
         /// Matches in order:
-        /// 1. Paired angle brackets: `<<...>>`
-        /// 2. Content with square brackets: `prefix[...]`
-        /// 3. Simple content until stop character
+        /// 1. Double backslash + escapable pattern (for `\\**`, `\\<<id>>`, etc.)
+        /// 2. Paired delimiters: `<<...>>`, `[[...]]`, `prefix[...]`, `{...}`, `((...))`
+        /// 3. Typography patterns: `...`, `->`, `<-`, `=>`, `<=`, `--`
+        /// 4. Unconstrained formatting markers: `**`, `__`, `##`, ` `` `
+        /// 5. Single escapable characters: `*`, `_`, `#`, `` ` ``, `^`, `~`, `[`, `]`, `(`, `&`
+        ///
+        /// NOTE: Unlike before, this does NOT match arbitrary text. If the backslash is not
+        /// followed by something escapable, the rule fails and the backslash flows through
+        /// as literal text. This ensures `\\hello` produces `\\hello` (matching asciidoctor).
         rule escaped_content() -> String
-        = // Paired angle brackets (cross-refs): <<...>>
-          "<<" inner:$((!">>" [_])*) ">>" { format!("<<{inner}>>") }
-        / // Paired square brackets with prefix: something[...]
-          prefix:$([^('[' | ' ' | '\t' | '\n')]+) "[" inner:$([^']']*) "]" { format!("{prefix}[{inner}]") }
-        / // Simple content until stop character (excludes < and > so single \< flows through)
-          content:$([^(' ' | '\t' | '\n' | '.' | ',' | ';' | '!' | '?' | ')' | '}' | ']' | '<' | '>')]+) { content.to_string() }
+        =
+        // Double backslash followed by escapable pattern: \\<thing> -> <thing>
+        "\\" inner:escapable_pattern() { inner }
+        // Single backslash case: \<thing> -> <thing>
+        / escapable_pattern()
+
+        /// Patterns that can be escaped with a backslash.
+        rule escapable_pattern() -> String
+        =
+        // Paired angle brackets (cross-refs): <<...>>
+        "<<" inner:$((!">>" [_])*) ">>" { format!("<<{inner}>>") }
+        // Double square brackets (anchors): [[...]]
+        / "[[" inner:$((!"]]" [_])*) "]]" { format!("[[{inner}]]") }
+        // Paired square brackets with prefix (macros): something[...]
+        / prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { format!("{prefix}[{inner}]") }
+        // Curly braces (attributes): {...}
+        / "{" inner:$([^'}']*) "}" { format!("{{{inner}}}") }
+        // Double parens (index terms): ((...))
+        / "((" inner:$((!")))" [_])*) "))" { format!("(({inner}))") }
+        // Unconstrained formatting: match entire span including content and closing marker
+        // \**not bold** -> **not bold**
+        / "**" inner:$((!"**" [_])*) "**" { format!("**{inner}**") }
+        / "__" inner:$((!("__" !['_']) [_])*) "__" { format!("__{inner}__") }
+        / "``" inner:$((!"``" [_])*) "``" { format!("``{inner}``") }
+        / "##" inner:$((!"##" [_])*) "##" { format!("##{inner}##") }
+        // Typography patterns
+        / pattern:$("..."
+            / "->"
+            / "<-"
+            / "=>"
+            / "<="
+            / "--"
+        ) { pattern.to_string() }
+        // Constrained formatting markers and other single escapable chars
+        / c:$(['*' | '_' | '#' | '`' | '^' | '~' | '[' | ']' | '(' | '&']) { c.to_string() }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
+        ///
+        /// Double backslash + escapable pattern or a single escapable pattern
         rule escaped_syntax_match() -> ()
-        = "\\" escaped_content_match()
-        { }
+        = "\\" "\\"? escapable_pattern_match()
 
-        /// Match escaped content without consuming
-        rule escaped_content_match() -> ()
-        = "<<" (!">>" [_])* ">>" { }
-        / [^('[' | ' ' | '\t' | '\n')]+ "[" [^']']* "]" { }
-        / [^(' ' | '\t' | '\n' | '.' | ',' | ';' | '!' | '?' | ')' | '}' | ']' | '<' | '>')]+ { }
+        /// Match escapable patterns without consuming
+        rule escapable_pattern_match() -> ()
+        = "<<" (!">>" [_])* ">>"
+        / "[[" (!"]]" [_])* "]]"
+        / [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
+        / "{" [^'}']* "}"
+        / "((" (!")))" [_])* "))"
+        // Unconstrained formatting: match entire span
+        / "**" (!"**" [_])* "**"
+        / "__" (!("__" !['_']) [_])* "__"
+        / "``" (!"``" [_])* "``"
+        / "##" (!"##" [_])* "##"
+        // Typography patterns
+        / "..."
+        / "->"
+        / "<-"
+        / "=>"
+        / "<="
+        / "--"
+        / ['*' | '_' | '#' | '`' | '^' | '~' | '[' | ']' | '(' | '&'] {}
 
         rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = footnote_match:footnote_match(offset, block_metadata)
@@ -3336,8 +3387,7 @@ peg::parser! {
 
         /// Match cross-reference shorthand syntax without consuming: <<id>> or <<id,text>>
         rule cross_reference_shorthand_match() -> ()
-        = cross_reference_shorthand_pattern()
-        { }
+        = "<<" ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']* ("," (!">>" [_])+)? ">>"
 
         /// Match cross-reference macro syntax without consuming: xref:id[text]
         rule cross_reference_macro_match()

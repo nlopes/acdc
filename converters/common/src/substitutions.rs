@@ -51,7 +51,9 @@ const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
 ///
 /// assert_eq!(strip_backslash_escapes(r"E=mc\^2"), "E=mc^2");
 /// assert_eq!(strip_backslash_escapes(r"H\~2~O"), "H~2~O");
-/// assert_eq!(strip_backslash_escapes(r"path\\to\\file"), r"path\to\file");
+/// // Note: \\ is preserved when not followed by escapable syntax (matching asciidoctor)
+/// assert_eq!(strip_backslash_escapes(r"path\\to\\file"), r"path\\to\\file");
+/// // But \\ followed by escapable char is handled by the parser, not here
 /// ```
 #[must_use]
 pub fn strip_backslash_escapes(text: &str) -> String {
@@ -70,11 +72,17 @@ pub fn strip_backslash_escapes(text: &str) -> String {
     let mut chars = text.chars().peekable();
 
     while let Some(c) = chars.next() {
+        // Handle single-character escapes (excluding backslash itself).
+        // Note: \\ is NOT stripped here. Per asciidoctor behavior:
+        // - \\ alone or followed by non-escapable text -> preserved as \\
+        // - \\** (double backslash + double marker) is handled by the parser
+        //   which produces just ** in the AST, so we never see \\** here
         if c == '\\'
-            && let Some(&next) = chars.peek()
-            && matches!(next, '*' | '_' | '`' | '#' | '^' | '~' | '\\' | '[' | ']')
+            && chars
+                .peek()
+                .is_some_and(|&next| matches!(next, '*' | '_' | '`' | '#' | '^' | '~' | '[' | ']'))
         {
-            // Skip the backslash, output the next character
+            // \x -> x (skip backslash, output the character)
             if let Some(escaped) = chars.next() {
                 result.push(escaped);
                 continue;
@@ -136,7 +144,9 @@ mod tests {
         assert_eq!(strip_backslash_escapes(r"\_italic\_"), "_italic_");
         assert_eq!(strip_backslash_escapes(r"\`mono\`"), "`mono`");
         assert_eq!(strip_backslash_escapes(r"\#marked\#"), "#marked#");
-        assert_eq!(strip_backslash_escapes(r"\\"), r"\");
+        // Note: \\ is now preserved per asciidoctor behavior (double backslash
+        // escaping is handled by the parser, not the converter)
+        assert_eq!(strip_backslash_escapes(r"\\"), r"\\");
         assert_eq!(strip_backslash_escapes(r"\[attr\]"), "[attr]");
     }
 
