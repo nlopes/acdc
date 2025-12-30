@@ -134,6 +134,29 @@ fn create_source_location(location: Location, file: Option<std::path::PathBuf>) 
     }
 }
 
+/// Strip backslash escapes from URL paths.
+///
+/// In `AsciiDoc`, backslash escapes prevent typography substitutions.
+/// For example, `\...` prevents ellipsis conversion. Since URLs are
+/// parsed by the `url` crate which normalizes backslashes to forward slashes,
+/// we need to strip these escapes before URL parsing.
+///
+/// This handles:
+/// - `\...` → `...` (ellipsis escape)
+/// - `\->` → `->` (right arrow escape)
+/// - `\<-` → `<-` (left arrow escape)
+/// - `\=>` → `=>` (right double arrow escape)
+/// - `\<=` → `<=` (left double arrow escape)
+/// - `\--` → `--` (em-dash escape)
+fn strip_url_backslash_escapes(text: &str) -> String {
+    text.replace("\\...", "...")
+        .replace("\\->", "->")
+        .replace("\\<-", "<-")
+        .replace("\\=>", "=>")
+        .replace("\\<=", "<=")
+        .replace("\\--", "--")
+}
+
 fn get_literal_paragraph(
     state: &ParserState,
     content: &str,
@@ -4451,7 +4474,7 @@ peg::parser! {
 
         /// URL path component - supports query params, fragments, encoding, etc.
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
-        rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' ]+)
+        rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
         {?
             let mut inline_state = InlinePreprocessorParserState::new(
                 path,
@@ -4463,7 +4486,9 @@ peg::parser! {
                 tracing::error!(?e, "could not preprocess url path");
                 "could not preprocess url path"
             })?;
-            Ok(processed.text)
+            // Strip backslash escapes before URL parsing to prevent the url crate
+            // from normalizing backslashes to forward slashes
+            Ok(strip_url_backslash_escapes(&processed.text))
         }
 
         /// Filesystem path - conservative character set for cross-platform compatibility

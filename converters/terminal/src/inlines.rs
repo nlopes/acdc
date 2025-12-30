@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_common::{substitutions::strip_backslash_escapes, visitor::WritableVisitor};
+use acdc_converters_common::{
+    substitutions::{restore_escaped_patterns, strip_backslash_escapes},
+    visitor::WritableVisitor,
+};
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
@@ -38,7 +41,8 @@ fn render_inline_node_to_writer<W: Write>(
     match node {
         InlineNode::PlainText(p) => {
             // Strip backslash escapes (e.g., \^ -> ^) for plain text
-            let text = strip_backslash_escapes(&p.content);
+            // Also restore escaped patterns (e.g., \... -> ...)
+            let text = restore_escaped_patterns(&strip_backslash_escapes(&p.content));
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
@@ -129,7 +133,8 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
     match node {
         InlineNode::PlainText(p) => {
             // Strip backslash escapes (e.g., \^ -> ^) for plain text
-            let text = strip_backslash_escapes(&p.content);
+            // Also restore escaped patterns (e.g., \... -> ...)
+            let text = restore_escaped_patterns(&strip_backslash_escapes(&p.content));
             let w = visitor.writer_mut();
             write!(w, "{text}")?;
         }
