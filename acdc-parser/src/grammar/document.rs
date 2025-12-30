@@ -2766,7 +2766,9 @@ peg::parser! {
 
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(
-            inline_anchor:inline_anchor(offset) { inline_anchor }
+            // Escaped syntax must come first - backslash prevents any following syntax from being parsed
+            escaped_syntax:escaped_syntax(offset) { escaped_syntax }
+            / inline_anchor:inline_anchor(offset) { inline_anchor }
             / cross_reference_shorthand:cross_reference_shorthand(offset) { cross_reference_shorthand }
             / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
             / hard_wrap:hard_wrap(offset) { hard_wrap }
@@ -2801,6 +2803,43 @@ peg::parser! {
             ) {
                 inline
             }
+
+        /// Generic escaped syntax rule - matches backslash followed by content.
+        ///
+        /// Handles paired delimiters (`<<...>>`, `[...]`) as complete units,
+        /// and simple content until stop characters (space, punctuation).
+        rule escaped_syntax(offset: usize) -> InlineNode
+        = start:position!() "\\" content:escaped_content() end:position!() {
+            InlineNode::PlainText(Plain {
+                content,
+                location: state.create_location(start + offset, end + offset),
+            })
+        }
+
+        /// Content after backslash - smart delimiter matching.
+        ///
+        /// Matches in order:
+        /// 1. Paired angle brackets: `<<...>>`
+        /// 2. Content with square brackets: `prefix[...]`
+        /// 3. Simple content until stop character
+        rule escaped_content() -> String
+        = // Paired angle brackets (cross-refs): <<...>>
+          "<<" inner:$((!">>" [_])*) ">>" { format!("<<{inner}>>") }
+        / // Paired square brackets with prefix: something[...]
+          prefix:$([^('[' | ' ' | '\t' | '\n')]+) "[" inner:$([^']']*) "]" { format!("{prefix}[{inner}]") }
+        / // Simple content until stop character (excludes < and > so single \< flows through)
+          content:$([^(' ' | '\t' | '\n' | '.' | ',' | ';' | '!' | '?' | ')' | '}' | ']' | '<' | '>')]+) { content.to_string() }
+
+        /// Match escaped syntax without consuming - for use in negative lookaheads.
+        rule escaped_syntax_match() -> ()
+        = "\\" escaped_content_match()
+        { }
+
+        /// Match escaped content without consuming
+        rule escaped_content_match() -> ()
+        = "<<" (!">>" [_])* ">>" { }
+        / [^('[' | ' ' | '\t' | '\n')]+ "[" [^']']* "]" { }
+        / [^(' ' | '\t' | '\n' | '.' | ',' | ';' | '!' | '?' | ')' | '}' | ']' | '<' | '>')]+ { }
 
         rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = footnote_match:footnote_match(offset, block_metadata)
@@ -3815,7 +3854,7 @@ peg::parser! {
         = start_pos:position!()
         content:$((
             "\\" ['^' | '~']  // Escape sequences for superscript/subscript markers
-            / (!(eol()*<2,> / ![_] / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
         {
