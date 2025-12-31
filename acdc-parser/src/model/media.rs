@@ -16,16 +16,45 @@ use super::location::{Location, Position};
 use super::metadata::BlockMetadata;
 use super::title::Title;
 
-/// A `Source` represents the source of content (images, audio, video, etc.).
+/// The source location for media content (images, audio, video).
 ///
-/// This type distinguishes between filesystem paths, URLs, and simple names (like icon names).
+/// `Source` is an **enum**, not a struct with a `path` field. Use pattern matching
+/// to extract the underlying value:
+///
+/// # Accessing the Source
+///
+/// ```
+/// # use acdc_parser::Source;
+/// # use std::path::PathBuf;
+/// fn get_path_string(source: &Source) -> String {
+///     match source {
+///         Source::Path(path) => path.display().to_string(),
+///         Source::Url(url) => url.to_string(),
+///         Source::Name(name) => name.clone(),
+///     }
+/// }
+/// ```
+///
+/// Or use the `Display` implementation for simple string conversion:
+///
+/// ```
+/// # use acdc_parser::Source;
+/// # let source = Source::Name("example".to_string());
+/// let source_str = source.to_string();
+/// ```
+///
+/// # Variants
+///
+/// - `Path(PathBuf)` - Local filesystem path (e.g., `images/photo.png`)
+/// - `Url(url::Url)` - Remote URL (e.g., `https://example.com/image.png`)
+/// - `Name(String)` - Simple identifier (e.g., icon names like `heart`, `github`)
 #[derive(Clone, Debug, PartialEq)]
 pub enum Source {
-    /// A filesystem path
+    /// A filesystem path (relative or absolute).
     Path(std::path::PathBuf),
-    /// A URL
+    /// A URL (http, https, ftp, etc.).
     Url(url::Url),
-    /// A simple name (used for example in menu macros or icon names)
+    /// A simple name (used for icon names, menu targets, etc.).
     Name(String),
 }
 

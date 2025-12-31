@@ -8,12 +8,39 @@ use serde::{
 
 use super::inlines::InlineNode;
 
-/// A `Title` represents a title in a document (section titles, block titles, etc.).
+/// A title in a document (section titles, block titles, document title, etc.).
 ///
-/// Titles contain inline content and can include formatting, links, and other
-/// inline elements.
+/// `Title` is a newtype wrapper around `Vec<InlineNode>` that provides convenient
+/// access to inline content. Titles can include formatting, links, and other inline
+/// elements.
 ///
-/// Serializes as a plain array for backwards compatibility with existing fixtures.
+/// # Accessing Content
+///
+/// `Title` implements `Deref<Target=[InlineNode]>`, so you can use slice methods directly:
+///
+/// ```
+/// # use acdc_parser::{Title, InlineNode};
+/// let title = Title::new(vec![/* inline nodes */]);
+///
+/// // Iterate over inline nodes
+/// for node in &title {
+///     // ...
+/// }
+///
+/// // Check if empty
+/// if title.is_empty() {
+///     // ...
+/// }
+///
+/// // Access by index (via deref)
+/// if let Some(first) = title.first() {
+///     // ...
+/// }
+/// ```
+///
+/// # Serialization
+///
+/// Serializes as a plain JSON array of inline nodes for ASG compatibility.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct Title(Vec<InlineNode>);

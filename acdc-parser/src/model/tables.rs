@@ -190,10 +190,23 @@ impl Table {
     }
 }
 
-/// A `TableRow` represents a row in a table.
+/// A row in a table, containing one or more columns (cells).
+///
+/// # Note on Field Name
+///
+/// The field is named `columns` (not `cells`) to align with the column-oriented
+/// table model. Each `TableColumn` represents one cell in this row.
+///
+/// ```
+/// # use acdc_parser::{TableRow, TableColumn};
+/// fn count_cells(row: &TableRow) -> usize {
+///     row.columns.len()  // Access cells via .columns
+/// }
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct TableRow {
+    /// The cells in this row (one per table column).
     pub columns: Vec<TableColumn>,
 }
 

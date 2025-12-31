@@ -489,21 +489,67 @@ impl StemContent {
     }
 }
 
-/// A `DelimitedBlockType` represents the type of a delimited block in a document.
+/// The inner content type of a delimited block.
+///
+/// Each variant wraps the content appropriate for that block type:
+/// - **Verbatim content** (`Vec<InlineNode>`): `DelimitedListing`, `DelimitedLiteral`,
+///   `DelimitedPass`, `DelimitedVerse`, `DelimitedComment` - preserves whitespace/formatting
+/// - **Compound content** (`Vec<Block>`): `DelimitedExample`, `DelimitedOpen`,
+///   `DelimitedSidebar`, `DelimitedQuote` - can contain nested blocks
+/// - **Structured content**: `DelimitedTable(Table)`, `DelimitedStem(StemContent)`
+///
+/// # Accessing Content
+///
+/// Use pattern matching to extract the inner content:
+///
+/// ```
+/// # use acdc_parser::{DelimitedBlockType, Block, InlineNode};
+/// fn process_block(block_type: &DelimitedBlockType) {
+///     match block_type {
+///         DelimitedBlockType::DelimitedListing(inlines) => {
+///             // Handle listing content (source code, etc.)
+///         }
+///         DelimitedBlockType::DelimitedExample(blocks) => {
+///             // Handle example with nested blocks
+///         }
+///         DelimitedBlockType::DelimitedTable(table) => {
+///             // Access table.rows, table.header, etc.
+///         }
+///         // ... other variants
+///         _ => {}
+///     }
+/// }
+/// ```
+///
+/// # Note on Variant Names
+///
+/// Variants are prefixed with `Delimited` to disambiguate from potential future
+/// non-delimited block types and to make pattern matching more explicit.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DelimitedBlockType {
+    /// Comment block content (not rendered in output).
     DelimitedComment(Vec<InlineNode>),
+    /// Example block - can contain nested blocks, admonitions, etc.
     DelimitedExample(Vec<Block>),
+    /// Listing block - typically source code with syntax highlighting.
     DelimitedListing(Vec<InlineNode>),
+    /// Literal block - preformatted text rendered verbatim.
     DelimitedLiteral(Vec<InlineNode>),
+    /// Open block - generic container for nested blocks.
     DelimitedOpen(Vec<Block>),
+    /// Sidebar block - supplementary content in a styled container.
     DelimitedSidebar(Vec<Block>),
+    /// Table block - structured tabular data.
     DelimitedTable(Table),
+    /// Passthrough block - content passed directly to output without processing.
     DelimitedPass(Vec<InlineNode>),
+    /// Quote block - blockquote with optional attribution.
     DelimitedQuote(Vec<Block>),
+    /// Verse block - poetry/lyrics preserving line breaks.
     DelimitedVerse(Vec<InlineNode>),
+    /// STEM (math) block - LaTeX or `AsciiMath` notation.
     DelimitedStem(StemContent),
 }
 

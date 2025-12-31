@@ -52,17 +52,42 @@ pub struct DescriptionList {
     pub location: Location,
 }
 
-/// A `DescriptionListItem` represents a description list item in a document.
+/// An item in a description list (term + description).
+///
+/// # Structure
+///
+/// ```text
+/// term:: principal text    <- term, delimiter, principal_text
+///        description       <- description (blocks)
+/// ```
+///
+/// # Note on Field Names
+///
+/// - `description` is **singular** (not `descriptions`) - it holds the block content
+///   following the term
+/// - `principal_text` is inline content immediately after the delimiter on the same line
+///
+/// ```
+/// # use acdc_parser::DescriptionListItem;
+/// fn has_description(item: &DescriptionListItem) -> bool {
+///     !item.description.is_empty()  // Note: singular 'description'
+/// }
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct DescriptionListItem {
+    /// Optional anchors (IDs) attached to this item.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
+    /// The term being defined (inline content before the delimiter).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub term: Vec<InlineNode>,
+    /// The delimiter used (`::`, `:::`, `::::`, or `;;`).
     pub delimiter: String,
+    /// Inline content immediately after the delimiter on the same line.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub principal_text: Vec<InlineNode>,
+    /// Block content providing the description (singular, not plural).
     pub description: Vec<Block>,
     pub location: Location,
 }

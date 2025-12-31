@@ -43,22 +43,70 @@ pub enum InlineNode {
     Macro(InlineMacro),
 }
 
-/// An `InlineMacro` represents an inline macro in a document.
+/// An inline macro - a functional element that produces inline content.
+///
+/// Unlike a struct with `name`/`target`/`attributes` fields, `InlineMacro` is an **enum**
+/// where each variant represents a specific macro type with its own specialized fields.
+///
+/// # Variants Overview
+///
+/// | Variant | `AsciiDoc` Syntax | Description |
+/// |---------|-----------------|-------------|
+/// | `Link` | `link:url[text]` | Explicit link with optional text |
+/// | `Url` | `\https://...` or `link:` | URL reference |
+/// | `Mailto` | `mailto:addr[text]` | Email link |
+/// | `Autolink` | `<\https://...>` | Auto-detected URL |
+/// | `CrossReference` | `<<id>>` or `xref:id[]` | Internal document reference |
+/// | `Image` | `image:file.png[alt]` | Inline image |
+/// | `Icon` | `icon:name[]` | Icon reference (font or image) |
+/// | `Footnote` | `footnote:[text]` | Footnote reference |
+/// | `Keyboard` | `kbd:[Ctrl+C]` | Keyboard shortcut |
+/// | `Button` | `btn:[OK]` | UI button label |
+/// | `Menu` | `menu:File[Save]` | Menu navigation path |
+/// | `Pass` | `pass:[content]` | Passthrough (no processing) |
+/// | `Stem` | `stem:[formula]` | Math notation |
+///
+/// # Example
+///
+/// ```
+/// # use acdc_parser::{InlineMacro, InlineNode};
+/// fn extract_link_target(node: &InlineNode) -> Option<String> {
+///     match node {
+///         InlineNode::Macro(InlineMacro::Link(link)) => Some(link.target.to_string()),
+///         InlineNode::Macro(InlineMacro::Url(url)) => Some(url.target.to_string()),
+///         InlineNode::Macro(InlineMacro::CrossReference(xref)) => Some(xref.target.clone()),
+///         _ => None,
+///     }
+/// }
+/// ```
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum InlineMacro {
+    /// Footnote reference: `footnote:[content]` or `footnote:id[content]`
     Footnote(Footnote),
+    /// Icon macro: `icon:name[attributes]`
     Icon(Icon),
+    /// Inline image: `image:path[alt,width,height]`
     Image(Box<Image>),
+    /// Keyboard shortcut: `kbd:[Ctrl+C]`
     Keyboard(Keyboard),
+    /// UI button: `btn:[Label]`
     Button(Button),
+    /// Menu path: `menu:TopLevel[Item > Subitem]`
     Menu(Menu),
+    /// URL with optional text: parsed from `link:` macro or bare URLs
     Url(Url),
+    /// Explicit link macro: `link:target[text]`
     Link(Link),
+    /// Email link: `mailto:address[text]`
     Mailto(Mailto),
+    /// Auto-detected URL: `<\https://example.com>`
     Autolink(Autolink),
+    /// Cross-reference: `<<id,text>>` or `xref:id[text]`
     CrossReference(CrossReference),
+    /// Inline passthrough: `pass:[content]` - not serialized to ASG
     Pass(Pass),
+    /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
     Stem(Stem),
 }
 
