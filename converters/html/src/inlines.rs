@@ -44,7 +44,10 @@
 
 use std::io::{self, Write};
 
-use acdc_converters_common::{substitutions::strip_backslash_escapes, visitor::WritableVisitor};
+use acdc_converters_common::{
+    substitutions::{restore_escaped_patterns, strip_backslash_escapes},
+    visitor::WritableVisitor,
+};
 use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string};
 
 use crate::{
@@ -530,10 +533,19 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
 
     // Now escape remaining < and > (after arrow patterns have been replaced)
     // and apply typography transformations (ellipsis, smart quotes)
-    text.replace('>', "&gt;")
+    let text = text
+        .replace('>', "&gt;")
         .replace('<', "&lt;")
         .replace("...", "&#8230;&#8203;")
-        .replace('\'', "&#8217;")
+        .replace('\'', "&#8217;");
+
+    // Restore escaped patterns (convert placeholders back to literal forms)
+    // This must happen after typography substitutions to preserve escapes like \...
+    if options.inlines_basic || options.inlines_verbatim {
+        text
+    } else {
+        restore_escaped_patterns(&text)
+    }
 }
 
 fn mark_callouts(text: &str) -> String {

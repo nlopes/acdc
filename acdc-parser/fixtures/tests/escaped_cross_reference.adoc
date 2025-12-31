@@ -1,0 +1,5 @@
+Escaped cross-ref: \<<id>>
+
+With custom text: \<<section-id, see this section>>
+
+In parentheses: (\<<ref>>)

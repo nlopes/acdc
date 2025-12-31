@@ -134,6 +134,29 @@ fn create_source_location(location: Location, file: Option<std::path::PathBuf>) 
     }
 }
 
+/// Strip backslash escapes from URL paths.
+///
+/// In `AsciiDoc`, backslash escapes prevent typography substitutions.
+/// For example, `\...` prevents ellipsis conversion. Since URLs are
+/// parsed by the `url` crate which normalizes backslashes to forward slashes,
+/// we need to strip these escapes before URL parsing.
+///
+/// This handles:
+/// - `\...` → `...` (ellipsis escape)
+/// - `\->` → `->` (right arrow escape)
+/// - `\<-` → `<-` (left arrow escape)
+/// - `\=>` → `=>` (right double arrow escape)
+/// - `\<=` → `<=` (left double arrow escape)
+/// - `\--` → `--` (em-dash escape)
+fn strip_url_backslash_escapes(text: &str) -> String {
+    text.replace("\\...", "...")
+        .replace("\\->", "->")
+        .replace("\\<-", "<-")
+        .replace("\\=>", "=>")
+        .replace("\\<=", "<=")
+        .replace("\\--", "--")
+}
+
 fn get_literal_paragraph(
     state: &ParserState,
     content: &str,
@@ -2743,7 +2766,9 @@ peg::parser! {
 
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(
-            inline_anchor:inline_anchor(offset) { inline_anchor }
+            // Escaped syntax must come first - backslash prevents any following syntax from being parsed
+            escaped_syntax:escaped_syntax(offset) { escaped_syntax }
+            / inline_anchor:inline_anchor(offset) { inline_anchor }
             / cross_reference_shorthand:cross_reference_shorthand(offset) { cross_reference_shorthand }
             / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
             / hard_wrap:hard_wrap(offset) { hard_wrap }
@@ -2778,6 +2803,94 @@ peg::parser! {
             ) {
                 inline
             }
+
+        /// Generic escaped syntax rule - matches backslash followed by content.
+        ///
+        /// Handles paired delimiters (`<<...>>`, `[...]`) as complete units,
+        /// and simple content until stop characters (space, punctuation).
+        rule escaped_syntax(offset: usize) -> InlineNode
+        = start:position!() "\\" content:escaped_content() end:position!() {
+            InlineNode::PlainText(Plain {
+                content,
+                location: state.create_location(start + offset, end + offset),
+            })
+        }
+
+        /// Content after backslash - matches only escapable patterns.
+        ///
+        /// Matches in order:
+        /// 1. Double backslash + escapable pattern (for `\\**`, `\\<<id>>`, etc.)
+        /// 2. Paired delimiters: `<<...>>`, `[[...]]`, `prefix[...]`, `{...}`, `((...))`
+        /// 3. Typography patterns: `...`, `->`, `<-`, `=>`, `<=`, `--`
+        /// 4. Unconstrained formatting markers: `**`, `__`, `##`, ` `` `
+        /// 5. Single escapable characters: `*`, `_`, `#`, `` ` ``, `^`, `~`, `[`, `]`, `(`, `&`
+        ///
+        /// NOTE: Unlike before, this does NOT match arbitrary text. If the backslash is not
+        /// followed by something escapable, the rule fails and the backslash flows through
+        /// as literal text. This ensures `\\hello` produces `\\hello` (matching asciidoctor).
+        rule escaped_content() -> String
+        =
+        // Double backslash followed by escapable pattern: \\<thing> -> <thing>
+        "\\" inner:escapable_pattern() { inner }
+        // Single backslash case: \<thing> -> <thing>
+        / escapable_pattern()
+
+        /// Patterns that can be escaped with a backslash.
+        rule escapable_pattern() -> String
+        =
+        // Paired angle brackets (cross-refs): <<...>>
+        "<<" inner:$((!">>" [_])*) ">>" { format!("<<{inner}>>") }
+        // Double square brackets (anchors): [[...]]
+        / "[[" inner:$((!"]]" [_])*) "]]" { format!("[[{inner}]]") }
+        // Paired square brackets with prefix (macros): something[...]
+        / prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { format!("{prefix}[{inner}]") }
+        // Curly braces (attributes): {...}
+        / "{" inner:$([^'}']*) "}" { format!("{{{inner}}}") }
+        // Double parens (index terms): ((...))
+        / "((" inner:$((!")))" [_])*) "))" { format!("(({inner}))") }
+        // Unconstrained formatting: match entire span including content and closing marker
+        // \**not bold** -> **not bold**
+        / "**" inner:$((!"**" [_])*) "**" { format!("**{inner}**") }
+        / "__" inner:$((!("__" !['_']) [_])*) "__" { format!("__{inner}__") }
+        / "``" inner:$((!"``" [_])*) "``" { format!("``{inner}``") }
+        / "##" inner:$((!"##" [_])*) "##" { format!("##{inner}##") }
+        // Typography patterns
+        / pattern:$("..."
+            / "->"
+            / "<-"
+            / "=>"
+            / "<="
+            / "--"
+        ) { pattern.to_string() }
+        // Constrained formatting markers and other single escapable chars
+        / c:$(['*' | '_' | '#' | '`' | '^' | '~' | '[' | ']' | '(' | '&']) { c.to_string() }
+
+        /// Match escaped syntax without consuming - for use in negative lookaheads.
+        ///
+        /// Double backslash + escapable pattern or a single escapable pattern
+        rule escaped_syntax_match() -> ()
+        = "\\" "\\"? escapable_pattern_match()
+
+        /// Match escapable patterns without consuming
+        rule escapable_pattern_match() -> ()
+        = "<<" (!">>" [_])* ">>"
+        / "[[" (!"]]" [_])* "]]"
+        / [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
+        / "{" [^'}']* "}"
+        / "((" (!")))" [_])* "))"
+        // Unconstrained formatting: match entire span
+        / "**" (!"**" [_])* "**"
+        / "__" (!("__" !['_']) [_])* "__"
+        / "``" (!"``" [_])* "``"
+        / "##" (!"##" [_])* "##"
+        // Typography patterns
+        / "..."
+        / "->"
+        / "<-"
+        / "=>"
+        / "<="
+        / "--"
+        / ['*' | '_' | '#' | '`' | '^' | '~' | '[' | ']' | '(' | '&'] {}
 
         rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = footnote_match:footnote_match(offset, block_metadata)
@@ -3274,8 +3387,7 @@ peg::parser! {
 
         /// Match cross-reference shorthand syntax without consuming: <<id>> or <<id,text>>
         rule cross_reference_shorthand_match() -> ()
-        = cross_reference_shorthand_pattern()
-        { }
+        = "<<" ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']* ("," (!">>" [_])+)? ">>"
 
         /// Match cross-reference macro syntax without consuming: xref:id[text]
         rule cross_reference_macro_match()
@@ -3792,7 +3904,7 @@ peg::parser! {
         = start_pos:position!()
         content:$((
             "\\" ['^' | '~']  // Escape sequences for superscript/subscript markers
-            / (!(eol()*<2,> / ![_] / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
         {
@@ -4451,7 +4563,7 @@ peg::parser! {
 
         /// URL path component - supports query params, fragments, encoding, etc.
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
-        rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' ]+)
+        rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
         {?
             let mut inline_state = InlinePreprocessorParserState::new(
                 path,
@@ -4463,7 +4575,9 @@ peg::parser! {
                 tracing::error!(?e, "could not preprocess url path");
                 "could not preprocess url path"
             })?;
-            Ok(processed.text)
+            // Strip backslash escapes before URL parsing to prevent the url crate
+            // from normalizing backslashes to forward slashes
+            Ok(strip_url_backslash_escapes(&processed.text))
         }
 
         /// Filesystem path - conservative character set for cross-platform compatibility
