@@ -82,6 +82,9 @@ Basic list items with inline content work fine, including:
 - Nested lists (using different marker levels like `*`, `**`, `***`)
 - Checklist items (`[x]`, `[ ]`)
 - Multiline text that wraps within a list item
+- List separators (both `//` line comments and `[]` block attributes)
+- Multiple consecutive `+` continuations in the same item
+- Open block (`--`) wrappers for grouping multiple blocks in a continuation
 
 **Description lists**
 
@@ -94,38 +97,6 @@ I've implemented basic description list support with several features:
 
 ### What doesn't work
 
-**Multiple list continuations**
-
-Single `+` continuation now works for attaching blocks to list items:
-
-```asciidoc
-* List item text
-+
-----
-Block content here
-----
-* Next item (stays in same list)
-```
-
-However, multiple consecutive `+` continuations in the same item don't work correctly yet:
-
-```asciidoc
-* Item
-+
-Paragraph 1
-+
-Paragraph 2   <-- This doesn't attach properly
-```
-
-**List separators**
-
-The [spec describes](https://docs.asciidoctor.org/asciidoc/latest/lists/separating/) two ways to force separate lists:
-
-1. Line comment separator (`//`)
-2. Block attribute separator (`[]`)
-
-I don't support either. Lists with the same marker will always join together.
-
 **Description list limitations**
 
 While basic description lists work, there are gaps:
@@ -136,13 +107,12 @@ While basic description lists work, there are gaps:
 **Other missing list features**
 
 - No support for `{empty}` to drop principal text
-- No open block (`--`) wrapper support for grouping multiple blocks
 - No ancestor list continuation (attaching blocks to parent list items with blank lines before `+`)
 
 ### Why these limitations exist
 
-The model now supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and single `+` continuations work. The remaining issues are parser grammar limitations:
+The model supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and most list features work correctly. The remaining issues are:
 
-1. Multiple consecutive `+` markers in the same item aren't parsed correctly
-2. List separators (`//` and `[]`) aren't recognized
-3. Ancestor list continuation (blank line before `+`) isn't supported
+1. Ancestor list continuation (blank line before `+`) isn't supported - the parser attaches continuations to the last nested item rather than the parent
+2. Description list style attributes (`[ordered]`, `[unordered]`, `.stack`) aren't implemented in the converter
+3. The `{empty}` attribute isn't processed for dropping principal text
