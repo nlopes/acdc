@@ -5,7 +5,7 @@ use acdc_parser::{
     CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList, UnorderedList,
 };
 
-use crate::Error;
+use crate::{Error, build_class};
 
 /// Check if any list item has a checkbox
 fn has_checklist_items(items: &[ListItem]) -> bool {
@@ -296,7 +296,8 @@ pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
-    writeln!(writer, " class=\"dlist\">")?;
+    let class = build_class("dlist", &list.metadata.roles);
+    writeln!(writer, " class=\"{class}\">")?;
     writeln!(writer, "<dl>")?;
     let _ = writer;
 
