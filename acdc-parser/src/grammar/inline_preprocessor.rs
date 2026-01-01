@@ -254,17 +254,45 @@ parser!(
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
                 let location = state.calculate_location(start, attribute_name, 2);
-                let mut attributes = state.attributes.borrow_mut();
+
+                // Special handling for character reference attributes that need passthrough behavior.
+                // Per AsciiDoc spec, these are "passthrough replacements for characters that get
+                // encoded by the converter (e.g., <, >, and &)."
+                // See: https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
+                let is_char_ref = matches!(attribute_name, "lt" | "gt" | "amp");
+
                 match document_attributes.get(attribute_name) {
                     Some(AttributeValue::String(value)) => {
-                        state.source_map.borrow_mut().add_replacement(
-                            location.absolute_start,
-                            location.absolute_end,
-                            value.chars().count(),
-                            ProcessedKind::Attribute,
-                        );
-                        attributes.insert(state.source_map.borrow().replacements.len(), location);
-                        value.clone()
+                        if is_char_ref {
+                            // Treat {lt}, {gt}, {amp} as passthroughs (like +++<+++)
+                            // Empty substitutions = RawText = bypasses HTML escaping
+                            state.passthroughs.borrow_mut().push(Pass {
+                                text: Some(value.clone()),
+                                substitutions: HashSet::new(),
+                                location: location.clone(),
+                                kind: PassthroughKind::Triple,
+                            });
+                            let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
+                            state.source_map.borrow_mut().add_replacement(
+                                location.absolute_start,
+                                location.absolute_end,
+                                new_content.chars().count(),
+                                ProcessedKind::Passthrough,
+                            );
+                            state.pass_found_count.set(state.pass_found_count.get() + 1);
+                            new_content
+                        } else {
+                            // Normal attribute substitution
+                            let mut attributes = state.attributes.borrow_mut();
+                            state.source_map.borrow_mut().add_replacement(
+                                location.absolute_start,
+                                location.absolute_end,
+                                value.chars().count(),
+                                ProcessedKind::Attribute,
+                            );
+                            attributes.insert(state.source_map.borrow().replacements.len(), location);
+                            value.clone()
+                        }
                     },
                     _ => {
                         // TODO(nlopes): do we need to handle other types?
@@ -1003,6 +1031,10 @@ mod tests {
     ///
     /// Tests all 31 attributes defined in the `AsciiDoc` specification:
     /// <https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/>
+    ///
+    /// Note: `{lt}`, `{gt}`, `{amp}` are treated as passthroughs and produce placeholders
+    /// in the preprocessed text. They are resolved to `RawText` nodes during passthrough
+    /// processing, which bypasses HTML escaping.
     #[test]
     fn test_all_character_replacement_attributes() -> Result<(), Error> {
         let attributes = DocumentAttributes::default();
@@ -1022,13 +1054,17 @@ mod tests {
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
         // Build expected output by concatenating all expected values
+        // Note: {amp}, {lt}, {gt} produce passthrough placeholders (indices 0, 1, 2)
         let expected = concat!(
             // Whitespace: empty, blank, space, nbsp, zwsp, wj
             "", "", " ", "\u{00A0}", "\u{200B}", "\u{2060}",
             // Quotes: apos, quot, lsquo, rsquo, ldquo, rdquo
             "'", "\"", "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}",
-            // Symbols: deg, plus, brvbar, vbar, amp, lt, gt
-            "\u{00B0}", "+", "\u{00A6}", "|", "&", "<", ">",
+            // Symbols: deg, plus, brvbar, vbar, then amp/lt/gt as placeholders
+            "\u{00B0}", "+", "\u{00A6}", "|",
+            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}",  // {amp}
+            "\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}",  // {lt}
+            "\u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}",  // {gt}
             // Escaping: startsb, endsb, caret, asterisk, tilde, backslash, backtick
             "[", "]", "^", "*", "~", "\\", "`",
             // Sequences: two-colons, two-semicolons, cpp, cxx, pp
@@ -1039,6 +1075,15 @@ mod tests {
             result.text, expected,
             "Character replacement attributes did not produce expected values"
         );
+
+        // Verify the passthroughs were created for {amp}, {lt}, {gt}
+        assert_eq!(result.passthroughs.len(), 3, "Should have 3 passthroughs for amp, lt, gt");
+        let [amp, lt, gt] = result.passthroughs.as_slice() else {
+            panic!("Expected exactly 3 passthroughs");
+        };
+        assert_eq!(amp.text.as_deref(), Some("&"));
+        assert_eq!(lt.text.as_deref(), Some("<"));
+        assert_eq!(gt.text.as_deref(), Some(">"));
 
         Ok(())
     }
