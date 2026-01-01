@@ -1,4 +1,4 @@
-# `acdc-parser`
+= `acdc-parser`
 
 The implementation here follows from:
 
@@ -6,7 +6,7 @@ The implementation here follows from:
 * https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc[Language Outline]: behaviour/layout
 * https://docs.asciidoctor.org/asciidoc/latest[Asciidoctor Language Documentation]: behaviour/layout
 
-## Features supported
+== Features supported
 
 * [x] Document Headers
 * [x] Section
@@ -70,11 +70,11 @@ The implementation here follows from:
 * [x] Discrete headers
 
 [[lists]]
-## Lists - detailed support notes
+== Lists - detailed support notes
 
 Lists are partially implemented. Here's what works and what doesn't.
 
-### What works
+=== What works
 
 **Ordered and unordered lists**
 
@@ -96,7 +96,7 @@ I've implemented basic description list support with several features:
 - Explicit continuation (`+`) for attaching block content
 - Auto-attaching ordered/unordered lists to description list items (even with blank lines before the list)
 
-### What doesn't work
+=== What doesn't work
 
 **Description list limitations**
 
@@ -109,7 +109,7 @@ While basic description lists work, there are gaps:
 
 - No ancestor list continuation (attaching blocks to parent list items with blank lines before `+`)
 
-### Why these limitations exist
+=== Why these limitations exist
 
 The model supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and most list features work correctly. The remaining issues are:
 
