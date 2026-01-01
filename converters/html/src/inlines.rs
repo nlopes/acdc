@@ -52,6 +52,7 @@ use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_t
 
 use crate::{
     Error, Processor, RenderOptions,
+    constants::encode_html_entities,
     icon::write_icon,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
@@ -541,11 +542,15 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
 
     // Restore escaped patterns (convert placeholders back to literal forms)
     // This must happen after typography substitutions to preserve escapes like \...
-    if options.inlines_basic || options.inlines_verbatim {
+    let text = if options.inlines_basic || options.inlines_verbatim {
         text
     } else {
         restore_escaped_patterns(&text)
-    }
+    };
+
+    // Encode non-ASCII Unicode characters as HTML numeric entities
+    // to match asciidoctor's output format
+    encode_html_entities(&text)
 }
 
 fn mark_callouts(text: &str) -> String {

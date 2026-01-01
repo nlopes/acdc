@@ -234,6 +234,7 @@ impl Processable for Processor {
 
 mod admonition;
 mod audio;
+mod constants;
 mod delimited;
 mod document;
 mod error;
