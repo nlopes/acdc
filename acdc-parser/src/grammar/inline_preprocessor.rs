@@ -1057,18 +1057,41 @@ mod tests {
         // Note: {amp}, {lt}, {gt} produce passthrough placeholders (indices 0, 1, 2)
         let expected = concat!(
             // Whitespace: empty, blank, space, nbsp, zwsp, wj
-            "", "", " ", "\u{00A0}", "\u{200B}", "\u{2060}",
+            "",
+            "",
+            " ",
+            "\u{00A0}",
+            "\u{200B}",
+            "\u{2060}",
             // Quotes: apos, quot, lsquo, rsquo, ldquo, rdquo
-            "'", "\"", "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}",
+            "'",
+            "\"",
+            "\u{2018}",
+            "\u{2019}",
+            "\u{201C}",
+            "\u{201D}",
             // Symbols: deg, plus, brvbar, vbar, then amp/lt/gt as placeholders
-            "\u{00B0}", "+", "\u{00A6}", "|",
-            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}",  // {amp}
-            "\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}",  // {lt}
-            "\u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}",  // {gt}
+            "\u{00B0}",
+            "+",
+            "\u{00A6}",
+            "|",
+            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}", // {amp}
+            "\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}", // {lt}
+            "\u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}", // {gt}
             // Escaping: startsb, endsb, caret, asterisk, tilde, backslash, backtick
-            "[", "]", "^", "*", "~", "\\", "`",
+            "[",
+            "]",
+            "^",
+            "*",
+            "~",
+            "\\",
+            "`",
             // Sequences: two-colons, two-semicolons, cpp, cxx, pp
-            "::", ";;", "C++", "C++", "++"
+            "::",
+            ";;",
+            "C++",
+            "C++",
+            "++"
         );
 
         assert_eq!(
@@ -1077,7 +1100,11 @@ mod tests {
         );
 
         // Verify the passthroughs were created for {amp}, {lt}, {gt}
-        assert_eq!(result.passthroughs.len(), 3, "Should have 3 passthroughs for amp, lt, gt");
+        assert_eq!(
+            result.passthroughs.len(),
+            3,
+            "Should have 3 passthroughs for amp, lt, gt"
+        );
         let [amp, lt, gt] = result.passthroughs.as_slice() else {
             panic!("Expected exactly 3 passthroughs");
         };
