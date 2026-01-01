@@ -146,6 +146,11 @@ pub(crate) fn process_inlines(
 ) -> Result<Vec<InlineNode>, Error> {
     let (location, processed) =
         preprocess_inline_content(state, content_start, end, offset, content)?;
+    // After preprocessing, attribute substitution may result in empty content
+    // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
+    if processed.text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
     let content = parse_inlines(&processed, state, block_metadata, &location)?;
     super::location_mapping::map_inline_locations(state, &processed, &content, &location)
 }

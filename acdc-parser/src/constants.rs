@@ -12,6 +12,7 @@ use crate::{AttributeName, AttributeValue};
 /// Universal default attributes applied to all documents
 ///
 /// These match asciidoctor's default behavior and include:
+/// - Character replacement / intrinsic attributes (empty, sp, nbsp, etc.)
 /// - Admonition captions
 /// - Block captions (example, figure, table, appendix)
 /// - UI labels (TOC title, version label, etc.)
@@ -22,6 +23,132 @@ use crate::{AttributeName, AttributeValue};
 #[allow(clippy::too_many_lines)]
 pub fn default_attributes() -> rustc_hash::FxHashMap<AttributeName, AttributeValue> {
     [
+        // Character replacement / intrinsic attributes
+        (
+            AttributeName::from("empty"),
+            AttributeValue::String(String::new()),
+        ),
+        (
+            AttributeName::from("blank"),
+            AttributeValue::String(String::new()),
+        ),
+        (
+            AttributeName::from("sp"),
+            AttributeValue::String(" ".into()),
+        ),
+        (
+            AttributeName::from("nbsp"),
+            AttributeValue::String("\u{00A0}".into()),
+        ),
+        (
+            AttributeName::from("zwsp"),
+            AttributeValue::String("\u{200B}".into()),
+        ),
+        (
+            AttributeName::from("wj"),
+            AttributeValue::String("\u{2060}".into()),
+        ),
+        (
+            AttributeName::from("apos"),
+            AttributeValue::String("'".into()),
+        ),
+        (
+            AttributeName::from("quot"),
+            AttributeValue::String("\"".into()),
+        ),
+        (
+            AttributeName::from("lsquo"),
+            AttributeValue::String("\u{2018}".into()),
+        ),
+        (
+            AttributeName::from("rsquo"),
+            AttributeValue::String("\u{2019}".into()),
+        ),
+        (
+            AttributeName::from("ldquo"),
+            AttributeValue::String("\u{201C}".into()),
+        ),
+        (
+            AttributeName::from("rdquo"),
+            AttributeValue::String("\u{201D}".into()),
+        ),
+        (
+            AttributeName::from("deg"),
+            AttributeValue::String("\u{00B0}".into()),
+        ),
+        (
+            AttributeName::from("plus"),
+            AttributeValue::String("+".into()),
+        ),
+        (
+            AttributeName::from("brvbar"),
+            AttributeValue::String("\u{00A6}".into()),
+        ),
+        (
+            AttributeName::from("vbar"),
+            AttributeValue::String("|".into()),
+        ),
+        (
+            AttributeName::from("amp"),
+            AttributeValue::String("&".into()),
+        ),
+        (
+            AttributeName::from("lt"),
+            AttributeValue::String("<".into()),
+        ),
+        (
+            AttributeName::from("gt"),
+            AttributeValue::String(">".into()),
+        ),
+        (
+            AttributeName::from("startsb"),
+            AttributeValue::String("[".into()),
+        ),
+        (
+            AttributeName::from("endsb"),
+            AttributeValue::String("]".into()),
+        ),
+        (
+            AttributeName::from("caret"),
+            AttributeValue::String("^".into()),
+        ),
+        (
+            AttributeName::from("asterisk"),
+            AttributeValue::String("*".into()),
+        ),
+        (
+            AttributeName::from("tilde"),
+            AttributeValue::String("~".into()),
+        ),
+        (
+            AttributeName::from("backslash"),
+            AttributeValue::String("\\".into()),
+        ),
+        (
+            AttributeName::from("backtick"),
+            AttributeValue::String("`".into()),
+        ),
+        (
+            AttributeName::from("two-colons"),
+            AttributeValue::String("::".into()),
+        ),
+        (
+            AttributeName::from("two-semicolons"),
+            AttributeValue::String(";;".into()),
+        ),
+        (
+            AttributeName::from("cpp"),
+            AttributeValue::String("C++".into()),
+        ),
+        (
+            AttributeName::from("cxx"),
+            AttributeValue::String("C++".into()),
+        ),
+        (
+            AttributeName::from("pp"),
+            AttributeValue::String("++".into()),
+        ),
+        // Appendix
         (
             AttributeName::from("appendix-caption"),
             AttributeValue::String("Appendix".into()),

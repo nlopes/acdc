@@ -998,4 +998,91 @@ mod tests {
 
         Ok(())
     }
+
+    /// Comprehensive test for all character replacement attributes.
+    ///
+    /// Tests all 31 attributes defined in the `AsciiDoc` specification:
+    /// <https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/>
+    #[test]
+    fn test_all_character_replacement_attributes() -> Result<(), Error> {
+        let attributes = DocumentAttributes::default();
+        let input = concat!(
+            // Whitespace & invisible
+            "{empty}{blank}{sp}{nbsp}{zwsp}{wj}",
+            // Quotes
+            "{apos}{quot}{lsquo}{rsquo}{ldquo}{rdquo}",
+            // Symbols
+            "{deg}{plus}{brvbar}{vbar}{amp}{lt}{gt}",
+            // Syntax escaping
+            "{startsb}{endsb}{caret}{asterisk}{tilde}{backslash}{backtick}",
+            // Sequences
+            "{two-colons}{two-semicolons}{cpp}{cxx}{pp}"
+        );
+        let state = setup_state(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+
+        // Build expected output by concatenating all expected values
+        let expected = concat!(
+            // Whitespace: empty, blank, space, nbsp, zwsp, wj
+            "", "", " ", "\u{00A0}", "\u{200B}", "\u{2060}",
+            // Quotes: apos, quot, lsquo, rsquo, ldquo, rdquo
+            "'", "\"", "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}",
+            // Symbols: deg, plus, brvbar, vbar, amp, lt, gt
+            "\u{00B0}", "+", "\u{00A6}", "|", "&", "<", ">",
+            // Escaping: startsb, endsb, caret, asterisk, tilde, backslash, backtick
+            "[", "]", "^", "*", "~", "\\", "`",
+            // Sequences: two-colons, two-semicolons, cpp, cxx, pp
+            "::", ";;", "C++", "C++", "++"
+        );
+
+        assert_eq!(
+            result.text, expected,
+            "Character replacement attributes did not produce expected values"
+        );
+
+        Ok(())
+    }
+
+    /// Test that character replacement attributes work in context.
+    #[test]
+    fn test_character_replacement_in_context() -> Result<(), Error> {
+        let attributes = DocumentAttributes::default();
+
+        // Test 1: Attributes in sentence
+        let input1 = "The temperature is 100{deg}F";
+        let state1 = setup_state(input1);
+        let result1 = inline_preprocessing::run(input1, &attributes, &state1)?;
+        assert_eq!(result1.text, "The temperature is 100\u{00B0}F");
+
+        // Test 2: Multiple attributes
+        let input2 = "Use {startsb}option{endsb} syntax";
+        let state2 = setup_state(input2);
+        let result2 = inline_preprocessing::run(input2, &attributes, &state2)?;
+        assert_eq!(result2.text, "Use [option] syntax");
+
+        // Test 3: Adjacent attributes
+        let input3 = "{ldquo}Hello{rdquo}";
+        let state3 = setup_state(input3);
+        let result3 = inline_preprocessing::run(input3, &attributes, &state3)?;
+        assert_eq!(result3.text, "\u{201C}Hello\u{201D}");
+
+        // Test 4: Empty/blank produce no visible output
+        let input4 = "before{empty}after";
+        let state4 = setup_state(input4);
+        let result4 = inline_preprocessing::run(input4, &attributes, &state4)?;
+        assert_eq!(result4.text, "beforeafter");
+
+        let input5 = "before{blank}after";
+        let state5 = setup_state(input5);
+        let result5 = inline_preprocessing::run(input5, &attributes, &state5)?;
+        assert_eq!(result5.text, "beforeafter");
+
+        // Test 5: C++ variations
+        let input6 = "{cpp} is same as {cxx}";
+        let state6 = setup_state(input6);
+        let result6 = inline_preprocessing::run(input6, &attributes, &state6)?;
+        assert_eq!(result6.text, "C++ is same as C++");
+
+        Ok(())
+    }
 }

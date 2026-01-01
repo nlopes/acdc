@@ -2631,7 +2631,7 @@ peg::parser! {
         term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
         delimiter:description_list_marker()
         whitespace()?
-        principal_start:position!()
+        principal_start:position()
         principal_content:$((!eol() [_])*)
         // No contiguous lines - they would be parsed as separate blocks or items
         // Now handle auto-attachment and explicit continuation
@@ -2646,15 +2646,12 @@ peg::parser! {
                     vec![]
                 });
 
+            let principal_end = principal_start.offset + principal_content.len();
             let principal_text = if principal_content.trim().is_empty() {
                 Vec::new()
             } else {
-                // Parse as inline content
-                document_parser::inlines(principal_content.trim(), state, principal_start+offset, block_metadata)
-                    .unwrap_or_else(|e| {
-                        adjust_and_log_parse_error(&e, principal_content.trim(), principal_start+offset, state, "Error parsing principal text as inline content");
-                        vec![]
-                    })
+                // Parse as inline content with attribute substitution
+                process_inlines(state, block_metadata, &principal_start, principal_end, offset, principal_content.trim())?
             };
 
             // Collect all attached blocks (auto-attached and explicitly continued)
@@ -2676,9 +2673,9 @@ peg::parser! {
                     // No attached content: use end of principal text line
                     if principal_content.is_empty() {
                         // Just term + delimiter
-                        principal_start
+                        principal_start.offset
                     } else {
-                        principal_start + principal_content.len()
+                        principal_start.offset + principal_content.len()
                     }
                 },
                 |b| {

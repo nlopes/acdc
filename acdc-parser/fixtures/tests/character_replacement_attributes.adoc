@@ -1,0 +1,9 @@
+= Character Replacement Attributes
+
+Blank: before{blank}after
+
+C++ keyword: {cpp}
+
+C++ deprecated: {cxx}
+
+Plus plus: {pp}

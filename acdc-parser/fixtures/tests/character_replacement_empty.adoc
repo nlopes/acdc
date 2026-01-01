@@ -1,0 +1,7 @@
+= Empty Attribute Test
+
+Term:: {empty}
++
+Description paragraph.
+
+Inline empty: before{empty}after
