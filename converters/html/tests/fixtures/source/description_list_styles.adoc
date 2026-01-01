@@ -1,0 +1,30 @@
+= Description List Styles
+
+== Ordered Style
+
+[ordered]
+First:: Definition one
+Second:: Definition two
+Third:: Definition three
+
+== Unordered Style
+
+[unordered]
+Alpha:: Value A
+Beta:: Value B
+
+== Combined Style and Role
+
+[ordered.highlight]
+Item One:: With role
+Item Two:: And style
+
+== Plain Description List
+
+Plain Term:: No style applied
+Another Term:: Uses hdlist1 class
+
+== Role Only
+
+[.custom-role]
+Styled Term:: Has role but no marker style

@@ -296,14 +296,32 @@ pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
-    let class = build_class("dlist", &list.metadata.roles);
+    // Check for ordered/unordered style (affects dt class)
+    let is_marker_style = list
+        .metadata
+        .style
+        .as_deref()
+        .is_some_and(|s| s == "ordered" || s == "unordered");
+
+    // Build class including style if present
+    let base_class = if let Some(style) = &list.metadata.style {
+        format!("dlist {style}")
+    } else {
+        "dlist".to_string()
+    };
+    let class = build_class(&base_class, &list.metadata.roles);
     writeln!(writer, " class=\"{class}\">")?;
     writeln!(writer, "<dl>")?;
     let _ = writer;
 
     for item in &list.items {
         let mut writer = visitor.writer_mut();
-        writeln!(writer, "<dt class=\"hdlist1\">")?;
+        // Only add hdlist1 class when NOT ordered/unordered
+        if is_marker_style {
+            writeln!(writer, "<dt>")?;
+        } else {
+            writeln!(writer, "<dt class=\"hdlist1\">")?;
+        }
         let _ = writer;
         visitor.visit_inline_nodes(&item.term)?;
         writer = visitor.writer_mut();
