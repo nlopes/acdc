@@ -1,0 +1,23 @@
+= Character Replacement Passthrough Attributes
+
+These attributes should produce raw HTML characters that bypass escaping.
+
+== HTML Tags
+
+Line break: {lt}br{gt}
+
+Strong: {lt}strong{gt}bold{lt}/strong{gt}
+
+== Comparison Operators
+
+Less than: 5 {lt} 10
+
+Greater than: 10 {gt} 5
+
+== Ampersand
+
+Ampersand alone: {amp}
+
+Entity syntax: {amp}copy;
+
+URL query: example.com?a=1{amp}b=2

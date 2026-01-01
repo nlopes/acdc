@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `{empty}` attribute now works in description lists and inline contexts ([#262])
+- `{lt}`, `{gt}`, `{amp}` character replacement attributes now produce raw HTML characters
+  that bypass escaping, matching asciidoctor behaviour ([#266])
 
 ### Changed
 
@@ -21,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of raw `\u{00A0}`) to match asciidoctor output
 
 [#262]: https://github.com/nlopes/acdc/issues/262
+[#266]: https://github.com/nlopes/acdc/issues/266
 
 ## [0.1.1] - 2025-12-31
 
