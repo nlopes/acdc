@@ -106,7 +106,6 @@ While basic description lists work, there are gaps:
 
 **Other missing list features**
 
-- No support for `{empty}` to drop principal text
 - No ancestor list continuation (attaching blocks to parent list items with blank lines before `+`)
 
 ### Why these limitations exist
@@ -115,4 +114,3 @@ The model supports block attachments (`ListItem` has both `principal: Vec<Inline
 
 1. Ancestor list continuation (blank line before `+`) isn't supported - the parser attaches continuations to the last nested item rather than the parent
 2. Description list style attributes (`[ordered]`, `[unordered]`, `.stack`) aren't implemented in the converter
-3. The `{empty}` attribute isn't processed for dropping principal text
