@@ -1,8 +1,13 @@
 [package]
 name = "acdc-cli"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
-description.workspace = true
+description = "Text processor for parsing AsciiDoc and converting it to output formats such as HTML, manual pages, or even the terminal."
+readme = "README.adoc"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/nlopes/acdc"
+keywords = ["asciidoc", "parser", "converter", "documentation"]
+categories = ["command-line-utilities", "text-processing"]
 
 [[bin]]
 name = "acdc"
