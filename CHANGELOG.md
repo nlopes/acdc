@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased acdc-cli]
+
+### Added
+
+- Description lists now support roles (e.g., `[.stack]`) which are applied to the wrapper
+  `<div>` element, matching asciidoctor behaviour ([#264])
+
+[#264]: https://github.com/nlopes/acdc/issues/264
+
 ## [Unreleased acdc-parser]
 
 ### Added
