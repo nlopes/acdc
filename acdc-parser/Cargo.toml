@@ -5,6 +5,7 @@ version = "0.1.1"
 edition.workspace = true
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/nlopes/acdc"
 documentation = "https://docs.rs/acdc-parser"
 keywords = ["asciidoc", "parser", "markup"]
 categories = ["parsing", "text-processing"]
