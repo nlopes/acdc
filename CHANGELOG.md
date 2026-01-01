@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support for `{blank}`, `{cxx}`, and `{pp}` character replacement attributes
+
+### Fixed
+
+- `{empty}` attribute now works in description lists and inline contexts ([#262])
+
+### Changed
+
+- HTML converter now outputs Unicode characters as numeric entities (e.g., `&#160;`
+  instead of raw `\u{00A0}`) to match asciidoctor output
+
+[#262]: https://github.com/nlopes/acdc/issues/262
+
 ## [0.1.1] - 2025-12-31
 
 ### Added
