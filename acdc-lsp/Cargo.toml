@@ -1,8 +1,13 @@
 [package]
 name = "acdc-lsp"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 description = "Language Server Protocol implementation for AsciiDoc using acdc-parser"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/nlopes/acdc"
+keywords = ["asciidoc", "lsp", "language-server", "editor"]
+categories = ["development-tools", "text-editors"]
 
 [[bin]]
 name = "acdc-lsp"
