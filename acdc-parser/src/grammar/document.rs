@@ -1836,6 +1836,14 @@ peg::parser! {
         = "//" [^'\n']* (&eol() / ![_])  // Line comment separator
         / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
 
+        // Helper rule to check if we're at a blank line followed by non-empty block attributes
+        // Used by description lists to terminate when new block attributes appear after a blank line
+        // This signals a new block context where the attributes should apply to a new list
+        // Matches: 2+ newlines, then `[` at column 1 followed by non-empty content and `]`
+        // Note: NO whitespace before `[` - indented brackets are not block attributes
+        rule at_dlist_block_boundary()
+        = eol()*<2,> &("[" ![']' | '['] [^']' | '\n']+ "]" whitespace()* eol())
+
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<Block, Error>
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
@@ -2202,9 +2210,10 @@ peg::parser! {
         /// Parse nested content within an unordered list item (e.g., nested ordered list)
         /// Note: allow_continuation is false to prevent nested items from consuming parent-level continuations
         rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
-        // FUNCTIONAL: !at_root_ordered_marker() prevents root-level ordered items (no leading whitespace)
-        // from being incorrectly parsed as nested. Without this, `. item` at column 1 would be nested
-        // inside the parent unordered item instead of being a sibling list.
+        // !at_root_ordered_marker() prevents root-level ordered items (no leading
+        // whitespace) from being incorrectly parsed as nested. Without this, `. item` at
+        // column 1 would be nested inside the parent unordered item instead of being a
+        // sibling list.
         = !at_root_ordered_marker() nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, true, false) {
             Some(list)
         }
@@ -2421,9 +2430,10 @@ peg::parser! {
         /// Parse nested content within an ordered list item (e.g., nested unordered list)
         /// Note: allow_continuation is false to prevent nested items from consuming parent-level continuations
         rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Option<Result<Block, Error>>
-        // FUNCTIONAL: !at_root_unordered_marker() prevents root-level unordered items (no leading whitespace)
-        // from being incorrectly parsed as nested. Without this, `* item` at column 1 would be nested
-        // inside the parent ordered item instead of being a sibling list.
+        // !at_root_unordered_marker() prevents root-level unordered items (no leading
+        // whitespace) from being incorrectly parsed as nested. Without this, `* item` at
+        // column 1 would be nested inside the parent ordered item instead of being a
+        // sibling list.
         = !at_root_unordered_marker() nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, true, false) {
             Some(list)
         }
@@ -2440,11 +2450,12 @@ peg::parser! {
         }
 
         rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        // !not_after_verbatim_block(): FUNCTIONAL - callout lists only make sense after source/listing blocks
-        // The double negative succeeds only when last_block_was_verbatim is true
+        // !not_after_verbatim_block(): callout lists only make sense after source/listing
+        // blocks The double negative succeeds only when last_block_was_verbatim is true
         = !not_after_verbatim_block()
-        // OPTIMIZATION: This positive lookahead fails fast when not at a callout marker (<1>, <.>, etc.)
-        // Without it, callout_list_item would be called and fail - same result, just slower
+        // OPTIMIZATION: This positive lookahead fails fast when not at a callout marker
+        // (<1>, <.>, etc.) Without it, callout_list_item would be called and fail - same
+        // result, just slower
         &(whitespace()* callout_list_marker() whitespace())
         first:callout_list_item(offset, block_metadata)
         rest:(callout_list_rest_item(offset, block_metadata))*
@@ -2617,8 +2628,12 @@ peg::parser! {
         }
 
         // Parse additional description list items (after potential auto-attached content)
+        //
+        // !at_dlist_block_boundary() prevents continuing the list when a blank line is
+        // followed by block attributes. This allows attributes to apply to a new list.
         rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
-        = eol()*
+        = !at_dlist_block_boundary()
+        eol()*
         check_start_of_description_list()
         item:description_list_item(offset, block_metadata)
         {
@@ -4244,8 +4259,9 @@ peg::parser! {
         = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
 
         pub(crate) rule attributes_line() -> (bool, BlockMetadata)
-            // FUNCTIONAL: Don't match empty [] followed by blank line - that's a list separator, not block attributes
-            // Without this, `[]\n\n` would be parsed as an empty attributes line, breaking list separation
+            // Don't match empty [] followed by blank line - that's a list separator, not
+            // block attributes. Without this, `[]\n\n` would be parsed as an empty
+            // attributes line, breaking list separation
             = !empty_list_separator() attributes:attributes() eol() {
                 let (discrete, metadata, _title_position) = attributes;
                 (discrete, metadata)
