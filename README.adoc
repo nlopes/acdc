@@ -33,6 +33,10 @@ acdc/
 ├── acdc-cli/                 # Command-line interface
 │   └── src/
 │       └── main.rs          # CLI entry point
+├── acdc-lsp/                 # Language Server Protocol implementation
+│   └── src/
+│       ├── capabilities/    # LSP features (completion, diagnostics, etc.)
+│       └── state/           # Document and workspace state management
 ├── acdc-parser/             # Core parser and AST
 │   ├── src/
 │   │   ├── grammar/         # PEG grammar definitions
@@ -50,6 +54,7 @@ acdc/
 == Tooling
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)
+* link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation for editor integration
 * link:./acdc-parser[acdc-parser] - AsciiDoc parser library
 * link:./converters[converters] - collection of AsciiDoc converters
 
