@@ -5,20 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased acdc-cli]
+## [acdc-cli-v0.1.0] - 2026-01-02
+
+IMPORTANT: This is tagged but unreleased in crates.io for now.
 
 ### Added
 
 - Description lists now support roles (e.g., `[.stack]`) which are applied to the wrapper
   `<div>` element, matching asciidoctor behaviour ([#264])
 
+### Changed
+- Removed dependency on `acdc-core` (purely internal change so no need to bump minor
+  version)
+
 [#264]: https://github.com/nlopes/acdc/issues/264
 
-## [Unreleased acdc-parser]
+## [acdc-parser-v0.1.2] - 2026-01-02
 
 ### Added
 
 - Support for `{blank}`, `{cxx}`, and `{pp}` character replacement attributes
+- `SafeMode` enum now exported from `acdc_parser` (migrated from removed `acdc-core`)
+- `FromStr` and `Display` implementations for `SafeMode`
 
 ### Fixed
 
@@ -30,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - HTML converter now outputs Unicode characters as numeric entities (e.g., `&#160;`
   instead of raw `\u{00A0}`) to match asciidoctor output
+- Removed dependency on `acdc-core`
 
 [#262]: https://github.com/nlopes/acdc/issues/262
 [#266]: https://github.com/nlopes/acdc/issues/266
