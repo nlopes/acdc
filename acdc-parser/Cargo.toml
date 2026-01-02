@@ -1,7 +1,7 @@
 [package]
 name = "acdc-parser"
 description = "`AsciiDoc` parser using PEG grammars"
-version = "0.1.2"
+version = "0.1.3"
 edition.workspace = true
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"

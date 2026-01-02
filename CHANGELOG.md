@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#270]: https://github.com/nlopes/acdc/issues/270
 [#272]: https://github.com/nlopes/acdc/issues/272
 
-## [Unreleased acdc-parser]
+## [acdc-parser-v0.1.3] - 2026-01-02
 
 ### Fixed
 
