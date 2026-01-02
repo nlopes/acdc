@@ -1,0 +1,5 @@
+[.role1]
+Term A:: Definition A
+
+[.role2]
+Term B:: Definition B

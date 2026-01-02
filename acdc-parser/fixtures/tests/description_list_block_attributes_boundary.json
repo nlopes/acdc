@@ -1,0 +1,154 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "roles": [
+          "role1"
+        ]
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term A",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Definition A",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 10
+                },
+                {
+                  "line": 2,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "roles": [
+          "role2"
+        ]
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term B",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Definition B",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 10
+                },
+                {
+                  "line": 5,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 22
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 21
+    }
+  ]
+}
