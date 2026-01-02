@@ -288,7 +288,8 @@ pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
     list: &DescriptionList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let mut writer = visitor.writer_mut();
+    // Start the description list outer div
+    let writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor
     if let Some(id) = &list.metadata.id {
@@ -296,6 +297,71 @@ pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
+
+    // Description list
+    let is_horizontal = list.metadata.style.as_deref() == Some("horizontal");
+    if is_horizontal {
+        visit_horizontal_description_list(list, visitor)?;
+    } else {
+        visit_standard_description_list(list, visitor)?;
+    }
+
+    let writer = visitor.writer_mut();
+    // Close the description list
+    writeln!(writer, "</div>")?;
+    Ok(())
+}
+
+/// Renders a horizontal description list as an HTML table with `hdlist` class.
+/// This matches asciidoctor's output for `[horizontal]` style description lists.
+fn visit_horizontal_description_list<V: WritableVisitor<Error = Error>>(
+    list: &DescriptionList,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+
+    let class = build_class("hdlist", &list.metadata.roles);
+    writeln!(writer, " class=\"{class}\">")?;
+    writeln!(writer, "<table>")?;
+    let _ = writer;
+
+    for item in &list.items {
+        let mut writer = visitor.writer_mut();
+        writeln!(writer, "<tr>")?;
+        writeln!(writer, "<td class=\"hdlist1\">")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&item.term)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</td>")?;
+        writeln!(writer, "<td class=\"hdlist2\">")?;
+        if !item.principal_text.is_empty() {
+            write!(writer, "<p>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&item.principal_text)?;
+            writer = visitor.writer_mut();
+            writeln!(writer, "</p>")?;
+        }
+        let _ = writer;
+        for block in &item.description {
+            visitor.visit_block(block)?;
+        }
+        writer = visitor.writer_mut();
+        writeln!(writer, "</td>")?;
+        writeln!(writer, "</tr>")?;
+    }
+
+    writer = visitor.writer_mut();
+    writeln!(writer, "</table>")?;
+    Ok(())
+}
+
+/// Renders a standard description list as an HTML `<dl>` with `dlist` class.
+fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
+    list: &DescriptionList,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+
     // Check for ordered/unordered style (affects dt class)
     let is_marker_style = list
         .metadata
@@ -344,7 +410,6 @@ pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
 
     writer = visitor.writer_mut();
     writeln!(writer, "</dl>")?;
-    writeln!(writer, "</div>")?;
     Ok(())
 }
 

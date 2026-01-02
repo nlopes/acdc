@@ -28,3 +28,15 @@ Another Term:: Uses hdlist1 class
 
 [.custom-role]
 Styled Term:: Has role but no marker style
+
+== Horizontal Style
+
+[horizontal]
+Term A:: Definition A
+Term B:: Definition B with *bold* text
+
+== Horizontal with Role
+
+[horizontal.custom-role]
+First:: Description one
+Second:: Description two

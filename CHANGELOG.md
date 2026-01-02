@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased acdc-cli]
+
+### Fixed
+
+- Horizontal description lists (`[horizontal]`) now render as `<table>` with `hdlist`
+  class instead of `<dl>` with `dlist horizontal`, matching asciidoctor output ([#270])
+
+And add the reference at the bottom of that section:
+
+[#270]: https://github.com/nlopes/acdc/issues/270
+
+## [Unreleased acdc-parser]
+
+### Fixed
+
+- Description lists now correctly break when a `[[id]]` anchor is present between items
+  ([#269])
+
+[#269]: https://github.com/nlopes/acdc/issues/269
+
 ## [acdc-cli-v0.1.0] - 2026-01-02
 
 IMPORTANT: This is tagged but unreleased in crates.io for now.
