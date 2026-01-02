@@ -36,7 +36,7 @@ The implementation here follows from:
 * [x] Lists (see <<lists,detailed notes>>)
 ** [x] Ordered
 ** [x] Unordered
-** [~] Description Lists (partial support)
+** [x] Description Lists
 ** [x] Checklist items
 * [x] Thematic Break
 * [x] Page Break
@@ -98,20 +98,12 @@ I've implemented basic description list support with several features:
 
 === What doesn't work
 
-**Description list limitations**
-
-While basic description lists work, there are gaps:
-
-- No support for the experimental `[ordered]` and `[unordered]` attributes (https://docs.asciidoctor.org/asciidoc/latest/lists/description-with-marker/[described here])
-- No `.stack` role support for formatting
-
-**Other missing list features**
+**Ancestor list continuation**
 
 - No ancestor list continuation (attaching blocks to parent list items with blank lines before `+`)
 
 === Why these limitations exist
 
-The model supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and most list features work correctly. The remaining issues are:
+The model supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and most list features work correctly. The remaining issue is:
 
-1. Ancestor list continuation (blank line before `+`) isn't supported - the parser attaches continuations to the last nested item rather than the parent
-2. Description list style attributes (`[ordered]`, `[unordered]`, `.stack`) aren't implemented in the converter
+- Ancestor list continuation (blank line before `+`) isn't supported - the parser attaches continuations to the last nested item rather than the parent
