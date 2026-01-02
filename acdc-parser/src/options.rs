@@ -1,4 +1,4 @@
-pub use acdc_core::SafeMode;
+pub use crate::safe_mode::SafeMode;
 
 use crate::{AttributeValue, DocumentAttributes};
 
@@ -31,8 +31,7 @@ impl Options {
     /// # Example
     ///
     /// ```
-    /// use acdc_parser::Options;
-    /// use acdc_core::SafeMode;
+    /// use acdc_parser::{Options, SafeMode};
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
@@ -81,8 +80,7 @@ impl Options {
 /// # Example
 ///
 /// ```
-/// use acdc_parser::Options;
-/// use acdc_core::SafeMode;
+/// use acdc_parser::{Options, SafeMode};
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Safe)
@@ -108,8 +106,7 @@ impl OptionsBuilder {
     /// # Example
     ///
     /// ```
-    /// use acdc_parser::Options;
-    /// use acdc_core::SafeMode;
+    /// use acdc_parser::{Options, SafeMode};
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
@@ -231,8 +228,7 @@ impl OptionsBuilder {
     /// # Example
     ///
     /// ```
-    /// use acdc_parser::Options;
-    /// use acdc_core::SafeMode;
+    /// use acdc_parser::{Options, SafeMode};
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)

@@ -2,8 +2,7 @@
 
 use std::io::Cursor;
 
-use acdc_core::SafeMode;
-use acdc_parser::{DocumentAttributes, Options, parse_from_reader};
+use acdc_parser::{Options, SafeMode, parse_from_reader};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

@@ -43,6 +43,7 @@ pub(crate) mod grammar;
 mod model;
 mod options;
 mod preprocessor;
+mod safe_mode;
 
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
@@ -82,8 +83,7 @@ pub use options::{Options, OptionsBuilder, SafeMode};
 /// With options:
 ///
 /// ```
-/// use acdc_core::SafeMode;
-/// use acdc_parser::{Parser, Options};
+/// use acdc_parser::{Parser, Options, SafeMode};
 ///
 /// let content = "= Document Title\n\nParagraph text.";
 /// let options = Options::builder()
@@ -142,8 +142,7 @@ impl<'input> Parser<'input> {
     /// # Example
     ///
     /// ```
-    /// use acdc_core::SafeMode;
-    /// use acdc_parser::{Parser, Options};
+    /// use acdc_parser::{Parser, Options, SafeMode};
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
@@ -206,8 +205,7 @@ impl<'input> Parser<'input> {
 /// # Example
 ///
 /// ```
-/// use acdc_core::SafeMode;
-/// use acdc_parser::{Options, parse_from_reader};
+/// use acdc_parser::{Options, SafeMode, parse_from_reader};
 /// use std::fs::File;
 ///
 /// let options = Options::builder()
@@ -235,8 +233,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// # Example
 ///
 /// ```
-/// use acdc_core::SafeMode;
-/// use acdc_parser::{Options, parse};
+/// use acdc_parser::{Options, SafeMode, parse};
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
@@ -261,9 +258,7 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 ///
 /// ```
 /// use std::path::Path;
-///
-/// use acdc_core::SafeMode;
-/// use acdc_parser::{Options, parse_file};
+/// use acdc_parser::{Options, SafeMode, parse_file};
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
@@ -329,8 +324,7 @@ fn parse_input(
 /// # Example
 ///
 /// ```
-/// use acdc_core::SafeMode;
-/// use acdc_parser::{parse_inline, Options};
+/// use acdc_parser::{Options, SafeMode, parse_inline};
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)

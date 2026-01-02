@@ -6,7 +6,6 @@ edition.workspace = true
 
 [dependencies]
 acdc-converters-common.workspace = true
-acdc-core.workspace = true
 acdc-parser.workspace = true
 chrono.workspace = true
 thiserror.workspace = true

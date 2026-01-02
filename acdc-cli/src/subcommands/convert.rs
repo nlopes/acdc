@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{GeneratorMetadata, Options, Processable};
-use acdc_core::{Doctype, SafeMode};
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use acdc_converters_common::{Doctype, GeneratorMetadata, Options, Processable};
+use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 use clap::{ArgAction, Args as ClapArgs, ValueEnum};
 use rayon::prelude::*;
 
@@ -33,7 +32,7 @@ pub struct Args {
     pub backend: Backend,
 
     /// Document type to use when converting document
-    #[arg(long, value_enum, default_value_t = Doctype::Article)]
+    #[arg(long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
     pub doctype: Doctype,
 
     /// Set safe mode to safe
@@ -41,7 +40,7 @@ pub struct Args {
     pub safe: bool,
 
     /// Safe mode to use when converting document
-    #[arg(short = 'S', long, value_enum, default_value_t = SafeMode::Unsafe)]
+    #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "unsafe")]
     pub safe_mode: SafeMode,
 
     /// Input from stdin
@@ -83,7 +82,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
     let safe_mode = if args.safe {
         SafeMode::Safe
     } else {
-        args.safe_mode.clone()
+        args.safe_mode
     };
 
     let (document_attributes, doctype) = {
@@ -100,7 +99,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
                 );
                 Doctype::Manpage
             } else {
-                args.doctype.clone()
+                args.doctype
             };
             (document_attributes, doctype)
         }
@@ -288,7 +287,7 @@ fn build_parser_options(
     document_attributes: DocumentAttributes,
 ) -> acdc_parser::Options {
     let mut builder = acdc_parser::Options::builder()
-        .with_safe_mode(base_options.safe_mode.clone())
+        .with_safe_mode(base_options.safe_mode)
         .with_attributes(document_attributes);
 
     if base_options.timings {

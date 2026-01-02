@@ -317,9 +317,10 @@ mod tests {
 
     use std::{cell::Cell, rc::Rc};
 
-    use acdc_converters_common::{GeneratorMetadata, Options, visitor::Visitor};
-    use acdc_core::{Doctype, SafeMode};
-    use acdc_parser::{BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, Title};
+    use acdc_converters_common::{Doctype, GeneratorMetadata, Options, visitor::Visitor};
+    use acdc_parser::{
+        BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
+    };
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
         vec![InlineNode::PlainText(Plain {

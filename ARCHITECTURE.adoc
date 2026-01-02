@@ -205,7 +205,6 @@ The workspace is organized into clearly bounded modules:
 ----
 acdc/
 ├── acdc-cli/          # Command-line interface
-├── acdc-core/         # Shared types (SafeMode, Doctype, Source)
 ├── acdc-lsp/          # Language Server Protocol implementation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/

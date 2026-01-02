@@ -1,7 +1,7 @@
-use acdc_core::{Doctype, SafeMode};
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 
 pub mod code;
+mod doctype;
 pub mod generate_fixtures;
 pub mod icon;
 pub mod output;
@@ -9,9 +9,9 @@ pub mod substitutions;
 pub mod table;
 pub mod toc;
 pub mod video;
+pub mod visitor; // Visitor pattern infrastructure
 
-// Visitor pattern infrastructure
-pub mod visitor;
+pub use doctype::Doctype;
 
 /// Create default document attributes for rendering.
 ///

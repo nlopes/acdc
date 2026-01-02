@@ -11,9 +11,7 @@ highlighting = ["dep:syntect"]
 
 [dependencies]
 acdc-converters-common.workspace = true
-acdc-core.workspace = true
 acdc-parser.workspace = true
-clap.workspace = true
 comfy-table = "7.2"
 crossterm.workspace = true
 thiserror.workspace = true

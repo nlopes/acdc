@@ -16,7 +16,6 @@ network = ["dep:ureq"]
 setext = []  # Enable Setext-style (underlined) header parsing
 
 [dependencies]
-acdc-core = { version = "0.1.0", path = "../acdc-core" }
 encoding_rs = "0.8"
 evalexpr = "13"
 peg = "0.8"

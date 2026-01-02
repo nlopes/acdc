@@ -6,11 +6,10 @@ use std::{
 #[cfg(feature = "network")]
 use std::{fs::File, io};
 
-use acdc_core::SafeMode;
 use url::Url;
 
 use crate::{
-    Options, Preprocessor,
+    Options, Preprocessor, SafeMode,
     error::{Error, Positioning, SourceLocation},
     model::{HEADER, Position, Substitute},
 };

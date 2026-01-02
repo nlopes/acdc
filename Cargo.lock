@@ -10,7 +10,6 @@ dependencies = [
  "acdc-converters-html",
  "acdc-converters-manpage",
  "acdc-converters-terminal",
- "acdc-core",
  "acdc-parser",
  "anyhow",
  "clap",
@@ -28,9 +27,7 @@ dependencies = [
 name = "acdc-converters-common"
 version = "0.1.0"
 dependencies = [
- "acdc-core",
  "acdc-parser",
- "clap",
  "crossterm",
  "thiserror",
  "tracing",
@@ -41,7 +38,6 @@ name = "acdc-converters-html"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
- "acdc-core",
  "acdc-parser",
  "chrono",
  "pretty_assertions",
@@ -56,7 +52,6 @@ name = "acdc-converters-manpage"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
- "acdc-core",
  "acdc-parser",
  "chrono",
  "pretty_assertions",
@@ -71,9 +66,7 @@ name = "acdc-converters-terminal"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-common",
- "acdc-core",
  "acdc-parser",
- "clap",
  "comfy-table",
  "crossterm",
  "pretty_assertions",
@@ -81,13 +74,6 @@ dependencies = [
  "thiserror",
  "tracing",
  "viuer",
-]
-
-[[package]]
-name = "acdc-core"
-version = "0.1.0"
-dependencies = [
- "clap",
 ]
 
 [[package]]
@@ -109,7 +95,6 @@ dependencies = [
 name = "acdc-parser"
 version = "0.1.1"
 dependencies = [
- "acdc-core",
  "criterion",
  "crossterm",
  "encoding_rs",
