@@ -244,6 +244,11 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
+        // In embedded mode, skip the document frame (DOCTYPE, html, head, body)
+        if self.render_options.embedded {
+            return Ok(());
+        }
+
         writeln!(self.writer, "<!DOCTYPE html>")?;
 
         // Add lang attribute if not suppressed by :nolang:
@@ -347,11 +352,19 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         if !doc.footnotes.is_empty() {
             self.render_footnotes(&doc.footnotes)?;
         }
-        self.render_body_footer()?;
+        // Skip footer in embedded mode
+        if !self.render_options.embedded {
+            self.render_body_footer()?;
+        }
         Ok(())
     }
 
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+        // In embedded mode, skip the closing document frame tags
+        if self.render_options.embedded {
+            return Ok(());
+        }
+
         writeln!(self.writer, "</body>")?;
         writeln!(self.writer, "</html>")?;
 
@@ -359,6 +372,9 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
+        if self.render_options.embedded {
+            return Ok(());
+        }
         writeln!(self.writer, "<div id=\"header\">")?;
         if !header.title.is_empty() {
             write!(self.writer, "<h1>")?;
@@ -438,7 +454,6 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         let processor = self.processor.clone();
         crate::toc::render(None, self, "auto", &processor)?;
         writeln!(self.writer, "</div>")?; // Close #header div
-
         Ok(())
     }
 

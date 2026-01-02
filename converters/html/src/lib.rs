@@ -62,6 +62,24 @@ impl Processor {
         visitor.visit_document(doc)?;
         Ok(())
     }
+
+    /// Convert a document to an HTML string.
+    ///
+    /// Use `RenderOptions::embedded` to control whether output includes the full
+    /// document frame (DOCTYPE, html, head, body) or just embeddable content.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if document conversion fails.
+    pub fn convert_to_string(
+        &self,
+        doc: &Document,
+        options: &RenderOptions,
+    ) -> Result<String, Error> {
+        let mut output = Vec::new();
+        self.convert_to_writer(doc, &mut output, options)?;
+        Ok(String::from_utf8(output)?)
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -69,6 +87,10 @@ pub struct RenderOptions {
     pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
     pub inlines_basic: bool,
     pub inlines_verbatim: bool,
+    /// When true, output embeddable document (no DOCTYPE, html, head, body wrapper).
+    /// Follows Asciidoctor's embedded mode behavior - excludes header/footer frame
+    /// but keeps body content structure including wrapper divs.
+    pub embedded: bool,
 }
 
 pub(crate) const COPYCSS_DEFAULT: &str = "";
@@ -250,7 +272,7 @@ mod table;
 mod toc;
 mod video;
 
-pub(crate) use error::Error;
+pub use error::Error;
 pub use html_visitor::HtmlVisitor;
 
 /// Build a class string from a base class and optional roles
@@ -283,4 +305,71 @@ pub(crate) fn write_attribution<W: std::io::Write>(
         writeln!(writer, "</div>")?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acdc_converters_common::Processable;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn test_convert_to_string_embedded_no_document_frame() -> TestResult {
+        let content = r"= My Title
+
+This is a paragraph.
+
+== Section One
+
+* Item 1
+* Item 2
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_common::Options::default(),
+            doc.attributes.clone(),
+        );
+        let render_options = RenderOptions {
+            embedded: true,
+            ..RenderOptions::default()
+        };
+        let html = processor.convert_to_string(&doc, &render_options)?;
+
+        // Should NOT contain document frame elements
+        assert!(!html.contains("<!DOCTYPE"), "should not contain DOCTYPE");
+        assert!(!html.contains("<html"), "should not contain <html>");
+        assert!(!html.contains("<head"), "should not contain <head>");
+        assert!(!html.contains("<body"), "should not contain <body>");
+        assert!(!html.contains("</html>"), "should not contain </html>");
+        assert!(!html.contains("</body>"), "should not contain </body>");
+        assert!(
+            !html.contains("<div id=\"footer\">"),
+            "should not contain footer"
+        );
+
+        // Should contain the title as h1
+        assert!(
+            !html.contains("<h1>My Title</h1>"),
+            "should not contain title as h1"
+        );
+
+        // Should contain body content with wrapper divs
+        assert!(
+            html.contains("<div class=\"paragraph\">"),
+            "should contain paragraph wrapper"
+        );
+        assert!(
+            html.contains("<div class=\"ulist\">"),
+            "should contain list wrapper"
+        );
+        assert!(
+            html.contains("<div class=\"sect1\">"),
+            "should contain section wrapper"
+        );
+
+        Ok(())
+    }
 }
