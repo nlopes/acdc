@@ -1836,13 +1836,18 @@ peg::parser! {
         = "//" [^'\n']* (&eol() / ![_])  // Line comment separator
         / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
 
-        // Helper rule to check if we're at a blank line followed by non-empty block attributes
-        // Used by description lists to terminate when new block attributes appear after a blank line
-        // This signals a new block context where the attributes should apply to a new list
-        // Matches: 2+ newlines, then `[` at column 1 followed by non-empty content and `]`
-        // Note: NO whitespace before `[` - indented brackets are not block attributes
+        // Helper rule to check if we're at a blank line followed by block attributes or anchor
+        // Used by description lists to terminate when new block metadata appears after a blank line
+        // This signals a new block context where the attributes/anchor should apply to a new list
+        // Matches: 2+ newlines, then either:
+        //   - `[` at column 1 followed by non-empty content and `]` (block attributes)
+        //   - `[[` at column 1 followed by content and `]]` (anchor/id)
+        // Note: NO whitespace before `[` - indented brackets are not block metadata
         rule at_dlist_block_boundary()
-        = eol()*<2,> &("[" ![']' | '['] [^']' | '\n']+ "]" whitespace()* eol())
+        = eol()*<2,> &(
+            ("[" ![']' | '['] [^']' | '\n']+ "]" whitespace()* eol())
+            / ("[[" [^']']+ "]]" whitespace()* eol())
+        )
 
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<Block, Error>
         // Parse whitespace + marker first to capture base_marker for rest items

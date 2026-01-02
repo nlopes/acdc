@@ -1,0 +1,5 @@
+[.role1]
+Term A:: Definition A
+
+[[myanchor]]
+Term B:: Definition B
