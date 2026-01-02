@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased acdc-cli]
 
+### Added
+
+- `--embedded` / `-e` flag to output embeddable content without document wrapper elements.
+  Behaviour varies by backend: HTML skips DOCTYPE/html/head/body/content wrapper, manpage
+  skips preamble and NAME section, terminal skips header/authors/ revision info. Matches
+  asciidoctor's `--embedded` behaviour. ([#272])
+
 ### Fixed
 
 - Horizontal description lists (`[horizontal]`) now render as `<table>` with `hdlist`
   class instead of `<dl>` with `dlist horizontal`, matching asciidoctor output ([#270])
 
-And add the reference at the bottom of that section:
-
 [#270]: https://github.com/nlopes/acdc/issues/270
+[#272]: https://github.com/nlopes/acdc/issues/272
 
 ## [Unreleased acdc-parser]
 

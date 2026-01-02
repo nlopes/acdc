@@ -335,6 +335,7 @@ mod tests {
             doctype: Doctype::Article,
             safe_mode: SafeMode::Unsafe,
             timings: false,
+            embedded: false,
         };
         let document_attributes = DocumentAttributes::default();
         Processor {

@@ -28,6 +28,11 @@ pub fn visit_section<W: Write>(
     // Check if this is the NAME section (which has special formatting rules)
     let is_name_section = title_text.eq_ignore_ascii_case("name");
 
+    // In embedded mode, skip the NAME section entirely (matches asciidoctor --embedded)
+    if visitor.processor.options.embedded && is_name_section {
+        return Ok(());
+    }
+
     // Level 1 sections use .SH, level 2+ use .SS
     // Manpage convention: uppercase section titles for level 1
     let w = visitor.writer_mut();

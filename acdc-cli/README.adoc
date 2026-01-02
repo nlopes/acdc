@@ -1,9 +1,9 @@
-# `acdc-cli`
+= `acdc-cli`
 
 This is the main binary for the command line processor. Think of it as the equivalent to
 the `asciidoctor` tool.
 
-## Usage
+== Usage
 
 [source,console]
 ....
@@ -24,9 +24,9 @@ Options:
   -V, --version  Print version
 ....
 
-## Subcommands
+== Subcommands
 
-### convert
+=== convert
 
 Convert `AsciiDoc` documents to various output formats (HTML, terminal).
 
@@ -35,7 +35,7 @@ Convert `AsciiDoc` documents to various output formats (HTML, terminal).
 acdc convert [OPTIONS] [FILES]...
 ....
 
-### inspect
+=== inspect
 
 Inspect the AST structure of `AsciiDoc` documents. Useful for debugging and understanding how acdc parses documents. Only available with `--features inspect`.
 
@@ -44,11 +44,11 @@ Inspect the AST structure of `AsciiDoc` documents. Useful for debugging and unde
 acdc inspect [OPTIONS] <FILE>
 ....
 
-### tck
+=== tck
 
 Run TCK (Test Compatibility Kit) compliance tests. Reads JSON from stdin and outputs AST as JSON. Only available with `--features tck`.
 
-## Backends (converters) supported
+== Backends (converters) supported
 
 Check the `link:../converters/README.adoc[converters README]` for details.
 
@@ -56,7 +56,7 @@ Check the `link:../converters/README.adoc[converters README]` for details.
 - `link:../converters/manpage[manpage]` (available with `--features manpage`)
 - `link:../converters/terminal[terminal]` (available with `--features terminal`)
 
-### Building an optional backend or tool
+=== Building an optional backend or tool
 
 [source,console]
 ....
@@ -72,22 +72,22 @@ Alternatively, you can build them all like so:
 cargo build --all-features
 ....
 
-## Feature Flags
+== Feature Flags
 
 `acdc-cli` uses Cargo feature flags to enable optional converters and development tools. Here's what's available:
 
-### Output Converters
+=== Output Converters
 
 * `html` (default) - HTML5 converter with Asciidoctor-compatible styling
 * `manpage` - Manpage converter
 * `terminal` - Terminal converter with ANSI color support
 
-### Development Tools
+=== Development Tools
 
 * `inspect` - AST inspection tool for debugging parser output
 * `tck` - Technology Compatibility Kit for spec compliance testing
 
-### Feature Groups
+=== Feature Groups
 
 For convenience, you can use these feature groups:
 
@@ -95,7 +95,7 @@ For convenience, you can use these feature groups:
 * `dev-tools` - Enables the inspect tool
 * `test-tools` - Enables the TCK tool
 
-### Usage Examples
+=== Usage Examples
 
 Build with terminal converter:
 
@@ -125,11 +125,11 @@ Build with everything:
 cargo build --all-features
 ....
 
-### Built-in Dependencies
+=== Built-in Dependencies
 
 Parser dependencies (ureq for remote includes, evalexpr for expressions, encoding_rs for encoding detection) are built-in and always available. They're core to AsciiDoc processing and don't require feature flags.
 
-## Examples
+== Examples
 
 Convert a file to HTML:
 
@@ -145,6 +145,15 @@ Convert with terminal backend:
 acdc convert --backend terminal document.adoc
 ....
 
+Convert to embeddable HTML (no DOCTYPE, html, head, body):
+
+[source,console]
+....
+acdc convert --embedded document.adoc
+# or short form
+acdc convert -e document.adoc
+....
+
 Inspect document AST:
 
 [source,console]
@@ -152,7 +161,7 @@ Inspect document AST:
 acdc inspect document.adoc --show-locations
 ....
 
-## Extra Logging
+== Extra Logging
 
 If you want more logs, especially useful if you're troubleshooting or reporting an error,
 please adjust the `ACDC_LOG` environment variable.

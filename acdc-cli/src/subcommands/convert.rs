@@ -76,6 +76,13 @@ pub struct Args {
     /// fallback values.
     #[arg(long)]
     pub strict: bool,
+
+    /// Suppress enclosing document structure and output an embedded document
+    ///
+    /// When enabled, the HTML output excludes DOCTYPE, html, head, and body tags.
+    /// Only applies to the HTML backend.
+    #[arg(short = 'e', long)]
+    pub embedded: bool,
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
@@ -118,6 +125,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         doctype,
         safe_mode,
         timings: args.timings,
+        embedded: args.embedded,
     };
 
     match args.backend {

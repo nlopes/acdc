@@ -161,6 +161,7 @@ impl Processable for Processor {
                         .modified()
                         .map(chrono::DateTime::from)?,
                 ),
+                embedded: self.options.embedded,
                 ..RenderOptions::default()
             };
 
@@ -241,7 +242,10 @@ impl Processable for Processor {
             Ok(())
         } else {
             // Stdin-based conversion - write to stdout
-            let render_options = RenderOptions::default();
+            let render_options = RenderOptions {
+                embedded: self.options.embedded,
+                ..RenderOptions::default()
+            };
             let stdout = io::stdout();
             let writer = BufWriter::new(stdout.lock());
             self.convert_to_writer(doc, writer, &render_options)?;

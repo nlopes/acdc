@@ -36,6 +36,10 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     type Error = crate::Error;
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
+        // In embedded mode, skip header output (title, authors, revision info)
+        if self.processor.options.embedded {
+            return Ok(());
+        }
         let processor = self.processor.clone();
         crate::document::visit_header(header, self, &processor)
     }

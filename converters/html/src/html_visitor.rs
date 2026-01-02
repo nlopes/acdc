@@ -347,8 +347,10 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
-        // Close #content div
-        writeln!(self.writer, "</div>")?;
+        // Close #content div (only if not in embedded mode)
+        if !self.render_options.embedded {
+            writeln!(self.writer, "</div>")?;
+        }
         if !doc.footnotes.is_empty() {
             self.render_footnotes(&doc.footnotes)?;
         }
@@ -458,6 +460,10 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_body_content_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+        // In embedded mode, skip the content wrapper div
+        if self.render_options.embedded {
+            return Ok(());
+        }
         // Open content div (contains all body blocks - preamble and sections)
         writeln!(self.writer, "<div id=\"content\">")?;
         Ok(())

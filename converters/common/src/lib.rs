@@ -96,6 +96,9 @@ pub struct Options {
     pub doctype: Doctype,
     pub safe_mode: SafeMode,
     pub timings: bool,
+    /// When true, output embeddable document (no DOCTYPE, html, head, body wrapper).
+    /// Only applies to HTML backend; ignored by other backends.
+    pub embedded: bool,
 }
 
 pub trait PrettyDuration {

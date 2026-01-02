@@ -110,6 +110,12 @@ pub fn visit_document_start<W: Write>(
     doc: &Document,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
+    // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
+    // This matches asciidoctor's --embedded behavior for manpages
+    if visitor.processor.options.embedded {
+        return Ok(());
+    }
+
     // Ensure we have a header
     if doc.header.is_none() {
         return Err(Error::MissingHeader);
