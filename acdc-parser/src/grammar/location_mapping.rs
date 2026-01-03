@@ -111,6 +111,7 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
         }
         InlineNode::LineBreak(lb) => clamp_location_bounds(&mut lb.location, input),
         InlineNode::InlineAnchor(anchor) => clamp_location_bounds(&mut anchor.location, input),
+        InlineNode::CalloutRef(callout) => clamp_location_bounds(&mut callout.location, input),
         InlineNode::Macro(m) => match m {
             crate::InlineMacro::Footnote(f) => {
                 clamp_location_bounds(&mut f.location, input);
@@ -381,6 +382,7 @@ pub(crate) fn map_inner_content_locations(
                 | InlineNode::StandaloneCurvedApostrophe(_)
                 | InlineNode::LineBreak(_)
                 | InlineNode::InlineAnchor(_)
+                | InlineNode::CalloutRef(_)
                 | InlineNode::Macro(_)) => Ok(other),
             }
         })
@@ -432,6 +434,7 @@ pub(crate) fn remap_inline_node_location(node: &mut InlineNode, base_offset: usi
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
+        | InlineNode::CalloutRef(_)
         | InlineNode::Macro(_) => {
             // No location remapping needed for these types
         }
@@ -549,6 +552,11 @@ pub(crate) fn map_inline_locations(
                     let mut mapped = anchor.clone();
                     mapped.location = map_loc(&anchor.location)?;
                     vec![InlineNode::InlineAnchor(mapped)]
+                }
+                InlineNode::CalloutRef(callout) => {
+                    let mut mapped = callout.clone();
+                    mapped.location = map_loc(&callout.location)?;
+                    vec![InlineNode::CalloutRef(mapped)]
                 }
             };
             acc.extend(nodes);

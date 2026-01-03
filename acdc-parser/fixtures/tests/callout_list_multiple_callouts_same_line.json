@@ -42,7 +42,54 @@
         {
           "name": "text",
           "type": "string",
-          "value": "x = 5 <1> <2>\ny = 10 <3>",
+          "value": "x = 5 <1> ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\ny = 10 ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 3,
           "location": [
             {
               "line": 4,
@@ -74,7 +121,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<1>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 7,
+                "col": 1
+              },
+              {
+                "line": 7,
+                "col": 16
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -106,7 +168,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<2>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 8,
+                "col": 1
+              },
+              {
+                "line": 8,
+                "col": 17
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -138,7 +215,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<3>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 3,
+            "location": [
+              {
+                "line": 9,
+                "col": 1
+              },
+              {
+                "line": 9,
+                "col": 16
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",

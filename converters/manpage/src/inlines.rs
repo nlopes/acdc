@@ -112,6 +112,12 @@ pub fn visit_inline_node<W: Write>(
             visit_inline_macro(inline_macro, visitor)?;
         }
 
+        InlineNode::CalloutRef(callout) => {
+            // Render callout reference in manpage format: <N>
+            let w = visitor.writer_mut();
+            write!(w, "\\fB({})\\fP", callout.number)?;
+        }
+
         // Handle any future variants - skip unknown nodes
         _ => {}
     }

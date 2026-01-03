@@ -59,6 +59,8 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
                 | InlineMacro::Stem(_)
                 | InlineMacro::Icon(_) => String::new(),
             },
+            // Callout references are rendered as their number in plain text contexts
+            InlineNode::CalloutRef(callout) => format!("<{}>", callout.number),
         })
         .collect()
 }

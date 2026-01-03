@@ -39,6 +39,7 @@ fn inlines_to_string(inlines: &[InlineNode]) -> String {
                     .as_deref()
                     .map_or(String::new(), |l| format!("|{l}"))
             ),
+            InlineNode::CalloutRef(callout) => format!("<{}>", callout.number),
             InlineNode::Macro(macro_node) => match macro_node {
                 InlineMacro::Link(link) => {
                     link.text.clone().unwrap_or_else(|| link.target.to_string())

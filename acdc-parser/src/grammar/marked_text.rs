@@ -180,6 +180,7 @@ impl WithLocationMappingContext for InlineNode {
             | InlineNode::VerbatimText(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
+            | InlineNode::CalloutRef(_)
             | InlineNode::Macro(_)
             | InlineNode::StandaloneCurvedApostrophe(_) => self,
         })

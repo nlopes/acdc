@@ -89,6 +89,7 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
             InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
+            | InlineNode::CalloutRef(_)
             | InlineNode::Macro(_) => {}
         }
     }

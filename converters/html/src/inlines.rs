@@ -103,18 +103,18 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             write!(w, "{text}")?;
         }
         InlineNode::VerbatimText(v) => {
-            // VerbatimText handles callouts and escaping (verbatim mode always applies)
-            let text = mark_callouts(&v.content);
+            // VerbatimText is now just text (callouts are separate CalloutRef nodes)
             // Create temporary options with verbatim mode enabled for escaping
             let verbatim_options = RenderOptions {
                 inlines_verbatim: true,
                 ..options.clone()
             };
-            // Apply HTML escaping and typography BEFORE replacing callout placeholders
-            // This ensures the HTML tags in callouts don't get escaped
-            let text = substitution_text(&text, &verbatim_options);
-            let text = replace_callout_placeholders(&text);
+            let text = substitution_text(&v.content, &verbatim_options);
             write!(w, "{text}")?;
+        }
+        InlineNode::CalloutRef(callout) => {
+            // Render callout reference as conum badge
+            write!(w, "<b class=\"conum\">({})</b>", callout.number)?;
         }
         InlineNode::BoldText(b) => {
             if !options.inlines_basic {
@@ -227,13 +227,8 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
         InlineNode::InlineAnchor(anchor) => {
             write!(w, "<a id=\"{}\"></a>", anchor.id)?;
         }
-        _ => {
-            return Err(io::Error::new(
-                io::ErrorKind::Unsupported,
-                format!("Unsupported inline node: {node:?}"),
-            )
-            .into());
-        }
+        // `InlineNode` is `#[non_exhaustive]`, so we need a catch-all for future variants
+        _ => {}
     }
     Ok(())
 }
@@ -551,99 +546,4 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
     // Encode non-ASCII Unicode characters as HTML numeric entities
     // to match asciidoctor's output format
     encode_html_entities(&text)
-}
-
-fn mark_callouts(text: &str) -> String {
-    // Replace callout markers like <1>, <2>, or <.> with placeholders
-    let mut result = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-    let mut auto_number = 1; // Counter for <.> auto-numbering
-
-    while let Some(c) = chars.next() {
-        if c == '<' {
-            // Check for <.> pattern first
-            if chars.peek() == Some(&'.') {
-                chars.next(); // consume the '.'
-                if chars.peek() == Some(&'>') {
-                    chars.next(); // consume the '>'
-                    result.push_str("\u{FFFC}CALLOUT:");
-                    result.push_str(&auto_number.to_string());
-                    result.push_str(":\u{FFFC}");
-                    auto_number += 1;
-                    continue;
-                }
-                // Not a valid <.> pattern, output what we consumed
-                result.push('<');
-                result.push('.');
-                continue;
-            }
-
-            // Check for <digits> pattern
-            let mut num_str = String::new();
-            while let Some(&next_char) = chars.peek() {
-                if next_char.is_ascii_digit() {
-                    num_str.push(next_char);
-                    chars.next();
-                } else if next_char == '>' && !num_str.is_empty() {
-                    chars.next(); // consume the '>'
-                    result.push_str("\u{FFFC}CALLOUT:");
-                    result.push_str(&num_str);
-                    result.push_str(":\u{FFFC}");
-                    num_str.clear();
-                    break;
-                } else {
-                    result.push('<');
-                    result.push_str(&num_str);
-                    break;
-                }
-            }
-
-            if !num_str.is_empty() {
-                result.push('<');
-                result.push_str(&num_str);
-            }
-        } else {
-            result.push(c);
-        }
-    }
-
-    result
-}
-
-fn replace_callout_placeholders(text: &str) -> String {
-    // Replace callout placeholders with actual HTML
-    let mut result = String::new();
-    let mut chars = text.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '\u{FFFC}' {
-            // Check if this is a callout placeholder
-            let mut placeholder = String::new();
-            while let Some(&next_char) = chars.peek() {
-                if next_char == '\u{FFFC}' {
-                    chars.next();
-                    break;
-                }
-                placeholder.push(next_char);
-                chars.next();
-            }
-
-            if let Some(num_str) = placeholder
-                .strip_prefix("CALLOUT:")
-                .and_then(|s| s.strip_suffix(':'))
-            {
-                result.push_str("<b class=\"conum\">(");
-                result.push_str(num_str);
-                result.push_str(")</b>");
-            } else {
-                result.push('\u{FFFC}');
-                result.push_str(&placeholder);
-                result.push('\u{FFFC}');
-            }
-        } else {
-            result.push(c);
-        }
-    }
-
-    result
 }

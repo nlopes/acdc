@@ -48,7 +48,100 @@
         {
           "name": "text",
           "type": "string",
-          "value": "require 'sinatra' <1>\n\nget '/hi' do <2>\n  \"Hello World!\" <3>\nend",
+          "value": "require 'sinatra' ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n\nget '/hi' do ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n  \"Hello World!\" ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 3,
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nend",
           "location": [
             {
               "line": 5,
@@ -80,7 +173,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<1>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 11,
+                "col": 1
+              },
+              {
+                "line": 11,
+                "col": 30
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -112,7 +220,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<2>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 12,
+                "col": 1
+              },
+              {
+                "line": 12,
+                "col": 18
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -144,7 +267,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<3>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 3,
+            "location": [
+              {
+                "line": 13,
+                "col": 1
+              },
+              {
+                "line": 13,
+                "col": 19
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",

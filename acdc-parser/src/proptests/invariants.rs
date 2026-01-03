@@ -339,6 +339,9 @@ fn verify_inline_locations_bounded(inline: &InlineNode, input_len: usize) {
                 }
             }
         }
+        InlineNode::CalloutRef(callout) => {
+            verify_location_bounded(&callout.location, input_len, "callout ref");
+        }
     }
 }
 
@@ -578,6 +581,9 @@ fn verify_inline_utf8_boundaries(inline: &InlineNode, input: &str) {
                 verify_location_utf8(&s.location, input, "stem");
             }
         },
+        InlineNode::CalloutRef(callout) => {
+            verify_location_utf8(&callout.location, input, "callout ref");
+        }
     }
 }
 
@@ -713,5 +719,6 @@ fn get_inline_location(inline: &InlineNode) -> &Location {
             crate::InlineMacro::Pass(p) => &p.location,
             crate::InlineMacro::Stem(s) => &s.location,
         },
+        InlineNode::CalloutRef(c) => &c.location,
     }
 }

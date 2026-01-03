@@ -20,7 +20,85 @@
         {
           "name": "text",
           "type": "string",
-          "value": "const express = require('express'); <1>\nconst app = express();\n\napp.get('/', (req, res) => { <2>\n  res.send('Hello World!');\n});\n\napp.listen(3000); <3>",
+          "value": "const express = require('express'); ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nconst app = express();\n\napp.get('/', (req, res) => { ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n  res.send('Hello World!');\n});\n\napp.listen(3000); ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 3,
           "location": [
             {
               "line": 6,
@@ -69,7 +147,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<1>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 15,
+                "col": 1
+              },
+              {
+                "line": 15,
+                "col": 32
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -101,7 +194,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<2>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 16,
+                "col": 1
+              },
+              {
+                "line": 16,
+                "col": 26
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -133,7 +241,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<3>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 3,
+            "location": [
+              {
+                "line": 17,
+                "col": 1
+              },
+              {
+                "line": 17,
+                "col": 33
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",

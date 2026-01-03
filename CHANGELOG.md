@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased acdc-converters-core]
 
+### Added
+
+- `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
+  `Doctype`, and `IconMode` for semver-safe future additions
+- Comprehensive module-level documentation
+- `acdc-converters-dev` crate for test utilities (not published to crates.io)
+- Visitor method `visit_callout_ref` for processing callout references
+
 ### Changed
 
 - **BREAKING**: Renamed crate from `acdc-converters-common` to `acdc-converters-core`
@@ -14,13 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use `Options::builder().doctype(...).build()` instead of struct construction
 - **BREAKING**: `toc::Config` fields are now private - use accessor methods
   (`placement()`, `title()`, `levels()`, `toc_class()`)
-
-### Added
-
-- `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
-  `Doctype`, and `IconMode` for semver-safe future additions
-- Comprehensive module-level documentation
-- `acdc-converters-dev` crate for test utilities (not published to crates.io)
 
 ## [Unreleased acdc-cli]
 
@@ -44,6 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#273]: https://github.com/nlopes/acdc/issues/273
 
 ## [Unreleased acdc-parser]
+
+### Added
+
+- Callout references (`<1>`, `<.>`) in source/listing blocks now have source locations in
+  the AST
+- New `CalloutRef` inline node type for programmatic access to callout markers
+
+### Changed
+
+- Auto-numbered callouts (`<.>`) are now resolved during parsing, not rendering
+- JSON serialization for Callout references uses `"name": "callout_reference"`
 
 ### Fixed
 

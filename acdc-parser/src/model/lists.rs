@@ -8,7 +8,7 @@ use serde::{
 
 use super::Block;
 use super::anchor::Anchor;
-use super::inlines::InlineNode;
+use super::inlines::{CalloutRef, InlineNode};
 use super::location::Location;
 use super::metadata::BlockMetadata;
 use super::title::Title;
@@ -122,7 +122,31 @@ pub struct OrderedList {
 pub struct CalloutList {
     pub title: Title,
     pub metadata: BlockMetadata,
-    pub items: Vec<ListItem>,
+    pub items: Vec<CalloutListItem>,
+    pub location: Location,
+}
+
+/// A `CalloutListItem` represents an item in a callout list.
+///
+/// Unlike [`ListItem`], callout list items have a structured [`CalloutRef`] that
+/// preserves whether the original marker was explicit (`<1>`) or auto-numbered (`<.>`).
+///
+/// # Example
+///
+/// ```asciidoc
+/// <1> First explanation
+/// <.> Auto-numbered explanation
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct CalloutListItem {
+    /// The callout reference (explicit or auto-numbered).
+    pub callout: CalloutRef,
+    /// Principal text - inline content that appears after the callout marker.
+    pub principal: Vec<InlineNode>,
+    /// Attached blocks - blocks attached via continuation (though rarely used for callouts).
+    pub blocks: Vec<Block>,
+    /// Source location of this item.
     pub location: Location,
 }
 
@@ -238,6 +262,24 @@ impl Serialize for ListItemCheckedStatus {
             ListItemCheckedStatus::Checked => serializer.serialize_bool(true),
             ListItemCheckedStatus::Unchecked => serializer.serialize_bool(false),
         }
+    }
+}
+
+impl Serialize for CalloutListItem {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "listItem")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("callout", &self.callout)?;
+        state.serialize_entry("principal", &self.principal)?;
+        if !self.blocks.is_empty() {
+            state.serialize_entry("blocks", &self.blocks)?;
+        }
+        state.serialize_entry("location", &self.location)?;
+        state.end()
     }
 }
 
@@ -365,5 +407,73 @@ impl<'de> Deserialize<'de> for ListItemCheckedStatus {
         }
 
         deserializer.deserialize_bool(ListItemCheckedStatusVisitor)
+    }
+}
+
+impl<'de> Deserialize<'de> for CalloutListItem {
+    fn deserialize<D>(deserializer: D) -> Result<CalloutListItem, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct CalloutListItemVisitor;
+
+        impl<'de> Visitor<'de> for CalloutListItemVisitor {
+            type Value = CalloutListItem;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a struct representing CalloutListItem")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<CalloutListItem, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut my_callout = None;
+                let mut my_principal = None;
+                let mut my_blocks = None;
+                let mut my_location = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "callout" => {
+                            if my_callout.is_some() {
+                                return Err(de::Error::duplicate_field("callout"));
+                            }
+                            my_callout = Some(map.next_value()?);
+                        }
+                        "principal" => {
+                            if my_principal.is_some() {
+                                return Err(de::Error::duplicate_field("principal"));
+                            }
+                            my_principal = Some(map.next_value()?);
+                        }
+                        "blocks" => {
+                            if my_blocks.is_some() {
+                                return Err(de::Error::duplicate_field("blocks"));
+                            }
+                            my_blocks = Some(map.next_value()?);
+                        }
+                        "location" => {
+                            if my_location.is_some() {
+                                return Err(de::Error::duplicate_field("location"));
+                            }
+                            my_location = Some(map.next_value()?);
+                        }
+                        _ => {
+                            tracing::debug!(?key, "ignoring unexpected field in CalloutListItem");
+                            let _ = map.next_value::<de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                Ok(CalloutListItem {
+                    callout: my_callout.ok_or_else(|| de::Error::missing_field("callout"))?,
+                    principal: my_principal.ok_or_else(|| de::Error::missing_field("principal"))?,
+                    blocks: my_blocks.unwrap_or_default(),
+                    location: my_location.ok_or_else(|| de::Error::missing_field("location"))?,
+                })
+            }
+        }
+        deserializer.deserialize_map(CalloutListItemVisitor)
     }
 }

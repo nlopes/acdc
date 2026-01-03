@@ -1,5 +1,6 @@
 use serde::{
     Deserialize, Serialize,
+    de::{self, MapAccess, Visitor},
     ser::{SerializeMap, Serializer},
 };
 
@@ -205,5 +206,148 @@ impl Serialize for StandaloneCurvedApostrophe {
         state.serialize_entry("type", "string")?;
         state.serialize_entry("location", &self.location)?;
         state.end()
+    }
+}
+
+/// The kind of callout reference marker (how it was expressed in the source).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CalloutRefKind {
+    /// Explicit callout: `<1>`, `<2>`, etc. - the number was specified directly.
+    Explicit,
+    /// Auto-numbered callout: `<.>` - the number was resolved automatically.
+    Auto,
+}
+
+/// A `CalloutRef` represents a callout reference marker within verbatim content.
+///
+/// Callout references appear at the end of lines in source/listing blocks and
+/// link to explanatory text in a subsequent callout list.
+///
+/// # Examples
+///
+/// ```asciidoc
+/// [source,ruby]
+/// ----
+/// def main <1>
+///   puts 'hello' <.>
+/// end
+/// ----
+/// <1> Defines the main function
+/// <.> Prints a greeting
+/// ```
+///
+/// The `<1>` marker creates an `Explicit` callout ref, while `<.>` creates an
+/// `Auto` callout ref that gets resolved to the next available number.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CalloutRef {
+    /// The kind of callout (explicit number vs auto-numbered).
+    pub kind: CalloutRefKind,
+    /// The resolved callout number (1-indexed).
+    pub number: usize,
+    /// Source location of this callout reference.
+    pub location: Location,
+}
+
+impl CalloutRef {
+    /// Creates a new explicit callout reference with the given number.
+    #[must_use]
+    pub fn explicit(number: usize, location: Location) -> Self {
+        Self {
+            kind: CalloutRefKind::Explicit,
+            number,
+            location,
+        }
+    }
+
+    /// Creates a new auto-numbered callout reference with the resolved number.
+    #[must_use]
+    pub fn auto(number: usize, location: Location) -> Self {
+        Self {
+            kind: CalloutRefKind::Auto,
+            number,
+            location,
+        }
+    }
+}
+
+impl Serialize for CalloutRef {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(5))?;
+        state.serialize_entry("name", "callout_reference")?;
+        state.serialize_entry("type", "inline")?;
+        state.serialize_entry("variant", &self.kind)?;
+        state.serialize_entry("number", &self.number)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for CalloutRef {
+    fn deserialize<D>(deserializer: D) -> Result<CalloutRef, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct CalloutRefVisitor;
+
+        impl<'de> Visitor<'de> for CalloutRefVisitor {
+            type Value = CalloutRef;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a CalloutRef object")
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<CalloutRef, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut kind = None;
+                let mut number = None;
+                let mut location = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        // "variant" in JSON maps to "kind" in struct
+                        "variant" => {
+                            if kind.is_some() {
+                                return Err(de::Error::duplicate_field("variant"));
+                            }
+                            kind = Some(map.next_value()?);
+                        }
+                        "number" => {
+                            if number.is_some() {
+                                return Err(de::Error::duplicate_field("number"));
+                            }
+                            number = Some(map.next_value()?);
+                        }
+                        "location" => {
+                            if location.is_some() {
+                                return Err(de::Error::duplicate_field("location"));
+                            }
+                            location = Some(map.next_value()?);
+                        }
+                        // Skip unknown fields (name, type, etc.)
+                        _ => {
+                            let _: serde_json::Value = map.next_value()?;
+                        }
+                    }
+                }
+
+                let kind = kind.ok_or_else(|| de::Error::missing_field("variant"))?;
+                let number = number.ok_or_else(|| de::Error::missing_field("number"))?;
+                let location = location.ok_or_else(|| de::Error::missing_field("location"))?;
+
+                Ok(CalloutRef {
+                    kind,
+                    number,
+                    location,
+                })
+            }
+        }
+
+        deserializer.deserialize_map(CalloutRefVisitor)
     }
 }

@@ -112,6 +112,10 @@ fn render_inline_node_to_writer<W: Write>(
         InlineNode::InlineAnchor(_) => {
             // Anchors are invisible
         }
+        InlineNode::CalloutRef(callout) => {
+            // Render callout reference as (N)
+            write!(w, "({})", callout.number)?;
+        }
         _ => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
@@ -219,6 +223,17 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
         InlineNode::LineBreak(_) => {
             let w = visitor.writer_mut();
             writeln!(w)?;
+        }
+        InlineNode::CalloutRef(callout) => {
+            // Render callout reference as bold (N)
+            let w = visitor.writer_mut();
+            w.queue(crossterm::style::SetAttribute(
+                crossterm::style::Attribute::Bold,
+            ))?;
+            write!(w, "({})", callout.number)?;
+            w.queue(crossterm::style::SetAttribute(
+                crossterm::style::Attribute::NoBold,
+            ))?;
         }
         _ => {
             return Err(std::io::Error::new(

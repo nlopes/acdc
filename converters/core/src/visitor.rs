@@ -23,9 +23,9 @@
 use std::io::Write;
 
 use acdc_parser::{
-    Admonition, Audio, Block, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader,
-    Document, Header, Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, Block, CalloutList, CalloutListItem, CalloutRef, DelimitedBlock,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 /// The Visitor trait defines methods for visiting each type of AST node.
@@ -380,6 +380,28 @@ pub trait Visitor {
     ///
     /// Returns an error if writing the text fails.
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error>;
+
+    /// Visit a callout reference inline node.
+    ///
+    /// Default implementation does nothing. Override to render callout markers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing the callout reference fails.
+    fn visit_callout_ref(&mut self, _callout: &CalloutRef) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Visit a callout list item.
+    ///
+    /// Default implementation does nothing. Override to render callout list items.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing the callout list item fails.
+    fn visit_callout_list_item(&mut self, _item: &CalloutListItem) -> Result<(), Self::Error> {
+        Ok(())
+    }
 }
 
 /// A writable visitor that outputs to a writer.

@@ -1,4 +1,6 @@
-use crate::{DocumentAttributes, Footnote, Location, Options, Title, TocEntry, grammar::LineMap};
+use crate::{
+    CalloutRef, DocumentAttributes, Footnote, Location, Options, Title, TocEntry, grammar::LineMap,
+};
 
 #[derive(Debug)]
 pub(crate) struct ParserState {
@@ -9,8 +11,8 @@ pub(crate) struct ParserState {
     pub(crate) footnote_tracker: FootnoteTracker,
     pub(crate) toc_tracker: TocTracker,
     pub(crate) last_block_was_verbatim: bool,
-    /// Callout numbers found in the last verbatim block (for validation)
-    pub(crate) last_verbatim_callouts: Vec<usize>,
+    /// Callout references found in the last verbatim block (for validation with callout lists)
+    pub(crate) last_verbatim_callouts: Vec<CalloutRef>,
     /// The current file being parsed (None for inline/string parsing)
     pub(crate) current_file: Option<std::path::PathBuf>,
 }

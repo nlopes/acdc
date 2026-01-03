@@ -25,8 +25,8 @@ pub use anchor::{Anchor, TocEntry};
 pub use attributes::{AttributeName, AttributeValue, DocumentAttributes, ElementAttributes};
 pub use inlines::*;
 pub use lists::{
-    CalloutList, DescriptionList, DescriptionListItem, ListItem, ListItemCheckedStatus, ListLevel,
-    OrderedList, UnorderedList,
+    CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,
+    ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
 };
 pub use location::*;
 pub use media::{Audio, Image, Source, Video};
@@ -748,6 +748,20 @@ fn parse_list_items<E: de::Error>(value: Option<serde_json::Value>) -> Result<Ve
     }
 }
 
+/// Helper to parse `Vec<CalloutListItem>` from `serde_json::Value`
+fn parse_callout_list_items<E: de::Error>(
+    value: Option<serde_json::Value>,
+) -> Result<Vec<CalloutListItem>, E> {
+    match value {
+        Some(serde_json::Value::Array(arr)) => arr
+            .into_iter()
+            .map(|v| serde_json::from_value(v).map_err(E::custom))
+            .collect(),
+        Some(_) => Err(E::custom("items must be an array")),
+        None => Err(E::missing_field("items")),
+    }
+}
+
 /// Helper to parse `Vec<DescriptionListItem>` from `serde_json::Value`
 fn parse_dlist_items<E: de::Error>(
     value: Option<serde_json::Value>,
@@ -903,29 +917,37 @@ fn construct_list<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
     let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
     let title: Title = raw.title.unwrap_or_default().into();
     let metadata = raw.metadata.unwrap_or_default();
-    let items = parse_list_items(raw.items)?;
 
     match variant.as_str() {
-        "unordered" => Ok(Block::UnorderedList(UnorderedList {
-            title,
-            metadata,
-            marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
-            items,
-            location,
-        })),
-        "ordered" => Ok(Block::OrderedList(OrderedList {
-            title,
-            metadata,
-            marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
-            items,
-            location,
-        })),
-        "callout" => Ok(Block::CalloutList(CalloutList {
-            title,
-            metadata,
-            items,
-            location,
-        })),
+        "unordered" => {
+            let items = parse_list_items(raw.items)?;
+            Ok(Block::UnorderedList(UnorderedList {
+                title,
+                metadata,
+                marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
+                items,
+                location,
+            }))
+        }
+        "ordered" => {
+            let items = parse_list_items(raw.items)?;
+            Ok(Block::OrderedList(OrderedList {
+                title,
+                metadata,
+                marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
+                items,
+                location,
+            }))
+        }
+        "callout" => {
+            let items = parse_callout_list_items(raw.items)?;
+            Ok(Block::CalloutList(CalloutList {
+                title,
+                metadata,
+                items,
+                location,
+            }))
+        }
         _ => Err(E::custom(format!("unexpected 'list' variant: {variant}"))),
     }
 }

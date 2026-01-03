@@ -41,6 +41,8 @@ pub enum InlineNode {
     LineBreak(LineBreak),
     InlineAnchor(Anchor),
     Macro(InlineMacro),
+    /// Callout reference marker in verbatim content: `<1>`, `<.>`, etc.
+    CalloutRef(CalloutRef),
 }
 
 /// An inline macro - a functional element that produces inline content.
@@ -204,6 +206,13 @@ impl Serialize for InlineNode {
             InlineNode::Macro(macro_node) => {
                 serialize_inline_macro::<S>(macro_node, &mut map)?;
             }
+            InlineNode::CalloutRef(callout_ref) => {
+                map.serialize_entry("name", "callout_reference")?;
+                map.serialize_entry("type", "inline")?;
+                map.serialize_entry("variant", &callout_ref.kind)?;
+                map.serialize_entry("number", &callout_ref.number)?;
+                map.serialize_entry("location", &callout_ref.location)?;
+            }
         }
         map.end()
     }
@@ -346,6 +355,7 @@ struct RawInlineFields {
     substitutions: Option<HashSet<crate::Substitution>>,
     xreflabel: Option<String>,
     bracketed: Option<bool>,
+    number: Option<usize>,
 }
 
 // -----------------------------------------------------------------------------
@@ -587,6 +597,27 @@ fn construct_span<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
     }
 }
 
+fn construct_callout_ref<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
+    let number = raw.number.ok_or_else(|| E::missing_field("number"))?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+
+    let kind = match variant.as_str() {
+        "explicit" => CalloutRefKind::Explicit,
+        "auto" => CalloutRefKind::Auto,
+        _ => {
+            tracing::error!(variant = %variant, "invalid callout ref variant");
+            return Err(E::custom("invalid callout ref variant"));
+        }
+    };
+
+    Ok(InlineNode::CalloutRef(CalloutRef {
+        kind,
+        number,
+        location,
+    }))
+}
+
 /// Dispatch to the appropriate `InlineNode` constructor based on name/type
 fn dispatch_inline<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
     let name = raw.name.clone().ok_or_else(|| E::missing_field("name"))?;
@@ -609,6 +640,7 @@ fn dispatch_inline<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> 
         ("xref", "inline") => construct_xref(raw),
         ("ref", "inline") => construct_ref(raw),
         ("span", "inline") => construct_span(raw),
+        ("callout_reference", "inline") => construct_callout_ref(raw),
         _ => {
             tracing::error!(name = %name, r#type = %ty, "invalid inline node");
             Err(E::custom("invalid inline node"))

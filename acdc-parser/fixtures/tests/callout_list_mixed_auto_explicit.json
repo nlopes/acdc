@@ -42,7 +42,116 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Line one <1>\nLine two <5>\nLine three <2>\nLine four <10>",
+          "value": "Line one ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "auto",
+          "number": 1,
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nLine two ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 5,
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nLine three ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "auto",
+          "number": 2,
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nLine four ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 10,
           "location": [
             {
               "line": 4,
@@ -74,7 +183,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<1>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "auto",
+            "number": 1,
+            "location": [
+              {
+                "line": 9,
+                "col": 1
+              },
+              {
+                "line": 9,
+                "col": 36
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -106,7 +230,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<5>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 5,
+            "location": [
+              {
+                "line": 10,
+                "col": 1
+              },
+              {
+                "line": 10,
+                "col": 22
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -138,7 +277,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<2>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "auto",
+            "number": 2,
+            "location": [
+              {
+                "line": 11,
+                "col": 1
+              },
+              {
+                "line": 11,
+                "col": 37
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
@@ -170,7 +324,22 @@
         {
           "name": "listItem",
           "type": "block",
-          "marker": "<10>",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 10,
+            "location": [
+              {
+                "line": 12,
+                "col": 1
+              },
+              {
+                "line": 12,
+                "col": 24
+              }
+            ]
+          },
           "principal": [
             {
               "name": "text",
