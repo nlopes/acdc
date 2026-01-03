@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 use crossterm::{
     QueueableCommand,

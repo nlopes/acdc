@@ -3,7 +3,8 @@ members = [
   "acdc-cli",
   "acdc-lsp",
   "acdc-parser",
-  "converters/common",
+  "converters/core",
+  "converters/dev",
   "converters/html",
   "converters/manpage",
   "converters/terminal",
@@ -16,7 +17,8 @@ edition = "2024"
 description = "A suite of tools for AsciiDoc documents"
 
 [workspace.dependencies]
-acdc-converters-common = { path = "converters/common" }
+acdc-converters-core = { path = "converters/core" }
+acdc-converters-dev = { path = "converters/dev" }
 acdc-parser = { path = "acdc-parser" }
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }

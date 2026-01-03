@@ -5,7 +5,7 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     CalloutList, DescriptionList, DescriptionListItem, InlineNode, ListItem, ListItemCheckedStatus,
     OrderedList, UnorderedList,

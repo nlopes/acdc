@@ -1,20 +1,35 @@
+//! Table of contents configuration.
+//!
+//! This module provides configuration for rendering the table of contents (TOC)
+//! based on document attributes and TOC macro settings.
+//!
+//! # TOC Placement
+//!
+//! The `:toc:` attribute controls TOC placement:
+//! - `auto` / empty - Render in preamble after abstract
+//! - `left` / `right` - Render as sidebar
+//! - `preamble` - Render at end of preamble
+//! - `macro` - Render where `toc::[]` macro appears
+
 use acdc_parser::{AttributeValue, DocumentAttributes, TableOfContents};
 
 /// Configuration for the table of contents placement and options.
+///
+/// Created from document attributes using [`Config::from_attributes()`].
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Config {
-    pub placement: String,
-    pub title: Option<String>,
-    pub levels: u8,
-    /// CSS class for the TOC container div.
-    /// Default is "toc2" for sidebar positions (left, right, top, bottom),
-    /// "toc" for content positions (auto, preamble, macro).
-    /// Can be overridden with `:toc-class:` attribute.
-    pub toc_class: String,
+    placement: String,
+    title: Option<String>,
+    levels: u8,
+    toc_class: String,
 }
 
 impl Config {
-    /// Create a Config from document attributes and an optional TOC macro
-    /// Block-level attributes from the toc macro take precedence over document attributes
+    /// Create a Config from document attributes and an optional TOC macro.
+    ///
+    /// Block-level attributes from the toc macro take precedence over document attributes.
+    #[must_use]
     pub fn from_attributes(
         toc_macro: Option<&TableOfContents>,
         attributes: &DocumentAttributes,
@@ -71,11 +86,41 @@ impl Config {
                 _ => "toc".to_string(),
             });
 
-        Config {
+        Self {
             placement,
             title,
             levels,
             toc_class,
         }
+    }
+
+    /// Get the TOC placement position.
+    ///
+    /// Returns one of: "none", "auto", "left", "right", "preamble", "macro".
+    #[must_use]
+    pub fn placement(&self) -> &str {
+        &self.placement
+    }
+
+    /// Get the TOC title, if set via `:toc-title:`.
+    #[must_use]
+    pub fn title(&self) -> Option<&str> {
+        self.title.as_deref()
+    }
+
+    /// Get the number of heading levels to include (default: 2).
+    #[must_use]
+    pub fn levels(&self) -> u8 {
+        self.levels
+    }
+
+    /// Get the CSS class for the TOC container.
+    ///
+    /// Default is "toc2" for sidebar positions (left, right, top, bottom),
+    /// "toc" for content positions (auto, preamble, macro).
+    /// Can be overridden with `:toc-class:` attribute.
+    #[must_use]
+    pub fn toc_class(&self) -> &str {
+        &self.toc_class
     }
 }

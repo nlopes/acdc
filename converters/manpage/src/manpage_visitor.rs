@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
     Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,

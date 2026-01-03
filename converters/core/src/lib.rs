@@ -1,15 +1,45 @@
+//! Core traits and utilities for acdc document converters.
+//!
+//! This crate provides the shared infrastructure used by all acdc converters
+//! (HTML, terminal, manpage, etc.):
+//!
+//! - [`Processable`] - trait that all converters implement
+//! - [`Visitor`](visitor::Visitor) - visitor pattern for AST traversal
+//! - [`Options`] - configuration for conversion
+//! - [`default_rendering_attributes`] - default document attributes for rendering
+//!
+//! # Example
+//!
+//! ```ignore
+//! use acdc_converters_core::{Options, Processable, Doctype};
+//!
+//! let options = Options::builder()
+//!     .doctype(Doctype::Article)
+//!     .embedded(true)
+//!     .build();
+//! ```
+//!
+//! # Modules
+//!
+//! - [`code`] - Programming language detection for syntax highlighting
+//! - [`icon`] - Icon rendering mode configuration
+//! - [`substitutions`] - Text substitution utilities for escape handling
+//! - [`table`] - Table column width calculations
+//! - [`toc`] - Table of contents configuration
+//! - [`video`] - Video URL generation for `YouTube`, `Vimeo`, etc.
+//! - [`visitor`] - Visitor pattern infrastructure for AST traversal
+
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 
+/// Source code syntax highlighting and callouts support.
 pub mod code;
 mod doctype;
-pub mod generate_fixtures;
 pub mod icon;
-pub mod output;
 pub mod substitutions;
 pub mod table;
 pub mod toc;
 pub mod video;
-pub mod visitor; // Visitor pattern infrastructure
+pub mod visitor;
 
 pub use doctype::Doctype;
 
@@ -90,17 +120,137 @@ pub fn default_rendering_attributes() -> DocumentAttributes {
     attrs
 }
 
-#[derive(Debug, Default, Clone)]
+/// Converter options.
+///
+/// Use [`Options::builder()`] to construct an instance. This struct is marked
+/// `#[non_exhaustive]` to allow adding new fields in future minor versions.
+///
+/// # Example
+///
+/// ```
+/// use acdc_converters_core::{Options, Doctype, GeneratorMetadata};
+///
+/// let options = Options::builder()
+///     .doctype(Doctype::Article)
+///     .embedded(true)
+///     .generator_metadata(GeneratorMetadata::new("my-converter", "1.0.0"))
+///     .build();
+/// ```
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct Options {
-    pub generator_metadata: GeneratorMetadata,
-    pub doctype: Doctype,
-    pub safe_mode: SafeMode,
-    pub timings: bool,
-    /// When true, output embeddable document (no DOCTYPE, html, head, body wrapper).
-    /// Only applies to HTML backend; ignored by other backends.
-    pub embedded: bool,
+    generator_metadata: GeneratorMetadata,
+    doctype: Doctype,
+    safe_mode: SafeMode,
+    timings: bool,
+    embedded: bool,
 }
 
+impl Options {
+    /// Create a new builder with default values.
+    #[must_use]
+    pub fn builder() -> OptionsBuilder {
+        OptionsBuilder::default()
+    }
+
+    /// Get the generator metadata.
+    #[must_use]
+    pub fn generator_metadata(&self) -> &GeneratorMetadata {
+        &self.generator_metadata
+    }
+
+    /// Get the document type.
+    #[must_use]
+    pub fn doctype(&self) -> Doctype {
+        self.doctype
+    }
+
+    /// Get the safe mode.
+    #[must_use]
+    pub fn safe_mode(&self) -> SafeMode {
+        self.safe_mode
+    }
+
+    /// Get whether timing information should be output.
+    #[must_use]
+    pub fn timings(&self) -> bool {
+        self.timings
+    }
+
+    /// Get whether to output an embeddable document.
+    ///
+    /// When true, converters should output content without document wrappers
+    /// (e.g., no DOCTYPE, html, head, body tags for HTML).
+    #[must_use]
+    pub fn embedded(&self) -> bool {
+        self.embedded
+    }
+}
+
+/// Builder for [`Options`].
+///
+/// Use [`Options::builder()`] to create a new builder.
+#[derive(Debug, Default, Clone)]
+pub struct OptionsBuilder {
+    generator_metadata: GeneratorMetadata,
+    doctype: Doctype,
+    safe_mode: SafeMode,
+    timings: bool,
+    embedded: bool,
+}
+
+impl OptionsBuilder {
+    /// Set the generator metadata (name and version).
+    #[must_use]
+    pub fn generator_metadata(mut self, meta: GeneratorMetadata) -> Self {
+        self.generator_metadata = meta;
+        self
+    }
+
+    /// Set the document type (Article, Book, Manpage, Inline).
+    #[must_use]
+    pub fn doctype(mut self, doctype: Doctype) -> Self {
+        self.doctype = doctype;
+        self
+    }
+
+    /// Set the safe mode for processing.
+    #[must_use]
+    pub fn safe_mode(mut self, mode: SafeMode) -> Self {
+        self.safe_mode = mode;
+        self
+    }
+
+    /// Enable or disable timing output.
+    #[must_use]
+    pub fn timings(mut self, timings: bool) -> Self {
+        self.timings = timings;
+        self
+    }
+
+    /// Enable or disable embedded output mode.
+    ///
+    /// When true, converters should output content without document wrappers.
+    #[must_use]
+    pub fn embedded(mut self, embedded: bool) -> Self {
+        self.embedded = embedded;
+        self
+    }
+
+    /// Build the [`Options`] instance.
+    #[must_use]
+    pub fn build(self) -> Options {
+        Options {
+            generator_metadata: self.generator_metadata,
+            doctype: self.doctype,
+            safe_mode: self.safe_mode,
+            timings: self.timings,
+            embedded: self.embedded,
+        }
+    }
+}
+
+/// Extension trait for formatting [`Duration`](std::time::Duration) in human-readable form.
 pub trait PrettyDuration {
     /// Returns a human-readable string representation of the duration.
     ///
@@ -109,7 +259,7 @@ pub trait PrettyDuration {
     /// - Strips trailing zeros
     fn pretty_print(&self) -> String;
 
-    /// Returns a detailed timing string with specified precision
+    /// Returns a detailed timing string with specified precision.
     ///
     /// # Arguments
     /// * `precision` - Number of decimal places (0-9)
@@ -153,19 +303,37 @@ impl PrettyDuration for std::time::Duration {
     }
 }
 
+/// Generator metadata for tracking which tool produced the output.
+///
+/// This is embedded in generated output (e.g., HTML meta tags, man page comments)
+/// for debugging and identification purposes.
 #[derive(Debug, Default, Clone)]
+#[non_exhaustive]
 pub struct GeneratorMetadata {
-    pub name: String,
-    pub version: String,
+    name: String,
+    version: String,
 }
 
 impl GeneratorMetadata {
+    /// Create new generator metadata.
     #[must_use]
     pub fn new<S: AsRef<str>>(name: S, version: S) -> Self {
         Self {
             name: name.as_ref().to_string(),
             version: version.as_ref().to_string(),
         }
+    }
+
+    /// Get the generator name.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get the generator version.
+    #[must_use]
+    pub fn version(&self) -> &str {
+        &self.version
     }
 }
 
@@ -181,14 +349,16 @@ impl std::fmt::Display for GeneratorMetadata {
 ///
 /// Document attributes follow a layered precedence system (lowest to highest priority):
 ///
-/// 1. **Base rendering defaults** - from `default_rendering_attributes()` (admonition captions, toclevels, etc.)
-/// 2. **Converter-specific defaults** - from `document_attributes_defaults()` (e.g., `man-linkstyle` for manpage)
+/// 1. **Base rendering defaults** - from [`default_rendering_attributes()`] (admonition captions, toclevels, etc.)
+/// 2. **Converter-specific defaults** - from [`Processable::document_attributes_defaults()`] (e.g., `man-linkstyle` for manpage)
 /// 3. **CLI attributes** - user-provided via `-a name=value`
 /// 4. **Document attributes** - `:name: value` in document header
 ///
-/// Converters should use `converter_defaults()` to provide backend-specific attribute defaults.
+/// Converters should use `document_attributes_defaults()` to provide backend-specific attribute defaults.
 pub trait Processable {
+    /// The options type for this converter.
     type Options;
+    /// The error type for this converter.
     type Error;
 
     /// Returns converter-specific default attributes.
@@ -207,9 +377,10 @@ pub trait Processable {
         DocumentAttributes::default()
     }
 
+    /// Create a new converter instance.
     fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
 
-    /// Convert a pre-parsed document
+    /// Convert a pre-parsed document.
     ///
     /// The CLI handles all parsing (stdin or files), and converters just focus on conversion.
     ///
@@ -234,15 +405,15 @@ pub trait Processable {
     fn document_attributes(&self) -> DocumentAttributes;
 }
 
-/// Walk the error source chain to find a parser error
+/// Walk the error source chain to find a parser error.
 ///
 /// This utility function searches through the error chain looking for
-/// an `acdc_parser::Error` instance, which allows the CLI to provide
+/// an [`acdc_parser::Error`] instance, which allows the CLI to provide
 /// rich error displays with source code context.
 ///
 /// # How it works
 ///
-/// Uses the standard `Error::source()` chain walking pattern to traverse
+/// Uses the standard [`Error::source()`](std::error::Error::source) chain walking pattern to traverse
 /// the error hierarchy. At each level, attempts to downcast to
 /// `acdc_parser::Error`. Returns the first match found, or None if no
 /// parser error exists in the chain.

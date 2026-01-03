@@ -44,7 +44,7 @@
 
 use std::io::{self, Write};
 
-use acdc_converters_common::{
+use acdc_converters_core::{
     substitutions::{restore_escaped_patterns, strip_backslash_escapes},
     visitor::WritableVisitor,
 };

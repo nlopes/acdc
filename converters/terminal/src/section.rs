@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{DiscreteHeader, InlineNode, Section};
 use crossterm::{
     QueueableCommand,

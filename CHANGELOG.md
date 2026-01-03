@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased acdc-converters-core]
+
+### Changed
+
+- **BREAKING**: Renamed crate from `acdc-converters-common` to `acdc-converters-core`
+- **BREAKING**: `Options` struct now uses builder pattern with private fields -
+  use `Options::builder().doctype(...).build()` instead of struct construction
+- **BREAKING**: `toc::Config` fields are now private - use accessor methods
+  (`placement()`, `title()`, `levels()`, `toc_class()`)
+
+### Added
+
+- `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
+  `Doctype`, and `IconMode` for semver-safe future additions
+- Comprehensive module-level documentation
+- `acdc-converters-dev` crate for test utilities (not published to crates.io)
+
 ## [Unreleased acdc-cli]
 
 ### Added

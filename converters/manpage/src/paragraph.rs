@@ -4,7 +4,7 @@
 
 use std::io::Write;
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::Paragraph;
 
 use crate::{

@@ -4,7 +4,7 @@
 
 use std::io::Write;
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::Section;
 
 use crate::{
@@ -29,7 +29,7 @@ pub fn visit_section<W: Write>(
     let is_name_section = title_text.eq_ignore_ascii_case("name");
 
     // In embedded mode, skip the NAME section entirely (matches asciidoctor --embedded)
-    if visitor.processor.options.embedded && is_name_section {
+    if visitor.processor.options.embedded() && is_name_section {
         return Ok(());
     }
 

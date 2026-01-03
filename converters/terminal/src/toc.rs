@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{TableOfContents, TocEntry};
 
 use crate::Processor;
@@ -72,22 +72,22 @@ pub(crate) fn render<V: WritableVisitor<Error = crate::Error>>(
     placement: &str,
     processor: &Processor,
 ) -> Result<(), crate::Error> {
-    use acdc_converters_common::toc::Config as TocConfig;
+    use acdc_converters_core::toc::Config as TocConfig;
     use crossterm::{
         QueueableCommand,
         style::{PrintStyledContent, Stylize},
     };
 
     let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
-    if config.placement == placement && !processor.toc_entries.is_empty() {
+    if config.placement() == placement && !processor.toc_entries.is_empty() {
         let w = visitor.writer_mut();
-        if let Some(title) = config.title {
+        if let Some(title) = config.title() {
             w.queue(PrintStyledContent(title.bold()))?;
         } else {
             w.queue(PrintStyledContent("Table of Contents".bold()))?;
         }
         writeln!(w)?;
-        render_entries(&processor.toc_entries, visitor, config.levels, 1)?;
+        render_entries(&processor.toc_entries, visitor, config.levels(), 1)?;
         let w = visitor.writer_mut();
         writeln!(w)?;
     }

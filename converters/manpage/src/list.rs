@@ -5,7 +5,7 @@
 
 use std::io::Write;
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
 use acdc_parser::{CalloutList, DescriptionList, OrderedList, UnorderedList};
 
 use crate::{Error, ManpageVisitor};

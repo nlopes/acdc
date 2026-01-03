@@ -76,7 +76,7 @@ fn calculate_offset_from_position(source: &str, line: usize, column: usize) -> u
 }
 
 pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {
-    if let Some(parser_error) = acdc_converters_common::find_parser_error(e)
+    if let Some(parser_error) = acdc_converters_core::find_parser_error(e)
         && let Some(source_location) = parser_error.source_location()
         && let Some(path) = &source_location.file
         /* Lazy-load file content only if we have a file path */

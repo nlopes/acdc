@@ -1,7 +1,7 @@
 use std::io::{self, BufWriter};
 
-use acdc_converters_common::table::calculate_column_widths;
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::table::calculate_column_widths;
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use comfy_table::{Attribute, Cell, ColumnConstraint, ContentArrangement, Table, Width};
 
 use crate::{Error, Processor, TerminalVisitor};
@@ -116,7 +116,7 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_converters_common::Options;
+    use acdc_converters_core::Options;
     use acdc_parser::{
         Block, DocumentAttributes, InlineNode, Location, Paragraph, Plain, TableColumn, TableRow,
     };

@@ -8,7 +8,7 @@
 //!
 //! ```ignore
 //! use acdc_converters_manpage::Processor;
-//! use acdc_converters_common::{Options, Processable};
+//! use acdc_converters_core::{Options, Processable};
 //!
 //! let options = Options::default();
 //! let processor = Processor::new(options, Default::default());
@@ -33,7 +33,7 @@ use std::{
     time::Instant,
 };
 
-use acdc_converters_common::{Options, PrettyDuration, Processable, visitor::Visitor};
+use acdc_converters_core::{Options, PrettyDuration, Processable, visitor::Visitor};
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
 
 mod admonition;
@@ -127,7 +127,7 @@ impl Processable for Processor {
                 return Err(Error::OutputPathSameAsInput(file_path.to_path_buf()));
             }
 
-            if self.options.timings {
+            if self.options.timings() {
                 println!("Input file: {}", file_path.display());
             }
             tracing::debug!(
@@ -149,7 +149,7 @@ impl Processable for Processor {
                 "time to convert document"
             );
 
-            if self.options.timings {
+            if self.options.timings() {
                 println!("  Time to convert document: {}", elapsed.pretty_print());
             }
             println!("Generated manpage file: {}", manpage_path.display());

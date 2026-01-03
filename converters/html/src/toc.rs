@@ -1,4 +1,4 @@
-use acdc_converters_common::{toc::Config as TocConfig, visitor::WritableVisitor};
+use acdc_converters_core::{toc::Config as TocConfig, visitor::WritableVisitor};
 use acdc_parser::{TableOfContents, TocEntry};
 
 use crate::{Error, Processor};
@@ -86,21 +86,21 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
     // - "macro" placement point accepts: macro
     let should_render = match placement {
         "auto" => matches!(
-            config.placement.as_str(),
+            config.placement(),
             "auto" | "left" | "right" | "top" | "bottom"
         ),
-        other => config.placement == other,
+        other => config.placement() == other,
     };
 
     if should_render && !processor.toc_entries.is_empty() {
         let w = visitor.writer_mut();
-        writeln!(w, "<div id=\"toc\" class=\"{}\">", config.toc_class)?;
-        if let Some(title) = &config.title {
+        writeln!(w, "<div id=\"toc\" class=\"{}\">", config.toc_class())?;
+        if let Some(title) = config.title() {
             writeln!(w, "<div id=\"toctitle\">{title}</div>")?;
         } else {
             writeln!(w, "<div id=\"toctitle\">Table of Contents</div>")?;
         }
-        render_entries(&processor.toc_entries, visitor, config.levels, 1)?;
+        render_entries(&processor.toc_entries, visitor, config.levels(), 1)?;
         let w = visitor.writer_mut();
         writeln!(w, "</div>")?;
     }

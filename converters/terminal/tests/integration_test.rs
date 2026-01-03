@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{
-    Options as ConverterOptions, Processable, output::remove_lines_trailing_whitespace,
-};
+use acdc_converters_core::{Options as ConverterOptions, Processable};
+use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::Processor;
 use acdc_parser::Options as ParserOptions;
 
@@ -53,7 +52,7 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
 
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options =
-        ParserOptions::with_attributes(acdc_converters_common::default_rendering_attributes());
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
     let doc = acdc_parser::parse_file(&input_path, &parser_options)?;
 
     // Convert to Terminal output

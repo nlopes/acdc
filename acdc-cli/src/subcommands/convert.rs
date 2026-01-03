@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acdc_converters_common::{Doctype, GeneratorMetadata, Options, Processable};
+use acdc_converters_core::{Doctype, GeneratorMetadata, Options, Processable};
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 use clap::{ArgAction, Args as ClapArgs, ValueEnum};
 use rayon::prelude::*;
@@ -117,16 +117,16 @@ pub fn run(args: &Args) -> miette::Result<()> {
         }
     };
 
-    let options = Options {
-        generator_metadata: GeneratorMetadata::new(
+    let options = Options::builder()
+        .generator_metadata(GeneratorMetadata::new(
             env!("CARGO_BIN_NAME"),
             env!("CARGO_PKG_VERSION"),
-        ),
-        doctype,
-        safe_mode,
-        timings: args.timings,
-        embedded: args.embedded,
-    };
+        ))
+        .doctype(doctype)
+        .safe_mode(safe_mode)
+        .timings(args.timings)
+        .embedded(args.embedded)
+        .build();
 
     match args.backend {
         #[cfg(feature = "html")]
@@ -202,12 +202,12 @@ where
             let parser_options =
                 build_parser_options(args, &base_options, document_attributes.clone());
 
-            if base_options.timings {
+            if base_options.timings() {
                 let now = std::time::Instant::now();
                 let result = acdc_parser::parse_file(file, &parser_options);
                 let elapsed = now.elapsed();
                 if result.is_ok() {
-                    use acdc_converters_common::PrettyDuration;
+                    use acdc_converters_core::PrettyDuration;
                     eprintln!("  Parsed {} in {}", file.display(), elapsed.pretty_print());
                 }
                 (file.clone(), result)
@@ -269,9 +269,9 @@ where
 }
 
 fn build_attributes_map(values: &[String]) -> DocumentAttributes {
-    // Start with rendering defaults (from converters/common)
+    // Start with rendering defaults (from converters/core)
     // CLI-provided attributes will override these defaults
-    let mut map = acdc_converters_common::default_rendering_attributes();
+    let mut map = acdc_converters_core::default_rendering_attributes();
 
     // Add CLI-provided attributes (these take precedence over defaults)
     for raw_attr in values {
@@ -295,10 +295,10 @@ fn build_parser_options(
     document_attributes: DocumentAttributes,
 ) -> acdc_parser::Options {
     let mut builder = acdc_parser::Options::builder()
-        .with_safe_mode(base_options.safe_mode)
+        .with_safe_mode(base_options.safe_mode())
         .with_attributes(document_attributes);
 
-    if base_options.timings {
+    if base_options.timings() {
         builder = builder.with_timings();
     }
 

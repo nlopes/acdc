@@ -16,7 +16,7 @@ test = false
 doc = false
 
 [dependencies]
-acdc-converters-common.workspace = true
+acdc-converters-core.workspace = true
 acdc-converters-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
 acdc-converters-terminal = { path = "../converters/terminal", optional = true }

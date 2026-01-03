@@ -4,7 +4,7 @@
 
 use std::io::BufWriter;
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
 use acdc_parser::{InlineNode, Paragraph};
 use crossterm::{
     QueueableCommand,

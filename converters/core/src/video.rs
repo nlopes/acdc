@@ -1,3 +1,14 @@
+//! Video URL generation for `YouTube`, `Vimeo`, and local videos.
+//!
+//! This module provides URL generation for video embedding and linking,
+//! supporting platform-specific parameters like start time, autoplay, and controls.
+//!
+//! # Supported Platforms
+//!
+//! - **`YouTube`** - Embed and watch URLs with start/end time, autoplay, loop, etc.
+//! - **`Vimeo`** - Embed and watch URLs with similar options
+//! - **Local** - Direct file paths with optional fragment parameters
+
 use std::fmt::Write as _;
 
 use acdc_parser::Video;
@@ -12,6 +23,7 @@ use acdc_parser::Video;
 ///
 /// Returns a `std::fmt::Error` if there is an error constructing the URL string.
 pub trait TryUrl {
+    /// The error type returned if URL generation fails.
     type Error;
 
     /// Generate a `URL` for the video.

@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use acdc_converters_common::visitor::Visitor;
+use acdc_converters_core::visitor::Visitor;
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem,

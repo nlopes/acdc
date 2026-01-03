@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_common::{
+use acdc_converters_core::{
     code::detect_language,
     visitor::{WritableVisitor, WritableVisitorExt},
 };
@@ -317,7 +317,7 @@ mod tests {
 
     use std::{cell::Cell, rc::Rc};
 
-    use acdc_converters_common::{Doctype, GeneratorMetadata, Options, visitor::Visitor};
+    use acdc_converters_core::{Doctype, Options, visitor::Visitor};
     use acdc_parser::{
         BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
     };
@@ -330,13 +330,10 @@ mod tests {
     }
 
     fn create_test_processor() -> Processor {
-        let options = Options {
-            generator_metadata: GeneratorMetadata::default(),
-            doctype: Doctype::Article,
-            safe_mode: SafeMode::Unsafe,
-            timings: false,
-            embedded: false,
-        };
+        let options = Options::builder()
+            .doctype(Doctype::Article)
+            .safe_mode(SafeMode::Unsafe)
+            .build();
         let document_attributes = DocumentAttributes::default();
         Processor {
             options,

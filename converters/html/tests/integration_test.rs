@@ -1,8 +1,7 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_common::{
-    Options as ConverterOptions, Processable, output::remove_lines_trailing_whitespace,
-};
+use acdc_converters_core::{GeneratorMetadata, Options as ConverterOptions, Processable};
+use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{Processor, RenderOptions};
 use acdc_parser::Options as ParserOptions;
 
@@ -24,15 +23,14 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
 
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options =
-        ParserOptions::with_attributes(acdc_converters_common::default_rendering_attributes());
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
     let doc = acdc_parser::parse_file(&path, &parser_options)?;
 
     // Convert to HTML
     let mut output = Vec::new();
-    let converter_options = ConverterOptions {
-        generator_metadata: acdc_converters_common::GeneratorMetadata::new("acdc", "0.1.0"),
-        ..Default::default()
-    };
+    let converter_options = ConverterOptions::builder()
+        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+        .build();
     let processor = Processor::new(converter_options, doc.attributes.clone());
     let render_options = RenderOptions::default();
     processor.convert_to_writer(&doc, &mut output, &render_options)?;

@@ -4,7 +4,7 @@
 
 use std::{borrow::Cow, io::Write};
 
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{AttributeValue, Author, Document, InlineNode};
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};
@@ -112,7 +112,7 @@ pub fn visit_document_start<W: Write>(
 ) -> Result<(), Error> {
     // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
     // This matches asciidoctor's --embedded behavior for manpages
-    if visitor.processor.options.embedded {
+    if visitor.processor.options.embedded() {
         return Ok(());
     }
 

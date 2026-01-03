@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{AttributeValue, Audio};
 
 use crate::Error;

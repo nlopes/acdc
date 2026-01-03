@@ -247,7 +247,7 @@ The best way to understand how this works is to look at an existing converter. T
 To add a new converter:
 
 1. Create a new crate under `converters/`
-2. Add dependencies on `acdc-converters-common` and `acdc-parser`
+2. Add dependencies on `acdc-converters-core` and `acdc-parser`
 3. Define your options and error types
 4. Implement the `Processable` trait
 5. Walk the AST to generate your output format

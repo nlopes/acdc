@@ -47,7 +47,7 @@ const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
 /// # Example
 ///
 /// ```
-/// use acdc_converters_common::substitutions::strip_backslash_escapes;
+/// use acdc_converters_core::substitutions::strip_backslash_escapes;
 ///
 /// assert_eq!(strip_backslash_escapes(r"E=mc\^2"), "E=mc^2");
 /// assert_eq!(strip_backslash_escapes(r"H\~2~O"), "H~2~O");
@@ -102,7 +102,7 @@ pub fn strip_backslash_escapes(text: &str) -> String {
 /// # Example
 ///
 /// ```
-/// use acdc_converters_common::substitutions::{strip_backslash_escapes, restore_escaped_patterns};
+/// use acdc_converters_core::substitutions::{strip_backslash_escapes, restore_escaped_patterns};
 ///
 /// let input = r"v2.0.25\...v2.0.26";
 /// let escaped = strip_backslash_escapes(input);

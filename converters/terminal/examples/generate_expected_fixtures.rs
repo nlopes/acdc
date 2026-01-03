@@ -3,8 +3,8 @@
 //! Usage:
 //!   `cargo run -p acdc-converters-terminal --features images,highlighting --example generate_expected_fixtures`
 
-use acdc_converters_common::generate_fixtures::FixtureGenerator;
-use acdc_converters_common::{Options, Processable};
+use acdc_converters_core::{Options, Processable};
+use acdc_converters_dev::generate_fixtures::FixtureGenerator;
 use acdc_converters_terminal::Processor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

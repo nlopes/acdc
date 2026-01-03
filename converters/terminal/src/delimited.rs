@@ -1,4 +1,4 @@
-use acdc_converters_common::{
+use acdc_converters_core::{
     code::detect_language,
     visitor::{Visitor, WritableVisitor, WritableVisitorExt},
 };
@@ -371,7 +371,7 @@ fn process_callouts(text: &str) -> String {
 mod tests {
     use super::*;
     use crate::{Options, TerminalVisitor};
-    use acdc_converters_common::visitor::Visitor;
+    use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{DocumentAttributes, Location, Paragraph, Plain, Title};
 
     /// Create simple plain text inline nodes for testing

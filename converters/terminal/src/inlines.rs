@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_common::{
+use acdc_converters_core::{
     substitutions::{restore_escaped_patterns, strip_backslash_escapes},
     visitor::WritableVisitor,
 };
@@ -378,7 +378,7 @@ fn render_cross_reference<W: Write + ?Sized>(
 mod tests {
     use super::*;
     use crate::{Options, TerminalVisitor};
-    use acdc_converters_common::visitor::Visitor;
+    use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{
         Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, DocumentAttributes, Form,
         Highlight, Image, InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace,

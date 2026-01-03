@@ -10,7 +10,7 @@ images = ["dep:viuer"]
 highlighting = ["dep:syntect"]
 
 [dependencies]
-acdc-converters-common.workspace = true
+acdc-converters-core.workspace = true
 acdc-parser.workspace = true
 comfy-table = "7.2"
 crossterm.workspace = true
@@ -22,6 +22,7 @@ syntect = { version = "5.3", optional = true }
 viuer = { version = "0.11", features = ["print-file"], optional = true }
 
 [dev-dependencies]
+acdc-converters-dev.workspace = true
 pretty_assertions.workspace = true
 
 [lints.rust]

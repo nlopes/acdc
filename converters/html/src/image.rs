@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{AttributeValue, Image};
 
 use crate::{

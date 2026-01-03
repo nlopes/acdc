@@ -1,17 +1,17 @@
 [package]
-name = "acdc-converters-common"
+name = "acdc-converters-core"
 version.workspace = true
 edition.workspace = true
-description.workspace = true
+description = "Core traits and utilities for acdc document converters"
 
 [dependencies]
 acdc-parser = { path = "../../acdc-parser" }
-crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
+missing_docs = "warn"
 
 [lints.clippy]
 # Defensive programming

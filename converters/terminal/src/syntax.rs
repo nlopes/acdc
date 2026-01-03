@@ -150,7 +150,7 @@ fn process_callouts(text: &str) -> String {
 #[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
-    use acdc_converters_common::Options;
+    use acdc_converters_core::Options;
     use acdc_parser::{DocumentAttributes, Location, Verbatim};
     use std::{cell::Cell, rc::Rc};
 

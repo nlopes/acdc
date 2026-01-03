@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use acdc_converters_common::{Options, Processable, visitor::Visitor};
+use acdc_converters_core::{Options, Processable, visitor::Visitor};
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
 pub(crate) use appearance::Appearance;

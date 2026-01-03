@@ -1,0 +1,17 @@
+[package]
+name = "acdc-converters-dev"
+version.workspace = true
+edition.workspace = true
+description = "Development and testing utilities for acdc converters"
+publish = false
+
+[dependencies]
+acdc-parser = { path = "../../acdc-parser" }
+acdc-converters-core = { path = "../core" }
+crossterm.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = "deny"

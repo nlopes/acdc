@@ -1,4 +1,4 @@
-use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::Paragraph;
 
 use crate::{Error, build_class, write_attribution};

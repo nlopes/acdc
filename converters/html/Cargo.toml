@@ -5,13 +5,14 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-acdc-converters-common.workspace = true
+acdc-converters-core.workspace = true
 acdc-parser.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+acdc-converters-dev.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 tracing-test.workspace = true

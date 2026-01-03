@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 
-use acdc_converters_common::{Options, PrettyDuration, Processable, visitor::Visitor};
+use acdc_converters_core::{Options, PrettyDuration, Processable, visitor::Visitor};
 use acdc_parser::{AttributeValue, Document, DocumentAttributes, TocEntry};
 
 #[derive(Clone, Debug)]
@@ -161,11 +161,11 @@ impl Processable for Processor {
                         .modified()
                         .map(chrono::DateTime::from)?,
                 ),
-                embedded: self.options.embedded,
+                embedded: self.options.embedded(),
                 ..RenderOptions::default()
             };
 
-            if self.options.timings {
+            if self.options.timings() {
                 println!("Input file: {}", file_path.display());
             }
             tracing::debug!(source = ?file_path, destination = ?html_path, "converting document");
@@ -177,7 +177,7 @@ impl Processable for Processor {
             let elapsed = now.elapsed();
             tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file_path, destination = ?html_path, "time to convert document");
 
-            if self.options.timings {
+            if self.options.timings() {
                 println!("  Time to convert document: {}", elapsed.pretty_print());
             }
             println!("Generated HTML file: {}", html_path.display());
@@ -243,7 +243,7 @@ impl Processable for Processor {
         } else {
             // Stdin-based conversion - write to stdout
             let render_options = RenderOptions {
-                embedded: self.options.embedded,
+                embedded: self.options.embedded(),
                 ..RenderOptions::default()
             };
             let stdout = io::stdout();
@@ -314,7 +314,7 @@ pub(crate) fn write_attribution<W: std::io::Write>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_converters_common::Processable;
+    use acdc_converters_core::Processable;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -333,7 +333,7 @@ This is a paragraph.
         let doc = acdc_parser::parse(content, &parser_options)?;
 
         let processor = Processor::new(
-            acdc_converters_common::Options::default(),
+            acdc_converters_core::Options::default(),
             doc.attributes.clone(),
         );
         let render_options = RenderOptions {

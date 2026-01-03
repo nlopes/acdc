@@ -2,7 +2,7 @@
 
 use std::{io::Write, string::ToString};
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DescriptionList,
     DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image, InlineNode, ListItem,
@@ -117,7 +117,7 @@ impl<W: Write> HtmlVisitor<W> {
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="{}">"#,
-            self.processor.options.generator_metadata
+            self.processor.options.generator_metadata()
         )?;
 
         if let Some(header) = &document.header {
@@ -281,22 +281,21 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         }
 
         // Build body class with doctype and optional TOC placement classes
-        let mut body_classes = vec![self.processor.options.doctype.to_string()];
+        let mut body_classes = vec![self.processor.options.doctype().to_string()];
 
         // Add TOC-related classes to body based on placement and custom toc-class
-        let toc_config =
-            acdc_converters_common::toc::Config::from_attributes(None, &doc.attributes);
+        let toc_config = acdc_converters_core::toc::Config::from_attributes(None, &doc.attributes);
         let has_custom_toc_class = doc.attributes.get("toc-class").is_some();
 
-        match toc_config.placement.as_str() {
+        match toc_config.placement() {
             "left" | "right" | "top" | "bottom" => {
                 // Sidebar positions: add toc_class and toc-{position}
-                body_classes.push(toc_config.toc_class.clone());
-                body_classes.push(format!("toc-{}", toc_config.placement));
+                body_classes.push(toc_config.toc_class().to_string());
+                body_classes.push(format!("toc-{}", toc_config.placement()));
             }
             "auto" if has_custom_toc_class => {
                 // Auto placement with custom toc-class: add toc_class and toc-header
-                body_classes.push(toc_config.toc_class.clone());
+                body_classes.push(toc_config.toc_class().to_string());
                 body_classes.push("toc-header".to_string());
             }
             _ => {

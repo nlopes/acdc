@@ -6,7 +6,7 @@ version = 4
 name = "acdc-cli"
 version = "0.1.0"
 dependencies = [
- "acdc-converters-common",
+ "acdc-converters-core",
  "acdc-converters-html",
  "acdc-converters-manpage",
  "acdc-converters-terminal",
@@ -24,20 +24,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "acdc-converters-common"
+name = "acdc-converters-core"
 version = "0.1.0"
 dependencies = [
  "acdc-parser",
- "crossterm",
  "thiserror",
  "tracing",
+]
+
+[[package]]
+name = "acdc-converters-dev"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "crossterm",
 ]
 
 [[package]]
 name = "acdc-converters-html"
 version = "0.1.0"
 dependencies = [
- "acdc-converters-common",
+ "acdc-converters-core",
+ "acdc-converters-dev",
  "acdc-parser",
  "chrono",
  "pretty_assertions",
@@ -51,7 +60,8 @@ dependencies = [
 name = "acdc-converters-manpage"
 version = "0.1.0"
 dependencies = [
- "acdc-converters-common",
+ "acdc-converters-core",
+ "acdc-converters-dev",
  "acdc-parser",
  "chrono",
  "pretty_assertions",
@@ -65,7 +75,8 @@ dependencies = [
 name = "acdc-converters-terminal"
 version = "0.1.0"
 dependencies = [
- "acdc-converters-common",
+ "acdc-converters-core",
+ "acdc-converters-dev",
  "acdc-parser",
  "comfy-table",
  "crossterm",

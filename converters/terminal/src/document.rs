@@ -1,6 +1,6 @@
 use std::io::{self, BufWriter, Write};
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{AttributeValue, Author};
 use crossterm::{
     QueueableCommand,

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_common::{video::TryUrl, visitor::WritableVisitor};
+use acdc_converters_core::{video::TryUrl, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, Video};
 
 use crate::Error;

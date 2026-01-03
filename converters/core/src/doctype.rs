@@ -1,7 +1,18 @@
+//! Document type configuration for `AsciiDoc` conversion.
+//!
+//! The doctype determines how the document structure is interpreted and rendered.
+//! Most documents use the default `Article` doctype.
+
 use std::str::FromStr;
 
 /// Document type to use when converting document.
+///
+/// The doctype affects how the document structure is interpreted:
+/// - Section numbering and hierarchy
+/// - Special sections (appendix, bibliography, etc.)
+/// - Output format (e.g., manpage requires specific structure)
 #[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Doctype {
     /// The default doctype. In `DocBook`, this includes the appendix, abstract,
     /// bibliography, glossary, and index sections. Unless you are making a book or a man
