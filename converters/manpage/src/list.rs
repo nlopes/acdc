@@ -5,7 +5,7 @@
 
 use std::io::Write;
 
-use acdc_converters_common::visitor::{Visitor, WritableVisitor};
+use acdc_converters_common::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
 use acdc_parser::{CalloutList, DescriptionList, OrderedList, UnorderedList};
 
 use crate::{Error, ManpageVisitor};
@@ -16,14 +16,7 @@ pub fn visit_unordered_list<W: Write>(
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
     // Optional list title
-    if !list.title.is_empty() {
-        let w = visitor.writer_mut();
-        writeln!(w, ".PP")?;
-        write!(w, "\\fB")?;
-        visitor.visit_inline_nodes(&list.title)?;
-        let w = visitor.writer_mut();
-        writeln!(w, "\\fP")?;
-    }
+    visitor.render_title_with_wrapper(&list.title, ".PP\n\\fB", "\\fP\n")?;
 
     // Increase nesting depth
     if visitor.list_depth > 0 {
@@ -66,14 +59,7 @@ pub fn visit_ordered_list<W: Write>(
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
     // Optional list title
-    if !list.title.is_empty() {
-        let w = visitor.writer_mut();
-        writeln!(w, ".PP")?;
-        write!(w, "\\fB")?;
-        visitor.visit_inline_nodes(&list.title)?;
-        let w = visitor.writer_mut();
-        writeln!(w, "\\fP")?;
-    }
+    visitor.render_title_with_wrapper(&list.title, ".PP\n\\fB", "\\fP\n")?;
 
     // Increase nesting depth
     if visitor.list_depth > 0 {
@@ -116,14 +102,7 @@ pub fn visit_description_list<W: Write>(
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
     // Optional list title
-    if !list.title.is_empty() {
-        let w = visitor.writer_mut();
-        writeln!(w, ".PP")?;
-        write!(w, "\\fB")?;
-        visitor.visit_inline_nodes(&list.title)?;
-        let w = visitor.writer_mut();
-        writeln!(w, "\\fP")?;
-    }
+    visitor.render_title_with_wrapper(&list.title, ".PP\n\\fB", "\\fP\n")?;
 
     for item in &list.items {
         let w = visitor.writer_mut();
@@ -150,6 +129,9 @@ pub fn visit_callout_list<W: Write>(
     list: &CalloutList,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
+    // Optional list title
+    visitor.render_title_with_wrapper(&list.title, ".PP\n\\fB", "\\fP\n")?;
+
     for (i, item) in list.items.iter().enumerate() {
         let w = visitor.writer_mut();
         // Callout number in bold (use index since ListItem doesn't have ordinal)

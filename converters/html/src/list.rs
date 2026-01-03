@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_common::visitor::WritableVisitor;
+use acdc_converters_common::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{
     CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList, UnorderedList,
 };
@@ -29,7 +29,7 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
 ) -> Result<(), Error> {
     let is_checklist = has_checklist_items(&list.items);
-    let mut writer = visitor.writer_mut();
+    let writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor
     if let Some(id) = &list.metadata.id {
@@ -39,9 +39,15 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     }
     if is_checklist {
         writeln!(writer, " class=\"ulist checklist\">")?;
-        writeln!(writer, "<ul class=\"checklist\">")?;
     } else {
         writeln!(writer, " class=\"ulist\">")?;
+    }
+    let _ = writer;
+    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    let mut writer = visitor.writer_mut();
+    if is_checklist {
+        writeln!(writer, "<ul class=\"checklist\">")?;
+    } else {
         writeln!(writer, "<ul>")?;
     }
     let _ = writer;
@@ -57,7 +63,7 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
 ) -> Result<(), Error> {
     let (style, type_attr) = ordered_list_style(1);
-    let mut writer = visitor.writer_mut();
+    let writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor
     if let Some(id) = &list.metadata.id {
@@ -66,6 +72,9 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
     writeln!(writer, " class=\"olist {style}\">")?;
+    let _ = writer;
+    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    let mut writer = visitor.writer_mut();
     if let Some(t) = type_attr {
         writeln!(writer, "<ol class=\"{style}\" type=\"{t}\">")?;
     } else {
@@ -83,15 +92,11 @@ pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
     list: &CalloutList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let mut writer = visitor.writer_mut();
+    let writer = visitor.writer_mut();
     writeln!(writer, "<div class=\"colist arabic\">")?;
-    if !list.title.is_empty() {
-        write!(writer, "<div class=\"title\">")?;
-        let _ = writer;
-        visitor.visit_inline_nodes(&list.title)?;
-        writer = visitor.writer_mut();
-        writeln!(writer, "</div>")?;
-    }
+    let _ = writer;
+    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    let mut writer = visitor.writer_mut();
     writeln!(writer, "<ol>")?;
     let _ = writer;
 
@@ -318,10 +323,13 @@ fn visit_horizontal_description_list<V: WritableVisitor<Error = Error>>(
     list: &DescriptionList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let mut writer = visitor.writer_mut();
+    let writer = visitor.writer_mut();
 
     let class = build_class("hdlist", &list.metadata.roles);
     writeln!(writer, " class=\"{class}\">")?;
+    let _ = writer;
+    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    let mut writer = visitor.writer_mut();
     writeln!(writer, "<table>")?;
     let _ = writer;
 
@@ -360,7 +368,7 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
     list: &DescriptionList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let mut writer = visitor.writer_mut();
+    let writer = visitor.writer_mut();
 
     // Check for ordered/unordered style (affects dt class)
     let is_marker_style = list
@@ -377,6 +385,9 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
     };
     let class = build_class(&base_class, &list.metadata.roles);
     writeln!(writer, " class=\"{class}\">")?;
+    let _ = writer;
+    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    let mut writer = visitor.writer_mut();
     writeln!(writer, "<dl>")?;
     let _ = writer;
 
