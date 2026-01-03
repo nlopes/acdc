@@ -3,6 +3,7 @@ name = "acdc-converters-terminal"
 version = "0.1.0"
 edition.workspace = true
 description = "`cat` like converter for `AsciiDoc` documents"
+license = "MIT OR Apache-2.0"
 
 [features]
 default = []
