@@ -18,9 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Horizontal description lists (`[horizontal]`) now render as `<table>` with `hdlist`
   class instead of `<dl>` with `dlist horizontal`, matching asciidoctor output ([#270])
+- List titles (`.My title` syntax) now render correctly in HTML and manpage output.
+  HTML uses `<div class="title">`, manpage uses bold formatting, matching asciidoctor
+  behaviour. Terminal output already supported this. ([#273])
 
 [#270]: https://github.com/nlopes/acdc/issues/270
 [#272]: https://github.com/nlopes/acdc/issues/272
+[#273]: https://github.com/nlopes/acdc/issues/273
+
+## [Unreleased acdc-parser]
+
+### Fixed
+
+- List continuations with blank line before `+` now correctly attach to ancestor list
+  items instead of the last nested item, matching asciidoctor behaviour ([#265])
+
+[#265]: https://github.com/nlopes/acdc/issues/265
 
 ## [acdc-parser-v0.1.3] - 2026-01-02
 
