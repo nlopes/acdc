@@ -1,6 +1,6 @@
 [package]
 name = "acdc-converters-dev"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 description = "Development and testing utilities for acdc converters"
 publish = false

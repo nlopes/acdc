@@ -1,6 +1,6 @@
 [package]
 name = "acdc-converters-core"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 description = "Core traits and utilities for acdc document converters"
 

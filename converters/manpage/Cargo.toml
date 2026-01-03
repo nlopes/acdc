@@ -1,8 +1,8 @@
 [package]
 name = "acdc-converters-manpage"
-description = "Manpage converter"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
+description = "Manpage converter"
 
 [dependencies]
 acdc-converters-core.workspace = true

@@ -1,8 +1,8 @@
 [package]
 name = "acdc-converters-html"
-description = "HTML converter"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
+description = "HTML converter"
 
 [dependencies]
 acdc-converters-core.workspace = true
