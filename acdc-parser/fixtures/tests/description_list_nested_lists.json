@@ -100,62 +100,82 @@
                       ]
                     }
                   ],
-                  "location": [
+                  "blocks": [
                     {
-                      "line": 5,
-                      "col": 1
-                    },
-                    {
-                      "line": 5,
-                      "col": 14
-                    }
-                  ]
-                },
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "**",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Level 2 item",
-                      "location": [
+                      "name": "list",
+                      "type": "block",
+                      "variant": "unordered",
+                      "marker": "**",
+                      "items": [
                         {
-                          "line": 6,
-                          "col": 4
+                          "name": "listItem",
+                          "type": "block",
+                          "marker": "**",
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Level 2 item",
+                              "location": [
+                                {
+                                  "line": 6,
+                                  "col": 4
+                                },
+                                {
+                                  "line": 6,
+                                  "col": 15
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 6,
+                              "col": 1
+                            },
+                            {
+                              "line": 6,
+                              "col": 15
+                            }
+                          ]
                         },
                         {
-                          "line": 6,
-                          "col": 15
+                          "name": "listItem",
+                          "type": "block",
+                          "marker": "**",
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Another level 2",
+                              "location": [
+                                {
+                                  "line": 7,
+                                  "col": 4
+                                },
+                                {
+                                  "line": 7,
+                                  "col": 18
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 7,
+                              "col": 1
+                            },
+                            {
+                              "line": 7,
+                              "col": 18
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 6,
-                      "col": 1
-                    },
-                    {
-                      "line": 6,
-                      "col": 15
-                    }
-                  ]
-                },
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "**",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Another level 2",
+                      ],
                       "location": [
                         {
-                          "line": 7,
-                          "col": 4
+                          "line": 6,
+                          "col": 1
                         },
                         {
                           "line": 7,
@@ -166,7 +186,7 @@
                   ],
                   "location": [
                     {
-                      "line": 7,
+                      "line": 5,
                       "col": 1
                     },
                     {

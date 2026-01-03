@@ -1,0 +1,12 @@
+* Parent item
+  ** Nested item 1
+  ** Nested item 2
+
++
+This paragraph attaches to Parent due to blank line before +.
+
+* Second parent
+  ** Another nested
+
++
+Another ancestor continuation.
