@@ -161,9 +161,10 @@ pub trait Processable {
     type Options;
     type Error;
 
+    fn document_attributes_defaults() -> DocumentAttributes { ... }
     fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
-    fn run(&self) -> Result<(), Self::Error>;
-    fn output(&self) -> Result<String, Self::Error>;
+    fn convert(&self, doc: &Document, file: Option<&Path>) -> Result<(), Self::Error>;
+    fn document_attributes(&self) -> DocumentAttributes;
 }
 ----
 
@@ -174,6 +175,20 @@ Right now I have three converters:
 . Terminal (`converters/terminal`) for ANSI-formatted terminal display
 
 Why this trait-based design? I didn't think it over too much, honestly. It keeps things clean - the parser doesn't know anything about output formats. Each converter defines its own options and error types, which gives type safety. And implementing the trait to add a new output format is straightforward.
+
+==== Document attribute layering
+
+Document attributes follow a 4-level precedence hierarchy (lowest to highest priority):
+
+1. **Base rendering defaults** - Common defaults from `converters/core` like `lang: "en"`, admonition captions, `toclevels: "2"`, `sectnumlevels: "3"`
+
+2. **Converter-specific defaults** - Each converter can override defaults via `document_attributes_defaults()`. For example, HTML sets `copycss`, `stylesdir`, `stylesheet`; manpage sets `man-linkstyle: "blue R <>"`
+
+3. **CLI attributes** - User-provided via `-a name=value` command-line flags
+
+4. **Document attributes** - Highest priority, defined in the document header with `:name: value` syntax
+
+This layering means documents can rely on sensible defaults while retaining full control. Users can override via CLI for batch processing, and authors can override in individual documents.
 
 ==== Type-based AST instead of property-based
 
@@ -205,10 +220,11 @@ The workspace is organized into clearly bounded modules:
 ----
 acdc/
 ├── acdc-cli/          # Command-line interface
-├── acdc-lsp/          # Language Server Protocol implementation
+├── acdc-lsp/          # Language Server Protocol implementation (early/experimental)
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
-    ├── common/        # Shared converter infrastructure
+    ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
+    ├── dev/           # Development utilities (unpublished)
     ├── html/          # HTML5 output
     ├── manpage/       # Native roff/troff manpage output
     └── terminal/      # ANSI terminal output
@@ -236,11 +252,12 @@ The `LineMap` pre-computes line boundaries during parsing. This means accurate e
 
 === Adding new converters
 
-If you want to add a new converter, implement the `Processable` trait. The trait requires three things:
+If you want to add a new converter, implement the `Processable` trait. The trait requires:
 
+* `document_attributes_defaults()` - Provide converter-specific default attributes (optional override)
 * `new()` - Initialize the converter with options and document attributes
-* `run()` - Process the document and output directly (e.g., to stdout)
-* `output()` - Process the document and return the result as a string
+* `convert()` - Convert a parsed document, writing output to the destination
+* `document_attributes()` - Access the document attributes
 
 The best way to understand how this works is to look at an existing converter. The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
 
@@ -299,6 +316,21 @@ For block-level elements: add a variant to the `Block` enum in `acdc-parser/src/
 
 For inline elements: add a variant to the `InlineNode` enum in `acdc-parser/src/model/inlines/mod.rs`, figure out if inline preprocessing is needed (check SDR-005), implement the parsing rule in the inline grammar, update location mapping if needed, and add converter support.
 
+== Recent additions
+
+=== Index terms
+
+The parser supports AsciiDoc index terms in both visible and concealed forms:
+
+* **Flow terms** - Visible in text: `((term))` or `indexterm2:[term]`
+* **Concealed terms** - Hidden from output: `(((primary,secondary,tertiary)))` or `indexterm:[primary,secondary,tertiary]`
+
+These are represented by `IndexTermKind` enum with proper type safety - concealed terms can have up to three levels of hierarchy, while flow terms are single-level. The HTML converter collects these and renders an index catalog when a section with `[index]` style appears at the document end.
+
+=== Callout references
+
+Callout markers in verbatim blocks (`<1>`, `<2>`, or auto-numbering `<.>`) are parsed as `CalloutRef` with explicit or auto-numbered kinds. The parser resolves auto-numbered markers to their actual numbers during parsing.
+
 == Future directions
 
 === WASM compilation
@@ -315,9 +347,9 @@ This is planned for after grammar coverage is complete.
 
 The main focus areas will be grammar modularization (if possible, as `rust-peg` doesn't actually seem to allow this easily) to reduce compilation time, and maybe runtime parsing performance.
 
-=== Richer error reporting
+=== Language Server Protocol
 
-For IDE-quality error messages with context and suggestions, see `acdc-lsp`. The LSP server provides diagnostics, hover information, go-to-definition, and other features that make working with AsciiDoc in editors much nicer.
+The `acdc-lsp` crate provides an early/experimental LSP implementation. Currently it supports diagnostics, hover information, and go-to-definition. The goal is IDE-quality error messages with context and suggestions. This is still a work in progress - completion, references, and other features are planned.
 
 == Spec compliance and compatibility
 

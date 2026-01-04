@@ -29,9 +29,9 @@ acdc/
 ├── acdc-cli/                 # Command-line interface
 │   └── src/
 │       └── main.rs          # CLI entry point
-├── acdc-lsp/                 # Language Server Protocol implementation
+├── acdc-lsp/                 # Language Server Protocol (early/experimental)
 │   └── src/
-│       ├── capabilities/    # LSP features (completion, diagnostics, etc.)
+│       ├── capabilities/    # LSP features (diagnostics, hover, definition)
 │       └── state/           # Document and workspace state management
 ├── acdc-parser/             # Core parser and AST
 │   ├── src/
@@ -41,16 +41,17 @@ acdc/
 │   │   └── proptests/       # Property-based testing
 │   └── fixtures/            # Test fixtures
 └── converters/              # Output converters
+    ├── core/               # Shared traits (Processable, Visitor)
+    ├── dev/                # Development utilities (unpublished)
     ├── html/               # HTML5 converter
     ├── manpage/            # Native roff/troff manpage output
-    ├── terminal/           # Rich terminal output
-    └── common/             # Shared converter utilities
+    └── terminal/           # Rich terminal output
 ----
 
 == Tooling
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)
-* link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation for editor integration
+* link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation (early/experimental)
 * link:./acdc-parser[acdc-parser] - AsciiDoc parser library
 * link:./converters[converters] - collection of AsciiDoc converters
 
