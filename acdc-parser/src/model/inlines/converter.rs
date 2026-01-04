@@ -49,6 +49,10 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
                 InlineMacro::CrossReference(xref) => {
                     xref.text.clone().unwrap_or_else(|| xref.target.clone())
                 }
+                // For visible index terms, return the term text; hidden ones return empty
+                InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
+                    index_term.term().to_string()
+                }
                 // Skip other macro types (images, footnotes, buttons, icons, etc.)
                 InlineMacro::Image(_)
                 | InlineMacro::Footnote(_)
@@ -57,7 +61,8 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
                 | InlineMacro::Keyboard(_)
                 | InlineMacro::Menu(_)
                 | InlineMacro::Stem(_)
-                | InlineMacro::Icon(_) => String::new(),
+                | InlineMacro::Icon(_)
+                | InlineMacro::IndexTerm(_) => String::new(),
             },
             // Callout references are rendered as their number in plain text contexts
             InlineNode::CalloutRef(callout) => format!("<{}>", callout.number),

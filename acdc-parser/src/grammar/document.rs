@@ -4,10 +4,10 @@ use crate::{
     BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef, Comment,
     CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Error, Footnote, Form,
-    Header, Highlight, ICON_SIZES, Icon, Image, InlineMacro, InlineNode, Italic, Keyboard,
-    LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Mailto, Menu, Monospace,
-    OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section, Source,
-    SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
+    Header, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind, InlineMacro, InlineNode,
+    Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Mailto, Menu,
+    Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
+    Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
     Substitution, Subtitle, Superscript, Table, TableOfContents, TableRow, ThematicBreak, Title,
     UnorderedList, Url, Verbatim, Video,
     grammar::{
@@ -2924,6 +2924,11 @@ peg::parser! {
         = inline:(
             // Escaped syntax must come first - backslash prevents any following syntax from being parsed
             escaped_syntax:escaped_syntax(offset) { escaped_syntax }
+            // Index terms: concealed (triple parens) must come before flow (double parens)
+            / index_term:index_term_concealed(offset) { index_term }
+            / index_term:index_term_flow(offset) { index_term }
+            / indexterm:indexterm_macro(offset) { indexterm }
+            / indexterm2:indexterm2_macro(offset) { indexterm2 }
             / inline_anchor:inline_anchor(offset) { inline_anchor }
             / cross_reference_shorthand:cross_reference_shorthand(offset) { cross_reference_shorthand }
             / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
@@ -3003,7 +3008,7 @@ peg::parser! {
         // Curly braces (attributes): {...}
         / "{" inner:$([^'}']*) "}" { format!("{{{inner}}}") }
         // Double parens (index terms): ((...))
-        / "((" inner:$((!")))" [_])*) "))" { format!("(({inner}))") }
+        / "((" inner:$((!"))" [_])*) "))" { format!("(({inner}))") }
         // Unconstrained formatting: match entire span including content and closing marker
         // \**not bold** -> **not bold**
         / "**" inner:$((!"**" [_])*) "**" { format!("**{inner}**") }
@@ -3033,7 +3038,7 @@ peg::parser! {
         / "[[" (!"]]" [_])* "]]"
         / [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
         / "{" [^'}']* "}"
-        / "((" (!")))" [_])* "))"
+        / "((" (!"))" [_])* "))"
         // Unconstrained formatting: match entire span
         / "**" (!"**" [_])* "**"
         / "__" (!("__" !['_']) [_])* "__"
@@ -3145,6 +3150,110 @@ peg::parser! {
                 kind: PassthroughKind::Macro,
             }))
         }
+
+        /// Concealed index term: (((primary, secondary, tertiary)))
+        /// Only appears in the index, not in the text.
+        /// Supports hierarchical entries with up to three levels.
+        rule index_term_concealed(offset: usize) -> InlineNode
+        = start:position!()
+        "((("
+        terms:index_term_list()
+        ")))"
+        end:position!()
+        {
+            let mut iter = terms.into_iter();
+            let term = iter.next().unwrap_or_default();
+            let secondary = iter.next();
+            let tertiary = iter.next();
+            tracing::info!(%term, ?secondary, ?tertiary, "Found concealed index term");
+            InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
+                kind: IndexTermKind::Concealed { term, secondary, tertiary },
+                location: state.create_block_location(start, end, offset),
+            }))
+        }
+
+        /// Flow index term: ((term))
+        /// Appears both in the text and in the index.
+        /// Only supports a primary term.
+        rule index_term_flow(offset: usize) -> InlineNode
+        = start:position!()
+        "(("
+        !("(")  // Ensure this is not the start of a concealed term
+        term:$((!"))" [_])+)
+        "))"
+        end:position!()
+        {
+            let term = term.trim().to_string();
+            tracing::info!(%term, "Found flow index term");
+            InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
+                kind: IndexTermKind::Flow(term),
+                location: state.create_block_location(start, end, offset),
+            }))
+        }
+
+        /// indexterm macro: indexterm:[primary, secondary, tertiary]
+        /// Concealed (hidden) form - same as (((primary, secondary, tertiary)))
+        rule indexterm_macro(offset: usize) -> InlineNode
+        = start:position!()
+        "indexterm:["
+        terms:index_term_list()
+        "]"
+        end:position!()
+        {
+            let mut iter = terms.into_iter();
+            let term = iter.next().unwrap_or_default();
+            let secondary = iter.next();
+            let tertiary = iter.next();
+            tracing::info!(%term, ?secondary, ?tertiary, "Found indexterm macro");
+            InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
+                kind: IndexTermKind::Concealed { term, secondary, tertiary },
+                location: state.create_block_location(start, end, offset),
+            }))
+        }
+
+        /// indexterm2 macro: indexterm2:[term]
+        /// Flow (visible) form - same as ((term))
+        rule indexterm2_macro(offset: usize) -> InlineNode
+        = start:position!()
+        "indexterm2:["
+        term:$([^']']+)
+        "]"
+        end:position!()
+        {
+            let term = term.trim().to_string();
+            tracing::info!(%term, "Found indexterm2 macro");
+            InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
+                kind: IndexTermKind::Flow(term),
+                location: state.create_block_location(start, end, offset),
+            }))
+        }
+
+        /// Parse comma-separated index term list with support for quoted segments
+        /// e.g., "knight, Knight of the Round Table, Lancelot"
+        /// or "knight, \"Arthur, King\"" (quoted segment with embedded comma)
+        rule index_term_list() -> Vec<String>
+        = terms:(index_term_segment() ** ",") {
+            terms.into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        }
+
+        /// Parse a single index term segment, either quoted or unquoted
+        rule index_term_segment() -> String
+        = whitespace()? segment:(index_term_quoted() / index_term_unquoted()) whitespace()? { segment }
+
+        /// Quoted segment: "term with, comma"
+        rule index_term_quoted() -> String
+        = "\"" content:$([^'"']*) "\"" { content.to_string() }
+
+        /// Unquoted segment: term without comma
+        rule index_term_unquoted() -> String
+        = content:$([^('"' | ',' | ')' | ']')]+) { content.to_string() }
+
+        /// Match index term patterns without consuming (for negative lookahead in plain_text)
+        rule index_term_match() -> ()
+        = "(((" (!"))" [_])* ")))"  // Concealed: (((term)))
+        / "((" !("(") (!"))" [_])+ "))"  // Flow: ((term))
+        / "indexterm:[" [^']']* "]"  // indexterm:[term]
+        / "indexterm2:[" [^']']* "]"  // indexterm2:[term]
 
         rule inline_menu(offset: usize) -> InlineNode
         = start:position!()
@@ -4060,7 +4169,7 @@ peg::parser! {
         = start_pos:position!()
         content:$((
             "\\" ['^' | '~']  // Escape sequences for superscript/subscript markers
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / index_term_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
         {
@@ -5816,6 +5925,72 @@ Content C.
             .expect("level 4 section");
         assert_eq!(section.level, 4);
 
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_index_term_flow() -> Result<(), Error> {
+        let input = "= Test\n\nThis is about ((Arthur)) the king.\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+
+        // Find the paragraph
+        let paragraph = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Paragraph(p) = b {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .expect("paragraph exists");
+
+        // Check that the index term was parsed
+        let has_index_term = paragraph.content.iter().any(|inline| {
+            matches!(inline, InlineNode::Macro(InlineMacro::IndexTerm(it)) if it.is_visible() && it.term() == "Arthur")
+        });
+
+        assert!(
+            has_index_term,
+            "Expected to find visible index term 'Arthur', but found: {:?}",
+            paragraph.content
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_index_term_concealed() -> Result<(), Error> {
+        let input = "= Test\n\n(((Sword, Broadsword)))This is a concealed index term.\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+
+        // Find the paragraph
+        let paragraph = result
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Paragraph(p) = b {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .expect("paragraph exists");
+
+        // Check that the concealed index term was parsed
+        let has_concealed_term = paragraph.content.iter().any(|inline| {
+            matches!(inline, InlineNode::Macro(InlineMacro::IndexTerm(it)) if !it.is_visible() && it.term() == "Sword")
+        });
+
+        assert!(
+            has_concealed_term,
+            "Expected to find concealed index term 'Sword', but found: {:?}",
+            paragraph.content
+        );
         Ok(())
     }
 }
