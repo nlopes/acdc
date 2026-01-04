@@ -48,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Index term support with type-safe `IndexTermKind` enum ([#274])
+  - Flow terms (visible): `((term))` or `indexterm2:[term]`
+  - Concealed terms (hidden): `(((term,secondary,tertiary)))` or `indexterm:[...]`
+  - `IndexTermKind::Flow` can only hold a single term (no hierarchy)
+  - `IndexTermKind::Concealed` supports primary/secondary/tertiary terms
 - Callout references (`<1>`, `<.>`) in source/listing blocks now have source locations in
   the AST
 - New `CalloutRef` inline node type for programmatic access to callout markers
@@ -63,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   items instead of the last nested item, matching asciidoctor behaviour ([#265])
 
 [#265]: https://github.com/nlopes/acdc/issues/265
+[#274]: https://github.com/nlopes/acdc/issues/274
 
 ## [acdc-parser-v0.1.3] - 2026-01-02
 
