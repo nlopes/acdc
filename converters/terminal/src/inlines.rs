@@ -344,6 +344,14 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             // Show stem content as-is (terminal can't render math)
             write!(w, "[{}]", stem.content)?;
         }
+        InlineMacro::IndexTerm(it) => {
+            // Flow terms (visible): output the term text
+            // Concealed terms (hidden): output nothing
+            if it.is_visible() {
+                write!(w, "{}", it.term())?;
+            }
+            // Concealed terms produce no output - they're only for index generation
+        }
         _ => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
