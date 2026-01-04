@@ -67,6 +67,7 @@ pub enum InlineNode {
 /// | `Menu` | `menu:File[Save]` | Menu navigation path |
 /// | `Pass` | `pass:[content]` | Passthrough (no processing) |
 /// | `Stem` | `stem:[formula]` | Math notation |
+/// | `IndexTerm` | `((term))` or `(((term)))` | Index term (visible or hidden) |
 ///
 /// # Example
 ///
@@ -110,6 +111,8 @@ pub enum InlineMacro {
     Pass(Pass),
     /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
     Stem(Stem),
+    /// Index term: `((term))` (visible) or `(((term)))` (hidden)
+    IndexTerm(IndexTerm),
 }
 
 /// Macro to serialize inline format types (Bold, Italic, Monospace, etc.)
@@ -226,104 +229,179 @@ where
     S: Serializer,
 {
     match macro_node {
-        InlineMacro::Footnote(footnote) => {
-            map.serialize_entry("name", "footnote")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("id", &footnote.id)?;
-            map.serialize_entry("inlines", &footnote.content)?;
-            map.serialize_entry("location", &footnote.location)?;
-        }
-        InlineMacro::Icon(icon) => {
-            map.serialize_entry("name", "icon")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("target", &icon.target)?;
-            if !icon.attributes.is_empty() {
-                map.serialize_entry("attributes", &icon.attributes)?;
-            }
-            map.serialize_entry("location", &icon.location)?;
-        }
-        InlineMacro::Image(image) => {
-            map.serialize_entry("name", "image")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("title", &image.title)?;
-            map.serialize_entry("target", &image.source)?;
-            map.serialize_entry("location", &image.location)?;
-        }
-        InlineMacro::Keyboard(keyboard) => {
-            map.serialize_entry("name", "keyboard")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("keys", &keyboard.keys)?;
-            map.serialize_entry("location", &keyboard.location)?;
-        }
-        InlineMacro::Button(button) => {
-            map.serialize_entry("name", "button")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("label", &button.label)?;
-            map.serialize_entry("location", &button.location)?;
-        }
-        InlineMacro::Menu(menu) => {
-            map.serialize_entry("name", "menu")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("target", &menu.target)?;
-            if !menu.items.is_empty() {
-                map.serialize_entry("items", &menu.items)?;
-            }
-            map.serialize_entry("location", &menu.location)?;
-        }
-        InlineMacro::Url(url) => {
-            map.serialize_entry("name", "ref")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("variant", "link")?;
-            map.serialize_entry("target", &url.target)?;
-            map.serialize_entry("location", &url.location)?;
-            map.serialize_entry("attributes", &url.attributes)?;
-        }
-        InlineMacro::Mailto(mailto) => {
-            map.serialize_entry("name", "ref")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("variant", "mailto")?;
-            map.serialize_entry("target", &mailto.target)?;
-            map.serialize_entry("location", &mailto.location)?;
-            map.serialize_entry("attributes", &mailto.attributes)?;
-        }
-        InlineMacro::Link(link) => {
-            map.serialize_entry("name", "ref")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("variant", "link")?;
-            map.serialize_entry("target", &link.target)?;
-            map.serialize_entry("location", &link.location)?;
-            map.serialize_entry("attributes", &link.attributes)?;
-        }
-        InlineMacro::Autolink(autolink) => {
-            map.serialize_entry("name", "ref")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("variant", "autolink")?;
-            map.serialize_entry("target", &autolink.url)?;
-            map.serialize_entry("location", &autolink.location)?;
-        }
-        InlineMacro::CrossReference(xref) => {
-            map.serialize_entry("name", "xref")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("target", &xref.target)?;
-            if let Some(text) = &xref.text {
-                map.serialize_entry("text", text)?;
-            }
-            map.serialize_entry("location", &xref.location)?;
-        }
-        InlineMacro::Pass(_) => {
-            return Err(S::Error::custom(
-                "inline passthrough macros are not part of the ASG specification and cannot be serialized",
-            ));
-        }
-        InlineMacro::Stem(stem) => {
-            map.serialize_entry("name", "stem")?;
-            map.serialize_entry("type", "inline")?;
-            map.serialize_entry("content", &stem.content)?;
-            map.serialize_entry("notation", &stem.notation)?;
-            map.serialize_entry("location", &stem.location)?;
-        }
+        InlineMacro::Footnote(f) => serialize_footnote::<S>(f, map),
+        InlineMacro::Icon(i) => serialize_icon::<S>(i, map),
+        InlineMacro::Image(i) => serialize_image::<S>(i, map),
+        InlineMacro::Keyboard(k) => serialize_keyboard::<S>(k, map),
+        InlineMacro::Button(b) => serialize_button::<S>(b, map),
+        InlineMacro::Menu(m) => serialize_menu::<S>(m, map),
+        InlineMacro::Url(u) => serialize_url::<S>(u, map),
+        InlineMacro::Mailto(m) => serialize_mailto::<S>(m, map),
+        InlineMacro::Link(l) => serialize_link::<S>(l, map),
+        InlineMacro::Autolink(a) => serialize_autolink::<S>(a, map),
+        InlineMacro::CrossReference(x) => serialize_xref::<S>(x, map),
+        InlineMacro::Stem(s) => serialize_stem::<S>(s, map),
+        InlineMacro::IndexTerm(i) => serialize_indexterm::<S>(i, map),
+        InlineMacro::Pass(_) => Err(S::Error::custom(
+            "inline passthrough macros are not part of the ASG specification and cannot be serialized",
+        )),
     }
-    Ok(())
+}
+
+fn serialize_footnote<S>(f: &Footnote, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "footnote")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("id", &f.id)?;
+    map.serialize_entry("inlines", &f.content)?;
+    map.serialize_entry("location", &f.location)
+}
+
+fn serialize_icon<S>(i: &Icon, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "icon")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("target", &i.target)?;
+    if !i.attributes.is_empty() {
+        map.serialize_entry("attributes", &i.attributes)?;
+    }
+    map.serialize_entry("location", &i.location)
+}
+
+fn serialize_image<S>(i: &Image, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "image")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("title", &i.title)?;
+    map.serialize_entry("target", &i.source)?;
+    map.serialize_entry("location", &i.location)
+}
+
+fn serialize_keyboard<S>(k: &Keyboard, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "keyboard")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("keys", &k.keys)?;
+    map.serialize_entry("location", &k.location)
+}
+
+fn serialize_button<S>(b: &Button, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "button")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("label", &b.label)?;
+    map.serialize_entry("location", &b.location)
+}
+
+fn serialize_menu<S>(m: &Menu, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "menu")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("target", &m.target)?;
+    if !m.items.is_empty() {
+        map.serialize_entry("items", &m.items)?;
+    }
+    map.serialize_entry("location", &m.location)
+}
+
+fn serialize_url<S>(u: &Url, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "ref")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("variant", "link")?;
+    map.serialize_entry("target", &u.target)?;
+    map.serialize_entry("location", &u.location)?;
+    map.serialize_entry("attributes", &u.attributes)
+}
+
+fn serialize_mailto<S>(m: &Mailto, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "ref")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("variant", "mailto")?;
+    map.serialize_entry("target", &m.target)?;
+    map.serialize_entry("location", &m.location)?;
+    map.serialize_entry("attributes", &m.attributes)
+}
+
+fn serialize_link<S>(l: &Link, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "ref")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("variant", "link")?;
+    map.serialize_entry("target", &l.target)?;
+    map.serialize_entry("location", &l.location)?;
+    map.serialize_entry("attributes", &l.attributes)
+}
+
+fn serialize_autolink<S>(a: &Autolink, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "ref")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("variant", "autolink")?;
+    map.serialize_entry("target", &a.url)?;
+    map.serialize_entry("location", &a.location)
+}
+
+fn serialize_xref<S>(x: &CrossReference, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "xref")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("target", &x.target)?;
+    if let Some(text) = &x.text {
+        map.serialize_entry("text", text)?;
+    }
+    map.serialize_entry("location", &x.location)
+}
+
+fn serialize_stem<S>(s: &Stem, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "stem")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("content", &s.content)?;
+    map.serialize_entry("notation", &s.notation)?;
+    map.serialize_entry("location", &s.location)
+}
+
+fn serialize_indexterm<S>(i: &IndexTerm, map: &mut S::SerializeMap) -> Result<(), S::Error>
+where
+    S: Serializer,
+{
+    map.serialize_entry("name", "indexterm")?;
+    map.serialize_entry("type", "inline")?;
+    map.serialize_entry("term", i.term())?;
+    if let Some(secondary) = i.secondary() {
+        map.serialize_entry("secondary", secondary)?;
+    }
+    if let Some(tertiary) = i.tertiary() {
+        map.serialize_entry("tertiary", tertiary)?;
+    }
+    map.serialize_entry("visible", &i.is_visible())?;
+    map.serialize_entry("location", &i.location)
 }
 
 // =============================================================================
@@ -356,6 +434,11 @@ struct RawInlineFields {
     xreflabel: Option<String>,
     bracketed: Option<bool>,
     number: Option<usize>,
+    // Index term fields
+    term: Option<String>,
+    secondary: Option<String>,
+    tertiary: Option<String>,
+    visible: Option<bool>,
 }
 
 // -----------------------------------------------------------------------------
@@ -468,6 +551,27 @@ fn construct_stem<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
         content: raw.content.ok_or_else(|| E::missing_field("content"))?,
         notation: raw.notation.ok_or_else(|| E::missing_field("notation"))?,
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+    })))
+}
+
+fn construct_indexterm<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> {
+    let term = raw.term.ok_or_else(|| E::missing_field("term"))?;
+    let visible = raw.visible.ok_or_else(|| E::missing_field("visible"))?;
+    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
+
+    let kind = if visible {
+        IndexTermKind::Flow(term)
+    } else {
+        IndexTermKind::Concealed {
+            term,
+            secondary: raw.secondary,
+            tertiary: raw.tertiary,
+        }
+    };
+
+    Ok(InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
+        kind,
+        location,
     })))
 }
 
@@ -637,6 +741,7 @@ fn dispatch_inline<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode, E> 
         ("btn" | "button", "inline") => construct_button(raw),
         ("menu", "inline") => construct_menu(raw),
         ("stem", "inline") => construct_stem(raw),
+        ("indexterm", "inline") => construct_indexterm(raw),
         ("xref", "inline") => construct_xref(raw),
         ("ref", "inline") => construct_ref(raw),
         ("span", "inline") => construct_span(raw),

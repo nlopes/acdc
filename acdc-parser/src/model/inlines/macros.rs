@@ -202,3 +202,77 @@ pub struct Stem {
     pub notation: StemNotation,
     pub location: Location,
 }
+
+/// The kind of index term, encoding both visibility and structure.
+///
+/// This enum makes invalid states unrepresentable: flow terms can only have
+/// a single term (no hierarchy), while concealed terms support up to three
+/// hierarchical levels.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum IndexTermKind {
+    /// Visible in output, single term only.
+    ///
+    /// Created by `((term))` or `indexterm2:[term]`.
+    Flow(String),
+    /// Hidden from output, supports hierarchical entries.
+    ///
+    /// Created by `(((term,secondary,tertiary)))` or `indexterm:[term,secondary,tertiary]`.
+    Concealed {
+        term: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        secondary: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tertiary: Option<String>,
+    },
+}
+
+/// An `IndexTerm` represents an index term in a document.
+///
+/// Index terms can be either:
+/// - **Flow terms** (visible): `((term))` or `indexterm2:[term]` - the term appears in the text
+/// - **Concealed terms** (hidden): `(((term,secondary,tertiary)))` or `indexterm:[term,secondary,tertiary]`
+///   - only appears in the index
+///
+/// Concealed terms support hierarchical entries with primary, secondary, and tertiary levels.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct IndexTerm {
+    /// The kind and content of this index term.
+    pub kind: IndexTermKind,
+    pub location: Location,
+}
+
+impl IndexTerm {
+    /// Returns the primary term.
+    #[must_use]
+    pub fn term(&self) -> &str {
+        match &self.kind {
+            IndexTermKind::Flow(term) | IndexTermKind::Concealed { term, .. } => term,
+        }
+    }
+
+    /// Returns the secondary term, if any.
+    #[must_use]
+    pub fn secondary(&self) -> Option<&str> {
+        match &self.kind {
+            IndexTermKind::Flow(_) => None,
+            IndexTermKind::Concealed { secondary, .. } => secondary.as_deref(),
+        }
+    }
+
+    /// Returns the tertiary term, if any.
+    #[must_use]
+    pub fn tertiary(&self) -> Option<&str> {
+        match &self.kind {
+            IndexTermKind::Flow(_) => None,
+            IndexTermKind::Concealed { tertiary, .. } => tertiary.as_deref(),
+        }
+    }
+
+    /// Returns whether this term is visible in the output.
+    #[must_use]
+    pub fn is_visible(&self) -> bool {
+        matches!(self.kind, IndexTermKind::Flow(_))
+    }
+}

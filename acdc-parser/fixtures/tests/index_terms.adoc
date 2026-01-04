@@ -1,0 +1,9 @@
+= Index Terms Test
+
+This is about ((Arthur)) the king.
+
+(((Sword, Broadsword)))A concealed term for swords.
+
+Using macro style: indexterm2:[Excalibur].
+
+And concealed macro: indexterm:[Knights, Round Table].

@@ -486,6 +486,17 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 write!(w, "</span>")?;
             }
         }
+        InlineMacro::IndexTerm(it) => {
+            // Flow terms (visible): output the term text
+            // Concealed terms (hidden): output nothing
+            // Index terms are stored for later index generation but may not appear in output
+            if it.is_visible() {
+                // Flow term: display the term in the text
+                let text = substitution_text(it.term(), options);
+                write!(w, "{text}")?;
+            }
+            // Concealed terms produce no output - they're only for index generation
+        }
         _ => {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,

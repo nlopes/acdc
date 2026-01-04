@@ -133,6 +133,7 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
             }
             crate::InlineMacro::Pass(p) => clamp_location_bounds(&mut p.location, input),
             crate::InlineMacro::Stem(s) => clamp_location_bounds(&mut s.location, input),
+            crate::InlineMacro::IndexTerm(it) => clamp_location_bounds(&mut it.location, input),
         },
     }
 }
@@ -591,6 +592,7 @@ fn map_inline_macro(
         InlineMacro::Autolink(autolink) => autolink.location = map_loc(&autolink.location)?,
         InlineMacro::Stem(stem) => stem.location = map_loc(&stem.location)?,
         InlineMacro::Pass(pass) => pass.location = map_loc(&pass.location)?,
+        InlineMacro::IndexTerm(index_term) => index_term.location = map_loc(&index_term.location)?,
     }
     Ok(InlineNode::Macro(mapped_macro))
 }

@@ -337,6 +337,9 @@ fn verify_inline_locations_bounded(inline: &InlineNode, input_len: usize) {
                 crate::InlineMacro::Stem(s) => {
                     verify_location_bounded(&s.location, input_len, "stem");
                 }
+                crate::InlineMacro::IndexTerm(i) => {
+                    verify_location_bounded(&i.location, input_len, "index term");
+                }
             }
         }
         InlineNode::CalloutRef(callout) => {
@@ -580,6 +583,9 @@ fn verify_inline_utf8_boundaries(inline: &InlineNode, input: &str) {
             crate::InlineMacro::Stem(s) => {
                 verify_location_utf8(&s.location, input, "stem");
             }
+            crate::InlineMacro::IndexTerm(i) => {
+                verify_location_utf8(&i.location, input, "index term");
+            }
         },
         InlineNode::CalloutRef(callout) => {
             verify_location_utf8(&callout.location, input, "callout ref");
@@ -718,6 +724,7 @@ fn get_inline_location(inline: &InlineNode) -> &Location {
             crate::InlineMacro::CrossReference(x) => &x.location,
             crate::InlineMacro::Pass(p) => &p.location,
             crate::InlineMacro::Stem(s) => &s.location,
+            crate::InlineMacro::IndexTerm(i) => &i.location,
         },
         InlineNode::CalloutRef(c) => &c.location,
     }
