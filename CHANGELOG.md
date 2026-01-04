@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#272]: https://github.com/nlopes/acdc/issues/272
 [#273]: https://github.com/nlopes/acdc/issues/273
 
-## [Unreleased acdc-parser]
+## [acdc-parser-v0.1.4] - 2026-01-04
 
 ### Added
 
