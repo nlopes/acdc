@@ -1,19 +1,41 @@
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{DiscreteHeader, Section};
 
-use crate::Error;
+use crate::{Error, Processor};
 
 /// Visit a section using the visitor pattern
 ///
 /// Renders the section header, walks nested blocks, then renders footer.
+/// For sections with `[index]` style, renders a populated index catalog
+/// only if it's the last section in the document.
 pub(crate) fn visit_section<V: WritableVisitor<Error = Error>>(
     section: &Section,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    // Check if this is an index section
+    let is_index_section = section
+        .metadata
+        .style
+        .as_ref()
+        .is_some_and(|s| s == "index");
+
+    // Index sections are only rendered if they're the last section
+    if is_index_section && !processor.has_valid_index_section() {
+        // Skip rendering entirely - not even the title
+        return Ok(());
+    }
+
     render_section_header(section, visitor)?;
 
-    for nested_block in &section.content {
-        visitor.visit_block(nested_block)?;
+    if is_index_section {
+        // Render the collected index catalog
+        crate::index::render(section, visitor, processor)?;
+    } else {
+        // Normal section: render nested blocks
+        for nested_block in &section.content {
+            visitor.visit_block(nested_block)?;
+        }
     }
 
     render_section_footer(section, visitor)?;

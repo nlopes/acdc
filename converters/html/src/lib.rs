@@ -1,5 +1,5 @@
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     fs::File,
     io::{self, BufWriter, Write},
     rc::Rc,
@@ -7,7 +7,16 @@ use std::{
 };
 
 use acdc_converters_core::{Options, PrettyDuration, Processable, visitor::Visitor};
-use acdc_parser::{AttributeValue, Document, DocumentAttributes, TocEntry};
+use acdc_parser::{AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry};
+
+/// An entry in the index catalog, collected during document traversal.
+#[derive(Clone, Debug)]
+pub struct IndexTermEntry {
+    /// The index term kind (Flow or Concealed with hierarchy)
+    pub kind: IndexTermKind,
+    /// Anchor ID for linking back to the term's location
+    pub anchor_id: String,
+}
 
 #[derive(Clone, Debug)]
 pub struct Processor {
@@ -27,6 +36,14 @@ pub struct Processor {
     /// Uses Rc<Cell<>> so all clones share the same counter.
     /// Only used when listing-caption attribute is set.
     listing_counter: Rc<Cell<usize>>,
+    /// Shared counter for generating unique index term anchor IDs.
+    index_term_counter: Rc<Cell<usize>>,
+    /// Collected index term entries for rendering in the index catalog.
+    /// Uses `Rc<RefCell<>>` so all clones can add entries during traversal.
+    index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
+    /// Whether the document's last section has the `[index]` style.
+    /// Index sections are only rendered if they are the last section.
+    has_valid_index_section: bool,
 }
 
 impl Processor {
@@ -40,6 +57,33 @@ impl Processor {
     #[must_use]
     pub fn toc_entries(&self) -> &[TocEntry] {
         &self.toc_entries
+    }
+
+    /// Get a reference to the collected index entries
+    #[must_use]
+    pub fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+        &self.index_entries
+    }
+
+    /// Check if the document has a valid index section (last section with `[index]` style).
+    #[must_use]
+    pub fn has_valid_index_section(&self) -> bool {
+        self.has_valid_index_section
+    }
+
+    /// Generate a unique anchor ID for an index term and collect the entry.
+    #[must_use]
+    pub fn add_index_entry(&self, kind: IndexTermKind) -> String {
+        let count = self.index_term_counter.get();
+        self.index_term_counter.set(count + 1);
+        let anchor_id = format!("_indexterm_{count}");
+
+        self.index_entries.borrow_mut().push(IndexTermEntry {
+            kind,
+            anchor_id: anchor_id.clone(),
+        });
+
+        anchor_id
     }
 
     /// Convert a document to HTML, writing to the provided writer.
@@ -56,11 +100,33 @@ impl Processor {
         let processor = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
+            has_valid_index_section: Self::last_section_is_index(&doc.blocks),
             ..self.clone()
         };
         let mut visitor = HtmlVisitor::new(writer, processor, options.clone());
         visitor.visit_document(doc)?;
         Ok(())
+    }
+
+    /// Check if the last section in the document has the `[index]` style.
+    fn last_section_is_index(blocks: &[Block]) -> bool {
+        // Find the last section in the block list
+        let last_section = blocks.iter().rev().find_map(|block| {
+            if let Block::Section(section) = block {
+                Some(section)
+            } else {
+                None
+            }
+        });
+
+        // Check if it has the index style
+        last_section.is_some_and(|section| {
+            section
+                .metadata
+                .style
+                .as_ref()
+                .is_some_and(|s| s == "index")
+        })
     }
 
     /// Convert a document to an HTML string.
@@ -140,6 +206,9 @@ impl Processable for Processor {
             table_counter: Rc::new(Cell::new(0)),
             figure_counter: Rc::new(Cell::new(0)),
             listing_counter: Rc::new(Cell::new(0)),
+            index_term_counter: Rc::new(Cell::new(0)),
+            index_entries: Rc::new(RefCell::new(Vec::new())),
+            has_valid_index_section: false,
         }
     }
 
@@ -268,6 +337,7 @@ mod html_visitor;
 mod icon;
 mod image;
 mod image_helpers;
+mod index;
 mod inlines;
 mod list;
 mod paragraph;

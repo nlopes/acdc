@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Behaviour varies by backend: HTML skips DOCTYPE/html/head/body/content wrapper, manpage
   skips preamble and NAME section, terminal skips header/authors/ revision info. Matches
   asciidoctor's `--embedded` behaviour. ([#272])
+- **Index catalog rendering for HTML** - Documents with `[index]` sections now generate a
+  fully populated index catalog, organized alphabetically by first letter with
+  hierarchical nesting for secondary and tertiary terms. Each entry links back to the
+  source location via inline anchors. This goes beyond asciidoctor's HTML backend which
+  leaves index sections empty. The index only renders when it's the last section in the
+  document.
 
 ### Fixed
 

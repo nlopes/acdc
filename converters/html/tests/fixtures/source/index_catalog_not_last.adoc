@@ -1,0 +1,14 @@
+= Index Not Last Test
+
+== Introduction
+
+This tests when the index section is not the last section.
+
+A ((cat)) is mentioned here.
+
+[index]
+== Index
+
+== Final Section
+
+This section comes after the index.

@@ -476,7 +476,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        crate::section::visit_section(section, self)
+        let processor = self.processor.clone();
+        crate::section::visit_section(section, self, &processor)
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {

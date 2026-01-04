@@ -1,0 +1,16 @@
+= Index Catalog Test
+
+== Introduction
+
+This document tests index catalog rendering.
+
+A ((cat)) is a domestic animal.
+
+We also mention a indexterm2:[dog] in the text.
+
+Concealed terms: (((Animals, Mammals, Cats)))visible text.
+
+Another reference to ((cat)) for multiple occurrences.
+
+[index]
+== Index

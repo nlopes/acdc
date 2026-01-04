@@ -487,15 +487,18 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::IndexTerm(it) => {
-            // Flow terms (visible): output the term text
-            // Concealed terms (hidden): output nothing
-            // Index terms are stored for later index generation but may not appear in output
+            // Generate anchor and collect entry for index catalog
+            let anchor_id = processor.add_index_entry(it.kind.clone());
+
+            // Output anchor for linking from index catalog
+            write!(w, "<a id=\"{anchor_id}\"></a>")?;
+
+            // Flow terms (visible): also output the term text
             if it.is_visible() {
-                // Flow term: display the term in the text
                 let text = substitution_text(it.term(), options);
                 write!(w, "{text}")?;
             }
-            // Concealed terms produce no output - they're only for index generation
+            // Concealed terms: anchor only, no visible text
         }
         _ => {
             return Err(io::Error::new(
