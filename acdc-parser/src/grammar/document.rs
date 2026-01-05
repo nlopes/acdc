@@ -4337,7 +4337,7 @@ peg::parser! {
             / eol() comment_delimiter()
             / eol() open_delimiter() &(whitespace()* eol())
             / eol() list(start, offset, block_metadata)
-            / eol() &"+"  // Stop at list continuation marker
+            / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
             / eol()* &(section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
         ) [_])+)
         end:position!()
