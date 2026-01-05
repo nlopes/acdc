@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: `toc::Config` fields are now private - use accessor methods
   (`placement()`, `title()`, `levels()`, `toc_class()`)
 
+## [Unreleased acdc-parser]
+
+### Fixed
+
+- Paragraphs no longer incorrectly split when a line starts with inline passthrough
+  syntax like `+>+`. The list continuation lookahead now only matches actual
+  continuation markers (standalone `+` followed by whitespace/EOL/EOF).
+
 ## [Unreleased acdc-cli]
 
 ### Added
