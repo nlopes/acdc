@@ -1,0 +1,5 @@
+= Subs Default Test
+
+----
+*bold* -> arrow <html> & ampersand
+----

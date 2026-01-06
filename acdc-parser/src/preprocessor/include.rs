@@ -11,7 +11,7 @@ use url::Url;
 use crate::{
     Options, Preprocessor, SafeMode,
     error::{Error, Positioning, SourceLocation},
-    model::{HEADER, Position, Substitute},
+    model::{HEADER, Position, substitute},
 };
 
 /**
@@ -91,7 +91,7 @@ peg::parser! {
     ) for str {
         pub(crate) rule include() -> Result<Include, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
-                let target_raw = target.substitute(HEADER, &options.document_attributes);
+                let target_raw = substitute(&target, HEADER, &options.document_attributes);
                 let target =
                     if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
                         Target::Url(Url::parse(&target_raw)?)

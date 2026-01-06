@@ -11,9 +11,12 @@ keywords = ["asciidoc", "parser", "markup"]
 categories = ["parsing", "text-processing"]
 
 [features]
-default = []
+default = ["pre-spec-subs"]
 network = ["dep:ureq"]
 setext = []  # Enable Setext-style (underlined) header parsing
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+# See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16
+pre-spec-subs = []
 
 [dependencies]
 encoding_rs = "0.8"

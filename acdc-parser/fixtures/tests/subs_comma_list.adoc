@@ -1,0 +1,5 @@
+[subs=specialchars,attributes]
+----
+Version: {version}
+<html>
+----

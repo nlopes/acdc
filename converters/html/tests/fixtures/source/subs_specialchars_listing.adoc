@@ -1,0 +1,6 @@
+= Subs Specialchars Test
+
+[subs=specialchars]
+----
+*bold* -> arrow <html> & ampersand
+----

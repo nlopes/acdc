@@ -1,6 +1,6 @@
 use crate::{
     AttributeValue, DocumentAttributes,
-    model::{HEADER, Substitute},
+    model::{HEADER, substitute},
 };
 
 peg::parser! {
@@ -31,7 +31,7 @@ pub(crate) fn parse_line(attributes: &mut DocumentAttributes, line: &str) {
                 attributes.insert(name, AttributeValue::Bool(false));
             } else {
                 let value = match value {
-                    Some(v) => v.substitute(HEADER, attributes),
+                    Some(v) => substitute(&v, HEADER, attributes),
                     None => String::new(),
                 };
                 attributes.insert(name, AttributeValue::String(value));

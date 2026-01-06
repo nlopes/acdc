@@ -285,6 +285,12 @@ pub(crate) fn find_superscript_pattern(text: &str) -> Option<MarkupMatch> {
         if let Some(&ch) = chars.get(i)
             && ch == '^'
         {
+            // Skip if preceded by backslash (escaped)
+            if i > 0 && chars.get(i - 1) == Some(&'\\') {
+                i += 1;
+                continue;
+            }
+
             let start = i;
             i += 1; // Skip the opening ^
             let content_start = i;
@@ -330,6 +336,12 @@ pub(crate) fn find_subscript_pattern(text: &str) -> Option<MarkupMatch> {
         if let Some(&ch) = chars.get(i)
             && ch == '~'
         {
+            // Skip if preceded by backslash (escaped)
+            if i > 0 && chars.get(i - 1) == Some(&'\\') {
+                i += 1;
+                continue;
+            }
+
             let start = i;
             i += 1; // Skip the opening ~
             let content_start = i;
@@ -775,5 +787,25 @@ mod tests {
         // Test that spaces are rejected
         let result = find_curved_apostrophe_pattern("Use '`text with spaces`' here.");
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_constrained_bold_with_hyphens() {
+        // Bug: attribute expansion produces *should-be-bold* but quotes parsing doesn't find it
+        let result = find_constrained_bold_pattern("Value: *should-be-bold*");
+        assert!(
+            matches!(result, Some(ref r) if r.content == "should-be-bold"),
+            "Expected to find bold pattern with hyphenated content, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_constrained_bold_at_end_of_string() {
+        // Pattern at end of string (no trailing character)
+        let result = find_constrained_bold_pattern("This is *bold*");
+        assert!(
+            matches!(result, Some(ref r) if r.content == "bold" && r.start == 8 && r.end == 14),
+            "Expected to find bold at end of string, got: {result:?}"
+        );
     }
 }

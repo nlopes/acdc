@@ -23,7 +23,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: `toc::Config` fields are now private - use accessor methods
   (`placement()`, `title()`, `levels()`, `toc_class()`)
 
+## [Unreleased acdc-converters-html]
+
+### Added
+
+- Initial support for `[subs=...]` attribute on verbatim blocks (listing, literal)
+  - `subs=none` - disables all substitutions, outputs raw content
+  - `subs=specialchars` - only escapes HTML special characters
+  - `subs=+replacements` - enables typography (arrows, dashes, ellipsis) in verbatim blocks
+  - `subs=+attributes` - enables attribute expansion (`{attr}` → value) in verbatim blocks
+  - `subs=+quotes` - enables inline formatting (`*bold*`, `_italic_`, etc.) in verbatim blocks
+  - Default behavior unchanged (escapes HTML characters, no replacements/attributes/quotes)
+  - Requires parser's `pre-spec-subs` feature flag. ([#280])
+
+### Fixed
+
+- Verbatim blocks (listing/literal) now correctly skip typography replacements by default,
+  matching asciidoctor behavior. Previously, smart quotes were incorrectly applied.
+
 ## [Unreleased acdc-parser]
+
+### Added
+
+- `substitute()` function for applying substitutions to text. Currently only
+  `Attributes` substitution is implemented (expands `{attr}` references). ([#280])
+- `parse_text_for_quotes()` function for parsing inline formatting (`*bold*`,
+  `_italic_`, etc.) in arbitrary text. Used for quotes substitution in verbatim
+  blocks. ([#280])
 
 ### Fixed
 
@@ -57,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#270]: https://github.com/nlopes/acdc/issues/270
 [#272]: https://github.com/nlopes/acdc/issues/272
 [#273]: https://github.com/nlopes/acdc/issues/273
+[#280]: https://github.com/nlopes/acdc/issues/280
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 

@@ -5,6 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="acdc v0.1.0">
+<title>Subs Attributes + Quotes Chain Test</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /*! Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -438,34 +439,16 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </style>
 </head>
 <body class="article">
+<div id="header">
+<h1>Subs Attributes + Quotes Chain Test</h1>
+</div>
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
 <div class="listingblock">
-<div class="title">./app.js</div>
 <div class="content">
-<pre class="highlight"><code class="language-javascript" data-lang="javascript">const express = require('express'); <b class="conum">(1)</b>
-const app = express();
-
-app.get('/', (req, res) =&gt; { <b class="conum">(2)</b>
-  res.send('Hello World!');
-});
-
-app.listen(3000); <b class="conum">(3)</b></code></pre>
+<pre>Value: <strong>should-be-bold</strong></pre>
 </div>
-</div>
-<div class="colist arabic">
-<ol>
-<li>
-<p>Import the Express framework</p>
-</li>
-<li>
-<p>Define a route handler</p>
-</li>
-<li>
-<p>Start the server on port 3000</p>
-</li>
-</ol>
 </div>
 </div>
 </div>

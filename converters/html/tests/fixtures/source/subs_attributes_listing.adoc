@@ -1,0 +1,10 @@
+= Document Title
+:version: 1.2.3
+:project: acdc
+
+[subs=+attributes]
+----
+Version: {version}
+Project: {project}
+Unknown: {unknown}
+----

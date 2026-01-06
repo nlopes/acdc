@@ -1,0 +1,7 @@
+= Document Title
+
+[subs=+quotes]
+----
+This has *bold* and _italic_ text.
+Also `monospace` and ^superscript^.
+----

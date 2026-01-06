@@ -3,7 +3,7 @@ use std::path::Path;
 use crate::{
     DocumentAttributes,
     error::{Error, Positioning, SourceLocation},
-    model::{HEADER, Position, Substitute},
+    model::{HEADER, Position, substitute},
 };
 
 #[derive(Debug)]
@@ -267,7 +267,7 @@ impl EvalValue {
         match self {
             EvalValue::String(s) => {
                 // First we substitute any attributes in the string with their values
-                let s = s.substitute(HEADER, attributes);
+                let s = substitute(s, HEADER, attributes);
 
                 // Try to parse as bool, f64, or evaluate as expression, otherwise return as string
                 s.parse::<bool>()

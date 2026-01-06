@@ -1,0 +1,6 @@
+= Subs None Test
+
+[subs=none]
+----
+*bold* -> arrow <html> & ampersand
+----

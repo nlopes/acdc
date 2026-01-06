@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use serde::{Deserialize, Serialize};
 
 use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
@@ -12,8 +10,8 @@ pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 pub struct Pass {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    #[serde(default, skip_serializing_if = "HashSet::is_empty")]
-    pub substitutions: HashSet<Substitution>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub substitutions: Vec<Substitution>,
     pub location: Location,
     #[serde(skip)]
     pub kind: PassthroughKind,
