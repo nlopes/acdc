@@ -1,6 +1,6 @@
 //! Regenerate JSON test fixtures from .adoc files
 //!
-//! Run with: `cargo run --example regenerate_parser_fixtures`
+//! Run with: `cargo run --example generate_parser_fixtures`
 
 use std::path::PathBuf;
 
