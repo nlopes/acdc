@@ -678,7 +678,7 @@ peg::parser! {
             })
         })
         section_level:section_level(offset, None) whitespace()
-        title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() end:position!() &eol()*<1,2>
+        title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() end:position!() &(eol()*<1,2> / ![_])
         {
             let title = title?;
             tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");

@@ -1,0 +1,48 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "heading",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Discrete Heading at EOF",
+          "location": [
+            {
+              "line": 2,
+              "col": 4
+            },
+            {
+              "line": 2,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 26
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 26
+    }
+  ]
+}
