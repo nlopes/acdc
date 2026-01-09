@@ -1,0 +1,9 @@
+= Subs Replacements Test
+
+[subs=+replacements]
+----
+Arrow: -> and <- and => and <=
+Dash: text -- text
+Ellipsis: text...more
+Quotes: don't and can't
+----

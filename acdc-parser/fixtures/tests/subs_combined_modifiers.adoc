@@ -1,0 +1,4 @@
+[subs=+quotes,-callouts]
+----
+*bold* without callout <1>
+----

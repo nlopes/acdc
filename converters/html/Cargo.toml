@@ -5,6 +5,11 @@ edition.workspace = true
 description = "HTML converter"
 license = "MIT OR Apache-2.0"
 
+[features]
+default = ["pre-spec-subs"]
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+pre-spec-subs = ["acdc-parser/pre-spec-subs"]
+
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true

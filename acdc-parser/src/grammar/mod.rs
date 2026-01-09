@@ -19,4 +19,5 @@ pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,
 };
 pub(crate) use line_map::LineMap;
+pub use passthrough_processing::parse_text_for_quotes;
 pub(crate) use state::ParserState;

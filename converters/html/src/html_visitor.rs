@@ -4,13 +4,42 @@ use std::{io::Write, string::ToString};
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DescriptionList,
-    DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image, InlineNode, ListItem,
-    OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList,
-    Video,
+    Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
+    InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
+    TableOfContents, ThematicBreak, UnorderedList, VERBATIM, Video,
 };
 
 use crate::{Error, Processor, RenderOptions};
+
+/// Compute effective substitutions for a block.
+#[cfg(feature = "pre-spec-subs")]
+#[must_use]
+fn effective_subs(explicit: Option<&[Substitution]>, is_verbatim: bool) -> Vec<Substitution> {
+    let result = match explicit {
+        Some(subs) => subs.to_vec(),
+        None if is_verbatim => VERBATIM.to_vec(),
+        None => NORMAL.to_vec(),
+    };
+    tracing::debug!(
+        "effective_subs(explicit={:?}, is_verbatim={}) => {:?}",
+        explicit,
+        is_verbatim,
+        result
+    );
+    result
+}
+
+/// Compute effective substitutions for a block (no pre-spec-subs feature).
+#[cfg(not(feature = "pre-spec-subs"))]
+#[must_use]
+fn effective_subs(_explicit: Option<&[Substitution]>, is_verbatim: bool) -> Vec<Substitution> {
+    if is_verbatim {
+        VERBATIM.to_vec()
+    } else {
+        NORMAL.to_vec()
+    }
+}
 
 fn link_css<W: Write>(writer: &mut W, attributes: &DocumentAttributes) -> Result<(), Error> {
     // Link to external stylesheet
@@ -93,6 +122,9 @@ pub struct HtmlVisitor<W: Write> {
     writer: W,
     pub(crate) processor: Processor,
     pub(crate) render_options: RenderOptions,
+    /// Current effective substitutions for inline rendering.
+    /// Set per-block in `visit_delimited_block`, defaults to normal substitutions.
+    pub(crate) current_subs: Vec<Substitution>,
 }
 
 impl<W: Write> HtmlVisitor<W> {
@@ -101,6 +133,7 @@ impl<W: Write> HtmlVisitor<W> {
             writer,
             processor,
             render_options,
+            current_subs: NORMAL.to_vec(),
         }
     }
 
@@ -129,6 +162,7 @@ impl<W: Write> HtmlVisitor<W> {
                     inlines_basic: true,
                     ..self.render_options.clone()
                 },
+                current_subs: self.current_subs.clone(),
             };
             let processor = temp_visitor.processor.clone();
             let options = temp_visitor.render_options.clone();
@@ -486,31 +520,32 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
-        use acdc_parser::DelimitedBlockType;
-
-        // Enable HTML escaping for verbatim blocks (listing and literal)
-        let needs_escaping = matches!(
+        let is_verbatim = matches!(
             &block.inner,
             DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
         );
 
-        if needs_escaping {
-            // Temporarily enable inlines_verbatim mode
-            let original_verbatim = self.render_options.inlines_verbatim;
+        // Compute effective substitutions for this block
+        let original_subs = std::mem::replace(
+            &mut self.current_subs,
+            effective_subs(block.metadata.substitutions.as_deref(), is_verbatim),
+        );
+
+        // Toggle verbatim mode for verbatim blocks
+        let original_verbatim = self.render_options.inlines_verbatim;
+        if is_verbatim {
             self.render_options.inlines_verbatim = true;
-
-            let processor = self.processor.clone();
-            let options = self.render_options.clone();
-            let result = crate::delimited::visit_delimited_block(self, block, &processor, &options);
-
-            // Restore original state
-            self.render_options.inlines_verbatim = original_verbatim;
-            result
-        } else {
-            let processor = self.processor.clone();
-            let options = self.render_options.clone();
-            crate::delimited::visit_delimited_block(self, block, &processor, &options)
         }
+
+        let processor = self.processor.clone();
+        let options = self.render_options.clone();
+        let result = crate::delimited::visit_delimited_block(self, block, &processor, &options);
+
+        // Restore state
+        self.current_subs = original_subs;
+        self.render_options.inlines_verbatim = original_verbatim;
+
+        result
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
@@ -589,7 +624,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
         let processor = self.processor.clone();
         let options = self.render_options.clone();
-        crate::inlines::visit_inline_node(node, self, &processor, &options)
+        let subs = self.current_subs.clone();
+        crate::inlines::visit_inline_node(node, self, &processor, &options, &subs)
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {

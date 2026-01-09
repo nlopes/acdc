@@ -7,7 +7,7 @@ use peg::parser;
 
 use crate::{
     AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
-    Substitution, grammar::LineMap,
+    Substitution, grammar::LineMap, model::substitution::parse_substitution,
 };
 
 /// Parser state for the inline preprocessor.
@@ -213,7 +213,6 @@ impl SourceMap {
 
 parser!(
     pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes, state: &InlinePreprocessorParserState) for str {
-        use std::collections::HashSet;
 
         pub rule run() -> ProcessedContent
             = content:inlines()+ {
@@ -268,7 +267,7 @@ parser!(
                             // Empty substitutions = RawText = bypasses HTML escaping
                             state.passthroughs.borrow_mut().push(Pass {
                                 text: Some(value.clone()),
-                                substitutions: HashSet::new(),
+                                substitutions: Vec::new(),
                                 location: location.clone(),
                                 kind: PassthroughKind::Triple,
                             });
@@ -418,7 +417,7 @@ parser!(
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
-                    substitutions: HashSet::new(),
+                    substitutions: Vec::new(),
                     location: location.clone(),
                     kind: PassthroughKind::Triple,
                 });
@@ -468,12 +467,14 @@ parser!(
                 new_content
             }
 
-        rule substitutions() -> HashSet<Substitution>
+        rule substitutions() -> Vec<Substitution>
             = subs:$(substitution_value() ** ",") {
                 if subs.is_empty() {
-                    HashSet::new()
+                    Vec::new()
                 } else {
-                    subs.split(',').map(|s| Substitution::from(s.trim())).collect()
+                    subs.split(',')
+                        .filter_map(|s| parse_substitution(s.trim()))
+                        .collect()
                 }
             }
 

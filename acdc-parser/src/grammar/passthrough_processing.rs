@@ -183,7 +183,6 @@ const MARKUP_TYPES: &[MarkupType] = &[
 pub(crate) fn process_passthrough_with_quotes(
     content: &str,
     passthrough: &Pass,
-    state: &ParserState,
 ) -> Vec<InlineNode> {
     let has_special_chars = passthrough
         .substitutions
@@ -213,15 +212,34 @@ pub(crate) fn process_passthrough_with_quotes(
 
     // Manual parsing for bold and italic patterns in passthrough content
     // This is a simpler approach than trying to use the full PEG parser
-    parse_inline_markup_in_passthrough(content, passthrough, state)
+    parse_text_for_quotes(content)
 }
 
-/// Parse inline markup (bold, italic) within passthrough content manually.
-pub(crate) fn parse_inline_markup_in_passthrough(
-    content: &str,
-    _passthrough: &Pass,
-    _state: &ParserState,
-) -> Vec<InlineNode> {
+/// Parse text for inline formatting markup (bold, italic, monospace, etc.).
+///
+/// This function scans the input text for `AsciiDoc` formatting patterns and returns
+/// a vector of `InlineNode`s representing the parsed content. Used for applying
+/// "quotes" substitution to verbatim block content.
+///
+/// # Supported Patterns
+///
+/// - `*bold*` and `**bold**` (constrained/unconstrained)
+/// - `_italic_` and `__italic__`
+/// - `` `monospace` `` and ``` ``monospace`` ```
+/// - `^superscript^` and `~subscript~`
+/// - `#highlight#` and `##highlight##`
+/// - `` "`curved quotes`" `` and `` '`curved apostrophe`' ``
+///
+/// # Example
+///
+/// ```
+/// use acdc_parser::parse_text_for_quotes;
+///
+/// let nodes = parse_text_for_quotes("This has *bold* text.");
+/// assert_eq!(nodes.len(), 3); // "This has ", Bold("bold"), " text."
+/// ```
+#[must_use]
+pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
     let mut result = Vec::new();
     let mut remaining = content;
     let mut current_offset = 0;
@@ -386,7 +404,7 @@ pub(crate) fn process_passthrough_placeholders(
             // Process the passthrough content using original string positions from passthrough.location
             if let Some(passthrough_content) = &passthrough.text {
                 let processed_nodes =
-                    process_passthrough_with_quotes(passthrough_content, passthrough, state);
+                    process_passthrough_with_quotes(passthrough_content, passthrough);
 
                 // Remap locations of processed nodes to use original string coordinates
                 // The passthrough content starts after "pass:q[" so we need to account for that offset
@@ -490,4 +508,135 @@ pub(crate) fn replace_passthrough_placeholders(
     }
 
     result
+}
+
+#[cfg(test)]
+#[allow(clippy::indexing_slicing)] // Tests verify length before indexing
+mod tests {
+    use super::*;
+
+    // === Divergence Prevention Tests ===
+    //
+    // These tests verify that parse_text_for_quotes produces the same structural
+    // output as the main PEG parser for common inline formatting patterns.
+    // If these tests fail after grammar changes, update parse_text_for_quotes.
+
+    #[test]
+    fn test_constrained_bold_pattern() {
+        let nodes = parse_text_for_quotes("This is *bold* text.");
+        assert_eq!(nodes.len(), 3);
+        assert!(matches!(nodes[0], InlineNode::PlainText(_)));
+        assert!(
+            matches!(&nodes[1], InlineNode::BoldText(b) if matches!(b.content.first(), Some(InlineNode::PlainText(p)) if p.content == "bold"))
+        );
+        assert!(matches!(nodes[2], InlineNode::PlainText(_)));
+    }
+
+    #[test]
+    fn test_unconstrained_bold_pattern() {
+        let nodes = parse_text_for_quotes("This**bold**word");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            matches!(&nodes[1], InlineNode::BoldText(b) if matches!(b.content.first(), Some(InlineNode::PlainText(p)) if p.content == "bold"))
+        );
+    }
+
+    #[test]
+    fn test_constrained_italic_pattern() {
+        let nodes = parse_text_for_quotes("This is _italic_ text.");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            matches!(&nodes[1], InlineNode::ItalicText(i) if matches!(i.content.first(), Some(InlineNode::PlainText(p)) if p.content == "italic"))
+        );
+    }
+
+    #[test]
+    fn test_unconstrained_italic_pattern() {
+        let nodes = parse_text_for_quotes("This__italic__word");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            matches!(&nodes[1], InlineNode::ItalicText(i) if matches!(i.content.first(), Some(InlineNode::PlainText(p)) if p.content == "italic"))
+        );
+    }
+
+    #[test]
+    fn test_constrained_monospace_pattern() {
+        let nodes = parse_text_for_quotes("Use `code` here.");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            matches!(&nodes[1], InlineNode::MonospaceText(m) if matches!(m.content.first(), Some(InlineNode::PlainText(p)) if p.content == "code"))
+        );
+    }
+
+    #[test]
+    fn test_superscript_pattern() {
+        let nodes = parse_text_for_quotes("E=mc^2^");
+        assert_eq!(nodes.len(), 2);
+        assert!(
+            matches!(&nodes[1], InlineNode::SuperscriptText(s) if matches!(s.content.first(), Some(InlineNode::PlainText(p)) if p.content == "2"))
+        );
+    }
+
+    #[test]
+    fn test_subscript_pattern() {
+        let nodes = parse_text_for_quotes("H~2~O");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            matches!(&nodes[1], InlineNode::SubscriptText(s) if matches!(s.content.first(), Some(InlineNode::PlainText(p)) if p.content == "2"))
+        );
+    }
+
+    #[test]
+    fn test_highlight_pattern() {
+        let nodes = parse_text_for_quotes("This is #highlighted# text.");
+        assert_eq!(nodes.len(), 3);
+        assert!(
+            matches!(&nodes[1], InlineNode::HighlightText(h) if matches!(h.content.first(), Some(InlineNode::PlainText(p)) if p.content == "highlighted"))
+        );
+    }
+
+    #[test]
+    fn test_escaped_superscript_not_parsed() {
+        // Backslash-escaped markers should not be parsed as formatting
+        let nodes = parse_text_for_quotes(r"E=mc\^2^");
+        // Should remain as plain text (escape prevents parsing)
+        assert!(
+            nodes.iter().all(|n| matches!(n, InlineNode::PlainText(_))),
+            "Escaped superscript should not be parsed"
+        );
+    }
+
+    #[test]
+    fn test_escaped_subscript_not_parsed() {
+        let nodes = parse_text_for_quotes(r"H\~2~O");
+        assert!(
+            nodes.iter().all(|n| matches!(n, InlineNode::PlainText(_))),
+            "Escaped subscript should not be parsed"
+        );
+    }
+
+    #[test]
+    fn test_multiple_formats_in_sequence() {
+        let nodes = parse_text_for_quotes("*bold* and _italic_ and `code`");
+        assert!(nodes.iter().any(|n| matches!(n, InlineNode::BoldText(_))));
+        assert!(nodes.iter().any(|n| matches!(n, InlineNode::ItalicText(_))));
+        assert!(
+            nodes
+                .iter()
+                .any(|n| matches!(n, InlineNode::MonospaceText(_)))
+        );
+    }
+
+    #[test]
+    fn test_plain_text_only() {
+        let nodes = parse_text_for_quotes("Just plain text here.");
+        assert_eq!(nodes.len(), 1);
+        assert!(matches!(nodes[0], InlineNode::PlainText(_)));
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let nodes = parse_text_for_quotes("");
+        assert!(nodes.is_empty());
+    }
 }

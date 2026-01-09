@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use serde::{
     Deserialize, Serialize,
     de::{self, Deserializer},
@@ -430,7 +428,7 @@ struct RawInlineFields {
     label: Option<String>,
     content: Option<String>,
     notation: Option<StemNotation>,
-    substitutions: Option<HashSet<crate::Substitution>>,
+    substitutions: Option<Vec<crate::Substitution>>,
     xreflabel: Option<String>,
     bracketed: Option<bool>,
     number: Option<usize>,

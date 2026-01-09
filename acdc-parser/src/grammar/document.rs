@@ -8,8 +8,8 @@ use crate::{
     Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Mailto, Menu,
     Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
     Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Substitution, Subtitle, Superscript, Table, TableOfContents, TableRow, ThematicBreak, Title,
-    UnorderedList, Url, Verbatim, Video,
+    Subtitle, Superscript, Table, TableOfContents, TableRow, ThematicBreak, Title, UnorderedList,
+    Url, Verbatim, Video,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -26,7 +26,10 @@ use crate::{
         revision::{RevisionInfo, process_revision_info},
         table::parse_table_cell,
     },
-    model::{ListLevel, Locateable, SectionLevel},
+    model::{
+        ListLevel, Locateable, SectionLevel,
+        substitution::{VERBATIM, parse_subs_attribute},
+    },
 };
 
 use super::setext;
@@ -42,7 +45,7 @@ pub(crate) struct PositionWithOffset {
 // types.
 enum BlockMetadataLine<'input> {
     Anchor(Anchor),
-    Attributes((bool, BlockMetadata)),
+    Attributes((bool, Box<BlockMetadata>)),
     Title(Title),
     DocumentAttribute(&'input str, AttributeValue),
 }
@@ -52,7 +55,7 @@ enum BlockMetadataLine<'input> {
 // that appear before the document title).
 enum HeaderMetadataLine {
     Anchor(Anchor),
-    Attributes((bool, BlockMetadata)),
+    Attributes((bool, Box<BlockMetadata>)),
 }
 
 #[derive(Debug, Default)]
@@ -75,6 +78,7 @@ enum Shorthand {
 const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
 const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
 const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
+const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
 
 pub(crate) fn match_constrained_boundary(b: u8) -> bool {
     matches!(
@@ -235,7 +239,8 @@ const fn calculate_item_end(
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
-        use crate::model::Substitute;
+        use crate::model::{substitute, Substitution};
+        use crate::model::substitution::parse_substitution;
 
         // We ignore empty lines before we set the start position of the document because
         // the asciidoc document should not consider empty lines at the beginning or end
@@ -353,7 +358,7 @@ peg::parser! {
         rule header_metadata() -> BlockMetadata
             = lines:(
                 anchor:anchor() { HeaderMetadataLine::Anchor(anchor) }
-                / attr:attributes_line() { HeaderMetadataLine::Attributes(attr) }
+                / attr:attributes_line() { HeaderMetadataLine::Attributes((attr.0, Box::new(attr.1))) }
             )+ &document_title()
             {
                 let mut metadata = BlockMetadata::default();
@@ -362,6 +367,7 @@ peg::parser! {
                     match line {
                         HeaderMetadataLine::Anchor(anchor) => metadata.anchors.push(anchor),
                         HeaderMetadataLine::Attributes((_, attr_metadata)) => {
+                            let attr_metadata = *attr_metadata;
                             // Merge attribute metadata - last one wins for id/style
                             if attr_metadata.id.is_some() {
                                 metadata.id = attr_metadata.id;
@@ -877,7 +883,7 @@ peg::parser! {
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata, Error>
         = lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
-            / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes(attr)) }
+            / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
             / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.key, doc_attr.value)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )*
@@ -895,6 +901,7 @@ peg::parser! {
                 match value {
                     BlockMetadataLine::Anchor(value) => metadata.anchors.push(value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
+                        let attr_metadata = *attr_metadata;
                         discrete = attr_discrete;
                         metadata.id = attr_metadata.id;
                         metadata.style = attr_metadata.style;
@@ -902,6 +909,7 @@ peg::parser! {
                         metadata.options.extend(attr_metadata.options);
                         metadata.attributes = attr_metadata.attributes;
                         metadata.positional_attributes = attr_metadata.positional_attributes;
+                        metadata.substitutions = attr_metadata.substitutions;
                     },
                     BlockMetadataLine::DocumentAttribute(key, value) => {
                         // Set the document attribute immediately so it's available for
@@ -3145,7 +3153,7 @@ peg::parser! {
             tracing::info!(?content, "Found pass inline");
             InlineNode::Macro(InlineMacro::Pass(Pass {
                 text: Some(content.trim().to_string()),
-                substitutions: substitutions.into_iter().map(|s| Substitution::from(s.trim())).collect(),
+                substitutions: substitutions.into_iter().filter_map(|s| parse_substitution(s.trim())).collect(),
                 location: state.create_block_location(start, end, offset),
                 kind: PassthroughKind::Macro,
             }))
@@ -4511,7 +4519,7 @@ peg::parser! {
         rule inline_anchor_match() -> ()
         = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
 
-        pub(crate) rule attributes_line() -> (bool, BlockMetadata)
+        rule attributes_line() -> (bool, BlockMetadata)
             // Don't match empty [] followed by blank line - that's a list separator, not
             // block attributes. Without this, `[]\n\n` would be parsed as an empty
             // attributes line, breaking list separation
@@ -4601,6 +4609,19 @@ peg::parser! {
                                 metadata.attributes.insert(k.clone(), AttributeValue::String(v));
                             }
                         }
+                    } else if cfg!(feature = "pre-spec-subs") && k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
+                        // Parse the subs attribute value into a set of substitutions.
+                        // Use VERBATIM as the default since listing/literal blocks use verbatim by default.
+                        //
+                        // NOTE: This is experimental and may be removed when the AsciiDoc spec finalizes.
+                        // The spec is moving toward a grammar-based model instead of substitutions.
+                        tracing::warn!(
+                            target: "acdc_parser::deprecation",
+                            "The subs= attribute is experimental and may change when the AsciiDoc \
+                             specification is finalized. \
+                             See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
+                        );
+                        metadata.substitutions = Some(parse_subs_attribute(&v, VERBATIM));
                     } else if let AttributeValue::String(v) = v {
                         // We special case the "title" attribute to capture its position.
                         // An example where this is needed is in the inline image macro.
@@ -4670,7 +4691,7 @@ peg::parser! {
         pub(crate) rule attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = whitespace()* att:named_attribute() { att }
               / att:positional_attribute_value() {
-                  let substituted = String::substitute_attributes(&att, &state.document_attributes);
+                  let substituted = substitute(&att, &[Substitution::Attributes], &state.document_attributes);
                   Some((substituted, AttributeValue::None, None))
               }
 
@@ -4688,7 +4709,7 @@ peg::parser! {
                 { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()), None)) }
               / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
                 {
-                    let substituted_value = String::substitute_attributes(&value, &state.document_attributes);
+                    let substituted_value = substitute(&value, &[Substitution::Attributes], &state.document_attributes);
                     Some((name.to_string(), AttributeValue::String(substituted_value), Some((start, end))))
                 }
 

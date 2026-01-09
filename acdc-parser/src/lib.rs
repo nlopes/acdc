@@ -49,19 +49,21 @@ pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline
 use preprocessor::Preprocessor;
 
 pub use error::{Error, Positioning, SourceLocation};
+pub use grammar::parse_text_for_quotes;
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Audio, Author, Autolink,
     Block, BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef, CalloutRefKind,
     ColumnFormat, ColumnStyle, ColumnWidth, Comment, CrossReference, CurvedApostrophe,
     CurvedQuotation, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem,
     DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote,
-    Form, Header, Highlight, HorizontalAlignment, ICON_SIZES, Icon, Image, IndexTerm,
+    Form, HEADER, Header, Highlight, HorizontalAlignment, ICON_SIZES, Icon, Image, IndexTerm,
     IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
-    ListItemCheckedStatus, Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph,
-    Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source, StandaloneCurvedApostrophe,
-    Stem, StemContent, StemNotation, Subscript, Substitution, Subtitle, Superscript, Table,
-    TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Url,
-    Verbatim, VerticalAlignment, Video, inlines_to_string,
+    ListItemCheckedStatus, Location, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak,
+    Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source,
+    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution, Subtitle,
+    Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
+    UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video, inlines_to_string,
+    substitute,
 };
 pub use options::{Options, OptionsBuilder, SafeMode};
 

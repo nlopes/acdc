@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
+use super::substitution::Substitution;
 
 pub type Role = String;
 
@@ -25,6 +26,11 @@ pub struct BlockMetadata {
     pub id: Option<Anchor>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor>,
+    /// Substitutions to apply to block content, in order of execution.
+    /// If `None`, uses block-type defaults.
+    /// If `Some(empty)`, no substitutions are applied (equivalent to `subs=none`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub substitutions: Option<Vec<Substitution>>,
 }
 
 impl BlockMetadata {
@@ -89,6 +95,7 @@ impl BlockMetadata {
             && self.anchors.is_empty()
             && self.attributes.is_empty()
             && self.positional_attributes.is_empty()
+            && self.substitutions.is_none()
     }
 
     #[tracing::instrument(level = "debug")]
@@ -105,5 +112,8 @@ impl BlockMetadata {
             self.id.clone_from(&other.id);
         }
         self.anchors.extend(other.anchors.clone());
+        if self.substitutions.is_none() {
+            self.substitutions.clone_from(&other.substitutions);
+        }
     }
 }

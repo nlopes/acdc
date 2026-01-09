@@ -1,0 +1,7 @@
+= Subs Attributes + Quotes Chain Test
+:myattr: *should-be-bold*
+
+[subs="+attributes,+quotes"]
+----
+Value: {myattr}
+----

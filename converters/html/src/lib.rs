@@ -148,7 +148,7 @@ impl Processor {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RenderOptions {
     pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
     pub inlines_basic: bool,

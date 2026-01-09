@@ -1,0 +1,4 @@
+[subs=none]
+----
+*bold* -> arrow <html> & ampersand
+----

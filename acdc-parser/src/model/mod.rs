@@ -16,7 +16,7 @@ mod location;
 mod media;
 mod metadata;
 mod section;
-mod substitution;
+pub(crate) mod substitution;
 mod tables;
 mod title;
 

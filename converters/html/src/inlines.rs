@@ -48,7 +48,10 @@ use acdc_converters_core::{
     substitutions::{restore_escaped_patterns, strip_backslash_escapes},
     visitor::WritableVisitor,
 };
-use acdc_parser::{InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string};
+use acdc_parser::{
+    InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string, parse_text_for_quotes,
+    substitute,
+};
 
 use crate::{
     Error, Processor, RenderOptions,
@@ -85,32 +88,84 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
     visitor: &mut V,
     processor: &Processor,
     options: &RenderOptions,
+    subs: &[Substitution],
 ) -> Result<(), Error> {
     let w = visitor.writer_mut();
+    // Helper to apply attribute substitution if enabled
+    let maybe_substitute_attrs = |content: &str| -> String {
+        if subs.contains(&Substitution::Attributes) {
+            substitute(
+                content,
+                &[Substitution::Attributes],
+                processor.document_attributes(),
+            )
+        } else {
+            content.to_string()
+        }
+    };
     match node {
         InlineNode::PlainText(p) => {
-            // PlainText always gets escaping and typography substitutions
-            let text = substitution_text(&p.content, options);
-            write!(w, "{text}")?;
+            // Apply attribute substitution first, then escaping and typography
+            let content = maybe_substitute_attrs(&p.content);
+
+            // If quotes substitution is enabled, parse for inline formatting
+            if subs.contains(&Substitution::Quotes) {
+                let parsed_nodes = parse_text_for_quotes(&content);
+                // Render parsed nodes without quotes to avoid infinite recursion
+                let no_quotes_subs: Vec<_> = subs
+                    .iter()
+                    .filter(|s| **s != Substitution::Quotes)
+                    .cloned()
+                    .collect();
+                for node in &parsed_nodes {
+                    visit_inline_node(node, visitor, processor, options, &no_quotes_subs)?;
+                }
+            } else {
+                let text = substitution_text(&content, subs, options);
+                write!(w, "{text}")?;
+            }
         }
         InlineNode::RawText(r) => {
             // RawText outputs as-is (no escaping, no substitutions) unless in verbatim mode
+            let content = maybe_substitute_attrs(&r.content);
             let text = if options.inlines_verbatim {
-                substitution_text(&r.content, options)
+                substitution_text(&content, subs, options)
             } else {
-                r.content.clone()
+                content
             };
             write!(w, "{text}")?;
         }
         InlineNode::VerbatimText(v) => {
             // VerbatimText is now just text (callouts are separate CalloutRef nodes)
-            // Create temporary options with verbatim mode enabled for escaping
+            // Apply attribute substitution first, then escaping
+            let content = maybe_substitute_attrs(&v.content);
             let verbatim_options = RenderOptions {
                 inlines_verbatim: true,
                 ..options.clone()
             };
-            let text = substitution_text(&v.content, &verbatim_options);
-            write!(w, "{text}")?;
+
+            // If quotes substitution is enabled, parse for inline formatting
+            if subs.contains(&Substitution::Quotes) {
+                let parsed_nodes = parse_text_for_quotes(&content);
+                // Render parsed nodes with verbatim settings but no quotes to avoid recursion
+                let no_quotes_subs: Vec<_> = subs
+                    .iter()
+                    .filter(|s| **s != Substitution::Quotes)
+                    .cloned()
+                    .collect();
+                for node in &parsed_nodes {
+                    visit_inline_node(
+                        node,
+                        visitor,
+                        processor,
+                        &verbatim_options,
+                        &no_quotes_subs,
+                    )?;
+                }
+            } else {
+                let text = substitution_text(&content, subs, &verbatim_options);
+                write!(w, "{text}")?;
+            }
         }
         InlineNode::CalloutRef(callout) => {
             // Render callout reference as conum badge
@@ -220,7 +275,7 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             let w = visitor.writer_mut();
             write!(w, "</sub>")?;
         }
-        InlineNode::Macro(m) => render_inline_macro(m, visitor, processor, options)?,
+        InlineNode::Macro(m) => render_inline_macro(m, visitor, processor, options, subs)?,
         InlineNode::LineBreak(_) => {
             writeln!(w, "<br>")?;
         }
@@ -240,6 +295,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
     visitor: &mut V,
     processor: &Processor,
     options: &RenderOptions,
+    subs: &[Substitution],
 ) -> Result<(), Error> {
     let w = visitor.writer_mut();
     match m {
@@ -276,7 +332,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             let text = l
                 .text
                 .as_ref()
-                .map(|t| substitution_text(t, options))
+                .map(|t| substitution_text(t, subs, options))
                 .filter(|t| !t.is_empty()) // Treat empty string as None
                 .unwrap_or_else(|| {
                     // For mailto: links without custom text, show just the email address
@@ -334,7 +390,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 // Only escape when SpecialChars substitution is enabled (pass:c[])
                 // Otherwise output raw HTML (pass:[], +++...+++)
                 if p.substitutions.contains(&Substitution::SpecialChars) {
-                    let text = substitution_text(text, options);
+                    let text = substitution_text(text, subs, options);
                     write!(w, "{text}")?;
                 } else {
                     write!(w, "{text}")?;
@@ -350,7 +406,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 write!(w, "{display}")?;
             } else {
                 for inline in &u.text {
-                    visit_inline_node(inline, visitor, processor, options)?;
+                    visit_inline_node(inline, visitor, processor, options, subs)?;
                 }
             }
             let w = visitor.writer_mut();
@@ -383,7 +439,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 write!(w, "{display}")?;
             } else {
                 for inline in &m.text {
-                    visit_inline_node(inline, visitor, processor, options)?;
+                    visit_inline_node(inline, visitor, processor, options, subs)?;
                 }
             }
             let w = visitor.writer_mut();
@@ -495,7 +551,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
 
             // Flow terms (visible): also output the term text
             if it.is_visible() {
-                let text = substitution_text(it.term(), options);
+                let text = substitution_text(it.term(), subs, options);
                 write!(w, "{text}")?;
             }
             // Concealed terms: anchor only, no visible text
@@ -511,16 +567,34 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
     Ok(())
 }
 
-fn substitution_text(text: &str, options: &RenderOptions) -> String {
+fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions) -> String {
+    debug_assert!(
+        !text.is_empty(),
+        "substitution_text called with empty text - caller should filter empty content"
+    );
     if text.is_empty() {
-        return String::from("__EMPTY_WHEN_IT_SHOULD_NOT_BE__");
+        tracing::warn!(
+            "substitution_text called with empty text - caller should filter empty content"
+        );
+        return String::new();
     }
 
+    // When escape_html is false (subs=none), return text as-is
+    if !subs.contains(&Substitution::SpecialChars) {
+        return text.to_string();
+    }
+
+    // Determine if we should apply typography replacements
+    // Based on substitutions list, skip for basic mode (passthrough)
+    let should_apply_replacements =
+        subs.contains(&Substitution::Replacements) && !options.inlines_basic;
+
     // Strip backslash escapes first (before any other processing)
-    let text = if options.inlines_basic || options.inlines_verbatim {
-        text.to_string()
-    } else {
+    // Only needed when replacements are applied (escape sequences only matter for replacements)
+    let text = if should_apply_replacements {
         strip_backslash_escapes(text)
+    } else {
+        text.to_string()
     };
 
     // Escape & first (before arrow replacements that produce & entities)
@@ -528,9 +602,7 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
 
     // Apply arrow and dash substitutions before escaping < and >
     // (arrow patterns contain these characters)
-    let text = if options.inlines_basic || options.inlines_verbatim {
-        text
-    } else {
+    let text = if should_apply_replacements {
         text.replace(" -- ", "&thinsp;&mdash;&thinsp;")
             .replace(" --", "&thinsp;&mdash;")
             .replace("-- ", "&mdash;&thinsp;")
@@ -539,22 +611,27 @@ fn substitution_text(text: &str, options: &RenderOptions) -> String {
             .replace("<=", "&#8656;") // ⇐ leftwards double arrow
             .replace("->", "&#8594;") // → rightwards arrow
             .replace("<-", "&#8592;") // ← leftwards arrow
+    } else {
+        text
     };
 
     // Now escape remaining < and > (after arrow patterns have been replaced)
-    // and apply typography transformations (ellipsis, smart quotes)
-    let text = text
-        .replace('>', "&gt;")
-        .replace('<', "&lt;")
-        .replace("...", "&#8230;&#8203;")
-        .replace('\'', "&#8217;");
+    let text = text.replace('>', "&gt;").replace('<', "&lt;");
+
+    // Apply typography transformations (ellipsis, smart quotes) only when replacements enabled
+    let text = if should_apply_replacements {
+        text.replace("...", "&#8230;&#8203;")
+            .replace('\'', "&#8217;")
+    } else {
+        text
+    };
 
     // Restore escaped patterns (convert placeholders back to literal forms)
     // This must happen after typography substitutions to preserve escapes like \...
-    let text = if options.inlines_basic || options.inlines_verbatim {
-        text
-    } else {
+    let text = if should_apply_replacements {
         restore_escaped_patterns(&text)
+    } else {
+        text
     };
 
     // Encode non-ASCII Unicode characters as HTML numeric entities
