@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `acdc-converters-dev` crate for test utilities (not published to crates.io)
 - Visitor method `visit_callout_ref` for processing callout references
 
+### Fixed
+
+- Preamble wrapper now only renders when all conditions are met: document has a title,
+  contains at least one section, and has content before that section. Previously,
+  documents without sections incorrectly rendered preamble wrappers. ([#275])
+
 ### Changed
 
 - **BREAKING**: Renamed crate from `acdc-converters-common` to `acdc-converters-core`
@@ -53,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Discrete headings (`[discrete]`) at the end of a document are now parsed correctly
+  instead of causing a parsing error. ([#289])
 - Paragraphs no longer incorrectly split when a line starts with inline passthrough
   syntax like `+>+`. The list continuation lookahead now only matches actual
   continuation markers (standalone `+` followed by whitespace/EOL/EOF).
@@ -83,7 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#270]: https://github.com/nlopes/acdc/issues/270
 [#272]: https://github.com/nlopes/acdc/issues/272
 [#273]: https://github.com/nlopes/acdc/issues/273
+[#275]: https://github.com/nlopes/acdc/issues/275
 [#280]: https://github.com/nlopes/acdc/issues/280
+[#289]: https://github.com/nlopes/acdc/issues/289
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 
