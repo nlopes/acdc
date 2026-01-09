@@ -1,7 +1,44 @@
 version: 2
 updates:
-- package-ecosystem: cargo
-  directory: "/"
-  schedule:
-    interval: daily
-  open-pull-requests-limit: 10
+  - package-ecosystem: "cargo"
+    directories:
+      - "/"
+      - "/acdc-cli"
+      - "/acdc-lsp"
+      - "/acdc-parser"
+      - "/acdc-parser/fuzz"
+      - "/converters/core"
+      - "/converters/dev"
+      - "/converters/html"
+      - "/converters/manpage"
+      - "/converters/terminal"
+    schedule:
+      interval: "weekly"
+    groups:
+      # Group minor and patch updates to reduce PR noise
+      production-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+      - "rust"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions updates
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
