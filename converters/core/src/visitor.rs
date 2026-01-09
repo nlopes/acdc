@@ -179,16 +179,23 @@ pub trait Visitor {
             .iter()
             .any(|b| !matches!(b, Block::Comment(_) | Block::DocumentAttribute(_)));
 
-        // 5. Walk preamble blocks (if any substantive content exists)
-        if has_substantive_preamble {
-            // Hook before preamble blocks
+        // Preamble wrapper is only emitted when ALL conditions are met:
+        // 1. Document has a header (title)
+        // 2. There is at least one section
+        // 3. There's substantive content before that section
+        let emit_preamble =
+            doc.header.is_some() && first_section_idx.is_some() && has_substantive_preamble;
+
+        // 5. Walk preamble blocks
+        if emit_preamble {
             self.visit_preamble_start(doc)?;
+        }
 
-            for block in preamble {
-                self.visit_block(block)?;
-            }
+        for block in preamble {
+            self.visit_block(block)?;
+        }
 
-            // Hook after preamble blocks walked
+        if emit_preamble {
             self.visit_preamble_end(doc)?;
         }
 
