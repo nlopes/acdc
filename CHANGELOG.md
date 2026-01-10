@@ -51,6 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tag filtering for include directives ([#279])
+  - `tag=name` - include a specific tagged region
+  - `tags=a;b;c` - include multiple tags (semicolon or comma delimited)
+  - `tags=*` - include all tagged regions
+  - `tags=**` - include all content except tag directive lines
+  - `tags=!name` - exclude a specific tag
+  - `tags=*;!debug` - include all tags except debug
+  - `tags=!*` - include only untagged content
+  - Tag directives (`// tag::name[]` and `// end::name[]`) are automatically stripped
+  - Nested tags supported; combining `tag=` with `lines=` applies both filters
 - `substitute()` function for applying substitutions to text. Currently only
   `Attributes` substitution is implemented (expands `{attr}` references). ([#280])
 - `parse_text_for_quotes()` function for parsing inline formatting (`*bold*`,
@@ -59,6 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Context-aware backslash stripping for `\^` and `\~` escapes now matches asciidoctor
+  behavior. Backslashes are only stripped when they prevent actual formatting (e.g.,
+  `\^super^`), preserved as literal text when at word boundaries without closing marker
+  (e.g., `\^caret`). ([#278])
 - Discrete headings (`[discrete]`) at the end of a document are now parsed correctly
   instead of causing a parsing error. ([#289])
 - Paragraphs no longer incorrectly split when a line starts with inline passthrough
@@ -92,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#272]: https://github.com/nlopes/acdc/issues/272
 [#273]: https://github.com/nlopes/acdc/issues/273
 [#275]: https://github.com/nlopes/acdc/issues/275
+[#278]: https://github.com/nlopes/acdc/issues/278
+[#279]: https://github.com/nlopes/acdc/issues/279
 [#280]: https://github.com/nlopes/acdc/issues/280
 [#289]: https://github.com/nlopes/acdc/issues/289
 
