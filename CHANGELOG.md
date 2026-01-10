@@ -79,6 +79,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   syntax like `+>+`. The list continuation lookahead now only matches actual
   continuation markers (standalone `+` followed by whitespace/EOL/EOF).
 
+### Removed
+
+- **BREAKING**: Removed `Deserialize` implementation from all model types (`Document`,
+  `Block`, `InlineNode`, and ~60 other AST types). Serialization to JSON remains
+  supported. If you need to load previously serialized AST, parse the original
+  AsciiDoc source instead.
+
+
 ## [Unreleased acdc-cli]
 
 ### Added

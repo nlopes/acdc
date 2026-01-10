@@ -1,6 +1,6 @@
 //! Block metadata types for `AsciiDoc` documents.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
@@ -9,7 +9,7 @@ use super::substitution::Substitution;
 pub type Role = String;
 
 /// A `BlockMetadata` represents the metadata of a block in a document.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct BlockMetadata {
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]

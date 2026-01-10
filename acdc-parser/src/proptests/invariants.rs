@@ -84,25 +84,6 @@ proptest! {
         }
     }
 
-    /// Documents should round-trip through JSON serialization.
-    /// This ensures our Serde implementations are correct.
-    #[test]
-    fn serde_round_trip(input in ascii_document()) {
-        let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
-            // Serialize to JSON
-            if let Ok(json) = serde_json::to_string(&doc) {
-                // Deserialize back
-                if let Ok(doc2) = serde_json::from_str::<Document>(&json) {
-                    // We can't use direct equality due to some fields that might differ,
-                    // but we can check structure is preserved
-                    assert_eq!(doc.blocks.len(), doc2.blocks.len(), "Block count mismatch after round-trip");
-                    assert_eq!(doc.name, doc2.name, "Name mismatch after round-trip");
-                    assert_eq!(doc.r#type, doc2.r#type, "Type mismatch after round-trip");
-                }
-            }
-        }
-    }
 }
 
 // ====================================================================

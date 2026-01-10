@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use serde::{
-    Deserialize, Serialize,
+    Serialize,
     ser::{SerializeMap, Serializer},
 };
 
@@ -27,7 +27,7 @@ pub struct Admonition {
 }
 
 /// The variant/type of an admonition block.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AdmonitionVariant {
     Note,

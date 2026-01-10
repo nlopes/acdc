@@ -1,12 +1,12 @@
 //! Table types for `AsciiDoc` documents.
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::Block;
 use super::location::Location;
 
 /// Horizontal alignment for table cells
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HorizontalAlignment {
     #[default]
@@ -16,7 +16,7 @@ pub enum HorizontalAlignment {
 }
 
 /// Vertical alignment for table cells
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum VerticalAlignment {
     #[default]
@@ -26,7 +26,7 @@ pub enum VerticalAlignment {
 }
 
 /// Column width specification
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum ColumnWidth {
@@ -45,7 +45,7 @@ impl Default for ColumnWidth {
 }
 
 /// Column content style
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum ColumnStyle {
@@ -68,7 +68,7 @@ pub enum ColumnStyle {
 }
 
 /// Column format specification for table formatting
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct ColumnFormat {
     #[serde(default, skip_serializing_if = "is_default_halign")]
@@ -142,7 +142,7 @@ pub(crate) fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
 }
 
 /// A `Table` represents a table in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Table {
     pub header: Option<TableRow>,
@@ -203,7 +203,7 @@ impl Table {
 ///     row.columns.len()  // Access cells via .columns
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct TableRow {
     /// The cells in this row (one per table column).
@@ -219,7 +219,7 @@ impl TableRow {
 }
 
 /// A `TableColumn` represents a column/cell in a table row.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct TableColumn {
     pub content: Vec<Block>,

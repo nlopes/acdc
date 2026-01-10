@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
 
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
 /// A `Pass` represents a passthrough macro in a document.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Pass {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -17,7 +17,7 @@ pub struct Pass {
     pub kind: PassthroughKind,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Default)]
 pub enum PassthroughKind {
     #[default]
     Single,
@@ -27,7 +27,7 @@ pub enum PassthroughKind {
 }
 
 /// A `Footnote` represents an inline footnote in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Footnote {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -40,7 +40,7 @@ pub struct Footnote {
 }
 
 /// An `Icon` represents an inline icon in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Icon {
     pub target: Source,
@@ -49,7 +49,7 @@ pub struct Icon {
 }
 
 /// A `Link` represents an inline link in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Link {
     // We don't serialize the text here because it's already serialized in the attributes
@@ -89,7 +89,7 @@ impl Link {
 }
 
 /// An `Url` represents an inline URL in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Url {
     // We don't serialize the text here because it's already serialized in the attributes
@@ -102,7 +102,7 @@ pub struct Url {
 }
 
 /// An `Mailto` represents an inline `mailto:` in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Mailto {
     // We don't serialize the text here because it's already serialized in the attributes
@@ -115,7 +115,7 @@ pub struct Mailto {
 }
 
 /// A `Button` represents an inline button in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Button {
     pub label: String,
@@ -123,7 +123,7 @@ pub struct Button {
 }
 
 /// A `Menu` represents an inline menu in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Menu {
     pub target: String,
@@ -133,7 +133,7 @@ pub struct Menu {
 }
 
 /// A `Keyboard` represents an inline keyboard shortcut in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Keyboard {
     pub keys: Vec<Key>,
@@ -152,7 +152,7 @@ impl Keyboard {
 pub type Key = String;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct CrossReference {
     pub target: String,
@@ -181,7 +181,7 @@ impl CrossReference {
 }
 
 /// An `Autolink` represents an inline autolink in a document.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Autolink {
     pub url: Source,
@@ -193,7 +193,7 @@ pub struct Autolink {
 }
 
 /// A `Stem` represents an inline mathematical expression.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Stem {
     pub content: String,
@@ -206,7 +206,7 @@ pub struct Stem {
 /// This enum makes invalid states unrepresentable: flow terms can only have
 /// a single term (no hierarchy), while concealed terms support up to three
 /// hierarchical levels.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub enum IndexTermKind {
     /// Visible in output, single term only.
@@ -233,7 +233,7 @@ pub enum IndexTermKind {
 ///   - only appears in the index
 ///
 /// Concealed terms support hierarchical entries with primary, secondary, and tertiary levels.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct IndexTerm {
     /// The kind and content of this index term.
