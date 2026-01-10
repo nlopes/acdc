@@ -158,6 +158,7 @@ mod tests {
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
             content: "This is a title.".to_string(),
             location: Location::default(),
+            escaped: false,
         })];
         assert_eq!(
             Section::id_from_title(inlines),
@@ -166,6 +167,7 @@ mod tests {
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
             content: "This is a----title.".to_string(),
             location: Location::default(),
+            escaped: false,
         })];
         assert_eq!(
             Section::id_from_title(inlines),
@@ -178,6 +180,7 @@ mod tests {
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
             content: "This is a b__i__g title.".to_string(),
             location: Location::default(),
+            escaped: false,
         })];
         // metadata has an empty id
         let metadata = BlockMetadata::default();

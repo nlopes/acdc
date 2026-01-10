@@ -326,6 +326,7 @@ mod tests {
         vec![InlineNode::PlainText(Plain {
             content: content.to_string(),
             location: Location::default(),
+            escaped: false,
         })]
     }
 
@@ -472,6 +473,7 @@ mod tests {
         let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "My Code Example".to_string(),
             location: Location::default(),
+            escaped: false,
         })]);
 
         let block = DelimitedBlock::new(
@@ -512,11 +514,13 @@ mod tests {
         let title1 = Title::new(vec![InlineNode::PlainText(Plain {
             content: "First Example".to_string(),
             location: Location::default(),
+            escaped: false,
         })]);
 
         let title2 = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Second Example".to_string(),
             location: Location::default(),
+            escaped: false,
         })]);
 
         let block1 = DelimitedBlock::new(

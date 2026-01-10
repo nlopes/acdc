@@ -447,6 +447,7 @@ fn construct_plain_text<E: de::Error>(raw: RawInlineFields) -> Result<InlineNode
     Ok(InlineNode::PlainText(Plain {
         content: raw.value.ok_or_else(|| E::missing_field("value"))?,
         location: raw.location.ok_or_else(|| E::missing_field("location"))?,
+        escaped: false,
     }))
 }
 

@@ -108,11 +108,14 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             // Apply attribute substitution first, then escaping and typography
             let content = maybe_substitute_attrs(&p.content);
 
-            // If quotes substitution is enabled, parse for inline formatting
-            if subs.contains(&Substitution::Quotes) {
+            // If escaped (from `\^2^` etc.), skip quote re-parsing; otherwise use block subs.
+            let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
+
+            if effective_subs.contains(&Substitution::Quotes) {
+                // If quotes substitution is enabled, parse for inline formatting
                 let parsed_nodes = parse_text_for_quotes(&content);
                 // Render parsed nodes without quotes to avoid infinite recursion
-                let no_quotes_subs: Vec<_> = subs
+                let no_quotes_subs: Vec<_> = effective_subs
                     .iter()
                     .filter(|s| **s != Substitution::Quotes)
                     .cloned()
@@ -121,7 +124,8 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
                     visit_inline_node(node, visitor, processor, options, &no_quotes_subs)?;
                 }
             } else {
-                let text = substitution_text(&content, subs, options);
+                // No quotes substitution - output with escaping and typography only
+                let text = substitution_text(&content, effective_subs, options);
                 write!(w, "{text}")?;
             }
         }

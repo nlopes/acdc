@@ -144,6 +144,7 @@ mod tests {
         let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Title".to_string(),
             location: Location::default(),
+            escaped: false,
         })]);
         doc.header = Some(Header::new(title, Location::default()).with_authors(vec![
             Author::new("John", Some("M"), Some("Doe"))
@@ -176,6 +177,7 @@ mod tests {
                 vec![InlineNode::PlainText(Plain {
                     content: "Hello, world!".to_string(),
                     location: Location::default(),
+                    escaped: false,
                 })],
                 Location::default(),
             )),
@@ -183,12 +185,14 @@ mod tests {
                 Title::new(vec![InlineNode::PlainText(Plain {
                     content: "Section".to_string(),
                     location: Location::default(),
+                    escaped: false,
                 })]),
                 1,
                 vec![Block::Paragraph(Paragraph::new(
                     vec![InlineNode::PlainText(Plain {
                         content: "Hello, section!".to_string(),
                         location: Location::default(),
+                        escaped: false,
                     })],
                     Location::default(),
                 ))],

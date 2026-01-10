@@ -205,6 +205,7 @@ fn get_literal_paragraph(
         content: vec![InlineNode::PlainText(Plain {
             content,
             location: location.clone(),
+            escaped: false,
         })],
         metadata,
         title: block_metadata.title.clone(),
@@ -417,12 +418,14 @@ peg::parser! {
                         title_end + 1,
                         end.saturating_sub(1),
                     ),
+                    escaped: false,
                 })]));
             }
             let title_location = state.create_location(start, title_end.saturating_sub(1));
             (Title::new(vec![InlineNode::PlainText(Plain {
                 content: title[..title_end - start].trim().to_string(),
                 location: title_location,
+                escaped: false,
             })]), subtitle)
         }
 
@@ -475,6 +478,7 @@ peg::parser! {
                             start + subtitle_start + 1,
                             end.saturating_sub(1),
                         ),
+                        escaped: false,
                     })]));
                 }
             }
@@ -483,6 +487,7 @@ peg::parser! {
             Ok((Title::new(vec![InlineNode::PlainText(Plain {
                 content: title_content,
                 location: title_location,
+                escaped: false,
             })]), subtitle))
         }
 
@@ -1186,6 +1191,7 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
                     content: content.to_string(),
                     location: content_location,
+                    escaped: false,
                 })]),
                 title: block_metadata.title.clone(),
                 location,
@@ -1613,6 +1619,7 @@ peg::parser! {
                     DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(Plain {
                         content: content.to_string(),
                         location: content_location.clone(),
+                        escaped: false,
                     })])
                 } else {
                     let blocks = document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
@@ -2930,8 +2937,10 @@ peg::parser! {
 
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = inline:(
-            // Escaped syntax must come first - backslash prevents any following syntax from being parsed
-            escaped_syntax:escaped_syntax(offset) { escaped_syntax }
+            // Escaped superscript/subscript must come first - produces RawText to prevent re-parsing
+            escaped_super_sub:escaped_superscript_subscript(offset) { escaped_super_sub }
+            // Escaped syntax must come next - backslash prevents any following syntax from being parsed
+            / escaped_syntax:escaped_syntax(offset) { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
             / index_term:index_term_concealed(offset) { index_term }
             / index_term:index_term_flow(offset) { index_term }
@@ -2973,6 +2982,28 @@ peg::parser! {
                 inline
             }
 
+        /// Escaped superscript/subscript rule - matches \^content^ or \~content~.
+        ///
+        /// Produces PlainText with empty substitutions so the content:
+        /// 1. Gets HTML escaped by the converter (security)
+        /// 2. Doesn't get re-parsed as formatting (no Quotes in substitutions)
+        ///
+        /// Only matches when there's a complete pattern (content with no spaces
+        /// followed by closing marker).
+        rule escaped_superscript_subscript(offset: usize) -> InlineNode
+        = start:position!() "\\" content:escaped_super_sub_pattern() end:position!() {
+            InlineNode::PlainText(Plain {
+                content,
+                location: state.create_location(start + offset, end + offset),
+                escaped: true,
+            })
+        }
+
+        /// Match escaped superscript (^content^) or subscript (~content~) pattern.
+        rule escaped_super_sub_pattern() -> String
+        = "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { format!("^{inner}^") }
+        / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { format!("~{inner}~") }
+
         /// Generic escaped syntax rule - matches backslash followed by content.
         ///
         /// Handles paired delimiters (`<<...>>`, `[...]`) as complete units,
@@ -2982,6 +3013,7 @@ peg::parser! {
             InlineNode::PlainText(Plain {
                 content,
                 location: state.create_location(start + offset, end + offset),
+                escaped: false,
             })
         }
 
@@ -3031,8 +3063,13 @@ peg::parser! {
             / "<="
             / "--"
         ) { pattern.to_string() }
+        // Superscript: ^content^ where content has no whitespace (must check complete pattern)
+        / "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { format!("^{inner}^") }
+        // Subscript: ~content~ where content has no whitespace (must check complete pattern)
+        / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { format!("~{inner}~") }
         // Constrained formatting markers and other single escapable chars
-        / c:$(['*' | '_' | '#' | '`' | '^' | '~' | '[' | ']' | '(' | '&']) { c.to_string() }
+        // Note: ^ and ~ are NOT included here - they require complete patterns above
+        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '(' | '&']) { c.to_string() }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
         ///
@@ -3059,7 +3096,11 @@ peg::parser! {
         / "=>"
         / "<="
         / "--"
-        / ['*' | '_' | '#' | '`' | '^' | '~' | '[' | ']' | '(' | '&'] {}
+        // Superscript/subscript: require complete pattern
+        / "^" [^'^' | ' ' | '\t' | '\n']+ "^"
+        / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
+        // Single escapable chars (excluding ^ and ~ which need complete patterns)
+        / ['*' | '_' | '#' | '`' | '[' | ']' | '(' | '&'] {}
 
         rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = footnote_match:footnote_match(offset, block_metadata)
@@ -3526,6 +3567,7 @@ peg::parser! {
                 title = Title::new(vec![InlineNode::PlainText(Plain {
                     content: style,
                     location: state.create_block_location(start.offset, end, offset),
+                    escaped: false,
                 })]);
             }
             if metadata.positional_attributes.len() >= 2 {
@@ -4176,7 +4218,10 @@ peg::parser! {
         rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = start_pos:position!()
         content:$((
-            "\\" ['^' | '~']  // Escape sequences for superscript/subscript markers
+            // Escape sequences for superscript/subscript markers - only when NOT followed by
+            // a complete pattern (those are handled by escaped_superscript_subscript rule)
+            "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
+            / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
             / (!(eol()*<2,> / ![_] / escaped_syntax_match() / index_term_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
@@ -4187,6 +4232,7 @@ peg::parser! {
             InlineNode::PlainText(Plain {
                 content: content.to_string(),
                 location: state.create_block_location(start_pos, end, offset),
+                escaped: false,
             })
         }
 
@@ -4370,6 +4416,7 @@ peg::parser! {
                 vec![InlineNode::PlainText(Plain {
                     content: title.clone(),
                     location: state.create_location(start+offset, (start+offset).saturating_add(title.len()).saturating_sub(1)),
+                    escaped: false,
                 })].into()
             } else {
                 block_metadata.title.clone()
@@ -5146,7 +5193,8 @@ v2.9, 01-09-2024: Fall incarnation
                         line: 2,
                         column: 16,
                     },
-                }
+                },
+                escaped: false,
             })
         );
         assert_eq!(header.authors.len(), 2);
@@ -5322,7 +5370,8 @@ v2.9, 01-09-2024: Fall incarnation
                         line: 1,
                         column: 16,
                     },
-                }
+                },
+                escaped: false,
             })
         );
         Ok(())
@@ -5347,7 +5396,8 @@ v2.9, 01-09-2024: Fall incarnation
                             line: 1,
                             column: 16,
                         },
-                    }
+                    },
+                    escaped: false,
                 })]),
                 Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
                     content: "And a subtitle".to_string(),
@@ -5362,7 +5412,8 @@ v2.9, 01-09-2024: Fall incarnation
                             line: 1,
                             column: 32,
                         },
-                    }
+                    },
+                    escaped: false,
                 })]))
             )
         );
@@ -5390,7 +5441,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                         line: 1,
                         column: 16,
                     },
-                }
+                },
+                escaped: false,
             })
         );
         assert_eq!(result.authors.len(), 2);

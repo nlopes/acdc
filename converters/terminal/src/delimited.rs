@@ -350,6 +350,7 @@ mod tests {
         vec![InlineNode::PlainText(Plain {
             content: content.to_string(),
             location: Location::default(),
+            escaped: false,
         })]
     }
 
@@ -358,6 +359,7 @@ mod tests {
         Title::new(vec![InlineNode::PlainText(Plain {
             content: content.to_string(),
             location: Location::default(),
+            escaped: false,
         })])
     }
 
