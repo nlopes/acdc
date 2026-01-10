@@ -13,6 +13,7 @@ use crate::{
 mod attribute;
 mod conditional;
 mod include;
+mod tag;
 
 use include::Include;
 
@@ -556,6 +557,134 @@ endif::another[]";
         assert!(result.contains("This is included content."));
         assert!(result.contains("With special characters: é, ñ, ü."));
         assert!(result.contains("After include."));
+        Ok(())
+    }
+
+    // === Tag Filtering Integration Tests ===
+
+    #[test]
+    fn test_include_with_single_tag() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_with_tag.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain the intro tag content
+        assert!(result.contains("This is the introduction."));
+        assert!(result.contains("It has multiple lines."));
+        // Should NOT contain other content
+        assert!(!result.contains("untagged content"));
+        assert!(!result.contains("main content"));
+        assert!(!result.contains("Debug information"));
+        // Should NOT contain tag directives
+        assert!(!result.contains("tag::intro"));
+        assert!(!result.contains("end::intro"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_multiple_tags() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_multiple_tags.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain both intro and main content
+        assert!(result.contains("This is the introduction."));
+        assert!(result.contains("This is the main content."));
+        // Should NOT contain debug or untagged content
+        assert!(!result.contains("Debug information"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_wildcard_excluding_tag() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_wildcard_exclude.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain intro and main content
+        assert!(result.contains("This is the introduction."));
+        assert!(result.contains("This is the main content."));
+        // Should NOT contain debug content
+        assert!(!result.contains("Debug information"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_double_wildcard() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_double_wildcard.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain all content except tag directive lines
+        assert!(result.contains("untagged content"));
+        assert!(result.contains("This is the introduction."));
+        assert!(result.contains("This is the main content."));
+        assert!(result.contains("Debug information"));
+        // Should NOT contain tag directives
+        assert!(!result.contains("tag::intro"));
+        assert!(!result.contains("end::intro"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_nested_tag() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_nested_tag.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain only the nested content
+        assert!(result.contains("This is nested within main."));
+        // Should NOT contain main content outside nested
+        assert!(!result.contains("This is the main content."));
+        assert!(!result.contains("Back to main content."));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_select_untagged_only() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_untagged_only.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain only untagged content
+        assert!(result.contains("untagged content at the beginning"));
+        assert!(result.contains("More untagged content"));
+        assert!(result.contains("Final untagged content"));
+        // Should NOT contain any tagged content
+        assert!(!result.contains("This is the introduction"));
+        assert!(!result.contains("This is the main content"));
+        assert!(!result.contains("Debug information"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_tag_with_lines() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_tag_with_lines.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // When combining tag= and lines=, the lines= attribute refers to
+        // line numbers in the ORIGINAL file, not the filtered result.
+        // tag=intro selects lines 4-5 (content between tag directives)
+        // lines=4 selects only line 4 from the original file
+        // The intersection is just line 4: "This is the introduction."
+        assert!(result.contains("This is the introduction."));
+        // Line 5 is not in lines=4, so it should NOT be included
+        assert!(!result.contains("It has multiple lines."));
         Ok(())
     }
 }

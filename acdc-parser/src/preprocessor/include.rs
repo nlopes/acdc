@@ -14,6 +14,8 @@ use crate::{
     model::{HEADER, Position, substitute},
 };
 
+use super::tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters};
+
 /**
 The format of an include directive is the following:
 
@@ -38,7 +40,7 @@ pub(crate) struct Include {
     target: Target,
     level_offset: Option<isize>,
     line_range: Vec<LinesRange>,
-    tags: Vec<String>,
+    tags: Vec<TagName>,
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
@@ -137,7 +139,8 @@ peg::parser! {
             }
 
         rule attribute_key() -> String
-            = k:$("leveloffset" / "lines" / "tag" / "tags" / "indent" / "encoding" / "opts") {
+            // Note: "tags" must come before "tag" due to PEG's ordered choice
+            = k:$("leveloffset" / "lines" / "tags" / "tag" / "indent" / "encoding" / "opts") {
                 k.to_string()
             }
 
@@ -250,11 +253,9 @@ impl Include {
                         self.current_file.as_deref(),
                     )?);
                 }
-                "tag" => {
-                    self.tags.push(value.clone());
-                }
+                "tag" => self.tags.push(TagName::from(value)),
                 "tags" => {
-                    self.tags.extend(value.split(';').map(str::to_string));
+                    self.tags.extend(value.split(DELIMITERS).map(TagName::from));
                 }
                 "indent" => {
                     self.indent = Some(value.parse().map_err(|_| {
@@ -434,11 +435,36 @@ impl Include {
         // trying to just get to a place of compatibility, then I can
         // optimize.
         let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
-        if !self.tags.is_empty() {
-            tracing::warn!(tags = ?self.tags, "tags are not supported yet");
-        }
 
-        if self.line_range.is_empty() {
+        // Apply filtering based on tags and/or line ranges
+        // Note: asciidoctor doesn't clearly document combining lines= and tags=,
+        // so we treat them as mutually exclusive (tags take precedence if both specified)
+        if !self.tags.is_empty() {
+            let filters: Vec<TagFilter> = self
+                .tags
+                .iter()
+                .map(|t| TagFilter::parse(t.as_str()))
+                .collect();
+            let selected_indices = apply_tag_filters(&content_lines, &filters);
+
+            // If line ranges are also specified, further filter the selected indices
+            if self.line_range.is_empty() {
+                for idx in selected_indices {
+                    if let Some(line) = content_lines.get(idx) {
+                        lines.push(line.clone());
+                    }
+                }
+            } else {
+                let line_range_indices = self.collect_line_range_indices(content_lines.len());
+                for idx in selected_indices {
+                    if line_range_indices.contains(&idx) {
+                        if let Some(line) = content_lines.get(idx) {
+                            lines.push(line.clone());
+                        }
+                    }
+                }
+            }
+        } else if self.line_range.is_empty() {
             lines.extend(content_lines);
         } else {
             self.extend_lines_with_ranges(&content_lines, &mut lines);
@@ -470,6 +496,43 @@ impl Include {
                 None
             }
         }
+    }
+
+    /// Collects all line indices that would be selected by the line ranges.
+    fn collect_line_range_indices(
+        &self,
+        content_lines_count: usize,
+    ) -> std::collections::HashSet<usize> {
+        let mut indices = std::collections::HashSet::new();
+        for line in &self.line_range {
+            match line {
+                LinesRange::Single(line_number) => {
+                    if let Some(idx) = Self::validate_line_number(*line_number) {
+                        if idx < content_lines_count {
+                            indices.insert(idx);
+                        }
+                    }
+                }
+                LinesRange::Range(start, end) => {
+                    let Some(start_idx) = Self::validate_line_number(*start) else {
+                        continue;
+                    };
+                    let Some(end_idx) = Self::resolve_end_line(*end, content_lines_count) else {
+                        continue;
+                    };
+
+                    if start_idx < content_lines_count
+                        && end_idx < content_lines_count
+                        && start_idx <= end_idx
+                    {
+                        for i in start_idx..=end_idx {
+                            indices.insert(i);
+                        }
+                    }
+                }
+            }
+        }
+        indices
     }
 
     pub(crate) fn extend_lines_with_ranges(
@@ -536,7 +599,7 @@ mod tests {
         let include = Include::parse(&path, line, 1, 0, None, &options)?;
 
         assert_eq!(include.level_offset, Some(1));
-        assert_eq!(include.tags, vec!["example"]);
+        assert_eq!(include.tags, vec![TagName::from("example")]);
         assert!(!include.line_range.is_empty());
         Ok(())
     }
@@ -562,8 +625,53 @@ mod tests {
         let options = Options::default();
         let include = Include::parse(&path, line, 1, 0, None, &options)?;
 
-        assert_eq!(include.tags, vec!["example code"]);
+        assert_eq!(include.tags, vec![TagName::from("example code")]);
         assert_eq!(include.encoding, Some("utf-8".to_string()));
+        Ok(())
+    }
+
+    // === Include Attribute Parsing Tests ===
+
+    #[test]
+    fn test_parse_include_with_tags_attribute() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let line = "include::target.adoc[tags=intro;main;conclusion]";
+        let options = Options::default();
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+
+        assert_eq!(
+            include.tags,
+            vec![
+                TagName::from("intro"),
+                TagName::from("main"),
+                TagName::from("conclusion")
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_include_with_negated_tag() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let line = "include::target.adoc[tags=*;!debug]";
+        let options = Options::default();
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+
+        assert_eq!(
+            include.tags,
+            vec![TagName::from("*"), TagName::from("!debug")]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_include_with_wildcard() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let line = "include::target.adoc[tags=**]";
+        let options = Options::default();
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+
+        assert_eq!(include.tags, vec![TagName::from("**")]);
         Ok(())
     }
 }

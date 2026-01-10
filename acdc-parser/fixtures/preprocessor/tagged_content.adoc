@@ -1,0 +1,22 @@
+This is untagged content at the beginning.
+
+// tag::intro[]
+This is the introduction.
+It has multiple lines.
+// end::intro[]
+
+More untagged content.
+
+// tag::main[]
+This is the main content.
+// tag::nested[]
+This is nested within main.
+// end::nested[]
+Back to main content.
+// end::main[]
+
+// tag::debug[]
+Debug information that should be excluded.
+// end::debug[]
+
+Final untagged content.

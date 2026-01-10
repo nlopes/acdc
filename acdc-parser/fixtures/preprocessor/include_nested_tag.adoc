@@ -1,0 +1,3 @@
+= Include with Nested Tag Test
+
+include::tagged_content.adoc[tag=nested]
