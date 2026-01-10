@@ -1,8 +1,7 @@
 //! List types for `AsciiDoc` documents.
 
 use serde::{
-    Deserialize, Serialize,
-    de::{self, Deserializer, MapAccess, Visitor},
+    Serialize,
     ser::{SerializeMap, Serializer},
 };
 
@@ -73,7 +72,7 @@ pub struct DescriptionList {
 ///     !item.description.is_empty()  // Note: singular 'description'
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct DescriptionListItem {
     /// Optional anchors (IDs) attached to this item.
@@ -280,200 +279,5 @@ impl Serialize for CalloutListItem {
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
-    }
-}
-
-// =============================================================================
-// Deserialization
-// =============================================================================
-
-impl<'de> Deserialize<'de> for ListItem {
-    fn deserialize<D>(deserializer: D) -> Result<ListItem, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct ListItemVisitor;
-
-        impl<'de> Visitor<'de> for ListItemVisitor {
-            type Value = ListItem;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing ListItem")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<ListItem, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_principal = None;
-                let mut my_blocks = None;
-                let mut my_checked = None;
-                let mut my_location = None;
-                let mut my_marker = None;
-
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "principal" => {
-                            if my_principal.is_some() {
-                                return Err(de::Error::duplicate_field("principal"));
-                            }
-                            my_principal = Some(map.next_value()?);
-                        }
-                        "blocks" => {
-                            if my_blocks.is_some() {
-                                return Err(de::Error::duplicate_field("blocks"));
-                            }
-                            my_blocks = Some(map.next_value()?);
-                        }
-                        "marker" => {
-                            if my_marker.is_some() {
-                                return Err(de::Error::duplicate_field("marker"));
-                            }
-                            my_marker = Some(map.next_value::<String>()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        "checked" => {
-                            if my_checked.is_some() {
-                                return Err(de::Error::duplicate_field("checked"));
-                            }
-                            my_checked = Some(map.next_value::<bool>()?);
-                        }
-                        _ => {
-                            tracing::debug!(?key, "ignoring unexpected field in ListItem");
-                            // Ignore any other fields
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-                let marker = my_marker.ok_or_else(|| de::Error::missing_field("marker"))?;
-                let principal =
-                    my_principal.ok_or_else(|| de::Error::missing_field("principal"))?;
-                let blocks = my_blocks.unwrap_or_default();
-                let level =
-                    ListLevel::try_from(ListItem::parse_depth_from_marker(&marker).unwrap_or(1))
-                        .map_err(|e| {
-                            de::Error::custom(format!("invalid list item level from marker: {e}",))
-                        })?;
-                let checked = my_checked.map(|c| {
-                    if c {
-                        ListItemCheckedStatus::Checked
-                    } else {
-                        ListItemCheckedStatus::Unchecked
-                    }
-                });
-                Ok(ListItem {
-                    level,
-                    marker,
-                    location: my_location.ok_or_else(|| de::Error::missing_field("location"))?,
-                    principal,
-                    blocks,
-                    checked,
-                })
-            }
-        }
-        deserializer.deserialize_map(ListItemVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for ListItemCheckedStatus {
-    fn deserialize<D>(deserializer: D) -> Result<ListItemCheckedStatus, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct ListItemCheckedStatusVisitor;
-
-        impl Visitor<'_> for ListItemCheckedStatusVisitor {
-            type Value = ListItemCheckedStatus;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a boolean representing checked status")
-            }
-
-            fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                if v {
-                    Ok(ListItemCheckedStatus::Checked)
-                } else {
-                    Ok(ListItemCheckedStatus::Unchecked)
-                }
-            }
-        }
-
-        deserializer.deserialize_bool(ListItemCheckedStatusVisitor)
-    }
-}
-
-impl<'de> Deserialize<'de> for CalloutListItem {
-    fn deserialize<D>(deserializer: D) -> Result<CalloutListItem, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct CalloutListItemVisitor;
-
-        impl<'de> Visitor<'de> for CalloutListItemVisitor {
-            type Value = CalloutListItem;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a struct representing CalloutListItem")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<CalloutListItem, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut my_callout = None;
-                let mut my_principal = None;
-                let mut my_blocks = None;
-                let mut my_location = None;
-
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "callout" => {
-                            if my_callout.is_some() {
-                                return Err(de::Error::duplicate_field("callout"));
-                            }
-                            my_callout = Some(map.next_value()?);
-                        }
-                        "principal" => {
-                            if my_principal.is_some() {
-                                return Err(de::Error::duplicate_field("principal"));
-                            }
-                            my_principal = Some(map.next_value()?);
-                        }
-                        "blocks" => {
-                            if my_blocks.is_some() {
-                                return Err(de::Error::duplicate_field("blocks"));
-                            }
-                            my_blocks = Some(map.next_value()?);
-                        }
-                        "location" => {
-                            if my_location.is_some() {
-                                return Err(de::Error::duplicate_field("location"));
-                            }
-                            my_location = Some(map.next_value()?);
-                        }
-                        _ => {
-                            tracing::debug!(?key, "ignoring unexpected field in CalloutListItem");
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                Ok(CalloutListItem {
-                    callout: my_callout.ok_or_else(|| de::Error::missing_field("callout"))?,
-                    principal: my_principal.ok_or_else(|| de::Error::missing_field("principal"))?,
-                    blocks: my_blocks.unwrap_or_default(),
-                    location: my_location.ok_or_else(|| de::Error::missing_field("location"))?,
-                })
-            }
-        }
-        deserializer.deserialize_map(CalloutListItemVisitor)
     }
 }

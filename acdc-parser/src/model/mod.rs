@@ -2,8 +2,7 @@
 use std::{fmt::Display, str::FromStr, string::ToString};
 
 use serde::{
-    Deserialize, Serialize,
-    de::{self, Deserializer},
+    Serialize,
     ser::{SerializeMap, Serializer},
 };
 
@@ -40,20 +39,15 @@ pub use tables::{
 pub use title::{Subtitle, Title};
 
 /// A `Document` represents the root of an `AsciiDoc` document.
-#[derive(Default, Debug, PartialEq, Deserialize)]
+#[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document {
     pub(crate) name: String,
     pub(crate) r#type: String,
-    #[serde(default)]
     pub header: Option<Header>,
-    #[serde(default, skip_serializing_if = "DocumentAttributes::is_empty")]
     pub attributes: DocumentAttributes,
-    #[serde(default)]
     pub blocks: Vec<Block>,
-    #[serde(skip)]
     pub footnotes: Vec<Footnote>,
-    #[serde(skip)]
     pub toc_entries: Vec<TocEntry>,
     pub location: Location,
 }
@@ -62,36 +56,32 @@ pub struct Document {
 ///
 /// The header contains the title, subtitle, authors, and optional metadata
 /// (such as ID and roles) that can be applied to the document title.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Header {
-    #[serde(default, skip_serializing_if = "BlockMetadata::is_default")]
+    #[serde(skip_serializing_if = "BlockMetadata::is_default")]
     pub metadata: BlockMetadata,
-    #[serde(default, skip_serializing_if = "Title::is_empty")]
+    #[serde(skip_serializing_if = "Title::is_empty")]
     pub title: Title,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<Subtitle>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub authors: Vec<Author>,
     pub location: Location,
 }
 
 /// An `Author` represents the author of a document.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Author {
     #[serde(rename = "firstname")]
     pub first_name: String,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        rename = "middlename"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "middlename")]
     pub middle_name: Option<String>,
     #[serde(rename = "lastname")]
     pub last_name: String,
     pub initials: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "address")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "address")]
     pub email: Option<String>,
 }
 
@@ -445,7 +435,7 @@ impl DelimitedBlock {
 }
 
 /// Notation type for mathematical expressions.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StemNotation {
     Latexmath,
@@ -474,7 +464,7 @@ impl FromStr for StemNotation {
 }
 
 /// Content of a stem block with math notation.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct StemContent {
     pub content: String,
@@ -526,7 +516,7 @@ impl StemContent {
 /// Variants are prefixed with `Delimited` to disambiguate from potential future
 /// non-delimited block types and to make pattern matching more explicit.
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum DelimitedBlockType {
     /// Comment block content (not rendered in output).
@@ -676,412 +666,5 @@ impl Serialize for Paragraph {
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
-    }
-}
-
-// =============================================================================
-// Block Deserialization Infrastructure
-// =============================================================================
-
-/// Raw field collector for Block deserialization.
-/// Uses derived Deserialize to handle JSON field parsing, then dispatches to constructors.
-#[derive(Default, Deserialize)]
-#[serde(default)]
-struct RawBlockFields {
-    name: Option<String>,
-    r#type: Option<String>,
-    value: Option<String>,
-    form: Option<String>,
-    target: Option<String>,
-    source: Option<Source>,
-    sources: Option<Vec<Source>>,
-    delimiter: Option<String>,
-    reftext: Option<String>,
-    id: Option<String>,
-    title: Option<Vec<InlineNode>>,
-    anchors: Option<Vec<Anchor>>,
-    level: Option<SectionLevel>,
-    metadata: Option<BlockMetadata>,
-    variant: Option<String>,
-    content: Option<serde_json::Value>,
-    notation: Option<serde_json::Value>,
-    blocks: Option<serde_json::Value>,
-    inlines: Option<Vec<InlineNode>>,
-    marker: Option<String>,
-    items: Option<serde_json::Value>,
-    location: Option<Location>,
-}
-
-/// Helper to parse `Vec<Block>` from `serde_json::Value`
-fn parse_blocks<E: de::Error>(value: Option<serde_json::Value>) -> Result<Vec<Block>, E> {
-    match value {
-        Some(serde_json::Value::Array(arr)) => arr
-            .into_iter()
-            .map(|v| serde_json::from_value(v).map_err(E::custom))
-            .collect(),
-        Some(_) => Err(E::custom("blocks must be an array")),
-        None => Ok(Vec::new()),
-    }
-}
-
-/// Helper to require `Vec<Block>` from `serde_json::Value`
-fn require_blocks<E: de::Error>(value: Option<serde_json::Value>) -> Result<Vec<Block>, E> {
-    match value {
-        Some(serde_json::Value::Array(arr)) => arr
-            .into_iter()
-            .map(|v| serde_json::from_value(v).map_err(E::custom))
-            .collect(),
-        Some(_) => Err(E::custom("blocks must be an array")),
-        None => Err(E::missing_field("blocks")),
-    }
-}
-
-/// Helper to parse `Vec<ListItem>` from `serde_json::Value`
-fn parse_list_items<E: de::Error>(value: Option<serde_json::Value>) -> Result<Vec<ListItem>, E> {
-    match value {
-        Some(serde_json::Value::Array(arr)) => arr
-            .into_iter()
-            .map(|v| serde_json::from_value(v).map_err(E::custom))
-            .collect(),
-        Some(_) => Err(E::custom("items must be an array")),
-        None => Err(E::missing_field("items")),
-    }
-}
-
-/// Helper to parse `Vec<CalloutListItem>` from `serde_json::Value`
-fn parse_callout_list_items<E: de::Error>(
-    value: Option<serde_json::Value>,
-) -> Result<Vec<CalloutListItem>, E> {
-    match value {
-        Some(serde_json::Value::Array(arr)) => arr
-            .into_iter()
-            .map(|v| serde_json::from_value(v).map_err(E::custom))
-            .collect(),
-        Some(_) => Err(E::custom("items must be an array")),
-        None => Err(E::missing_field("items")),
-    }
-}
-
-/// Helper to parse `Vec<DescriptionListItem>` from `serde_json::Value`
-fn parse_dlist_items<E: de::Error>(
-    value: Option<serde_json::Value>,
-) -> Result<Vec<DescriptionListItem>, E> {
-    match value {
-        Some(serde_json::Value::Array(arr)) => arr
-            .into_iter()
-            .map(|v| serde_json::from_value(v).map_err(E::custom))
-            .collect(),
-        Some(_) => Err(E::custom("items must be an array")),
-        None => Err(E::missing_field("items")),
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Per-variant Block constructors
-// -----------------------------------------------------------------------------
-
-fn construct_section<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    Ok(Block::Section(Section {
-        metadata: raw.metadata.unwrap_or_default(),
-        title: raw.title.unwrap_or_default().into(),
-        level: raw.level.ok_or_else(|| E::missing_field("level"))?,
-        content: parse_blocks(raw.blocks)?,
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_paragraph<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    Ok(Block::Paragraph(Paragraph {
-        metadata: raw.metadata.unwrap_or_default(),
-        title: raw.title.unwrap_or_default().into(),
-        content: raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_image<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
-    if form != "macro" {
-        return Err(E::custom(format!("unexpected form: {form}")));
-    }
-    Ok(Block::Image(Image {
-        title: raw.title.unwrap_or_default().into(),
-        source: raw.source.ok_or_else(|| E::missing_field("source"))?,
-        metadata: raw.metadata.unwrap_or_default(),
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_audio<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
-    if form != "macro" {
-        return Err(E::custom(format!("unexpected form: {form}")));
-    }
-    Ok(Block::Audio(Audio {
-        title: raw.title.unwrap_or_default().into(),
-        source: raw.source.ok_or_else(|| E::missing_field("source"))?,
-        metadata: raw.metadata.unwrap_or_default(),
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_video<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let sources = if let Some(sources_value) = raw.sources {
-        sources_value
-    } else {
-        // Fallback to simplified format with target
-        let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
-        if form != "macro" {
-            return Err(E::custom(format!("unexpected form: {form}")));
-        }
-        let target = raw.target.ok_or_else(|| E::missing_field("target"))?;
-        let source = Source::from_str(&target).map_err(E::custom)?;
-        vec![source]
-    };
-    Ok(Block::Video(Video {
-        title: raw.title.unwrap_or_default().into(),
-        sources,
-        metadata: raw.metadata.unwrap_or_default(),
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_break<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
-    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
-    match variant.as_str() {
-        "page" => Ok(Block::PageBreak(PageBreak {
-            title: raw.title.unwrap_or_default().into(),
-            metadata: raw.metadata.unwrap_or_default(),
-            location,
-        })),
-        "thematic" => Ok(Block::ThematicBreak(ThematicBreak {
-            title: raw.title.unwrap_or_default().into(),
-            anchors: raw.anchors.unwrap_or_default(),
-            location,
-        })),
-        _ => Err(E::custom(format!("unexpected 'break' variant: {variant}"))),
-    }
-}
-
-fn construct_heading<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    Ok(Block::DiscreteHeader(DiscreteHeader {
-        title: raw.title.unwrap_or_default().into(),
-        level: raw.level.ok_or_else(|| E::missing_field("level"))?,
-        metadata: raw.metadata.unwrap_or_default(),
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_toc<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    Ok(Block::TableOfContents(TableOfContents {
-        metadata: raw.metadata.unwrap_or_default(),
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_comment<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let content = match raw.content {
-        Some(serde_json::Value::String(s)) => s,
-        Some(_) => return Err(E::custom("comment content must be a string")),
-        None => String::new(),
-    };
-    Ok(Block::Comment(Comment {
-        content,
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_admonition<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
-    Ok(Block::Admonition(Admonition {
-        metadata: raw.metadata.unwrap_or_default(),
-        variant: AdmonitionVariant::from_str(&variant).map_err(E::custom)?,
-        blocks: require_blocks(raw.blocks)?,
-        title: raw.title.unwrap_or_default().into(),
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_dlist<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    Ok(Block::DescriptionList(DescriptionList {
-        title: raw.title.unwrap_or_default().into(),
-        metadata: raw.metadata.unwrap_or_default(),
-        items: parse_dlist_items(raw.items)?,
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-fn construct_list<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    let variant = raw.variant.ok_or_else(|| E::missing_field("variant"))?;
-    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
-    let title: Title = raw.title.unwrap_or_default().into();
-    let metadata = raw.metadata.unwrap_or_default();
-
-    match variant.as_str() {
-        "unordered" => {
-            let items = parse_list_items(raw.items)?;
-            Ok(Block::UnorderedList(UnorderedList {
-                title,
-                metadata,
-                marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
-                items,
-                location,
-            }))
-        }
-        "ordered" => {
-            let items = parse_list_items(raw.items)?;
-            Ok(Block::OrderedList(OrderedList {
-                title,
-                metadata,
-                marker: raw.marker.ok_or_else(|| E::missing_field("marker"))?,
-                items,
-                location,
-            }))
-        }
-        "callout" => {
-            let items = parse_callout_list_items(raw.items)?;
-            Ok(Block::CalloutList(CalloutList {
-                title,
-                metadata,
-                items,
-                location,
-            }))
-        }
-        _ => Err(E::custom(format!("unexpected 'list' variant: {variant}"))),
-    }
-}
-
-fn construct_delimited<E: de::Error>(name: &str, raw: RawBlockFields) -> Result<Block, E> {
-    let form = raw.form.ok_or_else(|| E::missing_field("form"))?;
-    if form != "delimited" {
-        return Err(E::custom(format!("unexpected form: {form}")));
-    }
-    let delimiter = raw.delimiter.ok_or_else(|| E::missing_field("delimiter"))?;
-    let location = raw.location.ok_or_else(|| E::missing_field("location"))?;
-    let metadata = raw.metadata.unwrap_or_default();
-    let title: Title = raw.title.unwrap_or_default().into();
-
-    let inner = match name {
-        "example" => DelimitedBlockType::DelimitedExample(require_blocks(raw.blocks)?),
-        "sidebar" => DelimitedBlockType::DelimitedSidebar(require_blocks(raw.blocks)?),
-        "open" => DelimitedBlockType::DelimitedOpen(require_blocks(raw.blocks)?),
-        "quote" => DelimitedBlockType::DelimitedQuote(require_blocks(raw.blocks)?),
-        "verse" => DelimitedBlockType::DelimitedVerse(
-            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
-        ),
-        "listing" => DelimitedBlockType::DelimitedListing(
-            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
-        ),
-        "literal" => DelimitedBlockType::DelimitedLiteral(
-            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
-        ),
-        "pass" => DelimitedBlockType::DelimitedPass(
-            raw.inlines.ok_or_else(|| E::missing_field("inlines"))?,
-        ),
-        "stem" => {
-            let serde_json::Value::String(content) =
-                raw.content.ok_or_else(|| E::missing_field("content"))?
-            else {
-                return Err(E::custom("content must be a string"));
-            };
-            let notation = match raw.notation {
-                Some(serde_json::Value::String(n)) => {
-                    StemNotation::from_str(&n).map_err(E::custom)?
-                }
-                Some(
-                    serde_json::Value::Null
-                    | serde_json::Value::Bool(_)
-                    | serde_json::Value::Number(_)
-                    | serde_json::Value::Array(_)
-                    | serde_json::Value::Object(_),
-                )
-                | None => StemNotation::Latexmath,
-            };
-            DelimitedBlockType::DelimitedStem(StemContent { content, notation })
-        }
-        "table" => {
-            let table =
-                serde_json::from_value(raw.content.ok_or_else(|| E::missing_field("content"))?)
-                    .map_err(|e| {
-                        tracing::error!("content must be compatible with `Table` type: {e}");
-                        E::custom("content must be compatible with `Table` type")
-                    })?;
-            DelimitedBlockType::DelimitedTable(table)
-        }
-        _ => return Err(E::custom(format!("unexpected delimited block: {name}"))),
-    };
-
-    Ok(Block::DelimitedBlock(DelimitedBlock {
-        metadata,
-        inner,
-        delimiter,
-        title,
-        location,
-    }))
-}
-
-fn construct_document_attribute<E: de::Error>(name: &str, raw: RawBlockFields) -> Result<Block, E> {
-    let value = if let Some(value) = raw.value {
-        if value.is_empty() {
-            AttributeValue::None
-        } else if value.eq_ignore_ascii_case("true") {
-            AttributeValue::Bool(true)
-        } else if value.eq_ignore_ascii_case("false") {
-            AttributeValue::Bool(false)
-        } else {
-            AttributeValue::String(value)
-        }
-    } else {
-        AttributeValue::None
-    };
-    Ok(Block::DocumentAttribute(DocumentAttribute {
-        name: name.to_string(),
-        value,
-        location: raw.location.ok_or_else(|| E::missing_field("location"))?,
-    }))
-}
-
-/// Dispatch to the appropriate Block constructor based on name/type
-fn dispatch_block<E: de::Error>(raw: RawBlockFields) -> Result<Block, E> {
-    // Take ownership of name/type for dispatch, avoiding borrow issues
-    let name = raw.name.clone().ok_or_else(|| E::missing_field("name"))?;
-    let ty = raw.r#type.clone().ok_or_else(|| E::missing_field("type"))?;
-
-    match (name.as_str(), ty.as_str()) {
-        ("section", "block") => construct_section(raw),
-        ("paragraph", "block") => construct_paragraph(raw),
-        ("image", "block") => construct_image(raw),
-        ("audio", "block") => construct_audio(raw),
-        ("video", "block") => construct_video(raw),
-        ("break", "block") => construct_break(raw),
-        ("heading", "block") => construct_heading(raw),
-        ("toc", "block") => construct_toc(raw),
-        ("comment", "block") => construct_comment(raw),
-        ("admonition", "block") => construct_admonition(raw),
-        ("dlist", "block") => construct_dlist(raw),
-        ("list", "block") => construct_list(raw),
-        // Delimited blocks
-        (
-            "example" | "sidebar" | "open" | "quote" | "verse" | "listing" | "literal" | "pass"
-            | "stem" | "table",
-            "block",
-        ) => construct_delimited(&name, raw),
-        // Document attribute (type != "block")
-        (_, "attribute") => construct_document_attribute(&name, raw),
-        _ => Err(E::custom(format!(
-            "unexpected name/type combination: {name}/{ty}"
-        ))),
-    }
-}
-
-impl<'de> Deserialize<'de> for Block {
-    fn deserialize<D>(deserializer: D) -> Result<Block, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Deserialize into RawBlockFields using derived Deserialize, then dispatch
-        let raw: RawBlockFields = RawBlockFields::deserialize(deserializer)?;
-        dispatch_block(raw)
     }
 }

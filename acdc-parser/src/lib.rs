@@ -372,35 +372,37 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
+    fn read_file_contents_with_extension(
+        path: &std::path::PathBuf,
+        ext: &str,
+    ) -> Result<String, Error> {
+        let test_file_path = path.with_extension(ext);
+        let file_contents = std::fs::read_to_string(&test_file_path).inspect_err(
+            |e| tracing::warn!(?path, ?test_file_path, error = %e, "test file not found"),
+        )?;
+        Ok(file_contents)
+    }
+
     #[rstest::rstest]
     #[tracing_test::traced_test]
     fn test_with_fixtures(
         #[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf,
     ) -> Result<(), Error> {
-        let test_file_path = path.with_extension("json");
         let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
 
-        // We do this check because we have files that won't have a test file, namely ones
-        // that are supposed to error out!
-        if test_file_path.exists() {
-            let test_file_contents = std::fs::read_to_string(test_file_path)?;
-            match parse_file(&path, &options) {
-                Ok(result) => {
-                    let result_str =
-                        serde_json::to_string(&result).expect("could not serialize result");
-                    let test: Document = serde_json::from_str(&test_file_contents)
-                        .expect("could not deserialize test");
-                    let test_str = serde_json::to_string(&test).expect("could not serialize test");
-                    assert_eq!(test_str, result_str);
-                }
-                Err(e) => {
-                    let test: Error = serde_json::from_str(&test_file_contents)
-                        .expect("could not deserialize test");
-                    assert_eq!(test.to_string(), e.to_string());
-                }
+        match parse_file(&path, &options) {
+            Ok(result) => {
+                let expected = read_file_contents_with_extension(&path, "json")?;
+                let actual =
+                    serde_json::to_string_pretty(&result).expect("could not serialize result");
+                assert_eq!(expected, actual);
             }
-        } else {
-            tracing::warn!(?path, "test file not found");
+            Err(e) => {
+                let file_contents = read_file_contents_with_extension(&path, "error")?;
+                // Error fixtures contain expected error message as plain text
+                let expected = file_contents.trim();
+                assert_eq!(expected, e.to_string());
+            }
         }
         Ok(())
     }

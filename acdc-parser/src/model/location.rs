@@ -1,6 +1,5 @@
 use serde::{
-    Deserialize, Serialize,
-    de::{SeqAccess, Visitor},
+    Serialize,
     ser::{SerializeSeq, Serializer},
 };
 
@@ -131,41 +130,6 @@ impl Serialize for Location {
     }
 }
 
-impl<'de> Deserialize<'de> for Location {
-    fn deserialize<D>(deserializer: D) -> Result<Location, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct LocationVisitor;
-
-        impl<'de> Visitor<'de> for LocationVisitor {
-            type Value = Location;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a sequence of two elements")
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: SeqAccess<'de>,
-            {
-                let start = seq
-                    .next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let end = seq
-                    .next_element()?
-                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                Ok(Location {
-                    start,
-                    end,
-                    ..Location::default()
-                })
-            }
-        }
-        deserializer.deserialize_seq(LocationVisitor)
-    }
-}
-
 impl std::fmt::Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -180,7 +144,7 @@ impl std::fmt::Display for Location {
 ///
 /// This is purely for display/error reporting purposes. For byte offsets,
 /// use `Location.absolute_start` and `Location.absolute_end`.
-#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Hash, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Position {
     /// The line number of the position (1-indexed).

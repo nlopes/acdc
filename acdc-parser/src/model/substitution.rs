@@ -43,12 +43,12 @@
 //! 3. Converter reads the substitution list from AST
 //! 4. Converter applies remaining substitutions during rendering
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{AttributeValue, DocumentAttributes};
 
 /// A `Substitution` represents a substitution in a passthrough macro.
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Substitution {

@@ -1,7 +1,6 @@
 use rustc_hash::FxHashMap;
 use serde::{
-    Deserialize, Serialize,
-    de::Deserializer,
+    Serialize,
     ser::{SerializeMap, Serializer},
 };
 
@@ -108,21 +107,6 @@ impl Serialize for AttributeMap {
     }
 }
 
-impl<'de> Deserialize<'de> for AttributeMap {
-    fn deserialize<D>(deserializer: D) -> Result<AttributeMap, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let explicit = FxHashMap::deserialize(deserializer).unwrap_or_default();
-        // When deserializing, explicit attributes are the only ones we have
-        // Defaults will be added by DocumentAttributes::deserialize
-        Ok(AttributeMap {
-            all: explicit.clone(),
-            explicit,
-        })
-    }
-}
-
 /// Document-level attributes with universal defaults.
 ///
 /// These attributes apply to the entire document and include defaults for
@@ -200,26 +184,6 @@ impl Serialize for DocumentAttributes {
         S: Serializer,
     {
         self.0.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for DocumentAttributes {
-    fn deserialize<D>(deserializer: D) -> Result<DocumentAttributes, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut map = AttributeMap::deserialize(deserializer)?;
-
-        // Re-apply defaults after deserialization
-        // This ensures defaults are available at runtime even though they weren't serialized
-        for (name, value) in crate::constants::default_attributes() {
-            map.all
-                .entry(name)
-                .and_modify(|v| *v = value.clone())
-                .or_insert(value.clone());
-        }
-
-        Ok(DocumentAttributes(map))
     }
 }
 
@@ -308,22 +272,13 @@ impl Serialize for ElementAttributes {
     }
 }
 
-impl<'de> Deserialize<'de> for ElementAttributes {
-    fn deserialize<D>(deserializer: D) -> Result<ElementAttributes, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        AttributeMap::deserialize(deserializer).map(ElementAttributes)
-    }
-}
-
 /// An `AttributeName` represents the name of an attribute in a document.
 pub type AttributeName = String;
 
 /// An `AttributeValue` represents the value of an attribute in a document.
 ///
 /// An attribute value can be a string, a boolean, or nothing
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum AttributeValue {

@@ -1,10 +1,6 @@
 use std::ops::Deref;
 
-use serde::{
-    Deserialize, Serialize,
-    de::{Deserializer, SeqAccess, Visitor},
-    ser::Serializer,
-};
+use serde::{Serialize, ser::Serializer};
 
 use super::inlines::InlineNode;
 
@@ -51,36 +47,6 @@ impl Serialize for Title {
         S: Serializer,
     {
         self.0.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Title {
-    fn deserialize<D>(deserializer: D) -> Result<Title, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct TitleVisitor;
-
-        impl<'de> Visitor<'de> for TitleVisitor {
-            type Value = Title;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a sequence of inline nodes")
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Title, A::Error>
-            where
-                A: SeqAccess<'de>,
-            {
-                let mut inlines = Vec::new();
-                while let Some(node) = seq.next_element()? {
-                    inlines.push(node);
-                }
-                Ok(Title(inlines))
-            }
-        }
-
-        deserializer.deserialize_seq(TitleVisitor)
     }
 }
 

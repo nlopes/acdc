@@ -1,19 +1,17 @@
 //! Anchor and reference types for `AsciiDoc` documents.
 
 use serde::{
-    Deserialize, Serialize,
-    de::{self, Deserializer, MapAccess, Visitor},
+    Serialize,
     ser::{SerializeMap, Serializer},
 };
 
-use super::inlines::InlineNode;
 use super::location::Location;
 use super::title::Title;
 
 /// An `Anchor` represents an anchor in a document.
 ///
 /// An anchor is a reference point in a document that can be linked to.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Anchor {
     pub id: String,
@@ -70,53 +68,5 @@ impl Serialize for TocEntry {
             state.serialize_entry("xreflabel", &self.xreflabel)?;
         }
         state.end()
-    }
-}
-
-impl<'de> Deserialize<'de> for TocEntry {
-    fn deserialize<D>(deserializer: D) -> Result<TocEntry, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct TocEntryVisitor;
-
-        impl<'de> Visitor<'de> for TocEntryVisitor {
-            type Value = TocEntry;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("struct TocEntry")
-            }
-
-            fn visit_map<V>(self, mut map: V) -> Result<TocEntry, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut id = None;
-                let mut title: Option<Vec<InlineNode>> = None;
-                let mut level = None;
-                let mut xreflabel = None;
-
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "id" => id = Some(map.next_value()?),
-                        "title" => title = Some(map.next_value()?),
-                        "level" => level = Some(map.next_value()?),
-                        "xreflabel" => xreflabel = Some(map.next_value()?),
-                        _ => {
-                            let _ = map.next_value::<de::IgnoredAny>()?;
-                        }
-                    }
-                }
-
-                Ok(TocEntry {
-                    id: id.ok_or_else(|| de::Error::missing_field("id"))?,
-                    title: title.unwrap_or_default().into(),
-                    level: level.ok_or_else(|| de::Error::missing_field("level"))?,
-                    xreflabel,
-                })
-            }
-        }
-
-        deserializer.deserialize_map(TocEntryVisitor)
     }
 }

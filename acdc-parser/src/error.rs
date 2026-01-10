@@ -1,11 +1,9 @@
 use std::{fmt, path::PathBuf};
 
-use serde::Deserialize;
-
 use crate::model::{Location, Position, SectionLevel};
 
 #[non_exhaustive]
-#[derive(thiserror::Error, Debug, Deserialize)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Invalid include path: {1}, position: {0}")]
     InvalidIncludePath(Box<SourceLocation>, PathBuf),
@@ -20,7 +18,6 @@ pub enum Error {
     PegParse(Box<SourceLocation>, String),
 
     #[error("Parsing error: {0}")]
-    #[serde(skip_deserializing)]
     ParseGrammar(#[from] peg::error::ParseError<peg::str::LineCol>),
 
     #[error("section level mismatch: {1} (expected '{2}'), position: {0}")]
@@ -45,15 +42,12 @@ pub enum Error {
     InvalidLevelOffset(Box<SourceLocation>, String),
 
     #[error("I/O error: {0}")]
-    #[serde(skip_deserializing)]
     Io(#[from] std::io::Error),
 
     #[error("URL error: {0}")]
-    #[serde(skip_deserializing)]
     Url(#[from] url::ParseError),
 
     #[error("ParseInt error: {0}")]
-    #[serde(skip_deserializing)]
     ParseInt(#[from] std::num::ParseIntError),
 
     #[error("Invalid ifeval directive, position: {0}")]
@@ -76,7 +70,6 @@ pub enum Error {
     NetworkDisabled,
 
     #[error("Could not convert from int: {0}")]
-    #[serde(skip_deserializing)]
     TryFromIntError(#[from] std::num::TryFromIntError),
 
     #[error("Non-conforming manpage title: {1}, position: {0}")]
@@ -188,7 +181,7 @@ impl Error {
 }
 
 /// Positioning information - either a full Location with start/end or a single Position
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq)]
 pub enum Positioning {
     Location(Location),
     Position(Position),
@@ -210,10 +203,9 @@ impl fmt::Display for Positioning {
 }
 
 /// Source location information combining file path and positioning
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SourceLocation {
-    #[serde(skip)]
     pub file: Option<PathBuf>,
     pub positioning: Positioning,
 }
