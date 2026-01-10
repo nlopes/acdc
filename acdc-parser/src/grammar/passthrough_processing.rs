@@ -199,6 +199,7 @@ pub(crate) fn process_passthrough_with_quotes(
             vec![InlineNode::PlainText(Plain {
                 content: content.to_string(),
                 location: passthrough.location.clone(),
+                escaped: false,
             })]
         } else {
             vec![InlineNode::RawText(Raw {
@@ -258,6 +259,7 @@ pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
                         current_offset,
                         current_offset + before_content.len(),
                     ),
+                    escaped: false,
                 }));
                 current_offset += before_content.len();
             }
@@ -271,6 +273,7 @@ pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
             let inner_content = InlineNode::PlainText(Plain {
                 content: markup_match.content.clone(),
                 location: inner_location,
+                escaped: false,
             });
 
             // Create outer location
@@ -300,6 +303,7 @@ pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
                             current_offset,
                             current_offset + remaining.len(),
                         ),
+                        escaped: false,
                     }));
                 }
             }
@@ -397,6 +401,7 @@ pub(crate) fn process_passthrough_placeholders(
                             column: base_location.start.column + processed_offset + before.len(),
                         },
                     },
+                    escaped: false,
                 }));
                 processed_offset += before.len();
             }
@@ -449,6 +454,7 @@ pub(crate) fn process_passthrough_placeholders(
                     },
                     end: base_location.end.clone(),
                 },
+                escaped: false,
             }));
         }
     }
@@ -458,6 +464,7 @@ pub(crate) fn process_passthrough_placeholders(
         result.push(InlineNode::PlainText(Plain {
             content: content.to_string(),
             location: base_location.clone(),
+            escaped: false,
         }));
     }
 

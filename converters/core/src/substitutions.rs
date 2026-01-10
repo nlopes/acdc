@@ -15,23 +15,27 @@ const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
 
 /// Remove backslash escapes from `AsciiDoc` formatting characters and patterns.
 ///
-/// Converts escape sequences like `\^` → `^`, `\~` → `~`, `\\` → `\`, etc.
+/// Converts escape sequences like `\*` → `*`, `\[` → `[`, etc.
 /// Also handles multi-character pattern escapes like `\...`, `\->`, `\--`.
 /// This should only be applied to non-verbatim content - verbatim contexts
 /// (monospace, source blocks, literal blocks) should preserve backslashes.
 ///
 /// # Supported escape sequences
 ///
-/// ## Single characters
+/// ## Single characters (handled here)
 /// - `\*` → `*` (bold marker)
 /// - `\_` → `_` (italic marker)
 /// - `` \` `` → `` ` `` (monospace marker)
 /// - `\#` → `#` (highlight marker)
-/// - `\^` → `^` (superscript marker)
-/// - `\~` → `~` (subscript marker)
-/// - `\\` → `\` (literal backslash)
 /// - `\[` → `[` (attribute/macro opener)
 /// - `\]` → `]` (attribute/macro closer)
+///
+/// ## Single characters (handled by parser, NOT here)
+/// - `\^` → context-aware (only stripped when it prevents superscript)
+/// - `\~` → context-aware (only stripped when it prevents subscript)
+///
+/// Note: `\\` is preserved when not followed by escapable syntax (matching asciidoctor).
+/// Double backslash escaping (e.g., `\\**`) is handled by the parser, not here.
 ///
 /// ## Multi-character patterns (converted to placeholders)
 /// - `\...` → placeholder (prevents ellipsis conversion)
@@ -49,11 +53,13 @@ const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
 /// ```
 /// use acdc_converters_core::substitutions::strip_backslash_escapes;
 ///
-/// assert_eq!(strip_backslash_escapes(r"E=mc\^2"), "E=mc^2");
-/// assert_eq!(strip_backslash_escapes(r"H\~2~O"), "H~2~O");
-/// // Note: \\ is preserved when not followed by escapable syntax (matching asciidoctor)
+/// assert_eq!(strip_backslash_escapes(r"\*bold\*"), "*bold*");
+/// assert_eq!(strip_backslash_escapes(r"\[attr\]"), "[attr]");
+/// // Note: ^ and ~ escapes are handled by the parser (context-aware), not here
+/// assert_eq!(strip_backslash_escapes(r"E=mc\^2"), r"E=mc\^2");
+/// assert_eq!(strip_backslash_escapes(r"H\~2~O"), r"H\~2~O");
+/// // Note: \\ is preserved when not followed by escapable syntax
 /// assert_eq!(strip_backslash_escapes(r"path\\to\\file"), r"path\\to\\file");
-/// // But \\ followed by escapable char is handled by the parser, not here
 /// ```
 #[must_use]
 pub fn strip_backslash_escapes(text: &str) -> String {
@@ -77,10 +83,13 @@ pub fn strip_backslash_escapes(text: &str) -> String {
         // - \\ alone or followed by non-escapable text -> preserved as \\
         // - \\** (double backslash + double marker) is handled by the parser
         //   which produces just ** in the AST, so we never see \\** here
+        // Note: ^ and ~ escapes are handled by the parser (context-aware stripping).
+        // They only get stripped when they actually prevented formatting (e.g., \^super^).
+        // When they don't prevent anything (e.g., \^caret), the parser preserves them.
         if c == '\\'
             && chars
                 .peek()
-                .is_some_and(|&next| matches!(next, '*' | '_' | '`' | '#' | '^' | '~' | '[' | ']'))
+                .is_some_and(|&next| matches!(next, '*' | '_' | '`' | '#' | '[' | ']'))
         {
             // \x -> x (skip backslash, output the character)
             if let Some(escaped) = chars.next() {
@@ -125,17 +134,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_strip_caret_escape() {
-        assert_eq!(strip_backslash_escapes(r"\^"), "^");
-        assert_eq!(strip_backslash_escapes(r"E=mc\^2"), "E=mc^2");
-        assert_eq!(strip_backslash_escapes(r"\^not super^"), "^not super^");
+    fn test_caret_escape_preserved() {
+        // ^ and ~ escapes are now handled by the parser (context-aware stripping).
+        // The converter preserves them as-is - the parser decides what to strip.
+        assert_eq!(strip_backslash_escapes(r"\^"), r"\^");
+        assert_eq!(strip_backslash_escapes(r"E=mc\^2"), r"E=mc\^2");
+        assert_eq!(strip_backslash_escapes(r"\^not super^"), r"\^not super^");
     }
 
     #[test]
-    fn test_strip_tilde_escape() {
-        assert_eq!(strip_backslash_escapes(r"\~"), "~");
-        assert_eq!(strip_backslash_escapes(r"H\~2~O"), "H~2~O");
-        assert_eq!(strip_backslash_escapes(r"\~not sub~"), "~not sub~");
+    fn test_tilde_escape_preserved() {
+        // ~ escapes are now handled by the parser (context-aware stripping).
+        assert_eq!(strip_backslash_escapes(r"\~"), r"\~");
+        assert_eq!(strip_backslash_escapes(r"H\~2~O"), r"H\~2~O");
+        assert_eq!(strip_backslash_escapes(r"\~not sub~"), r"\~not sub~");
     }
 
     #[test]

@@ -639,6 +639,7 @@ fn map_plain_text_inline_locations<'a>(
         Ok(vec![InlineNode::PlainText(Plain {
             content: original_content.clone(),
             location: mapped_location,
+            escaped: plain.escaped,
         })])
     }
 }

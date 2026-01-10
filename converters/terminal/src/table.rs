@@ -126,6 +126,7 @@ mod tests {
         vec![InlineNode::PlainText(Plain {
             content: content.to_string(),
             location: Location::default(),
+            escaped: false,
         })]
     }
 

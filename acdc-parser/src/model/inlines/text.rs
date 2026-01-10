@@ -153,6 +153,10 @@ pub struct Plain {
     #[serde(rename = "value")]
     pub content: String,
     pub location: Location,
+    /// True if content originated from an escaped pattern (e.g., `\^2^`).
+    /// When true, the converter should not re-parse for quotes.
+    #[serde(default, skip_serializing)]
+    pub escaped: bool,
 }
 
 impl Serialize for Plain {

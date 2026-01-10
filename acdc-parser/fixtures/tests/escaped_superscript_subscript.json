@@ -167,11 +167,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Mixed: H\\~2~O and E=mc\\^2^ vs H",
+          "value": "Mixed: H",
           "location": [
             {
               "line": 5,
               "col": 1
+            },
+            {
+              "line": 5,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "~2~",
+          "location": [
+            {
+              "line": 5,
+              "col": 9
+            },
+            {
+              "line": 5,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "O and E=mc",
+          "location": [
+            {
+              "line": 5,
+              "col": 13
+            },
+            {
+              "line": 5,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "^2^",
+          "location": [
+            {
+              "line": 5,
+              "col": 23
+            },
+            {
+              "line": 5,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " vs H",
+          "location": [
+            {
+              "line": 5,
+              "col": 27
             },
             {
               "line": 5,
