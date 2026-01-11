@@ -7,23 +7,29 @@ use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
     InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
-    TableOfContents, ThematicBreak, UnorderedList, VERBATIM, Video,
+    SubstitutionSpec, TableOfContents, ThematicBreak, UnorderedList, VERBATIM, Video,
 };
 
 use crate::{Error, Processor, RenderOptions};
 
 /// Compute effective substitutions for a block.
+///
+/// This function resolves `SubstitutionSpec` to a concrete list of substitutions
+/// using the appropriate baseline for the block type:
+/// - Verbatim blocks (listing, literal): Use `VERBATIM` baseline
+/// - Non-verbatim blocks (paragraph, etc.): Use `NORMAL` baseline
 #[cfg(feature = "pre-spec-subs")]
 #[must_use]
-fn effective_subs(explicit: Option<&[Substitution]>, is_verbatim: bool) -> Vec<Substitution> {
-    let result = match explicit {
-        Some(subs) => subs.to_vec(),
-        None if is_verbatim => VERBATIM.to_vec(),
-        None => NORMAL.to_vec(),
+fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
+    let baseline = if is_verbatim { VERBATIM } else { NORMAL };
+
+    let result = match spec {
+        Some(s) => s.resolve(baseline),
+        None => baseline.to_vec(),
     };
     tracing::debug!(
-        "effective_subs(explicit={:?}, is_verbatim={}) => {:?}",
-        explicit,
+        "effective_subs(spec={:?}, is_verbatim={}) => {:?}",
+        spec,
         is_verbatim,
         result
     );
@@ -33,7 +39,7 @@ fn effective_subs(explicit: Option<&[Substitution]>, is_verbatim: bool) -> Vec<S
 /// Compute effective substitutions for a block (no pre-spec-subs feature).
 #[cfg(not(feature = "pre-spec-subs"))]
 #[must_use]
-fn effective_subs(_explicit: Option<&[Substitution]>, is_verbatim: bool) -> Vec<Substitution> {
+fn effective_subs(_spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
     if is_verbatim {
         VERBATIM.to_vec()
     } else {
@@ -515,8 +521,21 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        // Delegate to the paragraph module
-        crate::paragraph::visit_paragraph(para, self)
+        // Paragraphs with [literal] style are verbatim
+        let is_verbatim = para.metadata.style.as_ref().is_some_and(|s| s == "literal");
+
+        // Compute effective substitutions for this paragraph
+        let original_subs = std::mem::replace(
+            &mut self.current_subs,
+            effective_subs(para.metadata.substitutions.as_ref(), is_verbatim),
+        );
+
+        let result = crate::paragraph::visit_paragraph(para, self);
+
+        // Restore state
+        self.current_subs = original_subs;
+
+        result
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
@@ -528,7 +547,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         // Compute effective substitutions for this block
         let original_subs = std::mem::replace(
             &mut self.current_subs,
-            effective_subs(block.metadata.substitutions.as_deref(), is_verbatim),
+            effective_subs(block.metadata.substitutions.as_ref(), is_verbatim),
         );
 
         // Toggle verbatim mode for verbatim blocks
