@@ -19,6 +19,20 @@ pub enum Backend {
     Manpage,
 }
 
+impl Backend {
+    /// Get the backend name as a string
+    fn as_str(&self) -> &'static str {
+        match self {
+            #[cfg(feature = "html")]
+            Backend::Html => "html",
+            #[cfg(feature = "terminal")]
+            Backend::Terminal => "terminal",
+            #[cfg(feature = "manpage")]
+            Backend::Manpage => "manpage",
+        }
+    }
+}
+
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
@@ -85,7 +99,36 @@ pub struct Args {
     pub embedded: bool,
 }
 
+/// Validate that the requested backend is available (compiled in)
+fn validate_backend(backend: &Backend) -> Result<(), String> {
+    match backend.as_str() {
+        "html" => {
+            #[cfg(feature = "html")]
+            return Ok(());
+            #[cfg(not(feature = "html"))]
+            return Err("HTML backend not available. Recompile with --features html".into());
+        }
+        "terminal" => {
+            #[cfg(feature = "terminal")]
+            return Ok(());
+            #[cfg(not(feature = "terminal"))]
+            return Err("Terminal backend not available. Recompile with --features terminal".into());
+        }
+        "manpage" => {
+            #[cfg(feature = "manpage")]
+            return Ok(());
+            #[cfg(not(feature = "manpage"))]
+            return Err("Manpage backend not available. Recompile with --features manpage".into());
+        }
+        _ => Err(format!("Unknown backend: {}", backend.as_str())),
+    }
+}
+
 pub fn run(args: &Args) -> miette::Result<()> {
+    // Validate backend is available before proceeding
+    validate_backend(&args.backend)
+        .map_err(|e| miette::miette!("{e}"))?;
+
     let safe_mode = if args.safe {
         SafeMode::Safe
     } else {
