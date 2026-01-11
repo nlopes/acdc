@@ -1,0 +1,148 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This has ",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 11
+                },
+                {
+                  "line": 2,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 10
+            },
+            {
+              "line": 2,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 2,
+              "col": 16
+            },
+            {
+              "line": 2,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "emphasis",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "italic",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 22
+                },
+                {
+                  "line": 2,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 21
+            },
+            {
+              "line": 2,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " text.",
+          "location": [
+            {
+              "line": 2,
+              "col": 29
+            },
+            {
+              "line": 2,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-quotes"
+        ]
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 34
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 34
+    }
+  ]
+}

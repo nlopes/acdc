@@ -1,45 +1,40 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "attribute": "a *bold* attribute"
-  },
   "blocks": [
     {
-      "name": "listing",
+      "name": "paragraph",
       "type": "block",
-      "form": "delimited",
-      "delimiter": "----",
-      "metadata": {
-        "substitutions": [
-          "+attributes"
-        ]
-      },
       "inlines": [
         {
           "name": "text",
           "type": "string",
-          "value": "Content with {attribute}",
+          "value": "This has a <1> callout marker.",
           "location": [
             {
-              "line": 5,
+              "line": 2,
               "col": 1
             },
             {
-              "line": 5,
-              "col": 24
+              "line": 2,
+              "col": 30
             }
           ]
         }
       ],
+      "metadata": {
+        "substitutions": [
+          "+callouts"
+        ]
+      },
       "location": [
         {
-          "line": 3,
+          "line": 1,
           "col": 1
         },
         {
-          "line": 6,
-          "col": 4
+          "line": 2,
+          "col": 30
         }
       ]
     }
@@ -50,8 +45,8 @@
       "col": 1
     },
     {
-      "line": 6,
-      "col": 4
+      "line": 2,
+      "col": 30
     }
   ]
 }

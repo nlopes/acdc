@@ -60,10 +60,10 @@ pub use model::{
     IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
     ListItemCheckedStatus, Location, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak,
     Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role, Section, Source,
-    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution, Subtitle,
-    Superscript, Table, TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
-    UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video, inlines_to_string,
-    substitute,
+    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
+    SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Table, TableColumn, TableOfContents,
+    TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Url, VERBATIM, Verbatim,
+    VerticalAlignment, Video, inlines_to_string, substitute,
 };
 pub use options::{Options, OptionsBuilder, SafeMode};
 

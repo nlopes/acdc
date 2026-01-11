@@ -9,9 +9,7 @@
       "delimiter": "----",
       "metadata": {
         "substitutions": [
-          "special_chars",
-          "callouts",
-          "quotes"
+          "+quotes"
         ]
       },
       "inlines": [

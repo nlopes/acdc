@@ -28,7 +28,7 @@ use crate::{
     },
     model::{
         ListLevel, Locateable, SectionLevel,
-        substitution::{HEADER, VERBATIM, parse_subs_attribute},
+        substitution::{HEADER, parse_subs_attribute},
     },
 };
 
@@ -4693,7 +4693,7 @@ peg::parser! {
                              specification is finalized. \
                              See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
                         );
-                        metadata.substitutions = Some(parse_subs_attribute(&v, VERBATIM));
+                        metadata.substitutions = Some(parse_subs_attribute(&v));
                     } else if let AttributeValue::String(v) = v {
                         // We special case the "title" attribute to capture its position.
                         // An example where this is needed is in the inline image macro.
