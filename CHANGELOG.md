@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Superscript (`^text^`) and subscript (`~text~`) now respect the quotes substitution
+  setting, matching asciidoctor behavior. Previously they always rendered as `<sup>`/`<sub>`
+  even when quotes was disabled (e.g., in listing blocks or with `[subs=-quotes]`).
 - Passthrough content (`pass:[]`, `+++`, `++`, `+`) no longer has attribute references
   incorrectly expanded by the converter. Attribute expansion is now handled solely by
   the parser based on each passthrough's own substitution settings. ([#291])
@@ -88,6 +91,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Paragraphs no longer incorrectly split when a line starts with inline passthrough
   syntax like `+>+`. The list continuation lookahead now only matches actual
   continuation markers (standalone `+` followed by whitespace/EOL/EOF).
+
+### Changed
+
+- **BREAKING**: `BlockMetadata.substitutions` changed from `Option<Vec<Substitution>>`
+  to `Option<SubstitutionSpec>`. New types `SubstitutionSpec` and `SubstitutionOp` are
+  now public exports. Modifier syntax (`+quotes`, `-callouts`) is now stored as operations
+  and resolved by converters with the appropriate baseline (NORMAL vs VERBATIM) rather
+  than being eagerly resolved by the parser.
 
 ### Removed
 
