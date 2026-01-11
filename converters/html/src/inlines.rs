@@ -105,15 +105,15 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
     };
     match node {
         InlineNode::PlainText(p) => {
-            // Apply attribute substitution first, then escaping and typography
-            let content = maybe_substitute_attrs(&p.content);
+            // Attribute substitution already applied by inline preprocessor during parsing
+            let content = &p.content;
 
             // If escaped (from `\^2^` etc.), skip quote re-parsing; otherwise use block subs.
             let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
 
             if effective_subs.contains(&Substitution::Quotes) {
                 // If quotes substitution is enabled, parse for inline formatting
-                let parsed_nodes = parse_text_for_quotes(&content);
+                let parsed_nodes = parse_text_for_quotes(content);
                 // Render parsed nodes without quotes to avoid infinite recursion
                 let no_quotes_subs: Vec<_> = effective_subs
                     .iter()
@@ -125,17 +125,19 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
                 }
             } else {
                 // No quotes substitution - output with escaping and typography only
-                let text = substitution_text(&content, effective_subs, options);
+                let text = substitution_text(content, effective_subs, options);
                 write!(w, "{text}")?;
             }
         }
         InlineNode::RawText(r) => {
-            // RawText outputs as-is (no escaping, no substitutions) unless in verbatim mode
-            let content = maybe_substitute_attrs(&r.content);
+            // RawText comes from passthroughs - attribute expansion was already
+            // handled (or explicitly skipped) by the preprocessor based on the
+            // passthrough's own substitution settings. Do NOT apply block subs.
+            let content = &r.content;
             let text = if options.inlines_verbatim {
-                substitution_text(&content, subs, options)
+                substitution_text(content, subs, options)
             } else {
-                content
+                content.clone()
             };
             write!(w, "{text}")?;
         }

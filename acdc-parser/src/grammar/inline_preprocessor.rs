@@ -445,11 +445,14 @@ parser!(
             };
             let padding = 5 + subs_len + 1 + 1; // "pass:" + subs + "[" + "]"
             let location = state.calculate_location(start, content, padding);
-            let content = if substitutions.contains(&Substitution::Attributes) {
-                    inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.to_string())
-                } else {
-                    content.to_string()
-                };
+            // Normal substitution group includes Attributes, so check for both
+            let content = if substitutions.contains(&Substitution::Attributes)
+                || substitutions.contains(&Substitution::Normal)
+            {
+                inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.to_string())
+            } else {
+                content.to_string()
+            };
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.clone()),
                     substitutions: substitutions.clone(),

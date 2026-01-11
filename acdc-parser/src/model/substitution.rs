@@ -672,6 +672,26 @@ mod tests {
     }
 
     #[test]
+    fn test_substitute_single_pass_expansion() {
+        // Test that the substitute() function does single-pass expansion.
+        // When foo's value is "{bar}", substitute("{foo}") returns the literal
+        // "{bar}" string - it does NOT recursively resolve {bar}.
+        //
+        // This is correct behavior because:
+        // 1. Definition-time resolution is handled separately (in the grammar parser)
+        // 2. The substitute function just replaces one level of references
+        let mut attributes = DocumentAttributes::default();
+        attributes.insert("foo".into(), AttributeValue::String("{bar}".to_string()));
+        attributes.insert(
+            "bar".into(),
+            AttributeValue::String("should-not-appear".to_string()),
+        );
+
+        let resolved = substitute("{foo}", HEADER, &attributes);
+        assert_eq!(resolved, "{bar}");
+    }
+
+    #[test]
     fn test_utf8_boundary_handling() {
         // Regression test for fuzzer-found bug: UTF-8 multi-byte characters
         // should not cause panics during attribute substitution

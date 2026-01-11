@@ -83,4 +83,31 @@ mod tests {
             Some(&AttributeValue::String("value".into()))
         );
     }
+
+    #[test]
+    fn test_definition_time_attribute_expansion() {
+        // When bar is defined before foo, {bar} in foo's value should be expanded
+        let mut attributes = DocumentAttributes::default();
+        parse_line(&mut attributes, ":bar: resolved-bar");
+        parse_line(&mut attributes, ":foo: {bar}");
+
+        // foo should have bar's value expanded at definition time
+        assert_eq!(
+            attributes.get("foo"),
+            Some(&AttributeValue::String("resolved-bar".into()))
+        );
+    }
+
+    #[test]
+    fn test_undefined_attribute_kept_literal() {
+        // When bar is NOT defined when foo is parsed, {bar} should stay literal
+        let mut attributes = DocumentAttributes::default();
+        parse_line(&mut attributes, ":foo: {bar}");
+
+        // foo should keep {bar} as literal since bar wasn't defined
+        assert_eq!(
+            attributes.get("foo"),
+            Some(&AttributeValue::String("{bar}".into()))
+        );
+    }
 }
