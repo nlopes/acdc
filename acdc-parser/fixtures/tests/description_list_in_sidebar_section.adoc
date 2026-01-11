@@ -1,0 +1,14 @@
+= Document Title
+
+== Outer Section
+
+****
+FI:: First term definition.
+Continuation of first term.
+
+#ref:: Second term with hash prefix.
+****
+
+== Next Section
+
+Content here.

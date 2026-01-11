@@ -1,0 +1,11 @@
+= Document Title
+
+term:: This is a definition.
+----
+This is NOT a setext underline - it's a listing block delimiter.
+----
+
+real title
+----------
+
+Paragraph under the setext section.

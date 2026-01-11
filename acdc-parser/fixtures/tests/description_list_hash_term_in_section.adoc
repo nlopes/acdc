@@ -1,0 +1,8 @@
+= Document Title
+
+== Section
+
+#issue-123:: This is an issue reference.
+The issue description continues here.
+
+#bug-456:: Another term starting with hash.

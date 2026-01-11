@@ -82,6 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Description lists with terms starting with `#` (e.g., `#issue-123:: definition`)
+  are no longer incorrectly parsed as section boundaries inside sections. The
+  section boundary detection now requires a space after the level marker.
+- (setext feature) Description list items are no longer matched as potential
+  setext section titles, preventing parse errors when description lists appear
+  before delimiter lines.
 - Attribute references in attribute definitions are now resolved at definition time,
   matching asciidoctor behavior. Previously, `:foo: {bar}` followed by `:bar: value`
   would incorrectly expand `{foo}` to `value`; now `{foo}` correctly outputs `{bar}`

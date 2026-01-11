@@ -1,0 +1,322 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document Title",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 16
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Outer Section",
+          "location": [
+            {
+              "line": 3,
+              "col": 4
+            },
+            {
+              "line": 3,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "sidebar",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "****",
+          "blocks": [
+            {
+              "name": "dlist",
+              "type": "block",
+              "items": [
+                {
+                  "term": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "FI",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 1
+                        },
+                        {
+                          "line": 6,
+                          "col": 2
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
+                  "principal_text": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "First term definition.",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 6
+                        },
+                        {
+                          "line": 6,
+                          "col": 27
+                        }
+                      ]
+                    }
+                  ],
+                  "description": [],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1
+                    },
+                    {
+                      "line": 6,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Continuation of first term.",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "dlist",
+              "type": "block",
+              "items": [
+                {
+                  "term": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "#ref",
+                      "location": [
+                        {
+                          "line": 9,
+                          "col": 1
+                        },
+                        {
+                          "line": 9,
+                          "col": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
+                  "principal_text": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Second term with hash prefix.",
+                      "location": [
+                        {
+                          "line": 9,
+                          "col": 8
+                        },
+                        {
+                          "line": 9,
+                          "col": 36
+                        }
+                      ]
+                    }
+                  ],
+                  "description": [],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 9,
+                      "col": 37
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Next Section",
+          "location": [
+            {
+              "line": 12,
+              "col": 4
+            },
+            {
+              "line": 12,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Content here.",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 14,
+      "col": 13
+    }
+  ]
+}

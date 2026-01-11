@@ -626,8 +626,9 @@ peg::parser! {
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
         = (anchor() / attributes_line() / document_attribute_line() / title_line(offset))*
           (
-            // ATX-style section check
-            level:section_level(offset, parent_section_level)
+            // ATX-style section check - require space after marker to avoid matching
+            // description list items like `#term::` as sections
+            level:section_level(offset, parent_section_level) &" "
             {?
                 if let Some(parent_level) = parent_section_level {
                     let upcoming_level = level.1 + 1; // Convert to 1-based
@@ -647,8 +648,11 @@ peg::parser! {
 
         /// Lookahead rule to detect setext sections at same or higher level.
         /// Used by same_or_higher_level_section to properly terminate sections.
+        /// Excludes description list items (e.g., `term:: content`) which would otherwise
+        /// match as setext titles.
         rule setext_section_lookahead(parent_section_level: Option<SectionLevel>) -> ()
-        = title:$([^'\n']+) eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
+        = !check_start_of_description_list()
+          title:$([^'\n']+) eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
         {?
             // Only check if setext mode is enabled
             if !setext::is_enabled(state) {
@@ -848,8 +852,12 @@ peg::parser! {
             Ok(level)
         }
 
+        /// Parse a setext-style section (title followed by underline).
+        /// Excludes description list items (e.g., `term:: content`) which would otherwise
+        /// match as setext titles.
         pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!()
+        !check_start_of_description_list()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section_setext");
