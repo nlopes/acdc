@@ -19,49 +19,6 @@ pub enum Backend {
     Manpage,
 }
 
-/// Convert Backend enum to its string representation.
-///
-/// This function handles conditional compilation by only matching on
-/// variants that exist at compile time.
-fn backend_to_str(backend: &Backend) -> &'static str {
-    match backend {
-        #[cfg(feature = "html")]
-        Backend::Html => "html",
-        #[cfg(feature = "terminal")]
-        Backend::Terminal => "terminal",
-        #[cfg(feature = "manpage")]
-        Backend::Manpage => "manpage",
-    }
-}
-
-/// Validate that a backend name is available (compiled in).
-///
-/// Returns an error if the backend is not available, providing a helpful
-/// message about which feature flag is needed.
-fn validate_backend(backend: &str) -> Result<(), String> {
-    match backend {
-        "html" => {
-            #[cfg(feature = "html")]
-            return Ok(());
-            #[cfg(not(feature = "html"))]
-            return Err("HTML backend not available. Recompile with --features html".into());
-        }
-        "terminal" => {
-            #[cfg(feature = "terminal")]
-            return Ok(());
-            #[cfg(not(feature = "terminal"))]
-            return Err("Terminal backend not available. Recompile with --features terminal".into());
-        }
-        "manpage" => {
-            #[cfg(feature = "manpage")]
-            return Ok(());
-            #[cfg(not(feature = "manpage"))]
-            return Err("Manpage backend not available. Recompile with --features manpage".into());
-        }
-        _ => Err(format!("Unknown backend: {backend}")),
-    }
-}
-
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
@@ -71,18 +28,7 @@ pub struct Args {
     pub files: Vec<PathBuf>,
 
     /// Backend output format
-    #[arg(
-        long,
-        value_enum,
-        default_value_t = Backend::Html,
-        value_parser = clap::value_parser!(Backend).try_map(|backend: Backend| {
-            // Validate the backend by converting to string and validating
-            // This ensures we catch any backends that shouldn't be available
-            let backend_str = backend_to_str(&backend);
-            validate_backend(backend_str)?;
-            Ok(backend)
-        })
-    )]
+    #[arg(long, value_enum, default_value_t = Backend::Html)]
     pub backend: Backend,
 
     /// Document type to use when converting document
