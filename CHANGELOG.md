@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Passthrough content (`pass:[]`, `+++`, `++`, `+`) no longer has attribute references
+  incorrectly expanded by the converter. Attribute expansion is now handled solely by
+  the parser based on each passthrough's own substitution settings. ([#291])
 - Verbatim blocks (listing/literal) now correctly skip typography replacements by default,
   matching asciidoctor behavior. Previously, smart quotes were incorrectly applied.
 
@@ -69,6 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Attribute references in attribute definitions are now resolved at definition time,
+  matching asciidoctor behavior. Previously, `:foo: {bar}` followed by `:bar: value`
+  would incorrectly expand `{foo}` to `value`; now `{foo}` correctly outputs `{bar}`
+  (the literal value stored when foo was defined, before bar existed). ([#291])
+- `pass:normal[]` and `pass:n[]` passthroughs now correctly expand attribute references.
+  The `normal` substitution group includes `attributes`, but this was previously not
+  being checked. ([#291])
 - Context-aware backslash stripping for `\^` and `\~` escapes now matches asciidoctor
   behavior. Backslashes are only stripped when they prevent actual formatting (e.g.,
   `\^super^`), preserved as literal text when at word boundaries without closing marker
@@ -118,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#279]: https://github.com/nlopes/acdc/issues/279
 [#280]: https://github.com/nlopes/acdc/issues/280
 [#289]: https://github.com/nlopes/acdc/issues/289
+[#291]: https://github.com/nlopes/acdc/issues/291
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 

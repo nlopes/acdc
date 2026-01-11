@@ -509,4 +509,78 @@ mod tests {
             }
         }
     }
+
+    /// Integration tests for attribute resolution behavior.
+    ///
+    /// These tests verify that acdc matches asciidoctor's attribute resolution semantics:
+    /// - Attributes are resolved at definition time (not reference time)
+    /// - If {bar} is undefined when :foo: {bar} is parsed, foo stores literal "{bar}"
+    /// - If {bar} IS defined when :foo: {bar} is parsed, foo stores bar's resolved value
+    mod attribute_resolution_tests {
+        use crate::{AttributeValue, Options, parse};
+
+        #[test]
+        fn test_definition_time_resolution_bar_defined_first() {
+            // When bar is defined BEFORE foo, {bar} in foo's value should be expanded
+            let input = r":bar: resolved-bar
+:foo: {bar}
+
+{foo}
+";
+            let options = Options::default();
+            let doc = parse(input, &options).expect("should parse");
+
+            // foo should have bar's value expanded at definition time
+            assert_eq!(
+                doc.attributes.get("foo"),
+                Some(&AttributeValue::String("resolved-bar".to_string()))
+            );
+        }
+
+        #[test]
+        fn test_definition_time_resolution_bar_defined_after() {
+            // When bar is defined AFTER foo, {bar} should stay literal in foo's value
+            let input = r":foo: {bar}
+:bar: resolved-bar
+
+{foo}
+";
+            let options = Options::default();
+            let doc = parse(input, &options).expect("should parse");
+
+            // foo should keep {bar} as literal since bar wasn't defined yet
+            assert_eq!(
+                doc.attributes.get("foo"),
+                Some(&AttributeValue::String("{bar}".to_string()))
+            );
+        }
+
+        #[test]
+        fn test_chained_attribute_resolution() {
+            // When attributes form a chain: a -> b -> c, each should resolve
+            // based on what's defined at each definition point
+            let input = r":c: final-value
+:b: {c}
+:a: {b}
+
+{a}
+";
+            let options = Options::default();
+            let doc = parse(input, &options).expect("should parse");
+
+            // c is defined first, so b gets "final-value", then a gets "final-value"
+            assert_eq!(
+                doc.attributes.get("c"),
+                Some(&AttributeValue::String("final-value".to_string()))
+            );
+            assert_eq!(
+                doc.attributes.get("b"),
+                Some(&AttributeValue::String("final-value".to_string()))
+            );
+            assert_eq!(
+                doc.attributes.get("a"),
+                Some(&AttributeValue::String("final-value".to_string()))
+            );
+        }
+    }
 }

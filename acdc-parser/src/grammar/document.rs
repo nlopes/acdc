@@ -28,7 +28,7 @@ use crate::{
     },
     model::{
         ListLevel, Locateable, SectionLevel,
-        substitution::{VERBATIM, parse_subs_attribute},
+        substitution::{HEADER, VERBATIM, parse_subs_attribute},
     },
 };
 
@@ -567,6 +567,15 @@ peg::parser! {
         {
             let AttributeEntry{key, value, set} = att;
             tracing::info!(%set, %key, %value, "Found document attribute in the document header");
+            // Apply definition-time substitution: if value contains {attr} references,
+            // expand them using currently defined attributes (matching asciidoctor behavior)
+            let value = match value {
+                AttributeValue::String(s) => {
+                    let substituted = substitute(&s, HEADER, &state.document_attributes);
+                    AttributeValue::String(substituted)
+                }
+                AttributeValue::Bool(_) | AttributeValue::None => value,
+            };
             state.document_attributes.set(key.into(), value);
         }
 
@@ -703,6 +712,14 @@ peg::parser! {
         = start:position!() att:document_attribute_match() end:position!()
         {
             let AttributeEntry{ key, value, .. } = att;
+            // Apply definition-time substitution (matching asciidoctor behavior)
+            let value = match value {
+                AttributeValue::String(s) => {
+                    let substituted = substitute(&s, HEADER, &state.document_attributes);
+                    AttributeValue::String(substituted)
+                }
+                AttributeValue::Bool(_) | AttributeValue::None => value,
+            };
             state.document_attributes.set(key.into(), value.clone());
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
@@ -919,6 +936,14 @@ peg::parser! {
                     BlockMetadataLine::DocumentAttribute(key, value) => {
                         // Set the document attribute immediately so it's available for
                         // subsequent attribute references (e.g., in title lines)
+                        // Apply definition-time substitution (matching asciidoctor behavior)
+                        let value = match value {
+                            AttributeValue::String(s) => {
+                                let substituted = substitute(&s, HEADER, &state.document_attributes);
+                                AttributeValue::String(substituted)
+                            }
+                            AttributeValue::Bool(_) | AttributeValue::None => value,
+                        };
                         state.document_attributes.set(key.into(), value);
                     },
                     BlockMetadataLine::Title(inner) => {
