@@ -12,9 +12,7 @@
           "-callouts": null
         },
         "substitutions": [
-          "special_chars",
-          "callouts",
-          "quotes"
+          "+quotes"
         ]
       },
       "inlines": [
