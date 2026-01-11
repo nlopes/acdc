@@ -53,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verbatim blocks (listing/literal) now correctly skip typography replacements by default,
   matching asciidoctor behavior. Previously, smart quotes were incorrectly applied.
 
+## [Unreleased acdc-converters-terminal]
+
+### Changed
+
+- `Error` type is now public (was `pub(crate)`), enabling external code to handle
+  terminal converter errors explicitly.
+
 ## [Unreleased acdc-parser]
 
 ### Added
@@ -112,6 +119,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Automatic pager for terminal output** - When using `--backend terminal` and stdout is
+  a TTY, output is automatically piped through a pager. Defaults to `less -FRX` on Unix
+  and `more` on Windows. Respects the `PAGER` environment variable for custom pagers. Use
+  `--no-pager` to disable, or set `PAGER=""`. On Unix, sets `LESSCHARSET=utf-8` for proper
+  UTF-8 display. ([#311])
 - `--embedded` / `-e` flag to output embeddable content without document wrapper elements.
   Behaviour varies by backend: HTML skips DOCTYPE/html/head/body/content wrapper, manpage
   skips preamble and NAME section, terminal skips header/authors/ revision info. Matches
@@ -140,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#280]: https://github.com/nlopes/acdc/issues/280
 [#289]: https://github.com/nlopes/acdc/issues/289
 [#291]: https://github.com/nlopes/acdc/issues/291
+[#311]: https://github.com/nlopes/acdc/issues/311
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 

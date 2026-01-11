@@ -105,5 +105,5 @@ mod toc;
 mod video;
 
 pub use appearance::Capabilities;
-pub(crate) use error::Error;
+pub use error::Error;
 pub use terminal_visitor::TerminalVisitor;

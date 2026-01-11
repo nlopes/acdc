@@ -23,6 +23,10 @@ pub enum Backend {
 #[derive(ClapArgs, Debug)]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
 pub struct Args {
+    /// Input from stdin
+    #[arg(long, conflicts_with = "files")]
+    pub stdin: bool,
+
     /// List of files to convert
     #[arg(conflicts_with = "stdin")]
     pub files: Vec<PathBuf>,
@@ -42,10 +46,6 @@ pub struct Args {
     /// Safe mode to use when converting document
     #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "unsafe")]
     pub safe_mode: SafeMode,
-
-    /// Input from stdin
-    #[arg(long, conflicts_with = "files")]
-    pub stdin: bool,
 
     /// Show timing information
     #[arg(long)]
@@ -83,6 +83,16 @@ pub struct Args {
     /// Only applies to the HTML backend.
     #[arg(short = 'e', long)]
     pub embedded: bool,
+
+    /// Disable automatic pager for terminal output
+    ///
+    /// By default, when using the terminal backend and stdout is a TTY,
+    /// output is piped through a pager. Respects PAGER env var.
+    /// Defaults to `less -FRX` on Unix, `more` on Windows.
+    /// Set PAGER="" to disable without this flag.
+    #[cfg(feature = "terminal")]
+    #[arg(long)]
+    pub no_pager: bool,
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
@@ -143,14 +153,9 @@ pub fn run(args: &Args) -> miette::Result<()> {
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {
-            // Terminal outputs to stdout - must process files sequentially to avoid interleaving
-            run_processor::<acdc_converters_terminal::Processor>(
-                args,
-                options,
-                document_attributes,
-                false,
-            )
-            .map_err(|e| error::display(&e))
+            // Terminal outputs to stdout with optional pager support
+            run_terminal_with_pager(args, options, document_attributes)
+                .map_err(|e| error::display(&e))
         }
 
         #[cfg(feature = "manpage")]
@@ -268,6 +273,164 @@ where
     Ok(())
 }
 
+/// Spawn a pager process, returning the child process.
+/// Returns None if pager is disabled, unavailable, or stdout is not a TTY.
+///
+/// Uses shell interpretation for the pager command (like git), allowing:
+/// - Paths with spaces: `"/Program Files/Git/usr/bin/less.exe" -FRX`
+/// - Complex commands: `less -R | head -100`
+///
+/// Platform defaults:
+/// - Unix: `less -FRX` (quit if fits, raw ANSI, don't clear)
+/// - Windows: `more` (built-in, always available)
+///
+/// On Unix, sets `LESSCHARSET=utf-8` if not already defined to ensure
+/// proper UTF-8 display in less.
+#[cfg(feature = "terminal")]
+fn spawn_pager(no_pager: bool) -> Option<std::process::Child> {
+    use std::io::IsTerminal;
+
+    // Platform-specific defaults
+    #[cfg(windows)]
+    const DEFAULT_PAGER: &str = "more";
+    #[cfg(not(windows))]
+    const DEFAULT_PAGER: &str = "less -FRX";
+
+    // Skip if disabled or not a TTY
+    if no_pager || !std::io::stdout().is_terminal() {
+        return None;
+    }
+
+    // Check PAGER env var, use platform default if not set
+    // Empty PAGER means no pager
+    let pager_cmd = std::env::var("PAGER").unwrap_or_else(|_| DEFAULT_PAGER.to_string());
+    if pager_cmd.is_empty() {
+        return None;
+    }
+
+    // Use shell to interpret the command (like git does)
+    // This handles paths with spaces, quoted arguments, and complex commands
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(["/c", &pager_cmd])
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .ok()
+    }
+    #[cfg(not(windows))]
+    {
+        let mut cmd = std::process::Command::new("sh");
+        cmd.args(["-c", &pager_cmd])
+            .stdin(std::process::Stdio::piped());
+
+        // Set LESSCHARSET=utf-8 for proper UTF-8 display in less
+        //
+        // Only set if not already defined (respect user preferences)
+        if std::env::var("LESSCHARSET").is_err() {
+            cmd.env("LESSCHARSET", "utf-8");
+        }
+
+        cmd.spawn()
+            .inspect_err(|error| tracing::error!(%error, %pager_cmd, "Could not spawn the pager"))
+            .ok()
+    }
+}
+
+/// Run terminal converter with optional pager support.
+/// When stdout is a TTY and pager is not disabled, pipes output through a pager.
+#[cfg(feature = "terminal")]
+fn run_terminal_with_pager(
+    args: &Args,
+    base_options: Options,
+    document_attributes: DocumentAttributes,
+) -> Result<(), acdc_converters_terminal::Error> {
+    use std::io::BufWriter;
+
+    use acdc_converters_terminal::Processor;
+
+    if !args.stdin && args.files.is_empty() {
+        tracing::error!("You must pass at least one file to this processor");
+        std::process::exit(1);
+    }
+
+    // Handle stdin separately
+    if args.stdin {
+        let processor = Processor::new(base_options.clone(), document_attributes.clone());
+        let parser_options =
+            build_parser_options(args, &base_options, processor.document_attributes());
+        let stdin = std::io::stdin();
+        let mut reader = std::io::BufReader::new(stdin.lock());
+        let doc = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+
+        // Try pager for stdin too
+        if let Some(mut pager) = spawn_pager(args.no_pager) {
+            if let Some(pager_stdin) = pager.stdin.take() {
+                let writer = BufWriter::new(pager_stdin);
+                processor.convert_to_writer(&doc, writer)?;
+            }
+            let _ = pager.wait()?;
+            return Ok(());
+        }
+        return processor.convert(&doc, None);
+    }
+
+    // Parse all files in parallel
+    let parse_results: Vec<(
+        std::path::PathBuf,
+        Result<acdc_parser::Document, acdc_parser::Error>,
+    )> = args
+        .files
+        .par_iter()
+        .map(|file| {
+            let parser_options =
+                build_parser_options(args, &base_options, document_attributes.clone());
+
+            if base_options.timings() {
+                let now = std::time::Instant::now();
+                let result = acdc_parser::parse_file(file, &parser_options);
+                let elapsed = now.elapsed();
+                if result.is_ok() {
+                    use acdc_converters_core::PrettyDuration;
+                    eprintln!("  Parsed {} in {}", file.display(), elapsed.pretty_print());
+                }
+                (file.clone(), result)
+            } else {
+                let result = acdc_parser::parse_file(file, &parser_options);
+                (file.clone(), result)
+            }
+        })
+        .collect();
+
+    let processor = Processor::new(base_options, document_attributes);
+
+    // Try to spawn pager
+    if let Some(mut pager) = spawn_pager(args.no_pager) {
+        if let Some(pager_stdin) = pager.stdin.take() {
+            let mut writer = BufWriter::new(pager_stdin);
+            for (_file, parse_result) in parse_results {
+                match parse_result {
+                    Ok(doc) => processor.convert_to_writer(&doc, &mut writer)?,
+                    Err(e) => return Err(e.into()),
+                }
+            }
+            drop(writer); // Flush and close stdin
+        }
+        // Wait for pager, ignore exit status (user may quit with 'q')
+        let _ = pager.wait()?;
+    } else {
+        // No pager - use convert() which writes to stdout
+        for (file, parse_result) in parse_results {
+            match parse_result {
+                Ok(doc) => processor.convert(&doc, Some(&file))?,
+                Err(e) => return Err(e.into()),
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn build_attributes_map(values: &[String]) -> DocumentAttributes {
     // Start with rendering defaults (from converters/core)
     // CLI-provided attributes will override these defaults
@@ -288,7 +451,6 @@ fn build_attributes_map(values: &[String]) -> DocumentAttributes {
 }
 
 /// Build parser options from CLI args and base options
-#[allow(unused_variables)]
 fn build_parser_options(
     args: &Args,
     base_options: &Options,
