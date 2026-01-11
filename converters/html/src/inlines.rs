@@ -49,8 +49,8 @@ use acdc_converters_core::{
     visitor::WritableVisitor,
 };
 use acdc_parser::{
-    InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string, parse_text_for_quotes,
-    substitute,
+    Form, InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string,
+    parse_text_for_quotes, substitute,
 };
 
 use crate::{
@@ -78,6 +78,56 @@ fn write_tag_with_attrs<W: Write + ?Sized>(
         (Some(id), None) => write!(writer, "<{tag} id=\"{id}\">"),
         (None, Some(role)) => write!(writer, "<{tag} class=\"{role}\">"),
         (None, None) => write!(writer, "<{tag}>"),
+    }
+}
+
+/// Tracks what was written by `write_quote_open` so `write_quote_close` can match.
+#[derive(Clone, Copy)]
+enum QuoteRenderState {
+    /// Wrote HTML tag - close with `</tag>`
+    Html,
+    /// Basic mode - no tags written, no closing needed
+    Basic,
+    /// Quotes disabled - wrote literal delimiter, close with same
+    Literal,
+}
+
+/// Write opening markup for inline formatting (bold, italic, etc.).
+///
+/// Returns state indicating what was written, for use with `write_quote_close`.
+fn write_quote_open<W: Write + ?Sized>(
+    w: &mut W,
+    tag: &str,
+    delim: &str,
+    id: Option<&String>,
+    role: Option<&String>,
+    subs: &[Substitution],
+    basic: bool,
+) -> io::Result<QuoteRenderState> {
+    if subs.contains(&Substitution::Quotes) {
+        if basic {
+            Ok(QuoteRenderState::Basic)
+        } else {
+            write_tag_with_attrs(w, tag, id, role)?;
+            Ok(QuoteRenderState::Html)
+        }
+    } else {
+        write!(w, "{delim}")?;
+        Ok(QuoteRenderState::Literal)
+    }
+}
+
+/// Write closing markup for inline formatting.
+fn write_quote_close<W: Write + ?Sized>(
+    w: &mut W,
+    tag: &str,
+    delim: &str,
+    state: QuoteRenderState,
+) -> io::Result<()> {
+    match state {
+        QuoteRenderState::Html => write!(w, "</{tag}>"),
+        QuoteRenderState::Basic => Ok(()),
+        QuoteRenderState::Literal => write!(w, "{delim}"),
     }
 }
 
@@ -153,20 +203,10 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             // If quotes substitution is enabled, parse for inline formatting
             if subs.contains(&Substitution::Quotes) {
                 let parsed_nodes = parse_text_for_quotes(&content);
-                // Render parsed nodes with verbatim settings but no quotes to avoid recursion
-                let no_quotes_subs: Vec<_> = subs
-                    .iter()
-                    .filter(|s| **s != Substitution::Quotes)
-                    .cloned()
-                    .collect();
+                // Render parsed nodes with verbatim settings
+                // Keep Quotes in subs so BoldText/ItalicText render as HTML
                 for node in &parsed_nodes {
-                    visit_inline_node(
-                        node,
-                        visitor,
-                        processor,
-                        &verbatim_options,
-                        &no_quotes_subs,
-                    )?;
+                    visit_inline_node(node, visitor, processor, &verbatim_options, subs)?;
                 }
             } else {
                 let text = substitution_text(&content, subs, &verbatim_options);
@@ -178,24 +218,38 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             write!(w, "<b class=\"conum\">({})</b>", callout.number)?;
         }
         InlineNode::BoldText(b) => {
-            if !options.inlines_basic {
-                write_tag_with_attrs(w, "strong", b.id.as_ref(), b.role.as_ref())?;
-            }
+            let delim = match b.form {
+                Form::Constrained => "*",
+                Form::Unconstrained => "**",
+            };
+            let state = write_quote_open(
+                w,
+                "strong",
+                delim,
+                b.id.as_ref(),
+                b.role.as_ref(),
+                subs,
+                options.inlines_basic,
+            )?;
             visitor.visit_inline_nodes(&b.content)?;
-            let w = visitor.writer_mut();
-            if !options.inlines_basic {
-                write!(w, "</strong>")?;
-            }
+            write_quote_close(visitor.writer_mut(), "strong", delim, state)?;
         }
         InlineNode::ItalicText(i) => {
-            if !options.inlines_basic {
-                write_tag_with_attrs(w, "em", i.id.as_ref(), i.role.as_ref())?;
-            }
+            let delim = match i.form {
+                Form::Constrained => "_",
+                Form::Unconstrained => "__",
+            };
+            let state = write_quote_open(
+                w,
+                "em",
+                delim,
+                i.id.as_ref(),
+                i.role.as_ref(),
+                subs,
+                options.inlines_basic,
+            )?;
             visitor.visit_inline_nodes(&i.content)?;
-            if !options.inlines_basic {
-                let w = visitor.writer_mut();
-                write!(w, "</em>")?;
-            }
+            write_quote_close(visitor.writer_mut(), "em", delim, state)?;
         }
         InlineNode::HighlightText(h) => {
             // Warn about deprecated built-in roles
@@ -214,72 +268,117 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
                     }
                 }
             }
-            if !options.inlines_basic {
-                // asciidoctor behavior: use <span> when role is present, <mark> otherwise
-                let tag = if h.role.is_some() { "span" } else { "mark" };
-                write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
-            }
-            visitor.visit_inline_nodes(&h.content)?;
-            if !options.inlines_basic {
+            // Check if quotes substitution is enabled
+            if subs.contains(&Substitution::Quotes) {
+                if !options.inlines_basic {
+                    // asciidoctor behavior: use <span> when role is present, <mark> otherwise
+                    let tag = if h.role.is_some() { "span" } else { "mark" };
+                    write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
+                }
+                visitor.visit_inline_nodes(&h.content)?;
+                if !options.inlines_basic {
+                    let w = visitor.writer_mut();
+                    let tag = if h.role.is_some() { "span" } else { "mark" };
+                    write!(w, "</{tag}>")?;
+                }
+            } else {
+                // No quotes substitution - output raw markup
+                let delim = match h.form {
+                    Form::Constrained => "#",
+                    Form::Unconstrained => "##",
+                };
+                write!(w, "{delim}")?;
+                visitor.visit_inline_nodes(&h.content)?;
                 let w = visitor.writer_mut();
-                let tag = if h.role.is_some() { "span" } else { "mark" };
-                write!(w, "</{tag}>")?;
+                write!(w, "{delim}")?;
             }
         }
         InlineNode::MonospaceText(m) => {
-            if !options.inlines_basic {
-                write_tag_with_attrs(w, "code", m.id.as_ref(), m.role.as_ref())?;
-            }
+            let delim = match m.form {
+                Form::Constrained => "`",
+                Form::Unconstrained => "``",
+            };
+            let state = write_quote_open(
+                w,
+                "code",
+                delim,
+                m.id.as_ref(),
+                m.role.as_ref(),
+                subs,
+                options.inlines_basic,
+            )?;
             visitor.visit_inline_nodes(&m.content)?;
-            if !options.inlines_basic {
-                let w = visitor.writer_mut();
-                write!(w, "</code>")?;
-            }
+            write_quote_close(visitor.writer_mut(), "code", delim, state)?;
         }
         InlineNode::CurvedQuotationText(c) => {
-            if c.id.is_some() || c.role.is_some() {
-                write_tag_with_attrs(w, "span", c.id.as_ref(), c.role.as_ref())?;
-                write!(w, "&ldquo;")?;
+            // Check if quotes substitution is enabled
+            if subs.contains(&Substitution::Quotes) {
+                if c.id.is_some() || c.role.is_some() {
+                    write_tag_with_attrs(w, "span", c.id.as_ref(), c.role.as_ref())?;
+                    write!(w, "&ldquo;")?;
+                } else {
+                    write!(w, "&ldquo;")?;
+                }
+                visitor.visit_inline_nodes(&c.content)?;
+                let w = visitor.writer_mut();
+                if c.id.is_some() || c.role.is_some() {
+                    write!(w, "&rdquo;</span>")?;
+                } else {
+                    write!(w, "&rdquo;")?;
+                }
             } else {
-                write!(w, "&ldquo;")?;
-            }
-            visitor.visit_inline_nodes(&c.content)?;
-            let w = visitor.writer_mut();
-            if c.id.is_some() || c.role.is_some() {
-                write!(w, "&rdquo;</span>")?;
-            } else {
-                write!(w, "&rdquo;")?;
+                // No quotes substitution - output literal quotes
+                write!(w, "\"")?;
+                visitor.visit_inline_nodes(&c.content)?;
+                let w = visitor.writer_mut();
+                write!(w, "\"")?;
             }
         }
         InlineNode::CurvedApostropheText(c) => {
-            if c.id.is_some() || c.role.is_some() {
-                write_tag_with_attrs(w, "span", c.id.as_ref(), c.role.as_ref())?;
-                write!(w, "&lsquo;")?;
+            // Check if quotes substitution is enabled
+            if subs.contains(&Substitution::Quotes) {
+                if c.id.is_some() || c.role.is_some() {
+                    write_tag_with_attrs(w, "span", c.id.as_ref(), c.role.as_ref())?;
+                    write!(w, "&lsquo;")?;
+                } else {
+                    write!(w, "&lsquo;")?;
+                }
+                visitor.visit_inline_nodes(&c.content)?;
+                let w = visitor.writer_mut();
+                if c.id.is_some() || c.role.is_some() {
+                    write!(w, "&rsquo;</span>")?;
+                } else {
+                    write!(w, "&rsquo;")?;
+                }
             } else {
-                write!(w, "&lsquo;")?;
-            }
-            visitor.visit_inline_nodes(&c.content)?;
-            let w = visitor.writer_mut();
-            if c.id.is_some() || c.role.is_some() {
-                write!(w, "&rsquo;</span>")?;
-            } else {
-                write!(w, "&rsquo;")?;
+                // No quotes substitution - output literal apostrophes
+                write!(w, "'")?;
+                visitor.visit_inline_nodes(&c.content)?;
+                let w = visitor.writer_mut();
+                write!(w, "'")?;
             }
         }
         InlineNode::StandaloneCurvedApostrophe(_) => {
-            write!(w, "&rsquo;")?;
+            // Check if quotes substitution is enabled
+            if subs.contains(&Substitution::Quotes) {
+                write!(w, "&rsquo;")?;
+            } else {
+                write!(w, "'")?;
+            }
         }
         InlineNode::SuperscriptText(s) => {
-            write_tag_with_attrs(w, "sup", s.id.as_ref(), s.role.as_ref())?;
+            // Note: superscript doesn't check inlines_basic (pass false to preserve behavior)
+            let state =
+                write_quote_open(w, "sup", "^", s.id.as_ref(), s.role.as_ref(), subs, false)?;
             visitor.visit_inline_nodes(&s.content)?;
-            let w = visitor.writer_mut();
-            write!(w, "</sup>")?;
+            write_quote_close(visitor.writer_mut(), "sup", "^", state)?;
         }
         InlineNode::SubscriptText(s) => {
-            write_tag_with_attrs(w, "sub", s.id.as_ref(), s.role.as_ref())?;
+            // Note: subscript doesn't check inlines_basic (pass false to preserve behavior)
+            let state =
+                write_quote_open(w, "sub", "~", s.id.as_ref(), s.role.as_ref(), subs, false)?;
             visitor.visit_inline_nodes(&s.content)?;
-            let w = visitor.writer_mut();
-            write!(w, "</sub>")?;
+            write_quote_close(visitor.writer_mut(), "sub", "~", state)?;
         }
         InlineNode::Macro(m) => render_inline_macro(m, visitor, processor, options, subs)?,
         InlineNode::LineBreak(_) => {
