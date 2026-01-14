@@ -8,7 +8,7 @@
 //!
 //! ```ignore
 //! use acdc_converters_manpage::Processor;
-//! use acdc_converters_core::{Options, Processable};
+//! use acdc_converters_core::{Converter, Options};
 //!
 //! let options = Options::default();
 //! let processor = Processor::new(options, Default::default());
@@ -27,13 +27,11 @@
 //! - `\fB`, `\fI`, `\fP` for inline formatting
 
 use std::{
-    fs::File,
-    io::{self, BufWriter, Write},
-    path::Path,
-    time::Instant,
+    io::Write,
+    path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Options, PrettyDuration, Processable, visitor::Visitor};
+use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
 
 mod admonition;
@@ -60,21 +58,6 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Convert a document to manpage format, writing to the provided writer.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if document conversion or writing fails.
-    pub fn convert_to_writer<W: Write>(&self, doc: &Document, writer: W) -> Result<(), Error> {
-        let processor = Processor {
-            document_attributes: doc.attributes.clone(),
-            ..self.clone()
-        };
-        let mut visitor = ManpageVisitor::new(writer, processor);
-        visitor.visit_document(doc)?;
-        Ok(())
-    }
-
     /// Determine the output file extension based on the volume number.
     fn output_extension(doc: &Document) -> String {
         // Read manvolnum from document attributes (set by parser)
@@ -90,8 +73,7 @@ impl Processor {
     }
 }
 
-impl Processable for Processor {
-    type Options = Options;
+impl Converter for Processor {
     type Error = Error;
 
     fn document_attributes_defaults() -> DocumentAttributes {
@@ -117,54 +99,40 @@ impl Processable for Processor {
         }
     }
 
-    fn convert(&self, doc: &Document, file: Option<&Path>) -> Result<(), Self::Error> {
-        if let Some(file_path) = file {
-            // File-based conversion - write to .N file (where N is volume number)
-            let extension = Self::output_extension(doc);
-            let manpage_path = file_path.with_extension(&extension);
-
-            if manpage_path == file_path {
-                return Err(Error::OutputPathSameAsInput(file_path.to_path_buf()));
-            }
-
-            if self.options.timings() {
-                println!("Input file: {}", file_path.display());
-            }
-            tracing::debug!(
-                source = ?file_path,
-                destination = ?manpage_path,
-                "converting document to manpage"
-            );
-
-            let now = Instant::now();
-            let file_handle = File::create(&manpage_path)?;
-            let writer = BufWriter::new(file_handle);
-            self.convert_to_writer(doc, writer)?;
-            let elapsed = now.elapsed();
-
-            tracing::debug!(
-                time = elapsed.pretty_print_precise(3),
-                source = ?file_path,
-                destination = ?manpage_path,
-                "time to convert document"
-            );
-
-            if self.options.timings() {
-                println!("  Time to convert document: {}", elapsed.pretty_print());
-            }
-            println!("Generated manpage file: {}", manpage_path.display());
-
-            Ok(())
-        } else {
-            // Stdin-based conversion - write to stdout
-            let stdout = io::stdout();
-            let writer = BufWriter::new(stdout.lock());
-            self.convert_to_writer(doc, writer)?;
-            Ok(())
-        }
+    fn options(&self) -> &Options {
+        &self.options
     }
 
-    fn document_attributes(&self) -> DocumentAttributes {
-        self.document_attributes.clone()
+    fn document_attributes(&self) -> &DocumentAttributes {
+        &self.document_attributes
+    }
+
+    fn derive_output_path(&self, input: &Path, doc: &Document) -> Result<Option<PathBuf>, Error> {
+        let extension = Self::output_extension(doc);
+        let manpage_path = input.with_extension(&extension);
+        // Avoid overwriting the input file
+        if manpage_path == input {
+            return Err(Error::OutputPathSameAsInput(input.to_path_buf()));
+        }
+        Ok(Some(manpage_path))
+    }
+
+    fn write_to<W: Write>(
+        &self,
+        doc: &Document,
+        writer: W,
+        _source_file: Option<&Path>,
+    ) -> Result<(), Self::Error> {
+        let processor = Processor {
+            document_attributes: doc.attributes.clone(),
+            ..self.clone()
+        };
+        let mut visitor = ManpageVisitor::new(writer, processor);
+        visitor.visit_document(doc)?;
+        Ok(())
+    }
+
+    fn backend(&self) -> Backend {
+        Backend::Manpage
     }
 }

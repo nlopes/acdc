@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{GeneratorMetadata, Options as ConverterOptions, Processable};
+use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{Processor, RenderOptions};
 use acdc_parser::Options as ParserOptions;

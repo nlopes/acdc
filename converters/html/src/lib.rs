@@ -1,12 +1,11 @@
 use std::{
     cell::{Cell, RefCell},
-    fs::File,
-    io::{self, BufWriter, Write},
+    io::Write,
+    path::{Path, PathBuf},
     rc::Rc,
-    time::Instant,
 };
 
-use acdc_converters_core::{Options, PrettyDuration, Processable, visitor::Visitor};
+use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry};
 
 /// An entry in the index catalog, collected during document traversal.
@@ -165,8 +164,7 @@ pub(crate) const STYLESHEET_DEFAULT: &str = "";
 pub(crate) const STYLESHEET_FILENAME_DEFAULT: &str = "asciidoctor.css";
 pub(crate) const WEBFONTS_DEFAULT: &str = "";
 
-impl Processable for Processor {
-    type Options = Options;
+impl Converter for Processor {
     type Error = Error;
 
     fn document_attributes_defaults() -> DocumentAttributes {
@@ -212,118 +210,106 @@ impl Processable for Processor {
         }
     }
 
-    fn convert(
-        &self,
-        doc: &acdc_parser::Document,
-        file: Option<&std::path::Path>,
-    ) -> Result<(), Self::Error> {
-        if let Some(file_path) = file {
-            // File-based conversion - write to .html file
-            let html_path = file_path.with_extension("html");
-            if html_path == file_path {
-                return Err(Error::OutputPathSameAsInput(file_path.to_path_buf()));
-            }
-
-            let render_options = RenderOptions {
-                last_updated: Some(
-                    std::fs::metadata(file_path)?
-                        .modified()
-                        .map(chrono::DateTime::from)?,
-                ),
-                embedded: self.options.embedded(),
-                ..RenderOptions::default()
-            };
-
-            if self.options.timings() {
-                println!("Input file: {}", file_path.display());
-            }
-            tracing::debug!(source = ?file_path, destination = ?html_path, "converting document");
-
-            let now = Instant::now();
-            let file_handle = File::create(&html_path)?;
-            let writer = BufWriter::new(file_handle);
-            self.convert_to_writer(doc, writer, &render_options)?;
-            let elapsed = now.elapsed();
-            tracing::debug!(time = elapsed.pretty_print_precise(3), source = ?file_path, destination = ?html_path, "time to convert document");
-
-            if self.options.timings() {
-                println!("  Time to convert document: {}", elapsed.pretty_print());
-            }
-            println!("Generated HTML file: {}", html_path.display());
-
-            // Handle copycss if linkcss is set
-            let linkcss = doc.attributes.get("linkcss").is_some();
-            if linkcss {
-                // Check if copycss is set (empty string means copy, unset means don't copy)
-                let should_copy = doc.attributes.contains_key("copycss");
-                tracing::debug!("linkcss={}, copycss exists={}", linkcss, should_copy);
-
-                if should_copy {
-                    // Get stylesheet name
-                    let stylesheet = doc
-                        .attributes
-                        .get("stylesheet")
-                        .and_then(|v| {
-                            let s = v.to_string();
-                            if s.is_empty() { None } else { Some(s) }
-                        })
-                        .unwrap_or_else(|| STYLESHEET_FILENAME_DEFAULT.into());
-
-                    // Get stylesdir
-                    let stylesdir = doc
-                        .attributes
-                        .get("stylesdir")
-                        .map_or_else(|| STYLESDIR_DEFAULT.into(), ToString::to_string);
-
-                    // Build source path
-                    let source_path = if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
-                        std::path::Path::new(&stylesheet).to_path_buf()
-                    } else {
-                        std::path::Path::new(&stylesdir).join(&stylesheet)
-                    };
-
-                    // Get output directory (same as HTML output)
-                    let output_dir = html_path
-                        .parent()
-                        .unwrap_or_else(|| std::path::Path::new("."));
-                    let dest_path = output_dir.join(&stylesheet);
-
-                    // Copy the CSS file if source exists and is different from destination
-                    if source_path != dest_path && source_path.exists() {
-                        if let Err(e) = std::fs::copy(&source_path, &dest_path) {
-                            tracing::warn!(
-                                "Failed to copy stylesheet from {} to {}: {}",
-                                source_path.display(),
-                                dest_path.display(),
-                                e
-                            );
-                        } else {
-                            tracing::debug!(
-                                "Copied stylesheet from {} to {}",
-                                source_path.display(),
-                                dest_path.display()
-                            );
-                        }
-                    }
-                }
-            }
-
-            Ok(())
-        } else {
-            // Stdin-based conversion - write to stdout
-            let render_options = RenderOptions {
-                embedded: self.options.embedded(),
-                ..RenderOptions::default()
-            };
-            let stdout = io::stdout();
-            let writer = BufWriter::new(stdout.lock());
-            self.convert_to_writer(doc, writer, &render_options)?;
-            Ok(())
-        }
+    fn options(&self) -> &Options {
+        &self.options
     }
 
-    fn document_attributes(&self) -> DocumentAttributes {
-        self.document_attributes.clone()
+    fn document_attributes(&self) -> &DocumentAttributes {
+        &self.document_attributes
+    }
+
+    fn derive_output_path(&self, input: &Path, _doc: &Document) -> Result<Option<PathBuf>, Error> {
+        let html_path = input.with_extension("html");
+        // Avoid overwriting the input file
+        if html_path == input {
+            return Err(Error::OutputPathSameAsInput(input.to_path_buf()));
+        }
+        Ok(Some(html_path))
+    }
+
+    fn write_to<W: Write>(
+        &self,
+        doc: &Document,
+        writer: W,
+        source_file: Option<&Path>,
+    ) -> Result<(), Self::Error> {
+        let render_options = RenderOptions {
+            last_updated: source_file.and_then(|f| {
+                std::fs::metadata(f)
+                    .ok()
+                    .and_then(|m| m.modified().ok())
+                    .map(chrono::DateTime::from)
+            }),
+            embedded: self.options.embedded(),
+            ..RenderOptions::default()
+        };
+        self.convert_to_writer(doc, writer, &render_options)
+    }
+
+    fn after_write(&self, doc: &Document, output_path: &Path) {
+        Self::handle_copycss(doc, output_path);
+    }
+
+    fn backend(&self) -> Backend {
+        Backend::Html
+    }
+}
+
+impl Processor {
+    /// Handle copying CSS if linkcss and copycss are set.
+    fn handle_copycss(doc: &acdc_parser::Document, html_path: &std::path::Path) {
+        let linkcss = doc.attributes.get("linkcss").is_some();
+        if !linkcss {
+            return;
+        }
+
+        let should_copy = doc.attributes.contains_key("copycss");
+        tracing::debug!("linkcss={linkcss}, copycss exists={should_copy}");
+
+        if !should_copy {
+            return;
+        }
+
+        let stylesheet = doc
+            .attributes
+            .get("stylesheet")
+            .and_then(|v| {
+                let s = v.to_string();
+                if s.is_empty() { None } else { Some(s) }
+            })
+            .unwrap_or_else(|| STYLESHEET_FILENAME_DEFAULT.into());
+
+        let stylesdir = doc
+            .attributes
+            .get("stylesdir")
+            .map_or_else(|| STYLESDIR_DEFAULT.into(), ToString::to_string);
+
+        let source_path = if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
+            std::path::Path::new(&stylesheet).to_path_buf()
+        } else {
+            std::path::Path::new(&stylesdir).join(&stylesheet)
+        };
+
+        let output_dir = html_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
+        let dest_path = output_dir.join(&stylesheet);
+
+        if source_path != dest_path && source_path.exists() {
+            if let Err(e) = std::fs::copy(&source_path, &dest_path) {
+                tracing::warn!(
+                    "Failed to copy stylesheet from {} to {}: {e}",
+                    source_path.display(),
+                    dest_path.display(),
+                );
+            } else {
+                tracing::debug!(
+                    "Copied stylesheet from {} to {}",
+                    source_path.display(),
+                    dest_path.display()
+                );
+            }
+        }
     }
 }
 
@@ -384,7 +370,7 @@ pub(crate) fn write_attribution<W: std::io::Write>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_converters_core::Processable;
+    use acdc_converters_core::Converter;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
 

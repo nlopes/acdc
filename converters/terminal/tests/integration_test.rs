@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use acdc_converters_core::{Options as ConverterOptions, Processable};
+use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::Processor;
 use acdc_parser::Options as ParserOptions;
@@ -58,7 +58,7 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     // Convert to Terminal output
     let mut output = Vec::new();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
-    processor.convert_to_writer(&doc, &mut output)?;
+    processor.write_to(&doc, &mut output, Some(input_path.as_path()))?;
 
     if osc8 && !processor.appearance.capabilities.osc8_links {
         // If the fixture name indicates osc8 links but we're running in a terminal that
