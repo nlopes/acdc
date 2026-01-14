@@ -1,23 +1,13 @@
 use std::path::PathBuf;
 
-use acdc_converters_core::{Doctype, GeneratorMetadata, Options, Processable};
+use acdc_converters_core::{
+    Backend, Converter, Doctype, GeneratorMetadata, Options, OutputDestination,
+};
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
-use clap::{ArgAction, Args as ClapArgs, ValueEnum};
+use clap::{ArgAction, Args as ClapArgs};
 use rayon::prelude::*;
 
 use crate::error;
-
-#[derive(Debug, ValueEnum, Clone)]
-pub enum Backend {
-    #[cfg(feature = "html")]
-    Html,
-
-    #[cfg(feature = "terminal")]
-    Terminal,
-
-    #[cfg(feature = "manpage")]
-    Manpage,
-}
 
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
@@ -27,12 +17,20 @@ pub struct Args {
     #[arg(long, conflicts_with = "files")]
     pub stdin: bool,
 
+    /// Output file (default: based on path of input file); use - to output to STDOUT
+    ///
+    /// When specified, output is written to this file instead of deriving
+    /// the output path from the input file. If multiple input files are
+    /// provided with this option, only the first file is processed.
+    #[arg(short = 'o', long = "out-file", value_name = "FILE")]
+    pub out_file: Option<String>,
+
     /// List of files to convert
     #[arg(conflicts_with = "stdin")]
     pub files: Vec<PathBuf>,
 
     /// Backend output format
-    #[arg(long, value_enum, default_value_t = Backend::Html)]
+    #[arg(long, value_parser = clap::value_parser!(Backend), default_value_t = Backend::Html)]
     pub backend: Backend,
 
     /// Document type to use when converting document
@@ -127,6 +125,18 @@ pub fn run(args: &Args) -> miette::Result<()> {
         }
     };
 
+    // Parse output destination from --out-file argument
+    let output_destination = args
+        .out_file
+        .as_ref()
+        .map_or(OutputDestination::Derived, |s| {
+            if s == "-" {
+                OutputDestination::Stdout
+            } else {
+                OutputDestination::File(PathBuf::from(s))
+            }
+        });
+
     let options = Options::builder()
         .generator_metadata(GeneratorMetadata::new(
             env!("CARGO_BIN_NAME"),
@@ -136,6 +146,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .safe_mode(safe_mode)
         .timings(args.timings)
         .embedded(args.embedded)
+        .output_destination(output_destination)
         .build();
 
     match args.backend {
@@ -180,8 +191,8 @@ fn run_processor<P>(
     parallelize: bool,
 ) -> Result<(), P::Error>
 where
-    P: Processable<Options = Options>,
-    P::Error: Send + std::error::Error + 'static + From<acdc_parser::Error>,
+    P: Converter,
+    P::Error: Send + 'static + From<acdc_parser::Error>,
 {
     if !args.stdin && args.files.is_empty() {
         tracing::error!("You must pass at least one file to this processor");
@@ -192,36 +203,48 @@ where
     if args.stdin {
         let processor = P::new(base_options.clone(), document_attributes.clone());
         let parser_options =
-            build_parser_options(args, &base_options, processor.document_attributes());
+            build_parser_options(args, &base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
         let mut reader = std::io::BufReader::new(stdin.lock());
         let doc = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
         return processor.convert(&doc, None);
     }
 
-    // PHASE 1: Parse all files in parallel (always - parsing is the expensive part)
-    let parse_results: Vec<(PathBuf, Result<acdc_parser::Document, acdc_parser::Error>)> = args
-        .files
-        .par_iter()
-        .map(|file| {
-            let parser_options =
-                build_parser_options(args, &base_options, document_attributes.clone());
+    // When --out-file is specified with multiple files, only process the first file
+    // (matches asciidoctor behavior)
+    let files_to_process: &[PathBuf] = match (args.out_file.as_ref(), args.files.as_slice()) {
+        (Some(_), [first, _, ..]) => {
+            eprintln!(
+                "Warning: --out-file specified with multiple input files; only processing first file"
+            );
+            std::slice::from_ref(first)
+        }
+        _ => &args.files,
+    };
 
-            if base_options.timings() {
-                let now = std::time::Instant::now();
-                let result = acdc_parser::parse_file(file, &parser_options);
-                let elapsed = now.elapsed();
-                if result.is_ok() {
-                    use acdc_converters_core::PrettyDuration;
-                    eprintln!("  Parsed {} in {}", file.display(), elapsed.pretty_print());
+    // PHASE 1: Parse all files in parallel (always - parsing is the expensive part)
+    let parse_results: Vec<(PathBuf, Result<acdc_parser::Document, acdc_parser::Error>)> =
+        files_to_process
+            .par_iter()
+            .map(|file| {
+                let parser_options =
+                    build_parser_options(args, &base_options, document_attributes.clone());
+
+                if base_options.timings() {
+                    let now = std::time::Instant::now();
+                    let result = acdc_parser::parse_file(file, &parser_options);
+                    let elapsed = now.elapsed();
+                    if result.is_ok() {
+                        use acdc_converters_core::PrettyDuration;
+                        eprintln!("  Parsed {} in {}", file.display(), elapsed.pretty_print());
+                    }
+                    (file.clone(), result)
+                } else {
+                    let result = acdc_parser::parse_file(file, &parser_options);
+                    (file.clone(), result)
                 }
-                (file.clone(), result)
-            } else {
-                let result = acdc_parser::parse_file(file, &parser_options);
-                (file.clone(), result)
-            }
-        })
-        .collect();
+            })
+            .collect();
 
     // PHASE 2: Convert documents - either in parallel or sequentially
     let results: Vec<(PathBuf, Result<(), P::Error>)> = if parallelize {
@@ -354,20 +377,29 @@ fn run_terminal_with_pager(
         std::process::exit(1);
     }
 
+    // Check if --out-file specifies a file (not stdout)
+    // If so, write directly to file without pager
+    let output_to_file = args.out_file.as_ref().is_some_and(|s| s != "-");
+
     // Handle stdin separately
     if args.stdin {
         let processor = Processor::new(base_options.clone(), document_attributes.clone());
         let parser_options =
-            build_parser_options(args, &base_options, processor.document_attributes());
+            build_parser_options(args, &base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
         let mut reader = std::io::BufReader::new(stdin.lock());
         let doc = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+
+        // If writing to file, use the processor's convert method (respects output_path)
+        if output_to_file {
+            return processor.convert(&doc, None);
+        }
 
         // Try pager for stdin too
         if let Some(mut pager) = spawn_pager(args.no_pager) {
             if let Some(pager_stdin) = pager.stdin.take() {
                 let writer = BufWriter::new(pager_stdin);
-                processor.convert_to_writer(&doc, writer)?;
+                processor.write_to(&doc, writer, None)?;
             }
             let _ = pager.wait()?;
             return Ok(());
@@ -375,12 +407,22 @@ fn run_terminal_with_pager(
         return processor.convert(&doc, None);
     }
 
+    // When --out-file is specified with multiple files, only process the first file
+    let files_to_process: &[PathBuf] = match (args.out_file.as_ref(), args.files.as_slice()) {
+        (Some(_), [first, _, ..]) => {
+            eprintln!(
+                "Warning: --out-file specified with multiple input files; only processing first file"
+            );
+            std::slice::from_ref(first)
+        }
+        _ => &args.files,
+    };
+
     // Parse all files in parallel
     let parse_results: Vec<(
         std::path::PathBuf,
         Result<acdc_parser::Document, acdc_parser::Error>,
-    )> = args
-        .files
+    )> = files_to_process
         .par_iter()
         .map(|file| {
             let parser_options =
@@ -404,13 +446,24 @@ fn run_terminal_with_pager(
 
     let processor = Processor::new(base_options, document_attributes);
 
+    // If writing to file, use the processor's convert method (respects output_path)
+    if output_to_file {
+        for (file, parse_result) in parse_results {
+            match parse_result {
+                Ok(doc) => processor.convert(&doc, Some(&file))?,
+                Err(e) => return Err(e.into()),
+            }
+        }
+        return Ok(());
+    }
+
     // Try to spawn pager
     if let Some(mut pager) = spawn_pager(args.no_pager) {
         if let Some(pager_stdin) = pager.stdin.take() {
             let mut writer = BufWriter::new(pager_stdin);
             for (_file, parse_result) in parse_results {
                 match parse_result {
-                    Ok(doc) => processor.convert_to_writer(&doc, &mut writer)?,
+                    Ok(doc) => processor.write_to(&doc, &mut writer, None)?,
                     Err(e) => return Err(e.into()),
                 }
             }

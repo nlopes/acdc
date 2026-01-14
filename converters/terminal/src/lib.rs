@@ -1,10 +1,11 @@
 use std::{
     cell::Cell,
-    io::{BufWriter, Write},
+    io::Write,
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
-use acdc_converters_core::{Options, Processable, visitor::Visitor};
+use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{Document, DocumentAttributes, TocEntry};
 
 pub(crate) use appearance::Appearance;
@@ -23,28 +24,7 @@ pub struct Processor {
     pub appearance: Appearance,
 }
 
-impl Processor {
-    /// Convert a document to terminal output, writing to the provided writer.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if document conversion or writing fails.
-    pub fn convert_to_writer<W: Write>(&self, doc: &Document, writer: W) -> Result<(), Error> {
-        let processor = Processor {
-            document_attributes: doc.attributes.clone(),
-            toc_entries: doc.toc_entries.clone(),
-            options: self.options.clone(),
-            example_counter: self.example_counter.clone(),
-            appearance: self.appearance.clone(),
-        };
-        let mut visitor = TerminalVisitor::new(writer, processor);
-        visitor.visit_document(doc)?;
-        Ok(())
-    }
-}
-
-impl Processable for Processor {
-    type Options = Options;
+impl Converter for Processor {
     type Error = Error;
 
     fn document_attributes_defaults() -> DocumentAttributes {
@@ -70,20 +50,39 @@ impl Processable for Processor {
         }
     }
 
-    fn convert(
+    fn options(&self) -> &Options {
+        &self.options
+    }
+
+    fn document_attributes(&self) -> &DocumentAttributes {
+        &self.document_attributes
+    }
+
+    fn derive_output_path(&self, _input: &Path, _doc: &Document) -> Result<Option<PathBuf>, Error> {
+        // Terminal converter always outputs to stdout by default
+        Ok(None)
+    }
+
+    fn write_to<W: Write>(
         &self,
-        doc: &acdc_parser::Document,
-        _file: Option<&std::path::Path>,
+        doc: &Document,
+        writer: W,
+        _source_file: Option<&Path>,
     ) -> Result<(), Self::Error> {
-        // Terminal always outputs to stdout, file parameter is ignored
-        let stdout = std::io::stdout();
-        let writer = BufWriter::new(stdout.lock());
-        self.convert_to_writer(doc, writer)?;
+        let processor = Processor {
+            document_attributes: doc.attributes.clone(),
+            toc_entries: doc.toc_entries.clone(),
+            options: self.options.clone(),
+            example_counter: self.example_counter.clone(),
+            appearance: self.appearance.clone(),
+        };
+        let mut visitor = TerminalVisitor::new(writer, processor);
+        visitor.visit_document(doc)?;
         Ok(())
     }
 
-    fn document_attributes(&self) -> DocumentAttributes {
-        self.document_attributes.clone()
+    fn backend(&self) -> Backend {
+        Backend::Terminal
     }
 }
 

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{GeneratorMetadata, Options as ConverterOptions, Processable};
+use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_manpage::Processor;
 use acdc_parser::Options as ParserOptions;
@@ -32,7 +32,7 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
     let processor = Processor::new(converter_options, doc.attributes.clone());
-    processor.convert_to_writer(&doc, &mut output)?;
+    processor.write_to(&doc, &mut output, Some(path.as_path()))?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;

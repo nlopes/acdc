@@ -3,7 +3,7 @@
 //! Usage:
 //!   `cargo run -p acdc-converters-html --example generate_expected_fixtures`
 
-use acdc_converters_core::{GeneratorMetadata, Options, Processable};
+use acdc_converters_core::{Converter, GeneratorMetadata, Options};
 use acdc_converters_dev::generate_fixtures::FixtureGenerator;
 use acdc_converters_html::{Processor, RenderOptions};
 
