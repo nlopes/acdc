@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use `Options::builder().doctype(...).build()` instead of struct construction
 - **BREAKING**: `toc::Config` fields are now private - use accessor methods
   (`placement()`, `title()`, `levels()`, `toc_class()`)
+- **BREAKING**: Renamed `Processable` trait to `Converter` with new output routing:
+  - New `OutputDestination` enum for routing output (stdout, file, buffer)
+  - `convert()` is now a provided method that handles output routing
+  - Required methods: `convert_to_stdout()`, `convert_to_file()`
+  - New helpers: `write_to()`, `derive_output_path()`, `after_write()` ([#313])
 
 ## [Unreleased acdc-converters-html]
 
@@ -53,10 +58,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verbatim blocks (listing/literal) now correctly skip typography replacements by default,
   matching asciidoctor behavior. Previously, smart quotes were incorrectly applied.
 
+### Changed
+
+- **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
+
+## [Unreleased acdc-converters-manpage]
+
+### Changed
+
+- **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
+
 ## [Unreleased acdc-converters-terminal]
 
 ### Changed
 
+- **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 - `Error` type is now public (was `pub(crate)`), enabling external code to handle
   terminal converter errors explicitly.
 
@@ -159,6 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#289]: https://github.com/nlopes/acdc/issues/289
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#311]: https://github.com/nlopes/acdc/issues/311
+[#313]: https://github.com/nlopes/acdc/pull/313
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 
