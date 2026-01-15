@@ -5,6 +5,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 use clap::{ArgAction, Args as ClapArgs};
+use miette::Report;
 use rayon::prelude::*;
 
 use crate::error;
@@ -180,6 +181,12 @@ pub fn run(args: &Args) -> miette::Result<()> {
             )
             .map_err(|e| error::display(&e))
         }
+
+        // Catch-all for backends not compiled in
+        #[allow(unreachable_patterns)]
+        backend => Err(Report::msg(format!(
+            "backend '{backend}' is not available - rebuild with the '{backend}' feature enabled"
+        ))),
     }
 }
 
