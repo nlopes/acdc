@@ -1,5 +1,152 @@
 use crate::{ColumnStyle, HorizontalAlignment, Table, VerticalAlignment};
 
+/// A cell part with its unescaped content and original start position.
+struct CellPart {
+    /// Unescaped content (e.g., `\|` becomes `|`)
+    content: String,
+    /// Start position in the original line
+    start: usize,
+}
+
+/// Split a line by separator, respecting backslash escapes.
+///
+/// For PSV (`|`) and DSV (`:`), a backslash before the separator escapes it.
+/// Returns parts with their original byte positions for accurate source mapping.
+fn split_escaped(line: &str, separator: char) -> Vec<CellPart> {
+    let mut parts = Vec::new();
+    let mut current_content = String::new();
+    let mut part_start = 0;
+    let mut chars = line.char_indices().peekable();
+
+    while let Some((byte_idx, ch)) = chars.next() {
+        if ch == '\\' {
+            // Check if next char is the separator
+            if let Some(&(_, next_ch)) = chars.peek() {
+                if next_ch == separator {
+                    // Escaped separator - add literal separator, skip the backslash
+                    current_content.push(separator);
+                    chars.next(); // consume the separator
+                    continue;
+                }
+            }
+            // Not an escape - add backslash literally
+            current_content.push(ch);
+        } else if ch == separator {
+            // Unescaped separator - end current part
+            parts.push(CellPart {
+                content: std::mem::take(&mut current_content),
+                start: part_start,
+            });
+            part_start = byte_idx + ch.len_utf8();
+        } else {
+            current_content.push(ch);
+        }
+    }
+
+    // Add final part
+    parts.push(CellPart {
+        content: current_content,
+        start: part_start,
+    });
+
+    parts
+}
+
+/// Split a CSV line, respecting quoted fields (RFC 4180).
+///
+/// - Fields enclosed in double quotes can contain commas
+/// - Double-double-quotes (`""`) inside quoted fields become a single quote
+fn split_csv(line: &str) -> Vec<CellPart> {
+    let mut parts = Vec::new();
+    let mut current_content = String::new();
+    let mut part_start = 0;
+    let mut in_quotes = false;
+    let mut chars = line.char_indices().peekable();
+
+    while let Some((byte_idx, ch)) = chars.next() {
+        if in_quotes {
+            if ch == '"' {
+                // Check for escaped quote ("")
+                if let Some(&(_, next_ch)) = chars.peek() {
+                    if next_ch == '"' {
+                        // Escaped quote - add one quote, skip both
+                        current_content.push('"');
+                        chars.next(); // consume the second quote
+                        continue;
+                    }
+                }
+                // End of quoted field
+                in_quotes = false;
+            } else {
+                current_content.push(ch);
+            }
+        } else if ch == '"' {
+            // Start of quoted field
+            in_quotes = true;
+        } else if ch == ',' {
+            // Field separator
+            parts.push(CellPart {
+                content: std::mem::take(&mut current_content),
+                start: part_start,
+            });
+            part_start = byte_idx + 1; // comma is always 1 byte
+        } else {
+            current_content.push(ch);
+        }
+    }
+
+    // Add final part
+    parts.push(CellPart {
+        content: current_content,
+        start: part_start,
+    });
+
+    parts
+}
+
+/// Determine if this is a CSV format table.
+fn is_csv_format(separator: &str) -> bool {
+    separator == ","
+}
+
+/// Split a line into cell parts using the appropriate method for the separator.
+fn split_line(line: &str, separator: &str) -> Vec<CellPart> {
+    if is_csv_format(separator) {
+        split_csv(line)
+    } else if let Some(sep_char) = separator.chars().next() {
+        if separator.len() == 1 {
+            split_escaped(line, sep_char)
+        } else {
+            // Multi-char separator - no escape handling
+            split_multi_char(line, separator)
+        }
+    } else {
+        // Empty separator - return whole line as one part
+        vec![CellPart {
+            content: line.to_string(),
+            start: 0,
+        }]
+    }
+}
+
+/// Split by multi-character separator (no escape handling).
+fn split_multi_char(line: &str, separator: &str) -> Vec<CellPart> {
+    let mut parts = Vec::new();
+    let mut last_end = 0;
+    for (idx, _) in line.match_indices(separator) {
+        parts.push(CellPart {
+            content: line.get(last_end..idx).unwrap_or("").to_string(),
+            start: last_end,
+        });
+        last_end = idx + separator.len();
+    }
+    parts.push(CellPart {
+        content: line.get(last_end..).unwrap_or("").to_string(),
+        start: last_end,
+    });
+    parts
+}
+
 /// Represents a parsed cell specifier with span, alignment, and style information.
 ///
 /// In `AsciiDoc`, cell specifiers appear before the cell separator with format:
@@ -365,37 +512,36 @@ impl Table {
                 continue;
             }
 
-            // Split the line by separator to get all cells
-            let parts: Vec<&str> = line.split(separator).collect();
-
-            // Track position within the line
-            let mut line_offset = current_offset;
+            // Split the line by separator, handling escapes appropriately
+            let parts = split_line(line, separator);
 
             // Handle span specifier at the start of line (before first separator)
             // e.g., "2+| content" -> part 0 is "2+", applies to part 1
             let mut pending_spec: Option<CellSpecifier> = None;
 
+            // Determine if first part should be treated as content (CSV) or specifier/skip (PSV/DSV)
+            // For CSV: first part is actual content
+            // For PSV/DSV: first part is either empty, whitespace, or a cell specifier
+            let is_csv = is_csv_format(separator);
+
             for (i, part) in parts.iter().enumerate() {
-                if i == 0 {
-                    // First part is before first separator
-                    let trimmed = part.trim();
-                    if trimmed.is_empty() {
-                        // Normal case: line starts with separator
-                        line_offset += separator.len();
-                    } else {
-                        // Span specifier before first separator: "2+| content"
+                if i == 0 && !is_csv {
+                    // First part is before first separator (PSV/DSV format)
+                    let trimmed = part.content.trim();
+                    if !trimmed.is_empty() {
+                        // Check if this looks like a specifier (e.g., "2+", "3*", "^.>")
                         let (spec, spec_len) = CellSpecifier::parse(trimmed);
-                        if spec_len > 0 {
+                        if spec_len > 0 && spec_len == trimmed.len() {
+                            // Entire first part is a specifier, apply to next cell
                             pending_spec = Some(spec);
                         }
-                        // Move past the specifier and the separator
-                        line_offset += part.len() + separator.len();
+                        // If not a complete specifier, it's just content before first separator
+                        // which we skip for PSV/DSV
                     }
                     continue;
                 }
 
-                let cell_content_with_spaces = part;
-                let cell_content_trimmed = cell_content_with_spaces.trim();
+                let cell_content_trimmed = part.content.trim();
 
                 // Use pending specifier if we have one, otherwise parse from content
                 let (spec, spec_offset) = if let Some(pending) = pending_spec.take() {
@@ -414,14 +560,24 @@ impl Table {
                     cell_content_trimmed
                 };
 
-                // Find where the actual content starts (after leading spaces and specifier)
-                let leading_spaces =
-                    cell_content_with_spaces.len() - cell_content_with_spaces.trim_start().len();
-                let cell_start = line_offset + leading_spaces + spec_offset;
+                // Calculate where cell_content starts within part.content
+                // Pattern: leading_ws + spec_offset + post_spec_ws
+                let leading_ws = part.content.len() - part.content.trim_start().len();
+                let post_spec_ws = if spec_offset > 0 {
+                    let after_spec = cell_content_trimmed.get(spec_offset..).unwrap_or("");
+                    after_spec.len() - after_spec.trim_start().len()
+                } else {
+                    0
+                };
+                let content_start_offset = leading_ws + spec_offset + post_spec_ws;
+
+                // Calculate positions using actual content boundaries
+                let cell_start = current_offset + part.start + content_start_offset;
                 let cell_end = if cell_content.is_empty() {
                     cell_start
                 } else {
-                    cell_start + cell_content.len() - 1 // -1 for inclusive end
+                    // End is start + content length - 1 (inclusive end position)
+                    cell_start + cell_content.len().saturating_sub(1)
                 };
 
                 columns.push(ParsedCell {
@@ -436,12 +592,6 @@ impl Table {
                     is_duplication: spec.is_duplication,
                     duplication_count: spec.duplication_count,
                 });
-
-                // Move offset past this cell and its separator
-                line_offset += part.len();
-                if i < parts.len() - 1 {
-                    line_offset += separator.len();
-                }
             }
 
             current_offset += line.len() + 1; // +1 for newline
