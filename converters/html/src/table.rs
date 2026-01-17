@@ -25,9 +25,30 @@ fn valign_class(valign: VerticalAlignment) -> &'static str {
     }
 }
 
-/// Get column format for a given column index, defaulting to left/top if not specified
-fn get_column_format(columns: &[ColumnFormat], col_index: usize) -> ColumnFormat {
-    columns.get(col_index).cloned().unwrap_or_default()
+/// Get effective alignment for a cell, considering cell-level overrides.
+fn get_effective_halign(
+    columns: &[ColumnFormat],
+    col_index: usize,
+    cell: &TableColumn,
+) -> HorizontalAlignment {
+    cell.halign.unwrap_or_else(|| {
+        columns
+            .get(col_index)
+            .map_or_else(HorizontalAlignment::default, |c| c.halign)
+    })
+}
+
+/// Get effective vertical alignment for a cell, considering cell-level overrides.
+fn get_effective_valign(
+    columns: &[ColumnFormat],
+    col_index: usize,
+    cell: &TableColumn,
+) -> VerticalAlignment {
+    cell.valign.unwrap_or_else(|| {
+        columns
+            .get(col_index)
+            .map_or_else(VerticalAlignment::default, |c| c.valign)
+    })
 }
 
 /// Format colspan/rowspan attributes for a table cell.
@@ -197,9 +218,8 @@ where
         writeln!(writer, "<tr>")?;
         let _ = writer;
         for (col_index, cell) in header.columns.iter().enumerate() {
-            let spec = get_column_format(&table.columns, col_index);
-            let halign = halign_class(spec.halign);
-            let valign = valign_class(spec.valign);
+            let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
+            let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
             let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
@@ -225,9 +245,8 @@ where
         writeln!(writer, "<tr>")?;
         let _ = writer;
         for (col_index, cell) in row.columns.iter().enumerate() {
-            let spec = get_column_format(&table.columns, col_index);
-            let halign = halign_class(spec.halign);
-            let valign = valign_class(spec.valign);
+            let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
+            let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
             let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
@@ -252,9 +271,8 @@ where
         writeln!(writer, "<tr>")?;
         let _ = writer;
         for (col_index, cell) in footer.columns.iter().enumerate() {
-            let spec = get_column_format(&table.columns, col_index);
-            let halign = halign_class(spec.halign);
-            let valign = valign_class(spec.valign);
+            let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
+            let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
             let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
