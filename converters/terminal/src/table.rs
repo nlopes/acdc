@@ -117,17 +117,24 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
 mod tests {
     use super::*;
     use acdc_converters_core::Options;
-    use acdc_parser::{
-        Block, DocumentAttributes, InlineNode, Location, Paragraph, Plain, TableColumn, TableRow,
-    };
+    use acdc_parser::{Block, DelimitedBlockType, DocumentAttributes};
 
-    /// Create simple plain text inline nodes for testing
-    fn create_test_inlines(content: &str) -> Vec<InlineNode> {
-        vec![InlineNode::PlainText(Plain {
-            content: content.to_string(),
-            location: Location::default(),
-            escaped: false,
-        })]
+    /// Parse an `AsciiDoc` string and extract the first table from the document.
+    #[allow(clippy::expect_used)]
+    fn parse_table(adoc: &str) -> acdc_parser::Table {
+        let options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
+        doc.blocks
+            .into_iter()
+            .find_map(|block| {
+                if let Block::DelimitedBlock(db) = block
+                    && let DelimitedBlockType::DelimitedTable(table) = db.inner
+                {
+                    return Some(table);
+                }
+                None
+            })
+            .expect("No table found in document")
     }
 
     /// Create test processor with default options
@@ -146,31 +153,19 @@ mod tests {
         }
     }
 
-    /// Helper to create a paragraph block with plain text content
-    fn create_paragraph_block(text: &str) -> Block {
-        Block::Paragraph(Paragraph::new(
-            create_test_inlines(text),
-            Location::default(),
-        ))
-    }
-
     #[test]
     fn test_table_with_footer() -> Result<(), Error> {
-        let table = acdc_parser::Table::new(
-            vec![TableRow::new(vec![
-                TableColumn::new(vec![create_paragraph_block("Cell 1")]),
-                TableColumn::new(vec![create_paragraph_block("Cell 2")]),
-            ])],
-            Location::default(),
-        )
-        .with_header(Some(TableRow::new(vec![
-            TableColumn::new(vec![create_paragraph_block("Header 1")]),
-            TableColumn::new(vec![create_paragraph_block("Header 2")]),
-        ])))
-        .with_footer(Some(TableRow::new(vec![
-            TableColumn::new(vec![create_paragraph_block("Footer 1")]),
-            TableColumn::new(vec![create_paragraph_block("Footer 2")]),
-        ])));
+        let adoc = r"
+[%header%footer]
+|===
+| Header 1 | Header 2
+
+| Cell 1 | Cell 2
+
+| Footer 1 | Footer 2
+|===
+";
+        let table = parse_table(adoc);
 
         let buffer = Vec::new();
         let processor = create_test_processor();
@@ -198,12 +193,12 @@ mod tests {
 
     #[test]
     fn test_table_without_footer() -> Result<(), Error> {
-        let table = acdc_parser::Table::new(
-            vec![TableRow::new(vec![TableColumn::new(vec![
-                create_paragraph_block("Cell"),
-            ])])],
-            Location::default(),
-        );
+        let adoc = r"
+|===
+| Cell
+|===
+";
+        let table = parse_table(adoc);
 
         let buffer = Vec::new();
         let processor = create_test_processor();
