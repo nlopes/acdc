@@ -223,12 +223,43 @@ impl TableRow {
 #[non_exhaustive]
 pub struct TableColumn {
     pub content: Vec<Block>,
+    /// Number of columns this cell spans (default 1).
+    /// Specified in `AsciiDoc` with `n+|` syntax (e.g., `2+|` for colspan=2).
+    #[serde(default = "default_span", skip_serializing_if = "is_default_span")]
+    pub colspan: usize,
+    /// Number of rows this cell spans (default 1).
+    /// Specified in `AsciiDoc` with `.n+|` syntax (e.g., `.2+|` for rowspan=2).
+    #[serde(default = "default_span", skip_serializing_if = "is_default_span")]
+    pub rowspan: usize,
+}
+
+const fn default_span() -> usize {
+    1
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_default_span(span: &usize) -> bool {
+    *span == 1
 }
 
 impl TableColumn {
-    /// Create a new table column with the given content.
+    /// Create a new table column with the given content and default spans (1).
     #[must_use]
     pub fn new(content: Vec<Block>) -> Self {
-        Self { content }
+        Self {
+            content,
+            colspan: 1,
+            rowspan: 1,
+        }
+    }
+
+    /// Create a new table column with content and explicit span values.
+    #[must_use]
+    pub fn with_spans(content: Vec<Block>, colspan: usize, rowspan: usize) -> Self {
+        Self {
+            content,
+            colspan,
+            rowspan,
+        }
     }
 }
