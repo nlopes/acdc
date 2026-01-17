@@ -2,7 +2,7 @@ use acdc_converters_core::table::calculate_column_widths;
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{
     AttributeValue, Block, BlockMetadata, ColumnFormat, HorizontalAlignment, InlineNode, Table,
-    VerticalAlignment,
+    TableColumn, VerticalAlignment,
 };
 
 use crate::{Error, Processor, RenderOptions};
@@ -28,6 +28,20 @@ fn valign_class(valign: VerticalAlignment) -> &'static str {
 /// Get column format for a given column index, defaulting to left/top if not specified
 fn get_column_format(columns: &[ColumnFormat], col_index: usize) -> ColumnFormat {
     columns.get(col_index).cloned().unwrap_or_default()
+}
+
+/// Format colspan/rowspan attributes for a table cell.
+/// Returns an empty string if both are 1 (default).
+fn format_span_attrs(cell: &TableColumn) -> String {
+    use std::fmt::Write;
+    let mut attrs = String::new();
+    if cell.colspan > 1 {
+        let _ = write!(attrs, " colspan=\"{}\"", cell.colspan);
+    }
+    if cell.rowspan > 1 {
+        let _ = write!(attrs, " rowspan=\"{}\"", cell.rowspan);
+    }
+    attrs
 }
 
 /// Render cell content with support for nested blocks
@@ -186,8 +200,12 @@ where
             let spec = get_column_format(&table.columns, col_index);
             let halign = halign_class(spec.halign);
             let valign = valign_class(spec.valign);
+            let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
-            write!(writer, "<th class=\"tableblock {halign} {valign}\">")?;
+            write!(
+                writer,
+                "<th class=\"tableblock {halign} {valign}\"{span_attrs}>"
+            )?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, false)?;
             let writer = visitor.writer_mut();
@@ -210,8 +228,12 @@ where
             let spec = get_column_format(&table.columns, col_index);
             let halign = halign_class(spec.halign);
             let valign = valign_class(spec.valign);
+            let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
-            write!(writer, "<td class=\"tableblock {halign} {valign}\">")?;
+            write!(
+                writer,
+                "<td class=\"tableblock {halign} {valign}\"{span_attrs}>"
+            )?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, true)?;
             let writer = visitor.writer_mut();
@@ -233,8 +255,12 @@ where
             let spec = get_column_format(&table.columns, col_index);
             let halign = halign_class(spec.halign);
             let valign = valign_class(spec.valign);
+            let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
-            write!(writer, "<td class=\"tableblock {halign} {valign}\">")?;
+            write!(
+                writer,
+                "<td class=\"tableblock {halign} {valign}\"{span_attrs}>"
+            )?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, true)?;
             let writer = visitor.writer_mut();
