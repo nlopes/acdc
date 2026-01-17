@@ -1,0 +1,7 @@
+[cols="3*"]
+|===
+| A | B | C
+
+2+| Spans two columns | D
+| E | F | G
+|===
