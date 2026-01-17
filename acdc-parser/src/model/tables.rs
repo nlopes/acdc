@@ -225,11 +225,11 @@ pub struct TableColumn {
     pub content: Vec<Block>,
     /// Number of columns this cell spans (default 1).
     /// Specified in `AsciiDoc` with `n+|` syntax (e.g., `2+|` for colspan=2).
-    #[serde(default = "default_span", skip_serializing_if = "is_default_span")]
+    #[serde(skip_serializing_if = "is_default_span")]
     pub colspan: usize,
     /// Number of rows this cell spans (default 1).
     /// Specified in `AsciiDoc` with `.n+|` syntax (e.g., `.2+|` for rowspan=2).
-    #[serde(default = "default_span", skip_serializing_if = "is_default_span")]
+    #[serde(skip_serializing_if = "is_default_span")]
     pub rowspan: usize,
     /// Cell-level horizontal alignment override.
     /// Specified with `<`, `^`, or `>` in cell specifier (e.g., `^|` for center).
@@ -243,10 +243,6 @@ pub struct TableColumn {
     /// Specified with style letter after operator (e.g., `s|` for strong/bold).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<ColumnStyle>,
-}
-
-const fn default_span() -> usize {
-    1
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
