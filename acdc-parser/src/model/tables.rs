@@ -251,35 +251,9 @@ const fn is_default_span(span: &usize) -> bool {
 }
 
 impl TableColumn {
-    /// Create a new table column with the given content and default spans (1).
-    #[must_use]
-    pub fn new(content: Vec<Block>) -> Self {
-        Self {
-            content,
-            colspan: 1,
-            rowspan: 1,
-            halign: None,
-            valign: None,
-            style: None,
-        }
-    }
-
-    /// Create a new table column with content and explicit span values.
-    #[must_use]
-    pub fn with_spans(content: Vec<Block>, colspan: usize, rowspan: usize) -> Self {
-        Self {
-            content,
-            colspan,
-            rowspan,
-            halign: None,
-            valign: None,
-            style: None,
-        }
-    }
-
     /// Create a new table column with full cell specifier options.
     #[must_use]
-    pub fn with_format(
+    pub(crate) fn with_format(
         content: Vec<Block>,
         colspan: usize,
         rowspan: usize,

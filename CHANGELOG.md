@@ -38,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Table colspan and rowspan rendering (`colspan="n"` and `rowspan="n"` attributes on `<th>`/`<td>`)
+- Table visual attribute support:
+  - `frame` attribute - controls outer border (`all`, `ends`/`topbot`, `sides`, `none`)
+  - `grid` attribute - controls inner gridlines (`all`, `rows`, `cols`, `none`)
+  - `stripes` attribute - controls row striping (`even`, `odd`, `all`, `hover`)
+  - `width` attribute - sets explicit table width (e.g., `width=75%`)
+  - `%autowidth` option - uses `fit-content` sizing instead of `stretch`
+  - Custom roles from metadata applied as CSS classes
+- Cell-level alignment overrides are now respected, falling back to column-level defaults
 - Initial support for `[subs=...]` attribute on verbatim blocks (listing, literal)
   - `subs=none` - disables all substitutions, outputs raw content
   - `subs=specialchars` - only escapes HTML special characters
@@ -80,6 +89,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Complete cell specifier support for tables:
+  - Colspan: `2+|` spans 2 columns
+  - Rowspan: `.2+|` spans 2 rows
+  - Combined: `2.3+|` spans 2 columns and 3 rows
+  - Cell duplication: `3*|` duplicates cell content 3 times
+  - Cell-level horizontal alignment: `<|` (left), `^|` (center), `>|` (right)
+  - Cell-level vertical alignment: `.<|` (top), `.^|` (middle), `.>|` (bottom)
+  - Cell-level style: `s|` (strong), `e|` (emphasis), `m|` (monospace), etc.
+  - All specifiers can be combined (e.g., `2.3+^.^s|` for colspan=2, rowspan=3, centered, strong)
 - Tag filtering for include directives ([#279])
   - `tag=name` - include a specific tagged region
   - `tags=a;b;c` - include multiple tags (semicolon or comma delimited)
@@ -98,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Table cell content now has correct source position tracking for multi-line cells
 - Description lists with terms starting with `#` (e.g., `#issue-123:: definition`)
   are no longer incorrectly parsed as section boundaries inside sections. The
   section boundary detection now requires a space after the level marker.
@@ -123,6 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: `TableColumn` struct now includes `colspan`, `rowspan`, `halign`, `valign`,
+  and `style` fields.
 - **BREAKING**: `BlockMetadata.substitutions` changed from `Option<Vec<Substitution>>`
   to `Option<SubstitutionSpec>`. New types `SubstitutionSpec` and `SubstitutionOp` are
   now public exports. Modifier syntax (`+quotes`, `-callouts`) is now stored as operations
