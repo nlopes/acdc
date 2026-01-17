@@ -188,6 +188,18 @@ pub fn run(args: &Args) -> miette::Result<()> {
             .map_err(|e| error::display(&e))
         }
 
+        #[cfg(feature = "markdown")]
+        Backend::Markdown => {
+            // Markdown outputs to separate files - can process in parallel
+            run_processor::<acdc_converters_markdown::Processor>(
+                args,
+                options,
+                document_attributes,
+                true,
+            )
+            .map_err(|e| error::display(&e))
+        }
+
         // Catch-all for backends not compiled in
         #[allow(unreachable_patterns)]
         backend => Err(Report::msg(format!(
