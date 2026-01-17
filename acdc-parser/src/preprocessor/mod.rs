@@ -181,7 +181,7 @@ impl Preprocessor {
                 return Ok(Some(include.lines()?));
             }
         } else {
-            tracing::error!("file parent is missing - include directive cannot be processed");
+            tracing::error!(%line, "file parent is missing - include directive cannot be processed");
         }
         Ok(None)
     }
