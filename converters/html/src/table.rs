@@ -1,8 +1,8 @@
 use acdc_converters_core::table::calculate_column_widths;
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, ColumnFormat, HorizontalAlignment, InlineNode, Table,
-    TableColumn, VerticalAlignment,
+    Block, BlockMetadata, ColumnFormat, HorizontalAlignment, InlineNode, Table, TableColumn,
+    VerticalAlignment,
 };
 
 use crate::{Error, Processor, RenderOptions};
@@ -112,14 +112,8 @@ where
     if !title.is_empty() {
         let count = processor.table_counter.get() + 1;
         processor.table_counter.set(count);
-        let caption = processor
-            .document_attributes
-            .get("table-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .unwrap_or("Table");
+        let caption_owned = processor.document_attributes.get_string("table-caption");
+        let caption = caption_owned.unwrap_or(String::from("Table"));
         visitor.render_title_with_wrapper(
             title,
             &format!("<caption class=\"title\">{caption} {count}. "),
@@ -136,12 +130,7 @@ fn render_colgroup<W: std::io::Write + ?Sized>(
     metadata: &BlockMetadata,
 ) -> Result<(), Error> {
     // Generate colgroup - either from cols attribute or inferred from table structure
-    let col_count = if let Some(cols_value) = metadata.attributes.get("cols") {
-        let cols_str = match cols_value {
-            AttributeValue::String(s) => s.trim_matches('"'),
-            AttributeValue::Bool(_) | AttributeValue::None | _ => "",
-        };
-
+    let col_count = if let Some(cols_str) = metadata.attributes.get_string("cols") {
         // Handle multiplier syntax like "3*" or "2*~"
         if let Some(asterisk_pos) = cols_str.find('*') {
             let count_str = &cols_str[..asterisk_pos];
@@ -187,6 +176,63 @@ fn render_colgroup<W: std::io::Write + ?Sized>(
     Ok(())
 }
 
+/// Get frame class from metadata (default: all).
+fn get_frame_class(metadata: &BlockMetadata) -> &'static str {
+    metadata
+        .attributes
+        .get_string("frame")
+        .map_or("frame-all", |frame| match frame.as_str() {
+            "ends" | "topbot" => "frame-ends",
+            "sides" => "frame-sides",
+            "none" => "frame-none",
+            _ => "frame-all",
+        })
+}
+
+/// Get grid class from metadata (default: all).
+fn get_grid_class(metadata: &BlockMetadata) -> &'static str {
+    metadata
+        .attributes
+        .get_string("grid")
+        .map_or("grid-all", |grid| match grid.as_str() {
+            "rows" => "grid-rows",
+            "cols" => "grid-cols",
+            "none" => "grid-none",
+            _ => "grid-all",
+        })
+}
+
+/// Get stripes class from metadata (only if specified).
+fn get_stripes_class(metadata: &BlockMetadata) -> Option<&'static str> {
+    metadata
+        .attributes
+        .get_string("stripes")
+        .and_then(|stripes| match stripes.as_str() {
+            "even" => Some("stripes-even"),
+            "odd" => Some("stripes-odd"),
+            "all" => Some("stripes-all"),
+            "hover" => Some("stripes-hover"),
+            _ => None,
+        })
+}
+
+/// Get width style from metadata (returns empty string if not specified).
+fn get_width_style(metadata: &BlockMetadata) -> String {
+    metadata
+        .attributes
+        .get_string("width")
+        .map_or_else(String::new, |w| format!(" style=\"width: {w};\""))
+}
+
+/// Get sizing class based on %autowidth option.
+fn get_sizing_class(metadata: &BlockMetadata) -> &'static str {
+    if metadata.options.contains(&"autowidth".to_string()) {
+        "fit-content"
+    } else {
+        "stretch"
+    }
+}
+
 /// Render table with support for nested blocks in cells
 pub(crate) fn render_table<V>(
     table: &Table,
@@ -200,9 +246,31 @@ where
     V: WritableVisitor<Error = Error>,
 {
     let writer = visitor.writer_mut();
-    let classes = ["tableblock", "frame-all", "grid-all", "stretch"];
 
-    writeln!(writer, "<table class=\"{}\">", classes.join(" "))?;
+    // Build table classes
+    let frame = get_frame_class(metadata);
+    let grid = get_grid_class(metadata);
+    let sizing = get_sizing_class(metadata);
+
+    // Start with base classes, add optional ones
+    let mut class_parts = format!("tableblock {frame} {grid} {sizing}");
+
+    // Add stripes class if specified
+    if let Some(stripes) = get_stripes_class(metadata) {
+        class_parts.push(' ');
+        class_parts.push_str(stripes);
+    }
+
+    // Add custom roles/classes from metadata
+    for role in &metadata.roles {
+        class_parts.push(' ');
+        class_parts.push_str(role);
+    }
+
+    // Get width style
+    let width_style = get_width_style(metadata);
+
+    writeln!(writer, "<table class=\"{class_parts}\"{width_style}>")?;
 
     // Render caption with table number if title exists
     let _ = writer;

@@ -247,9 +247,9 @@ impl ElementAttributes {
         self.0.merge(other.0);
     }
 
-    /// Helper to get a string value.
+    /// Get a string attribute value as an owned `String`.
     ///
-    /// Strips surrounding quotes from the value if present (parser quirk workaround).
+    /// Strips surrounding quotes from the value if present.
     #[must_use]
     pub fn get_string(&self, name: &str) -> Option<String> {
         self.get(name).and_then(|v| match v {
