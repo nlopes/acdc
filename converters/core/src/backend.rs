@@ -18,6 +18,8 @@ pub enum Backend {
     Manpage,
     /// Terminal/console output with ANSI formatting.
     Terminal,
+    /// Markdown output format.
+    Markdown,
 }
 
 impl FromStr for Backend {
@@ -29,8 +31,9 @@ impl FromStr for Backend {
             "html5s" => Ok(Self::Html5s),
             "manpage" => Ok(Self::Manpage),
             "terminal" => Ok(Self::Terminal),
+            "markdown" | "md" => Ok(Self::Markdown),
             _ => Err(format!(
-                "invalid backend: '{s}', expected: html, html5s, manpage, terminal"
+                "invalid backend: '{s}', expected: html, html5s, manpage, markdown, terminal"
             )),
         }
     }
@@ -43,6 +46,7 @@ impl std::fmt::Display for Backend {
             Self::Html5s => write!(f, "html5s"),
             Self::Manpage => write!(f, "manpage"),
             Self::Terminal => write!(f, "terminal"),
+            Self::Markdown => write!(f, "markdown"),
         }
     }
 }
