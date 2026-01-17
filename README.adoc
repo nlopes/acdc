@@ -87,7 +87,7 @@ See link:./acdc-parser/README.adoc[acdc-parser README] for detailed feature supp
 cargo build --all
 
 # Run tests with detailed output
-RUST_LOG=error cargo nextest run --no-fail-fast
+RUST_LOG=error cargo nextest run --no-fail-fast --all-features --all-targets
 
 # Run clippy with pedantic lints
 cargo clippy --all-targets --all-features -- --deny clippy::pedantic
