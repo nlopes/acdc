@@ -1515,8 +1515,10 @@ peg::parser! {
             for (i, row) in raw_rows.iter().enumerate() {
                 let columns = row
                 .iter()
-                .filter(|(cell, _, _)| !cell.is_empty())
-                .map(|(cell, start, _end)| parse_table_cell(cell, state, *start, block_metadata.parent_section_level))
+                .filter(|(cell, _, _, _, _)| !cell.is_empty())
+                .map(|(cell, start, _end, colspan, rowspan)| {
+                    parse_table_cell(cell, state, *start, block_metadata.parent_section_level, *colspan, *rowspan)
+                })
                 .collect::<Result<Vec<_>, _>>()?;
 
                 // Calculate row line number from first cell for better error reporting
@@ -1526,16 +1528,29 @@ peg::parser! {
                     table_location.start.line  // Fallback if row is empty (shouldn't happen)
                 };
 
-                // validate that if we have ncols we have the same number of columns in each row
+                // validate that if we have ncols the logical column count matches
+                // Logical column count = sum of colspans for all cells
+                let logical_col_count: usize = columns.iter().map(|c| c.colspan).sum();
                 if let Some(ncols) = ncols
-                && columns.len() != ncols
+                && logical_col_count != ncols
                 {
-                    tracing::warn!(
-                        actual = columns.len(),
-                        expected = ncols,
-                        line = row_line,
-                        "table row has incorrect column count, skipping row"
-                    );
+                    // Check if any cell's colspan exceeds the table width
+                    let has_overflow = columns.iter().any(|c| c.colspan > ncols);
+                    if has_overflow {
+                        tracing::error!(
+                            actual = logical_col_count,
+                            expected = ncols,
+                            line = row_line,
+                            "dropping cell because it exceeds specified number of columns"
+                        );
+                    } else {
+                        tracing::warn!(
+                            actual = logical_col_count,
+                            expected = ncols,
+                            line = row_line,
+                            "table row has incorrect column count, skipping row"
+                        );
+                    }
                     continue;
                 }
 
