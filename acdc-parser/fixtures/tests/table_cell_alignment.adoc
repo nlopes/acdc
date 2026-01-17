@@ -1,0 +1,6 @@
+|===
+| Default | Centered | Right
+
+^| Center | Default | > Right
+| Default | .^ Middle | .> Bottom
+|===

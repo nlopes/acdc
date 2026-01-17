@@ -1512,25 +1512,39 @@ peg::parser! {
             let mut footer = None;
             let mut rows = Vec::new();
 
+            // Track rowspan state: maps column positions to remaining rowspan count.
+            // When a cell has rowspan > 1, we track how many more rows it occupies.
+            // Each entry: (column_position, remaining_rows, colspan_width)
+            let mut active_rowspans: Vec<(usize, usize, usize)> = Vec::new();
+
             for (i, row) in raw_rows.iter().enumerate() {
-                let columns = row
-                .iter()
-                .filter(|(cell, _, _, _, _)| !cell.is_empty())
-                .map(|(cell, start, _end, colspan, rowspan)| {
-                    parse_table_cell(cell, state, *start, block_metadata.parent_section_level, *colspan, *rowspan)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
+                // Process cells, handling duplication
+                let mut columns = Vec::new();
+                for cell in row.iter().filter(|c| !c.content.is_empty()) {
+                    let parsed = parse_table_cell(&cell.content, state, cell.start, block_metadata.parent_section_level, cell)?;
+                    if cell.is_duplication && cell.duplication_count > 1 {
+                        // Duplicate the cell N times
+                        for _ in 0..cell.duplication_count {
+                            columns.push(parsed.clone());
+                        }
+                    } else {
+                        columns.push(parsed);
+                    }
+                }
 
                 // Calculate row line number from first cell for better error reporting
                 let row_line = if let Some(first) = row.first() {
-                    state.create_location(first.1, first.2).start.line
+                    state.create_location(first.start, first.end).start.line
                 } else {
                     table_location.start.line  // Fallback if row is empty (shouldn't happen)
                 };
 
-                // validate that if we have ncols the logical column count matches
-                // Logical column count = sum of colspans for all cells
-                let logical_col_count: usize = columns.iter().map(|c| c.colspan).sum();
+                // Calculate occupied columns from active rowspans
+                let occupied_from_rowspans: usize = active_rowspans.iter().map(|(_pos, _remaining, width)| *width).sum();
+
+                // Logical column count = columns occupied by rowspans + colspans of new cells
+                let logical_col_count: usize = occupied_from_rowspans + columns.iter().map(|c| c.colspan).sum::<usize>();
+
                 if let Some(ncols) = ncols
                 && logical_col_count != ncols
                 {
@@ -1547,11 +1561,40 @@ peg::parser! {
                         tracing::warn!(
                             actual = logical_col_count,
                             expected = ncols,
+                            occupied_from_rowspans,
                             line = row_line,
                             "table row has incorrect column count, skipping row"
                         );
                     }
                     continue;
+                }
+
+                // Update active rowspans for this row:
+                // 1. Decrement remaining count for existing rowspans
+                // 2. Remove rowspans that are now exhausted
+                active_rowspans.retain_mut(|(_pos, remaining, _width)| {
+                    *remaining -= 1;
+                    *remaining > 0
+                });
+
+                // 3. Add new rowspans from current row's cells
+                let mut col_position = 0;
+                for (_, active_pos, _, colspan) in active_rowspans.iter().map(|(p, r, c)| (*p, *p, *r, *c)) {
+                    if col_position == active_pos {
+                        col_position += colspan;
+                    }
+                }
+                for cell in &columns {
+                    // Skip over positions occupied by rowspans
+                    while active_rowspans.iter().any(|(pos, _, width)| col_position >= *pos && col_position < pos + width) {
+                        if let Some((_, _, width)) = active_rowspans.iter().find(|(pos, _, w)| col_position >= *pos && col_position < pos + w) {
+                            col_position += width;
+                        }
+                    }
+                    if cell.rowspan > 1 {
+                        active_rowspans.push((col_position, cell.rowspan - 1, cell.colspan));
+                    }
+                    col_position += cell.colspan;
                 }
 
                 // if we have a header, we need to add the columns we have to the header

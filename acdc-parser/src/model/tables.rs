@@ -231,6 +231,18 @@ pub struct TableColumn {
     /// Specified in `AsciiDoc` with `.n+|` syntax (e.g., `.2+|` for rowspan=2).
     #[serde(default = "default_span", skip_serializing_if = "is_default_span")]
     pub rowspan: usize,
+    /// Cell-level horizontal alignment override.
+    /// Specified with `<`, `^`, or `>` in cell specifier (e.g., `^|` for center).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub halign: Option<HorizontalAlignment>,
+    /// Cell-level vertical alignment override.
+    /// Specified with `.<`, `.^`, or `.>` in cell specifier (e.g., `.>|` for bottom).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valign: Option<VerticalAlignment>,
+    /// Cell-level style override.
+    /// Specified with style letter after operator (e.g., `s|` for strong/bold).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<ColumnStyle>,
 }
 
 const fn default_span() -> usize {
@@ -250,6 +262,9 @@ impl TableColumn {
             content,
             colspan: 1,
             rowspan: 1,
+            halign: None,
+            valign: None,
+            style: None,
         }
     }
 
@@ -260,6 +275,29 @@ impl TableColumn {
             content,
             colspan,
             rowspan,
+            halign: None,
+            valign: None,
+            style: None,
+        }
+    }
+
+    /// Create a new table column with full cell specifier options.
+    #[must_use]
+    pub fn with_format(
+        content: Vec<Block>,
+        colspan: usize,
+        rowspan: usize,
+        halign: Option<HorizontalAlignment>,
+        valign: Option<VerticalAlignment>,
+        style: Option<ColumnStyle>,
+    ) -> Self {
+        Self {
+            content,
+            colspan,
+            rowspan,
+            halign,
+            valign,
+            style,
         }
     }
 }
