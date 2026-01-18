@@ -4990,7 +4990,7 @@ peg::parser! {
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
         rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
         {?
-            let mut inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new(
                 path,
                 state.line_map.clone(),
                 &state.input,
@@ -5009,7 +5009,7 @@ peg::parser! {
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution
         pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
         {?
-            let mut inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new(
                 path,
                 state.line_map.clone(),
                 &state.input,

@@ -230,6 +230,10 @@ parser!(
             kbd_macro()
             / monospace()
             / passthrough()
+            // counter_reference must come BEFORE attribute_reference because counters
+            // have a colon in the name (e.g., {counter:num}) which is not valid in
+            // standard attribute names
+            / counter_reference()
             / attribute_reference()
             / unprocessed_text()
         } / expected!("inlines parser failed")
@@ -248,6 +252,33 @@ parser!(
             = text:$("kbd:[" (!"]" [_])* "]") {
                 state.advance(text);
                 text.to_string()
+            }
+
+        /// Counter reference: `{counter:name}`, `{counter:name:initial}`, `{counter2:name}`
+        ///
+        /// Counters are not supported. Per asciidoctor maintainer feedback, counters are
+        /// "a disaster" that they want to redesign or remove. We detect them, emit a warning,
+        /// and return empty string (the counter syntax is silently removed from output).
+        rule counter_reference() -> String
+            = start:position() "{"
+              counter_type:$("counter2" / "counter") ":"
+              name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
+              (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)?
+              "}"
+            {
+                tracing::warn!(
+                    counter_type,
+                    name,
+                    "Counters ({{{counter_type}:{name}}}) are not supported and will be removed from output"
+                );
+
+                // Calculate total length for position tracking
+                // We capture the full match including any optional initial value
+                let total_len = counter_type.len() + 1 + name.len() + 2; // "{" + counter_type + ":" + name + "}"
+                let _location = state.calculate_location(start, "", total_len);
+
+                // Return empty string - counter is removed from output
+                String::new()
             }
 
         rule attribute_reference() -> String
@@ -485,10 +516,13 @@ parser!(
             = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
 
         rule unprocessed_text() -> String
-            = text:$((!(passthrough_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_])+) {
+            = text:$((!(passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_])+) {
                 state.advance(text);
                 text.to_string()
             }
+
+        /// Pattern for counter references: {counter:name} or {counter:name:initial} or {counter2:...}
+        rule counter_reference_pattern() = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 
