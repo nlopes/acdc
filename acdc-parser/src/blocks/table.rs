@@ -519,14 +519,13 @@ impl Table {
             // e.g., "2+| content" -> part 0 is "2+", applies to part 1
             let mut pending_spec: Option<CellSpecifier> = None;
 
-            // Determine if first part should be treated as content (CSV) or specifier/skip (PSV/DSV)
-            // For CSV: first part is actual content
-            // For PSV/DSV: first part is either empty, whitespace, or a cell specifier
-            let is_csv = is_csv_format(separator);
+            // Determine if first part should be treated as content or specifier/skip
+            // For PSV (|): first part is before the leading separator, skip it or treat as specifier
+            // For CSV (,) and DSV (:): first part is actual cell content
 
             for (i, part) in parts.iter().enumerate() {
-                if i == 0 && !is_csv {
-                    // First part is before first separator (PSV/DSV format)
+                if i == 0 && separator == "|" {
+                    // First part is before first separator (PSV format only)
                     let trimmed = part.content.trim();
                     if !trimmed.is_empty() {
                         // Check if this looks like a specifier (e.g., "2+", "3*", "^.>")
@@ -536,7 +535,7 @@ impl Table {
                             pending_spec = Some(spec);
                         }
                         // If not a complete specifier, it's just content before first separator
-                        // which we skip for PSV/DSV
+                        // which we skip for PSV
                     }
                     continue;
                 }
@@ -598,5 +597,87 @@ impl Table {
         }
 
         columns
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::panic, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_escaped_psv_no_escapes() {
+        let parts = split_escaped("| cell1 | cell2 |", '|');
+        let [p0, p1, p2, p3] = parts.as_slice() else {
+            panic!("expected 4 parts, got {}", parts.len());
+        };
+        assert_eq!(p0.content, "");
+        assert_eq!(p1.content, " cell1 ");
+        assert_eq!(p2.content, " cell2 ");
+        assert_eq!(p3.content, "");
+    }
+
+    #[test]
+    fn split_escaped_psv_with_escape() {
+        let parts = split_escaped(r"| cell with \| pipe | normal |", '|');
+        let [p0, p1, p2, p3] = parts.as_slice() else {
+            panic!("expected 4 parts, got {}", parts.len());
+        };
+        assert_eq!(p0.content, "");
+        assert_eq!(p1.content, " cell with | pipe ");
+        assert_eq!(p2.content, " normal ");
+        assert_eq!(p3.content, "");
+    }
+
+    #[test]
+    fn split_escaped_dsv_no_escapes() {
+        let parts = split_escaped("cell1:cell2:cell3", ':');
+        let [p0, p1, p2] = parts.as_slice() else {
+            panic!("expected 3 parts, got {}", parts.len());
+        };
+        assert_eq!(p0.content, "cell1");
+        assert_eq!(p1.content, "cell2");
+        assert_eq!(p2.content, "cell3");
+    }
+
+    #[test]
+    fn split_escaped_dsv_with_escape() {
+        let parts = split_escaped(r"cell with \: colon:normal", ':');
+        let [p0, p1] = parts.as_slice() else {
+            panic!("expected 2 parts, got {}", parts.len());
+        };
+        assert_eq!(p0.content, "cell with : colon");
+        assert_eq!(p1.content, "normal");
+    }
+
+    #[test]
+    fn split_escaped_backslash_not_before_separator() {
+        // Backslash before non-separator should be preserved
+        let parts = split_escaped(r"cell\n with backslash|next", '|');
+        let [p0, p1] = parts.as_slice() else {
+            panic!("expected 2 parts, got {}", parts.len());
+        };
+        assert_eq!(p0.content, r"cell\n with backslash");
+        assert_eq!(p1.content, "next");
+    }
+
+    #[test]
+    fn split_escaped_multiple_escapes() {
+        let parts = split_escaped(r"\|start\|middle\|end", '|');
+        let [p0] = parts.as_slice() else {
+            panic!("expected 1 part, got {}", parts.len());
+        };
+        assert_eq!(p0.content, "|start|middle|end");
+    }
+
+    #[test]
+    fn split_escaped_positions_tracked() {
+        let parts = split_escaped("ab|cd|ef", '|');
+        let [p0, p1, p2] = parts.as_slice() else {
+            panic!("expected 3 parts, got {}", parts.len());
+        };
+        assert_eq!(p0.start, 0);
+        assert_eq!(p1.start, 3); // after "ab|"
+        assert_eq!(p2.start, 6); // after "ab|cd|"
     }
 }

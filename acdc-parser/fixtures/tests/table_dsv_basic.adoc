@@ -1,0 +1,5 @@
+[format=dsv]
+|===
+cell1:cell2:cell3
+A:B:C
+|===

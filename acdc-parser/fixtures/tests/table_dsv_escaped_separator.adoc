@@ -1,0 +1,5 @@
+[format=dsv]
+|===
+cell with \: colon:normal cell
+another \: escaped:plain
+|===
