@@ -100,23 +100,38 @@ where
     Ok(())
 }
 
-/// Render table caption with number if title exists
+/// Render table caption with number if title exists.
+///
+/// Per-block `[caption="..."]` attribute overrides the prefix entirely and does NOT increment
+/// the table counter (following `AsciiDoc` specification).
 fn render_table_caption<V>(
     visitor: &mut V,
     title: &[InlineNode],
     processor: &Processor,
+    metadata: &BlockMetadata,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<Error = Error>,
 {
     if !title.is_empty() {
-        let count = processor.table_counter.get() + 1;
-        processor.table_counter.set(count);
-        let caption_owned = processor.document_attributes.get_string("table-caption");
-        let caption = caption_owned.unwrap_or(String::from("Table"));
+        // Check for per-block caption override
+        let prefix = if let Some(custom_caption) = metadata.attributes.get_string("caption") {
+            // Per-block caption replaces entire prefix and does NOT increment internal counter.
+            custom_caption
+        } else {
+            // Default: "Table N. " format - increment counter
+            let count = processor.table_counter.get() + 1;
+            processor.table_counter.set(count);
+            let caption = processor
+                .document_attributes
+                .get_string("table-caption")
+                .unwrap_or_else(|| String::from("Table"));
+            format!("{caption} {count}. ")
+        };
+
         visitor.render_title_with_wrapper(
             title,
-            &format!("<caption class=\"title\">{caption} {count}. "),
+            &format!("<caption class=\"title\">{prefix}"),
             "</caption>\n",
         )?;
     }
@@ -274,7 +289,7 @@ where
 
     // Render caption with table number if title exists
     let _ = writer;
-    render_table_caption(visitor, title, processor)?;
+    render_table_caption(visitor, title, processor, metadata)?;
 
     // Render colgroup with column widths
     render_colgroup(visitor.writer_mut(), table, metadata)?;
