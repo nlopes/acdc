@@ -1,0 +1,4 @@
+|===
+| cell with \| pipe | normal cell
+| another \| escaped | plain
+|===
