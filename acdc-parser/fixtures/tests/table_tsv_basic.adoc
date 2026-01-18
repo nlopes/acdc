@@ -1,0 +1,6 @@
+[%header,format=tsv]
+|===
+name	role	department
+Alice	Developer	Engineering
+Bob	Designer	Marketing
+|===

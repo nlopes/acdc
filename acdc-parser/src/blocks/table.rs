@@ -52,56 +52,141 @@ fn split_escaped(line: &str, separator: char) -> Vec<CellPart> {
     parts
 }
 
-/// Split a CSV line, respecting quoted fields (RFC 4180).
+/// Parse a CSV table body using the `csv` crate for full RFC 4180 compliance.
 ///
-/// - Fields enclosed in double quotes can contain commas
-/// - Double-double-quotes (`""`) inside quoted fields become a single quote
-fn split_csv(line: &str) -> Vec<CellPart> {
-    let mut parts = Vec::new();
-    let mut current_content = String::new();
-    let mut part_start = 0;
-    let mut in_quotes = false;
-    let mut chars = line.char_indices().peekable();
+/// This handles multi-line quoted values, escaped quotes, and all CSV edge cases.
+/// Returns rows with cells containing their content and accurate byte positions.
+fn parse_csv_table(text: &str, base_offset: usize) -> Vec<Vec<CellPart>> {
+    let text_bytes = text.as_bytes();
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .flexible(true) // allow variable column counts
+        .from_reader(text_bytes);
 
-    while let Some((byte_idx, ch)) = chars.next() {
-        if in_quotes {
-            if ch == '"' {
-                // Check for escaped quote ("")
-                if let Some(&(_, next_ch)) = chars.peek() {
-                    if next_ch == '"' {
-                        // Escaped quote - add one quote, skip both
-                        current_content.push('"');
-                        chars.next(); // consume the second quote
-                        continue;
-                    }
-                }
-                // End of quoted field
-                in_quotes = false;
-            } else {
-                current_content.push(ch);
-            }
-        } else if ch == '"' {
-            // Start of quoted field
-            in_quotes = true;
-        } else if ch == ',' {
-            // Field separator
-            parts.push(CellPart {
-                content: std::mem::take(&mut current_content),
-                start: part_start,
+    let mut rows = Vec::new();
+
+    for result in reader.records() {
+        let Ok(record) = result else {
+            continue;
+        };
+
+        // Get the byte position where this record starts in the input
+        let record_start = record
+            .position()
+            .map_or(0, |p| usize::try_from(p.byte()).unwrap_or(0));
+
+        let mut cells = Vec::new();
+        let mut scan_pos = record_start;
+
+        for field in &record {
+            // Find actual field position by scanning the original text
+            let (field_content_start, next_pos) =
+                find_csv_field_position(text_bytes, scan_pos, field);
+
+            cells.push(CellPart {
+                content: field.to_string(),
+                start: base_offset + field_content_start,
             });
-            part_start = byte_idx + 1; // comma is always 1 byte
-        } else {
-            current_content.push(ch);
+
+            scan_pos = next_pos;
         }
+
+        rows.push(cells);
     }
 
-    // Add final part
-    parts.push(CellPart {
-        content: current_content,
-        start: part_start,
-    });
+    rows
+}
 
-    parts
+/// Find the actual byte position of a CSV field's content in the original text.
+///
+/// Returns `(content_start, next_scan_position)` where:
+/// - `content_start` is where the field's actual content begins (after opening quote if quoted)
+/// - `next_scan_position` is where to start scanning for the next field
+fn find_csv_field_position(text: &[u8], start: usize, expected_content: &str) -> (usize, usize) {
+    let Some(&first_byte) = text.get(start) else {
+        return (start, start);
+    };
+
+    if first_byte == b'"' {
+        // Quoted field: content starts after the opening quote
+        let content_start = start + 1;
+        // Find the closing quote (handle escaped quotes "")
+        let end_pos = find_closing_quote(text, start + 1);
+        // Next field starts after closing quote and comma (or newline)
+        let next_pos = skip_to_next_field(text, end_pos);
+        (content_start, next_pos)
+    } else {
+        // Unquoted field: content starts at current position
+        let content_start = start;
+        // Find end of field (comma or newline)
+        let end_pos = find_unquoted_field_end(text, start, expected_content.len());
+        // Next field starts after the separator
+        let next_pos = skip_to_next_field(text, end_pos);
+        (content_start, next_pos)
+    }
+}
+
+/// Find the closing quote of a quoted CSV field, handling escaped quotes (`""`).
+fn find_closing_quote(text: &[u8], start: usize) -> usize {
+    let mut pos = start;
+    while let Some(&byte) = text.get(pos) {
+        if byte == b'"' {
+            // Check if this is an escaped quote ("")
+            if text.get(pos + 1) == Some(&b'"') {
+                // Escaped quote - skip both and continue
+                pos += 2;
+            } else {
+                // Closing quote found
+                return pos;
+            }
+        } else {
+            pos += 1;
+        }
+    }
+    // No closing quote found - return end of text
+    text.len()
+}
+
+/// Find the end of an unquoted CSV field.
+fn find_unquoted_field_end(text: &[u8], start: usize, content_len: usize) -> usize {
+    // The field ends at comma, CR, LF, or content_len bytes (whichever comes first)
+    let mut pos = start;
+    let mut remaining = content_len;
+    while let Some(&byte) = text.get(pos) {
+        if byte == b',' || byte == b'\n' || byte == b'\r' {
+            return pos;
+        }
+        if remaining == 0 {
+            return pos;
+        }
+        remaining = remaining.saturating_sub(1);
+        pos += 1;
+    }
+    text.len()
+}
+
+/// Skip past the current field separator to find the start of the next field.
+fn skip_to_next_field(text: &[u8], pos: usize) -> usize {
+    let mut pos = pos;
+    // Skip closing quote if present
+    if text.get(pos) == Some(&b'"') {
+        pos += 1;
+    }
+    // Skip comma or newline characters
+    while let Some(&byte) = text.get(pos) {
+        if byte == b',' {
+            return pos + 1;
+        }
+        if byte == b'\r' || byte == b'\n' {
+            // Skip CRLF or just LF
+            if byte == b'\r' && text.get(pos + 1) == Some(&b'\n') {
+                return pos + 2;
+            }
+            return pos + 1;
+        }
+        pos += 1;
+    }
+    pos
 }
 
 /// Determine if this is a CSV format table.
@@ -110,10 +195,10 @@ fn is_csv_format(separator: &str) -> bool {
 }
 
 /// Split a line into cell parts using the appropriate method for the separator.
+///
+/// Note: CSV format is handled separately via `parse_csv_table()` for multi-line support.
 fn split_line(line: &str, separator: &str) -> Vec<CellPart> {
-    if is_csv_format(separator) {
-        split_csv(line)
-    } else if let Some(sep_char) = separator.chars().next() {
+    if let Some(sep_char) = separator.chars().next() {
         if separator.len() == 1 {
             split_escaped(line, sep_char)
         } else {
@@ -418,6 +503,11 @@ impl Table {
         has_header: &mut bool,
         base_offset: usize,
     ) -> Vec<Vec<ParsedCell>> {
+        // CSV format needs special handling for multi-line quoted values
+        if is_csv_format(separator) {
+            return Self::parse_csv_rows_with_positions(text, has_header, base_offset);
+        }
+
         let mut rows = Vec::new();
         let mut current_offset = base_offset;
         let lines: Vec<&str> = text.lines().collect();
@@ -491,6 +581,64 @@ impl Table {
                 }
                 current_offset += empty_line.len() + 1;
                 i += 1;
+            }
+        }
+
+        rows
+    }
+
+    /// Parse CSV table rows using the `csv` crate for RFC 4180 compliance.
+    ///
+    /// This handles multi-line quoted values correctly by processing the entire
+    /// table body at once rather than line-by-line.
+    fn parse_csv_rows_with_positions(
+        text: &str,
+        has_header: &mut bool,
+        base_offset: usize,
+    ) -> Vec<Vec<ParsedCell>> {
+        // Check for header indicator: first row followed by blank line
+        // For CSV, we need to detect this before parsing since the csv crate
+        // consumes the text as a stream.
+        let lines: Vec<&str> = text.lines().collect();
+        if lines.len() >= 2 {
+            // Find where first CSV record ends - look for first complete record
+            // A simple heuristic: if line 1 (0-indexed) is empty, we have a header
+            if let Some(&line) = lines.get(1) {
+                if line.trim().is_empty() {
+                    *has_header = true;
+                }
+            }
+        }
+
+        let csv_rows = parse_csv_table(text, base_offset);
+        let mut rows = Vec::new();
+
+        for csv_row in csv_rows {
+            let mut cells = Vec::new();
+            for part in csv_row {
+                let content = part.content.trim();
+                let start = part.start;
+                let end = if content.is_empty() {
+                    start
+                } else {
+                    start + content.len().saturating_sub(1)
+                };
+
+                cells.push(ParsedCell {
+                    content: content.to_string(),
+                    start,
+                    end,
+                    colspan: 1,
+                    rowspan: 1,
+                    halign: None,
+                    valign: None,
+                    style: None,
+                    is_duplication: false,
+                    duplication_count: 1,
+                });
+            }
+            if !cells.is_empty() {
+                rows.push(cells);
             }
         }
 

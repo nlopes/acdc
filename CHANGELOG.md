@@ -120,6 +120,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was incorrectly treated like PSV (`| cell1 | cell2 |`), causing the first cell to be
   dropped. Escape handling (`\:` → literal `:`) also works correctly now.
 - Table cell content now has correct source position tracking for multi-line cells
+- CSV tables with quoted multiline values now have accurate source positions. Previously,
+  positions were approximated without accounting for quote characters, so `"Hello\nWorld"`
+  would report incorrect line/column. Now positions point to actual content start (inside
+  the quotes), with proper handling for RFC 4180 escaped quotes (`""`).
 - Description lists with terms starting with `#` (e.g., `#issue-123:: definition`)
   are no longer incorrectly parsed as section boundaries inside sections. The
   section boundary detection now requires a space after the level marker.
