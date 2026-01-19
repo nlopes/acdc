@@ -104,6 +104,10 @@ where
 ///
 /// Per-block `[caption="..."]` attribute overrides the prefix entirely and does NOT increment
 /// the table counter (following `AsciiDoc` specification).
+///
+/// Caption can be disabled with:
+/// - `:table-caption!:` at document level (disables for all tables)
+/// - `[caption=""]` at block level (disables for specific table)
 fn render_table_caption<V>(
     visitor: &mut V,
     title: &[InlineNode],
@@ -114,19 +118,15 @@ where
     V: WritableVisitor<Error = Error>,
 {
     if !title.is_empty() {
-        // Check for per-block caption override
+        // Check for per-block caption override (does NOT increment counter)
         let prefix = if let Some(custom_caption) = metadata.attributes.get_string("caption") {
-            // Per-block caption replaces entire prefix and does NOT increment internal counter.
-            custom_caption
+            if custom_caption.is_empty() {
+                String::new()
+            } else {
+                custom_caption
+            }
         } else {
-            // Default: "Table N. " format - increment counter
-            let count = processor.table_counter.get() + 1;
-            processor.table_counter.set(count);
-            let caption = processor
-                .document_attributes
-                .get_string("table-caption")
-                .unwrap_or_else(|| String::from("Table"));
-            format!("{caption} {count}. ")
+            processor.caption_prefix("table-caption", &processor.table_counter, "Table")
         };
 
         visitor.render_title_with_wrapper(

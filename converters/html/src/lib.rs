@@ -70,6 +70,37 @@ impl Processor {
         self.has_valid_index_section
     }
 
+    /// Generate a caption prefix based on document attributes.
+    ///
+    /// Returns the caption prefix string. If captions are disabled via `:X-caption!:`,
+    /// returns an empty string. Otherwise increments the counter and returns
+    /// "Caption N. " format.
+    #[must_use]
+    pub(crate) fn caption_prefix(
+        &self,
+        attribute_name: &str,
+        counter: &Rc<Cell<usize>>,
+        default_text: &str,
+    ) -> String {
+        match self.document_attributes.get(attribute_name) {
+            Some(AttributeValue::Bool(false)) => {
+                // Disabled via :X-caption!:
+                String::new()
+            }
+            Some(AttributeValue::String(s)) => {
+                let count = counter.get() + 1;
+                counter.set(count);
+                let caption = s.trim_matches('"');
+                format!("{caption} {count}. ")
+            }
+            _ => {
+                let count = counter.get() + 1;
+                counter.set(count);
+                format!("{default_text} {count}. ")
+            }
+        }
+    }
+
     /// Generate a unique anchor ID for an index term and collect the entry.
     #[must_use]
     pub fn add_index_entry(&self, kind: IndexTermKind) -> String {
