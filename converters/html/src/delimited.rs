@@ -40,19 +40,15 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
     let _ = writer;
 
     // Render title with caption prefix if title exists
+    // Caption can be disabled with :example-caption!:
     if !block.title.is_empty() {
-        let count = processor.example_counter.get() + 1;
-        processor.example_counter.set(count);
-        let caption = processor
-            .document_attributes
-            .get("example-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .unwrap_or("Example");
-        let prefix = format!("<div class=\"title\">{caption} {count}. ");
-        visitor.render_title_with_wrapper(&block.title, &prefix, "</div>\n")?;
+        let prefix =
+            processor.caption_prefix("example-caption", &processor.example_counter, "Example");
+        visitor.render_title_with_wrapper(
+            &block.title,
+            &format!("<div class=\"title\">{prefix}"),
+            "</div>\n",
+        )?;
     }
 
     writer = visitor.writer_mut();

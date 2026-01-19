@@ -1,5 +1,5 @@
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
-use acdc_parser::{AttributeValue, Image};
+use acdc_parser::Image;
 
 use crate::{
     Error, Processor,
@@ -56,21 +56,14 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     write!(w, "</div>")?; // close content
 
     // Render title with figure caption if title exists
+    // Caption can be disabled with :figure-caption!:
     if !img.title.is_empty() {
-        let count = processor.figure_counter.get() + 1;
-        processor.figure_counter.set(count);
-        let caption = processor
-            .document_attributes
-            .get("figure-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .unwrap_or("Figure");
+        let prefix =
+            processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
         let _ = w;
         visitor.render_title_with_wrapper(
             &img.title,
-            &format!("<div class=\"title\">{caption} {count}. "),
+            &format!("<div class=\"title\">{prefix}"),
             "</div>",
         )?;
         w = visitor.writer_mut();
