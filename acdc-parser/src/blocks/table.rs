@@ -232,6 +232,15 @@ fn split_multi_char(line: &str, separator: &str) -> Vec<CellPart> {
     parts
 }
 
+/// Context for parsing cell specifiers, controlling which specifier types are valid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ParseContext {
+    /// First part before separator in PSV tables - style-only specifiers allowed (e.g., `s|`)
+    FirstPart,
+    /// Inline cell content - style-only specifiers NOT allowed (prevents "another" → 'a' style)
+    InlineContent,
+}
+
 /// Represents a parsed cell specifier with span, alignment, and style information.
 ///
 /// In `AsciiDoc`, cell specifiers appear before the cell separator with format:
@@ -290,6 +299,11 @@ impl CellSpecifier {
     /// Returns the specifier and the offset where actual content begins.
     /// Full pattern: `[halign][valign][colspan][.rowspan][+|*][style]`
     ///
+    /// The `mode` parameter controls whether style-only specifiers
+    /// (e.g., `s|` for strong without any alignment or span) are accepted:
+    /// - `ParseContext::FirstPart`: Accept style-only specifiers (first part before separator)
+    /// - `ParseContext::InlineContent`: Reject style-only (prevents "another" → 'a' style)
+    ///
     /// Examples:
     /// - `"2+rest"` → colspan=2
     /// - `".3+rest"` → rowspan=3
@@ -298,7 +312,7 @@ impl CellSpecifier {
     /// - `"3*rest"` → `duplication_count`=3
     /// - `"plain"` → defaults (no specifier found)
     #[must_use]
-    pub fn parse(content: &str) -> (Self, usize) {
+    pub fn parse(content: &str, mode: ParseContext) -> (Self, usize) {
         let bytes = content.as_bytes();
         let mut pos = 0;
 
@@ -315,7 +329,7 @@ impl CellSpecifier {
         pos = rowspan_end;
 
         // Phase 4: Check for operator and build result
-        Self::build_result(bytes, pos, colspan, rowspan, halign, valign)
+        Self::build_result(bytes, pos, colspan, rowspan, halign, valign, mode)
     }
 
     /// Parse alignment markers at the current position.
@@ -420,6 +434,7 @@ impl CellSpecifier {
         rowspan: Option<usize>,
         halign: Option<HorizontalAlignment>,
         valign: Option<VerticalAlignment>,
+        context: ParseContext,
     ) -> (Self, usize) {
         let has_span_or_dup = colspan.is_some() || rowspan.is_some();
         let is_duplication = bytes.get(pos) == Some(&b'*');
@@ -474,6 +489,27 @@ impl CellSpecifier {
                 },
                 pos,
             )
+        } else if context == ParseContext::FirstPart {
+            // Check for style-only specifier (e.g., `s|` for strong)
+            // Only accepted in FirstPart context (first-part in PSV tables)
+            let style = bytes.get(pos).and_then(|&b| parse_style_byte(b));
+            if let Some(style) = style {
+                pos += 1;
+                (
+                    Self {
+                        colspan: 1,
+                        rowspan: 1,
+                        halign: None,
+                        valign: None,
+                        style: Some(style),
+                        is_duplication: false,
+                        duplication_count: 1,
+                    },
+                    pos,
+                )
+            } else {
+                (Self::default(), 0)
+            }
         } else {
             // No valid specifier found
             (Self::default(), 0)
@@ -676,8 +712,10 @@ impl Table {
                     // First part is before first separator (PSV format only)
                     let trimmed = part.content.trim();
                     if !trimmed.is_empty() {
-                        // Check if this looks like a specifier (e.g., "2+", "3*", "^.>")
-                        let (spec, spec_len) = CellSpecifier::parse(trimmed);
+                        // Check if this looks like a specifier (e.g., "2+", "3*", "^.>", "s")
+                        // Style-only specifiers (e.g., "s" for strong) are valid here
+                        let (spec, spec_len) =
+                            CellSpecifier::parse(trimmed, ParseContext::FirstPart);
                         if spec_len > 0 && spec_len == trimmed.len() {
                             // Entire first part is a specifier, apply to next cell
                             pending_spec = Some(spec);
@@ -690,11 +728,13 @@ impl Table {
 
                 let cell_content_trimmed = part.content.trim();
 
-                // Use pending specifier if we have one, otherwise parse from content
+                // Use pending specifier if we have one, otherwise parse from content.
+                // Style-only specifiers are NOT valid from inline content parsing -
+                // this prevents treating content like "another" as having an 'a' (AsciiDoc) style.
                 let (spec, spec_offset) = if let Some(pending) = pending_spec.take() {
                     (pending, 0)
                 } else {
-                    CellSpecifier::parse(cell_content_trimmed)
+                    CellSpecifier::parse(cell_content_trimmed, ParseContext::InlineContent)
                 };
 
                 // The actual cell content starts after the specifier
