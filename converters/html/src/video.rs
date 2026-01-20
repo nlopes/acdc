@@ -71,7 +71,7 @@ fn render_iframe_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<()
         write!(w, " height=\"{height}\"")?;
     }
 
-    write!(w, " src=\"{url}\" frameborder=\"0\"")?;
+    write!(w, " src=\"{url}\"")?;
 
     if allow_fullscreen {
         write!(w, " allowfullscreen")?;
