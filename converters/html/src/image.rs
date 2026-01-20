@@ -48,7 +48,7 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
 
     write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;
     write_dimension_attributes(w, &img.metadata)?;
-    write!(w, " />")?;
+    write!(w, ">")?;
 
     if link.is_some() {
         write!(w, "</a>")?;

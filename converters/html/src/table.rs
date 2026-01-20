@@ -1,8 +1,8 @@
 use acdc_converters_core::table::calculate_column_widths;
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{
-    Block, BlockMetadata, ColumnFormat, HorizontalAlignment, InlineNode, Table, TableColumn,
-    VerticalAlignment,
+    Block, BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode, Table,
+    TableColumn, VerticalAlignment,
 };
 
 use crate::{Error, Processor, RenderOptions};
@@ -51,6 +51,24 @@ fn get_effective_valign(
     })
 }
 
+/// Get effective style for a cell, considering cell-level overrides.
+/// Returns `None` if the effective style is `Default` (no wrapper needed).
+fn get_effective_style(
+    columns: &[ColumnFormat],
+    col_index: usize,
+    cell: &TableColumn,
+) -> Option<ColumnStyle> {
+    cell.style.or_else(|| {
+        columns.get(col_index).and_then(|c| {
+            if c.style == ColumnStyle::Default {
+                None
+            } else {
+                Some(c.style)
+            }
+        })
+    })
+}
+
 /// Format colspan/rowspan attributes for a table cell.
 /// Returns an empty string if both are 1 (default).
 fn format_span_attrs(cell: &TableColumn) -> String {
@@ -65,15 +83,20 @@ fn format_span_attrs(cell: &TableColumn) -> String {
     attrs
 }
 
-/// Render cell content with support for nested blocks
-/// `wrap_paragraph` controls whether paragraphs get <p class="tableblock"> wrappers.
-/// Headers should NOT have wrappers, body cells should have them.
+/// Render cell content with support for nested blocks and cell styles.
+///
+/// # Arguments
+/// * `blocks` - The content blocks to render
+/// * `visitor` - The HTML visitor
+/// * `wrap_paragraph` - Whether paragraphs get `<p class="tableblock">` wrappers
+/// * `style` - Optional cell style (Strong, Emphasis, Monospace, Literal, Header, `AsciiDoc`)
 fn render_cell_content<V>(
     blocks: &[Block],
     visitor: &mut V,
     _processor: &Processor,
     _options: &RenderOptions,
     wrap_paragraph: bool,
+    style: Option<ColumnStyle>,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<Error = Error>,
@@ -81,20 +104,81 @@ where
     for block in blocks {
         // For paragraphs in table cells, use <p class="tableblock"> for body cells only
         if let Block::Paragraph(para) = block {
-            if wrap_paragraph {
+            // Literal style uses different structure entirely
+            if style == Some(ColumnStyle::Literal) {
+                let writer = visitor.writer_mut();
+                write!(writer, "<div class=\"literal\"><pre>")?;
+                let _ = writer;
+                visitor.visit_inline_nodes(&para.content)?;
+                let writer = visitor.writer_mut();
+                write!(writer, "</pre></div>")?;
+            } else if wrap_paragraph {
                 let writer = visitor.writer_mut();
                 write!(writer, "<p class=\"tableblock\">")?;
                 let _ = writer;
-                visitor.visit_inline_nodes(&para.content)?;
+
+                // Apply style wrapper inside the paragraph
+                render_styled_content(visitor, &para.content, style)?;
+
                 let writer = visitor.writer_mut();
                 write!(writer, "</p>")?;
             } else {
                 // Header cells: output content directly without <p> wrapper
-                visitor.visit_inline_nodes(&para.content)?;
+                render_styled_content(visitor, &para.content, style)?;
             }
         } else {
             // For other block types, use visitor
             visitor.visit_block(block)?;
+        }
+    }
+    Ok(())
+}
+
+/// Render inline content with optional style wrappers.
+fn render_styled_content<V>(
+    visitor: &mut V,
+    content: &[InlineNode],
+    style: Option<ColumnStyle>,
+) -> Result<(), Error>
+where
+    V: WritableVisitor<Error = Error>,
+{
+    match style {
+        Some(ColumnStyle::Strong) => {
+            let writer = visitor.writer_mut();
+            write!(writer, "<strong>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(content)?;
+            let writer = visitor.writer_mut();
+            write!(writer, "</strong>")?;
+        }
+        Some(ColumnStyle::Emphasis) => {
+            let writer = visitor.writer_mut();
+            write!(writer, "<em>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(content)?;
+            let writer = visitor.writer_mut();
+            write!(writer, "</em>")?;
+        }
+        Some(ColumnStyle::Monospace) => {
+            let writer = visitor.writer_mut();
+            write!(writer, "<code>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(content)?;
+            let writer = visitor.writer_mut();
+            write!(writer, "</code>")?;
+        }
+        // Default, Header, AsciiDoc, Literal (handled elsewhere) - no content wrapper
+        // Wildcard handles any future non-exhaustive variants
+        Some(
+            ColumnStyle::Default
+            | ColumnStyle::Header
+            | ColumnStyle::AsciiDoc
+            | ColumnStyle::Literal
+            | _,
+        )
+        | None => {
+            visitor.visit_inline_nodes(content)?;
         }
     }
     Ok(())
@@ -180,9 +264,9 @@ fn render_colgroup<W: std::io::Write + ?Sized>(
         for width in widths {
             // Match asciidoctor's 4-decimal precision for non-round percentages
             if (width - width.round()).abs() < 0.0001 {
-                writeln!(writer, "<col style=\"width: {width:.0}%;\" />")?;
+                writeln!(writer, "<col style=\"width: {width:.0}%;\">")?;
             } else {
-                writeln!(writer, "<col style=\"width: {width:.4}%;\" />")?;
+                writeln!(writer, "<col style=\"width: {width:.4}%;\">")?;
             }
         }
         writeln!(writer, "</colgroup>")?;
@@ -248,6 +332,42 @@ fn get_sizing_class(metadata: &BlockMetadata) -> &'static str {
     }
 }
 
+/// Render a single body cell with appropriate tag and style.
+fn render_body_cell<V>(
+    cell: &TableColumn,
+    col_index: usize,
+    columns: &[ColumnFormat],
+    visitor: &mut V,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), Error>
+where
+    V: WritableVisitor<Error = Error>,
+{
+    let halign = halign_class(get_effective_halign(columns, col_index, cell));
+    let valign = valign_class(get_effective_valign(columns, col_index, cell));
+    let style = get_effective_style(columns, col_index, cell);
+    let span_attrs = format_span_attrs(cell);
+
+    // Header-styled cells in body use <th> instead of <td>
+    let tag = if style == Some(ColumnStyle::Header) {
+        "th"
+    } else {
+        "td"
+    };
+
+    let writer = visitor.writer_mut();
+    write!(
+        writer,
+        "<{tag} class=\"tableblock {halign} {valign}\"{span_attrs}>"
+    )?;
+    let _ = writer;
+    render_cell_content(&cell.content, visitor, processor, options, true, style)?;
+    let writer = visitor.writer_mut();
+    writeln!(writer, "</{tag}>")?;
+    Ok(())
+}
+
 /// Render table with support for nested blocks in cells
 pub(crate) fn render_table<V>(
     table: &Table,
@@ -303,6 +423,7 @@ where
         for (col_index, cell) in header.columns.iter().enumerate() {
             let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
             let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
+            let style = get_effective_style(&table.columns, col_index, cell);
             let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
@@ -310,7 +431,7 @@ where
                 "<th class=\"tableblock {halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options, false)?;
+            render_cell_content(&cell.content, visitor, processor, options, false, style)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</th>")?;
         }
@@ -328,18 +449,7 @@ where
         writeln!(writer, "<tr>")?;
         let _ = writer;
         for (col_index, cell) in row.columns.iter().enumerate() {
-            let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
-            let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
-            let span_attrs = format_span_attrs(cell);
-            let writer = visitor.writer_mut();
-            write!(
-                writer,
-                "<td class=\"tableblock {halign} {valign}\"{span_attrs}>"
-            )?;
-            let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options, true)?;
-            let writer = visitor.writer_mut();
-            writeln!(writer, "</td>")?;
+            render_body_cell(cell, col_index, &table.columns, visitor, processor, options)?;
         }
         let writer = visitor.writer_mut();
         writeln!(writer, "</tr>")?;
@@ -356,6 +466,7 @@ where
         for (col_index, cell) in footer.columns.iter().enumerate() {
             let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
             let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
+            let style = get_effective_style(&table.columns, col_index, cell);
             let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
@@ -363,7 +474,7 @@ where
                 "<td class=\"tableblock {halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options, true)?;
+            render_cell_content(&cell.content, visitor, processor, options, true, style)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</td>")?;
         }
