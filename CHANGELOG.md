@@ -66,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the parser based on each passthrough's own substitution settings. ([#291])
 - Verbatim blocks (listing/literal) now correctly skip typography replacements by default,
   matching asciidoctor behavior. Previously, smart quotes were incorrectly applied.
+- HTML5 compliance: removed self-closing syntax (`<col />` → `<col>`, `<img />` → `<img>`)
+  and deprecated `frameborder` attribute from iframes.
 
 ### Changed
 
@@ -146,6 +148,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Paragraphs no longer incorrectly split when a line starts with inline passthrough
   syntax like `+>+`. The list continuation lookahead now only matches actual
   continuation markers (standalone `+` followed by whitespace/EOL/EOF).
+- Default table cells now treat list markers, delimited blocks, toc macros, and page
+  breaks as literal text instead of parsing them as blocks. Only cells with the `a`
+  (AsciiDoc) style get full block parsing, matching asciidoctor behavior.
 
 ### Changed
 

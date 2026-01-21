@@ -471,8 +471,8 @@ impl CellSpecifier {
                 }
             };
             (spec, pos)
-        } else if halign.is_some() || valign.is_some() {
-            // Alignment without span operator - still valid
+        } else if (halign.is_some() || valign.is_some()) && context == ParseContext::FirstPart {
+            // Alignment without span operator - still valid (only in FirstPart context)
             let style = bytes.get(pos).and_then(|&b| parse_style_byte(b));
             if style.is_some() {
                 pos += 1;
