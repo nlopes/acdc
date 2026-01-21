@@ -687,4 +687,29 @@ endif::another[]";
         assert!(!result.contains("It has multiple lines."));
         Ok(())
     }
+
+    #[test]
+    fn test_nested_include_relative_paths() -> Result<(), Error> {
+        // Tests that nested includes resolve paths relative to their parent file.
+        // Structure:
+        //   nested_include_main.adoc
+        //     -> includes subdir/middle.adoc
+        //         -> includes inner.adoc (relative to subdir/)
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/nested_include_main.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain content from main file
+        assert!(result.contains("= Nested Include Test"));
+        // Should contain content from subdir/middle.adoc
+        assert!(result.contains("This is middle content."));
+        // Should contain content from subdir/inner.adoc (resolved relative to subdir/)
+        assert!(
+            result.contains("This is inner content from subdir."),
+            "Nested include failed to resolve relative path. Got: {result}"
+        );
+        Ok(())
+    }
 }

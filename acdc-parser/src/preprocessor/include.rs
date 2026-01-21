@@ -348,7 +348,7 @@ impl Include {
             // primary document and a few command line attributes.
             if ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref()) {
                 return super::Preprocessor
-                    .process(&content, &self.options)
+                    .process_either(&content, Some(file_path), &self.options)
                     .map_err(|e| {
                         tracing::error!(path=?file_path, error=?e, "failed to process file");
                         e
