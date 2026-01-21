@@ -1,0 +1,9 @@
+[cols="1,1,1,1,1,1"]
+|===
+|normal
+s|strong
+e|emphasis
+m|monospace
+l|literal
+h|header
+|===
