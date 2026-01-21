@@ -201,11 +201,11 @@
                       {
                         "name": "text",
                         "type": "string",
-                        "value": "Right",
+                        "value": "> Right",
                         "location": [
                           {
                             "line": 4,
-                            "col": 25
+                            "col": 23
                           },
                           {
                             "line": 4,
@@ -217,7 +217,7 @@
                     "location": [
                       {
                         "line": 4,
-                        "col": 25
+                        "col": 23
                       },
                       {
                         "line": 4,
@@ -225,8 +225,7 @@
                       }
                     ]
                   }
-                ],
-                "halign": "right"
+                ]
               }
             ]
           },
@@ -276,11 +275,11 @@
                       {
                         "name": "text",
                         "type": "string",
-                        "value": "Middle",
+                        "value": ".^ Middle",
                         "location": [
                           {
                             "line": 5,
-                            "col": 16
+                            "col": 13
                           },
                           {
                             "line": 5,
@@ -292,7 +291,7 @@
                     "location": [
                       {
                         "line": 5,
-                        "col": 16
+                        "col": 13
                       },
                       {
                         "line": 5,
@@ -300,8 +299,7 @@
                       }
                     ]
                   }
-                ],
-                "valign": "middle"
+                ]
               },
               {
                 "content": [
@@ -312,11 +310,11 @@
                       {
                         "name": "text",
                         "type": "string",
-                        "value": "Bottom",
+                        "value": ".> Bottom",
                         "location": [
                           {
                             "line": 5,
-                            "col": 28
+                            "col": 25
                           },
                           {
                             "line": 5,
@@ -328,7 +326,7 @@
                     "location": [
                       {
                         "line": 5,
-                        "col": 28
+                        "col": 25
                       },
                       {
                         "line": 5,
@@ -336,8 +334,7 @@
                       }
                     ]
                   }
-                ],
-                "valign": "bottom"
+                ]
               }
             ]
           }
