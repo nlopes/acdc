@@ -3,13 +3,13 @@ use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
     BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef, Comment,
     CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType, DescriptionList,
-    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, Error, Footnote, Form,
-    Header, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind, InlineMacro, InlineNode,
-    Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, Mailto, Menu,
-    Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Raw, Section,
-    Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Subtitle, Superscript, Table, TableOfContents, TableRow, ThematicBreak, Title, UnorderedList,
-    Url, Verbatim, Video,
+    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
+    Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
+    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
+    Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind,
+    Plain, Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
+    StemNotation, Subscript, Subtitle, Superscript, Table, TableOfContents, TableRow,
+    ThematicBreak, Title, UnorderedList, Url, Verbatim, Video,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -27,7 +27,7 @@ use crate::{
         table::parse_table_cell,
     },
     model::{
-        ListLevel, Locateable, SectionLevel,
+        LeveloffsetRange, ListLevel, Locateable, SectionLevel,
         substitution::{HEADER, parse_subs_attribute},
     },
 };
@@ -234,6 +234,53 @@ const fn calculate_item_end(
         start
     } else {
         first_line_end.saturating_sub(1)
+    }
+}
+
+/// Apply leveloffset to a section level.
+///
+/// This function combines two sources of leveloffset:
+/// 1. Range-based offsets from include directives with `leveloffset=` attribute
+/// 2. Document attribute `:leveloffset:` set directly in the document
+///
+/// The range-based offsets are checked first (based on byte position), and any
+/// offset from document attributes is added on top.
+///
+/// Used by both `section_level` and `section_level_at_line_start` rules.
+fn apply_leveloffset(
+    base_level: SectionLevel,
+    byte_offset: usize,
+    leveloffset_ranges: &[LeveloffsetRange],
+    document_attributes: &DocumentAttributes,
+) -> SectionLevel {
+    // Calculate offset from ranges (include directives)
+    let range_offset = crate::model::calculate_leveloffset_at(leveloffset_ranges, byte_offset);
+
+    // Get offset from document attributes (inline :leveloffset: settings)
+    let attr_offset = document_attributes
+        .get_string("leveloffset")
+        .and_then(|s| s.parse::<isize>().ok())
+        .unwrap_or(0);
+
+    // Combine both offsets
+    let total_offset = range_offset + attr_offset;
+
+    if total_offset != 0 {
+        let adjusted = isize::from(base_level) + total_offset;
+        // Clamp to valid section levels (0-5)
+        let clamped = adjusted.clamp(0, 5);
+        // Safely converting the clamp ensures the value is in u8 range
+        SectionLevel::try_from(clamped)
+            .inspect_err(|error| {
+                tracing::error!(
+                    clamped,
+                    ?error,
+                    "not a valid section after applying leveloffset"
+                );
+            })
+            .unwrap_or(0)
+    } else {
+        base_level
     }
 }
 
@@ -1003,7 +1050,9 @@ peg::parser! {
         rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
         = start:position() level:$(("=" / "#")*<1,6>) end:position!()
         {
-            (level, level.len().try_into().unwrap_or(1)-1)
+            let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
+            let byte_offset = start.offset + offset;
+            (level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes))
         }
 
         rule section_level_at_line_start(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
@@ -1021,7 +1070,9 @@ peg::parser! {
                 return Err("section level must be at line start");
             }
 
-            Ok((level, level.len().try_into().unwrap_or(1)-1))
+            let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
+            let byte_offset = start.offset + offset;
+            Ok((level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes)))
         }
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Title, Error>

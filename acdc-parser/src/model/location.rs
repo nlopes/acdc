@@ -3,6 +3,57 @@ use serde::{
     ser::{SerializeSeq, Serializer},
 };
 
+/// A range where a specific leveloffset value applies.
+///
+/// When include directives use `leveloffset=+N`, we track the byte ranges where
+/// leveloffsets apply. The parser then queries these ranges to determine the effective
+/// leveloffset at any given position.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct LeveloffsetRange {
+    /// Byte offset where this leveloffset begins (inclusive).
+    pub(crate) start_offset: usize,
+    /// Byte offset where this leveloffset ends (exclusive).
+    pub(crate) end_offset: usize,
+    /// The leveloffset value to apply in this range.
+    pub(crate) value: isize,
+}
+
+impl LeveloffsetRange {
+    /// Create a new leveloffset range.
+    #[must_use]
+    pub(crate) fn new(start_offset: usize, end_offset: usize, value: isize) -> Self {
+        Self {
+            start_offset,
+            end_offset,
+            value,
+        }
+    }
+
+    /// Check if a byte offset falls within this range.
+    #[must_use]
+    pub(crate) fn contains(&self, byte_offset: usize) -> bool {
+        byte_offset >= self.start_offset && byte_offset < self.end_offset
+    }
+}
+
+/// Calculate the total leveloffset at a given byte offset.
+///
+/// Sums all leveloffset values from ranges that contain the given offset.
+/// Ranges can nest (include within include), so we sum all applicable values.
+#[must_use]
+pub(crate) fn calculate_leveloffset_at(ranges: &[LeveloffsetRange], byte_offset: usize) -> isize {
+    ranges
+        .iter()
+        .filter_map(|r| {
+            if r.contains(byte_offset) {
+                Some(r.value)
+            } else {
+                None
+            }
+        })
+        .sum()
+}
+
 pub(crate) trait Locateable {
     /// Get a reference to the location.
     fn location(&self) -> &Location;

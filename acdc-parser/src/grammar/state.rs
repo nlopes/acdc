@@ -1,5 +1,8 @@
+use std::{collections::HashMap, path::PathBuf};
+
 use crate::{
     CalloutRef, DocumentAttributes, Footnote, Location, Options, Title, TocEntry, grammar::LineMap,
+    model::LeveloffsetRange,
 };
 
 #[derive(Debug)]
@@ -14,7 +17,11 @@ pub(crate) struct ParserState {
     /// Callout references found in the last verbatim block (for validation with callout lists)
     pub(crate) last_verbatim_callouts: Vec<CalloutRef>,
     /// The current file being parsed (None for inline/string parsing)
-    pub(crate) current_file: Option<std::path::PathBuf>,
+    pub(crate) current_file: Option<PathBuf>,
+    /// Byte ranges where specific leveloffset values apply.
+    /// Set by the preprocessor when processing includes with `leveloffset=` attributes.
+    /// Used by the parser to adjust section levels.
+    pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,7 +34,7 @@ pub(crate) struct FootnoteTracker {
     ///
     /// This helps ensure that named footnotes are only assigned a number once and reused.
     /// If it's an anonymous footnote (no ID), it always gets a new number.
-    named_footnote_numbers: std::collections::HashMap<String, u32>,
+    named_footnote_numbers: HashMap<String, u32>,
 }
 
 impl FootnoteTracker {
@@ -35,7 +42,7 @@ impl FootnoteTracker {
         Self {
             footnotes: Vec::new(),
             last_footnote_position: 1,
-            named_footnote_numbers: std::collections::HashMap::new(),
+            named_footnote_numbers: HashMap::new(),
         }
     }
 
@@ -98,6 +105,7 @@ impl ParserState {
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
+            leveloffset_ranges: Vec::new(),
         }
     }
 

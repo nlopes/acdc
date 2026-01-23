@@ -58,14 +58,15 @@ proptest! {
     fn byte_offsets_utf8_safe(input in unicode_stress_test()) {
         let options = Options::default();
         // Preprocess the input first to get the actual string the parser works on
-        if let Ok(preprocessed) = crate::Preprocessor.process(&input, &options) {
+        if let Ok(result) = crate::Preprocessor.process(&input, &options) {
             // Parse the preprocessed input
-            let mut state = crate::grammar::ParserState::new(&preprocessed);
+            let mut state = crate::grammar::ParserState::new(&result.text);
             state.document_attributes = options.document_attributes.clone();
             state.options = options.clone();
-            if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&preprocessed, &mut state) {
+            state.leveloffset_ranges = result.leveloffset_ranges;
+            if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
                 // Verify UTF-8 boundaries against the preprocessed input, not the original
-                verify_utf8_boundaries(&doc, &preprocessed);
+                verify_utf8_boundaries(&doc, &result.text);
             }
         }
     }

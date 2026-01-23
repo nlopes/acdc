@@ -225,8 +225,8 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options,
 ) -> Result<Document, Error> {
-    let input = Preprocessor.process_reader(reader, options)?;
-    parse_input(&input, options, None)
+    let result = Preprocessor.process_reader(reader, options)?;
+    parse_input(&result.text, options, None, result.leveloffset_ranges)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -249,8 +249,8 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
-    let input = Preprocessor.process(input, options)?;
-    parse_input(&input, options, None)
+    let result = Preprocessor.process(input, options)?;
+    parse_input(&result.text, options, None, result.leveloffset_ranges)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -275,8 +275,8 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let path = file_path.as_ref().to_path_buf();
-    let input = Preprocessor.process_file(file_path, options)?;
-    parse_input(&input, options, Some(path))
+    let result = Preprocessor.process_file(file_path, options)?;
+    parse_input(&result.text, options, Some(path), result.leveloffset_ranges)
 }
 
 /// Helper to convert a PEG parse error to our `SourceLocation` type
@@ -298,12 +298,14 @@ fn parse_input(
     input: &str,
     options: &Options,
     file_path: Option<PathBuf>,
+    leveloffset_ranges: Vec<model::LeveloffsetRange>,
 ) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
     let mut state = grammar::ParserState::new(input);
     state.document_attributes = options.document_attributes.clone();
     state.options = options.clone();
     state.current_file.clone_from(&file_path);
+    state.leveloffset_ranges = leveloffset_ranges;
     match grammar::document_parser::document(input, &mut state) {
         Ok(doc) => doc,
         Err(error) => {

@@ -7,7 +7,7 @@ use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 use crate::{
     Options,
     error::{Error, Positioning, SourceLocation},
-    model::Position,
+    model::{LeveloffsetRange, Position},
 };
 
 mod attribute;
@@ -15,7 +15,18 @@ mod conditional;
 mod include;
 mod tag;
 
-use include::Include;
+use include::{Include, IncludeResult};
+
+/// Result from preprocessing that includes both the processed text and metadata needed
+/// for accurate parsing (like leveloffset ranges).
+#[derive(Debug, Default)]
+pub(crate) struct PreprocessorResult {
+    /// The preprocessed document text.
+    pub(crate) text: String,
+    /// Byte ranges where specific leveloffset values apply.
+    /// Used by the parser to adjust section levels.
+    pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+}
 
 /// BOM (Byte Order Mark) patterns for encoding detection
 const BOM_PATTERNS: &[(&[u8], &Encoding, usize, &str)] = &[
@@ -127,7 +138,7 @@ impl Preprocessor {
         &self,
         mut reader: R,
         options: &Options,
-    ) -> Result<String, Error> {
+    ) -> Result<PreprocessorResult, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).map_err(|e| {
             tracing::error!(error=?e, "failed to read from reader");
@@ -137,8 +148,12 @@ impl Preprocessor {
     }
 
     #[tracing::instrument]
-    pub(crate) fn process(&self, input: &str, options: &Options) -> Result<String, Error> {
-        self.process_either(input, None, options)
+    pub(crate) fn process(
+        &self,
+        input: &str,
+        options: &Options,
+    ) -> Result<PreprocessorResult, Error> {
+        self.process_inner(input, None, options)
     }
 
     #[tracing::instrument(skip(file_path))]
@@ -146,11 +161,11 @@ impl Preprocessor {
         &self,
         file_path: P,
         options: &Options,
-    ) -> Result<String, Error> {
+    ) -> Result<PreprocessorResult, Error> {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            self.process_either(&input, Some(file_path.as_ref()), options)
+            self.process_inner(&input, Some(file_path.as_ref()), options)
         } else {
             Err(Error::InvalidIncludePath(
                 Box::new(Self::create_source_location(1, Some(file_path.as_ref()))),
@@ -159,7 +174,9 @@ impl Preprocessor {
         }
     }
 
-    /// Process an include directive
+    /// Process an include directive.
+    ///
+    /// Returns the included content along with any leveloffset that applies.
     #[tracing::instrument]
     fn process_include(
         line: &str,
@@ -167,7 +184,7 @@ impl Preprocessor {
         current_offset: usize,
         file_parent: Option<&Path>,
         options: &Options,
-    ) -> Result<Option<Vec<String>>, Error> {
+    ) -> Result<Option<IncludeResult>, Error> {
         if let Some(current_file_path) = file_parent {
             if let Some(parent_dir) = current_file_path.parent() {
                 let include = Include::parse(
@@ -321,13 +338,75 @@ impl Preprocessor {
         None
     }
 
+    /// Handle the result of processing an include directive.
+    /// Records leveloffset ranges and extends output with included lines.
+    ///
+    /// This also merges nested leveloffset ranges from included files, adjusting their
+    /// byte offsets to be relative to the current output position. This enables proper
+    /// leveloffset accumulation through arbitrarily deep include nesting.
+    fn handle_include_result(
+        include_result: IncludeResult,
+        output: &mut Vec<String>,
+        output_byte_offset: &mut usize,
+        leveloffset_ranges: &mut Vec<LeveloffsetRange>,
+    ) {
+        let start_offset = *output_byte_offset;
+
+        // Calculate the byte length of the included content
+        let content_len: usize = include_result
+            .lines
+            .iter()
+            .map(|l| l.len() + 1) // +1 for newline
+            .sum();
+
+        // If there's an effective leveloffset, record the range
+        if let Some(leveloffset) = include_result.effective_leveloffset {
+            if leveloffset != 0 {
+                leveloffset_ranges.push(LeveloffsetRange::new(
+                    start_offset,
+                    start_offset + content_len,
+                    leveloffset,
+                ));
+                tracing::trace!(
+                    leveloffset,
+                    start_offset,
+                    end_offset = start_offset + content_len,
+                    "Recording leveloffset range for include"
+                );
+            }
+        }
+
+        // Merge nested leveloffset ranges from the included file.
+        // Shift their byte offsets to be relative to the current output position.
+        // This enables proper accumulation through nested includes (A→B→C).
+        for nested_range in include_result.nested_leveloffset_ranges {
+            let adjusted_range = LeveloffsetRange::new(
+                nested_range.start_offset + start_offset,
+                nested_range.end_offset + start_offset,
+                nested_range.value,
+            );
+            tracing::trace!(
+                original_start = nested_range.start_offset,
+                original_end = nested_range.end_offset,
+                adjusted_start = adjusted_range.start_offset,
+                adjusted_end = adjusted_range.end_offset,
+                leveloffset = adjusted_range.value,
+                "Merging nested leveloffset range"
+            );
+            leveloffset_ranges.push(adjusted_range);
+        }
+
+        *output_byte_offset += content_len;
+        output.extend(include_result.lines);
+    }
+
     #[tracing::instrument]
-    fn process_either(
+    fn process_inner(
         &self,
         input: &str,
         file_parent: Option<&Path>,
         options: &Options,
-    ) -> Result<String, Error> {
+    ) -> Result<PreprocessorResult, Error> {
         let input = Preprocessor::normalize(input);
         let mut options = options.clone();
         // Pre-allocate output Vec with estimated line count
@@ -336,6 +415,11 @@ impl Preprocessor {
         let mut lines = input.lines().peekable();
         let mut line_number = 1; // Track the current line number (1-indexed)
         let mut current_offset = 0; // Track absolute byte offset in document
+
+        // Track leveloffset ranges for accurate section level parsing
+        let mut leveloffset_ranges: Vec<LeveloffsetRange> = Vec::new();
+        // Track the current byte offset in the OUTPUT (not input)
+        let mut output_byte_offset: usize = 0;
 
         // Track verbatim block state for comment filtering
         let mut in_verbatim_block = false;
@@ -353,6 +437,8 @@ impl Preprocessor {
                 }
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
                 attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
+                // Update output byte offset
+                output_byte_offset += attribute_content.len() + 1; // +1 for newline
                 output.push(attribute_content);
                 continue;
             } else if line.starts_with(':') {
@@ -371,18 +457,12 @@ impl Preprocessor {
                     in_verbatim_block = true;
                     current_delimiter = Some(delimiter_type);
                 }
+                output_byte_offset += line.len() + 1;
                 output.push(line.to_string());
             }
-            // Taken from
-            // https://github.com/asciidoctor/asciidoctor/blob/306111f480e2853ba59107336408de15253ca165/lib/asciidoctor/reader.rb#L604
-            // while following the specs at
-            // https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc?ref_type=heads#user-content-preprocessor
-
-            // Preserve single-line comments (lines starting with //) for the parser to handle.
-            // Comments serve as semantic list separators in AsciiDoc, so the parser needs to see them.
-            // The grammar's comment() rule handles skipping them during parsing.
+            // Preserve comments for parser (serve as semantic list separators)
             else if line.starts_with("//") {
-                tracing::trace!(line, "Preserving comment line for parser");
+                output_byte_offset += line.len() + 1;
                 output.push(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 if line.starts_with("\\include")
@@ -390,8 +470,10 @@ impl Preprocessor {
                     || line.starts_with("\\ifndef")
                     || line.starts_with("\\ifeval")
                 {
-                    // Return the directive as is
-                    output.push(line[1..].to_string());
+                    // Return the directive as is (minus the backslash)
+                    let content = &line[1..];
+                    output_byte_offset += content.len() + 1;
+                    output.push(content.to_string());
                 } else if line.starts_with("ifdef")
                     || line.starts_with("ifndef")
                     || line.starts_with("ifeval")
@@ -406,24 +488,32 @@ impl Preprocessor {
                         file_parent,
                         &options.document_attributes,
                     )? {
+                        output_byte_offset += content.len() + 1;
                         output.push(content);
                     }
                 } else if line.starts_with("include") {
-                    if let Some(lines) = Self::process_include(
+                    if let Some(include_result) = Self::process_include(
                         line,
                         line_number,
                         current_offset,
                         file_parent,
                         &options,
                     )? {
-                        output.extend(lines);
+                        Self::handle_include_result(
+                            include_result,
+                            &mut output,
+                            &mut output_byte_offset,
+                            &mut leveloffset_ranges,
+                        );
                     }
                 } else {
                     // Return the directive as is
+                    output_byte_offset += line.len() + 1;
                     output.push(line.to_string());
                 }
             } else {
                 // Return the line as is
+                output_byte_offset += line.len() + 1;
                 output.push(line.to_string());
             }
             // Move to next line: account for line length + newline character
@@ -431,7 +521,10 @@ impl Preprocessor {
             line_number += 1;
         }
 
-        Ok(output.join("\n"))
+        Ok(PreprocessorResult {
+            text: output.join("\n"),
+            leveloffset_ranges,
+        })
     }
 }
 
@@ -448,8 +541,8 @@ ifdef::attribute[]
 content
 endif::[]
 ";
-        let output = Preprocessor.process(input, &options)?;
-        assert_eq!(output, ":attribute: value\n\ncontent\n");
+        let result = Preprocessor.process(input, &options)?;
+        assert_eq!(result.text, ":attribute: value\n\ncontent\n");
         Ok(())
     }
 
@@ -461,8 +554,8 @@ endif::[]
 ifdef::asdf[]
 content
 endif::asdf[]";
-        let output = Preprocessor.process(input, &options)?;
-        assert_eq!(output, ":asdf:\n\ncontent\n");
+        let result = Preprocessor.process(input, &options)?;
+        assert_eq!(result.text, ":asdf:\n\ncontent\n");
         Ok(())
     }
 
@@ -553,10 +646,10 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain content from both main file and included UTF-16 file
-        assert!(result.contains("= Main Document"));
-        assert!(result.contains("This is included content."));
-        assert!(result.contains("With special characters: é, ñ, ü."));
-        assert!(result.contains("After include."));
+        assert!(result.text.contains("= Main Document"));
+        assert!(result.text.contains("This is included content."));
+        assert!(result.text.contains("With special characters: é, ñ, ü."));
+        assert!(result.text.contains("After include."));
         Ok(())
     }
 
@@ -571,15 +664,15 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain the intro tag content
-        assert!(result.contains("This is the introduction."));
-        assert!(result.contains("It has multiple lines."));
+        assert!(result.text.contains("This is the introduction."));
+        assert!(result.text.contains("It has multiple lines."));
         // Should NOT contain other content
-        assert!(!result.contains("untagged content"));
-        assert!(!result.contains("main content"));
-        assert!(!result.contains("Debug information"));
+        assert!(!result.text.contains("untagged content"));
+        assert!(!result.text.contains("main content"));
+        assert!(!result.text.contains("Debug information"));
         // Should NOT contain tag directives
-        assert!(!result.contains("tag::intro"));
-        assert!(!result.contains("end::intro"));
+        assert!(!result.text.contains("tag::intro"));
+        assert!(!result.text.contains("end::intro"));
         Ok(())
     }
 
@@ -592,10 +685,10 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain both intro and main content
-        assert!(result.contains("This is the introduction."));
-        assert!(result.contains("This is the main content."));
+        assert!(result.text.contains("This is the introduction."));
+        assert!(result.text.contains("This is the main content."));
         // Should NOT contain debug or untagged content
-        assert!(!result.contains("Debug information"));
+        assert!(!result.text.contains("Debug information"));
         Ok(())
     }
 
@@ -608,10 +701,10 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain intro and main content
-        assert!(result.contains("This is the introduction."));
-        assert!(result.contains("This is the main content."));
+        assert!(result.text.contains("This is the introduction."));
+        assert!(result.text.contains("This is the main content."));
         // Should NOT contain debug content
-        assert!(!result.contains("Debug information"));
+        assert!(!result.text.contains("Debug information"));
         Ok(())
     }
 
@@ -624,13 +717,13 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain all content except tag directive lines
-        assert!(result.contains("untagged content"));
-        assert!(result.contains("This is the introduction."));
-        assert!(result.contains("This is the main content."));
-        assert!(result.contains("Debug information"));
+        assert!(result.text.contains("untagged content"));
+        assert!(result.text.contains("This is the introduction."));
+        assert!(result.text.contains("This is the main content."));
+        assert!(result.text.contains("Debug information"));
         // Should NOT contain tag directives
-        assert!(!result.contains("tag::intro"));
-        assert!(!result.contains("end::intro"));
+        assert!(!result.text.contains("tag::intro"));
+        assert!(!result.text.contains("end::intro"));
         Ok(())
     }
 
@@ -643,10 +736,10 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain only the nested content
-        assert!(result.contains("This is nested within main."));
+        assert!(result.text.contains("This is nested within main."));
         // Should NOT contain main content outside nested
-        assert!(!result.contains("This is the main content."));
-        assert!(!result.contains("Back to main content."));
+        assert!(!result.text.contains("This is the main content."));
+        assert!(!result.text.contains("Back to main content."));
         Ok(())
     }
 
@@ -659,13 +752,13 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain only untagged content
-        assert!(result.contains("untagged content at the beginning"));
-        assert!(result.contains("More untagged content"));
-        assert!(result.contains("Final untagged content"));
+        assert!(result.text.contains("untagged content at the beginning"));
+        assert!(result.text.contains("More untagged content"));
+        assert!(result.text.contains("Final untagged content"));
         // Should NOT contain any tagged content
-        assert!(!result.contains("This is the introduction"));
-        assert!(!result.contains("This is the main content"));
-        assert!(!result.contains("Debug information"));
+        assert!(!result.text.contains("This is the introduction"));
+        assert!(!result.text.contains("This is the main content"));
+        assert!(!result.text.contains("Debug information"));
         Ok(())
     }
 
@@ -682,9 +775,9 @@ endif::another[]";
         // tag=intro selects lines 4-5 (content between tag directives)
         // lines=4 selects only line 4 from the original file
         // The intersection is just line 4: "This is the introduction."
-        assert!(result.contains("This is the introduction."));
+        assert!(result.text.contains("This is the introduction."));
         // Line 5 is not in lines=4, so it should NOT be included
-        assert!(!result.contains("It has multiple lines."));
+        assert!(!result.text.contains("It has multiple lines."));
         Ok(())
     }
 
@@ -702,13 +795,14 @@ endif::another[]";
         let result = preprocessor.process_file(path, &options)?;
 
         // Should contain content from main file
-        assert!(result.contains("= Nested Include Test"));
+        assert!(result.text.contains("= Nested Include Test"));
         // Should contain content from subdir/middle.adoc
-        assert!(result.contains("This is middle content."));
+        assert!(result.text.contains("This is middle content."));
         // Should contain content from subdir/inner.adoc (resolved relative to subdir/)
         assert!(
-            result.contains("This is inner content from subdir."),
-            "Nested include failed to resolve relative path. Got: {result}"
+            result.text.contains("This is inner content from subdir."),
+            "Nested include failed to resolve relative path. Got: {}",
+            result.text
         );
         Ok(())
     }

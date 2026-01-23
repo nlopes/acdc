@@ -1,0 +1,17 @@
+= Main Document
+
+:leveloffset: +1
+
+== This Should Be Level 2
+
+Because leveloffset is +1, this == heading becomes level 2.
+
+=== This Should Be Level 3
+
+And this === heading becomes level 3.
+
+:leveloffset!:
+
+== This Should Be Level 1 Again
+
+After unsetting leveloffset, == is back to level 1.

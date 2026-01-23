@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 pub(crate) const DELIMITERS: [char; 2] = [';', ','];
 
 /// Represents a parsed tag filter from the `tag=` or `tags=` attribute.
@@ -197,8 +199,8 @@ pub(crate) fn apply_tag_filters(lines: &[String], filters: &[Filter]) -> Vec<usi
     }
 
     // Build a set of line indices that are in each tagged region
-    let mut tagged_lines: std::collections::HashSet<usize> = std::collections::HashSet::new();
-    let mut selected_lines: std::collections::HashSet<usize> = std::collections::HashSet::new();
+    let mut tagged_lines: HashSet<usize> = HashSet::new();
+    let mut selected_lines: HashSet<usize> = HashSet::new();
 
     for region in &regions {
         for i in region.start..region.end {

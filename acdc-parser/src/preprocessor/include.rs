@@ -11,7 +11,7 @@ use url::Url;
 use crate::{
     Options, Preprocessor, SafeMode,
     error::{Error, Positioning, SourceLocation},
-    model::{HEADER, Position, substitute},
+    model::{HEADER, LeveloffsetRange, Position, substitute},
 };
 
 use super::tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters};
@@ -227,6 +227,20 @@ impl LinesRange {
     }
 }
 
+/// Result of processing an include directive.
+///
+/// Contains the included lines and any leveloffset that should apply to them.
+#[derive(Debug)]
+pub(crate) struct IncludeResult {
+    pub(crate) lines: Vec<String>,
+    /// The effective leveloffset value to apply to this included content.
+    /// This is the sum of the current document's leveloffset and the include's leveloffset.
+    pub(crate) effective_leveloffset: Option<isize>,
+    /// Leveloffset ranges from nested includes within this included file.
+    /// These need to be merged into the parent's ranges with adjusted byte offsets.
+    pub(crate) nested_leveloffset_ranges: Vec<LeveloffsetRange>,
+}
+
 impl Include {
     fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
         for (key, value) in attributes {
@@ -327,10 +341,110 @@ impl Include {
         })?
     }
 
-    pub(crate) fn read_content_from_file(&self, file_path: &Path) -> Result<String, Error> {
+    /// Resolve the target path, handling URL downloads if needed.
+    /// Returns Ok(None) if the target is intentionally skipped (e.g., disabled URL includes).
+    /// Returns Err for actual failures (network errors, file I/O errors).
+    fn resolve_target_path(&self) -> Result<Option<PathBuf>, Error> {
+        match &self.target {
+            Target::Path(path) => Ok(Some(self.file_parent.join(path))),
+            Target::Url(url) => self.resolve_url_target(url),
+        }
+    }
+
+    /// Resolve a URL target by downloading to a temp file.
+    /// Returns Ok(None) if URL includes are disabled (safe mode, missing attribute).
+    /// Returns Err for actual failures (network errors, file I/O errors).
+    fn resolve_url_target(&self, url: &Url) -> Result<Option<PathBuf>, Error> {
+        if self.options.safe_mode > SafeMode::Server {
+            tracing::warn!(safe_mode=?self.options.safe_mode, "URL includes are disabled by default. If you want to enable them, must run in `SERVER` mode or less.");
+            return Ok(None);
+        }
+        if self
+            .options
+            .document_attributes
+            .get("allow-uri-read")
+            .is_none()
+        {
+            tracing::warn!(
+                "URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line."
+            );
+            return Ok(None);
+        }
+
+        #[cfg(not(feature = "network"))]
+        {
+            tracing::warn!(url=?url, "network support is disabled, cannot fetch remote includes");
+            return Ok(None);
+        }
+
+        #[cfg(feature = "network")]
+        {
+            let mut temp_path = std::env::temp_dir();
+            let Some(file_name) = url.path_segments().and_then(std::iter::Iterator::last) else {
+                tracing::error!(url=?url, "failed to extract file name from URL");
+                return Ok(None);
+            };
+            temp_path.push(file_name);
+
+            let mut response = ureq::get(url.as_str())
+                .call()
+                .map_err(|e| Error::HttpRequest(e.to_string()))?;
+            let mut file = File::create(&temp_path)?;
+            io::copy(&mut response.body_mut().as_reader(), &mut file)?;
+
+            tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
+            Ok(Some(temp_path))
+        }
+    }
+
+    /// Apply tag and line range filters to content lines.
+    fn apply_content_filters(&self, content_lines: &[String]) -> Vec<String> {
+        let mut lines = Vec::new();
+
+        if !self.tags.is_empty() {
+            let filters: Vec<TagFilter> = self
+                .tags
+                .iter()
+                .map(|t| TagFilter::parse(t.as_str()))
+                .collect();
+            let selected_indices = apply_tag_filters(content_lines, &filters);
+
+            if self.line_range.is_empty() {
+                for idx in selected_indices {
+                    if let Some(line) = content_lines.get(idx) {
+                        lines.push(line.clone());
+                    }
+                }
+            } else {
+                let line_range_indices = self.collect_line_range_indices(content_lines.len());
+                for idx in selected_indices {
+                    if line_range_indices.contains(&idx)
+                        && let Some(line) = content_lines.get(idx)
+                    {
+                        lines.push(line.clone());
+                    }
+                }
+            }
+        } else if self.line_range.is_empty() {
+            lines.extend(content_lines.iter().cloned());
+        } else {
+            self.extend_lines_with_ranges(content_lines, &mut lines);
+        }
+
+        lines
+    }
+
+    /// Read and process content from a file, returning the text and any nested leveloffset ranges.
+    ///
+    /// For `AsciiDoc` files, this recursively processes includes and returns leveloffset ranges
+    /// from nested includes. For non-`AsciiDoc` files, returns just the normalized content.
+    pub(crate) fn read_content_from_file(
+        &self,
+        file_path: &Path,
+    ) -> Result<(String, Vec<LeveloffsetRange>), Error> {
         let content =
             crate::preprocessor::read_and_decode_file(file_path, self.encoding.as_deref())?;
-        if let Some(ext) = file_path.extension() {
+        if let Some(ext) = file_path.extension() &&
             // If the file is recognized as an AsciiDoc file (i.e., it has one of the
             // following extensions: .asciidoc, .adoc, .ad, .asc, or .txt) additional
             // normalization and processing is performed. First, all trailing whitespace
@@ -346,130 +460,75 @@ impl Include {
             // Running the preprocessor on the included content allows includes to be nested, thus
             // provides lot of flexibility in constructing radically different documents with a single
             // primary document and a few command line attributes.
-            if ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref()) {
-                return super::Preprocessor
-                    .process_either(&content, Some(file_path), &self.options)
-                    .map_err(|e| {
-                        tracing::error!(path=?file_path, error=?e, "failed to process file");
-                        e
-                    });
-            }
+             ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref())
+        {
+            // For nested AsciiDoc includes, return both the text and any leveloffset ranges.
+            // This enables proper accumulation of leveloffset through nested includes.
+            return super::Preprocessor
+                .process_inner(&content, Some(file_path), &self.options)
+                .map(|result| (result.text, result.leveloffset_ranges))
+                .map_err(|error| {
+                    tracing::error!(path=?file_path, ?error, "failed to process file");
+                    error
+                });
         }
 
-        // If we're here, we still need to normalize the content.
-        Ok(Preprocessor::normalize(&content))
+        // For non-AsciiDoc files, normalize the content and return empty nested ranges.
+        Ok((Preprocessor::normalize(&content), Vec::new()))
     }
 
-    pub(crate) fn lines(&self) -> Result<Vec<String>, Error> {
-        let mut lines = Vec::new();
-        let path = match &self.target {
-            Target::Path(path) => self.file_parent.join(path),
-            Target::Url(url) => {
-                if self.options.safe_mode > SafeMode::Server {
-                    tracing::warn!(safe_mode=?self.options.safe_mode, "URL includes are disabled by default. If you want to enable them, must run in `SERVER` mode or less.");
-                    return Ok(lines);
-                }
-                if self
-                    .options
-                    .document_attributes
-                    .get("allow-uri-read")
-                    .is_none()
-                {
-                    tracing::warn!(
-                        "URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line."
-                    );
-                    return Ok(lines);
-                }
-
-                #[cfg(not(feature = "network"))]
-                {
-                    tracing::warn!(url=?url, "network support is disabled, cannot fetch remote includes");
-                    return Ok(lines);
-                }
-
-                #[cfg(feature = "network")]
-                {
-                    let mut temp_path = std::env::temp_dir();
-                    if let Some(file_name) = url.path_segments().and_then(std::iter::Iterator::last)
-                    {
-                        temp_path.push(file_name);
-                    } else {
-                        tracing::error!(url=?url, "failed to extract file name from URL");
-                        return Ok(lines);
-                    }
-                    {
-                        let mut response = ureq::get(url.as_str())
-                            .call()
-                            .map_err(|e| Error::HttpRequest(e.to_string()))?;
-                        // Create and write to the file
-                        let mut file = File::create(&temp_path)?;
-                        io::copy(&mut response.body_mut().as_reader(), &mut file)?;
-                    }
-                    tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
-                    temp_path
-                }
-            }
+    pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {
+        // Resolve target path (handles both file paths and URL downloads)
+        let Some(path) = self.resolve_target_path()? else {
+            return Ok(IncludeResult {
+                lines: Vec::new(),
+                effective_leveloffset: None,
+                nested_leveloffset_ranges: Vec::new(),
+            });
         };
-        // If the path doesn't exist, we still need to return an empty list of
-        // lines because we never want to fail parsing the doc because of an
-        // include directive.
-        if !path.exists() {
-            // If the include is not optional, we log a warning though!
-            if !self.opts.contains(&"optional".to_string()) {
-                tracing::warn!(
-                    path=?path,
-                    "file is missing - include directive won't be processed"
-                );
-            }
-            return Ok(lines);
-        }
-        let content = self.read_content_from_file(&path)?;
 
-        if let Some(level_offset) = self.level_offset {
-            tracing::warn!(level_offset, "level offset is not supported yet");
+        // If the path doesn't exist, return empty lines (never fail parsing due to include)
+        if !path.exists() {
+            if !self.opts.contains(&"optional".to_string()) {
+                tracing::warn!(path=?path, "file is missing - include directive won't be processed");
+            }
+            return Ok(IncludeResult {
+                lines: Vec::new(),
+                effective_leveloffset: None,
+                nested_leveloffset_ranges: Vec::new(),
+            });
         }
+
+        let (content, nested_ranges) = self.read_content_from_file(&path)?;
+        let effective_leveloffset = self.calculate_effective_leveloffset();
+
         if let Some(indent) = self.indent {
             tracing::warn!(indent, "indent is not supported yet");
         }
-        // TODO(nlopes): this is so unoptimized, it isn't even funny but I'm
-        // trying to just get to a place of compatibility, then I can
-        // optimize.
+
         let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
+        let lines = self.apply_content_filters(&content_lines);
 
-        // Apply filtering based on tags and/or line ranges
-        // Note: asciidoctor doesn't clearly document combining lines= and tags=,
-        // so we treat them as mutually exclusive (tags take precedence if both specified)
-        if !self.tags.is_empty() {
-            let filters: Vec<TagFilter> = self
-                .tags
-                .iter()
-                .map(|t| TagFilter::parse(t.as_str()))
-                .collect();
-            let selected_indices = apply_tag_filters(&content_lines, &filters);
+        Ok(IncludeResult {
+            lines,
+            effective_leveloffset,
+            nested_leveloffset_ranges: nested_ranges,
+        })
+    }
 
-            // If line ranges are also specified, further filter the selected indices
-            if self.line_range.is_empty() {
-                for idx in selected_indices {
-                    if let Some(line) = content_lines.get(idx) {
-                        lines.push(line.clone());
-                    }
-                }
-            } else {
-                let line_range_indices = self.collect_line_range_indices(content_lines.len());
-                for idx in selected_indices {
-                    if line_range_indices.contains(&idx) {
-                        if let Some(line) = content_lines.get(idx) {
-                            lines.push(line.clone());
-                        }
-                    }
-                }
-            }
-        } else if self.line_range.is_empty() {
-            lines.extend(content_lines);
-        } else {
-            self.extend_lines_with_ranges(&content_lines, &mut lines);
-        }
-        Ok(lines)
+    /// Calculate the effective leveloffset for this include.
+    /// This is the sum of the current document's leveloffset and the include's leveloffset.
+    fn calculate_effective_leveloffset(&self) -> Option<isize> {
+        self.level_offset.map(|level_offset| {
+            let current_offset = self
+                .options
+                .document_attributes
+                .get_string("leveloffset")
+                .and_then(|s| s.parse::<isize>().ok())
+                .unwrap_or(0);
+
+            current_offset + level_offset
+        })
     }
 
     fn validate_line_number(num: usize) -> Option<usize> {
