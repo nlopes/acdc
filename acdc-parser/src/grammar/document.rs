@@ -3073,6 +3073,8 @@ peg::parser! {
             / index_term:index_term_flow(offset) { index_term }
             / indexterm:indexterm_macro(offset) { indexterm }
             / indexterm2:indexterm2_macro(offset) { indexterm2 }
+            // Bibliography anchor (triple brackets) must come before inline anchor (double brackets)
+            / bibliography_anchor:bibliography_anchor(offset) { bibliography_anchor }
             / inline_anchor:inline_anchor(offset) { inline_anchor }
             / cross_reference_shorthand:cross_reference_shorthand(offset) { cross_reference_shorthand }
             / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
@@ -4692,6 +4694,24 @@ peg::parser! {
 
         rule inline_anchor_match() -> ()
         = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
+
+        /// Bibliography anchor: `[[[id]]]` or `[[[id,reftext]]]`
+        /// Must be parsed before inline_anchor to avoid capturing `[id` as the ID
+        rule bibliography_anchor(offset: usize) -> InlineNode
+        = start:position!()
+        "[[["
+        warn_anchor_id_with_whitespace()?
+        id:$([^'\'' | ',' | ']' | '[' | '.' | ' ' | '\t' | '\n' | '\r']+)
+        reftext:(comma() reftext:$([^']']+) { Some(reftext) } / { None })
+        "]]]"
+        end:position!()
+        {
+            InlineNode::InlineAnchor(Anchor {
+                id: id.to_string(),
+                xreflabel: reftext.map(ToString::to_string),
+                location: state.create_block_location(start, end, offset)
+            })
+        }
 
         rule attributes_line() -> (bool, BlockMetadata)
             // Don't match empty [] followed by blank line - that's a list separator, not

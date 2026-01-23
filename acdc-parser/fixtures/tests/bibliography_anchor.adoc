@@ -1,0 +1,8 @@
+= Bibliography Anchors
+
+== References
+
+* [[[ref01]]] First reference
+* [[[ref02,Custom Label]]] Second reference with custom label
+
+See <<ref01>> and <<ref02>> for details.
