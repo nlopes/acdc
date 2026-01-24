@@ -244,12 +244,9 @@ fn visit_inline_macro<W: Write>(
         InlineMacro::CrossReference(xref) => {
             // Cross-reference - try to render as man page reference if it looks like one
             // e.g., git(1) -> \fBgit\fP(1)
-            let w = visitor.writer_mut();
-            if let Some(text) = &xref.text {
-                // text is String, so we just write it escaped
-                write!(w, "{}", manify(text, EscapeMode::Normalize))?;
-            } else {
+            if xref.text.is_empty() {
                 // Try to format as man page reference
+                let w = visitor.writer_mut();
                 let target = &xref.target;
                 if let Some((name, vol)) = target.rsplit_once('(') {
                     if vol.ends_with(')') && vol.len() <= 3 {
@@ -260,6 +257,9 @@ fn visit_inline_macro<W: Write>(
                 } else {
                     write!(w, "{target}")?;
                 }
+            } else {
+                // Render inline nodes recursively
+                visitor.visit_inline_nodes(&xref.text)?;
             }
         }
 

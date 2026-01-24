@@ -577,13 +577,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::CrossReference(xref) => {
-            if let Some(text) = &xref.text {
-                if options.inlines_basic {
-                    write!(w, "{text}")?;
-                } else {
-                    write!(w, "<a href=\"#{}\">{text}</a>", xref.target)?;
-                }
-            } else {
+            if xref.text.is_empty() {
                 // Look up section from toc_entries
                 // Priority: xreflabel (from [[id,Custom Text]]) > section title > fallback
                 let display_text = processor
@@ -605,6 +599,17 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 } else {
                     write!(w, "<a href=\"#{}\">{display_text}</a>", xref.target)?;
                 }
+            } else if options.inlines_basic {
+                for inline in &xref.text {
+                    visit_inline_node(inline, visitor, processor, options, subs)?;
+                }
+            } else {
+                write!(w, "<a href=\"#{}\">", xref.target)?;
+                for inline in &xref.text {
+                    visit_inline_node(inline, visitor, processor, options, subs)?;
+                }
+                let w = visitor.writer_mut();
+                write!(w, "</a>")?;
             }
         }
         InlineMacro::Stem(s) => match s.notation {

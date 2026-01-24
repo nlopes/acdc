@@ -3136,8 +3136,8 @@ peg::parser! {
             // Bibliography anchor (triple brackets) must come before inline anchor (double brackets)
             / bibliography_anchor:bibliography_anchor(offset) { bibliography_anchor }
             / inline_anchor:inline_anchor(offset) { inline_anchor }
-            / cross_reference_shorthand:cross_reference_shorthand(offset) { cross_reference_shorthand }
-            / cross_reference_macro:cross_reference_macro(offset) { cross_reference_macro }
+            / cross_reference_shorthand:cross_reference_shorthand(offset, block_metadata) { cross_reference_shorthand }
+            / cross_reference_macro:cross_reference_macro(offset, block_metadata) { cross_reference_macro }
             / hard_wrap:hard_wrap(offset) { hard_wrap }
             / &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
             / stem:inline_stem(offset) { stem }
@@ -3854,17 +3854,30 @@ peg::parser! {
         }
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
-        rule cross_reference_shorthand(offset: usize) -> InlineNode
-        = start:position!() shorthand:cross_reference_shorthand_pattern() end:position!()
+        rule cross_reference_shorthand(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position() shorthand:cross_reference_shorthand_pattern() end:position!()
         {?
-            let (target, text) = shorthand;
+            let (target, raw_text) = shorthand;
             let target_str = target.trim().to_string();
-            let text = text.map(|t| t.trim().to_string());
+            let text = if let Some(t) = raw_text {
+                let trimmed = t.trim();
+                if trimmed.is_empty() {
+                    vec![]
+                } else {
+                    process_inlines(state, block_metadata, &start, end, offset, trimmed)
+                        .map_err(|e| {
+                            tracing::error!(?e, xref_text = trimmed, "could not process xref text");
+                            "could not process xref text"
+                        })?
+                }
+            } else {
+                vec![]
+            };
             tracing::info!(?target_str, ?text, "Found cross-reference shorthand");
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text,
-                location: state.create_block_location(start, end, offset),
+                location: state.create_block_location(start.offset, end, offset),
             })))
         }
 
@@ -3876,16 +3889,24 @@ peg::parser! {
         }
 
         /// Parse cross-reference macro syntax: xref:id[text]
-        rule cross_reference_macro(offset: usize) -> InlineNode
-        = start:position!() "xref:" target:source() "[" text:$((!"]" [_])*) "]" end:position!()
+        rule cross_reference_macro(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position() "xref:" target:source() "[" raw_text:$((!"]" [_])*) "]" end:position!()
         {?
             let target_str = target.to_string();
-            let text_str = if text.is_empty() { None } else { Some(text.to_string()) };
-            tracing::info!(?target_str, ?text_str, "Found cross-reference macro");
+            let text = if raw_text.is_empty() {
+                vec![]
+            } else {
+                process_inlines(state, block_metadata, &start, end, offset, raw_text)
+                    .map_err(|e| {
+                        tracing::error!(?e, xref_text = raw_text, "could not process xref text");
+                        "could not process xref text"
+                    })?
+            };
+            tracing::info!(?target_str, ?text, "Found cross-reference macro");
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
-                text: text_str,
-                location: state.create_block_location(start, end, offset),
+                text,
+                location: state.create_block_location(start.offset, end, offset),
             })))
         }
 

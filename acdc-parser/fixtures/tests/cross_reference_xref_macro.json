@@ -77,7 +77,23 @@
               "name": "xref",
               "type": "inline",
               "target": "conclusion",
-              "text": "click here",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "click here",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 29
+                    },
+                    {
+                      "line": 1,
+                      "col": 38
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 5,

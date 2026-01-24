@@ -156,8 +156,9 @@ pub type Key = String;
 #[non_exhaustive]
 pub struct CrossReference {
     pub target: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
+    // We don't serialize the text here because it's serialized as "inlines" in the ASG
+    #[serde(skip_serializing)]
+    pub text: Vec<InlineNode>,
     pub location: Location,
 }
 
@@ -167,14 +168,14 @@ impl CrossReference {
     pub fn new(target: impl Into<String>, location: Location) -> Self {
         Self {
             target: target.into(),
-            text: None,
+            text: Vec::new(),
             location,
         }
     }
 
-    /// Sets the cross-reference display text.
+    /// Sets the cross-reference display text as inline nodes.
     #[must_use]
-    pub fn with_text(mut self, text: Option<String>) -> Self {
+    pub fn with_text(mut self, text: Vec<InlineNode>) -> Self {
         self.text = text;
         self
     }

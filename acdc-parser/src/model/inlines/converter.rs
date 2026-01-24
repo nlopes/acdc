@@ -47,7 +47,11 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
                 }
                 InlineMacro::Autolink(autolink) => autolink.url.to_string(),
                 InlineMacro::CrossReference(xref) => {
-                    xref.text.clone().unwrap_or_else(|| xref.target.clone())
+                    if xref.text.is_empty() {
+                        xref.target.clone()
+                    } else {
+                        inlines_to_string(&xref.text)
+                    }
                 }
                 // For visible index terms, return the term text; hidden ones return empty
                 InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {

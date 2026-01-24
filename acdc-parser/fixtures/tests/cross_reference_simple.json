@@ -10,7 +10,23 @@
           "name": "xref",
           "type": "inline",
           "target": "conclusion",
-          "text": "click here",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "click here",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 10
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 1,

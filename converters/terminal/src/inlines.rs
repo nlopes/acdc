@@ -385,14 +385,15 @@ fn render_cross_reference<W: Write + ?Sized>(
     xref: &CrossReference,
     w: &mut W,
 ) -> Result<(), crate::Error> {
-    if let Some(text) = &xref.text {
-        // Render custom text with subtle styling to indicate it's a cross-reference
-        w.queue(PrintStyledContent(text.clone().blue().underlined()))?;
-    } else {
+    if xref.text.is_empty() {
         // Render target in brackets with styling
         w.queue(PrintStyledContent(
             format!("[{}]", xref.target).blue().underlined(),
         ))?;
+    } else {
+        // Render custom text with subtle styling to indicate it's a cross-reference
+        let text = acdc_parser::inlines_to_string(&xref.text);
+        w.queue(PrintStyledContent(text.blue().underlined()))?;
     }
     Ok(())
 }
@@ -719,7 +720,7 @@ mod tests {
     fn test_cross_reference_with_text() -> Result<(), Error> {
         let xref = InlineNode::Macro(InlineMacro::CrossReference(
             CrossReference::new("section-id", Location::default())
-                .with_text(Some("See Section 1".to_string())),
+                .with_text(vec![create_plain_text("See Section 1")]),
         ));
 
         let output = render_paragraph(vec![xref])?;

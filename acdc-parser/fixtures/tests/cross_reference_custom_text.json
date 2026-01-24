@@ -77,7 +77,23 @@
               "name": "xref",
               "type": "inline",
               "target": "conclusion",
-              "text": "final section",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "final section",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 9
+                    },
+                    {
+                      "line": 1,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 5,
