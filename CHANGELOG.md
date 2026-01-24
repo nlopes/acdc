@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Syntax highlighting for source blocks** - Code blocks with a language specified now
+  render with syntax highlighting using syntect. Outputs inline CSS styles. Falls back
+  to plain text when the language isn't recognized. Requires `highlighting` feature flag.
+- **Section numbering** - Documents with `:sectnums:` attribute now render numbered
+  section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:secnumlevels:`
+  to control depth of numbering.
+- **ToC numbering** - Table of contents entries are now numbered when `:sectnums:` is
+  set, matching asciidoctor behavior.
 - Table colspan and rowspan rendering (`colspan="n"` and `rowspan="n"` attributes on `<th>`/`<td>`)
 - Table visual attribute support:
   - `frame` attribute - controls outer border (`all`, `ends`/`topbot`, `sides`, `none`)
@@ -68,6 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching asciidoctor behavior. Previously, smart quotes were incorrectly applied.
 - HTML5 compliance: removed self-closing syntax (`<col />` → `<col>`, `<img />` → `<img>`)
   and deprecated `frameborder` attribute from iframes.
+- Callout references in source blocks now render with `<b>` tags wrapping the number
+  instead of the entire `<i class="conum">` element, matching asciidoctor output.
 
 ### Changed
 
@@ -91,6 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`:leveloffset:` attribute support** - Tracks leveloffset ranges during preprocessing
+  and applies them when parsing section headings. Included files can have their heading
+  levels adjusted relative to the including document.
+- **Bibliography anchor parsing** - `[[[anchor]]]` and `[[[anchor,label]]]` syntax in
+  bibliography sections is now parsed as a distinct anchor type.
+- **Validation for `:secnumlevels:` and `:toclevels:`** - Parser now warns when these
+  attributes are set to values outside the valid range (0-5 for secnumlevels, 1-5 for
+  toclevels).
 - Complete cell specifier support for tables:
   - Colspan: `2+|` spans 2 columns
   - Rowspan: `.2+|` spans 2 rows
@@ -151,6 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default table cells now treat list markers, delimited blocks, toc macros, and page
   breaks as literal text instead of parsing them as blocks. Only cells with the `a`
   (AsciiDoc) style get full block parsing, matching asciidoctor behavior.
+- Nested include paths are now resolved relative to the parent file's directory instead
+  of the root document's directory. ([#317])
 
 ### Changed
 
@@ -209,6 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#311]: https://github.com/nlopes/acdc/issues/311
 [#313]: https://github.com/nlopes/acdc/pull/313
+[#317]: https://github.com/nlopes/acdc/issues/317
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 
