@@ -181,6 +181,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (AsciiDoc) style get full block parsing, matching asciidoctor behavior.
 - Nested include paths are now resolved relative to the parent file's directory instead
   of the root document's directory. ([#317])
+- Anchors before section headers (e.g., `[#myid]\n= Section`) are now correctly associated
+  with the section. Previously, list continuation and paragraph parsing consumed the
+  anchor as content, causing explicit IDs to be lost when using `include::[]` with
+  `leveloffset`. ([#321])
 
 ### Changed
 
@@ -211,6 +215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#317]: https://github.com/nlopes/acdc/issues/317
 [#320]: https://github.com/nlopes/acdc/issues/320
+[#321]: https://github.com/nlopes/acdc/issues/321
 
 ## [Unreleased acdc-cli]
 

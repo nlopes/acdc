@@ -1986,7 +1986,7 @@ peg::parser! {
 
         // Helper rule to check if we're at the start of a section heading (lookahead)
         // This is used to terminate list continuations when a section follows
-        rule at_section_start() = ("=" / "#")+ " "
+        rule at_section_start() = (anchor() / attributes_line())* ("=" / "#")+ " "
 
         // Helper rule to check if we're at an ordered list marker ahead (after newlines)
         rule at_ordered_marker_ahead() = eol()+ whitespace()* ordered_list_marker()
@@ -4602,7 +4602,7 @@ peg::parser! {
             / eol() open_delimiter() &(whitespace()* eol())
             / eol() list(start, offset, block_metadata)
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
-            / eol()* &(section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
+            / eol()* &((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
         ) [_])+)
         end:position!()
         {
