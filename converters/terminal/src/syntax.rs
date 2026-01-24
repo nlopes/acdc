@@ -23,6 +23,7 @@ pub fn highlight_code<W: Write + ?Sized>(
     let code = extract_text_from_inlines(inlines);
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
+
     let theme_name = processor.appearance.theme.syntect_theme();
     let theme = &theme_set
         .themes

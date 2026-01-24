@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    code::detect_language,
+    code::{default_line_comment, detect_language},
     visitor::{WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{
@@ -154,6 +154,53 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+/// Strip comment guard prefix from a `VerbatimText` node's content.
+/// The guard is the comment prefix that appears before a callout marker.
+fn strip_callout_comment_guard(text: &str, comment_prefix: Option<&str>) -> String {
+    let Some(prefix) = comment_prefix else {
+        return text.to_string();
+    };
+
+    // The comment guard appears at the end of the line, just before the callout
+    // e.g., "let x = 1; // " -> "let x = 1; "
+    let trimmed = text.trim_end();
+    if let Some(stripped) = trimmed.strip_suffix(prefix) {
+        // Return the text without the comment prefix
+        stripped.trim_end().to_string() + " "
+    } else {
+        text.to_string()
+    }
+}
+
+/// Process inlines to strip comment guards from `VerbatimText` nodes that precede `CalloutRef` nodes.
+fn process_callout_guards(inlines: &[InlineNode], comment_prefix: Option<&str>) -> Vec<InlineNode> {
+    let mut result = Vec::with_capacity(inlines.len());
+
+    for (i, node) in inlines.iter().enumerate() {
+        // Check if this VerbatimText is followed by a CalloutRef
+        let next_is_callout = inlines
+            .get(i + 1)
+            .is_some_and(|n| matches!(n, InlineNode::CalloutRef(_)));
+
+        if let InlineNode::VerbatimText(v) = node {
+            if next_is_callout {
+                // Strip the comment guard from this VerbatimText
+                let stripped_content = strip_callout_comment_guard(&v.content, comment_prefix);
+                result.push(InlineNode::VerbatimText(acdc_parser::Verbatim {
+                    content: stripped_content,
+                    location: v.location.clone(),
+                }));
+            } else {
+                result.push(node.clone());
+            }
+        } else {
+            result.push(node.clone());
+        }
+    }
+
+    result
+}
+
 fn render_listing_block<V: WritableVisitor<Error = Error>>(
     inlines: &[InlineNode],
     title: &[InlineNode],
@@ -185,25 +232,70 @@ fn render_listing_block<V: WritableVisitor<Error = Error>>(
 
     w = visitor.writer_mut();
     writeln!(w, "<div class=\"content\">")?;
+
     // Check if this is a source block with a language
     let language = detect_language(metadata);
+
+    // Check if syntax highlighting is enabled via source-highlighter attribute
+    #[cfg(feature = "highlighting")]
+    let highlighting_enabled = processor
+        .document_attributes
+        .get("source-highlighter")
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+
+    // Strip comment guards from callout markers
+    let comment_prefix = default_line_comment(language);
+    let processed_inlines = process_callout_guards(inlines, comment_prefix);
+
+    #[cfg(feature = "highlighting")]
     if let Some(lang) = language {
-        write!(
-            w,
-            "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-        )?;
+        if highlighting_enabled {
+            // Use syntax highlighting
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            crate::syntax::highlight_code(visitor.writer_mut(), &processed_inlines, lang)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            // No highlighting - render as plain code
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(&processed_inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        }
     } else {
         write!(w, "<pre>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&processed_inlines)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
     }
 
-    let _ = w;
-    visitor.visit_inline_nodes(inlines)?;
-
-    w = visitor.writer_mut();
-    if language.is_some() {
-        writeln!(w, "</code></pre>")?;
-    } else {
-        writeln!(w, "</pre>")?;
+    #[cfg(not(feature = "highlighting"))]
+    {
+        if let Some(lang) = language {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(&processed_inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(w, "<pre>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&processed_inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</pre>")?;
+        }
     }
 
     writeln!(w, "</div>")?;

@@ -41,6 +41,9 @@ html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidocto
 manpage = ["dep:acdc-converters-manpage"]      # Manpage (roff/troff) converter for man pages
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
+# Syntax highlighting for source blocks (requires html feature)
+highlighting = ["acdc-converters-html?/highlighting"]
+
 # Development tools
 inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing

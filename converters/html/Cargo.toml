@@ -9,11 +9,14 @@ license = "MIT OR Apache-2.0"
 default = ["pre-spec-subs"]
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
 pre-spec-subs = ["acdc-parser/pre-spec-subs"]
+# Enable syntax highlighting for source blocks using syntect
+highlighting = ["dep:syntect"]
 
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
 chrono.workspace = true
+syntect = { version = "5.3", optional = true, default-features = false, features = ["default-fancy"] }
 thiserror.workspace = true
 tracing.workspace = true
 

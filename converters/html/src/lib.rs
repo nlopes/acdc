@@ -23,6 +23,7 @@ mod inlines;
 mod list;
 mod paragraph;
 mod section;
+mod syntax;
 mod table;
 mod toc;
 mod video;
