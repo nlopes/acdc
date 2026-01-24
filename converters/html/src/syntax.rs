@@ -18,7 +18,7 @@ const CODE_HIGHLIGHT_THEME: &str = "InspiredGitHub";
 /// When the `highlighting` feature is enabled, this uses syntect for syntax
 /// highlighting with inline CSS styles. Otherwise, it outputs plain escaped text.
 #[cfg(feature = "highlighting")]
-pub fn highlight_code<W: Write + ?Sized>(
+pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     language: &str,

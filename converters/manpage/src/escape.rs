@@ -231,7 +231,7 @@ fn replace_special_chars(text: &str) -> String {
 ///
 /// Used for `.TH` arguments and other contexts requiring quoted strings.
 #[must_use]
-pub fn escape_quoted(text: &str) -> Cow<'_, str> {
+pub(crate) fn escape_quoted(text: &str) -> Cow<'_, str> {
     if !text.contains('"') && !text.contains('\\') {
         return Cow::Borrowed(text);
     }
@@ -245,7 +245,7 @@ pub fn escape_quoted(text: &str) -> Cow<'_, str> {
 ///
 /// Manpage convention is to uppercase level-1 section titles (NAME, SYNOPSIS, etc.).
 #[must_use]
-pub fn uppercase_title(text: &str) -> String {
+pub(crate) fn uppercase_title(text: &str) -> String {
     text.to_uppercase()
 }
 

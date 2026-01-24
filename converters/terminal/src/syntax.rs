@@ -9,7 +9,7 @@ use crate::{Error, Processor};
 /// When the `highlighting` feature is enabled, this uses syntect for syntax
 /// highlighting. Otherwise, it outputs plain text.
 #[cfg(feature = "highlighting")]
-pub fn highlight_code<W: Write + ?Sized>(
+pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     language: &str,
@@ -66,7 +66,7 @@ fn apply_syntect_style(
 /// Fallback implementation when syntax highlighting is disabled.
 /// Outputs plain text without any highlighting.
 #[cfg(not(feature = "highlighting"))]
-pub fn highlight_code<W: Write + ?Sized>(
+pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     _language: &str,

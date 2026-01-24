@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// Visit a paragraph, handling styled paragraphs (quote, verse, literal).
-pub fn visit_paragraph<W: Write>(
+pub(crate) fn visit_paragraph<W: Write>(
     para: &Paragraph,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {

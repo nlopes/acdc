@@ -21,7 +21,7 @@ pub struct Processor {
     /// Uses Rc<Cell<>> so all clones share the same counter.
     pub(crate) example_counter: Rc<Cell<usize>>,
     /// Terminal appearance (theme, capabilities, colors)
-    pub appearance: Appearance,
+    pub(crate) appearance: Appearance,
 }
 
 impl Converter for Processor {
@@ -83,6 +83,14 @@ impl Converter for Processor {
 
     fn backend(&self) -> Backend {
         Backend::Terminal
+    }
+}
+
+impl Processor {
+    /// Returns the terminal capabilities.
+    #[must_use]
+    pub fn terminal_capabilities(&self) -> &Capabilities {
+        &self.appearance.capabilities
     }
 }
 

@@ -15,7 +15,7 @@ use crate::{
 };
 
 /// Visit a table.
-pub fn visit_table<W: Write>(
+pub(crate) fn visit_table<W: Write>(
     table: &Table,
     block: &DelimitedBlock,
     visitor: &mut ManpageVisitor<W>,

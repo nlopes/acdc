@@ -11,7 +11,7 @@ use acdc_parser::{CalloutList, DescriptionList, OrderedList, UnorderedList};
 use crate::{Error, ManpageVisitor};
 
 /// Visit an unordered (bulleted) list.
-pub fn visit_unordered_list<W: Write>(
+pub(crate) fn visit_unordered_list<W: Write>(
     list: &UnorderedList,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
@@ -54,7 +54,7 @@ pub fn visit_unordered_list<W: Write>(
 }
 
 /// Visit an ordered (numbered) list.
-pub fn visit_ordered_list<W: Write>(
+pub(crate) fn visit_ordered_list<W: Write>(
     list: &OrderedList,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
@@ -97,7 +97,7 @@ pub fn visit_ordered_list<W: Write>(
 }
 
 /// Visit a description list (term/definition pairs).
-pub fn visit_description_list<W: Write>(
+pub(crate) fn visit_description_list<W: Write>(
     list: &DescriptionList,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
@@ -125,7 +125,7 @@ pub fn visit_description_list<W: Write>(
 }
 
 /// Visit a callout list.
-pub fn visit_callout_list<W: Write>(
+pub(crate) fn visit_callout_list<W: Write>(
     list: &CalloutList,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {

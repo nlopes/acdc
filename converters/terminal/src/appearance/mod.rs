@@ -15,7 +15,7 @@ pub struct Appearance {
     #[cfg(feature = "highlighting")]
     pub(crate) theme: Theme,
     /// Terminal capabilities (Unicode, OSC 8, etc.)
-    pub capabilities: Capabilities,
+    pub(crate) capabilities: Capabilities,
     /// Color scheme based on theme
     pub(crate) colors: ColorScheme,
 }
@@ -23,7 +23,7 @@ pub struct Appearance {
 impl Appearance {
     /// Detect appearance settings from terminal environment
     #[must_use]
-    pub fn detect() -> Self {
+    pub(crate) fn detect() -> Self {
         let theme = Theme::detect();
         let capabilities = Capabilities::detect();
         let colors = ColorScheme::for_theme(theme);

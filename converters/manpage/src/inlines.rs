@@ -13,7 +13,7 @@ use crate::{
 };
 
 /// Visit an inline node.
-pub fn visit_inline_node<W: Write>(
+pub(crate) fn visit_inline_node<W: Write>(
     node: &InlineNode,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
@@ -187,7 +187,7 @@ fn write_autolink<W: Write>(
 /// This is called from the manpage visitor's `visit_inline_nodes` when it detects
 /// a mailto autolink followed by single-character punctuation. The trailing
 /// punctuation is passed to the `.MTO` macro's third argument.
-pub fn write_autolink_with_trailing<W: Write>(
+pub(crate) fn write_autolink_with_trailing<W: Write>(
     visitor: &mut ManpageVisitor<W>,
     autolink: &Autolink,
     trailing: &str,

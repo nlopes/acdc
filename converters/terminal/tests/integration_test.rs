@@ -60,7 +60,7 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
     processor.write_to(&doc, &mut output, Some(input_path.as_path()))?;
 
-    if osc8 && !processor.appearance.capabilities.osc8_links {
+    if osc8 && !processor.terminal_capabilities().osc8_links {
         // If the fixture name indicates osc8 links but we're running in a terminal that
         // doesn't support them, we ignore the test.
         return Ok(());

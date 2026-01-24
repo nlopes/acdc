@@ -64,7 +64,7 @@ fn write_url_macros<W: Write + ?Sized>(w: &mut W, linkstyle: &str) -> std::io::R
 }
 
 /// Extract plain text from inline nodes (for code blocks, title parsing, etc.).
-pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
+pub(crate) fn extract_plain_text(nodes: &[InlineNode]) -> String {
     let mut result = String::new();
     for node in nodes {
         match node {
@@ -106,7 +106,7 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
 /// - `manname`: From NAME section (or falls back to mantitle)
 /// - `manpurpose`: From NAME section (after ` - `)
 /// - `_manpage_title_conforming`: Whether the title conforms to name(volume) format
-pub fn visit_document_start<W: Write>(
+pub(crate) fn visit_document_start<W: Write>(
     doc: &Document,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {

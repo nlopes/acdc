@@ -2,7 +2,7 @@ use crossterm::style::Color;
 
 /// Terminal background theme
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Theme {
+pub(crate) enum Theme {
     Dark,
     Light,
 }
@@ -43,7 +43,7 @@ impl Theme {
 
 /// Semantic color scheme for terminal output
 #[derive(Debug, Clone)]
-pub struct ColorScheme {
+pub(crate) struct ColorScheme {
     // Section colors
     pub section_h1: Color,
     pub section_h2: Color,

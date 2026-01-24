@@ -1,7 +1,7 @@
 //! HTML entity constants for Unicode character encoding.
 
 /// Unicode characters that should be encoded as HTML numeric entities.
-pub const HTML_ENTITY_MAPPINGS: &[(char, &str)] = &[
+pub(crate) const HTML_ENTITY_MAPPINGS: &[(char, &str)] = &[
     ('\u{00A0}', "&#160;"),  // non-breaking space
     ('\u{200B}', "&#8203;"), // zero-width space
     ('\u{2060}', "&#8288;"), // word joiner
@@ -15,7 +15,7 @@ pub const HTML_ENTITY_MAPPINGS: &[(char, &str)] = &[
 
 /// Encode Unicode characters to HTML numeric entities.
 #[must_use]
-pub fn encode_html_entities(text: &str) -> String {
+pub(crate) fn encode_html_entities(text: &str) -> String {
     let mut result = text.to_string();
     for (char, entity) in HTML_ENTITY_MAPPINGS {
         result = result.replace(*char, entity);

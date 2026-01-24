@@ -354,6 +354,7 @@ impl Include {
     /// Resolve a URL target by downloading to a temp file.
     /// Returns Ok(None) if URL includes are disabled (safe mode, missing attribute).
     /// Returns Err for actual failures (network errors, file I/O errors).
+    #[allow(clippy::unnecessary_wraps)] // Err is used when "network" feature is enabled
     fn resolve_url_target(&self, url: &Url) -> Result<Option<PathBuf>, Error> {
         if self.options.safe_mode > SafeMode::Server {
             tracing::warn!(safe_mode=?self.options.safe_mode, "URL includes are disabled by default. If you want to enable them, must run in `SERVER` mode or less.");
@@ -374,7 +375,7 @@ impl Include {
         #[cfg(not(feature = "network"))]
         {
             tracing::warn!(url=?url, "network support is disabled, cannot fetch remote includes");
-            return Ok(None);
+            Ok(None)
         }
 
         #[cfg(feature = "network")]

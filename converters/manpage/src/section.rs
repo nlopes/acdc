@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// Visit a section and its content.
-pub fn visit_section<W: Write>(
+pub(crate) fn visit_section<W: Write>(
     section: &Section,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {

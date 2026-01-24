@@ -11,7 +11,7 @@ use acdc_parser::Admonition;
 use crate::{Error, ManpageVisitor};
 
 /// Visit an admonition block.
-pub fn visit_admonition<W: Write>(
+pub(crate) fn visit_admonition<W: Write>(
     admon: &Admonition,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {

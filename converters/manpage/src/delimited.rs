@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// Visit a delimited block.
-pub fn visit_delimited_block<W: Write>(
+pub(crate) fn visit_delimited_block<W: Write>(
     block: &DelimitedBlock,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
