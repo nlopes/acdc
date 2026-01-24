@@ -20,8 +20,11 @@ mod tables;
 mod title;
 
 pub use admonition::{Admonition, AdmonitionVariant};
-pub use anchor::{Anchor, TocEntry};
-pub use attributes::{AttributeName, AttributeValue, DocumentAttributes, ElementAttributes};
+pub use anchor::{Anchor, TocEntry, UNNUMBERED_SECTION_STYLES};
+pub use attributes::{
+    AttributeName, AttributeValue, DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS,
+    MAX_TOC_LEVELS,
+};
 pub use inlines::*;
 pub use lists::{
     CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,

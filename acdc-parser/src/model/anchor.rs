@@ -8,6 +8,22 @@ use serde::{
 use super::location::Location;
 use super::title::Title;
 
+/// Section styles that should not receive automatic numbering.
+///
+/// When `sectnums` is enabled, sections with these styles are excluded from
+/// the numbering scheme. Appendix uses letter numbering (A, B, C) which is
+/// handled separately.
+pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
+    "preface",
+    "abstract",
+    "dedication",
+    "colophon",
+    "bibliography",
+    "glossary",
+    "index",
+    "appendix",
+];
+
 /// An `Anchor` represents an anchor in a document.
 ///
 /// An anchor is a reference point in a document that can be linked to.
@@ -53,6 +69,10 @@ pub struct TocEntry {
     pub level: u8,
     /// Optional cross-reference label (from `[[id,xreflabel]]` syntax)
     pub xreflabel: Option<String>,
+    /// Whether this section should be numbered when `sectnums` is enabled.
+    ///
+    /// False for special section styles like `[bibliography]`, `[glossary]`, etc.
+    pub numbered: bool,
 }
 
 impl Serialize for TocEntry {

@@ -4,6 +4,9 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
+pub const MAX_TOC_LEVELS: u8 = 5;
+pub const MAX_SECTION_LEVELS: u8 = 5;
+
 /// Internal shared implementation for both document and element attributes.
 ///
 /// This type is not exported directly. Use `DocumentAttributes` for document-level
@@ -107,6 +110,44 @@ impl Serialize for AttributeMap {
     }
 }
 
+/// Validate bounded attributes and emit warnings for out-of-range values.
+///
+/// Some attributes like `sectnumlevels` and `toclevels` have valid ranges.
+/// This function emits a warning if the value is outside the valid range.
+fn validate_bounded_attribute(key: &str, value: &AttributeValue) {
+    let AttributeValue::String(s) = value else {
+        return;
+    };
+
+    match key {
+        "sectnumlevels" => {
+            if let Ok(level) = s.parse::<u8>()
+                && level > MAX_SECTION_LEVELS
+            {
+                tracing::warn!(
+                    attribute = "sectnumlevels",
+                    value = level,
+                    "sectnumlevels must be between 0 and {MAX_SECTION_LEVELS}, got {level}. \
+                         Values above {MAX_SECTION_LEVELS} will be treated as {MAX_SECTION_LEVELS}."
+                );
+            }
+        }
+        "toclevels" => {
+            if let Ok(level) = s.parse::<u8>()
+                && level > MAX_TOC_LEVELS
+            {
+                tracing::warn!(
+                    attribute = "toclevels",
+                    value = level,
+                    "toclevels must be between 0 and {MAX_TOC_LEVELS}, got {level}. \
+                         Values above {MAX_TOC_LEVELS} will be treated as {MAX_TOC_LEVELS}."
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Document-level attributes with universal defaults.
 ///
 /// These attributes apply to the entire document and include defaults for
@@ -132,11 +173,13 @@ impl DocumentAttributes {
     ///
     /// NOTE: This will *NOT* overwrite an existing attribute with the same name.
     pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+        validate_bounded_attribute(&name, &value);
         self.0.insert(name, value);
     }
 
     /// Set an attribute, overwriting any existing value.
     pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
+        validate_bounded_attribute(&name, &value);
         self.0.set(name, value);
     }
 

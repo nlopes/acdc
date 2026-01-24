@@ -27,7 +27,7 @@ use crate::{
         table::parse_table_cell,
     },
     model::{
-        LeveloffsetRange, ListLevel, Locateable, SectionLevel,
+        LeveloffsetRange, ListLevel, Locateable, SectionLevel, UNNUMBERED_SECTION_STYLES,
         substitution::{HEADER, parse_subs_attribute},
     },
 };
@@ -812,8 +812,12 @@ peg::parser! {
             // This matches asciidoctor behavior: [[id,xreflabel]] provides custom cross-reference text
             let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel.clone());
 
+            // Special section styles (bibliography, glossary, etc.) should not be numbered
+            let numbered = !block_metadata.metadata.style.as_ref()
+                .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
+
             // Register section for TOC immediately after title is parsed, before content
-            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel);
+            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel, numbered);
 
             Ok::<(Title, String), Error>((title, section_id))
         })
@@ -935,8 +939,12 @@ peg::parser! {
                     // Extract xreflabel from the last anchor
                     let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel.clone());
 
+                    // Special section styles (bibliography, glossary, etc.) should not be numbered
+                    let numbered = !block_metadata.metadata.style.as_ref()
+                        .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
+
                     // Register section for TOC
-                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel);
+                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel, numbered);
 
                     Ok::<(Title, String), Error>((processed_title, section_id))
                 }
@@ -2873,9 +2881,10 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
+        // Stop at: list markers, blank lines, section headers, or block attributes
         continuation_lines:(
             eol()
-            !(whitespace()* (callout_list_marker() / unordered_list_marker() / ordered_list_marker() / eol()))
+            !(whitespace()* (callout_list_marker() / unordered_list_marker() / ordered_list_marker() / section_level_marker() whitespace() / "[" / eol()))
             line:$((!(eol()) [_])*)
             { line }
         )*

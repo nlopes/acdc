@@ -76,19 +76,25 @@ pub(crate) struct TocTracker {
 }
 
 impl TocTracker {
-    /// Register a section for inclusion in the TOC
+    /// Register a section for inclusion in the TOC.
+    ///
+    /// The `numbered` parameter indicates whether this section should receive
+    /// automatic section numbering when `sectnums` is enabled. This should be
+    /// `false` for special section styles like `[bibliography]`, `[glossary]`, etc.
     pub(crate) fn register_section(
         &mut self,
         title: Title,
         level: u8,
         id: String,
         xreflabel: Option<String>,
+        numbered: bool,
     ) {
         self.entries.push(TocEntry {
             id,
             title,
             level,
             xreflabel,
+            numbered,
         });
     }
 }
