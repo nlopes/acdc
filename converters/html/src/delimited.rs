@@ -318,6 +318,8 @@ mod tests {
         BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
     };
 
+    use crate::SectionNumberTracker;
+
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
         vec![InlineNode::PlainText(Plain {
             content: content.to_string(),
@@ -332,6 +334,7 @@ mod tests {
             .safe_mode(SafeMode::Unsafe)
             .build();
         let document_attributes = DocumentAttributes::default();
+        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
         Processor {
             options,
             document_attributes,
@@ -343,6 +346,7 @@ mod tests {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
+            section_number_tracker,
         }
     }
 

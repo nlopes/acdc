@@ -8,6 +8,29 @@ use std::{
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry};
 
+mod admonition;
+mod audio;
+mod constants;
+mod delimited;
+mod document;
+mod error;
+mod html_visitor;
+mod icon;
+mod image;
+mod image_helpers;
+mod index;
+mod inlines;
+mod list;
+mod paragraph;
+mod section;
+mod table;
+mod toc;
+mod video;
+
+pub use error::Error;
+pub use html_visitor::HtmlVisitor;
+pub(crate) use section::SectionNumberTracker;
+
 /// An entry in the index catalog, collected during document traversal.
 #[derive(Clone, Debug)]
 pub struct IndexTermEntry {
@@ -43,6 +66,8 @@ pub struct Processor {
     /// Whether the document's last section has the `[index]` style.
     /// Index sections are only rendered if they are the last section.
     has_valid_index_section: bool,
+    /// Section number tracker for `:sectnums:` support.
+    section_number_tracker: SectionNumberTracker,
 }
 
 impl Processor {
@@ -68,6 +93,12 @@ impl Processor {
     #[must_use]
     pub fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
+    }
+
+    /// Get a reference to the section number tracker
+    #[must_use]
+    pub(crate) fn section_number_tracker(&self) -> &SectionNumberTracker {
+        &self.section_number_tracker
     }
 
     /// Generate a caption prefix based on document attributes.
@@ -131,6 +162,7 @@ impl Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
             has_valid_index_section: Self::last_section_is_index(&doc.blocks),
+            section_number_tracker: SectionNumberTracker::new(&doc.attributes),
             ..self.clone()
         };
         let mut visitor = HtmlVisitor::new(writer, processor, options.clone());
@@ -227,6 +259,8 @@ impl Converter for Processor {
             document_attributes.insert(name.clone(), value.clone());
         }
 
+        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+
         Self {
             options,
             document_attributes,
@@ -238,6 +272,7 @@ impl Converter for Processor {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
+            section_number_tracker,
         }
     }
 
@@ -344,28 +379,6 @@ impl Processor {
     }
 }
 
-mod admonition;
-mod audio;
-mod constants;
-mod delimited;
-mod document;
-mod error;
-mod html_visitor;
-mod icon;
-mod image;
-mod image_helpers;
-mod index;
-mod inlines;
-mod list;
-mod paragraph;
-mod section;
-mod table;
-mod toc;
-mod video;
-
-pub use error::Error;
-pub use html_visitor::HtmlVisitor;
-
 /// Build a class string from a base class and optional roles
 pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
     if roles.is_empty() {
@@ -461,6 +474,332 @@ This is a paragraph.
             "should contain section wrapper"
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_numbering_disabled_by_default() -> TestResult {
+        let content = r"= Title
+
+== Section One
+
+== Section Two
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(">Section One</h2>"),
+            "section title should appear without number"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_numbering_enabled() -> TestResult {
+        let content = r"= Title
+:sectnums:
+
+== Section One
+
+== Section Two
+
+== Section Three
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(">1. Section One</h2>"),
+            "first section should be numbered 1."
+        );
+        assert!(
+            html.contains(">2. Section Two</h2>"),
+            "second section should be numbered 2."
+        );
+        assert!(
+            html.contains(">3. Section Three</h2>"),
+            "third section should be numbered 3."
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_numbering_nested() -> TestResult {
+        let content = r"= Title
+:sectnums:
+
+== Chapter One
+
+=== Section 1.1
+
+=== Section 1.2
+
+== Chapter Two
+
+=== Section 2.1
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(">1. Chapter One</h2>"),
+            "chapter 1 should be numbered"
+        );
+        assert!(
+            html.contains(">1.1. Section 1.1</h3>"),
+            "section 1.1 should have hierarchical numbering"
+        );
+        assert!(
+            html.contains(">1.2. Section 1.2</h3>"),
+            "section 1.2 should have hierarchical numbering"
+        );
+        assert!(
+            html.contains(">2. Chapter Two</h2>"),
+            "chapter 2 should be numbered"
+        );
+        assert!(
+            html.contains(">2.1. Section 2.1</h3>"),
+            "section 2.1 should reset subsection counter"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_numbering_respects_sectnumlevels() -> TestResult {
+        let content = r"= Title
+:sectnums:
+:sectnumlevels: 2
+
+== Chapter One
+
+=== Section 1.1
+
+==== Subsection 1.1.1
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(">1. Chapter One</h2>"),
+            "level 1 should be numbered"
+        );
+        assert!(
+            html.contains(">1.1. Section 1.1</h3>"),
+            "level 2 should be numbered"
+        );
+        // Level 3 should NOT be numbered when sectnumlevels=2
+        assert!(
+            html.contains(">Subsection 1.1.1</h4>"),
+            "level 3 should not be numbered when sectnumlevels=2"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_unnumbered_section_styles() -> TestResult {
+        let content = r"= Title
+:sectnums:
+
+== Introduction
+
+[bibliography]
+== Bibliography
+
+== Conclusion
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(">1. Introduction</h2>"),
+            "introduction should be numbered"
+        );
+        // Bibliography should NOT be numbered (special section)
+        assert!(
+            html.contains(">Bibliography</h2>"),
+            "bibliography should not be numbered"
+        );
+        // Counter should continue after unnumbered section
+        assert!(
+            html.contains(">2. Conclusion</h2>"),
+            "conclusion should continue numbering after unnumbered section"
+        );
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TOC numbering integration tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_toc_section_numbers_disabled() -> TestResult {
+        let content = r"= Title
+:toc:
+
+== Section One
+
+== Section Two
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        // TOC should exist
+        assert!(html.contains("<div id=\"toc\""), "should have TOC");
+        // Without :sectnums:, TOC entries should NOT have numbers
+        assert!(
+            !html.contains("<a href=\"#_section_one\">1."),
+            "TOC entry should not have number without sectnums"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_toc_section_numbers_enabled() -> TestResult {
+        let content = r"= Title
+:toc:
+:sectnums:
+
+== Section One
+
+== Section Two
+
+== Section Three
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        // TOC should have numbered entries
+        assert!(
+            html.contains("<a href=\"#_section_one\">1. Section One</a>"),
+            "TOC entry 1 should be numbered"
+        );
+        assert!(
+            html.contains("<a href=\"#_section_two\">2. Section Two</a>"),
+            "TOC entry 2 should be numbered"
+        );
+        assert!(
+            html.contains("<a href=\"#_section_three\">3. Section Three</a>"),
+            "TOC entry 3 should be numbered"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_toc_unnumbered_sections_skipped() -> TestResult {
+        let content = r"= Title
+:toc:
+:sectnums:
+
+== Introduction
+
+[glossary]
+== Glossary
+
+== Conclusion
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        // TOC should have Introduction numbered as 1
+        assert!(
+            html.contains("<a href=\"#_introduction\">1. Introduction</a>"),
+            "introduction should be numbered in TOC"
+        );
+        // Glossary should NOT be numbered in TOC
+        assert!(
+            html.contains("<a href=\"#_glossary\">Glossary</a>"),
+            "glossary should not be numbered in TOC"
+        );
+        // Conclusion should continue numbering as 2
+        assert!(
+            html.contains("<a href=\"#_conclusion\">2. Conclusion</a>"),
+            "conclusion should be numbered 2 in TOC (continuing after unnumbered)"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_toc_nested_numbering() -> TestResult {
+        let content = r"= Title
+:toc:
+:sectnums:
+
+== Chapter One
+
+=== Section 1.1
+
+== Chapter Two
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains("<a href=\"#_chapter_one\">1. Chapter One</a>"),
+            "chapter 1 should be numbered in TOC"
+        );
+        assert!(
+            html.contains("<a href=\"#_section_1_1\">1.1. Section 1.1</a>"),
+            "section 1.1 should have hierarchical numbering in TOC"
+        );
+        assert!(
+            html.contains("<a href=\"#_chapter_two\">2. Chapter Two</a>"),
+            "chapter 2 should be numbered in TOC"
+        );
         Ok(())
     }
 }
