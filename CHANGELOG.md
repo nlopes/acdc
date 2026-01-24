@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Required methods: `convert_to_stdout()`, `convert_to_file()`
   - New helpers: `write_to()`, `derive_output_path()`, `after_write()` ([#313])
 
+[#313]: https://github.com/nlopes/acdc/pull/313
+
 ## [Unreleased acdc-converters-html]
 
 ### Added
@@ -83,11 +85,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
+[#313]: https://github.com/nlopes/acdc/pull/313
+
 ## [Unreleased acdc-converters-manpage]
+
+[#313]: https://github.com/nlopes/acdc/pull/313
 
 ### Changed
 
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
+
+[#313]: https://github.com/nlopes/acdc/pull/313
 
 ## [Unreleased acdc-converters-terminal]
 
@@ -96,6 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 - `Error` type is now public (was `pub(crate)`), enabling external code to handle
   terminal converter errors explicitly.
+
+[#313]: https://github.com/nlopes/acdc/pull/313
 
 ## [acdc-parser-v0.2.0] - 2026-01-24
 
@@ -181,6 +191,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now public exports. Modifier syntax (`+quotes`, `-callouts`) is now stored as operations
   and resolved by converters with the appropriate baseline (NORMAL vs VERBATIM) rather
   than being eagerly resolved by the parser.
+- **BREAKING**: `CrossReference.text` changed from `Option<String>` to `Vec<InlineNode>`,
+  enabling rich inline markup in cross-reference text (e.g., `<<id,*bold* text>>`). The
+  `with_text()` method now accepts `Vec<InlineNode>`. Serialization outputs `"inlines"`
+  array instead of `"text"` string. ([#320])
 
 ### Removed
 
@@ -189,6 +203,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   supported. If you need to load previously serialized AST, parse the original
   AsciiDoc source instead.
 
+[#275]: https://github.com/nlopes/acdc/issues/275
+[#278]: https://github.com/nlopes/acdc/issues/278
+[#279]: https://github.com/nlopes/acdc/issues/279
+[#280]: https://github.com/nlopes/acdc/issues/280
+[#289]: https://github.com/nlopes/acdc/issues/289
+[#291]: https://github.com/nlopes/acdc/issues/291
+[#317]: https://github.com/nlopes/acdc/issues/317
+[#320]: https://github.com/nlopes/acdc/issues/320
 
 ## [Unreleased acdc-cli]
 
@@ -221,15 +243,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#270]: https://github.com/nlopes/acdc/issues/270
 [#272]: https://github.com/nlopes/acdc/issues/272
 [#273]: https://github.com/nlopes/acdc/issues/273
-[#275]: https://github.com/nlopes/acdc/issues/275
-[#278]: https://github.com/nlopes/acdc/issues/278
-[#279]: https://github.com/nlopes/acdc/issues/279
-[#280]: https://github.com/nlopes/acdc/issues/280
-[#289]: https://github.com/nlopes/acdc/issues/289
-[#291]: https://github.com/nlopes/acdc/issues/291
 [#311]: https://github.com/nlopes/acdc/issues/311
-[#313]: https://github.com/nlopes/acdc/pull/313
-[#317]: https://github.com/nlopes/acdc/issues/317
 
 ## [acdc-parser-v0.1.4] - 2026-01-04
 
