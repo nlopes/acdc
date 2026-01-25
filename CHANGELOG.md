@@ -80,6 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and deprecated `frameborder` attribute from iframes.
 - Callout references in source blocks now render with `<b>` tags wrapping the number
   instead of the entire `<i class="conum">` element, matching asciidoctor output.
+- Callout lists now render callout markers correctly, with proper `<b>` tag placement
+  matching asciidoctor output. (This seems a repeat of the previous entry but we had
+  messed it up earlier.)
 
 ### Changed
 
