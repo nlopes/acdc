@@ -9,7 +9,12 @@ The implementation here follows from:
 == Features supported
 
 * [x] Document Headers
+** [x] Author parsing (first/middle/last name, email)
+** [x] Revision info
 * [x] Section
+** [x] ATX-style (`=` markers)
+** [x] Setext-style (underlined, optional feature)
+** [x] Discrete headers
 * [x] Delimited Block
 ** [x] Comment
 ** [x] Example
@@ -33,17 +38,35 @@ The implementation here follows from:
 * [x] Image (block and inline)
 * [x] Video
 * [x] Audio
-* [x] Lists (see <<lists,detailed notes>>)
+* [x] Lists
 ** [x] Ordered
 ** [x] Unordered
 ** [x] Description Lists
 ** [x] Checklist items
+** [x] List continuation (`+`)
+** [x] Ancestor list continuation
 * [x] Thematic Break
 * [x] Page Break
-* [x] Tables (basic support)
+* [x] Tables
+** [x] Header and footer rows
+** [x] Column formatting (`cols` attribute with alignment, width, style)
+** [x] Cell spanning (colspan `2+|`, rowspan `.2+|`)
+** [x] Cell duplication (`3*|`)
+** [x] Cell-level alignment (`<|`, `^|`, `>|`, `.<|`, `.^|`, `.>|`)
+** [x] Cell-level style (`s|`, `e|`, `m|`, `a|`, etc.)
+** [x] CSV, PSV, DSV formats
+** [x] AsciiDoc content in cells (`a` style)
+** [ ] Nested tables (not supported)
 * [x] Admonition
 * [x] Anchors
+** [x] Block anchors (`\[[id]]`)
+** [x] Inline anchors (`[#id]`)
+** [x] Bibliography anchors (`\[[[anchor]]]`, `\[[[anchor,label]]]`)
 * [x] Attributes
+** [x] Document attributes
+** [x] Attribute references
+** [x] `:leveloffset:` for includes
+** [x] Substitution control (`subs` with `+quotes`, `-callouts` modifiers)
 * [x] Titles
 * [x] Footnotes (including inline content)
 * [x] Cross References
@@ -52,58 +75,42 @@ The implementation here follows from:
 * [x] Links and URLs
 ** [x] Link macro
 ** [x] URL detection and autolinks
+** [x] Autolink syntax (`<https://...>`)
+** [x] Mailto macro
 * [x] Inline Macros
 ** [x] Button
 ** [x] Keyboard
 ** [x] Menu
 ** [x] Icon
 ** [x] Pass
+* [x] Stem/Math
+** [x] `stem:[formula]` inline
+** [x] `latexmath:[...]` and `asciimath:[...]`
+** [x] Stem blocks
+* [x] Index terms
+** [x] Visible `((term))`
+** [x] Concealed `(((term,secondary,tertiary)))`
+* [x] Callouts
+** [x] Callout markers in source blocks (`<1>`, `<2>`, etc.)
+** [x] Callout lists
+* [x] Table of contents (`toc::[]` macro)
 * [x] Includes
-** **Advanced**
 ** [x] Offsets
-** [ ] Tagged regions
+** [x] Tagged regions (`tag=`, `tags=`, wildcards `*`/`**`, negation `!tag`)
+** [x] `:leveloffset:` adjustment
 * [x] Conditionals
 ** [x] ifdef
 ** [x] ifndef
 ** [x] ifeval
 * [x] Line breaks (+)
-* [x] Discrete headers
 
-[[lists]]
-== Lists - detailed support notes
+== Parser options
 
-Lists are partially implemented. Here's what works and what doesn't.
+* **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`
+* **Strict mode** - Stricter parsing rules
+* **Setext headers** - Optional feature flag for two-line underlined headers
+* **Manpage doctype** - `doctype=manpage` with derived attributes
 
-=== What works
+== See also
 
-**Ordered and unordered lists**
-
-Basic list items with inline content work fine, including:
-
-- Nested lists (using different marker levels like `*`, `**`, `***`)
-- Checklist items (`[x]`, `[ ]`)
-- Multiline text that wraps within a list item
-- List separators (both `//` line comments and `[]` block attributes)
-- Multiple consecutive `+` continuations in the same item
-- Open block (`--`) wrappers for grouping multiple blocks in a continuation
-
-**Description lists**
-
-I've implemented basic description list support with several features:
-
-- All standard delimiters (`::`, `:::`, `::::`, `;;`)
-- Principal text (inline text immediately after the delimiter)
-- Explicit continuation (`+`) for attaching block content
-- Auto-attaching ordered/unordered lists to description list items (even with blank lines before the list)
-
-=== What doesn't work
-
-**Ancestor list continuation**
-
-- No ancestor list continuation (attaching blocks to parent list items with blank lines before `+`)
-
-=== Why these limitations exist
-
-The model supports block attachments (`ListItem` has both `principal: Vec<InlineNode>` and `blocks: Vec<Block>`), and most list features work correctly. The remaining issue is:
-
-- Ancestor list continuation (blank line before `+`) isn't supported - the parser attaches continuations to the last nested item rather than the parent
+* link:CHANGELOG.md[CHANGELOG] for detailed feature history and version notes
