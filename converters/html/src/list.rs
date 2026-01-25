@@ -97,31 +97,35 @@ pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
     let _ = writer;
     visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
     let mut writer = visitor.writer_mut();
-    writeln!(writer, "<ol>")?;
+    // Use table layout matching asciidoctor's output
+    writeln!(writer, "<table>")?;
     let _ = writer;
 
     for item in &list.items {
+        let num = item.callout.number;
         let mut writer = visitor.writer_mut();
-        writeln!(writer, "<li>")?;
-        // Render principal text as bare <p> (if not empty)
-        if !item.principal.is_empty() {
-            write!(writer, "<p>")?;
-            let _ = writer;
-            visitor.visit_inline_nodes(&item.principal)?;
-            writer = visitor.writer_mut();
-            writeln!(writer, "</p>")?;
-        }
+        writeln!(writer, "<tr>")?;
+        // First cell: callout marker with conum styling (black circle with number)
+        writeln!(
+            writer,
+            "<td><i class=\"conum\" data-value=\"{num}\"></i><b>{num}</b></td>"
+        )?;
+        // Second cell: description content
+        write!(writer, "<td>")?;
         let _ = writer;
+        // Render principal text inline (not wrapped in <p> for simple content)
+        visitor.visit_inline_nodes(&item.principal)?;
         // Walk attached blocks using visitor
         for block in &item.blocks {
             visitor.visit_block(block)?;
         }
         writer = visitor.writer_mut();
-        writeln!(writer, "</li>")?;
+        writeln!(writer, "</td>")?;
+        writeln!(writer, "</tr>")?;
     }
 
     writer = visitor.writer_mut();
-    writeln!(writer, "</ol>")?;
+    writeln!(writer, "</table>")?;
     writeln!(writer, "</div>")?;
     Ok(())
 }
