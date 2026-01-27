@@ -686,12 +686,21 @@ impl Table {
         separator: &str,
         row_start_offset: usize,
     ) -> Vec<ParsedCell> {
-        let mut columns = Vec::new();
+        let mut columns: Vec<ParsedCell> = Vec::new();
         let mut current_offset = row_start_offset;
 
         for line in row_lines {
             // Check if line contains the separator at all
             if !line.contains(separator) {
+                // Continuation line: append to last cell's content
+                if let Some(last_cell) = columns.last_mut() {
+                    if !last_cell.content.is_empty() {
+                        last_cell.content.push('\n');
+                    }
+                    last_cell.content.push_str(line);
+                    // Update end position to include this line
+                    last_cell.end = current_offset + line.len().saturating_sub(1);
+                }
                 current_offset += line.len() + 1; // +1 for newline
                 continue;
             }
