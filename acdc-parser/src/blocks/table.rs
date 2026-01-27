@@ -532,6 +532,50 @@ pub(crate) struct ParsedCell {
     pub duplication_count: usize,
 }
 
+/// Check if a blank line after the first row indicates a header.
+/// A header is indicated only if the first non-empty line after the blank
+/// contains a separator. If it's a continuation line (no separator), it's content
+/// that attaches to the previous cell, not a header indicator.
+fn detect_header_after_first_row(lines: &[&str], start_idx: usize, separator: &str) -> bool {
+    for &line in lines.iter().skip(start_idx) {
+        let trimmed = line.trim_end();
+        if !trimmed.is_empty() {
+            return trimmed.contains(separator);
+        }
+    }
+    false
+}
+
+/// Handle continuation lines that appear after blank lines.
+/// These should be appended to the previous row's last cell.
+fn handle_cross_row_continuation(
+    lines: &[&str],
+    i: &mut usize,
+    current_offset: &mut usize,
+    rows: &mut [Vec<ParsedCell>],
+    separator: &str,
+) {
+    while let Some(&next_line) = lines.get(*i) {
+        let trimmed = next_line.trim_end();
+        // If line has separator or is empty, break - normal row processing
+        if trimmed.is_empty() || trimmed.contains(separator) {
+            break;
+        }
+        // Continuation line - append to previous row's last cell
+        if let Some(last_row) = rows.last_mut() {
+            if let Some(last_cell) = last_row.last_mut() {
+                if !last_cell.content.is_empty() {
+                    last_cell.content.push('\n');
+                }
+                last_cell.content.push_str(trimmed);
+                last_cell.end = *current_offset + trimmed.len().saturating_sub(1);
+            }
+        }
+        *current_offset += next_line.len() + 1;
+        *i += 1;
+    }
+}
+
 impl Table {
     pub(crate) fn parse_rows_with_positions(
         text: &str,
@@ -601,22 +645,37 @@ impl Table {
                 rows.push(columns);
             }
 
-            // After processing the first row, check if the next line is blank (indicates header)
+            // After processing the first row, check if blank line indicates header
             if rows.len() == 1
                 && let Some(&next_line) = lines.get(i)
                 && next_line.trim_end().is_empty()
+                && detect_header_after_first_row(&lines, i, separator)
             {
                 tracing::debug!("Detected table header via blank line after first row");
                 *has_header = true;
             }
 
-            // Skip empty lines
+            // Skip empty lines and track if we skipped any
+            let mut skipped_blank_line = false;
             while let Some(&empty_line) = lines.get(i) {
                 if !empty_line.trim_end().is_empty() {
                     break;
                 }
+                skipped_blank_line = true;
                 current_offset += empty_line.len() + 1;
                 i += 1;
+            }
+
+            // Handle continuation lines only if we skipped a blank line.
+            // Without a blank line, there's no cross-row continuation scenario.
+            if skipped_blank_line {
+                handle_cross_row_continuation(
+                    &lines,
+                    &mut i,
+                    &mut current_offset,
+                    &mut rows,
+                    separator,
+                );
             }
         }
 
