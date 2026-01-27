@@ -284,6 +284,384 @@ fn apply_leveloffset(
     }
 }
 
+/// Parameters for parsing a table block, passed from delimiter-specific grammar rules
+/// to the common parsing helper function.
+struct TableParseParams<'a> {
+    start: usize,
+    offset: usize,
+    table_start: usize,
+    content_start: usize,
+    content_end: usize,
+    end: usize,
+    open_delim: &'a str,
+    close_delim: &'a str,
+    content: &'a str,
+    default_separator: &'a str,
+}
+
+/// Parse a table block from pre-extracted positions and content.
+///
+/// This helper function contains the common table parsing logic used by all
+/// delimiter-specific table rules (pipe, exclamation, comma, colon).
+#[allow(clippy::too_many_lines)]
+fn parse_table_block_impl(
+    params: &TableParseParams<'_>,
+    state: &mut ParserState,
+    block_metadata: &BlockParsingMetadata,
+) -> Result<Block, Error> {
+    let &TableParseParams {
+        start,
+        offset,
+        table_start,
+        content_start,
+        content_end,
+        end,
+        open_delim,
+        close_delim,
+        content,
+        default_separator,
+    } = params;
+
+    check_delimiters(
+        open_delim,
+        close_delim,
+        "table",
+        create_source_location(
+            state.create_block_location(start, end, offset),
+            state.current_file.clone(),
+        ),
+    )?;
+
+    let mut metadata = block_metadata.metadata.clone();
+    metadata.move_positional_attributes_to_attributes();
+    let location = state.create_block_location(start, end, offset);
+    let table_location = state.create_block_location(table_start, end, offset);
+    let _content_location = state.create_block_location(content_start, content_end, offset);
+
+    let separator =
+        if let Some(AttributeValue::String(sep)) = block_metadata.metadata.attributes.get("separator") {
+            sep.clone()
+        } else if let Some(AttributeValue::String(format)) =
+            block_metadata.metadata.attributes.get("format")
+        {
+            match format.as_str() {
+                "csv" => ",",
+                "dsv" => ":",
+                "tsv" => "\t",
+                unknown_format => {
+                    tracing::warn!(
+                        format = %unknown_format,
+                        "unknown table format, using default separator"
+                    );
+                    default_separator
+                }
+            }
+            .to_string()
+        } else {
+            default_separator.to_string()
+        };
+
+    let (ncols, column_formats) =
+        if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
+            // Parse cols attribute
+            // Full syntax: [multiplier*][halign][valign][width][style]
+            // Examples: "3*", "^.>2a", "2*>.^1m", "<,^,>", "15%,30%,55%"
+            let mut specs = Vec::new();
+
+            for part in cols.split(',') {
+                let s = part.trim().trim_matches('"');
+
+                // Check for "N*" notation (e.g., "3*" means 3 columns with same spec)
+                let (multiplier, spec_str) = if let Some(pos) = s.find('*') {
+                    let mult_str = &s[..pos];
+                    let mult = mult_str.parse::<usize>().unwrap_or(1);
+                    (mult, &s[pos + 1..])
+                } else {
+                    (1, s)
+                };
+
+                let mut halign = crate::HorizontalAlignment::default();
+                let mut valign = crate::VerticalAlignment::default();
+                let mut width = crate::ColumnWidth::default();
+                let mut style = crate::ColumnStyle::default();
+
+                // Parse style (last character if it's a letter: a, d, e, h, l, m, s)
+                let spec_str = if let Some(last_char) = spec_str.chars().last() {
+                    match last_char {
+                        'a' => {
+                            style = crate::ColumnStyle::AsciiDoc;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        'd' => {
+                            style = crate::ColumnStyle::Default;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        'e' => {
+                            style = crate::ColumnStyle::Emphasis;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        'h' => {
+                            style = crate::ColumnStyle::Header;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        'l' => {
+                            style = crate::ColumnStyle::Literal;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        'm' => {
+                            style = crate::ColumnStyle::Monospace;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        's' => {
+                            style = crate::ColumnStyle::Strong;
+                            &spec_str[..spec_str.len() - 1]
+                        }
+                        _ => spec_str,
+                    }
+                } else {
+                    spec_str
+                };
+
+                // Parse vertical alignment markers: .<, .^, .>
+                if spec_str.contains(".<") {
+                    valign = crate::VerticalAlignment::Top;
+                } else if spec_str.contains(".^") {
+                    valign = crate::VerticalAlignment::Middle;
+                } else if spec_str.contains(".>") {
+                    valign = crate::VerticalAlignment::Bottom;
+                }
+
+                // Parse horizontal alignment markers: <, ^, > (not preceded by .)
+                for (i, c) in spec_str.char_indices() {
+                    let prev_char = if i > 0 { spec_str.chars().nth(i - 1) } else { None };
+                    if prev_char == Some('.') {
+                        continue; // This is a vertical alignment marker
+                    }
+                    match c {
+                        '<' => halign = crate::HorizontalAlignment::Left,
+                        '^' => halign = crate::HorizontalAlignment::Center,
+                        '>' => halign = crate::HorizontalAlignment::Right,
+                        _ => {}
+                    }
+                }
+
+                // Parse width: integer (proportional), percentage, or ~ (auto)
+                // The ~ (tilde) for auto-width was added in Asciidoctor 1.5.7
+                // See: https://github.com/asciidoctor/asciidoctor/issues/1844
+                // Remove alignment markers to find the width
+                let width_str: String = spec_str
+                    .chars()
+                    .filter(|c| !matches!(c, '<' | '^' | '>' | '.'))
+                    .collect();
+                if !width_str.is_empty() {
+                    if width_str == "~" {
+                        width = crate::ColumnWidth::Auto;
+                    } else if width_str.ends_with('%') {
+                        if let Ok(pct) = width_str.trim_end_matches('%').parse::<u32>() {
+                            width = crate::ColumnWidth::Percentage(pct);
+                        }
+                    } else if let Ok(prop) = width_str.parse::<u32>() {
+                        width = crate::ColumnWidth::Proportional(prop);
+                    }
+                }
+
+                // Add the spec for each column in the multiplier (including defaults)
+                let spec = crate::ColumnFormat {
+                    halign,
+                    valign,
+                    width,
+                    style,
+                };
+                for _ in 0..multiplier {
+                    specs.push(spec.clone());
+                }
+            }
+
+            (Some(specs.len()), specs)
+        } else {
+            (None, Vec::new())
+        };
+
+    // Set this to true if the user mandates it!
+    let mut has_header = block_metadata
+        .metadata
+        .options
+        .contains(&String::from("header"));
+    let raw_rows =
+        Table::parse_rows_with_positions(content, &separator, &mut has_header, content_start + offset);
+
+    // If the user forces a noheader, we should not have a header, so after we've
+    // tried to figure out if there are any headers, we should set it to false one
+    // last time.
+    if block_metadata
+        .metadata
+        .options
+        .contains(&String::from("noheader"))
+    {
+        has_header = false;
+    }
+    let has_footer = block_metadata
+        .metadata
+        .options
+        .contains(&String::from("footer"));
+
+    let mut header = None;
+    let mut footer = None;
+    let mut rows = Vec::new();
+
+    // Track rowspan state: maps column positions to remaining rowspan count.
+    // When a cell has rowspan > 1, we track how many more rows it occupies.
+    // Each entry: (column_position, remaining_rows, colspan_width)
+    let mut active_rowspans: Vec<(usize, usize, usize)> = Vec::new();
+
+    for (i, row) in raw_rows.iter().enumerate() {
+        // Process cells, handling duplication
+        let mut columns = Vec::new();
+        let mut col_idx = 0; // Track current column index for column format lookup
+        for cell in row.iter().filter(|c| !c.content.is_empty()) {
+            // Apply column format style if cell doesn't have explicit style
+            let effective_cell = if cell.style.is_none()
+                && let Some(col_format) = column_formats.get(col_idx)
+                && col_format.style != crate::ColumnStyle::Default
+            {
+                let mut cell_with_style = cell.clone();
+                cell_with_style.style = Some(col_format.style);
+                cell_with_style
+            } else {
+                cell.clone()
+            };
+
+            let parsed = parse_table_cell(
+                &effective_cell.content,
+                state,
+                effective_cell.start,
+                block_metadata.parent_section_level,
+                &effective_cell,
+            )?;
+            if effective_cell.is_duplication && effective_cell.duplication_count > 1 {
+                // Duplicate the cell N times
+                for _ in 0..effective_cell.duplication_count {
+                    columns.push(parsed.clone());
+                }
+                col_idx += effective_cell.duplication_count * effective_cell.colspan;
+            } else {
+                columns.push(parsed);
+                col_idx += effective_cell.colspan;
+            }
+        }
+
+        // Calculate row line number from first cell for better error reporting
+        let row_line = if let Some(first) = row.first() {
+            state.create_location(first.start, first.end).start.line
+        } else {
+            table_location.start.line // Fallback if row is empty (shouldn't happen)
+        };
+
+        // Calculate occupied columns from active rowspans
+        let occupied_from_rowspans: usize = active_rowspans
+            .iter()
+            .map(|(_pos, _remaining, width)| *width)
+            .sum();
+
+        // Logical column count = columns occupied by rowspans + colspans of new cells
+        let logical_col_count: usize =
+            occupied_from_rowspans + columns.iter().map(|c| c.colspan).sum::<usize>();
+
+        if let Some(ncols) = ncols
+            && logical_col_count != ncols
+        {
+            // Check if any cell's colspan exceeds the table width
+            let has_overflow = columns.iter().any(|c| c.colspan > ncols);
+            if has_overflow {
+                tracing::error!(
+                    actual = logical_col_count,
+                    expected = ncols,
+                    line = row_line,
+                    "dropping cell because it exceeds specified number of columns"
+                );
+            } else {
+                tracing::warn!(
+                    actual = logical_col_count,
+                    expected = ncols,
+                    occupied_from_rowspans,
+                    line = row_line,
+                    "table row has incorrect column count, skipping row"
+                );
+            }
+            continue;
+        }
+
+        // Update active rowspans for this row:
+        // 1. Decrement remaining count for existing rowspans
+        // 2. Remove rowspans that are now exhausted
+        active_rowspans.retain_mut(|(_pos, remaining, _width)| {
+            *remaining -= 1;
+            *remaining > 0
+        });
+
+        // 3. Add new rowspans from current row's cells
+        let mut col_position = 0;
+        for (_, active_pos, _, colspan) in active_rowspans
+            .iter()
+            .map(|(p, r, c)| (*p, *p, *r, *c))
+        {
+            if col_position == active_pos {
+                col_position += colspan;
+            }
+        }
+        for cell in &columns {
+            // Skip over positions occupied by rowspans
+            while active_rowspans
+                .iter()
+                .any(|(pos, _, width)| col_position >= *pos && col_position < pos + width)
+            {
+                if let Some((_, _, width)) = active_rowspans
+                    .iter()
+                    .find(|(pos, _, w)| col_position >= *pos && col_position < pos + w)
+                {
+                    col_position += width;
+                }
+            }
+            if cell.rowspan > 1 {
+                active_rowspans.push((col_position, cell.rowspan - 1, cell.colspan));
+            }
+            col_position += cell.colspan;
+        }
+
+        // if we have a header, we need to add the columns we have to the header
+        if has_header {
+            header = Some(TableRow { columns });
+            has_header = false;
+            continue;
+        }
+
+        // if we have a footer, we need to add the columns we have to the footer
+        if has_footer && i == raw_rows.len() - 1 {
+            footer = Some(TableRow { columns });
+            continue;
+        }
+
+        // if we get here, these columns are a row
+        rows.push(TableRow { columns });
+    }
+
+    let table = Table {
+        header,
+        footer,
+        rows,
+        columns: column_formats,
+        location: table_location.clone(),
+    };
+
+    Ok(Block::DelimitedBlock(DelimitedBlock {
+        metadata: metadata.clone(),
+        delimiter: open_delim.to_string(),
+        inner: DelimitedBlockType::DelimitedTable(table),
+        title: block_metadata.title.clone(),
+        location,
+    }))
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
@@ -1192,6 +1570,15 @@ peg::parser! {
         rule open_delimiter() -> &'input str = delim:$("-"*<2,2> / "~"*<4,>) { delim }
         rule sidebar_delimiter() -> &'input str = delim:$("*"*<4,>) { delim }
         rule table_delimiter() -> &'input str = delim:$((['|' | ',' | ':' | '!'] "="*<3,>)) { delim }
+
+        // Delimiter-specific table delimiter rules for nested table support.
+        // PEG negative lookahead can't accept runtime parameters, so we need
+        // separate rules for each delimiter type to correctly parse nested tables.
+        rule pipe_table_delimiter() -> &'input str = delim:$("|" "="*<3,>) { delim }
+        rule excl_table_delimiter() -> &'input str = delim:$("!" "="*<3,>) { delim }
+        rule comma_table_delimiter() -> &'input str = delim:$("," "="*<3,>) { delim }
+        rule colon_table_delimiter() -> &'input str = delim:$(":" "="*<3,>) { delim }
+
         rule pass_delimiter() -> &'input str = delim:$("+"*<4,>) { delim }
         rule markdown_code_delimiter() -> &'input str = delim:$("`"*<3,>) { delim }
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
@@ -1237,6 +1624,25 @@ peg::parser! {
         {
             content
         }
+
+        // Delimiter-specific content rules for nested table support.
+        // Each rule only looks ahead for its specific delimiter, allowing
+        // nested tables with different delimiters to be parsed correctly.
+        rule until_pipe_table_delimiter() -> &'input str
+            = content:$((!(eol() pipe_table_delimiter()) [_])*)
+        { content }
+
+        rule until_excl_table_delimiter() -> &'input str
+            = content:$((!(eol() excl_table_delimiter()) [_])*)
+        { content }
+
+        rule until_comma_table_delimiter() -> &'input str
+            = content:$((!(eol() comma_table_delimiter()) [_])*)
+        { content }
+
+        rule until_colon_table_delimiter() -> &'input str
+            = content:$((!(eol() colon_table_delimiter()) [_])*)
+        { content }
 
         rule until_pass_delimiter() -> &'input str
             = content:$((!(eol() pass_delimiter()) [_])*)
@@ -1470,260 +1876,73 @@ peg::parser! {
             }))
         }
 
+        // Table block dispatcher - tries each delimiter-specific variant in order.
+        // This enables nested tables: |=== outer can contain !=== inner because
+        // each rule only looks for its own closing delimiter.
         rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = table_start:position!() open_delim:table_delimiter() eol()
-        content_start:position!() content:until_table_delimiter() content_end:position!()
-        eol() close_delim:table_delimiter() end:position!()
+            = pipe_table_block(start, offset, block_metadata)
+            / excl_table_block(start, offset, block_metadata)
+            / comma_table_block(start, offset, block_metadata)
+            / colon_table_block(start, offset, block_metadata)
+
+        rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+            = table_start:position!() open_delim:pipe_table_delimiter() eol()
+              content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
+              eol() close_delim:pipe_table_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "table", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
-            let table_location = state.create_block_location(table_start, end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, close_delim, content, default_separator: "|",
+                },
+                state,
+                block_metadata,
+            )
+        }
 
-            let separator = if let Some(AttributeValue::String(sep)) = block_metadata.metadata.attributes.get("separator") {
-                sep.clone()
-            } else if let Some(AttributeValue::String(format)) = block_metadata.metadata.attributes.get("format") {
-                match format.as_str() {
-                    "csv" => ",",
-                    "dsv" => ":",
-                    "tsv" => "\t",
-                    unknown_format => {
-                        tracing::warn!(format = %unknown_format, "unknown table format, using default separator");
-                        "|"
-                    }
-                }.to_string()
-            } else {
-                "|".to_string()
-            };
+        rule excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+            = table_start:position!() open_delim:excl_table_delimiter() eol()
+              content_start:position!() content:until_excl_table_delimiter() content_end:position!()
+              eol() close_delim:excl_table_delimiter() end:position!()
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, close_delim, content, default_separator: "!",
+                },
+                state,
+                block_metadata,
+            )
+        }
 
-            let (ncols, column_formats) = if let Some(AttributeValue::String(cols)) = block_metadata.metadata.attributes.get("cols") {
-                // Parse cols attribute
-                // Full syntax: [multiplier*][halign][valign][width][style]
-                // Examples: "3*", "^.>2a", "2*>.^1m", "<,^,>", "15%,30%,55%"
-                let mut specs = Vec::new();
+        rule comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+            = table_start:position!() open_delim:comma_table_delimiter() eol()
+              content_start:position!() content:until_comma_table_delimiter() content_end:position!()
+              eol() close_delim:comma_table_delimiter() end:position!()
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, close_delim, content, default_separator: ",",
+                },
+                state,
+                block_metadata,
+            )
+        }
 
-                for part in cols.split(',') {
-                    let s = part.trim().trim_matches('"');
-
-                    // Check for "N*" notation (e.g., "3*" means 3 columns with same spec)
-                    let (multiplier, spec_str) = if let Some(pos) = s.find('*') {
-                        let mult_str = &s[..pos];
-                        let mult = mult_str.parse::<usize>().unwrap_or(1);
-                        (mult, &s[pos + 1..])
-                    } else {
-                        (1, s)
-                    };
-
-                    let mut halign = crate::HorizontalAlignment::default();
-                    let mut valign = crate::VerticalAlignment::default();
-                    let mut width = crate::ColumnWidth::default();
-                    let mut style = crate::ColumnStyle::default();
-
-                    // Parse style (last character if it's a letter: a, d, e, h, l, m, s)
-                    let spec_str = if let Some(last_char) = spec_str.chars().last() {
-                        match last_char {
-                            'a' => { style = crate::ColumnStyle::AsciiDoc; &spec_str[..spec_str.len()-1] }
-                            'd' => { style = crate::ColumnStyle::Default; &spec_str[..spec_str.len()-1] }
-                            'e' => { style = crate::ColumnStyle::Emphasis; &spec_str[..spec_str.len()-1] }
-                            'h' => { style = crate::ColumnStyle::Header; &spec_str[..spec_str.len()-1] }
-                            'l' => { style = crate::ColumnStyle::Literal; &spec_str[..spec_str.len()-1] }
-                            'm' => { style = crate::ColumnStyle::Monospace; &spec_str[..spec_str.len()-1] }
-                            's' => { style = crate::ColumnStyle::Strong; &spec_str[..spec_str.len()-1] }
-                            _ => spec_str
-                        }
-                    } else {
-                        spec_str
-                    };
-
-                    // Parse vertical alignment markers: .<, .^, .>
-                    if spec_str.contains(".<") {
-                        valign = crate::VerticalAlignment::Top;
-                    } else if spec_str.contains(".^") {
-                        valign = crate::VerticalAlignment::Middle;
-                    } else if spec_str.contains(".>") {
-                        valign = crate::VerticalAlignment::Bottom;
-                    }
-
-                    // Parse horizontal alignment markers: <, ^, > (not preceded by .)
-                    for (i, c) in spec_str.char_indices() {
-                        let prev_char = if i > 0 { spec_str.chars().nth(i - 1) } else { None };
-                        if prev_char == Some('.') {
-                            continue; // This is a vertical alignment marker
-                        }
-                        match c {
-                            '<' => halign = crate::HorizontalAlignment::Left,
-                            '^' => halign = crate::HorizontalAlignment::Center,
-                            '>' => halign = crate::HorizontalAlignment::Right,
-                            _ => {}
-                        }
-                    }
-
-                    // Parse width: integer (proportional), percentage, or ~ (auto)
-                    // The ~ (tilde) for auto-width was added in Asciidoctor 1.5.7
-                    // See: https://github.com/asciidoctor/asciidoctor/issues/1844
-                    // Remove alignment markers to find the width
-                    let width_str: String = spec_str.chars()
-                        .filter(|c| !matches!(c, '<' | '^' | '>' | '.'))
-                        .collect();
-                    if !width_str.is_empty() {
-                        if width_str == "~" {
-                            width = crate::ColumnWidth::Auto;
-                        } else if width_str.ends_with('%') {
-                            if let Ok(pct) = width_str.trim_end_matches('%').parse::<u32>() {
-                                width = crate::ColumnWidth::Percentage(pct);
-                            }
-                        } else if let Ok(prop) = width_str.parse::<u32>() {
-                            width = crate::ColumnWidth::Proportional(prop);
-                        }
-                    }
-
-                    // Add the spec for each column in the multiplier (including defaults)
-                    let spec = crate::ColumnFormat { halign, valign, width, style };
-                    for _ in 0..multiplier {
-                        specs.push(spec.clone());
-                    }
-                }
-
-                (Some(specs.len()), specs)
-            } else {
-                (None, Vec::new())
-            };
-
-            // Set this to true if the user mandates it!
-            let mut has_header = block_metadata.metadata.options.contains(&String::from("header"));
-            let raw_rows = Table::parse_rows_with_positions(content, &separator, &mut has_header, content_start+offset);
-
-            // If the user forces a noheader, we should not have a header, so after we've
-            // tried to figure out if there are any headers, we should set it to false one
-            // last time.
-            if block_metadata.metadata.options.contains(&String::from("noheader")) {
-                has_header = false;
-            }
-            let has_footer = block_metadata.metadata.options.contains(&String::from("footer"));
-
-            let mut header = None;
-            let mut footer = None;
-            let mut rows = Vec::new();
-
-            // Track rowspan state: maps column positions to remaining rowspan count.
-            // When a cell has rowspan > 1, we track how many more rows it occupies.
-            // Each entry: (column_position, remaining_rows, colspan_width)
-            let mut active_rowspans: Vec<(usize, usize, usize)> = Vec::new();
-
-            for (i, row) in raw_rows.iter().enumerate() {
-                // Process cells, handling duplication
-                let mut columns = Vec::new();
-                for cell in row.iter().filter(|c| !c.content.is_empty()) {
-                    let parsed = parse_table_cell(&cell.content, state, cell.start, block_metadata.parent_section_level, cell)?;
-                    if cell.is_duplication && cell.duplication_count > 1 {
-                        // Duplicate the cell N times
-                        for _ in 0..cell.duplication_count {
-                            columns.push(parsed.clone());
-                        }
-                    } else {
-                        columns.push(parsed);
-                    }
-                }
-
-                // Calculate row line number from first cell for better error reporting
-                let row_line = if let Some(first) = row.first() {
-                    state.create_location(first.start, first.end).start.line
-                } else {
-                    table_location.start.line  // Fallback if row is empty (shouldn't happen)
-                };
-
-                // Calculate occupied columns from active rowspans
-                let occupied_from_rowspans: usize = active_rowspans.iter().map(|(_pos, _remaining, width)| *width).sum();
-
-                // Logical column count = columns occupied by rowspans + colspans of new cells
-                let logical_col_count: usize = occupied_from_rowspans + columns.iter().map(|c| c.colspan).sum::<usize>();
-
-                if let Some(ncols) = ncols
-                && logical_col_count != ncols
-                {
-                    // Check if any cell's colspan exceeds the table width
-                    let has_overflow = columns.iter().any(|c| c.colspan > ncols);
-                    if has_overflow {
-                        tracing::error!(
-                            actual = logical_col_count,
-                            expected = ncols,
-                            line = row_line,
-                            "dropping cell because it exceeds specified number of columns"
-                        );
-                    } else {
-                        tracing::warn!(
-                            actual = logical_col_count,
-                            expected = ncols,
-                            occupied_from_rowspans,
-                            line = row_line,
-                            "table row has incorrect column count, skipping row"
-                        );
-                    }
-                    continue;
-                }
-
-                // Update active rowspans for this row:
-                // 1. Decrement remaining count for existing rowspans
-                // 2. Remove rowspans that are now exhausted
-                active_rowspans.retain_mut(|(_pos, remaining, _width)| {
-                    *remaining -= 1;
-                    *remaining > 0
-                });
-
-                // 3. Add new rowspans from current row's cells
-                let mut col_position = 0;
-                for (_, active_pos, _, colspan) in active_rowspans.iter().map(|(p, r, c)| (*p, *p, *r, *c)) {
-                    if col_position == active_pos {
-                        col_position += colspan;
-                    }
-                }
-                for cell in &columns {
-                    // Skip over positions occupied by rowspans
-                    while active_rowspans.iter().any(|(pos, _, width)| col_position >= *pos && col_position < pos + width) {
-                        if let Some((_, _, width)) = active_rowspans.iter().find(|(pos, _, w)| col_position >= *pos && col_position < pos + w) {
-                            col_position += width;
-                        }
-                    }
-                    if cell.rowspan > 1 {
-                        active_rowspans.push((col_position, cell.rowspan - 1, cell.colspan));
-                    }
-                    col_position += cell.colspan;
-                }
-
-                // if we have a header, we need to add the columns we have to the header
-                if has_header {
-                    header = Some(TableRow { columns });
-                    has_header = false;
-                    continue;
-                }
-
-                // if we have a footer, we need to add the columns we have to the footer
-                if has_footer && i == raw_rows.len() - 1 {
-                    footer = Some(TableRow { columns });
-                    continue;
-                }
-
-                // if we get here, these columns are a row
-                rows.push(TableRow { columns });
-            }
-
-            let table = Table {
-                header,
-                footer,
-                rows,
-                columns: column_formats,
-                location: table_location.clone(),
-            };
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedTable(table),
-                title: block_metadata.title.clone(),
-                location,
-            }))
+        rule colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+            = table_start:position!() open_delim:colon_table_delimiter() eol()
+              content_start:position!() content:until_colon_table_delimiter() content_end:position!()
+              eol() close_delim:colon_table_delimiter() end:position!()
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, close_delim, content, default_separator: ":",
+                },
+                state,
+                block_metadata,
+            )
         }
 
         rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
