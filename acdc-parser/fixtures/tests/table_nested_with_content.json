@@ -1,0 +1,281 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Regular Cell",
+                        "location": [
+                          {
+                            "line": 2,
+                            "col": 3
+                          },
+                          {
+                            "line": 2,
+                            "col": 14
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 2,
+                        "col": 3
+                      },
+                      {
+                        "line": 2,
+                        "col": 14
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "table",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "!===",
+                    "metadata": {
+                      "attributes": {
+                        "cols": "1,1"
+                      }
+                    },
+                    "content": {
+                      "header": null,
+                      "footer": null,
+                      "rows": [
+                        {
+                          "columns": [
+                            {
+                              "content": [
+                                {
+                                  "name": "paragraph",
+                                  "type": "block",
+                                  "inlines": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Nested 1",
+                                      "location": [
+                                        {
+                                          "line": 6,
+                                          "col": 2
+                                        },
+                                        {
+                                          "line": 6,
+                                          "col": 9
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 6,
+                                      "col": 2
+                                    },
+                                    {
+                                      "line": 6,
+                                      "col": 9
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "content": [
+                                {
+                                  "name": "paragraph",
+                                  "type": "block",
+                                  "inlines": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Nested 2",
+                                      "location": [
+                                        {
+                                          "line": 6,
+                                          "col": 13
+                                        },
+                                        {
+                                          "line": 6,
+                                          "col": 20
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 6,
+                                      "col": 13
+                                    },
+                                    {
+                                      "line": 6,
+                                      "col": 20
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "columns": [
+                            {
+                              "content": [
+                                {
+                                  "name": "paragraph",
+                                  "type": "block",
+                                  "inlines": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Nested 3",
+                                      "location": [
+                                        {
+                                          "line": 7,
+                                          "col": 2
+                                        },
+                                        {
+                                          "line": 7,
+                                          "col": 9
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 7,
+                                      "col": 2
+                                    },
+                                    {
+                                      "line": 7,
+                                      "col": 9
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "content": [
+                                {
+                                  "name": "paragraph",
+                                  "type": "block",
+                                  "inlines": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Nested 4",
+                                      "location": [
+                                        {
+                                          "line": 7,
+                                          "col": 13
+                                        },
+                                        {
+                                          "line": 7,
+                                          "col": 20
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 7,
+                                      "col": 13
+                                    },
+                                    {
+                                      "line": 7,
+                                      "col": 20
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 4,
+                          "col": 13
+                        },
+                        {
+                          "line": 8,
+                          "col": 3
+                        }
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 3,
+                        "col": 3
+                      },
+                      {
+                        "line": 8,
+                        "col": 3
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 1,
+            "col": 1
+          },
+          {
+            "line": 9,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 4
+    }
+  ]
+}

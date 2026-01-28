@@ -1,0 +1,9 @@
+|===
+| Regular Cell
+a|
+[cols="1,1"]
+!===
+! Nested 1 ! Nested 2
+! Nested 3 ! Nested 4
+!===
+|===

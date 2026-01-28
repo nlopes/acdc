@@ -546,6 +546,28 @@ fn detect_header_after_first_row(lines: &[&str], start_idx: usize, separator: &s
     false
 }
 
+/// Check if a line starting with a cell specifier followed by separator indicates a new row.
+/// This detects patterns like `a|`, `s|`, `2+|`, `^|`, `^.>2+s|` at the start of a line.
+fn is_new_row_start(line: &str, separator: &str) -> bool {
+    // Only applies to PSV tables (| separator)
+    if separator != "|" {
+        return false;
+    }
+
+    let Some(sep_pos) = line.find(separator) else {
+        return false;
+    };
+
+    let before_sep = line[..sep_pos].trim();
+    if before_sep.is_empty() {
+        return false;
+    }
+
+    // Check if the content before separator is a valid cell specifier
+    let (_, spec_len) = CellSpecifier::parse(before_sep, ParseContext::FirstPart);
+    spec_len > 0 && spec_len == before_sep.len()
+}
+
 /// Handle continuation lines that appear after blank lines.
 /// These should be appended to the previous row's last cell.
 fn handle_cross_row_continuation(
@@ -582,19 +604,21 @@ impl Table {
         separator: &str,
         has_header: &mut bool,
         base_offset: usize,
+        ncols: Option<usize>,
     ) -> Vec<Vec<ParsedCell>> {
         // CSV format needs special handling for multi-line quoted values
         if is_csv_format(separator) {
             return Self::parse_csv_rows_with_positions(text, has_header, base_offset);
         }
 
-        let mut rows = Vec::new();
+        let mut rows: Vec<Vec<ParsedCell>> = Vec::new();
         let mut current_offset = base_offset;
         let lines: Vec<&str> = text.lines().collect();
         let mut i = 0;
 
         tracing::debug!(
             ?has_header,
+            ?ncols,
             total_lines = lines.len(),
             "Starting table parsing"
         );
@@ -628,12 +652,17 @@ impl Table {
                 current_offset += line_ref.len() + 1;
                 i += 1;
             } else {
-                // Multi-line row format: collect lines until empty line
+                // Multi-line row format: collect lines until empty line or new row start
                 while let Some(&current_line) = lines.get(i) {
-                    if current_line.trim_end().is_empty() {
+                    let trimmed = current_line.trim_end();
+                    if trimmed.is_empty() {
                         break;
                     }
-                    row_lines.push(current_line.trim_end());
+                    // If we already have content and this line starts a new row, break
+                    if !row_lines.is_empty() && is_new_row_start(trimmed, separator) {
+                        break;
+                    }
+                    row_lines.push(trimmed);
                     current_offset += current_line.len() + 1; // +1 for newline
                     i += 1;
                 }
@@ -642,11 +671,39 @@ impl Table {
             if !row_lines.is_empty() {
                 let columns =
                     Self::parse_row_with_positions(&row_lines, separator, row_start_offset);
-                rows.push(columns);
+
+                // For multi-line tables with explicit ncols, check if we need to merge
+                // this cell group with existing incomplete row (for nested table support)
+                if !is_single_line_row
+                    && let Some(expected_cols) = ncols
+                    && let Some(last_row) = rows.last_mut()
+                {
+                    let last_row_cols: usize = last_row.iter().map(|c| c.colspan).sum();
+                    if last_row_cols < expected_cols {
+                        // Last row is incomplete, merge these cells into it
+                        last_row.extend(columns);
+                        tracing::trace!(
+                            last_row_cols,
+                            expected_cols,
+                            "Merged cells into incomplete row"
+                        );
+                    } else {
+                        rows.push(columns);
+                    }
+                } else {
+                    rows.push(columns);
+                }
             }
 
-            // After processing the first row, check if blank line indicates header
+            // After processing the first row, check if blank line indicates header.
+            // Only check when ncols is not specified (no merge needed) or when
+            // the row is complete (has enough columns).
+            let first_row_col_count: usize = rows
+                .first()
+                .map_or(0, |r| r.iter().map(|c| c.colspan).sum());
+            let first_row_complete = ncols.is_none_or(|n| first_row_col_count >= n);
             if rows.len() == 1
+                && first_row_complete
                 && let Some(&next_line) = lines.get(i)
                 && next_line.trim_end().is_empty()
                 && detect_header_after_first_row(&lines, i, separator)
