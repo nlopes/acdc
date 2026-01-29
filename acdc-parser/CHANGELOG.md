@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Macro attributes (image, audio, video, icon) now parse `.`, `#`, `%` as literal characters
+  instead of interpreting them as shorthand syntax. This matches asciidoctor behavior where
+  `image::photo.jpg[Diablo 4 picture of Lilith.]` preserves the trailing period in alt text,
+  and `image::photo.jpg[.role]` treats `.role` as literal text, not a CSS class. Shorthand
+  syntax remains supported in block-level attribute lines (e.g., `[.class]` before a block).
 - DSV tables now correctly preserve the first cell. Previously, DSV format (`cell1:cell2`)
   was incorrectly treated like PSV (`| cell1 | cell2 |`), causing the first cell to be
   dropped. Escape handling (`\:` → literal `:`) also works correctly now.

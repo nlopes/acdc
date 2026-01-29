@@ -671,6 +671,118 @@ fn parse_table_block_impl(
     }))
 }
 
+/// Configuration for attribute list processing
+#[derive(Debug, Clone, Copy)]
+struct AttributeProcessingMode {
+    /// If true, first positional attribute becomes `style` (used by macro attributes)
+    /// If false, positional attributes are added to `positional_attributes` list
+    first_positional_is_style: bool,
+    /// If true, process `subs=` attribute (block attributes only)
+    #[allow(dead_code)]
+    process_subs: bool,
+}
+
+impl AttributeProcessingMode {
+    /// Configuration for block-level attributes
+    const BLOCK: Self = Self {
+        first_positional_is_style: false,
+        process_subs: true,
+    };
+
+    /// Configuration for macro attributes (image, audio, video, icon)
+    const MACRO: Self = Self {
+        first_positional_is_style: true,
+        process_subs: false,
+    };
+}
+
+/// Parse a potentially quoted, comma-separated list of values.
+///
+/// Used for `role=` and `options=` attributes which can be either:
+/// - A single value: `role=thumbnail`
+/// - A quoted comma-separated list: `role="thumbnail, responsive"`
+fn parse_comma_separated_values(value: &str) -> Vec<String> {
+    if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
+        value[1..value.len() - 1]
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect()
+    } else {
+        vec![value.to_string()]
+    }
+}
+
+/// Process a list of parsed attributes into `BlockMetadata`.
+///
+/// This is the shared logic between `attributes()` (block-level) and
+/// `macro_attributes()` (for image, audio, video, icon macros).
+///
+/// Returns the title position if a `title=` attribute was found.
+fn process_attribute_list(
+    attrs: impl IntoIterator<Item = Option<(String, AttributeValue, Option<(usize, usize)>)>>,
+    metadata: &mut BlockMetadata,
+    state: &ParserState,
+    fallback_start: usize,
+    fallback_end: usize,
+    mode: AttributeProcessingMode,
+) -> Option<(usize, usize)> {
+    let mut title_position = None;
+    let mut first_positional = true;
+
+    for (key, value, pos) in attrs.into_iter().flatten() {
+        match key.as_str() {
+            k if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() => {
+                let (id_start, id_end) = pos.unwrap_or((fallback_start, fallback_end));
+                metadata.id = Some(Anchor {
+                    id: value.to_string(),
+                    xreflabel: None,
+                    location: state.create_location(id_start, id_end),
+                });
+            }
+            k if k == RESERVED_NAMED_ATTRIBUTE_ROLE || k == RESERVED_NAMED_ATTRIBUTE_OPTIONS => {
+                if let AttributeValue::String(ref s) = value {
+                    let values = parse_comma_separated_values(s);
+                    if k == RESERVED_NAMED_ATTRIBUTE_ROLE {
+                        metadata.roles.extend(values);
+                    } else {
+                        metadata.options.extend(values);
+                    }
+                }
+            }
+            // Skip subs= attribute - it's handled separately by the caller
+            // (block-specific, feature-gated, requires parse_subs_attribute)
+            k if k == RESERVED_NAMED_ATTRIBUTE_SUBS => {}
+            "title" => {
+                if let AttributeValue::String(ref s) = value {
+                    if pos.is_some() {
+                        title_position = pos;
+                    }
+                    metadata
+                        .attributes
+                        .insert(key, AttributeValue::String(s.clone()));
+                }
+            }
+            _ => {
+                if let AttributeValue::String(ref s) = value {
+                    metadata
+                        .attributes
+                        .insert(key, AttributeValue::String(s.clone()));
+                } else if value == AttributeValue::None {
+                    // Positional attribute
+                    if mode.first_positional_is_style && first_positional {
+                        metadata.style = Some(key);
+                        first_positional = false;
+                    } else {
+                        metadata.positional_attributes.push(key);
+                    }
+                }
+            }
+        }
+    }
+
+    title_position
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
@@ -2078,7 +2190,7 @@ peg::parser! {
         }
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = "image::" source:source() attributes:attributes() end:position!()
+        = "image::" source:source() attributes:macro_attributes() end:position!()
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
@@ -2105,7 +2217,7 @@ peg::parser! {
         }
 
         rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = "audio::" source:source() attributes:attributes() end:position!()
+        = "audio::" source:source() attributes:macro_attributes() end:position!()
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
@@ -2124,7 +2236,7 @@ peg::parser! {
         // multiple sources. This is for example to allow passing multiple youtube video
         // ids to form a playlist.
         rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = "video::" sources:(source() ** comma()) attributes:attributes() end:position!()
+        = "video::" sources:(source() ** comma()) attributes:macro_attributes() end:position!()
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
@@ -3913,7 +4025,7 @@ peg::parser! {
         }
 
         rule inline_icon(offset: usize, _block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position() "icon:" source:source() attributes:attributes() end:position!()
+        = start:position() "icon:" source:source() attributes:macro_attributes() end:position!()
         {
             let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -3973,7 +4085,7 @@ peg::parser! {
         }
 
         rule inline_image(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position() "image:" source:source() attributes:attributes() end:position!()
+        = start:position() "image:" source:source() attributes:macro_attributes() end:position!()
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -5040,106 +5152,115 @@ peg::parser! {
                 // The case in which we keep the style empty
                 attributes:(comma() att:attribute() { att })+ {
                     tracing::info!(?attributes, "Found empty style with attributes");
-                    (true, false, None, attributes)
+                    (true, None, attributes)
                 } /
                 // The case in which there is a block style and other attributes
                 style:block_style() attributes:(comma() att:attribute() { att })+ {
                     tracing::info!(?style, ?attributes, "Found block style with attributes");
-                    (false, true, Some(style), attributes)
+                    (false, Some(style), attributes)
                 } /
                 // The case in which there is a block style and no other attributes
                 style:block_style() {
                     tracing::info!(?style, "Found block style");
-                    (false, true, Some(style), vec![])
+                    (false, Some(style), vec![])
                 } /
                 // The case in which there are only attributes
                 attributes:(att:attribute() comma()? { att })* {
                     tracing::info!(?attributes, "Found attributes");
-                    (false, false, None, attributes)
+                    (false, None, attributes)
                 })
             close_square_bracket() end:position!() {
                 let mut discrete = false;
-                let mut style_found = false;
-                let (empty, has_style, maybe_style, attributes) = content;
+                let (_empty, maybe_style, attributes) = content;
                 let mut metadata = BlockMetadata::default();
+
+                // Process block style (shorthands like .role, #id, %option)
                 if let Some((maybe_style_name, id, roles, options)) = maybe_style {
                     if let Some(style_name) = maybe_style_name {
                         if style_name == "discrete" {
                             discrete = true;
-                        } else if metadata.style.is_none() && has_style {
+                        } else if metadata.style.is_none() {
                             metadata.style = Some(style_name);
-                            style_found = true;
                         } else {
                             metadata.attributes.insert(style_name, AttributeValue::None);
                         }
                     }
                     metadata.id = id;
-                    for role in roles {
-                        metadata.roles.push(role);
-                    }
-                    for option in options {
-                        metadata.options.push(option);
+                    metadata.roles.extend(roles);
+                    metadata.options.extend(options);
+                }
+
+                // Process attribute list using shared helper
+                let title_position = process_attribute_list(
+                    attributes.iter().cloned(),
+                    &mut metadata,
+                    state,
+                    start,
+                    end,
+                    AttributeProcessingMode::BLOCK,
+                );
+
+                // Handle subs= attribute (block-specific, feature-gated)
+                if cfg!(feature = "pre-spec-subs") {
+                    for (k, v, _pos) in attributes.into_iter().flatten() {
+                        if k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
+                            tracing::warn!(
+                                target: "acdc_parser::deprecation",
+                                "The subs= attribute is experimental and may change when the AsciiDoc \
+                                 specification is finalized. \
+                                 See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
+                            );
+                            metadata.substitutions = Some(parse_subs_attribute(&v));
+                        }
                     }
                 }
-                let mut title_position = None;
-                for (i, (k, v, pos)) in attributes.into_iter().flatten().enumerate() {
-                    if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() {
-                        let (id_start, id_end) = pos.unwrap_or((start, end));
-                        metadata.id = Some(Anchor {
-                            id: v.to_string(),
-                            xreflabel: None,
-                            location: state.create_location(id_start, id_end)
-                        });
-                    } else if (k == RESERVED_NAMED_ATTRIBUTE_ROLE || k == RESERVED_NAMED_ATTRIBUTE_OPTIONS) && let AttributeValue::String(v) = v {
-                        // When the key is "role" or "options", we need to handle the case
-                        // where the value is a quoted, comma-separated list of values.
-                        let values: Vec<String> = if v.starts_with('"') && v.ends_with('"') {
-                            // Remove the quotes from the value, split by commas, and trim whitespace
-                            v[1..v.len()-1].split(',').map(|s| s.trim().to_string()).collect()
-                        } else {
-                            vec![v.clone()]
-                        };
-                        if k == RESERVED_NAMED_ATTRIBUTE_ROLE {
-                            for v in values {
-                                metadata.roles.push(v);
-                            }
-                        } else if k == RESERVED_NAMED_ATTRIBUTE_OPTIONS {
-                            for v in values {
-                                metadata.options.push(v);
-                            }
-                        } else {
-                            for v in values {
-                                metadata.attributes.insert(k.clone(), AttributeValue::String(v));
-                            }
-                        }
-                    } else if cfg!(feature = "pre-spec-subs") && k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
-                        // Parse the subs attribute value into a set of substitutions.
-                        // Use VERBATIM as the default since listing/literal blocks use verbatim by default.
-                        //
-                        // NOTE: This is experimental and may be removed when the AsciiDoc spec finalizes.
-                        // The spec is moving toward a grammar-based model instead of substitutions.
-                        tracing::warn!(
-                            target: "acdc_parser::deprecation",
-                            "The subs= attribute is experimental and may change when the AsciiDoc \
-                             specification is finalized. \
-                             See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
-                        );
-                        metadata.substitutions = Some(parse_subs_attribute(&v));
-                    } else if let AttributeValue::String(v) = v {
-                        // We special case the "title" attribute to capture its position.
-                        // An example where this is needed is in the inline image macro.
-                        //
-                        // I really don't like how this flows and one day I'll probably
-                        // refactor this.
-                        if k == "title" && let Some(title_pos) = pos {
-                            title_position = Some(title_pos);
-                        }
-                        metadata.attributes.insert(k.clone(), AttributeValue::String(v));
-                    } else if v == AttributeValue::None && pos.is_none() {
-                        metadata.positional_attributes.push(k);
-                    }
-                }
+
                 (discrete, metadata, title_position)
+            }
+
+        /// Macro attribute parsing - simpler than block attributes.
+        ///
+        /// Does NOT support shorthand syntax (.role, #id, %option).
+        /// Shorthands are only valid in block-level attributes, not inside macro brackets.
+        ///
+        /// Asciidoctor behavior:
+        /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
+        /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
+        pub(crate) rule macro_attributes() -> (bool, BlockMetadata, Option<(usize, usize)>)
+            = start:position!() open_square_bracket()
+              attrs:(att:macro_attribute() comma()? { att })*
+              close_square_bracket() end:position!()
+        {
+            let mut metadata = BlockMetadata::default();
+            let title_position = process_attribute_list(
+                attrs,
+                &mut metadata,
+                state,
+                start,
+                end,
+                AttributeProcessingMode::MACRO,
+            );
+            // macro_attributes never sets discrete flag (that's block-level only)
+            (false, metadata, title_position)
+        }
+
+        /// Positional value in macro attributes - allows . # % as literal characters
+        /// This is the key difference from block attributes.
+        rule macro_positional_value() -> Option<String>
+            = quoted:inner_attribute_value() {
+                let trimmed = quoted.trim_matches('"');
+                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+            }
+            / s:$([^('"' | ',' | ']' | '=')]+) {
+                let trimmed = s.trim();
+                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+            }
+
+        /// Named attribute or additional positional in macro context
+        rule macro_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
+            = whitespace()* att:named_attribute() { att }
+            / val:macro_positional_value() {
+                val.map(|v| (v, AttributeValue::None, None))
             }
 
         rule open_square_bracket() = "["
@@ -6520,6 +6641,88 @@ Content C.
             "Expected to find concealed index term 'Sword', but found: {:?}",
             paragraph.content
         );
+        Ok(())
+    }
+
+    /// Test that macro attributes (like `image::`) correctly allow . # % as literal characters.
+    ///
+    /// This verifies the fix for the issue where `image::photo.jpg[Diablo 4 picture of Lilith.]`
+    /// would fail because the trailing `.` was interpreted as a role shorthand prefix.
+    ///
+    /// In asciidoctor, shorthand syntax (.role, #id, %option) is only valid in block-level
+    /// attributes, NOT inside macro brackets. Macro brackets should treat these characters
+    /// as literal content.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
+        // Helper to extract the first Image block from a document
+        fn get_image(doc: &Document) -> &Image {
+            doc.blocks
+                .iter()
+                .find_map(|b| {
+                    if let Block::Image(img) = b {
+                        Some(img)
+                    } else {
+                        None
+                    }
+                })
+                .expect("document should have an image block")
+        }
+
+        // Test trailing period in alt text
+        let input = "image::photo.jpg[Diablo 4 picture of Lilith.]";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+        let img = get_image(&result);
+        assert_eq!(
+            img.metadata.attributes.get("alt"),
+            Some(&AttributeValue::String(
+                "Diablo 4 picture of Lilith.".to_string()
+            )),
+            "Trailing period should be preserved in alt text"
+        );
+
+        // Test .role as literal text (not a shorthand)
+        let input = "image::photo.jpg[.role]";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+        let img = get_image(&result);
+        assert_eq!(
+            img.metadata.attributes.get("alt"),
+            Some(&AttributeValue::String(".role".to_string())),
+            ".role should be literal alt text, not a CSS class"
+        );
+        assert!(
+            img.metadata.roles.is_empty(),
+            "roles should be empty - .role is literal text"
+        );
+
+        // Test #id as literal text (not a shorthand)
+        let input = "image::photo.jpg[Issue #42]";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+        let img = get_image(&result);
+        assert_eq!(
+            img.metadata.attributes.get("alt"),
+            Some(&AttributeValue::String("Issue #42".to_string())),
+            "#42 should be preserved as literal text"
+        );
+        assert!(
+            img.metadata.id.is_none(),
+            "id should be empty - #42 is literal text"
+        );
+
+        // Test named role= attribute still works
+        let input = "image::photo.jpg[role=thumbnail]";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+        let img = get_image(&result);
+        assert_eq!(
+            img.metadata.roles,
+            vec!["thumbnail".to_string()],
+            "Named role= attribute should work"
+        );
+
         Ok(())
     }
 }
