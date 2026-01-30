@@ -1,0 +1,8 @@
+// Test attribute references in header author and revision lines
+:authors: John Doe <john@example.com>; Jane Smith <jane@example.com>
+:revinfo: v1.0, 2024-01-15: Initial release
+= Document with Header Attribute References
+{authors}
+{revinfo}
+
+The document body starts here.

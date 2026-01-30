@@ -1,0 +1,109 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document with Partial Attribute References",
+        "location": [
+          {
+            "line": 7,
+            "col": 3
+          },
+          {
+            "line": 7,
+            "col": 44
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "John",
+        "lastname": "Doe",
+        "initials": "JD",
+        "address": "john@example.com"
+      }
+    ],
+    "location": [
+      {
+        "line": 2,
+        "col": 1
+      },
+      {
+        "line": 9,
+        "col": 43
+      }
+    ]
+  },
+  "attributes": {
+    "email": "john@example.com",
+    "firstname": "John",
+    "lastname": "Doe",
+    "release-date": "2024-01-15",
+    "revdate": "2024-01-15",
+    "revnumber": "v1.0",
+    "revremark": "Initial release",
+    "version": "1.0"
+  },
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Test partial attribute references in header author and revision lines",
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 73
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The document body starts here.",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 30
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 30
+    }
+  ]
+}

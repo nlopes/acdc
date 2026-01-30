@@ -1,0 +1,11 @@
+// Test partial attribute references in header author and revision lines
+:firstname: John
+:lastname: Doe
+:email: john@example.com
+:version: 1.0
+:release-date: 2024-01-15
+= Document with Partial Attribute References
+{firstname} {lastname} <{email}>
+v{version}, {release-date}: Initial release
+
+The document body starts here.

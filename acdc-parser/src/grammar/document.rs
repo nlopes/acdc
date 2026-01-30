@@ -954,22 +954,30 @@ peg::parser! {
         rule document_title_atx() -> (Title, Option<Subtitle>)
         = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {
-            let mut subtitle = None;
-            let mut title_end = end;
-            if let Some(subtitle_start) = title.rfind(':') {
-                title_end = start+subtitle_start;
-                subtitle = Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
-                    content: title[subtitle_start + 1..].trim().to_string(),
+            // Substitute attribute references in the title before processing
+            let substituted_title = substitute(title, HEADER, &state.document_attributes);
+            tracing::debug!(?title, ?substituted_title, "Substituting document title");
+
+            let (title_content, title_end_pos, subtitle) = if let Some(subtitle_start) = substituted_title.rfind(':') {
+                let title_part = substituted_title[..subtitle_start].trim().to_string();
+                let subtitle_part = substituted_title[subtitle_start + 1..].trim().to_string();
+                let title_end = start + subtitle_start;
+                let subtitle = Subtitle::new(vec![InlineNode::PlainText(Plain {
+                    content: subtitle_part,
                     location: state.create_location(
                         title_end + 1,
                         end.saturating_sub(1),
                     ),
                     escaped: false,
-                })]));
-            }
-            let title_location = state.create_location(start, title_end.saturating_sub(1));
+                })]);
+                (title_part, title_end.saturating_sub(1), Some(subtitle))
+            } else {
+                (substituted_title.trim().to_string(), end.saturating_sub(1), None)
+            };
+
+            let title_location = state.create_location(start, title_end_pos);
             (Title::new(vec![InlineNode::PlainText(Plain {
-                content: title[..title_end - start].trim().to_string(),
+                content: title_content,
                 location: title_location,
                 escaped: false,
             })]), subtitle)
@@ -1008,14 +1016,18 @@ peg::parser! {
                 return Err("document title must use = underline");
             }
 
-            // Parse subtitle (text after last colon)
+            // Substitute attribute references in the title before processing
+            let substituted_title = substitute(title_text, HEADER, &state.document_attributes);
+            tracing::debug!(?title_text, ?substituted_title, "Substituting setext document title");
+
+            // Parse subtitle (text after last colon) from substituted content
             let mut subtitle = None;
-            let mut title_content = title_text.to_string();
-            if let Some(subtitle_start) = title_text.rfind(':') &&
-            let Some(subtitle_text) = title_text.get(subtitle_start + 1..) {
+            let mut title_content = substituted_title.clone();
+            if let Some(subtitle_start) = substituted_title.rfind(':') &&
+            let Some(subtitle_text) = substituted_title.get(subtitle_start + 1..) {
                 let subtitle_text = subtitle_text.trim();
                 if !subtitle_text.is_empty() {
-                    if let Some(text) = title_text.get(..subtitle_start) {
+                    if let Some(text) = substituted_title.get(..subtitle_start) {
                         title_content = text.trim().to_string();
                     }
                     subtitle = Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
@@ -1040,8 +1052,22 @@ peg::parser! {
         rule document_title_token() = "=" / "#"
 
         rule authors_and_revision() -> Vec<Author>
-            = authors:authors() (eol() revision())? {
-                authors
+            // Capture the author line, substitute any attribute references, then parse
+            = author_line:$([^'\n']+) (eol() revision_pre_substitution())? {?
+                let substituted = substitute(author_line.trim(), HEADER, &state.document_attributes);
+                tracing::debug!(?author_line, ?substituted, "Processing author line with substitution");
+
+                // Parse the substituted content as authors
+                let mut temp_state = ParserState::new(&substituted);
+                temp_state.document_attributes = state.document_attributes.clone();
+
+                match document_parser::authors(&substituted, &mut temp_state) {
+                    Ok(authors) => {
+                        tracing::info!(?authors, "Parsed authors from line");
+                        Ok(authors)
+                    }
+                    Err(_) => Err("line did not parse as authors")
+                }
             }
 
         pub(crate) rule authors() -> Vec<Author>
@@ -1096,6 +1122,32 @@ peg::parser! {
                     return;
                 }
                 process_revision_info(revision_info, &mut state.document_attributes);
+            }
+
+        /// Parse revision line with attribute reference support
+        rule revision_pre_substitution() -> ()
+            // Capture the revision line, substitute any attribute references, then parse
+            = rev_line:$([^'\n']+) {?
+                let substituted = substitute(rev_line.trim(), HEADER, &state.document_attributes);
+                tracing::debug!(?rev_line, ?substituted, "Processing revision line with substitution");
+
+                // Parse the substituted content as revision
+                let mut temp_state = ParserState::new(&substituted);
+                temp_state.document_attributes = state.document_attributes.clone();
+
+                match document_parser::revision(&substituted, &mut temp_state) {
+                    Ok(()) => {
+                        // Copy revision attributes from temp_state back to main state
+                        for key in ["revnumber", "revdate", "revremark"] {
+                            if let Some(value) = temp_state.document_attributes.get(key) {
+                                state.document_attributes.insert(key.into(), value.clone());
+                            }
+                        }
+                        tracing::info!("Parsed revision from line");
+                        Ok(())
+                    }
+                    Err(_) => Err("line did not parse as revision")
+                }
             }
 
         rule revision_date() -> &'input str

@@ -1,0 +1,112 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Document with Header Attribute References",
+        "location": [
+          {
+            "line": 4,
+            "col": 3
+          },
+          {
+            "line": 4,
+            "col": 43
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "John",
+        "lastname": "Doe",
+        "initials": "JD",
+        "address": "john@example.com"
+      },
+      {
+        "firstname": "Jane",
+        "lastname": "Smith",
+        "initials": "JS",
+        "address": "jane@example.com"
+      }
+    ],
+    "location": [
+      {
+        "line": 2,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 9
+      }
+    ]
+  },
+  "attributes": {
+    "authors": "John Doe <john@example.com>; Jane Smith <jane@example.com>",
+    "revdate": "2024-01-15",
+    "revinfo": "v1.0, 2024-01-15: Initial release",
+    "revnumber": "v1.0",
+    "revremark": "Initial release"
+  },
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Test attribute references in header author and revision lines",
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 65
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "The document body starts here.",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 30
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 8,
+      "col": 30
+    }
+  ]
+}

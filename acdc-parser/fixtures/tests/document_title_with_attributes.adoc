@@ -1,0 +1,5 @@
+:project: My Project
+:version: 2.0
+= {project} Documentation v{version}
+
+Content here.
