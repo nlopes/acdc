@@ -174,9 +174,11 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
 
     if should_render && !processor.toc_entries.is_empty() {
         // Compute section numbers for TOC entries
+        // Also check :numbered: as a deprecated alias for :sectnums:
         let sectnums_enabled = processor
             .document_attributes()
             .get("sectnums")
+            .or_else(|| processor.document_attributes().get("numbered"))
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
         // Clamp to valid range: 0-5 (0 effectively disables numbering)
         let sectnumlevels = processor

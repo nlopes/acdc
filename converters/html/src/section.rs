@@ -29,8 +29,10 @@ impl SectionNumberTracker {
     /// Create a new section number tracker.
     pub(crate) fn new(document_attributes: &DocumentAttributes) -> Self {
         // sectnums is enabled if the attribute exists and is not set to false
+        // Also check :numbered: as a deprecated alias for :sectnums:
         let enabled = document_attributes
             .get("sectnums")
+            .or_else(|| document_attributes.get("numbered"))
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
         // Clamp to valid range: 0-5 (0 effectively disables numbering)
         let max_level = document_attributes
@@ -207,6 +209,12 @@ mod tests {
         attrs
     }
 
+    fn attrs_with_numbered() -> DocumentAttributes {
+        let mut attrs = DocumentAttributes::default();
+        attrs.insert("numbered".to_string(), AttributeValue::Bool(true));
+        attrs
+    }
+
     fn attrs_with_sectnums_and_levels(levels: u8) -> DocumentAttributes {
         let mut attrs = attrs_with_sectnums();
         // Use set() instead of insert() to override the default value
@@ -234,6 +242,15 @@ mod tests {
         let tracker = SectionNumberTracker::new(&attrs);
 
         assert!(tracker.enter_section(1).is_none());
+    }
+
+    #[test]
+    fn test_tracker_numbered_alias_enables_sectnums() {
+        // :numbered: is a deprecated alias for :sectnums:
+        let tracker = SectionNumberTracker::new(&attrs_with_numbered());
+
+        assert_eq!(tracker.enter_section(1), Some("1. ".to_string()));
+        assert_eq!(tracker.enter_section(1), Some("2. ".to_string()));
     }
 
     #[test]
