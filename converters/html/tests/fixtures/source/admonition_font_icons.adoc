@@ -1,0 +1,26 @@
+:icons: font
+
+[NOTE]
+====
+This is a note with font icons enabled.
+====
+
+[TIP]
+====
+This is a tip admonition.
+====
+
+[IMPORTANT]
+====
+This is important!
+====
+
+[WARNING]
+====
+Be careful here.
+====
+
+[CAUTION]
+====
+Proceed with caution.
+====

@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admonition blocks now render Font Awesome icons when `:icons: font` is set, outputting
+  `<i class="fa icon-{variant}" title="{caption}"></i>` instead of a text label. Matches
+  asciidoctor behavior.
 - Superscript (`^text^`) and subscript (`~text~`) now respect the quotes substitution
   setting, matching asciidoctor behavior. Previously they always rendered as `<sup>`/`<sub>`
   even when quotes was disabled (e.g., in listing blocks or with `[subs=-quotes]`).

@@ -3,6 +3,14 @@ use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 
 use crate::{Error, Processor};
 
+/// Check if font icons mode is enabled (`:icons: font`).
+fn is_font_icons_mode(processor: &Processor) -> bool {
+    processor
+        .document_attributes
+        .get("icons")
+        .is_some_and(|v| v.to_string() == "font")
+}
+
 pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     admon: &Admonition,
@@ -32,7 +40,19 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     writeln!(writer, "<table>")?;
     writeln!(writer, "<tr>")?;
     writeln!(writer, "<td class=\"icon\">")?;
-    writeln!(writer, "<div class=\"title\">{caption}</div>")?;
+
+    // Output icon based on `:icons:` document attribute
+    // - Font mode (`icons=font`): Use Font Awesome <i> element
+    // - Default: Use text label in <div class="title">
+    if is_font_icons_mode(processor) {
+        writeln!(
+            writer,
+            "<i class=\"fa icon-{}\" title=\"{caption}\"></i>",
+            admon.variant
+        )?;
+    } else {
+        writeln!(writer, "<div class=\"title\">{caption}</div>")?;
+    }
     writeln!(writer, "</td>")?;
     writeln!(writer, "<td class=\"content\">")?;
     if !admon.title.is_empty() {
