@@ -5,6 +5,38 @@ All notable changes to `acdc-parser` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Nested tables** - Tables can now be nested but if you're reading this, be warned, a
+  lot of this bit was "vibe coded". I did check the code and it's _reasonable_ but I
+  wouldn't be surprised if something was missed.
+- **Support for 'numbered'** - If we find `:numbered:`, support it in the same way we
+  support `:sectnums` (they behave in the same way). I think it's reasonable to support
+  and it's a couple of lines of code, therefore I think the tradeoff is more than
+  reasonable.
+
+### Fixed
+
+- Improved attribute substitutions:
+  - authors
+  - revision
+  - xrefs
+- Macro attributes (image, audio, video, icon) now parse `.`, `#`, `%` as literal
+  characters instead of interpreting them as shorthand syntax. This matches asciidoctor
+  behavior where `image::photo.jpg[Diablo 4 picture of Lilith.]` preserves the trailing
+  period in alt text, and `image::photo.jpg[.role]` treats `.role` as literal text, not a
+  CSS class. Shorthand syntax remains supported in block-level attribute lines (e.g.,
+  `[.class]` before a block).
+- Handle multi-line content correctly in table cells
+- Handle cross-row continuation lines in tables - when a continuation line (no separator)
+  appears after a blank line, append it to the previous row's last cell instead of
+  dropping it.
+- Detect row boundaries for cell specifier lines in tables. When parsing multi-line table
+  rows, lines starting with only a cell specifier (like `a|`, `s|`, etc) now correctly
+  start a new row instead of being collected in to the previous row. ([#277])
+
 ## [0.2.0] - 2026-01-24
 
 ### Added
@@ -44,11 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Macro attributes (image, audio, video, icon) now parse `.`, `#`, `%` as literal characters
-  instead of interpreting them as shorthand syntax. This matches asciidoctor behavior where
-  `image::photo.jpg[Diablo 4 picture of Lilith.]` preserves the trailing period in alt text,
-  and `image::photo.jpg[.role]` treats `.role` as literal text, not a CSS class. Shorthand
-  syntax remains supported in block-level attribute lines (e.g., `[.class]` before a block).
 - DSV tables now correctly preserve the first cell. Previously, DSV format (`cell1:cell2`)
   was incorrectly treated like PSV (`| cell1 | cell2 |`), causing the first cell to be
   dropped. Escape handling (`\:` → literal `:`) also works correctly now.
@@ -183,6 +210,7 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#266]: https://github.com/nlopes/acdc/issues/266
 [#269]: https://github.com/nlopes/acdc/issues/269
 [#274]: https://github.com/nlopes/acdc/issues/274
+[#277]: https://github.com/nlopes/acdc/issues/277
 [#278]: https://github.com/nlopes/acdc/issues/278
 [#279]: https://github.com/nlopes/acdc/issues/279
 [#280]: https://github.com/nlopes/acdc/issues/280
