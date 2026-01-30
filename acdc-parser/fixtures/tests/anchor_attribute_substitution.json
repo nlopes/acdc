@@ -1,0 +1,693 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Anchor Attribute Substitution",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 31
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "chapter": "ch1",
+    "prefix": "doc",
+    "section-name": "Introduction",
+    "topic": "overview"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Introduction",
+          "location": [
+            {
+              "line": 8,
+              "col": 4
+            },
+            {
+              "line": 8,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "doc-intro",
+            "xreflabel": "Introduction Section",
+            "location": [
+              {
+                "line": 7,
+                "col": 1
+              },
+              {
+                "line": 7,
+                "col": 42
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This section tests block-level anchor substitution.",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 51
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Details",
+          "location": [
+            {
+              "line": 13,
+              "col": 4
+            },
+            {
+              "line": 13,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "doc-details",
+            "location": [
+              {
+                "line": 12,
+                "col": 1
+              },
+              {
+                "line": 12,
+                "col": 21
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This section has an ID-only anchor with substitution.",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 53
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline Anchors",
+          "location": [
+            {
+              "line": 17,
+              "col": 4
+            },
+            {
+              "line": 17,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This paragraph has an ",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "ch1-overview",
+              "xreflabel": "Chapter 1 Overview",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 23
+                },
+                {
+                  "line": 19,
+                  "col": 62
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "inline anchor with substitution.",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 63
+                },
+                {
+                  "line": 19,
+                  "col": 94
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 94
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Another paragraph with ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 1
+                },
+                {
+                  "line": 21,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "doc-note",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 24
+                },
+                {
+                  "line": 21,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "just an ID anchor.",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 41
+                },
+                {
+                  "line": 21,
+                  "col": 58
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 58
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 58
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Cross References",
+          "location": [
+            {
+              "line": 23,
+              "col": 4
+            },
+            {
+              "line": 23,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "See ",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 1
+                },
+                {
+                  "line": 25,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "doc-intro",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 5
+                },
+                {
+                  "line": 25,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " for the introduction.",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 26
+                },
+                {
+                  "line": 25,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Link to ",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 8
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "ch1-overview",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "the overview section",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 9
+                    },
+                    {
+                      "line": 1,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 27,
+                  "col": 9
+                },
+                {
+                  "line": 27,
+                  "col": 52
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 53
+                },
+                {
+                  "line": 27,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 23,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 53
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Bibliography",
+          "location": [
+            {
+              "line": 29,
+              "col": 4
+            },
+            {
+              "line": 29,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "anchor",
+                  "type": "inline",
+                  "id": "doc-ref01",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 3
+                    },
+                    {
+                      "line": 31,
+                      "col": 22
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " First reference with substituted ID",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 23
+                    },
+                    {
+                      "line": 31,
+                      "col": 58
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 58
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "anchor",
+                  "type": "inline",
+                  "id": "doc-ref02",
+                  "xreflabel": "Introduction Reference",
+                  "location": [
+                    {
+                      "line": 32,
+                      "col": 3
+                    },
+                    {
+                      "line": 32,
+                      "col": 47
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " Second reference with substituted ID and label",
+                  "location": [
+                    {
+                      "line": 32,
+                      "col": 48
+                    },
+                    {
+                      "line": 32,
+                      "col": 94
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 32,
+                  "col": 1
+                },
+                {
+                  "line": 32,
+                  "col": 94
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 32,
+              "col": 94
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 94
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 32,
+      "col": 94
+    }
+  ]
+}

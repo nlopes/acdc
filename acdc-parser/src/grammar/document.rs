@@ -5134,9 +5134,11 @@ peg::parser! {
         eol()
         {
             let (id, reftext) = result;
+            let substituted_id = substitute(id, HEADER, &state.document_attributes);
+            let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
             Anchor {
-                id: id.to_string(),
-                xreflabel: reftext.map(ToString::to_string),
+                id: substituted_id,
+                xreflabel: substituted_reftext,
                 location: state.create_location(start, end)
             }
         }
@@ -5158,12 +5160,14 @@ peg::parser! {
         double_close_square_bracket()
         end:position!()
         {
-                InlineNode::InlineAnchor(Anchor {
-                    id: id.to_string(),
-                    xreflabel: reftext.map(ToString::to_string),
-                    location: state.create_block_location(start, end, offset)
-                })
-            }
+            let substituted_id = substitute(id, HEADER, &state.document_attributes);
+            let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
+            InlineNode::InlineAnchor(Anchor {
+                id: substituted_id,
+                xreflabel: substituted_reftext,
+                location: state.create_block_location(start, end, offset)
+            })
+        }
 
         rule inline_anchor_match() -> ()
         = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
@@ -5179,9 +5183,11 @@ peg::parser! {
         "]]]"
         end:position!()
         {
+            let substituted_id = substitute(id, HEADER, &state.document_attributes);
+            let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
             InlineNode::InlineAnchor(Anchor {
-                id: id.to_string(),
-                xreflabel: reftext.map(ToString::to_string),
+                id: substituted_id,
+                xreflabel: substituted_reftext,
                 location: state.create_block_location(start, end, offset)
             })
         }

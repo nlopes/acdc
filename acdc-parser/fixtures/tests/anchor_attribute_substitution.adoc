@@ -1,0 +1,32 @@
+= Anchor Attribute Substitution
+:section-name: Introduction
+:prefix: doc
+:chapter: ch1
+:topic: overview
+
+[[{prefix}-intro,{section-name} Section]]
+== Introduction
+
+This section tests block-level anchor substitution.
+
+[[{prefix}-details]]
+== Details
+
+This section has an ID-only anchor with substitution.
+
+== Inline Anchors
+
+This paragraph has an [[{chapter}-{topic},Chapter 1 Overview]]inline anchor with substitution.
+
+Another paragraph with [[{prefix}-note]]just an ID anchor.
+
+== Cross References
+
+See xref:{prefix}-intro[] for the introduction.
+
+Link to xref:{chapter}-{topic}[the overview section].
+
+== Bibliography
+
+* [[[{prefix}-ref01]]] First reference with substituted ID
+* [[[{prefix}-ref02,{section-name} Reference]]] Second reference with substituted ID and label
