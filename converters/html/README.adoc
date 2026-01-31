@@ -48,11 +48,53 @@ Supports all major AsciiDoc constructs:
 - **Text formatting**: Bold, italic, monospace, highlighting, subscript, superscript
 - **Lists**: Unordered, ordered, description lists, callout lists
 - **Blocks**: Listings, literals, examples, quotes, sidebars, open blocks
-- **Admonitions**: NOTE, TIP, IMPORTANT, WARNING, CAUTION
+- **Admonitions**: NOTE, TIP, IMPORTANT, WARNING, CAUTION (with Font Awesome icons when `:icons: font`)
 - **Media**: Images, videos (YouTube, Vimeo), audio
-- **Tables**: Full table support with headers, footers, and cell formatting
+- **Tables**: Full table support with headers, footers, cell formatting, cell spanning, and nested tables
 - **Cross-references**: Internal links and anchors
 - **Attributes**: Document-level attribute substitution
+- **Index terms**: Visible `((term))` and concealed `(((term,secondary,tertiary)))` with catalog generation
+
+### Section Numbering
+
+Documents with `:sectnums:` render numbered section headings (e.g., "1. Introduction", "1.1. Overview"). Control numbering depth with `:secnumlevels:` (default 3, max 5).
+
+[source,console]
+....
+acdc convert -a sectnums -a secnumlevels=2 document.adoc
+....
+
+Table of contents entries are also numbered when `:sectnums:` is set.
+
+### Syntax Highlighting
+
+Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses syntect with inline CSS styles.
+
+[source,console]
+....
+cargo build --features highlighting
+acdc convert document.adoc
+....
+
+Falls back to plain text when the language isn't recognized.
+
+### Table Enhancements
+
+Full table feature support:
+
+- **Cell spanning**: colspan (`2+|`), rowspan (`.2+|`), combined (`2.3+|`)
+- **Visual attributes**: `frame`, `grid`, `stripes`, `width`, `%autowidth`
+- **Nested tables**: Using `!===` delimiter in AsciiDoc cells
+- **Cell-level formatting**: Alignment, styles (strong, emphasis, monospace, etc.)
+
+### Substitution Control
+
+Verbatim blocks (listing, literal) support the `subs` attribute:
+
+- `subs=none` - disable all substitutions, output raw content
+- `subs=+quotes` - enable inline formatting in code blocks
+- `subs=+attributes` - enable attribute expansion
+- `subs=+replacements` - enable typography (arrows, dashes, ellipsis)
 
 ### Document Attributes
 

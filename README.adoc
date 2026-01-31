@@ -73,7 +73,6 @@ acdc/
 
 == Known limitations
 
-* **Table spanning**: Row/column spanning not implemented
 * **Inline markup in code/links**: Bold/italic inside code spans and link text not parsed
 * **Cross-file references**: LSP and parser are single-file only
 

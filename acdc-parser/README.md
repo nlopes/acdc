@@ -56,7 +56,7 @@ The implementation here follows from:
     * [x] Cell-level style (`s|`, `e|`, `m|`, `a|`, etc.)
     * [x] CSV, PSV, DSV formats
     * [x] AsciiDoc content in cells (`a` style)
-    * [ ] Nested tables (not supported)
+    * [x] Nested tables (`!===` delimiter in AsciiDoc cells)
 * [x] Admonition
 * [x] Anchors
     * [x] Block anchors (`[[id]]`)
@@ -72,6 +72,7 @@ The implementation here follows from:
 * [x] Cross References
     * [x] xref macro
     * [x] Shorthand notation (`<<id>>`)
+    * [x] Attribute substitution in targets and text
 * [x] Links and URLs
     * [x] Link macro
     * [x] URL detection and autolinks

@@ -82,6 +82,14 @@ cargo build --all-features
 * `manpage` - Manpage converter
 * `terminal` - Terminal converter with ANSI color support
 
+=== Parser Options
+
+* `setext` - Enable setext-style (two-line underlined) section headers
+
+=== Syntax Highlighting
+
+* `highlighting` - Enable syntax highlighting for source blocks in HTML output (uses syntect)
+
 === Development Tools
 
 * `inspect` - AST inspection tool for debugging parser output
@@ -143,6 +151,13 @@ Convert with terminal backend:
 [source,console]
 ....
 acdc convert --backend terminal document.adoc
+....
+
+Terminal output with pager disabled:
+
+[source,console]
+....
+acdc convert --backend terminal --no-pager document.adoc
 ....
 
 Convert to embeddable HTML (no DOCTYPE, html, head, body):

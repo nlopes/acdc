@@ -9,6 +9,13 @@ A simple terminal converter for `AsciiDoc` documents.
 acdc convert --backend terminal simple.adoc
 ....
 
+When stdout is a TTY, output is automatically piped through a pager (defaults to `less -FRX` on Unix, `more` on Windows). Use `--no-pager` to disable, or set the `PAGER` environment variable for a custom pager.
+
+[source,console]
+....
+acdc convert --backend terminal --no-pager simple.adoc
+....
+
 image::images/simple.adoc.png["Simple Document"]
 
 You can also pass multiple files and it will parse and print them all.
