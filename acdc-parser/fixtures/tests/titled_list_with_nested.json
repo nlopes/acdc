@@ -1,0 +1,199 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Lexicon and concepts",
+          "location": [
+            {
+              "line": 1,
+              "col": 2
+            },
+            {
+              "line": 1,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "markup character",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 3
+                },
+                {
+                  "line": 2,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "unordered",
+              "marker": "**",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "**",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "blocks are always defined by a balanced pair",
+                      "location": [
+                        {
+                          "line": 3,
+                          "col": 4
+                        },
+                        {
+                          "line": 3,
+                          "col": 47
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 1
+                    },
+                    {
+                      "line": 3,
+                      "col": 47
+                    }
+                  ]
+                },
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "**",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "the first and last items are always blocks",
+                      "location": [
+                        {
+                          "line": 4,
+                          "col": 4
+                        },
+                        {
+                          "line": 4,
+                          "col": 45
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 1
+                    },
+                    {
+                      "line": 4,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 4,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The end",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 3
+                },
+                {
+                  "line": 5,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 9
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 9
+    }
+  ]
+}

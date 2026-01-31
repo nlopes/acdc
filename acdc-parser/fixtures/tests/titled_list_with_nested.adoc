@@ -1,0 +1,5 @@
+.Lexicon and concepts
+* markup character
+** blocks are always defined by a balanced pair
+** the first and last items are always blocks
+* The end

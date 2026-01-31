@@ -74,23 +74,6 @@
                   "type": "block",
                   "variant": "unordered",
                   "marker": "**",
-                  "title": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Possible DefOps manual locations",
-                      "location": [
-                        {
-                          "line": 3,
-                          "col": 2
-                        },
-                        {
-                          "line": 3,
-                          "col": 33
-                        }
-                      ]
-                    }
-                  ],
                   "items": [
                     {
                       "name": "listItem",
@@ -119,23 +102,6 @@
                           "type": "block",
                           "variant": "unordered",
                           "marker": "***",
-                          "title": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Possible DefOps manual locations",
-                              "location": [
-                                {
-                                  "line": 3,
-                                  "col": 2
-                                },
-                                {
-                                  "line": 3,
-                                  "col": 33
-                                }
-                              ]
-                            }
-                          ],
                           "items": [
                             {
                               "name": "listItem",

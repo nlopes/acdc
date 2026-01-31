@@ -2359,8 +2359,8 @@ peg::parser! {
         // to prevent nested lists from consuming parent-level continuations.
         rule list_with_continuation(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool) -> Result<Block, Error>
         = callout_list(start, offset, block_metadata)
-        / unordered_list(start, offset, block_metadata, false, allow_continuation)
-        / ordered_list(start, offset, block_metadata, false, allow_continuation)
+        / unordered_list(start, offset, block_metadata, false, allow_continuation, false)
+        / ordered_list(start, offset, block_metadata, false, allow_continuation, false)
         / description_list(start, offset, block_metadata)
 
         rule unordered_list_marker() -> &'input str = $("*"+ / "-")
@@ -2448,7 +2448,7 @@ peg::parser! {
             / ("[[" [^']']+ "]]" whitespace()* eol())
         )
 
-        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<Block, Error>
+        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool, is_nested: bool) -> Result<Block, Error>
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
         = whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
@@ -2466,8 +2466,8 @@ peg::parser! {
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::UnorderedList(UnorderedList {
-                title: block_metadata.title.clone(),
-                metadata: block_metadata.metadata.clone(),
+                title: if is_nested { Title::default() } else { block_metadata.title.clone() },
+                metadata: if is_nested { BlockMetadata::default() } else { block_metadata.metadata.clone() },
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
@@ -2522,7 +2522,7 @@ peg::parser! {
             }
         }
 
-        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool) -> Result<Block, Error>
+        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_is_ordered: bool, allow_continuation: bool, is_nested: bool) -> Result<Block, Error>
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
         = whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
@@ -2540,8 +2540,8 @@ peg::parser! {
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::OrderedList(OrderedList {
-                title: block_metadata.title.clone(),
-                metadata: block_metadata.metadata.clone(),
+                title: if is_nested { Title::default() } else { block_metadata.title.clone() },
+                metadata: if is_nested { BlockMetadata::default() } else { block_metadata.metadata.clone() },
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
@@ -2819,7 +2819,7 @@ peg::parser! {
         // whitespace) from being incorrectly parsed as nested. Without this, `. item` at
         // column 1 would be nested inside the parent unordered item instead of being a
         // sibling list.
-        = !at_root_ordered_marker() nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, true, false) {
+        = !at_root_ordered_marker() nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, true, false, true) {
             Some(list)
         }
         // Nested unordered list with deeper markers (e.g., ** inside *)
@@ -2854,8 +2854,8 @@ peg::parser! {
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::UnorderedList(UnorderedList {
-                title: block_metadata.title.clone(),
-                metadata: block_metadata.metadata.clone(),
+                title: Title::default(),
+                metadata: BlockMetadata::default(),
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
@@ -3105,7 +3105,7 @@ peg::parser! {
         // whitespace) from being incorrectly parsed as nested. Without this, `* item` at
         // column 1 would be nested inside the parent ordered item instead of being a
         // sibling list.
-        = !at_root_unordered_marker() nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, true, false) {
+        = !at_root_unordered_marker() nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, true, false, true) {
             Some(list)
         }
         // Nested ordered list with deeper markers (e.g., .. inside .)
@@ -3140,8 +3140,8 @@ peg::parser! {
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
             Ok(Block::OrderedList(OrderedList {
-                title: block_metadata.title.clone(),
-                metadata: block_metadata.metadata.clone(),
+                title: Title::default(),
+                metadata: BlockMetadata::default(),
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
@@ -3486,7 +3486,7 @@ peg::parser! {
         = eol()* // Consume any blank lines before the list
         &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
         list_start:position!()
-        list:(unordered_list(list_start, offset, block_metadata, false, true) / ordered_list(list_start, offset, block_metadata, false, true))
+        list:(unordered_list(list_start, offset, block_metadata, false, true, true) / ordered_list(list_start, offset, block_metadata, false, true, true))
         {
             tracing::info!("Auto-attaching list to description list item");
             Ok(vec![list?])
