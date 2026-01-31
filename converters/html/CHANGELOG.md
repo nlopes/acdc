@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dark mode support** - Documents with `:dark-mode:` attribute now render with a full
+  dark color scheme (`#1a1a1a` background, adapted headings, links, code blocks, tables,
+  admonitions, and named colors).
 - **Syntax highlighting for source blocks** - Code blocks with a language specified now
   render with syntax highlighting using syntect. Outputs inline CSS styles. Falls back
   to plain text when the language isn't recognized. Requires `highlighting` feature flag.

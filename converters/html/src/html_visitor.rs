@@ -47,7 +47,11 @@ fn effective_subs(_spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Su
     }
 }
 
-fn link_css<W: Write>(writer: &mut W, attributes: &DocumentAttributes) -> Result<(), Error> {
+fn link_css<W: Write>(
+    writer: &mut W,
+    attributes: &DocumentAttributes,
+    default_filename: &str,
+) -> Result<(), Error> {
     // Link to external stylesheet
     let stylesdir = attributes
         .get("stylesdir")
@@ -59,7 +63,7 @@ fn link_css<W: Write>(writer: &mut W, attributes: &DocumentAttributes) -> Result
             let s = v.to_string();
             if s.is_empty() { None } else { Some(s) }
         })
-        .unwrap_or_else(|| crate::STYLESHEET_FILENAME_DEFAULT.to_string());
+        .unwrap_or_else(|| default_filename.to_string());
 
     writeln!(
         writer,
@@ -148,7 +152,17 @@ impl<W: Write> HtmlVisitor<W> {
         self.writer
     }
 
+    /// Check if dark mode is enabled via the `:dark-mode:` document attribute.
+    fn is_dark_mode(&self) -> bool {
+        self.processor
+            .document_attributes
+            .get("dark-mode")
+            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
+    }
+
     fn render_head(&mut self, document: &Document) -> Result<(), Error> {
+        let dark_mode = self.is_dark_mode();
+
         writeln!(
             self.writer,
             r#"<head>
@@ -158,6 +172,10 @@ impl<W: Write> HtmlVisitor<W> {
 <meta name="generator" content="{}">"#,
             self.processor.options.generator_metadata()
         )?;
+
+        if dark_mode {
+            writeln!(self.writer, r#"<meta name="color-scheme" content="dark">"#)?;
+        }
 
         if let Some(header) = &document.header {
             // Create a temporary visitor with inlines_basic mode
@@ -188,20 +206,24 @@ impl<W: Write> HtmlVisitor<W> {
 
         // Handle stylesheet rendering based on linkcss attribute
         let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+        let default_filename = if dark_mode {
+            crate::STYLESHEET_DARK_MODE
+        } else {
+            crate::STYLESHEET_LIGHT_MODE
+        };
 
         if linkcss {
-            link_css(&mut self.writer, &self.processor.document_attributes)?;
+            link_css(
+                &mut self.writer,
+                &self.processor.document_attributes,
+                default_filename,
+            )?;
         } else {
             // Embed stylesheet directly (default behavior)
+            let css = crate::load_css(dark_mode);
             writeln!(
                 self.writer,
-                "<style>
-{}
-.stemblock .content {{
-  text-align: center;
-}}
-</style>",
-                include_str!("../static/asciidoctor.css")
+                "<style>\n{css}\n.stemblock .content {{\n  text-align: center;\n}}\n</style>"
             )?;
         }
 
@@ -322,6 +344,10 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
         // Build body class with doctype and optional TOC placement classes
         let mut body_classes = vec![self.processor.options.doctype().to_string()];
+
+        if self.is_dark_mode() {
+            body_classes.push("dark".to_string());
+        }
 
         // Add TOC-related classes to body based on placement and custom toc-class
         let toc_config = acdc_converters_core::toc::Config::from_attributes(None, &doc.attributes);

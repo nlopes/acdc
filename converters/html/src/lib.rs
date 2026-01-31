@@ -225,8 +225,18 @@ pub struct RenderOptions {
 pub(crate) const COPYCSS_DEFAULT: &str = "";
 pub(crate) const STYLESDIR_DEFAULT: &str = ".";
 pub(crate) const STYLESHEET_DEFAULT: &str = "";
-pub(crate) const STYLESHEET_FILENAME_DEFAULT: &str = "asciidoctor.css";
+// NOTE: If you change the values below, you need to also change them in `load_css`
+pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
+pub(crate) const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
 pub(crate) const WEBFONTS_DEFAULT: &str = "";
+
+pub(crate) fn load_css(dark_mode: bool) -> &'static str {
+    if dark_mode {
+        include_str!("../static/asciidoctor-dark-mode.css")
+    } else {
+        include_str!("../static/asciidoctor-light-mode.css")
+    }
+}
 
 impl Converter for Processor {
     type Error = Error;
@@ -337,6 +347,16 @@ impl Processor {
             return;
         }
 
+        let is_dark = doc
+            .attributes
+            .get("dark-mode")
+            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
+        let default_filename = if is_dark {
+            STYLESHEET_DARK_MODE
+        } else {
+            STYLESHEET_LIGHT_MODE
+        };
+
         let stylesheet = doc
             .attributes
             .get("stylesheet")
@@ -344,7 +364,7 @@ impl Processor {
                 let s = v.to_string();
                 if s.is_empty() { None } else { Some(s) }
             })
-            .unwrap_or_else(|| STYLESHEET_FILENAME_DEFAULT.into());
+            .unwrap_or_else(|| default_filename.into());
 
         let stylesdir = doc
             .attributes
@@ -800,6 +820,106 @@ This is a paragraph.
         assert!(
             html.contains("<a href=\"#_chapter_two\">2. Chapter Two</a>"),
             "chapter 2 should be numbered in TOC"
+        );
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Dark mode tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_dark_mode_includes_dark_css_and_meta() -> TestResult {
+        let content = "= Title\n:dark-mode:\n\nHello world.\n";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(r#"<meta name="color-scheme" content="dark">"#),
+            "should include color-scheme meta tag"
+        );
+        assert!(
+            html.contains("color-scheme:dark"),
+            "should include dark mode CSS"
+        );
+        assert!(
+            html.contains(r#"class="article dark"#),
+            "body should have dark class"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_light_mode_no_dark_css() -> TestResult {
+        let content = "= Title\n:light-mode:\n\nHello world.\n";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            !html.contains(r#"<meta name="color-scheme" content="dark">"#),
+            "should not include dark color-scheme meta"
+        );
+        assert!(
+            !html.contains("color-scheme:dark"),
+            "should not include dark mode CSS"
+        );
+        assert!(
+            !html.contains("class=\"article dark"),
+            "body should not have dark class"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_default_no_dark_css() -> TestResult {
+        let content = "= Title\n\nHello world.\n";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            !html.contains("color-scheme:dark"),
+            "default should not include dark mode CSS"
+        );
+        assert!(
+            !html.contains("class=\"article dark"),
+            "default body should not have dark class"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_dark_mode_unset_no_dark_css() -> TestResult {
+        let content = "= Title\n:!dark-mode:\n\nHello world.\n";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            !html.contains("color-scheme:dark"),
+            "unset dark-mode should not include dark CSS"
         );
         Ok(())
     }
