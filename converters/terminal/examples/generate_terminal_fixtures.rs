@@ -1,7 +1,7 @@
 //! Generate expected Terminal output files for integration tests.
 //!
 //! Usage:
-//!   `cargo run -p acdc-converters-terminal --features images,highlighting --example generate_expected_fixtures`
+//!   `cargo run --all-features --example generate_terminal_fixtures`
 
 use acdc_converters_core::{Converter, Options};
 use acdc_converters_dev::generate_fixtures::FixtureGenerator;
