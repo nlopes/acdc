@@ -81,15 +81,15 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "This is an issue reference.",
+                  "value": "This is an issue reference.\nThe issue description continues here.",
                   "location": [
                     {
                       "line": 5,
                       "col": 14
                     },
                     {
-                      "line": 5,
-                      "col": 40
+                      "line": 6,
+                      "col": 37
                     }
                   ]
                 }
@@ -101,58 +101,11 @@
                   "col": 1
                 },
                 {
-                  "line": 5,
-                  "col": 41
+                  "line": 6,
+                  "col": 38
                 }
               ]
-            }
-          ],
-          "location": [
-            {
-              "line": 5,
-              "col": 1
             },
-            {
-              "line": 5,
-              "col": 41
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "The issue description continues here.",
-              "location": [
-                {
-                  "line": 6,
-                  "col": 1
-                },
-                {
-                  "line": 6,
-                  "col": 37
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 6,
-              "col": 1
-            },
-            {
-              "line": 6,
-              "col": 37
-            }
-          ]
-        },
-        {
-          "name": "dlist",
-          "type": "block",
-          "items": [
             {
               "term": [
                 {
@@ -204,7 +157,7 @@
           ],
           "location": [
             {
-              "line": 8,
+              "line": 5,
               "col": 1
             },
             {

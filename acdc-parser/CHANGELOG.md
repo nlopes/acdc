@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Description list entries now capture implicit text continuations — non-blank lines
+  immediately following a `term:: description` line are included in the same description
+  paragraph, matching asciidoctor behavior. Previously these continuation lines were
+  parsed as separate paragraph blocks, which also broke multi-entry description lists
+  into multiple `<dl>` elements.
 - Improved attribute substitutions:
   - authors
   - revision

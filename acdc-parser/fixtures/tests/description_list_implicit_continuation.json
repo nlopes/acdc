@@ -1,0 +1,434 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "FI",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 2
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "FI",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 7
+                    },
+                    {
+                      "line": 1,
+                      "col": 8
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 1,
+                  "col": 6
+                },
+                {
+                  "line": 1,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " is the notation for ",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 10
+                },
+                {
+                  "line": 1,
+                  "col": 30
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Future Issue",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 32
+                    },
+                    {
+                      "line": 1,
+                      "col": 43
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 1,
+                  "col": 31
+                },
+                {
+                  "line": 1,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".\nA proposal, decision, or clarification marked with ",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 45
+                },
+                {
+                  "line": 2,
+                  "col": 51
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "FI",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 53
+                    },
+                    {
+                      "line": 2,
+                      "col": 54
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 2,
+                  "col": 52
+                },
+                {
+                  "line": 2,
+                  "col": 55
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " needs to be addressed.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 56
+                },
+                {
+                  "line": 2,
+                  "col": 78
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 79
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "#<issue-number>",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1
+                },
+                {
+                  "line": 4,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The number of an active issue that addresses a proposal.\nThe issue number replaces the ",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 19
+                },
+                {
+                  "line": 5,
+                  "col": 30
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "FI",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 32
+                    },
+                    {
+                      "line": 5,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 31
+                },
+                {
+                  "line": 5,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " notation on an item.",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 35
+                },
+                {
+                  "line": 5,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "SDR",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 3
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "SDR",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 8
+                    },
+                    {
+                      "line": 7,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 7
+                },
+                {
+                  "line": 7,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " is the notation for ",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 12
+                },
+                {
+                  "line": 7,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Specification Document Requirement",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 34
+                    },
+                    {
+                      "line": 7,
+                      "col": 67
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 33
+                },
+                {
+                  "line": 7,
+                  "col": 68
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".\nItems marked with this notation are terms that we need to define.\nSuch items may need an issue to resolve their name or definition.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 69
+                },
+                {
+                  "line": 9,
+                  "col": 65
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 66
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 66
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 65
+    }
+  ]
+}

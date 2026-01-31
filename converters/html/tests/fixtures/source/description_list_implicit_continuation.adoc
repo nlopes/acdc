@@ -1,0 +1,5 @@
+FI:: *FI* is the notation for *Future Issue*.
+A proposal, decision, or clarification marked with *FI* needs to be addressed.
+
+SDR:: *SDR* is the notation for *Specification Document Requirement*.
+Items marked with this notation are terms that we need to define.

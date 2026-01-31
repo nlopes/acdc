@@ -3385,8 +3385,31 @@ peg::parser! {
         delimiter:description_list_marker()
         whitespace()?
         principal_start:position()
-        principal_content:$((!eol() [_])*)
-        // No contiguous lines - they would be parsed as separate blocks or items
+        principal_content:$(
+            (!eol() [_])*
+            // Implicit text continuation: consume subsequent non-blank lines that
+            // aren't new dlist entries, list items, continuation markers, or block
+            // delimiters. This mirrors paragraph multi-line handling but with
+            // dlist-specific stop conditions.
+            (eol()
+             !eol()                                    // not a blank line
+             !(&((!(description_list_marker() (eol() / " ") / eol()) [_])+ description_list_marker()))  // not a new dlist entry (line-local check)
+             !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())  // not a list item
+             !("+" (whitespace() / eol() / ![_]))      // not a continuation marker
+             !example_delimiter()                      // not a block delimiter
+             !listing_delimiter()
+             !literal_delimiter()
+             !sidebar_delimiter()
+             !quote_delimiter()
+             !pass_delimiter()
+             !comment_delimiter()
+             !table_delimiter()
+             !(open_delimiter() (whitespace()* eol()))
+             !markdown_code_delimiter()
+             !((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))  // not a section heading
+             (!eol() [_])+                             // continuation line content
+            )*
+        )
         // Now handle auto-attachment and explicit continuation
         attached_content:description_list_attached_content(offset, block_metadata)*
         end:position!()
