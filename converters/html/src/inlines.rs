@@ -736,7 +736,8 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
 
     // Apply typography transformations (ellipsis, smart quotes) only when replacements enabled
     let text = if should_apply_replacements {
-        text.replace("...", "&#8230;&#8203;")
+        text.replace("(TM)", "&#8482;")
+            .replace("...", "&#8230;&#8203;")
             .replace('\'', "&#8217;")
     } else {
         text

@@ -12,6 +12,7 @@ const ESCAPED_ARROW_LEFT: &str = "\u{E000}LARROW\u{E000}";
 const ESCAPED_DARROW_RIGHT: &str = "\u{E000}RDARROW\u{E000}";
 const ESCAPED_DARROW_LEFT: &str = "\u{E000}LDARROW\u{E000}";
 const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
+const ESCAPED_TRADEMARK: &str = "\u{E000}TRADEMARK\u{E000}";
 
 /// Remove backslash escapes from `AsciiDoc` formatting characters and patterns.
 ///
@@ -44,6 +45,7 @@ const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
 /// - `\=>` → placeholder (prevents right double arrow conversion)
 /// - `\<=` → placeholder (prevents left double arrow conversion)
 /// - `\--` → placeholder (prevents em-dash conversion)
+/// - `\(TM)` → placeholder (prevents trademark conversion)
 ///
 /// Call [`restore_escaped_patterns`] after typography substitutions to convert
 /// placeholders back to their literal forms.
@@ -71,7 +73,8 @@ pub fn strip_backslash_escapes(text: &str) -> String {
         .replace("\\<-", ESCAPED_ARROW_LEFT)
         .replace("\\=>", ESCAPED_DARROW_RIGHT)
         .replace("\\<=", ESCAPED_DARROW_LEFT)
-        .replace("\\--", ESCAPED_EMDASH);
+        .replace("\\--", ESCAPED_EMDASH)
+        .replace("\\(TM)", ESCAPED_TRADEMARK);
 
     // Then handle single-character escapes
     let mut result = String::with_capacity(text.len());
@@ -127,6 +130,7 @@ pub fn restore_escaped_patterns(text: &str) -> String {
         .replace(ESCAPED_DARROW_RIGHT, "=>")
         .replace(ESCAPED_DARROW_LEFT, "<=")
         .replace(ESCAPED_EMDASH, "--")
+        .replace(ESCAPED_TRADEMARK, "(TM)")
 }
 
 #[cfg(test)]
@@ -189,6 +193,7 @@ mod tests {
         assert_eq!(strip_backslash_escapes(r"\=>"), ESCAPED_DARROW_RIGHT);
         assert_eq!(strip_backslash_escapes(r"\<="), ESCAPED_DARROW_LEFT);
         assert_eq!(strip_backslash_escapes(r"\--"), ESCAPED_EMDASH);
+        assert_eq!(strip_backslash_escapes(r"\(TM)"), ESCAPED_TRADEMARK);
     }
 
     #[test]
@@ -199,6 +204,7 @@ mod tests {
         assert_eq!(restore_escaped_patterns(ESCAPED_DARROW_RIGHT), "=>");
         assert_eq!(restore_escaped_patterns(ESCAPED_DARROW_LEFT), "<=");
         assert_eq!(restore_escaped_patterns(ESCAPED_EMDASH), "--");
+        assert_eq!(restore_escaped_patterns(ESCAPED_TRADEMARK), "(TM)");
     }
 
     #[test]
