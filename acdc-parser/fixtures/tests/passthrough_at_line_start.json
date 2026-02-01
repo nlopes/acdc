@@ -9,11 +9,101 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Any ampersands (&) and angle brackets (< or\n>) will be translated into HTML entities.",
+          "value": "Any ampersands (",
           "location": [
             {
               "line": 1,
               "col": 1
+            },
+            {
+              "line": 1,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&",
+          "location": [
+            {
+              "line": 1,
+              "col": 17
+            },
+            {
+              "line": 1,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ") and angle brackets (",
+          "location": [
+            {
+              "line": 1,
+              "col": 20
+            },
+            {
+              "line": 1,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<",
+          "location": [
+            {
+              "line": 1,
+              "col": 42
+            },
+            {
+              "line": 1,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " or\n",
+          "location": [
+            {
+              "line": 1,
+              "col": 45
+            },
+            {
+              "line": 1,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": ">",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ") will be translated into HTML entities.",
+          "location": [
+            {
+              "line": 1,
+              "col": 52
             },
             {
               "line": 2,

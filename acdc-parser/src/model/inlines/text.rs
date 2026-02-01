@@ -3,7 +3,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::{Location, Role};
+use crate::{Location, Role, Substitution};
 
 use super::InlineNode;
 
@@ -155,6 +155,13 @@ impl Serialize for Plain {
 pub struct Raw {
     pub content: String,
     pub location: Location,
+    /// The substitutions to apply when rendering this node.
+    ///
+    /// Carries the passthrough's own substitution list (minus Quotes, which are
+    /// already handled during parsing). The converter uses these subs directly
+    /// instead of the enclosing block's substitutions. An empty vec means no
+    /// substitutions (raw output), as with `+++text+++` and `pass:[text]`.
+    pub subs: Vec<Substitution>,
 }
 
 /// A `Verbatim` represents verbatim text section in a document.

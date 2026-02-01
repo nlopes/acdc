@@ -2151,12 +2151,14 @@ peg::parser! {
                     DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
                         content: content.to_string(),
                         location: content_location,
+                        subs: vec![],
                     })])
                 }
             } else {
                 DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
                     content: content.to_string(),
                     location: content_location,
+                    subs: vec![],
                 })])
             };
 

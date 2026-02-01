@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline passthroughs `+...+` and `++...++` now preserve literal content instead of
+  applying the enclosing block's typography replacements (e.g., `...` → ellipsis). The
+  converter now uses the substitution list carried on each `Raw` node directly. ([#323])
 - Admonition blocks now render Font Awesome icons when `:icons: font` is set, outputting
   `<i class="fa icon-{variant}" title="{caption}"></i>` instead of a text label. Matches
   asciidoctor behavior.
@@ -66,3 +69,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#280]: https://github.com/nlopes/acdc/issues/280
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#313]: https://github.com/nlopes/acdc/pull/313
+[#323]: https://github.com/nlopes/acdc/issues/323

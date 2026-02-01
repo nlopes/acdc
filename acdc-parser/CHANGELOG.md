@@ -5,6 +5,24 @@ All notable changes to `acdc-parser` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Inline passthroughs `+...+` and `++...++` no longer convert `...` to an ellipsis
+  entity (`&#8230;&#8203;`). The root cause was that non-Quotes passthroughs were emitted
+  as `PlainText` nodes, which got merged with adjacent text and lost their passthrough
+  identity — the converter then applied the block's full substitutions (including
+  Replacements). Passthroughs now carry their own substitution list on the `Raw` node
+  (`subs: Vec<Substitution>`) instead of a boolean flag, so the converter applies exactly
+  the right subs. ([#323])
+
+### Changed
+
+- **BREAKING**: `Raw::escape_special_chars: bool` replaced with `Raw::subs: Vec<Substitution>`.
+  The new field carries the passthrough's actual substitution list rather than a lossy
+  boolean encoding. An empty vec means raw output (no subs), matching `+++` and `pass:[]`.
+
 ## [0.3.0] - 2026-02-01
 
 ### Added
@@ -224,6 +242,7 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#317]: https://github.com/nlopes/acdc/issues/317
 [#320]: https://github.com/nlopes/acdc/issues/320
 [#321]: https://github.com/nlopes/acdc/issues/321
+[#323]: https://github.com/nlopes/acdc/issues/323
 
 [0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0
 [0.2.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.2.0

@@ -184,9 +184,6 @@ pub(crate) fn process_passthrough_with_quotes(
     content: &str,
     passthrough: &Pass,
 ) -> Vec<InlineNode> {
-    let has_special_chars = passthrough
-        .substitutions
-        .contains(&Substitution::SpecialChars);
     let has_quotes = passthrough.substitutions.contains(&Substitution::Quotes);
 
     // If no quotes processing needed
@@ -195,18 +192,20 @@ pub(crate) fn process_passthrough_with_quotes(
         // This applies to: +text+ (Single), ++text++ (Double), pass:c[] (Macro with SpecialChars)
         // Otherwise output raw HTML (return RawText)
         // This applies to: +++text+++ (Triple), pass:[] (Macro without SpecialChars)
-        return if has_special_chars {
-            vec![InlineNode::PlainText(Plain {
-                content: content.to_string(),
-                location: passthrough.location.clone(),
-                escaped: false,
-            })]
-        } else {
-            vec![InlineNode::RawText(Raw {
-                content: content.to_string(),
-                location: passthrough.location.clone(),
-            })]
-        };
+        // Use RawText for all passthroughs without Quotes to avoid merging with
+        // adjacent PlainText nodes (which would lose the passthrough's substitution info).
+        // Carry the passthrough's own subs (minus Quotes, already handled) so the
+        // converter applies exactly those instead of the block's subs.
+        return vec![InlineNode::RawText(Raw {
+            content: content.to_string(),
+            location: passthrough.location.clone(),
+            subs: passthrough
+                .substitutions
+                .iter()
+                .filter(|s| **s != Substitution::Quotes)
+                .cloned()
+                .collect(),
+        })];
     }
 
     tracing::debug!(content = ?content, "Parsing passthrough content with quotes");

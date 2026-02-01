@@ -2014,7 +2014,7 @@ It should be considered for the following block-level constructs:</p>
 <p><strong>FI</strong> Should we permit document attributes to be set inside a delimited block?</p>
 </li>
 <li>
-<p><strong>FI</strong> Should we drop <code>{set:&#8230;&#8203;}</code>?</p>
+<p><strong>FI</strong> Should we drop <code>{set:...}</code>?</p>
 </li>
 <li>
 <p><strong>FI</strong> Should we choose <code>\</code> or <code> +</code> as the character to continue an attribute value?</p>
@@ -3670,7 +3670,7 @@ It seems that horizontal being an option (<code>%horizontal</code>) rather than 
 <div class="ulist">
 <ul>
 <li>
-<p><code>----</code> (listing/source) or <code>&#8230;&#8203;.</code> (literal) block delimiter</p>
+<p><code>----</code> (listing/source) or <code>....</code> (literal) block delimiter</p>
 </li>
 <li>
 <p>Listing: <code>listing</code> style or no style if <code>source-language</code> document attribute is not set</p>
@@ -4008,7 +4008,7 @@ It seems that horizontal being an option (<code>%horizontal</code>) rather than 
 <div class="ulist">
 <ul>
 <li>
-<p>The thematic break macro isn&#8217;t specified using the formal block macro form, instead, it&#8217;s specified as three single quotation marks (<code>&#8217;&#8217;&#8217;</code>).</p>
+<p>The thematic break macro isn&#8217;t specified using the formal block macro form, instead, it&#8217;s specified as three single quotation marks (<code>'''</code>).</p>
 </li>
 <li>
 <p>The macro must be offset from the preceding and following blocks by at least one empty line.</p>
@@ -5025,7 +5025,7 @@ If a converter doesn&#8217;t replace the character or character pattern with sma
 <div class="ulist">
 <ul>
 <li>
-<p>Double-quoted (Smart double-quoted) e.g., "word" which may be replaced with smart double quote marks &ldquo;word&rdquo;</p>
+<p>Double-quoted (Smart double-quoted) e.g., "`word`" which may be replaced with smart double quote marks &ldquo;word&rdquo;</p>
 </li>
 <li>
 <p>Single-quoted (Smart single-quoted)</p>
@@ -5109,7 +5109,7 @@ If a converter doesn&#8217;t replace the character or character pattern with sma
 <p><a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/25">#25</a> How to escape unconstrained marked text?
 Currently, AsciiDoc requires that the opening unconstrained mark be double escaped (<code>\\**stars**</code>).
 However, this is both context-dependent and ambiguous (as escaping a backslash should make a literal backslash).
-Therefore, we may have to change this rule to be (<code>**stars**</code>).
+Therefore, we may have to change this rule to be (<code>\*\*stars**</code>).
 This will introduce a slight incompatibility, but one that is reasonable to explain and to justify with the goal of making backslash escaping stable.</p>
 </li>
 <li>

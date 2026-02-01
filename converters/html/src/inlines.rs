@@ -186,8 +186,10 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             let content = &r.content;
             let text = if options.inlines_verbatim {
                 substitution_text(content, subs, options)
-            } else {
+            } else if r.subs.is_empty() {
                 content.clone()
+            } else {
+                substitution_text(content, &r.subs, options)
             };
             write!(w, "{text}")?;
         }

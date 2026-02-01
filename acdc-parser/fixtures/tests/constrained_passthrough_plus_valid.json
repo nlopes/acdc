@@ -9,11 +9,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "word passthrough word",
+          "value": "word ",
           "location": [
             {
               "line": 1,
               "col": 1
+            },
+            {
+              "line": 1,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "passthrough",
+          "location": [
+            {
+              "line": 1,
+              "col": 6
+            },
+            {
+              "line": 1,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " word",
+          "location": [
+            {
+              "line": 1,
+              "col": 19
             },
             {
               "line": 1,
@@ -40,7 +70,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "word passthrough",
+          "value": "word ",
           "location": [
             {
               "line": 3,
@@ -48,7 +78,22 @@
             },
             {
               "line": 3,
-              "col": 56
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "passthrough",
+          "location": [
+            {
+              "line": 3,
+              "col": 6
+            },
+            {
+              "line": 3,
+              "col": 19
             }
           ]
         }
@@ -69,13 +114,28 @@
       "type": "block",
       "inlines": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
-          "value": "passthrough word",
+          "value": "passthrough",
           "location": [
             {
               "line": 5,
-              "col": 53
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " word",
+          "location": [
+            {
+              "line": 5,
+              "col": 14
             },
             {
               "line": 5,
@@ -100,17 +160,17 @@
       "type": "block",
       "inlines": [
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": "passthrough",
           "location": [
             {
               "line": 7,
-              "col": 73
+              "col": 1
             },
             {
               "line": 7,
-              "col": 86
+              "col": 14
             }
           ]
         }
@@ -133,11 +193,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": "(passthrough) and [passthrough]",
+          "value": "(",
           "location": [
             {
               "line": 9,
               "col": 1
+            },
+            {
+              "line": 9,
+              "col": 2
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "passthrough",
+          "location": [
+            {
+              "line": 9,
+              "col": 2
+            },
+            {
+              "line": 9,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ") and [",
+          "location": [
+            {
+              "line": 9,
+              "col": 15
+            },
+            {
+              "line": 9,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "passthrough",
+          "location": [
+            {
+              "line": 9,
+              "col": 22
+            },
+            {
+              "line": 9,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "]",
+          "location": [
+            {
+              "line": 9,
+              "col": 35
             },
             {
               "line": 9,
