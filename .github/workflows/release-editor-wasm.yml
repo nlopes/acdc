@@ -1,0 +1,63 @@
+name: Release editor WASM
+
+on:
+  push:
+    tags:
+      - 'acdc-editor-wasm-v*'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Setup Cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+    - name: Build WASM package
+      run: wasm-pack build acdc-editor-wasm --target web --release
+
+    - name: Extract version
+      id: version
+      env:
+        REF_TYPE: ${{ github.ref_type }}
+      run: |
+        if [[ "$REF_TYPE" == "tag" ]]; then
+          VERSION="${GITHUB_REF_NAME#acdc-editor-wasm-v}"
+        else
+          VERSION="$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "acdc-editor-wasm") | .version')"
+        fi
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+    - name: Create tarball
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: tar -czf "acdc-editor-wasm-${VERSION}.tar.gz" -C acdc-editor-wasm/pkg .
+
+    - name: Upload artifact (manual dispatch)
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v4
+      with:
+        name: acdc-editor-wasm-${{ steps.version.outputs.version }}
+        path: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
+
+    - name: Create GitHub Release
+      if: github.ref_type == 'tag'
+      uses: softprops/action-gh-release@v2
+      with:
+        files: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
+        generate_release_notes: true
