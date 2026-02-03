@@ -40,6 +40,7 @@ acdc/
 │   │   ├── preprocessor/    # Include and conditional handling
 │   │   └── proptests/       # Property-based testing
 │   └── fixtures/            # Test fixtures
+├── acdc-editor-wasm/        # WASM live editor (syntax highlight + preview)
 └── converters/              # Output converters
     ├── core/               # Shared traits (Processable, Visitor)
     ├── dev/                # Development utilities (unpublished)
@@ -51,6 +52,7 @@ acdc/
 == Tooling
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)
+* link:./acdc-editor-wasm[acdc-editor-wasm] - WASM live editor with syntax highlighting and preview
 * link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation (early/experimental)
 * link:./acdc-parser[acdc-parser] - AsciiDoc parser library
 * link:./converters[converters] - collection of AsciiDoc converters

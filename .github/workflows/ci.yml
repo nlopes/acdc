@@ -45,6 +45,12 @@ jobs:
     - name: Run clippy
       run: cargo clippy --all-targets --all-features --tests -- --deny clippy::pedantic
 
+    - name: Install wasm32 target
+      run: rustup target add wasm32-unknown-unknown
+
+    - name: Run clippy (WASM editor)
+      run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
+
     - name: Check parser fixtures
       run: |
         echo "::group::Checking parser fixtures"

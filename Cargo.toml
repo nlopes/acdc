@@ -1,6 +1,17 @@
 [workspace]
 members = [
   "acdc-cli",
+  "acdc-editor-wasm",
+  "acdc-lsp",
+  "acdc-parser",
+  "converters/core",
+  "converters/dev",
+  "converters/html",
+  "converters/manpage",
+  "converters/terminal",
+]
+default-members = [
+  "acdc-cli",
   "acdc-lsp",
   "acdc-parser",
   "converters/core",
@@ -17,6 +28,7 @@ edition = "2024"
 [workspace.dependencies]
 acdc-converters-core = { path = "converters/core" }
 acdc-converters-dev = { path = "converters/dev" }
+acdc-converters-html = { path = "converters/html" }
 acdc-parser = { path = "acdc-parser" }
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
