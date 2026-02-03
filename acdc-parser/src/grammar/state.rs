@@ -22,6 +22,10 @@ pub(crate) struct ParserState {
     /// Set by the preprocessor when processing includes with `leveloffset=` attributes.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+    /// Warnings collected during PEG parsing for post-parse emission.
+    /// PEG backtracking can cause the same warning to fire multiple times;
+    /// storing them here with deduplication and emitting after parsing avoids duplicates.
+    pub(crate) warnings: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -112,6 +116,21 @@ impl ParserState {
             last_verbatim_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// Collect a warning for post-parse emission. Deduplicates by message.
+    pub(crate) fn add_warning(&mut self, message: String) {
+        if !self.warnings.contains(&message) {
+            self.warnings.push(message);
+        }
+    }
+
+    /// Emit all collected warnings via tracing. Call after parsing completes.
+    pub(crate) fn emit_warnings(&self) {
+        for warning in &self.warnings {
+            tracing::warn!("{warning}");
         }
     }
 
@@ -174,5 +193,52 @@ impl ParserState {
 
         // create_location handles all UTF-8 boundary enforcement
         self.create_location(adjusted_start, final_end)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_warning_deduplicates_identical_messages() {
+        let mut state = ParserState::new("test");
+        state.add_warning("duplicate warning".to_string());
+        state.add_warning("duplicate warning".to_string());
+        state.add_warning("duplicate warning".to_string());
+        assert_eq!(state.warnings.len(), 1);
+        assert_eq!(state.warnings[0], "duplicate warning");
+    }
+
+    #[test]
+    fn add_warning_preserves_distinct_messages() {
+        let mut state = ParserState::new("test");
+        state.add_warning("first".to_string());
+        state.add_warning("second".to_string());
+        state.add_warning("third".to_string());
+        assert_eq!(state.warnings.len(), 3);
+    }
+
+    #[test]
+    fn add_warning_preserves_insertion_order() {
+        let mut state = ParserState::new("test");
+        state.add_warning("beta".to_string());
+        state.add_warning("alpha".to_string());
+        state.add_warning("beta".to_string());
+        state.add_warning("gamma".to_string());
+        assert_eq!(state.warnings, vec!["beta", "alpha", "gamma"]);
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn emit_warnings_outputs_via_tracing() {
+        let mut state = ParserState::new("test");
+        state.add_warning("warning one".to_string());
+        state.add_warning("warning two".to_string());
+        state.emit_warnings();
+        assert!(logs_contain("warning one"));
+        assert!(logs_contain("warning two"));
     }
 }

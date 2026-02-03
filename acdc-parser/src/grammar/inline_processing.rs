@@ -63,7 +63,7 @@ pub(crate) fn adjust_and_log_parse_error(
 
 #[tracing::instrument(skip_all, fields(?content_start, end, offset))]
 pub(crate) fn preprocess_inline_content(
-    state: &ParserState,
+    state: &mut ParserState,
     content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
@@ -99,6 +99,13 @@ pub(crate) fn preprocess_inline_content(
     );
 
     let processed = inline_preprocessing::run(content, &state.document_attributes, &inline_state)?;
+    // Drain warnings collected during inline preprocessing and add them to the main
+    // parser state for post-parse emission. Dedup is handled by both layers:
+    // InlinePreprocessorParserState deduplicates within a single preprocessing run,
+    // and ParserState deduplicates across the entire parse.
+    for warning in inline_state.drain_warnings() {
+        state.add_warning(warning);
+    }
     Ok((location, processed))
 }
 

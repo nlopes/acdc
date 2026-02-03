@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Replacements). Passthroughs now carry their own substitution list on the `Raw` node
   (`subs: Vec<Substitution>`) instead of a boolean flag, so the converter applies exactly
   the right subs. ([#323])
+- Parser warnings (counters, table column mismatches, invalid anchors, etc.) are no longer
+  emitted multiple times due to PEG backtracking. Warnings are now collected during
+  parsing with deduplication and emitted once after parsing completes. ([#319])
 
 ### Changed
 
@@ -240,6 +243,7 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#289]: https://github.com/nlopes/acdc/issues/289
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#317]: https://github.com/nlopes/acdc/issues/317
+[#319]: https://github.com/nlopes/acdc/issues/319
 [#320]: https://github.com/nlopes/acdc/issues/320
 [#321]: https://github.com/nlopes/acdc/issues/321
 [#323]: https://github.com/nlopes/acdc/issues/323

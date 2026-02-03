@@ -307,14 +307,16 @@ fn parse_input(
     state.options = options.clone();
     state.current_file.clone_from(&file_path);
     state.leveloffset_ranges = leveloffset_ranges;
-    match grammar::document_parser::document(input, &mut state) {
+    let result = match grammar::document_parser::document(input, &mut state) {
         Ok(doc) => doc,
         Err(error) => {
             tracing::error!(?error, "error parsing document content");
             let source_location = peg_error_to_source_location(&error, file_path);
             Err(Error::Parse(Box::new(source_location), error.to_string()))
         }
-    }
+    };
+    state.emit_warnings();
+    result
 }
 
 /// Parse inline `AsciiDoc` content from a string.
@@ -347,7 +349,7 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
     let mut state = grammar::ParserState::new(input);
     state.document_attributes = options.document_attributes.clone();
     state.options = options.clone();
-    match grammar::document_parser::inlines(
+    let result = match grammar::document_parser::inlines(
         input,
         &mut state,
         0,
@@ -361,7 +363,9 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
                 error.to_string(),
             ))
         }
-    }
+    };
+    state.emit_warnings();
+    result
 }
 
 #[cfg(test)]
@@ -519,6 +523,47 @@ mod tests {
     /// - Attributes are resolved at definition time (not reference time)
     /// - If {bar} is undefined when :foo: {bar} is parsed, foo stores literal "{bar}"
     /// - If {bar} IS defined when :foo: {bar} is parsed, foo stores bar's resolved value
+    mod warning_deduplication_tests {
+        use crate::{Options, parse};
+
+        #[test]
+        #[tracing_test::traced_test]
+        fn counter_reference_emits_single_warning() {
+            // A document with the same counter referenced multiple times should
+            // produce exactly one warning after parsing (not one per PEG attempt).
+            let input = "= Title\n\n{counter:hits} then {counter:hits} again";
+            let options = Options::default();
+            let _doc = parse(input, &options).expect("should parse");
+            assert!(logs_contain("Counters"));
+            logs_assert(|lines: &[&str]| {
+                let count = lines
+                    .iter()
+                    .filter(|l| l.contains("not supported and will be removed"))
+                    .count();
+                if count == 1 {
+                    Ok(())
+                } else {
+                    Err(format!("expected exactly 1 counter warning, got {count}"))
+                }
+            });
+        }
+
+        #[test]
+        #[tracing_test::traced_test]
+        fn distinct_warnings_all_emitted() {
+            // Different warnings should each appear once.
+            let input = "= Title\n\n{counter:a} and {counter2:b}";
+            let options = Options::default();
+            let _doc = parse(input, &options).expect("should parse");
+            assert!(logs_contain(
+                "Counters ({counter:a}) are not supported and will be removed from output"
+            ));
+            assert!(logs_contain(
+                "Counters ({counter2:b}) are not supported and will be removed from output"
+            ));
+        }
+    }
+
     mod attribute_resolution_tests {
         use crate::{AttributeValue, Options, parse};
 

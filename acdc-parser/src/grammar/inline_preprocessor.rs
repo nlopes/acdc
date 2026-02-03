@@ -33,6 +33,9 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// The substring currently being parsed.
     pub(crate) input: RefCell<&'a str>,
     pub(crate) substring_start_offset: Cell<usize>,
+    /// Warnings collected during PEG parsing for post-parse emission.
+    /// Uses `RefCell` for interior mutability in PEG action blocks.
+    pub(crate) warnings: RefCell<Vec<String>>,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
@@ -53,6 +56,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(input),
             substring_start_offset: Cell::new(0),
+            warnings: RefCell::new(Vec::new()),
         }
     }
 
@@ -81,6 +85,19 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// Advance offset by a fixed byte count.
     fn advance_by(&self, n: usize) {
         self.current_offset.set(self.current_offset.get() + n);
+    }
+
+    /// Collect a warning for post-parse emission. Deduplicates by message.
+    pub(crate) fn add_warning(&self, message: String) {
+        let mut warnings = self.warnings.borrow_mut();
+        if !warnings.contains(&message) {
+            warnings.push(message);
+        }
+    }
+
+    /// Drain collected warnings (for transfer to main `ParserState`).
+    pub(crate) fn drain_warnings(&self) -> Vec<String> {
+        self.warnings.borrow_mut().drain(..).collect()
     }
 
     /// Calculate location for a matched construct.
@@ -266,11 +283,9 @@ parser!(
               (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)?
               "}"
             {
-                tracing::warn!(
-                    counter_type,
-                    name,
+                state.add_warning(format!(
                     "Counters ({{{counter_type}:{name}}}) are not supported and will be removed from output"
-                );
+                ));
 
                 // Calculate total length for position tracking
                 // We capture the full match including any optional initial value
@@ -572,7 +587,7 @@ parser!(
 );
 
 #[cfg(test)]
-#[allow(clippy::panic)] // Tests are expected to panic on assertion failures
+#[allow(clippy::panic, clippy::indexing_slicing)]
 mod tests {
     use super::*;
     use crate::DocumentAttributes;
@@ -596,6 +611,7 @@ mod tests {
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(content),
             substring_start_offset: Cell::new(0),
+            warnings: RefCell::new(Vec::new()),
         }
     }
 
@@ -1193,6 +1209,55 @@ mod tests {
         let result6 = inline_preprocessing::run(input6, &attributes, &state6)?;
         assert_eq!(result6.text, "C++ is same as C++");
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_counter_reference_collects_warning() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "Count: {counter:mycount}";
+        let state = setup_state(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        // Counter is removed from output
+        assert_eq!(result.text, "Count: ");
+        // Warning is collected, not emitted directly
+        let warnings = state.warnings.borrow();
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("counter"));
+        assert!(warnings[0].contains("mycount"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_duplicate_counter_references_produce_single_warning() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        // Same counter referenced twice — should produce one deduplicated warning
+        let input = "{counter:hits} and {counter:hits}";
+        let state = setup_state(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, " and ");
+        let warnings = state.warnings.borrow();
+        assert_eq!(
+            warnings.len(),
+            1,
+            "identical counter warnings should be deduplicated"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_distinct_counter_references_produce_separate_warnings() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "{counter:a} and {counter2:b}";
+        let state = setup_state(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, " and ");
+        let warnings = state.warnings.borrow();
+        assert_eq!(
+            warnings.len(),
+            2,
+            "different counter warnings should both be collected"
+        );
         Ok(())
     }
 }

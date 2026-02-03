@@ -350,10 +350,9 @@ fn parse_table_block_impl(
             "dsv" => ":",
             "tsv" => "\t",
             unknown_format => {
-                tracing::warn!(
-                    format = %unknown_format,
-                    "unknown table format, using default separator"
-                );
+                state.add_warning(format!(
+                    "unknown table format '{unknown_format}', using default separator"
+                ));
                 default_separator
             }
         }
@@ -584,20 +583,9 @@ fn parse_table_block_impl(
             // Check if any cell's colspan exceeds the table width
             let has_overflow = columns.iter().any(|c| c.colspan > ncols);
             if has_overflow {
-                tracing::error!(
-                    actual = logical_col_count,
-                    expected = ncols,
-                    line = row_line,
-                    "dropping cell because it exceeds specified number of columns"
-                );
+                state.add_warning(format!("dropping cell because it exceeds specified number of columns: actual={logical_col_count}, expected={ncols}, line={row_line}"));
             } else {
-                tracing::warn!(
-                    actual = logical_col_count,
-                    expected = ncols,
-                    occupied_from_rowspans,
-                    line = row_line,
-                    "table row has incorrect column count, skipping row"
-                );
+                state.add_warning(format!("table row has incorrect column count: actual={logical_col_count}, expected={ncols}, occupied_from_rowspans={occupied_from_rowspans}, line={row_line}"));
             }
             continue;
         }
@@ -1543,7 +1531,7 @@ peg::parser! {
             for line in lines {
                 // Skip errors from title parsing (e.g., empty titles like "." + newline)
                 let Ok(value) = line else {
-                    tracing::warn!(?line, "failed to parse block metadata line, skipping");
+                    state.add_warning(format!("failed to parse block metadata line, skipping: {line:?}"));
                     continue
                 };
                 match value {
@@ -3226,23 +3214,20 @@ peg::parser! {
                 let file_name = state.current_file.as_ref()
                     .and_then(|p| p.file_name())
                     .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
+                    .unwrap_or("unknown")
+                    .to_string();
                 let line = item.location.start.line;
 
                 // Check sequential order
                 if actual_number != expected_number {
-                    tracing::warn!(
-                        "{file_name}: line {line}: callout list item index: expected {expected_number}, got {actual_number}"
-                    );
+                    state.add_warning(format!("{file_name}: line {line}: callout list item index: expected {expected_number}, got {actual_number}"));
                 }
 
                 // Check if the EXPECTED callout exists in the verbatim block
                 // (This warns when sequence is broken and the expected number is missing)
                 let callout_exists = state.last_verbatim_callouts.iter().any(|c| c.number == expected_number);
                 if !callout_exists {
-                    tracing::warn!(
-                        "{file_name}: line {line}: no callout found for <{expected_number}>"
-                    );
+                    state.add_warning(format!("{file_name}: line {line}: no callout found for <{expected_number}>"));
                 }
 
                 expected_number += 1;
@@ -4884,7 +4869,7 @@ peg::parser! {
                 [attr, cite] => (attr.trim().to_string(), Some(cite.trim().to_string())),
                 [attr] => (attr.trim().to_string(), None),
                 _ => {
-                    tracing::warn!(?attribution_line, "attribution line has unexpected format, using full line as attribution");
+                    state.add_warning(format!("attribution line has unexpected format, using full line as attribution: {attribution_line:?}"));
                     (attribution_line.trim().to_string(), None)
                 }
             };
@@ -5121,7 +5106,7 @@ peg::parser! {
             end:position!()
             {?
                 if id.chars().any(char::is_whitespace) {
-                    tracing::warn!(anchor_id = %id, location = ?state.create_location(start, end), "anchor id contains whitespace which is not allowed, treating as literal text");
+                    state.add_warning(format!("anchor id '{id}' contains whitespace which is not allowed, treating as literal text"));
                 }
                 // Always fail so the lookahead doesn't match - we just want the side
                 // effect
@@ -5287,12 +5272,7 @@ peg::parser! {
                 if cfg!(feature = "pre-spec-subs") {
                     for (k, v, _pos) in attributes.into_iter().flatten() {
                         if k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
-                            tracing::warn!(
-                                target: "acdc_parser::deprecation",
-                                "The subs= attribute is experimental and may change when the AsciiDoc \
-                                 specification is finalized. \
-                                 See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
-                            );
+                            state.add_warning("The subs= attribute is experimental and may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string());
                             metadata.substitutions = Some(parse_subs_attribute(&v));
                         }
                     }
@@ -5569,6 +5549,9 @@ peg::parser! {
                 tracing::error!(?e, "could not preprocess url path");
                 "could not preprocess url path"
             })?;
+            for warning in inline_state.drain_warnings() {
+                state.add_warning(warning);
+            }
             // Strip backslash escapes before URL parsing to prevent the url crate
             // from normalizing backslashes to forward slashes
             Ok(strip_url_backslash_escapes(&processed.text))
@@ -5588,6 +5571,9 @@ peg::parser! {
                 tracing::error!(?e, "could not preprocess path");
                 "could not preprocess path"
             })?;
+            for warning in inline_state.drain_warnings() {
+                state.add_warning(warning);
+            }
             Ok(processed.text)
         }
 
