@@ -70,7 +70,8 @@ jobs:
 
     - name: Create GitHub Release
       if: github.ref_type == 'tag'
-      uses: softprops/action-gh-release@v2
-      with:
-        files: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
-        body: ${{ steps.notes.outputs.body }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.version.outputs.version }}
+        RELEASE_NOTES: ${{ steps.notes.outputs.body }}
+      run: gh release create "$GITHUB_REF_NAME" "acdc-editor-wasm-${VERSION}.tar.gz" --notes-file - <<< "$RELEASE_NOTES"
