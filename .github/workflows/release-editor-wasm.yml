@@ -13,9 +13,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-
     steps:
     - uses: actions/checkout@v6
 
@@ -44,7 +41,7 @@ jobs:
           VERSION="$(cargo metadata --no-deps --format-version 1 \
             | jq -r '.packages[] | select(.name == "acdc-editor-wasm") | .version')"
         fi
-        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "version=v${VERSION}" >> "$GITHUB_OUTPUT"
 
     - name: Create tarball
       env:
@@ -60,7 +57,7 @@ jobs:
 
     - name: Create GitHub Release
       if: github.ref_type == 'tag'
-      env:
-        GH_TOKEN: ${{ github.token }}
-        VERSION: ${{ steps.version.outputs.version }}
-      run: gh release create "$GITHUB_REF_NAME" "acdc-editor-wasm-${VERSION}.tar.gz" --generate-notes
+      uses: softprops/action-gh-release@v2
+      with:
+        files: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
+        generate_release_notes: true
