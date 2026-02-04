@@ -13,6 +13,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
     - uses: actions/checkout@v6
 
@@ -57,7 +60,7 @@ jobs:
 
     - name: Create GitHub Release
       if: github.ref_type == 'tag'
-      uses: softprops/action-gh-release@v2
-      with:
-        files: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
-        generate_release_notes: true
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.version.outputs.version }}
+      run: gh release create "$GITHUB_REF_NAME" "acdc-editor-wasm-${VERSION}.tar.gz" --generate-notes
