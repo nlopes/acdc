@@ -55,9 +55,22 @@ jobs:
         name: acdc-editor-wasm-${{ steps.version.outputs.version }}
         path: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
 
+    - name: Extract changelog notes
+      id: notes
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        SEMVER="${VERSION#v}"
+        NOTES="$(sed -n "/^## \[${SEMVER}\]/,/^## \[/{/^## \[${SEMVER}\]/d;/^## \[/d;p;}" acdc-editor-wasm/CHANGELOG.md)"
+        {
+          echo "body<<CHANGELOG_EOF"
+          echo "$NOTES"
+          echo "CHANGELOG_EOF"
+        } >> "$GITHUB_OUTPUT"
+
     - name: Create GitHub Release
       if: github.ref_type == 'tag'
       uses: softprops/action-gh-release@v2
       with:
         files: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
-        generate_release_notes: true
+        body: ${{ steps.notes.outputs.body }}
