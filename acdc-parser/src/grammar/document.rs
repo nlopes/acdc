@@ -1929,9 +1929,12 @@ peg::parser! {
             check_delimiters(open_delim, close_delim, "listing", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
             let mut metadata = block_metadata.metadata.clone();
 
-            // If we captured a language, add it as a positional attribute
+            // If we captured a language, add it as a positional attribute and set style
+            // to "source". This matches the behavior of [source,lang] blocks so that
+            // detect_language() works.
             if let Some(language) = lang {
                 metadata.positional_attributes.insert(0, language.to_string());
+                metadata.style = Some("source".to_string());
             }
 
             metadata.move_positional_attributes_to_attributes();

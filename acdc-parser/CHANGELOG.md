@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Markdown-style listing blocks with a language (`` ```ruby ``) now set `style: "source"`
+  in metadata, matching the behavior of `[source,ruby]` blocks. This allows converters'
+  `detect_language()` to work consistently regardless of syntax used.
+
 - Inline passthroughs `+...+` and `++...++` no longer convert `...` to an ellipsis
   entity (`&#8230;&#8203;`). The root cause was that non-Quotes passthroughs were emitted
   as `PlainText` nodes, which got merged with adjacent text and lost their passthrough
