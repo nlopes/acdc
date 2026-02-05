@@ -1,6 +1,6 @@
 [package]
 name = "acdc-editor-wasm"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 description = "WASM-based AsciiDoc live editor with syntax highlighting and preview"
 repository = "https://github.com/nlopes/acdc"
@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 acdc-parser.workspace = true
 acdc-converters-core.workspace = true
-acdc-converters-html.workspace = true
+acdc-converters-html = { workspace = true, features = ["highlighting"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
@@ -34,6 +34,12 @@ console_error_panic_hook = "0.1"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
+
+[package.metadata.wasm-pack.profile.release.wasm-bindgen]
+debug-js-glue = false
+demangle-name-section = true
+dwarf-debug-info = false
+omit-default-module-path = false
 
 [lints]
 workspace = true

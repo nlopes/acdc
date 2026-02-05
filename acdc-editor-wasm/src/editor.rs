@@ -10,7 +10,7 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, Window};
 
-const DEBOUNCE_MS: i32 = 250;
+const DEBOUNCE_MS: i32 = 25;
 
 const DEFAULT_CONTENT: &str = r#"= My document
 :date: 2025-01-15T10:00:00+00:00
@@ -26,7 +26,7 @@ The preview uses the _exact same_ parser and converter as the deployed site.
 * Unordered list item
 * Another item
 
-=== Code blocks
+=== Code blocks footnote:code-blocks[I love code blocks]
 
 [source,rust]
 ----
@@ -272,7 +272,7 @@ fn attach_issue_listener(state: &Rc<EditorState>, doc: &Document) -> Result<(), 
         let encoded_body = js_sys::encode_uri_component(&body);
 
         let url = format!(
-            "https://github.com/nlopes/-/issues/new?title={}&body={}&labels=editor",
+            "https://github.com/nlopes/acdc/issues/new?title={}&body={}&labels=editor",
             String::from(title),
             String::from(encoded_body),
         );
