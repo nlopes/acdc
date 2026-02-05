@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 
 use acdc_converters_core::{Converter, Options};
 use acdc_converters_html::{Processor, RenderOptions};
+use acdc_parser::{AttributeValue, DocumentAttributes};
 
 /// Result of a single parse operation: highlighted source + rendered preview.
 pub struct ParseResult {
@@ -34,7 +35,14 @@ pub fn init() -> Result<(), JsValue> {
 ///
 /// Returns an error string if parsing fails (the caller can use cached output).
 pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
-    let options = acdc_parser::Options::default();
+    let mut document_attributes = DocumentAttributes::default();
+    document_attributes.insert(
+        String::from("source-highlighter"),
+        AttributeValue::Bool(true),
+    );
+    let options = acdc_parser::Options::builder()
+        .with_attributes(document_attributes)
+        .build();
     let document = acdc_parser::parse(input, &options).map_err(|e| format!("{e}"))?;
 
     let highlight_html = ast_highlight::highlight_from_ast(input, &document);

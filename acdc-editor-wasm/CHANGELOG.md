@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-05
+
+### Fixed
+
+- Source code blocks in the preview now render with syntax highlighting. The
+  `source-highlighter` attribute is now set automatically, enabling the
+  highlighting feature that was compiled in v0.2.0 but not activated.
+
 ## [0.2.0] - 2026-02-05
 
 ### Added
@@ -35,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions release workflow (`release-editor-wasm.yml`) for building
   with wasm-pack and publishing as GitHub Release assets
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.1...HEAD
+[0.2.1]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.0...acdc-editor-wasm-v0.2.1
 [0.2.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.1.0...acdc-editor-wasm-v0.2.0
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-editor-wasm-v0.1.0
