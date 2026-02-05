@@ -391,7 +391,10 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             writeln!(w, "<br>")?;
         }
         InlineNode::InlineAnchor(anchor) => {
-            write!(w, "<a id=\"{}\"></a>", anchor.id)?;
+            // Skip inline anchors in TOC mode (no nested anchors allowed)
+            if !options.toc_mode {
+                write!(w, "<a id=\"{}\"></a>", anchor.id)?;
+            }
         }
         // `InlineNode` is `#[non_exhaustive]`, so we need a catch-all for future variants
         _ => {}
@@ -430,7 +433,8 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 }
             };
 
-            if options.inlines_basic {
+            if options.inlines_basic || options.toc_mode {
+                // In basic or TOC mode, render as text only (no link wrapper)
                 write!(w, "{display_text}")?;
             } else if al.bracketed {
                 // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
@@ -453,7 +457,8 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                         .unwrap_or(&target_str)
                         .to_string()
                 });
-            if options.inlines_basic {
+            if options.inlines_basic || options.toc_mode {
+                // In basic or TOC mode, render as text only (no link wrapper)
                 write!(w, "{text}")?;
             } else {
                 write!(w, "<a href=\"{}\">{text}</a>", l.target)?;
@@ -509,56 +514,90 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Url(u) => {
-            write!(w, "<a href=\"{}\">", u.target)?;
-            if u.text.is_empty() {
-                // For mailto: URLs, display just the email address without the mailto: prefix
-                let target_str = u.target.to_string();
-                let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
-                write!(w, "{display}")?;
-            } else {
-                for inline in &u.text {
-                    visit_inline_node(inline, visitor, processor, options, subs)?;
+            if options.toc_mode {
+                // In TOC mode, render as text only (no link wrapper)
+                if u.text.is_empty() {
+                    let target_str = u.target.to_string();
+                    let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                    write!(w, "{display}")?;
+                } else {
+                    for inline in &u.text {
+                        visit_inline_node(inline, visitor, processor, options, subs)?;
+                    }
                 }
+            } else {
+                write!(w, "<a href=\"{}\">", u.target)?;
+                if u.text.is_empty() {
+                    // For mailto: URLs, display just the email address without the mailto: prefix
+                    let target_str = u.target.to_string();
+                    let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                    write!(w, "{display}")?;
+                } else {
+                    for inline in &u.text {
+                        visit_inline_node(inline, visitor, processor, options, subs)?;
+                    }
+                }
+                let w = visitor.writer_mut();
+                write!(w, "</a>")?;
             }
-            let w = visitor.writer_mut();
-            write!(w, "</a>")?;
         }
         InlineMacro::Mailto(m) => {
-            // Check for role attribute to apply as CSS class
-            let class_attr = m
-                .attributes
-                .get("role")
-                .and_then(|v| match v {
-                    acdc_parser::AttributeValue::String(s) => {
-                        let role = s.trim_matches('"');
-                        if role.is_empty() {
-                            None
-                        } else {
-                            Some(format!(" class=\"{role}\""))
-                        }
+            if options.toc_mode {
+                // In TOC mode, render as text only (no link wrapper)
+                if m.text.is_empty() {
+                    let target_str = m.target.to_string();
+                    let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                    write!(w, "{display}")?;
+                } else {
+                    for inline in &m.text {
+                        visit_inline_node(inline, visitor, processor, options, subs)?;
                     }
-                    acdc_parser::AttributeValue::Bool(_)
-                    | acdc_parser::AttributeValue::None
-                    | _ => None,
-                })
-                .unwrap_or_default();
-            write!(w, "<a href=\"{}\"{class_attr}>", m.target)?;
-            if m.text.is_empty() {
-                // For mailto: URLs, display just the email address without the mailto: prefix
-                let target_str = m.target.to_string();
-                let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
-                write!(w, "{display}")?;
-            } else {
-                for inline in &m.text {
-                    visit_inline_node(inline, visitor, processor, options, subs)?;
                 }
+            } else {
+                // Check for role attribute to apply as CSS class
+                let class_attr = m
+                    .attributes
+                    .get("role")
+                    .and_then(|v| match v {
+                        acdc_parser::AttributeValue::String(s) => {
+                            let role = s.trim_matches('"');
+                            if role.is_empty() {
+                                None
+                            } else {
+                                Some(format!(" class=\"{role}\""))
+                            }
+                        }
+                        acdc_parser::AttributeValue::Bool(_)
+                        | acdc_parser::AttributeValue::None
+                        | _ => None,
+                    })
+                    .unwrap_or_default();
+                write!(w, "<a href=\"{}\"{class_attr}>", m.target)?;
+                if m.text.is_empty() {
+                    // For mailto: URLs, display just the email address without the mailto: prefix
+                    let target_str = m.target.to_string();
+                    let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                    write!(w, "{display}")?;
+                } else {
+                    for inline in &m.text {
+                        visit_inline_node(inline, visitor, processor, options, subs)?;
+                    }
+                }
+                let w = visitor.writer_mut();
+                write!(w, "</a>")?;
             }
-            let w = visitor.writer_mut();
-            write!(w, "</a>")?;
         }
         InlineMacro::Footnote(f) => {
             if options.inlines_basic {
                 write!(w, "[{}]", f.number)?;
+            } else if options.toc_mode {
+                // In TOC mode, render footnote without anchor link (matches asciidoctor)
+                // Keep the id attribute on <sup> if present, but no nested <a> tag
+                write!(w, "<sup class=\"footnote\"")?;
+                if let Some(id) = &f.id {
+                    write!(w, " id=\"_footnote_{id}\"")?;
+                }
+                write!(w, ">[{}]</sup>", f.number)?;
             } else {
                 let number = f.number;
                 write!(w, "<sup class=\"footnote\"")?;
@@ -596,12 +635,14 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                         },
                     );
 
-                if options.inlines_basic {
+                if options.inlines_basic || options.toc_mode {
+                    // In basic or TOC mode, render as text only (no link wrapper)
                     write!(w, "{display_text}")?;
                 } else {
                     write!(w, "<a href=\"#{}\">{display_text}</a>", xref.target)?;
                 }
-            } else if options.inlines_basic {
+            } else if options.inlines_basic || options.toc_mode {
+                // In basic or TOC mode, render text only (no link wrapper)
                 for inline in &xref.text {
                     visit_inline_node(inline, visitor, processor, options, subs)?;
                 }
@@ -659,18 +700,26 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::IndexTerm(it) => {
-            // Generate anchor and collect entry for index catalog
-            let anchor_id = processor.add_index_entry(it.kind.clone());
+            if options.toc_mode {
+                // In TOC mode, skip anchor but still output visible term text
+                if it.is_visible() {
+                    let text = substitution_text(it.term(), subs, options);
+                    write!(w, "{text}")?;
+                }
+            } else {
+                // Generate anchor and collect entry for index catalog
+                let anchor_id = processor.add_index_entry(it.kind.clone());
 
-            // Output anchor for linking from index catalog
-            write!(w, "<a id=\"{anchor_id}\"></a>")?;
+                // Output anchor for linking from index catalog
+                write!(w, "<a id=\"{anchor_id}\"></a>")?;
 
-            // Flow terms (visible): also output the term text
-            if it.is_visible() {
-                let text = substitution_text(it.term(), subs, options);
-                write!(w, "{text}")?;
+                // Flow terms (visible): also output the term text
+                if it.is_visible() {
+                    let text = substitution_text(it.term(), subs, options);
+                    write!(w, "{text}")?;
+                }
+                // Concealed terms: anchor only, no visible text
             }
-            // Concealed terms: anchor only, no visible text
         }
         _ => {
             return Err(io::Error::new(

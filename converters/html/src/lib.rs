@@ -212,6 +212,7 @@ impl Processor {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct RenderOptions {
     pub last_updated: Option<chrono::DateTime<chrono::Utc>>,
     pub inlines_basic: bool,
@@ -220,6 +221,11 @@ pub struct RenderOptions {
     /// Follows Asciidoctor's embedded mode behavior - excludes header/footer frame
     /// but keeps body content structure including wrapper divs.
     pub embedded: bool,
+    /// When true, render inline elements for TOC context (no nested links).
+    /// TOC entries are already wrapped in `<a href="#section">`, so nested `<a>` tags
+    /// would be invalid HTML. This mode renders link-producing macros as text only
+    /// and skips decorative elements like images and icons.
+    pub toc_mode: bool,
 }
 
 pub(crate) const COPYCSS_DEFAULT: &str = "";

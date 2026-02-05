@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- TOC entries no longer produce invalid nested `<a>` tags. Inline elements that generate
+  anchors (footnotes, links, cross-references, autolinks, mailto, inline anchors, index
+  terms) are rendered as plain text within TOC entries. Formatting like bold and italic is
+  preserved.
 - Inline passthroughs `+...+` and `++...++` now preserve literal content instead of
   applying the enclosing block's typography replacements (e.g., `...` → ellipsis). The
   converter now uses the substitution list carried on each `Raw` node directly. ([#323])

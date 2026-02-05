@@ -1,0 +1,14 @@
+= TOC with Inline Elements
+:toc:
+
+== Section with footnote:fn1[A footnote]
+
+Content.
+
+== Section with https://example.com[link]
+
+Content.
+
+== Section with *bold* and _italic_
+
+Content.

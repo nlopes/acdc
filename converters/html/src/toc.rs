@@ -1,7 +1,9 @@
+use std::io::Write;
+
 use acdc_converters_core::{toc::Config as TocConfig, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, TableOfContents, TocEntry};
 
-use crate::{Error, Processor, section::DEFAULT_SECTION_LEVEL};
+use crate::{Error, HtmlVisitor, Processor, section::DEFAULT_SECTION_LEVEL};
 
 /// Compute section numbers for TOC entries.
 /// Returns a vector of optional section number strings for each entry.
@@ -67,14 +69,16 @@ fn compute_toc_section_numbers(
     numbers
 }
 
-fn render_entries<V: WritableVisitor<Error = Error>>(
+fn render_entries<W: Write>(
     entries: &[TocEntry],
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<W>,
     max_level: u8,
     current_level: u8,
     section_numbers: &[Option<String>],
     base_index: usize,
 ) -> Result<(), Error> {
+    use acdc_converters_core::visitor::Visitor;
+
     if current_level > max_level {
         return Ok(());
     }
@@ -90,23 +94,28 @@ fn render_entries<V: WritableVisitor<Error = Error>>(
         return Ok(());
     }
 
-    let mut w = visitor.writer_mut();
-    writeln!(w, "<ul class=\"sectlevel{current_level}\">")?;
+    writeln!(
+        visitor.writer_mut(),
+        "<ul class=\"sectlevel{current_level}\">"
+    )?;
 
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
-        writeln!(w, "<li>")?;
-        write!(w, "<a href=\"#{}\">", entry.id)?;
+        writeln!(visitor.writer_mut(), "<li>")?;
+        write!(visitor.writer_mut(), "<a href=\"#{}\">", entry.id)?;
 
         // Include section number if available
         let global_index = base_index + entry_index;
         if let Some(Some(number)) = section_numbers.get(global_index) {
-            write!(w, "{number}")?;
+            write!(visitor.writer_mut(), "{number}")?;
         }
 
-        let _ = w;
+        // Enable TOC mode to render inline nodes without nested links
+        let was_toc_mode = visitor.render_options.toc_mode;
+        visitor.render_options.toc_mode = true;
         visitor.visit_inline_nodes(&entry.title)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</a>")?;
+        visitor.render_options.toc_mode = was_toc_mode;
+
+        writeln!(visitor.writer_mut(), "</a>")?;
         // Find children: entries that come after this one and have level = current_level + 1
         // but before the next entry at current_level or lower
         let start_search = entry_index + 1;
@@ -133,7 +142,6 @@ fn render_entries<V: WritableVisitor<Error = Error>>(
 
             if !children.is_empty() && current_level < max_level {
                 // Create a slice containing potential children and their descendants
-                let _ = w;
                 render_entries(
                     direct_children,
                     visitor,
@@ -142,19 +150,18 @@ fn render_entries<V: WritableVisitor<Error = Error>>(
                     section_numbers,
                     base_index + start_search,
                 )?;
-                w = visitor.writer_mut();
             }
         }
-        writeln!(w, "</li>")?;
+        writeln!(visitor.writer_mut(), "</li>")?;
     }
 
-    writeln!(w, "</ul>")?;
+    writeln!(visitor.writer_mut(), "</ul>")?;
     Ok(())
 }
 
-pub(crate) fn render<V: WritableVisitor<Error = Error>>(
+pub(crate) fn render<W: Write>(
     toc_macro: Option<&TableOfContents>,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<W>,
     placement: &str,
     processor: &Processor,
 ) -> Result<(), Error> {
@@ -190,12 +197,18 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
         let section_numbers =
             compute_toc_section_numbers(&processor.toc_entries, sectnums_enabled, sectnumlevels);
 
-        let w = visitor.writer_mut();
-        writeln!(w, "<div id=\"toc\" class=\"{}\">", config.toc_class())?;
+        writeln!(
+            visitor.writer_mut(),
+            "<div id=\"toc\" class=\"{}\">",
+            config.toc_class()
+        )?;
         if let Some(title) = config.title() {
-            writeln!(w, "<div id=\"toctitle\">{title}</div>")?;
+            writeln!(visitor.writer_mut(), "<div id=\"toctitle\">{title}</div>")?;
         } else {
-            writeln!(w, "<div id=\"toctitle\">Table of Contents</div>")?;
+            writeln!(
+                visitor.writer_mut(),
+                "<div id=\"toctitle\">Table of Contents</div>"
+            )?;
         }
         render_entries(
             &processor.toc_entries,
@@ -205,8 +218,7 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
             &section_numbers,
             0,
         )?;
-        let w = visitor.writer_mut();
-        writeln!(w, "</div>")?;
+        writeln!(visitor.writer_mut(), "</div>")?;
     }
     Ok(())
 }
