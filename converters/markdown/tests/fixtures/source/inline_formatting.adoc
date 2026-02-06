@@ -1,0 +1,12 @@
+= Inline Formatting Test
+
+This paragraph contains *bold text*, _italic text_, `monospace code`, and #highlighted text#.
+
+You can also use **bold**, __italic__, and ``monospace`` with double markers.
+
+Mix and match: *bold with _italic inside_* and `code with *bold*`.
+
+Subscript: H~2~O and superscript: E=mc^2^.
+
+Line breaks: +
+This is after a line break.

@@ -1,0 +1,29 @@
+= CommonMark Test (No Tables)
+
+This document tests CommonMark output where tables are not supported.
+
+== Table Test
+
+Tables are not supported in CommonMark:
+
+|===
+|Header 1 |Header 2
+
+|Cell A
+|Cell B
+|===
+
+The table above should be skipped with a warning.
+
+== Other Features
+
+Regular features work fine:
+
+* Lists
+* *Bold* and _italic_
+* `Code`
+
+[source,python]
+----
+print("Hello, World!")
+----
