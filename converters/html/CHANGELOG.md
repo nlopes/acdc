@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bare URL `class="bare"`** - Autolinks (bare URLs without display text) now render with
+  `class="bare"` on the `<a>` tag, matching asciidoctor.
+- **URL `role` attribute** - URL macros (`https://...[]`) now support the `role` attribute,
+  rendered as a CSS class on the `<a>` tag.
+- **Link `target` attribute** - `window=` and `target=` attributes on URL, link, and mailto
+  macros now render as `target="..."` on the `<a>` tag. `_blank` automatically adds
+  `rel="noopener"` for security, matching asciidoctor behavior.
+
 - **Trademark replacement** - `(TM)` is now converted to `&#8482;` (™) in normal text.
   Use `\(TM)` to escape and keep the literal text.
 

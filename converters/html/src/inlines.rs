@@ -65,6 +65,33 @@ pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
 }
 
+/// Extract `target` and `rel` attributes from `window` or `target` attribute values.
+///
+/// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
+/// - `window=_blank` / `target=_blank` → `target="_blank" rel="noopener"`
+/// - `window=<other>` / `target=<other>` → `target="<other>"`
+fn window_attrs(attributes: &acdc_parser::ElementAttributes) -> String {
+    let get_str = |key: &str| {
+        attributes.get(key).and_then(|v| match v {
+            acdc_parser::AttributeValue::String(s) => {
+                let s = s.trim_matches('"');
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s.to_string())
+                }
+            }
+            acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => None,
+        })
+    };
+    let window = get_str("window").or_else(|| get_str("target"));
+    match window {
+        Some(w) if w == "_blank" => " target=\"_blank\" rel=\"noopener\"".to_string(),
+        Some(w) => format!(" target=\"{w}\""),
+        None => String::new(),
+    }
+}
+
 /// Helper to write an HTML opening tag with optional id and role attributes.
 ///
 /// Handles the common pattern of:
@@ -451,7 +478,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             } else {
                 write!(
                     w,
-                    "<a href=\"{}\">{display_text}</a>",
+                    "<a href=\"{}\" class=\"bare\">{display_text}</a>",
                     escape_href(&href.to_string())
                 )?;
             }
@@ -474,9 +501,10 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 // In basic or TOC mode, render as text only (no link wrapper)
                 write!(w, "{text}")?;
             } else {
+                let target_attr = window_attrs(&l.attributes);
                 write!(
                     w,
-                    "<a href=\"{}\">{text}</a>",
+                    "<a href=\"{}\"{target_attr}>{text}</a>",
                     escape_href(&l.target.to_string())
                 )?;
             }
@@ -547,7 +575,32 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     }
                 }
             } else {
-                write!(w, "<a href=\"{}\">", escape_href(&u.target.to_string()))?;
+                // Build class attribute: "bare" when no display text, plus any role
+                let role = u.attributes.get("role").and_then(|v| match v {
+                    acdc_parser::AttributeValue::String(s) => {
+                        let role = s.trim_matches('"');
+                        if role.is_empty() {
+                            None
+                        } else {
+                            Some(role.to_string())
+                        }
+                    }
+                    acdc_parser::AttributeValue::Bool(_)
+                    | acdc_parser::AttributeValue::None
+                    | _ => None,
+                });
+                let class_attr = match (u.text.is_empty(), role) {
+                    (true, Some(role)) => format!(" class=\"bare {role}\""),
+                    (true, None) => " class=\"bare\"".to_string(),
+                    (false, Some(role)) => format!(" class=\"{role}\""),
+                    (false, None) => String::new(),
+                };
+                let target_attr = window_attrs(&u.attributes);
+                write!(
+                    w,
+                    "<a href=\"{}\"{class_attr}{target_attr}>",
+                    escape_href(&u.target.to_string())
+                )?;
                 if u.text.is_empty() {
                     // For mailto: URLs, display just the email address without the mailto: prefix
                     let target_str = u.target.to_string();
@@ -593,9 +646,10 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                         | _ => None,
                     })
                     .unwrap_or_default();
+                let target_attr = window_attrs(&m.attributes);
                 write!(
                     w,
-                    "<a href=\"{}\"{class_attr}>",
+                    "<a href=\"{}\"{class_attr}{target_attr}>",
                     escape_href(&m.target.to_string())
                 )?;
                 if m.text.is_empty() {
