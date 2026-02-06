@@ -135,6 +135,9 @@ pub struct HtmlVisitor<W: Write> {
     /// Current effective substitutions for inline rendering.
     /// Set per-block in `visit_delimited_block`, defaults to normal substitutions.
     pub(crate) current_subs: Vec<Substitution>,
+    /// Current section style (e.g., "bibliography", "glossary").
+    /// Set when entering a section, used by child blocks for style inheritance.
+    pub(crate) section_style: Option<String>,
 }
 
 impl<W: Write> HtmlVisitor<W> {
@@ -144,6 +147,7 @@ impl<W: Write> HtmlVisitor<W> {
             processor,
             render_options,
             current_subs: NORMAL.to_vec(),
+            section_style: None,
         }
     }
 
@@ -187,6 +191,7 @@ impl<W: Write> HtmlVisitor<W> {
                     ..self.render_options.clone()
                 },
                 current_subs: self.current_subs.clone(),
+                section_style: None,
             };
             let processor = temp_visitor.processor.clone();
             let options = temp_visitor.render_options.clone();
@@ -543,7 +548,11 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
         let processor = self.processor.clone();
-        crate::section::visit_section(section, self, &processor)
+        let previous_style = self.section_style.clone();
+        self.section_style.clone_from(&section.metadata.style);
+        let result = crate::section::visit_section(section, self, &processor);
+        self.section_style = previous_style;
+        result
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
@@ -598,7 +607,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
-        crate::list::visit_unordered_list(list, self)
+        let section_style = self.section_style.clone();
+        crate::list::visit_unordered_list(list, self, section_style.as_deref())
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {

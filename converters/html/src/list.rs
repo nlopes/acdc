@@ -27,8 +27,10 @@ fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
 pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     list: &UnorderedList,
     visitor: &mut V,
+    section_style: Option<&str>,
 ) -> Result<(), Error> {
     let is_checklist = has_checklist_items(&list.items);
+    let is_bibliography = section_style == Some("bibliography");
     let writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor
@@ -39,6 +41,8 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     }
     if is_checklist {
         writeln!(writer, " class=\"ulist checklist\">")?;
+    } else if is_bibliography {
+        writeln!(writer, " class=\"ulist bibliography\">")?;
     } else {
         writeln!(writer, " class=\"ulist\">")?;
     }
@@ -47,6 +51,8 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     let mut writer = visitor.writer_mut();
     if is_checklist {
         writeln!(writer, "<ul class=\"checklist\">")?;
+    } else if is_bibliography {
+        writeln!(writer, "<ul class=\"bibliography\">")?;
     } else {
         writeln!(writer, "<ul>")?;
     }

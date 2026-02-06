@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bibliography list class** - Unordered lists inside `[bibliography]` sections now render
+  with `class="ulist bibliography"` on the wrapper div and `class="bibliography"` on the
+  `<ul>` element, matching asciidoctor.
 - **Bare URL `class="bare"`** - Autolinks (bare URLs without display text) now render with
   `class="bare"` on the `<a>` tag, matching asciidoctor.
 - **URL `role` attribute** - URL macros (`https://...[]`) now support the `role` attribute,
