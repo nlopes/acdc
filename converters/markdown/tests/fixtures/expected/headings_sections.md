@@ -20,7 +20,7 @@ Content under section 4.
 
 Content under section 5.
 
-###### Section Level 6 \(will be capped\)
+======= Section Level 6 (will be capped)
 
 This should be capped at level 6 in Markdown.
 

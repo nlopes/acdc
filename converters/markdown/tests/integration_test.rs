@@ -8,6 +8,7 @@ use acdc_parser::Options as ParserOptions;
 type Error = Box<dyn std::error::Error>;
 
 /// Parses the input `.adoc` file, converts to Markdown (GFM), and compares with expected output.
+/// Excludes commonmark_* files which have their own test function.
 #[rstest::rstest]
 #[tracing_test::traced_test]
 fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
@@ -15,6 +16,11 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
+
+    // Skip commonmark_* files - they have their own test
+    if file_name.starts_with("commonmark_") {
+        return Ok(());
+    }
     let expected_path = Path::new("tests")
         .join("fixtures")
         .join("expected")
