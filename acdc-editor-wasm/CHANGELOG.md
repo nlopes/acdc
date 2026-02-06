@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- When a block gives an error, don't hide the block, show it without any highlighting.
+
 ## [0.2.1] - 2026-02-05
 
 ### Fixed

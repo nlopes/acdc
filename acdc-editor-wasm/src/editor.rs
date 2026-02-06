@@ -3,7 +3,7 @@
 //! Moves all event handling, debouncing, scroll sync, clipboard, and Tab key
 //! logic from JavaScript into Rust/WASM via `web-sys`.
 
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::rc::Rc;
 
 use wasm_bindgen::closure::Closure;
@@ -48,8 +48,6 @@ struct EditorState {
     status: HtmlElement,
     /// Timer handle for the debounced parse. 0 means no pending timer.
     debounce_handle: Cell<i32>,
-    /// Cached last-good highlight HTML (kept on parse errors).
-    last_highlight: RefCell<String>,
 }
 
 impl EditorState {
@@ -79,7 +77,6 @@ impl EditorState {
             preview,
             status,
             debounce_handle: Cell::new(0),
-            last_highlight: RefCell::new(String::new()),
         })
     }
 }
@@ -112,16 +109,15 @@ fn parse_and_update_both(state: &EditorState) {
             state
                 .highlight
                 .set_inner_html(&(result.highlight_html.clone() + "\n"));
-            *state.last_highlight.borrow_mut() = result.highlight_html;
             state.preview.set_inner_html(&result.preview_html);
             set_status(state, "OK", false);
         }
         Err(e) => {
-            // Keep last-good highlight on parse error
-            let cached = state.last_highlight.borrow();
-            if !cached.is_empty() {
-                state.highlight.set_inner_html(&(cached.clone() + "\n"));
-            }
+            // Show plain escaped text so the input stays visible (the textarea
+            // has color:transparent — without matching highlight content the
+            // text disappears).
+            let escaped = crate::ast_highlight::escape_html(&input);
+            state.highlight.set_inner_html(&(escaped + "\n"));
             let msg = format!("Parse error: {e}");
             set_status(state, &msg, true);
         }

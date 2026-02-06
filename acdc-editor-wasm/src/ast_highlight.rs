@@ -848,6 +848,16 @@ fn find_line_start(input: &str, pos: usize) -> usize {
 // HTML output helpers
 // ---------------------------------------------------------------------------
 
+/// HTML-escape the full input (no syntax highlighting).
+///
+/// Used as a fallback when parsing fails so the highlight overlay still shows
+/// the current text (the textarea itself has `color: transparent`).
+pub fn escape_html(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    escape_into(s, &mut out);
+    out
+}
+
 fn escape_into(s: &str, out: &mut String) {
     for ch in s.chars() {
         match ch {
