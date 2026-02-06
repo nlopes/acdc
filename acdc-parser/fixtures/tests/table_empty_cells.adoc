@@ -1,0 +1,9 @@
+= Table with empty cells
+
+[cols="36%,34%,30%",options="header"]
+|===
+|Column 1|Column 2|Column 3
+|r1c1|r1c2|r1c3
+|placeholder||
+|r3c1|r3c2|r3c3
+|===

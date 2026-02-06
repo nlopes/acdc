@@ -528,7 +528,7 @@ fn parse_table_block_impl(
         // Process cells, handling duplication
         let mut columns = Vec::new();
         let mut col_idx = 0; // Track current column index for column format lookup
-        for cell in row.iter().filter(|c| !c.content.is_empty()) {
+        for cell in row {
             // Apply column format style if cell doesn't have explicit style
             let effective_cell = if cell.style.is_none()
                 && let Some(col_format) = column_formats.get(col_idx)

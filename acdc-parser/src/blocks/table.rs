@@ -833,7 +833,7 @@ impl Table {
             // For CSV (,) and DSV (:): first part is actual cell content
 
             for (i, part) in parts.iter().enumerate() {
-                if i == 0 && separator == "|" {
+                if i == 0 && matches!(separator, "|" | "!") {
                     // First part is before first separator (PSV format only)
                     let trimmed = part.content.trim();
                     if !trimmed.is_empty() {

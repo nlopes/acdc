@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Empty table cells (e.g., `|placeholder||`) were silently dropped, causing rows to be
+  rejected with "incorrect column count". Empty cells are now preserved. Also fixed
+  first-part handling for nested tables using `!` separator. ([#327])
 - Markdown-style listing blocks with a language (`` ```ruby ``) now set `style: "source"`
   in metadata, matching the behavior of `[source,ruby]` blocks. This allows converters'
   `detect_language()` to work consistently regardless of syntax used.
-
 - Inline passthroughs `+...+` and `++...++` no longer convert `...` to an ellipsis
   entity (`&#8230;&#8203;`). The root cause was that non-Quotes passthroughs were emitted
   as `PlainText` nodes, which got merged with adjacent text and lost their passthrough
@@ -251,6 +253,7 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#320]: https://github.com/nlopes/acdc/issues/320
 [#321]: https://github.com/nlopes/acdc/issues/321
 [#323]: https://github.com/nlopes/acdc/issues/323
+[#327]: https://github.com/nlopes/acdc/issues/327
 
 [0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0
 [0.2.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.2.0
