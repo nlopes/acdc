@@ -632,19 +632,16 @@ impl<W: Write> MarkdownVisitor<W> {
     }
 
     /// Escape special Markdown characters.
+    ///
+    /// Only escapes characters that actually need escaping in prose context.
+    /// Most special characters only need escaping in specific positions.
     fn escape_markdown(&self, text: &str) -> String {
-        // Characters that need escaping in Markdown: \ ` * _ { } [ ] ( ) # + - . ! |
+        // Characters that ALWAYS need escaping: \ ` * _ [ ] |
+        // Characters that only need escaping in specific contexts are not escaped
         let mut result = String::with_capacity(text.len());
         for ch in text.chars() {
             match ch {
-                '\\' | '`' | '*' | '_' | '{' | '}' | '[' | ']' | '(' | ')' | '#' | '+'
-                | '.' | '!' | '|' => {
-                    result.push('\\');
-                    result.push(ch);
-                }
-                '-' => {
-                    // Only escape if at start of line (for lists)
-                    // For simplicity, always escape it
+                '\\' | '`' | '*' | '_' | '[' | ']' | '|' => {
                     result.push('\\');
                     result.push(ch);
                 }

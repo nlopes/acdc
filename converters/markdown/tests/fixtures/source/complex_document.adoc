@@ -1,0 +1,83 @@
+= Complex Document Title
+Author Name <author@example.com>
+v1.0, 2024-01-15
+
+This is the preamble with an introduction paragraph.
+
+== Introduction
+
+This section contains *bold*, _italic_, and `monospace` text.
+
+Here's a link to https://rust-lang.org[Rust] and an email mailto:info@example.com[contact].
+
+=== Code Example
+
+[source,rust]
+----
+fn fibonacci(n: u32) -> u32 {
+    match n {
+        0 => 0,
+        1 => 1,
+        _ => fibonacci(n - 1) + fibonacci(n - 2),
+    }
+}
+----
+
+=== Lists and Tables
+
+Unordered list:
+
+* First item
+* Second item with *bold* text
+** Nested item
+* Third item
+
+Ordered list:
+
+. Step one
+. Step two
+. Step three
+
+Task list:
+
+* [x] Completed task
+* [ ] Pending task
+
+Simple table:
+
+|===
+|Name |Language |Year
+
+|Rust
+|Systems
+|2015
+
+|Python
+|Scripting
+|1991
+|===
+
+== Advanced Features
+
+=== Blockquote
+
+[quote, Douglas Adams, The Hitchhiker's Guide to the Galaxy]
+____
+Don't Panic.
+____
+
+=== Admonition
+
+TIP: Always write tests for your code!
+
+=== Images
+
+image::diagram.png[System Diagram,width=600]
+
+Inline image:image:icon.png[Icon] in text.
+
+== Conclusion
+
+This document demonstrates various AsciiDoc features and their Markdown conversion.
+
+Some features like H~2~O (subscript) and E=mc^2^ (superscript) use HTML tags in Markdown.

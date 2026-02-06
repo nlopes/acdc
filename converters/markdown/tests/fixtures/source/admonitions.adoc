@@ -1,0 +1,18 @@
+= Admonitions Test
+
+NOTE: This is a note admonition.
+
+TIP: This is a tip admonition.
+
+IMPORTANT: This is an important admonition.
+
+WARNING: This is a warning admonition.
+
+CAUTION: This is a caution admonition.
+
+[NOTE]
+====
+This is a note admonition block with multiple paragraphs.
+
+Second paragraph in the note.
+====
