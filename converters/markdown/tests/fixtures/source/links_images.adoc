@@ -1,0 +1,21 @@
+= Links and Images Test
+
+== External Links
+
+This is a link to https://example.com[Example Website].
+
+Link without text: https://example.com
+
+Email link: mailto:user@example.com[Contact Us]
+
+== Images
+
+Block image:
+
+image::path/to/image.png[Alt text for image]
+
+Inline image: image:small-icon.png[Icon] in text.
+
+Image with title:
+
+image::photo.jpg[Photo,title="A beautiful photo"]
