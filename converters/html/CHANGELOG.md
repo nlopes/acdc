@@ -68,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Callout lists now render callout markers correctly, with proper `<b>` tag placement
   matching asciidoctor output. (This seems a repeat of the previous entry but we had
   messed it up earlier.)
+- Bare `&` in URL query strings within `href` attributes is now escaped to `&amp;` for
+  valid HTML. Applies to all link types: autolinks, link macros, URL macros, mailto macros,
+  and inline/block images with link attributes.
 
 ### Changed
 

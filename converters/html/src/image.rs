@@ -4,6 +4,7 @@ use acdc_parser::Image;
 use crate::{
     Error, Processor,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
+    inlines::escape_href,
 };
 
 pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
@@ -43,7 +44,11 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     // Wrap in link if link attribute exists
     let link = img.metadata.attributes.get("link");
     if let Some(link) = link {
-        write!(w, "<a class=\"image\" href=\"{link}\">")?;
+        write!(
+            w,
+            "<a class=\"image\" href=\"{}\">",
+            escape_href(&link.to_string())
+        )?;
     }
 
     write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;

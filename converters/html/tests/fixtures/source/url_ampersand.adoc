@@ -1,0 +1,11 @@
+<https://example.com?a=1&b=2>
+
+https://example.com?c=3&d=4
+
+link:https://example.com?e=5&f=6[Link macro]
+
+https://example.com?g=7&h=8[URL macro]
+
+image:sunset.png[link=https://example.com?i=9&j=10]
+
+image::sunset.png[link=https://example.com?k=11&l=12]

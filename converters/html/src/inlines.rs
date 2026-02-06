@@ -60,6 +60,11 @@ use crate::{
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
 
+/// Escape `&` to `&amp;` in URL strings for use in `href` attributes.
+pub(crate) fn escape_href(url: &str) -> String {
+    url.replace('&', "&amp;")
+}
+
 /// Helper to write an HTML opening tag with optional id and role attributes.
 ///
 /// Handles the common pattern of:
@@ -438,9 +443,17 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 write!(w, "{display_text}")?;
             } else if al.bracketed {
                 // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
-                write!(w, "&lt;<a href=\"{href}\">{display_text}</a>&gt;")?;
+                write!(
+                    w,
+                    "&lt;<a href=\"{}\">{display_text}</a>&gt;",
+                    escape_href(&href.to_string())
+                )?;
             } else {
-                write!(w, "<a href=\"{href}\">{display_text}</a>")?;
+                write!(
+                    w,
+                    "<a href=\"{}\">{display_text}</a>",
+                    escape_href(&href.to_string())
+                )?;
             }
         }
         InlineMacro::Link(l) => {
@@ -461,7 +474,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 // In basic or TOC mode, render as text only (no link wrapper)
                 write!(w, "{text}")?;
             } else {
-                write!(w, "<a href=\"{}\">{text}</a>", l.target)?;
+                write!(
+                    w,
+                    "<a href=\"{}\">{text}</a>",
+                    escape_href(&l.target.to_string())
+                )?;
             }
         }
         InlineMacro::Image(i) => {
@@ -482,7 +499,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             // Wrap in link if link attribute exists
             let link = i.metadata.attributes.get("link");
             if let Some(link) = link {
-                write!(w, "<a class=\"image\" href=\"{link}\">")?;
+                write!(
+                    w,
+                    "<a class=\"image\" href=\"{}\">",
+                    escape_href(&link.to_string())
+                )?;
             }
 
             // Write the img tag with src, alt, and dimensions
@@ -526,7 +547,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     }
                 }
             } else {
-                write!(w, "<a href=\"{}\">", u.target)?;
+                write!(w, "<a href=\"{}\">", escape_href(&u.target.to_string()))?;
                 if u.text.is_empty() {
                     // For mailto: URLs, display just the email address without the mailto: prefix
                     let target_str = u.target.to_string();
@@ -572,7 +593,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                         | _ => None,
                     })
                     .unwrap_or_default();
-                write!(w, "<a href=\"{}\"{class_attr}>", m.target)?;
+                write!(
+                    w,
+                    "<a href=\"{}\"{class_attr}>",
+                    escape_href(&m.target.to_string())
+                )?;
                 if m.text.is_empty() {
                     // For mailto: URLs, display just the email address without the mailto: prefix
                     let target_str = m.target.to_string();
