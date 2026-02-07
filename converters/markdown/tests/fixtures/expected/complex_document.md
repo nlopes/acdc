@@ -56,8 +56,7 @@ Simple table:
 
 ### Admonition
 
-<!-- Warning: Tip admonitions not natively supported in Markdown, using blockquote with label -->
-> **Tip**
+> [!TIP]
 > Always write tests for your code!
 
 

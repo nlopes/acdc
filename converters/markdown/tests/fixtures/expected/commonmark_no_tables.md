@@ -6,7 +6,10 @@ This document tests CommonMark output where tables are not supported.
 
 Tables are not supported in CommonMark:
 
-<!-- Warning: tables not natively supported in Markdown, not supported in CommonMark, skipping -->
+| Header 1 | Header 2 |
+| --- | --- |
+| Cell A | Cell B |
+
 The table above should be skipped with a warning.
 
 ## Other Features
@@ -17,7 +20,7 @@ Regular features work fine:
 - **Bold** and *italic*
 - `Code`
 
-```python
-print("Hello, World!")
 ```
+`print("Hello, World!")````
+
 
