@@ -27,13 +27,18 @@
 //! - Extends CommonMark with GitHub-specific features
 //! - Tables with alignment support
 //! - Task lists (checkboxes)
+//! - GitHub Alerts (admonitions using `> [!NOTE]` syntax)
+//! - Footnotes with `[^1]` syntax
 //! - Strikethrough (`~~text~~`)
 //! - Autolinks for URLs and emails
 //!
 //! # Limitations
 //!
 //! AsciiDoc features that cannot be fully represented in Markdown:
-//! - **Admonitions** (NOTE, TIP, WARNING, etc.) - converted to blockquotes with warning
+//! - **Admonitions** (NOTE, TIP, etc.) - Native GitHub Alerts in GFM, blockquotes in CommonMark
+//! - **Footnotes** - Native GFM syntax `[^1]`, HTML superscript in CommonMark
+//! - **Tables** - Supported in GFM only, skipped in CommonMark with warning
+//! - **Task lists** - Supported in GFM only, converted to regular lists in CommonMark
 //! - **Include directives** - not supported (Markdown is single-file oriented)
 //! - **Substitutions** - no control over text substitutions
 //! - **Callouts** - code annotations not supported in standard Markdown

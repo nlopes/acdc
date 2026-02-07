@@ -54,6 +54,7 @@ Check the `link:../converters/README.adoc[converters README]` for details.
 
 - `link:../converters/html[html]` (default)
 - `link:../converters/manpage[manpage]` (available with `--features manpage`)
+- `link:../converters/markdown[markdown]` (available with `--features markdown`)
 - `link:../converters/terminal[terminal]` (available with `--features terminal`)
 
 === Building an optional backend or tool
@@ -80,6 +81,7 @@ cargo build --all-features
 
 * `html` (default) - HTML5 converter with Asciidoctor-compatible styling
 * `manpage` - Manpage converter
+* `markdown` - Markdown converter with CommonMark and GitHub Flavored Markdown support
 * `terminal` - Terminal converter with ANSI color support
 
 === Parser Options

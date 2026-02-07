@@ -46,6 +46,7 @@ acdc/
     ├── dev/                # Development utilities (unpublished)
     ├── html/               # HTML5 converter
     ├── manpage/            # Native roff/troff manpage output
+    ├── markdown/           # Markdown converter (CommonMark & GFM)
     └── terminal/           # Rich terminal output
 ----
 
