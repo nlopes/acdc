@@ -2,4 +2,5 @@
 
 - `link:./html[html]` - `AsciiDoc` html backend
 - `link:./manpage[manpage]` - `AsciiDoc` manpage backend
+- `link:./markdown[markdown]` - `AsciiDoc` markdown backend (CommonMark & GitHub Flavored Markdown)
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
