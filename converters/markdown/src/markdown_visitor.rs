@@ -19,6 +19,8 @@ pub struct MarkdownVisitor<W: Write> {
     pub(crate) heading_level: usize,
     /// Whether we're in a list context (for proper nesting).
     pub(crate) in_list: bool,
+    /// Collected footnotes for rendering at document end.
+    pub(crate) footnotes: Vec<(String, Vec<InlineNode>)>,
 }
 
 impl<W: Write> MarkdownVisitor<W> {
@@ -29,6 +31,7 @@ impl<W: Write> MarkdownVisitor<W> {
             processor,
             heading_level: 0,
             in_list: false,
+            footnotes: Vec::new(),
         }
     }
 
@@ -65,6 +68,20 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     }
 
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+        // Render collected footnotes (GFM only)
+        if self.variant() == MarkdownVariant::GitHubFlavored && !self.footnotes.is_empty() {
+            writeln!(self.writer)?;
+            // Clone footnotes to avoid borrow checker issues
+            let footnotes = self.footnotes.clone();
+            for (id, content) in footnotes {
+                write!(self.writer, "[^{id}]: ")?;
+                for node in &content {
+                    self.visit_inline_node(node)?;
+                }
+                writeln!(self.writer)?;
+            }
+        }
+
         // Ensure final newline
         writeln!(self.writer)?;
         Ok(())
@@ -247,18 +264,31 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     }
 
     fn visit_admonition(&mut self, admonition: &Admonition) -> Result<(), Self::Error> {
-        // Admonitions don't exist in standard Markdown
-        // Use blockquote with a label
-        let label = match admonition.variant {
-            acdc_parser::AdmonitionVariant::Note => "Note",
-            acdc_parser::AdmonitionVariant::Tip => "Tip",
-            acdc_parser::AdmonitionVariant::Important => "Important",
-            acdc_parser::AdmonitionVariant::Warning => "Warning",
-            acdc_parser::AdmonitionVariant::Caution => "Caution",
+        // GitHub Flavored Markdown supports Alerts syntax (> [!TYPE])
+        // CommonMark falls back to blockquote with bold label
+        let alert_type = match admonition.variant {
+            acdc_parser::AdmonitionVariant::Note => "NOTE",
+            acdc_parser::AdmonitionVariant::Tip => "TIP",
+            acdc_parser::AdmonitionVariant::Important => "IMPORTANT",
+            acdc_parser::AdmonitionVariant::Warning => "WARNING",
+            acdc_parser::AdmonitionVariant::Caution => "CAUTION",
         };
 
-        self.write_warning(&format!("{label} admonitions"), "using blockquote with label")?;
-        writeln!(self.writer, "> **{label}**")?;
+        if self.variant() == MarkdownVariant::GitHubFlavored {
+            // Use GitHub Alerts syntax (native support, no warning needed)
+            writeln!(self.writer, "> [!{alert_type}]")?;
+        } else {
+            // CommonMark: use blockquote with bold label
+            let label = match admonition.variant {
+                acdc_parser::AdmonitionVariant::Note => "Note",
+                acdc_parser::AdmonitionVariant::Tip => "Tip",
+                acdc_parser::AdmonitionVariant::Important => "Important",
+                acdc_parser::AdmonitionVariant::Warning => "Warning",
+                acdc_parser::AdmonitionVariant::Caution => "Caution",
+            };
+            self.write_warning(&format!("{label} admonitions"), "using blockquote with label")?;
+            writeln!(self.writer, "> **{label}**")?;
+        }
 
         for block in &admonition.blocks {
             write!(self.writer, "> ")?;
@@ -461,8 +491,24 @@ impl<W: Write> MarkdownVisitor<W> {
             InlineMacro::Menu(_menu) => {
                 // Menu navigation - skip for now
             }
-            InlineMacro::Footnote(_footnote) => {
-                // Footnotes - skip for now
+            InlineMacro::Footnote(footnote) => {
+                if self.variant() == MarkdownVariant::GitHubFlavored {
+                    // GFM supports footnotes
+                    let id = footnote.id.as_ref()
+                        .map(|s| s.clone())
+                        .unwrap_or_else(|| footnote.number.to_string());
+
+                    // Store footnote for later rendering (only if not already stored)
+                    if !footnote.content.is_empty() && !self.footnotes.iter().any(|(existing_id, _)| existing_id == &id) {
+                        self.footnotes.push((id.clone(), footnote.content.clone()));
+                    }
+
+                    // Render inline reference
+                    write!(self.writer, "[^{id}]")?;
+                } else {
+                    // CommonMark: render footnote inline with superscript number
+                    write!(self.writer, "<sup>{}</sup>", footnote.number)?;
+                }
             }
             InlineMacro::Url(url) => {
                 // URL macro - text is Vec<InlineNode>
