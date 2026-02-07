@@ -5,7 +5,7 @@ use acdc_parser::{
     CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList, UnorderedList,
 };
 
-use crate::{Error, build_class};
+use crate::{Error, Processor, build_class};
 
 /// Check if any list item has a checkbox
 fn has_checklist_items(items: &[ListItem]) -> bool {
@@ -97,41 +97,65 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
 pub(crate) fn visit_callout_list<V: WritableVisitor<Error = Error>>(
     list: &CalloutList,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
     let writer = visitor.writer_mut();
     writeln!(writer, "<div class=\"colist arabic\">")?;
     let _ = writer;
     visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
-    let mut writer = visitor.writer_mut();
-    // Use table layout matching asciidoctor's output
-    writeln!(writer, "<table>")?;
-    let _ = writer;
 
-    for item in &list.items {
-        let num = item.callout.number;
-        let mut writer = visitor.writer_mut();
-        writeln!(writer, "<tr>")?;
-        // First cell: callout marker with conum styling (black circle with number)
-        writeln!(
-            writer,
-            "<td><i class=\"conum\" data-value=\"{num}\"></i><b>{num}</b></td>"
-        )?;
-        // Second cell: description content
-        write!(writer, "<td>")?;
+    if processor.is_font_icons_mode() {
+        let writer = visitor.writer_mut();
+        writeln!(writer, "<table>")?;
         let _ = writer;
-        // Render principal text inline (not wrapped in <p> for simple content)
-        visitor.visit_inline_nodes(&item.principal)?;
-        // Walk attached blocks using visitor
-        for block in &item.blocks {
-            visitor.visit_block(block)?;
+
+        for item in &list.items {
+            let num = item.callout.number;
+            let writer = visitor.writer_mut();
+            writeln!(writer, "<tr>")?;
+            writeln!(
+                writer,
+                "<td><i class=\"conum\" data-value=\"{num}\"></i><b>{num}</b></td>"
+            )?;
+            write!(writer, "<td>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&item.principal)?;
+            for block in &item.blocks {
+                visitor.visit_block(block)?;
+            }
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</td>")?;
+            writeln!(writer, "</tr>")?;
         }
-        writer = visitor.writer_mut();
-        writeln!(writer, "</td>")?;
-        writeln!(writer, "</tr>")?;
+
+        let writer = visitor.writer_mut();
+        writeln!(writer, "</table>")?;
+    } else {
+        let writer = visitor.writer_mut();
+        writeln!(writer, "<ol>")?;
+        let _ = writer;
+
+        for item in &list.items {
+            let writer = visitor.writer_mut();
+            write!(writer, "<li>")?;
+            write!(writer, "<p>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&item.principal)?;
+            let writer = visitor.writer_mut();
+            write!(writer, "</p>")?;
+            let _ = writer;
+            for block in &item.blocks {
+                visitor.visit_block(block)?;
+            }
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</li>")?;
+        }
+
+        let writer = visitor.writer_mut();
+        writeln!(writer, "</ol>")?;
     }
 
-    writer = visitor.writer_mut();
-    writeln!(writer, "</table>")?;
+    let writer = visitor.writer_mut();
     writeln!(writer, "</div>")?;
     Ok(())
 }

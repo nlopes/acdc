@@ -96,6 +96,14 @@ impl Processor {
         self.has_valid_index_section
     }
 
+    /// Check if font icons mode is enabled (`:icons: font`).
+    #[must_use]
+    pub(crate) fn is_font_icons_mode(&self) -> bool {
+        self.document_attributes
+            .get("icons")
+            .is_some_and(|v| v.to_string() == "font")
+    }
+
     /// Get a reference to the section number tracker
     #[must_use]
     pub(crate) fn section_number_tracker(&self) -> &SectionNumberTracker {

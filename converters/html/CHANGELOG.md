@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Callout rendering matches icon mode** - Callout markers and callout lists now branch on
+  the `:icons:` attribute. Default mode uses `<b class="conum">(N)</b>` markers and `<ol>`
+  lists; `:icons: font` mode uses `<i class="conum">` markers and `<table>` lists, matching
+  asciidoctor output in both modes.
 - **Named footnote references** - `footnote:name[]` references now render with
   `class="footnoteref"` and no IDs, matching asciidoctor. Previously, all occurrences
   used `class="footnote"` and duplicated the `id="_footnote_{name}"` attribute.

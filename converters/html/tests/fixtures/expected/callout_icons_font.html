@@ -436,28 +436,35 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
   text-align: center;
 }
 </style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/v4-shims.min.css">
 </head>
 <body class="article">
 <div id="content">
 <div class="listingblock">
-<div class="title">./app.js</div>
 <div class="content">
-<pre class="highlight"><code class="language-javascript" data-lang="javascript">const express = require('express'); <b class="conum">(1)</b>
-const app = express();
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">require 'sinatra' <i class="conum" data-value="1"></i><b>(1)</b>
 
-app.get('/', (req, res) =&gt; { <b class="conum">(2)</b>
-  res.send('Hello World!');
-});
-
-app.listen(3000); <b class="conum">(3)</b></code></pre>
+get '/hi' do <i class="conum" data-value="2"></i><b>(2)</b>
+  "Hello World!" <i class="conum" data-value="3"></i><b>(3)</b>
+end</code></pre>
 </div>
 </div>
 <div class="colist arabic">
-<ol>
-<li><p>Import the Express framework</p></li>
-<li><p>Define a route handler</p></li>
-<li><p>Start the server on port 3000</p></li>
-</ol>
+<table>
+<tr>
+<td><i class="conum" data-value="1"></i><b>1</b></td>
+<td>Library import</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="2"></i><b>2</b></td>
+<td>URL mapping</td>
+</tr>
+<tr>
+<td><i class="conum" data-value="3"></i><b>3</b></td>
+<td>Content for response</td>
+</tr>
+</table>
 </div>
 </div>
 <div id="footer">

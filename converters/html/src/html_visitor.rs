@@ -616,7 +616,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        crate::list::visit_callout_list(list, self)
+        let processor = self.processor.clone();
+        crate::list::visit_callout_list(list, self, &processor)
     }
 
     fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {

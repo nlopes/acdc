@@ -248,12 +248,15 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineNode::CalloutRef(callout) => {
-            // Render callout reference matching asciidoctor's format
-            write!(
-                w,
-                "<i class=\"conum\" data-value=\"{0}\"></i><b>({0})</b>",
-                callout.number
-            )?;
+            if processor.is_font_icons_mode() {
+                write!(
+                    w,
+                    "<i class=\"conum\" data-value=\"{0}\"></i><b>({0})</b>",
+                    callout.number
+                )?;
+            } else {
+                write!(w, "<b class=\"conum\">({})</b>", callout.number)?;
+            }
         }
         InlineNode::BoldText(b) => {
             let delim = match b.form {
