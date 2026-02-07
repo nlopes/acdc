@@ -6,10 +6,7 @@ This document tests CommonMark output where tables are not supported.
 
 Tables are not supported in CommonMark:
 
-| Header 1 | Header 2 |
-| --- | --- |
-| Cell A | Cell B |
-
+<!-- Warning: tables not natively supported in Markdown, not supported in CommonMark, skipping -->
 The table above should be skipped with a warning.
 
 ## Other Features

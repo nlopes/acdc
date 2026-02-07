@@ -76,6 +76,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Error` type is now public (was `pub(crate)`), enabling external code to handle
   terminal converter errors explicitly.
 
+## [Unreleased acdc-converters-markdown]
+
+### Added
+
+- Initial Markdown converter implementation supporting CommonMark 0.31.2 and GitHub Flavored Markdown (GFM)
+- `MarkdownVariant` enum to select between CommonMark and GFM output modes
+- CommonMark support:
+  - Standard Markdown features (headings, paragraphs, lists, links, images, code blocks, blockquotes)
+  - Tables skipped with warning (not part of CommonMark spec)
+  - Task lists converted to regular lists
+  - Admonitions rendered as blockquotes with bold labels
+  - Footnotes rendered as HTML superscripts
+- GitHub Flavored Markdown support:
+  - GitHub Alerts syntax (`> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`)
+  - Native footnotes with `[^1]` syntax and automatic footnote collection
+  - Tables with alignment support
+  - Task lists with checkboxes `- [x]`/`- [ ]`
+- Comprehensive test suite with 14 integration tests covering all major features
+- Warning system for unsupported features (logged via tracing)
+
 ## [Unreleased acdc-parser]
 
 ### Added
