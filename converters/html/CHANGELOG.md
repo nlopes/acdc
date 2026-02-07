@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Ordered list depth styling** - Nested ordered lists rendered via cross-type
+  nesting (e.g., an ordered list inside an unordered item) now get depth-appropriate
+  styling (`loweralpha` for depth 2, `lowerroman` for depth 3, etc.) instead of
+  always using `arabic`. Depth is derived from the marker (`.` = 1, `..` = 2).
 - **Callout rendering matches icon mode** - Callout markers and callout lists now branch on
   the `:icons:` attribute. Default mode uses `<b class="conum">(N)</b>` markers and `<ol>`
   lists; `:icons: font` mode uses `<i class="conum">` markers and `<table>` lists, matching

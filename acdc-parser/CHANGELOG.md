@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Mixed list nesting at 3+ levels** - Mixed ordered/unordered nesting (e.g.,
+  `*` → `.` → `**` → `..`) no longer breaks structure at depth 3+. The parser
+  now threads ancestor marker context through cross-type nesting boundaries,
+  preventing deeply nested items from consuming sibling markers that belong to a
+  parent list context.
 - Empty table cells (e.g., `|placeholder||`) were silently dropped, causing rows to be
   rejected with "incorrect column count". Empty cells are now preserved. Also fixed
   first-part handling for nested tables using `!` separator. ([#327])

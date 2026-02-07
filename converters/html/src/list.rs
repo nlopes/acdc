@@ -14,6 +14,11 @@ fn has_checklist_items(items: &[ListItem]) -> bool {
 
 /// Get the ordered list style for a given nesting depth
 /// Cycles through: arabic -> loweralpha -> lowerroman -> upperalpha -> upperroman -> arabic...
+///
+/// Note: This differs from asciidoctor, which stops cycling after depth 5 and uses
+/// `arabic` for all depths > 5. We intentionally continue cycling to provide better
+/// visual distinction in deeply nested lists (6+ levels). This is a design decision
+/// that improves usability for deep hierarchies while maintaining consistency.
 fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
     match depth % 5 {
         2 => ("loweralpha", Some("a")), // a, b, c
@@ -68,7 +73,12 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
     list: &OrderedList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let (style, type_attr) = ordered_list_style(1);
+    let raw_depth = list.marker.matches('.').count().max(1);
+    if raw_depth > usize::from(u8::MAX) {
+        tracing::warn!(raw_depth, "ordered list marker depth exceeds 255, clamping");
+    }
+    let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
+    let (style, type_attr) = ordered_list_style(depth);
     let writer = visitor.writer_mut();
     write!(writer, "<div")?;
     // Use metadata.id if present, otherwise use first anchor

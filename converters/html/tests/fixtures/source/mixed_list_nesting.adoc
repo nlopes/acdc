@@ -1,0 +1,30 @@
+= Mixed List Nesting
+
+== Two-level mixed nesting
+
+* Unordered item 1
+  . Nested ordered A
+  . Nested ordered B
+* Unordered item 2
+
+== Three-level mixed nesting
+
+* Level 1 A
+  . Level 2 A
+    ** Level 3 A
+    ** Level 3 B
+  . Level 2 B
+* Level 1 B
+
+== Five-level mixed nesting
+
+* UL depth 1 item A
+  . OL depth 2 item A
+    ** UL depth 3 item A
+      .. OL depth 4 item A
+        *** UL depth 5 item A
+        *** UL depth 5 item B
+      .. OL depth 4 item B
+    ** UL depth 3 item B
+  . OL depth 2 item B
+* UL depth 1 item B
