@@ -1,6 +1,7 @@
 [1m[4mSimple Test[0m
 This has a footnote[38;5;14m[1m[1][0m.
 Another foo [38;5;14m[1m[2][0m.
+This references the same naff [38;5;14m[1m[2][0m.
 
 ─────
 [38;5;14m[1m[1][0m Simple footnote content

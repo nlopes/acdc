@@ -667,26 +667,36 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Footnote(f) => {
+            // A named footnote reference (footnote:name[] with empty content)
+            // uses class="footnoteref" and no IDs, matching asciidoctor.
+            let is_ref = f.id.is_some() && f.content.is_empty();
+            let sup_class = if is_ref { "footnoteref" } else { "footnote" };
             if options.inlines_basic {
                 write!(w, "[{}]", f.number)?;
             } else if options.toc_mode {
                 // In TOC mode, render footnote without anchor link (matches asciidoctor)
-                // Keep the id attribute on <sup> if present, but no nested <a> tag
-                write!(w, "<sup class=\"footnote\"")?;
-                if let Some(id) = &f.id {
+                write!(w, "<sup class=\"{sup_class}\"")?;
+                if !is_ref && let Some(id) = &f.id {
                     write!(w, " id=\"_footnote_{id}\"")?;
                 }
                 write!(w, ">[{}]</sup>", f.number)?;
             } else {
                 let number = f.number;
-                write!(w, "<sup class=\"footnote\"")?;
-                if let Some(id) = &f.id {
+                write!(w, "<sup class=\"{sup_class}\"")?;
+                if !is_ref && let Some(id) = &f.id {
                     write!(w, " id=\"_footnote_{id}\"")?;
                 }
-                write!(
-                    w,
-                    ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
-                )?;
+                if is_ref {
+                    write!(
+                        w,
+                        ">[<a class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+                    )?;
+                } else {
+                    write!(
+                        w,
+                        ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+                    )?;
+                }
             }
         }
         InlineMacro::Button(b) => {

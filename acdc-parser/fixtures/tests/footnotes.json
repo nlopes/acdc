@@ -235,6 +235,68 @@
           "col": 45
         }
       ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This references the same naff ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "naff",
+          "inlines": [],
+          "location": [
+            {
+              "line": 7,
+              "col": 31
+            },
+            {
+              "line": 7,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 46
+            },
+            {
+              "line": 7,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 46
+        }
+      ]
     }
   ],
   "location": [
@@ -243,8 +305,8 @@
       "col": 1
     },
     {
-      "line": 5,
-      "col": 45
+      "line": 7,
+      "col": 46
     }
   ]
 }
