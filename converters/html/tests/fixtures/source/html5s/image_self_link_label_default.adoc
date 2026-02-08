@@ -1,0 +1,3 @@
+:html5s-image-default-link: self
+
+image::sunset.jpg[]

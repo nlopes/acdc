@@ -148,20 +148,18 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .timings(args.timings)
         .embedded(args.embedded)
         .output_destination(output_destination)
+        .backend(args.backend)
         .build();
 
     match args.backend {
         #[cfg(feature = "html")]
-        Backend::Html => {
-            // HTML can process files in parallel - each file writes to separate output
-            run_processor::<acdc_converters_html::Processor>(
-                args,
-                options,
-                document_attributes,
-                true,
-            )
-            .map_err(|e| error::display(&e))
-        }
+        Backend::Html | Backend::Html5s => run_processor::<acdc_converters_html::Processor>(
+            args,
+            options,
+            document_attributes,
+            true,
+        )
+        .map_err(|e| error::display(&e)),
 
         #[cfg(feature = "terminal")]
         Backend::Terminal => {

@@ -1,0 +1,5 @@
+[%collapsible]
+.Click to expand
+====
+This is collapsible content.
+====

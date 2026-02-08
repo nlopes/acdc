@@ -9,7 +9,7 @@ use acdc_parser::{
     UNNUMBERED_SECTION_STYLES,
 };
 
-use crate::{Error, Processor};
+use crate::{Error, HtmlVariant, Processor};
 
 pub(crate) const DEFAULT_SECTION_LEVEL: u8 = 3;
 
@@ -116,7 +116,7 @@ pub(crate) fn visit_section<V: WritableVisitor<Error = Error>>(
         }
     }
 
-    render_section_footer(section, visitor)?;
+    render_section_footer(section, visitor, processor)?;
     Ok(())
 }
 
@@ -132,7 +132,12 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
     let id = Section::generate_id(&section.metadata, &section.title);
 
     let mut w = visitor.writer_mut();
-    writeln!(w, "<div class=\"sect{}\">", section.level)?;
+
+    if processor.variant() == HtmlVariant::Semantic {
+        writeln!(w, "<section class=\"doc-section level-{}\">", section.level)?;
+    } else {
+        writeln!(w, "<div class=\"sect{}\">", section.level)?;
+    }
     write!(w, "<h{level} id=\"{id}\">")?;
 
     // Special section styles (bibliography, glossary, etc.) should not be numbered
@@ -156,9 +161,8 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
     w = visitor.writer_mut();
     writeln!(w, "</h{level}>")?;
 
-    // Only sect1 gets a sectionbody wrapper in asciidoctor
-    // sect2 and higher have content directly in the sectN div
-    if section.level == 1 {
+    // Only sect1 gets a sectionbody wrapper in standard mode
+    if processor.variant() == HtmlVariant::Standard && section.level == 1 {
         writeln!(w, "<div class=\"sectionbody\">")?;
     }
     Ok(())
@@ -170,15 +174,19 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
 fn render_section_footer<V: WritableVisitor<Error = Error>>(
     section: &Section,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
     let w = visitor.writer_mut();
 
-    // Only sect1 has a sectionbody wrapper to close
-    if section.level == 1 {
-        writeln!(w, "</div>")?; // Close sectionbody
+    if processor.variant() == HtmlVariant::Semantic {
+        writeln!(w, "</section>")?;
+    } else {
+        // Only sect1 has a sectionbody wrapper to close
+        if section.level == 1 {
+            writeln!(w, "</div>")?; // Close sectionbody
+        }
+        writeln!(w, "</div>")?; // Close sectN
     }
-
-    writeln!(w, "</div>")?; // Close sectN
     Ok(())
 }
 

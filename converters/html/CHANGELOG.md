@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Semantic HTML5 backend (`html5s`)** — new `--backend html5s` option produces semantic HTML5
+  using `<section>`, `<aside>`, `<figure>`, ARIA roles, and proper heading hierarchy instead of
+  the traditional div-based layout. Inspired by Jakub Jirutka's
+  [asciidoctor-html5s](https://github.com/jirutka/asciidoctor-html5s). Includes dedicated
+  light and dark mode stylesheets, and supports `html5s-force-stem-type`,
+  `html5s-image-default-link`, and `html5s-image-self-link-label` document attributes. ([#329])
 - **Bibliography list class** - Unordered lists inside `[bibliography]` sections now render
   with `class="ulist bibliography"` on the wrapper div and `class="bibliography"` on the
   `<ul>` element, matching asciidoctor.
@@ -102,3 +108,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#313]: https://github.com/nlopes/acdc/pull/313
 [#323]: https://github.com/nlopes/acdc/issues/323
+[#329]: https://github.com/nlopes/acdc/issues/329

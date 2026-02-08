@@ -1,0 +1,4 @@
+:html5s-image-default-link: self
+:html5s-image-self-link-label: View full size image
+
+image::sunset.jpg[]

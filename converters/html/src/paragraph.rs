@@ -1,14 +1,16 @@
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::Paragraph;
 
-use crate::{Error, build_class, write_attribution};
+use crate::{Error, HtmlVariant, Processor, build_class, write_attribution};
 
 /// Visit a paragraph using the visitor pattern
 ///
 /// This is called from the `HtmlVisitor` trait implementation.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
     para: &Paragraph,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
     // Check if this paragraph should be rendered as a literal block
     if let Some(style) = &para.metadata.style
@@ -71,17 +73,57 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
     }
 
     // Regular paragraph rendering
-    let mut w = visitor.writer_mut();
-    let class = build_class("paragraph", &para.metadata.roles);
-    writeln!(w, "<div class=\"{class}\">")?;
-    let _ = w;
-    visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
-    w = visitor.writer_mut();
-    write!(w, "<p>")?;
-    let _ = w;
-    visitor.visit_inline_nodes(&para.content)?;
-    w = visitor.writer_mut();
-    writeln!(w, "</p>")?;
-    writeln!(w, "</div>")?;
+    if processor.variant() == HtmlVariant::Semantic {
+        let has_title = !para.title.is_empty();
+        let has_id = para.metadata.id.is_some() || !para.metadata.anchors.is_empty();
+        let has_roles = !para.metadata.roles.is_empty();
+
+        if has_title || has_id || has_roles {
+            // Titled/identified paragraphs get a section wrapper
+            let mut w = visitor.writer_mut();
+            let class = build_class("paragraph", &para.metadata.roles);
+            write!(w, "<section")?;
+            if let Some(id) = &para.metadata.id {
+                write!(w, " id=\"{}\"", id.id)?;
+            } else if let Some(anchor) = para.metadata.anchors.first() {
+                write!(w, " id=\"{}\"", anchor.id)?;
+            }
+            writeln!(w, " class=\"{class}\">")?;
+            let _ = w;
+            visitor.render_title_with_wrapper(
+                &para.title,
+                "<h6 class=\"block-title\">",
+                "</h6>\n",
+            )?;
+            w = visitor.writer_mut();
+            write!(w, "<p>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&para.content)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</p>")?;
+            writeln!(w, "</section>")?;
+        } else {
+            // Bare paragraph — no wrapper
+            let mut w = visitor.writer_mut();
+            write!(w, "<p>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&para.content)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</p>")?;
+        }
+    } else {
+        let mut w = visitor.writer_mut();
+        let class = build_class("paragraph", &para.metadata.roles);
+        writeln!(w, "<div class=\"{class}\">")?;
+        let _ = w;
+        visitor.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+        w = visitor.writer_mut();
+        write!(w, "<p>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&para.content)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</p>")?;
+        writeln!(w, "</div>")?;
+    }
     Ok(())
 }

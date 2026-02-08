@@ -9,7 +9,7 @@ use acdc_parser::{
     StemContent, StemNotation,
 };
 
-use crate::{Error, Processor, RenderOptions, build_class, write_attribution};
+use crate::{Error, HtmlVariant, Processor, RenderOptions, build_class, write_attribution};
 
 /// Write the opening `<div>` tag with optional ID and class attributes.
 /// Follows the pattern used in lists: metadata.id takes precedence, fallback to anchors.
@@ -63,7 +63,61 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+fn write_example_block_semantic<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    block: &DelimitedBlock,
+    processor: &Processor,
+    blocks: &[Block],
+) -> Result<(), Error> {
+    let is_collapsible = block.metadata.options.contains(&"collapsible".to_string());
+    let is_open = block.metadata.options.contains(&"open".to_string());
+
+    let mut writer = visitor.writer_mut();
+    if is_collapsible {
+        if is_open {
+            writeln!(writer, "<details class=\"example-block\" open>")?;
+        } else {
+            writeln!(writer, "<details class=\"example-block\">")?;
+        }
+        let _ = writer;
+        if !block.title.is_empty() {
+            let prefix =
+                processor.caption_prefix("example-caption", &processor.example_counter, "Example");
+            visitor.render_title_with_wrapper(
+                &block.title,
+                &format!("<summary>{prefix}"),
+                "</summary>\n",
+            )?;
+        }
+    } else {
+        writeln!(writer, "<figure class=\"example-block\">")?;
+        let _ = writer;
+        if !block.title.is_empty() {
+            let prefix =
+                processor.caption_prefix("example-caption", &processor.example_counter, "Example");
+            visitor.render_title_with_wrapper(
+                &block.title,
+                &format!("<figcaption>{prefix}"),
+                "</figcaption>\n",
+            )?;
+        }
+    }
+
+    for nested_block in blocks {
+        visitor.visit_block(nested_block)?;
+    }
+
+    writer = visitor.writer_mut();
+    if is_collapsible {
+        writeln!(writer, "</details>")?;
+    } else {
+        writeln!(writer, "</figure>")?;
+    }
+    Ok(())
+}
+
 /// Visit a delimited block using the visitor pattern with ability to walk nested blocks
+#[allow(clippy::too_many_lines)]
 pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     block: &DelimitedBlock,
@@ -72,22 +126,47 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
 ) -> Result<(), Error> {
     match &block.inner {
         DelimitedBlockType::DelimitedQuote(blocks) => {
-            let mut writer = visitor.writer_mut();
-            let base_class = if let Some(style) = &block.metadata.style {
-                format!("{style}block")
+            if processor.variant() == HtmlVariant::Semantic {
+                let mut writer = visitor.writer_mut();
+                if !block.title.is_empty() {
+                    writeln!(writer, "<section class=\"quote-block\">")?;
+                    let _ = writer;
+                    visitor.render_title_with_wrapper(
+                        &block.title,
+                        "<h6 class=\"block-title\">",
+                        "</h6>\n",
+                    )?;
+                    writer = visitor.writer_mut();
+                }
+                writeln!(writer, "<blockquote>")?;
+                let _ = writer;
+                for nested_block in blocks {
+                    visitor.visit_block(nested_block)?;
+                }
+                writer = visitor.writer_mut();
+                writeln!(writer, "</blockquote>")?;
+                write_attribution(&mut writer, &block.metadata)?;
+                if !block.title.is_empty() {
+                    writeln!(writer, "</section>")?;
+                }
             } else {
-                "quoteblock".to_string()
-            };
-            write_block_div_open(&mut writer, &block.metadata, &base_class)?;
-            writeln!(writer, "<blockquote>")?;
-            let _ = writer;
-            for nested_block in blocks {
-                visitor.visit_block(nested_block)?;
+                let mut writer = visitor.writer_mut();
+                let base_class = if let Some(style) = &block.metadata.style {
+                    format!("{style}block")
+                } else {
+                    "quoteblock".to_string()
+                };
+                write_block_div_open(&mut writer, &block.metadata, &base_class)?;
+                writeln!(writer, "<blockquote>")?;
+                let _ = writer;
+                for nested_block in blocks {
+                    visitor.visit_block(nested_block)?;
+                }
+                writer = visitor.writer_mut();
+                writeln!(writer, "</blockquote>")?;
+                write_attribution(&mut writer, &block.metadata)?;
+                writeln!(writer, "</div>")?;
             }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</blockquote>")?;
-            write_attribution(&mut writer, &block.metadata)?;
-            writeln!(writer, "</div>")?;
         }
         DelimitedBlockType::DelimitedOpen(blocks) => {
             let mut writer = visitor.writer_mut();
@@ -105,22 +184,46 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             writeln!(writer, "</div>")?;
         }
         DelimitedBlockType::DelimitedExample(blocks) => {
-            write_example_block(visitor, block, processor, blocks)?;
+            if processor.variant() == HtmlVariant::Semantic {
+                write_example_block_semantic(visitor, block, processor, blocks)?;
+            } else {
+                write_example_block(visitor, block, processor, blocks)?;
+            }
         }
         DelimitedBlockType::DelimitedSidebar(blocks) => {
-            let mut writer = visitor.writer_mut();
-            write_block_div_open(&mut writer, &block.metadata, "sidebarblock")?;
-            writeln!(writer, "<div class=\"content\">")?;
-            let _ = writer;
-            visitor.render_title_with_wrapper(&block.title, "<div class=\"title\">", "</div>\n")?;
-            writer = visitor.writer_mut();
-            let _ = writer;
-            for nested_block in blocks {
-                visitor.visit_block(nested_block)?;
+            if processor.variant() == HtmlVariant::Semantic {
+                let writer = visitor.writer_mut();
+                writeln!(writer, "<aside class=\"sidebar\">")?;
+                let _ = writer;
+                visitor.render_title_with_wrapper(
+                    &block.title,
+                    "<h6 class=\"block-title\">",
+                    "</h6>\n",
+                )?;
+                for nested_block in blocks {
+                    visitor.visit_block(nested_block)?;
+                }
+                let writer = visitor.writer_mut();
+                writeln!(writer, "</aside>")?;
+            } else {
+                let mut writer = visitor.writer_mut();
+                write_block_div_open(&mut writer, &block.metadata, "sidebarblock")?;
+                writeln!(writer, "<div class=\"content\">")?;
+                let _ = writer;
+                visitor.render_title_with_wrapper(
+                    &block.title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
+                writer = visitor.writer_mut();
+                let _ = writer;
+                for nested_block in blocks {
+                    visitor.visit_block(nested_block)?;
+                }
+                writer = visitor.writer_mut();
+                writeln!(writer, "</div>")?;
+                writeln!(writer, "</div>")?;
             }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</div>")?;
-            writeln!(writer, "</div>")?;
         }
         // Handle tables
         DelimitedBlockType::DelimitedTable(t) => {
@@ -201,6 +304,87 @@ fn process_callout_guards(inlines: &[InlineNode], comment_prefix: Option<&str>) 
     result
 }
 
+fn render_listing_code<V: WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    metadata: &BlockMetadata,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let language = detect_language(metadata);
+
+    #[cfg(feature = "highlighting")]
+    let highlighting_enabled = processor
+        .document_attributes
+        .get("source-highlighter")
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+
+    let comment_prefix = default_line_comment(language);
+    let processed_inlines = process_callout_guards(inlines, comment_prefix);
+
+    let mut w = visitor.writer_mut();
+
+    #[cfg(feature = "highlighting")]
+    if let Some(lang) = language {
+        if highlighting_enabled {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            let dark_mode = processor
+                .document_attributes
+                .get("dark-mode")
+                .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
+            crate::syntax::highlight_code(
+                visitor.writer_mut(),
+                &processed_inlines,
+                lang,
+                dark_mode,
+            )?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(&processed_inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        }
+    } else {
+        write!(w, "<pre>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&processed_inlines)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
+    }
+
+    #[cfg(not(feature = "highlighting"))]
+    {
+        let _ = processor;
+        if let Some(lang) = language {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(&processed_inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(w, "<pre>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&processed_inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</pre>")?;
+        }
+    }
+
+    Ok(())
+}
+
 fn render_listing_block<V: WritableVisitor<Error = Error>>(
     inlines: &[InlineNode],
     title: &[InlineNode],
@@ -208,6 +392,10 @@ fn render_listing_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &Processor,
 ) -> Result<(), Error> {
+    if processor.variant() == HtmlVariant::Semantic {
+        return render_listing_block_semantic(inlines, title, metadata, visitor, processor);
+    }
+
     let mut w = visitor.writer_mut();
     write_block_div_open(&mut w, metadata, "listingblock")?;
     let _ = w;
@@ -230,75 +418,36 @@ fn render_listing_block<V: WritableVisitor<Error = Error>>(
         }
     }
 
-    w = visitor.writer_mut();
+    let w = visitor.writer_mut();
     writeln!(w, "<div class=\"content\">")?;
+    let _ = w;
 
-    // Check if this is a source block with a language
-    let language = detect_language(metadata);
+    render_listing_code(inlines, metadata, visitor, processor)?;
 
-    // Check if syntax highlighting is enabled via source-highlighter attribute
-    #[cfg(feature = "highlighting")]
-    let highlighting_enabled = processor
-        .document_attributes
-        .get("source-highlighter")
-        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
-
-    // Strip comment guards from callout markers
-    let comment_prefix = default_line_comment(language);
-    let processed_inlines = process_callout_guards(inlines, comment_prefix);
-
-    #[cfg(feature = "highlighting")]
-    if let Some(lang) = language {
-        if highlighting_enabled {
-            // Use syntax highlighting
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            crate::syntax::highlight_code(visitor.writer_mut(), &processed_inlines, lang)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        } else {
-            // No highlighting - render as plain code
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        }
-    } else {
-        write!(w, "<pre>")?;
-        let _ = w;
-        visitor.visit_inline_nodes(&processed_inlines)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</pre>")?;
-    }
-
-    #[cfg(not(feature = "highlighting"))]
-    {
-        if let Some(lang) = language {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        } else {
-            write!(w, "<pre>")?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</pre>")?;
-        }
-    }
-
+    let w = visitor.writer_mut();
     writeln!(w, "</div>")?;
+    writeln!(w, "</div>")?;
+    Ok(())
+}
+
+fn render_listing_block_semantic<V: WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    title: &[InlineNode],
+    metadata: &BlockMetadata,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let mut w = visitor.writer_mut();
+    write_block_div_open(&mut w, metadata, "listing-block")?;
+    let _ = w;
+
+    if !title.is_empty() {
+        visitor.render_title_with_wrapper(title, "<h6 class=\"block-title\">", "</h6>\n")?;
+    }
+
+    render_listing_code(inlines, metadata, visitor, processor)?;
+
+    let w = visitor.writer_mut();
     writeln!(w, "</div>")?;
     Ok(())
 }
@@ -349,7 +498,7 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             let _ = w;
             visitor.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
             w = visitor.writer_mut();
-            render_stem_content(stem, w)?;
+            render_stem_content(stem, w, processor)?;
             writeln!(w, "</div>")?;
         }
         DelimitedBlockType::DelimitedComment(_) => {
@@ -385,9 +534,22 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-fn render_stem_content<W: Write + ?Sized>(stem: &StemContent, w: &mut W) -> Result<(), Error> {
+fn render_stem_content<W: Write + ?Sized>(
+    stem: &StemContent,
+    w: &mut W,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let forced = if processor.variant() == HtmlVariant::Semantic {
+        processor
+            .document_attributes()
+            .get("html5s-force-stem-type")
+            .and_then(|v| v.to_string().parse::<StemNotation>().ok())
+    } else {
+        None
+    };
+    let notation = forced.as_ref().unwrap_or(&stem.notation);
     writeln!(w, "<div class=\"content\">")?;
-    match stem.notation {
+    match notation {
         StemNotation::Latexmath => {
             write!(w, "\\[{}\\]", stem.content)?;
         }
@@ -439,6 +601,7 @@ mod tests {
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             section_number_tracker,
+            variant: crate::HtmlVariant::Standard,
         }
     }
 

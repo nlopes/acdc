@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source location via inline anchors. This goes beyond asciidoctor's HTML backend which
   leaves index sections empty. The index only renders when it's the last section in the
   document.
+- **Semantic HTML5 backend** — `--backend html5s` produces semantic HTML5 output with proper
+  elements and ARIA roles instead of div-based layout. ([#329])
 
 ### Fixed
 
@@ -52,6 +54,7 @@ This is tagged but unreleased in crates.io for now.
 [#272]: https://github.com/nlopes/acdc/issues/272
 [#273]: https://github.com/nlopes/acdc/issues/273
 [#311]: https://github.com/nlopes/acdc/issues/311
+[#329]: https://github.com/nlopes/acdc/issues/329
 
 [Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.1.0...HEAD
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-cli-v0.1.0

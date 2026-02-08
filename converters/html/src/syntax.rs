@@ -18,7 +18,9 @@ use acdc_parser::InlineNode;
 use crate::Error;
 
 #[cfg(feature = "highlighting")]
-const CODE_HIGHLIGHT_THEME: &str = "InspiredGitHub";
+const CODE_HIGHLIGHT_THEME_LIGHT: &str = "InspiredGitHub";
+#[cfg(feature = "highlighting")]
+const CODE_HIGHLIGHT_THEME_DARK: &str = "base16-eighties.dark";
 
 /// Highlight code and write HTML output with inline styles.
 ///
@@ -32,6 +34,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     language: &str,
+    dark_mode: bool,
 ) -> Result<(), Error> {
     use syntect::{highlighting::ThemeSet, html::highlighted_html_for_string, parsing::SyntaxSet};
 
@@ -39,8 +42,12 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
 
-    // Use InspiredGitHub theme for a clean look in HTML
-    let Some(theme) = theme_set.themes.get(CODE_HIGHLIGHT_THEME) else {
+    let theme_name = if dark_mode {
+        CODE_HIGHLIGHT_THEME_DARK
+    } else {
+        CODE_HIGHLIGHT_THEME_LIGHT
+    };
+    let Some(theme) = theme_set.themes.get(theme_name) else {
         return write_escaped_code_with_callouts(writer, inlines);
     };
 
@@ -178,6 +185,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     _language: &str,
+    _dark_mode: bool,
 ) -> Result<(), Error> {
     write_escaped_code_with_callouts(writer, inlines)
 }
@@ -327,7 +335,7 @@ mod tests {
         ];
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "rust")?;
+        highlight_code(&mut buffer, &inlines, "rust", false)?;
 
         let html = String::from_utf8(buffer).expect("valid utf8");
         // Verify callout HTML is present
@@ -356,7 +364,7 @@ mod tests {
         let inlines = create_verbatim_inlines(code);
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "rust")?;
+        highlight_code(&mut buffer, &inlines, "rust", false)?;
 
         let html = String::from_utf8(buffer).expect("valid utf8");
         // Verify it contains span elements for highlighting
@@ -375,7 +383,7 @@ mod tests {
         let inlines = create_verbatim_inlines(code);
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "unknown_lang_xyz")?;
+        highlight_code(&mut buffer, &inlines, "unknown_lang_xyz", false)?;
 
         // Should fall back to plain text and not crash
         assert!(
