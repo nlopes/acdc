@@ -404,8 +404,7 @@ ol.footnotes{margin-left:1.2em}
 ol.footnotes>.footnote{padding:0 .375em 0 .225em;line-height:1.3334;font-size:.875em;margin-bottom:.2em}
 ol.footnotes>.footnote:last-of-type{margin-bottom:0}
 /* Semantic footnote refs (html5s) */
-sup.footnote-ref{font-size:.875em;position:static;vertical-align:super}
-a.footnote-ref{text-decoration:none}
+a.footnote-ref{font-size:.875em;vertical-align:super;text-decoration:none}
 a.footnote-ref:active{text-decoration:underline}
 a.footnote-backref{text-decoration:none}
 a.footnote-backref:hover{text-decoration:underline}
