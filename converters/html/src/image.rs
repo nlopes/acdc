@@ -89,8 +89,35 @@ fn visit_image_semantic<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &Processor,
 ) -> Result<(), Error> {
+    let has_title = !img.title.is_empty();
     let mut w = visitor.writer_mut();
-    writeln!(w, "<figure class=\"image-block\">")?;
+
+    // Build class and style for wrapper
+    let mut classes = vec!["image-block".to_string()];
+    for role in &img.metadata.roles {
+        classes.push(role.clone());
+    }
+
+    let mut styles = Vec::new();
+    if let Some(align) = img.metadata.attributes.get_string("align") {
+        styles.push(format!("text-align: {align}"));
+    }
+    if let Some(float) = img.metadata.attributes.get_string("float") {
+        styles.push(format!("float: {float}"));
+    }
+
+    // Wrapper: figure for titled, div for untitled
+    let tag = if has_title { "figure" } else { "div" };
+    write!(w, "<{tag} class=\"{}\"", classes.join(" "))?;
+    if let Some(id) = &img.metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = img.metadata.anchors.first() {
+        write!(w, " id=\"{}\"", anchor.id)?;
+    }
+    if !styles.is_empty() {
+        write!(w, " style=\"{}\"", styles.join("; "))?;
+    }
+    writeln!(w, ">")?;
 
     let alt_text = img
         .metadata
@@ -98,16 +125,28 @@ fn visit_image_semantic<V: WritableVisitor<Error = Error>>(
         .get_string("alt")
         .unwrap_or(alt_text_from_filename(&img.source));
 
-    // Check for link=self or html5s-image-default-link=self
+    // Check for link=self, link=none, or html5s-image-default-link=self
     let link = img.metadata.attributes.get("link");
-    let use_self_link = link.as_ref().is_some_and(|v| v.to_string() == "self")
-        || (link.is_none()
+    let link_str = link.as_ref().map(ToString::to_string);
+    let is_link_none = link_str.as_deref() == Some("none");
+    let is_link_self = link_str.as_deref() == Some("self");
+
+    let use_self_link = is_link_self
+        || (!is_link_none
+            && link.is_none()
             && processor
                 .document_attributes()
                 .get("html5s-image-default-link")
                 .is_some_and(|v| v.to_string() == "self"));
 
-    if use_self_link {
+    // Check if default-link=self but explicit link=none should suppress
+    let suppress_default_self = is_link_none
+        && processor
+            .document_attributes()
+            .get("html5s-image-default-link")
+            .is_some_and(|v| v.to_string() == "self");
+
+    if use_self_link && !suppress_default_self {
         let label = processor
             .document_attributes()
             .get("html5s-image-self-link-label")
@@ -117,14 +156,14 @@ fn visit_image_semantic<V: WritableVisitor<Error = Error>>(
             );
         write!(
             w,
-            "<a class=\"image\" href=\"{}\" title=\"{label}\" aria-label=\"{label}\">",
+            "<a class=\"image bare\" href=\"{}\" title=\"{label}\" aria-label=\"{label}\">",
             img.source
         )?;
-    } else if let Some(link) = link {
-        let link_str = link.to_string();
-        if link_str != "self" {
-            write!(w, "<a class=\"image\" href=\"{}\">", escape_href(&link_str))?;
-        }
+    } else if !is_link_none
+        && !is_link_self
+        && let Some(ref link_str) = link_str
+    {
+        write!(w, "<a class=\"image\" href=\"{}\">", escape_href(link_str))?;
     }
 
     write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;
@@ -137,11 +176,14 @@ fn visit_image_semantic<V: WritableVisitor<Error = Error>>(
 
     write!(w, ">")?;
 
-    if use_self_link || link.as_ref().is_some_and(|v| v.to_string() != "self") {
+    // Close link tag if we opened one
+    let has_link = (use_self_link && !suppress_default_self)
+        || (!is_link_none && !is_link_self && link_str.is_some());
+    if has_link {
         write!(w, "</a>")?;
     }
 
-    if !img.title.is_empty() {
+    if has_title {
         let prefix =
             processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
         let _ = w;
@@ -153,6 +195,6 @@ fn visit_image_semantic<V: WritableVisitor<Error = Error>>(
         w = visitor.writer_mut();
     }
 
-    writeln!(w, "</figure>")?;
+    writeln!(w, "</{tag}>")?;
     Ok(())
 }
