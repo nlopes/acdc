@@ -673,32 +673,49 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             // A named footnote reference (footnote:name[] with empty content)
             // uses class="footnoteref" and no IDs, matching asciidoctor.
             let is_ref = f.id.is_some() && f.content.is_empty();
-            let sup_class = if is_ref { "footnoteref" } else { "footnote" };
             if options.inlines_basic {
                 write!(w, "[{}]", f.number)?;
-            } else if options.toc_mode {
-                // In TOC mode, render footnote without anchor link (matches asciidoctor)
-                write!(w, "<sup class=\"{sup_class}\"")?;
-                if !is_ref && let Some(id) = &f.id {
-                    write!(w, " id=\"_footnote_{id}\"")?;
-                }
-                write!(w, ">[{}]</sup>", f.number)?;
-            } else {
+            } else if processor.variant() == crate::HtmlVariant::Semantic {
                 let number = f.number;
-                write!(w, "<sup class=\"{sup_class}\"")?;
-                if !is_ref && let Some(id) = &f.id {
-                    write!(w, " id=\"_footnote_{id}\"")?;
-                }
-                if is_ref {
+                if options.toc_mode {
+                    write!(w, "<sup class=\"footnote-ref\">[{number}]</sup>")?;
+                } else if is_ref {
                     write!(
                         w,
-                        ">[<a class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+                        "<a class=\"footnote-ref\" href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">[{number}]</a>"
                     )?;
                 } else {
                     write!(
                         w,
-                        ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+                        "<a class=\"footnote-ref\" id=\"_footnoteref_{number}\" href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">[{number}]</a>"
                     )?;
+                }
+            } else {
+                let sup_class = if is_ref { "footnoteref" } else { "footnote" };
+                if options.toc_mode {
+                    // In TOC mode, render footnote without anchor link (matches asciidoctor)
+                    write!(w, "<sup class=\"{sup_class}\"")?;
+                    if !is_ref && let Some(id) = &f.id {
+                        write!(w, " id=\"_footnote_{id}\"")?;
+                    }
+                    write!(w, ">[{}]</sup>", f.number)?;
+                } else {
+                    let number = f.number;
+                    write!(w, "<sup class=\"{sup_class}\"")?;
+                    if !is_ref && let Some(id) = &f.id {
+                        write!(w, " id=\"_footnote_{id}\"")?;
+                    }
+                    if is_ref {
+                        write!(
+                            w,
+                            ">[<a class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+                        )?;
+                    } else {
+                        write!(
+                            w,
+                            ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+                        )?;
+                    }
                 }
             }
         }
@@ -747,14 +764,25 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 write!(w, "</a>")?;
             }
         }
-        InlineMacro::Stem(s) => match s.notation {
-            StemNotation::Latexmath => {
-                writeln!(w, "\\({}\\)", s.content)?;
+        InlineMacro::Stem(s) => {
+            let forced = if processor.variant() == crate::HtmlVariant::Semantic {
+                processor
+                    .document_attributes()
+                    .get("html5s-force-stem-type")
+                    .and_then(|v| v.to_string().parse::<StemNotation>().ok())
+            } else {
+                None
+            };
+            let notation = forced.as_ref().unwrap_or(&s.notation);
+            match notation {
+                StemNotation::Latexmath => {
+                    writeln!(w, "\\({}\\)", s.content)?;
+                }
+                StemNotation::Asciimath => {
+                    writeln!(w, "\\${}\\$", s.content)?;
+                }
             }
-            StemNotation::Asciimath => {
-                writeln!(w, "\\${}\\$", s.content)?;
-            }
-        },
+        }
         InlineMacro::Icon(i) => {
             write_icon(w, processor, i)?;
         }

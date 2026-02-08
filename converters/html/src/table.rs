@@ -5,7 +5,7 @@ use acdc_parser::{
     TableColumn, VerticalAlignment,
 };
 
-use crate::{Error, Processor, RenderOptions};
+use crate::{Error, HtmlVariant, Processor, RenderOptions};
 
 /// Convert horizontal alignment to CSS class name
 fn halign_class(halign: HorizontalAlignment) -> &'static str {
@@ -340,6 +340,7 @@ fn render_body_cell<V>(
     visitor: &mut V,
     processor: &Processor,
     options: &RenderOptions,
+    semantic: bool,
 ) -> Result<(), Error>
 where
     V: WritableVisitor<Error = Error>,
@@ -356,19 +357,21 @@ where
         "td"
     };
 
+    let cell_class_prefix = if semantic { "" } else { "tableblock " };
     let writer = visitor.writer_mut();
     write!(
         writer,
-        "<{tag} class=\"tableblock {halign} {valign}\"{span_attrs}>"
+        "<{tag} class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
     )?;
     let _ = writer;
-    render_cell_content(&cell.content, visitor, processor, options, true, style)?;
+    render_cell_content(&cell.content, visitor, processor, options, !semantic, style)?;
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
     Ok(())
 }
 
 /// Render table with support for nested blocks in cells
+#[allow(clippy::too_many_lines)]
 pub(crate) fn render_table<V>(
     table: &Table,
     visitor: &mut V,
@@ -380,6 +383,7 @@ pub(crate) fn render_table<V>(
 where
     V: WritableVisitor<Error = Error>,
 {
+    let semantic = processor.variant() == HtmlVariant::Semantic;
     let writer = visitor.writer_mut();
 
     // Build table classes
@@ -387,8 +391,13 @@ where
     let grid = get_grid_class(metadata);
     let sizing = get_sizing_class(metadata);
 
-    // Start with base classes, add optional ones
-    let mut class_parts = format!("tableblock {frame} {grid} {sizing}");
+    // Semantic mode: wrap in <div class="table-block">, no "tableblock" prefix on table
+    let mut class_parts = if semantic {
+        writeln!(writer, "<div class=\"table-block\">")?;
+        format!("{frame} {grid} {sizing}")
+    } else {
+        format!("tableblock {frame} {grid} {sizing}")
+    };
 
     // Add stripes class if specified
     if let Some(stripes) = get_stripes_class(metadata) {
@@ -414,6 +423,9 @@ where
     // Render colgroup with column widths
     render_colgroup(visitor.writer_mut(), table, metadata)?;
 
+    // Cell class prefix: "tableblock " for standard, "" for semantic
+    let cell_class_prefix = if semantic { "" } else { "tableblock " };
+
     // Render header
     if let Some(header) = &table.header {
         let writer = visitor.writer_mut();
@@ -428,7 +440,7 @@ where
             let writer = visitor.writer_mut();
             write!(
                 writer,
-                "<th class=\"tableblock {halign} {valign}\"{span_attrs}>"
+                "<th class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
             render_cell_content(&cell.content, visitor, processor, options, false, style)?;
@@ -449,7 +461,15 @@ where
         writeln!(writer, "<tr>")?;
         let _ = writer;
         for (col_index, cell) in row.columns.iter().enumerate() {
-            render_body_cell(cell, col_index, &table.columns, visitor, processor, options)?;
+            render_body_cell(
+                cell,
+                col_index,
+                &table.columns,
+                visitor,
+                processor,
+                options,
+                semantic,
+            )?;
         }
         let writer = visitor.writer_mut();
         writeln!(writer, "</tr>")?;
@@ -471,10 +491,10 @@ where
             let writer = visitor.writer_mut();
             write!(
                 writer,
-                "<td class=\"tableblock {halign} {valign}\"{span_attrs}>"
+                "<td class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options, true, style)?;
+            render_cell_content(&cell.content, visitor, processor, options, !semantic, style)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</td>")?;
         }
@@ -485,5 +505,8 @@ where
 
     let writer = visitor.writer_mut();
     writeln!(writer, "</table>")?;
+    if semantic {
+        writeln!(writer, "</div>")?;
+    }
     Ok(())
 }

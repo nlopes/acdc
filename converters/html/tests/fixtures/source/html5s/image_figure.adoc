@@ -1,0 +1,2 @@
+.A sunset
+image::sunset.jpg[]

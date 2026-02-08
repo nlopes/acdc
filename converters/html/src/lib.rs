@@ -32,6 +32,16 @@ pub use error::Error;
 pub use html_visitor::HtmlVisitor;
 pub(crate) use section::SectionNumberTracker;
 
+/// Controls the HTML output style.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum HtmlVariant {
+    /// Standard asciidoctor-compatible HTML (div soup).
+    #[default]
+    Standard,
+    /// Semantic HTML5 output using section, aside, figure, ARIA roles, etc.
+    Semantic,
+}
+
 /// An entry in the index catalog, collected during document traversal.
 #[derive(Clone, Debug)]
 pub struct IndexTermEntry {
@@ -69,6 +79,8 @@ pub struct Processor {
     has_valid_index_section: bool,
     /// Section number tracker for `:sectnums:` support.
     section_number_tracker: SectionNumberTracker,
+    /// HTML output variant (Standard or Semantic).
+    variant: HtmlVariant,
 }
 
 impl Processor {
@@ -94,6 +106,12 @@ impl Processor {
     #[must_use]
     pub fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
+    }
+
+    /// Get the HTML output variant.
+    #[must_use]
+    pub fn variant(&self) -> HtmlVariant {
+        self.variant
     }
 
     /// Check if font icons mode is enabled (`:icons: font`).
@@ -242,13 +260,16 @@ pub(crate) const STYLESHEET_DEFAULT: &str = "";
 // NOTE: If you change the values below, you need to also change them in `load_css`
 pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
 pub(crate) const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
+pub(crate) const STYLESHEET_HTML5S_LIGHT_MODE: &str = "html5s-light-mode.css";
+pub(crate) const STYLESHEET_HTML5S_DARK_MODE: &str = "html5s-dark-mode.css";
 pub(crate) const WEBFONTS_DEFAULT: &str = "";
 
-pub(crate) fn load_css(dark_mode: bool) -> &'static str {
-    if dark_mode {
-        include_str!("../static/asciidoctor-dark-mode.css")
-    } else {
-        include_str!("../static/asciidoctor-light-mode.css")
+pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
+    match (variant, dark_mode) {
+        (HtmlVariant::Semantic, true) => include_str!("../static/html5s-dark-mode.css"),
+        (HtmlVariant::Semantic, false) => include_str!("../static/html5s-light-mode.css"),
+        (HtmlVariant::Standard, true) => include_str!("../static/asciidoctor-dark-mode.css"),
+        (HtmlVariant::Standard, false) => include_str!("../static/asciidoctor-light-mode.css"),
     }
 }
 
@@ -279,26 +300,11 @@ impl Converter for Processor {
     }
 
     fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
-        let mut document_attributes = document_attributes;
-        for (name, value) in Self::document_attributes_defaults().iter() {
-            document_attributes.insert(name.clone(), value.clone());
-        }
-
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-
-        Self {
-            options,
-            document_attributes,
-            toc_entries: vec![],
-            example_counter: Rc::new(Cell::new(0)),
-            table_counter: Rc::new(Cell::new(0)),
-            figure_counter: Rc::new(Cell::new(0)),
-            listing_counter: Rc::new(Cell::new(0)),
-            index_term_counter: Rc::new(Cell::new(0)),
-            index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            section_number_tracker,
-        }
+        let variant = match options.backend() {
+            Backend::Html5s => HtmlVariant::Semantic,
+            Backend::Html | Backend::Manpage | Backend::Terminal => HtmlVariant::Standard,
+        };
+        Self::new_with_variant(options, document_attributes, variant)
     }
 
     fn options(&self) -> &Options {
@@ -338,17 +344,63 @@ impl Converter for Processor {
     }
 
     fn after_write(&self, doc: &Document, output_path: &Path) {
-        Self::handle_copycss(doc, output_path);
+        self.handle_copycss(doc, output_path);
     }
 
     fn backend(&self) -> Backend {
-        Backend::Html
+        match self.variant {
+            HtmlVariant::Semantic => Backend::Html5s,
+            HtmlVariant::Standard => Backend::Html,
+        }
     }
 }
 
 impl Processor {
+    /// Create a processor with a specific HTML variant.
+    ///
+    /// Useful for tests and callers that construct `Processor` directly
+    /// without going through the `Converter` trait.
+    #[must_use]
+    pub fn new_with_variant(
+        options: Options,
+        document_attributes: DocumentAttributes,
+        variant: HtmlVariant,
+    ) -> Self {
+        let mut document_attributes = document_attributes;
+        for (name, value) in <Self as Converter>::document_attributes_defaults().iter() {
+            document_attributes.insert(name.clone(), value.clone());
+        }
+
+        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+
+        Self {
+            options,
+            document_attributes,
+            toc_entries: vec![],
+            example_counter: Rc::new(Cell::new(0)),
+            table_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
+            index_term_counter: Rc::new(Cell::new(0)),
+            index_entries: Rc::new(RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            section_number_tracker,
+            variant,
+        }
+    }
+
+    /// Return the appropriate default stylesheet filename for this processor's variant.
+    fn default_stylesheet_name(&self, is_dark: bool) -> &'static str {
+        match (self.variant, is_dark) {
+            (HtmlVariant::Semantic, true) => STYLESHEET_HTML5S_DARK_MODE,
+            (HtmlVariant::Semantic, false) => STYLESHEET_HTML5S_LIGHT_MODE,
+            (HtmlVariant::Standard, true) => STYLESHEET_DARK_MODE,
+            (HtmlVariant::Standard, false) => STYLESHEET_LIGHT_MODE,
+        }
+    }
+
     /// Handle copying CSS if linkcss and copycss are set.
-    fn handle_copycss(doc: &acdc_parser::Document, html_path: &std::path::Path) {
+    fn handle_copycss(&self, doc: &acdc_parser::Document, html_path: &std::path::Path) {
         let linkcss = doc.attributes.get("linkcss").is_some();
         if !linkcss {
             return;
@@ -365,11 +417,7 @@ impl Processor {
             .attributes
             .get("dark-mode")
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
-        let default_filename = if is_dark {
-            STYLESHEET_DARK_MODE
-        } else {
-            STYLESHEET_LIGHT_MODE
-        };
+        let default_filename = self.default_stylesheet_name(is_dark);
 
         let stylesheet = doc
             .attributes

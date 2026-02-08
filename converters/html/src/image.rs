@@ -1,8 +1,10 @@
+use std::string::ToString;
+
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::Image;
 
 use crate::{
-    Error, Processor,
+    Error, HtmlVariant, Processor,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
     inlines::escape_href,
 };
@@ -12,6 +14,10 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &Processor,
 ) -> Result<(), Error> {
+    if processor.variant() == HtmlVariant::Semantic {
+        return visit_image_semantic(img, visitor, processor);
+    }
+
     let mut w = visitor.writer_mut();
 
     // Build class list: imageblock + alignment + float + roles
@@ -75,5 +81,78 @@ pub(crate) fn visit_image<V: WritableVisitor<Error = Error>>(
     }
 
     write!(w, "</div>")?; // close imageblock
+    Ok(())
+}
+
+fn visit_image_semantic<V: WritableVisitor<Error = Error>>(
+    img: &Image,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let mut w = visitor.writer_mut();
+    writeln!(w, "<figure class=\"image-block\">")?;
+
+    let alt_text = img
+        .metadata
+        .attributes
+        .get_string("alt")
+        .unwrap_or(alt_text_from_filename(&img.source));
+
+    // Check for link=self or html5s-image-default-link=self
+    let link = img.metadata.attributes.get("link");
+    let use_self_link = link.as_ref().is_some_and(|v| v.to_string() == "self")
+        || (link.is_none()
+            && processor
+                .document_attributes()
+                .get("html5s-image-default-link")
+                .is_some_and(|v| v.to_string() == "self"));
+
+    if use_self_link {
+        let label = processor
+            .document_attributes()
+            .get("html5s-image-self-link-label")
+            .map_or_else(
+                || "Open the image in full size".to_string(),
+                ToString::to_string,
+            );
+        write!(
+            w,
+            "<a class=\"image\" href=\"{}\" title=\"{label}\" aria-label=\"{label}\">",
+            img.source
+        )?;
+    } else if let Some(link) = link {
+        let link_str = link.to_string();
+        if link_str != "self" {
+            write!(w, "<a class=\"image\" href=\"{}\">", escape_href(&link_str))?;
+        }
+    }
+
+    write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;
+    write_dimension_attributes(w, &img.metadata)?;
+
+    // Add loading attribute if present
+    if let Some(loading) = img.metadata.attributes.get_string("loading") {
+        write!(w, " loading=\"{loading}\"")?;
+    }
+
+    write!(w, ">")?;
+
+    if use_self_link || link.as_ref().is_some_and(|v| v.to_string() != "self") {
+        write!(w, "</a>")?;
+    }
+
+    if !img.title.is_empty() {
+        let prefix =
+            processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
+        let _ = w;
+        visitor.render_title_with_wrapper(
+            &img.title,
+            &format!("<figcaption>{prefix}"),
+            "</figcaption>\n",
+        )?;
+        w = visitor.writer_mut();
+    }
+
+    writeln!(w, "</figure>")?;
     Ok(())
 }

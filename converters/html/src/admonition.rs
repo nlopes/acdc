@@ -1,7 +1,7 @@
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 
-use crate::{Error, Processor};
+use crate::{Error, HtmlVariant, Processor};
 
 pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
@@ -26,6 +26,10 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
             AttributeValue::Bool(_) | AttributeValue::None | _ => None,
         })
         .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
+
+    if processor.variant() == HtmlVariant::Semantic {
+        return visit_admonition_semantic(visitor, admon, caption);
+    }
 
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;
@@ -84,5 +88,66 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     writeln!(writer, "</tr>")?;
     writeln!(writer, "</table>")?;
     writeln!(writer, "</div>")?;
+    Ok(())
+}
+
+/// Render an admonition block in semantic HTML5 mode.
+fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    admon: &Admonition,
+    caption: &str,
+) -> Result<(), Error> {
+    // Note/Tip use <aside> with role="note"/"doc-tip"
+    // Warning/Important/Caution use <section> with role="doc-notice"
+    let (tag, role) = match admon.variant {
+        AdmonitionVariant::Note => ("aside", "note"),
+        AdmonitionVariant::Tip => ("aside", "doc-tip"),
+        AdmonitionVariant::Warning | AdmonitionVariant::Important | AdmonitionVariant::Caution => {
+            ("section", "doc-notice")
+        }
+    };
+
+    let mut writer = visitor.writer_mut();
+    writeln!(
+        writer,
+        "<{tag} class=\"admonition-block {}\" role=\"{role}\">",
+        admon.variant
+    )?;
+    writeln!(
+        writer,
+        "<h6 class=\"block-title label-only\"><span class=\"title-label\">{caption}: </span></h6>"
+    )?;
+
+    if !admon.title.is_empty() {
+        write!(writer, "<h6 class=\"block-title\">")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&admon.title)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</h6>")?;
+    }
+    let _ = writer;
+
+    // Render content blocks
+    match admon.blocks.as_slice() {
+        [acdc_parser::Block::Paragraph(para)] => {
+            let writer = visitor.writer_mut();
+            write!(writer, "<p>")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&para.content)?;
+            let writer = visitor.writer_mut();
+            writeln!(writer, "</p>")?;
+        }
+        [block] => {
+            visitor.visit_block(block)?;
+        }
+        blocks => {
+            for block in blocks {
+                visitor.visit_block(block)?;
+            }
+        }
+    }
+
+    let writer = visitor.writer_mut();
+    writeln!(writer, "</{tag}>")?;
     Ok(())
 }

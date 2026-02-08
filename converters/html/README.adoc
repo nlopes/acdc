@@ -96,6 +96,69 @@ Verbatim blocks (listing, literal) support the `subs` attribute:
 - `subs=+attributes` - enable attribute expansion
 - `subs=+replacements` - enable typography (arrows, dashes, ellipsis)
 
+### Mathematical Formulas (Stem)
+
+Render mathematical formulas using MathJax 4. Enable it by setting the `:stem:` document attribute.
+
+[source,asciidoc]
+....
+= My Document
+:stem: latexmath
+....
+
+The `:stem:` attribute accepts:
+
+- `latexmath` - use LaTeX notation
+- `asciimath` - use AsciiMath notation
+- _(empty)_ - defaults to `latexmath` for blocks, `asciimath` for inline
+
+**Inline formulas** use the `stem:[]` macro:
+
+[source,asciidoc]
+....
+The solution is stem:[x = (-b +- sqrt(b^2 - 4ac)) / (2a)].
+....
+
+**Block formulas** use the `[stem]` attribute on a passthrough block:
+
+[source,asciidoc]
+....
+[stem]
+++++
+x = (-b +- sqrt(b^2 - 4ac)) / (2a)
+++++
+....
+
+When enabled, MathJax is loaded from the jsdelivr CDN (`cdn.jsdelivr.net/npm/mathjax@4`) and renders formulas client-side. LaTeX uses `\(...\)` and `\[...\]` delimiters; AsciiMath uses `\$...\$`.
+
+To suppress MathJax processing on specific elements, add the CSS class `nostem`, `nolatexmath`, or `noasciimath`.
+
+### Semantic HTML5 Output (`html5s`)
+
+An alternative backend that produces semantic HTML5 instead of the traditional div-based layout, inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem for Asciidoctor. Enable it with `--backend html5s`:
+
+[source,console]
+....
+acdc convert --backend html5s document.adoc
+....
+
+Key differences from the standard backend:
+
+- **Sections** use `<section>` elements instead of `<div class="sectN">`
+- **Admonitions** use `<aside>` (note, tip) or `<section>` (warning, important, caution) with ARIA roles
+- **Images** use `<figure>` and `<figcaption>` instead of `<div class="imageblock">`
+- **Example blocks** use `<figure>` instead of `<div class="exampleblock">`
+- **Sidebars** use `<aside>` instead of `<div class="sidebarblock">`
+- **Callout lists** use `<ol>` instead of a table layout
+- **Titled paragraphs** are wrapped in `<section>` with `<h6 class="block-title">`
+- **Block titles** use `<h6 class="block-title">` instead of `<div class="title">`
+
+The semantic variant ships with its own stylesheet (light and dark mode) and supports a few additional document attributes:
+
+- `:html5s-force-stem-type:` — override the stem notation (`latexmath` or `asciimath`) regardless of the `:stem:` value
+- `:html5s-image-default-link: self` — make all images link to themselves by default
+- `:html5s-image-self-link-label:` — custom aria label for self-linked images (default: "Open the image in full size")
+
 ### Document Attributes
 
 Set document attributes via command line:
@@ -175,5 +238,8 @@ The HTML converter:
 
 ## Differences from Asciidoctor
 
-While the HTML converter aims for compatibility with Asciidoctor, there are some known
-differences and limitations.
+While the HTML converter aims for compatibility with Asciidoctor, there are some known differences and limitations.
+
+- The `css-signature` attribute is not supported. Use a document ID instead (`[[my-id]]` above the title).
+- Syntax highlighting uses syntect with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
+- The `html5s` backend is inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem but is a separate implementation with its own output.

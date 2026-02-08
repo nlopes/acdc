@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive module-level documentation
 - `acdc-converters-dev` crate for test utilities (not published to crates.io)
 - Visitor method `visit_callout_ref` for processing callout references
+- `Backend::Html5s` variant for semantic HTML5 output
 
 ### Fixed
 

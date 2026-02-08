@@ -10,7 +10,7 @@ use acdc_parser::{
     SubstitutionSpec, TableOfContents, ThematicBreak, UnorderedList, VERBATIM, Video,
 };
 
-use crate::{Error, Processor, RenderOptions};
+use crate::{Error, HtmlVariant, Processor, RenderOptions};
 
 /// Compute effective substitutions for a block.
 ///
@@ -211,10 +211,12 @@ impl<W: Write> HtmlVisitor<W> {
 
         // Handle stylesheet rendering based on linkcss attribute
         let linkcss = self.processor.document_attributes.get("linkcss").is_some();
-        let default_filename = if dark_mode {
-            crate::STYLESHEET_DARK_MODE
-        } else {
-            crate::STYLESHEET_LIGHT_MODE
+        let variant = self.processor.variant();
+        let default_filename = match (variant, dark_mode) {
+            (HtmlVariant::Semantic, true) => crate::STYLESHEET_HTML5S_DARK_MODE,
+            (HtmlVariant::Semantic, false) => crate::STYLESHEET_HTML5S_LIGHT_MODE,
+            (HtmlVariant::Standard, true) => crate::STYLESHEET_DARK_MODE,
+            (HtmlVariant::Standard, false) => crate::STYLESHEET_LIGHT_MODE,
         };
 
         if linkcss {
@@ -225,7 +227,7 @@ impl<W: Write> HtmlVisitor<W> {
             )?;
         } else {
             // Embed stylesheet directly (default behavior)
-            let css = crate::load_css(dark_mode);
+            let css = crate::load_css(dark_mode, variant);
             writeln!(
                 self.writer,
                 "<style>\n{css}\n.stemblock .content {{\n  text-align: center;\n}}\n</style>"
@@ -272,21 +274,38 @@ impl<W: Write> HtmlVisitor<W> {
     }
 
     fn render_body_footer(&mut self) -> Result<(), Error> {
-        writeln!(self.writer, "<div id=\"footer\">")?;
-        writeln!(self.writer, "<div id=\"footer-text\">")?;
-        if let Some(last_updated) = self.render_options.last_updated {
-            writeln!(
-                self.writer,
-                "Last updated {}",
-                last_updated.format("%F %T %Z")
-            )?;
+        if self.processor.variant() == HtmlVariant::Semantic {
+            writeln!(self.writer, "<footer id=\"footer\">")?;
+            writeln!(self.writer, "<div id=\"footer-text\">")?;
+            if let Some(last_updated) = self.render_options.last_updated {
+                writeln!(
+                    self.writer,
+                    "Last updated {}",
+                    last_updated.format("%F %T %Z")
+                )?;
+            }
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</footer>")?;
+        } else {
+            writeln!(self.writer, "<div id=\"footer\">")?;
+            writeln!(self.writer, "<div id=\"footer-text\">")?;
+            if let Some(last_updated) = self.render_options.last_updated {
+                writeln!(
+                    self.writer,
+                    "Last updated {}",
+                    last_updated.format("%F %T %Z")
+                )?;
+            }
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</div>")?;
         }
-        writeln!(self.writer, "</div>")?;
-        writeln!(self.writer, "</div>")?;
         Ok(())
     }
 
     fn render_footnotes(&mut self, footnotes: &[Footnote]) -> Result<(), Error> {
+        if self.processor.variant() == HtmlVariant::Semantic {
+            return self.render_footnotes_semantic(footnotes);
+        }
         writeln!(self.writer, "<div id=\"footnotes\">")?;
         writeln!(self.writer, "<hr>")?;
         for footnote in footnotes {
@@ -303,6 +322,31 @@ impl<W: Write> HtmlVisitor<W> {
             writeln!(self.writer, "</div>")?;
         }
         writeln!(self.writer, "</div>")?;
+        Ok(())
+    }
+
+    fn render_footnotes_semantic(&mut self, footnotes: &[Footnote]) -> Result<(), Error> {
+        writeln!(
+            self.writer,
+            "<section class=\"footnotes\" aria-label=\"Footnotes\" role=\"doc-endnotes\">"
+        )?;
+        writeln!(self.writer, "<hr>")?;
+        writeln!(self.writer, "<ol class=\"footnotes\">")?;
+        for footnote in footnotes {
+            let number = footnote.number;
+            writeln!(
+                self.writer,
+                "<li class=\"footnote\" id=\"_footnote_{number}\" role=\"doc-endnote\">"
+            )?;
+            self.visit_inline_nodes(&footnote.content)?;
+            write!(
+                self.writer,
+                " <a class=\"footnote-backref\" href=\"#_footnoteref_{number}\" role=\"doc-backlink\" title=\"Jump to the first occurrence in the text\">&#8617;</a>"
+            )?;
+            writeln!(self.writer, "</li>")?;
+        }
+        writeln!(self.writer, "</ol>")?;
+        writeln!(self.writer, "</section>")?;
         Ok(())
     }
 }
@@ -407,9 +451,12 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_preamble_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        // Close preamble divs
-        writeln!(self.writer, "</div>")?; // Close sectionbody
-        writeln!(self.writer, "</div>")?; // Close preamble
+        if self.processor.variant() == HtmlVariant::Semantic {
+            writeln!(self.writer, "</section>")?;
+        } else {
+            writeln!(self.writer, "</div>")?; // Close sectionbody
+            writeln!(self.writer, "</div>")?; // Close preamble
+        }
 
         let processor = self.processor.clone();
         crate::toc::render(None, self, "preamble", &processor)?;
@@ -417,9 +464,13 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
-        // Close #content div (only if not in embedded mode)
+        // Close #content (only if not in embedded mode)
         if !self.render_options.embedded {
-            writeln!(self.writer, "</div>")?;
+            if self.processor.variant() == HtmlVariant::Semantic {
+                writeln!(self.writer, "</main>")?;
+            } else {
+                writeln!(self.writer, "</div>")?;
+            }
         }
         if !doc.footnotes.is_empty() {
             self.render_footnotes(&doc.footnotes)?;
@@ -445,9 +496,18 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
         if self.render_options.embedded {
+            // In embedded semantic mode, still render the TOC
+            if self.processor.variant() == HtmlVariant::Semantic {
+                let processor = self.processor.clone();
+                crate::toc::render(None, self, "auto", &processor)?;
+            }
             return Ok(());
         }
-        writeln!(self.writer, "<div id=\"header\">")?;
+        if self.processor.variant() == HtmlVariant::Semantic {
+            writeln!(self.writer, "<header id=\"header\">")?;
+        } else {
+            writeln!(self.writer, "<div id=\"header\">")?;
+        }
         if !header.title.is_empty() {
             write!(self.writer, "<h1>")?;
             self.visit_inline_nodes(&header.title)?;
@@ -525,7 +585,11 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         // Render TOC after header if toc="auto"
         let processor = self.processor.clone();
         crate::toc::render(None, self, "auto", &processor)?;
-        writeln!(self.writer, "</div>")?; // Close #header div
+        if self.processor.variant() == HtmlVariant::Semantic {
+            writeln!(self.writer, "</header>")?;
+        } else {
+            writeln!(self.writer, "</div>")?; // Close #header div
+        }
         Ok(())
     }
 
@@ -534,15 +598,24 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         if self.render_options.embedded {
             return Ok(());
         }
-        // Open content div (contains all body blocks - preamble and sections)
-        writeln!(self.writer, "<div id=\"content\">")?;
+        if self.processor.variant() == HtmlVariant::Semantic {
+            writeln!(self.writer, "<main id=\"content\">")?;
+        } else {
+            writeln!(self.writer, "<div id=\"content\">")?;
+        }
         Ok(())
     }
 
     fn visit_preamble_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        // Open preamble wrapper divs
-        writeln!(self.writer, "<div id=\"preamble\">")?;
-        writeln!(self.writer, "<div class=\"sectionbody\">")?;
+        if self.processor.variant() == HtmlVariant::Semantic {
+            writeln!(
+                self.writer,
+                "<section id=\"preamble\" aria-label=\"Preamble\">"
+            )?;
+        } else {
+            writeln!(self.writer, "<div id=\"preamble\">")?;
+            writeln!(self.writer, "<div class=\"sectionbody\">")?;
+        }
         Ok(())
     }
 
@@ -565,7 +638,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             effective_subs(para.metadata.substitutions.as_ref(), is_verbatim),
         );
 
-        let result = crate::paragraph::visit_paragraph(para, self);
+        let processor = self.processor.clone();
+        let result = crate::paragraph::visit_paragraph(para, self, &processor);
 
         // Restore state
         self.current_subs = original_subs;
@@ -603,12 +677,14 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        crate::list::visit_ordered_list(list, self)
+        let processor = self.processor.clone();
+        crate::list::visit_ordered_list(list, self, &processor)
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
         let section_style = self.section_style.clone();
-        crate::list::visit_unordered_list(list, self, section_style.as_deref())
+        let processor = self.processor.clone();
+        crate::list::visit_unordered_list(list, self, section_style.as_deref(), &processor)
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {

@@ -1,0 +1,9 @@
+:stem: asciimath
+:html5s-force-stem-type: latexmath
+
+[stem]
+++++
+x = (-b +- sqrt(b^2 - 4ac)) / (2a)
+++++
+
+An inline stem: stem:[x^2]

@@ -3,7 +3,7 @@ use std::io::Write;
 use acdc_converters_core::{toc::Config as TocConfig, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, TableOfContents, TocEntry};
 
-use crate::{Error, HtmlVisitor, Processor, section::DEFAULT_SECTION_LEVEL};
+use crate::{Error, HtmlVariant, HtmlVisitor, Processor, section::DEFAULT_SECTION_LEVEL};
 
 /// Compute section numbers for TOC entries.
 /// Returns a vector of optional section number strings for each entry.
@@ -76,6 +76,7 @@ fn render_entries<W: Write>(
     current_level: u8,
     section_numbers: &[Option<String>],
     base_index: usize,
+    semantic: bool,
 ) -> Result<(), Error> {
     use acdc_converters_core::visitor::Visitor;
 
@@ -94,10 +95,17 @@ fn render_entries<W: Write>(
         return Ok(());
     }
 
-    writeln!(
-        visitor.writer_mut(),
-        "<ul class=\"sectlevel{current_level}\">"
-    )?;
+    if semantic {
+        writeln!(
+            visitor.writer_mut(),
+            "<ol class=\"toc-list level-{current_level}\">"
+        )?;
+    } else {
+        writeln!(
+            visitor.writer_mut(),
+            "<ul class=\"sectlevel{current_level}\">"
+        )?;
+    }
 
     for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
         writeln!(visitor.writer_mut(), "<li>")?;
@@ -149,13 +157,18 @@ fn render_entries<W: Write>(
                     current_level + 1,
                     section_numbers,
                     base_index + start_search,
+                    semantic,
                 )?;
             }
         }
         writeln!(visitor.writer_mut(), "</li>")?;
     }
 
-    writeln!(visitor.writer_mut(), "</ul>")?;
+    if semantic {
+        writeln!(visitor.writer_mut(), "</ol>")?;
+    } else {
+        writeln!(visitor.writer_mut(), "</ul>")?;
+    }
     Ok(())
 }
 
@@ -180,6 +193,8 @@ pub(crate) fn render<W: Write>(
     };
 
     if should_render && !processor.toc_entries.is_empty() {
+        let semantic = processor.variant() == HtmlVariant::Semantic;
+
         // Compute section numbers for TOC entries
         // Also check :numbered: as a deprecated alias for :sectnums:
         let sectnums_enabled = processor
@@ -197,18 +212,28 @@ pub(crate) fn render<W: Write>(
         let section_numbers =
             compute_toc_section_numbers(&processor.toc_entries, sectnums_enabled, sectnumlevels);
 
-        writeln!(
-            visitor.writer_mut(),
-            "<div id=\"toc\" class=\"{}\">",
-            config.toc_class()
-        )?;
-        if let Some(title) = config.title() {
-            writeln!(visitor.writer_mut(), "<div id=\"toctitle\">{title}</div>")?;
+        if semantic {
+            writeln!(
+                visitor.writer_mut(),
+                "<nav id=\"toc\" class=\"{}\" role=\"doc-toc\">",
+                config.toc_class()
+            )?;
+            let title = config.title().unwrap_or("Table of Contents");
+            writeln!(visitor.writer_mut(), "<h2 id=\"toc-title\">{title}</h2>")?;
         } else {
             writeln!(
                 visitor.writer_mut(),
-                "<div id=\"toctitle\">Table of Contents</div>"
+                "<div id=\"toc\" class=\"{}\">",
+                config.toc_class()
             )?;
+            if let Some(title) = config.title() {
+                writeln!(visitor.writer_mut(), "<div id=\"toctitle\">{title}</div>")?;
+            } else {
+                writeln!(
+                    visitor.writer_mut(),
+                    "<div id=\"toctitle\">Table of Contents</div>"
+                )?;
+            }
         }
         render_entries(
             &processor.toc_entries,
@@ -217,8 +242,13 @@ pub(crate) fn render<W: Write>(
             1,
             &section_numbers,
             0,
+            semantic,
         )?;
-        writeln!(visitor.writer_mut(), "</div>")?;
+        if semantic {
+            writeln!(visitor.writer_mut(), "</nav>")?;
+        } else {
+            writeln!(visitor.writer_mut(), "</div>")?;
+        }
     }
     Ok(())
 }

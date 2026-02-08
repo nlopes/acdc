@@ -169,6 +169,7 @@ pub struct Options {
     embedded: bool,
     /// Output destination for conversion.
     output_destination: OutputDestination,
+    backend: Backend,
 }
 
 impl Options {
@@ -218,6 +219,12 @@ impl Options {
     pub fn output_destination(&self) -> &OutputDestination {
         &self.output_destination
     }
+
+    /// Get the backend type.
+    #[must_use]
+    pub fn backend(&self) -> Backend {
+        self.backend
+    }
 }
 
 /// Builder for [`Options`].
@@ -231,6 +238,7 @@ pub struct OptionsBuilder {
     timings: bool,
     embedded: bool,
     output_destination: OutputDestination,
+    backend: Backend,
 }
 
 impl OptionsBuilder {
@@ -281,6 +289,13 @@ impl OptionsBuilder {
         self
     }
 
+    /// Set the backend type.
+    #[must_use]
+    pub fn backend(mut self, backend: Backend) -> Self {
+        self.backend = backend;
+        self
+    }
+
     /// Build the [`Options`] instance.
     #[must_use]
     pub fn build(self) -> Options {
@@ -291,6 +306,7 @@ impl OptionsBuilder {
             timings: self.timings,
             embedded: self.embedded,
             output_destination: self.output_destination,
+            backend: self.backend,
         }
     }
 }
