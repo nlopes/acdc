@@ -9,7 +9,10 @@ use acdc_parser::{
     StemContent, StemNotation,
 };
 
-use crate::{Error, HtmlVariant, Processor, RenderOptions, build_class, write_attribution};
+use crate::{
+    Error, HtmlVariant, Processor, RenderOptions, build_class, write_attribution,
+    write_semantic_attribution,
+};
 
 /// Write the opening `<div>` tag with optional ID and class attributes.
 /// Follows the pattern used in lists: metadata.id takes precedence, fallback to anchors.
@@ -26,6 +29,25 @@ fn write_block_div_open<W: Write>(
     }
     let class = build_class(base_class, &metadata.roles);
     writeln!(w, " class=\"{class}\">")?;
+    Ok(())
+}
+
+/// Write an opening tag with optional ID, class (base + roles) for semantic mode.
+fn write_semantic_tag_open<W: Write>(
+    w: &mut W,
+    tag: &str,
+    metadata: &BlockMetadata,
+    base_class: &str,
+) -> Result<(), Error> {
+    write!(w, "<{tag}")?;
+    let class = build_class(base_class, &metadata.roles);
+    write!(w, " class=\"{class}\"")?;
+    if let Some(id) = &metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = metadata.anchors.first() {
+        write!(w, " id=\"{}\"", anchor.id)?;
+    }
+    writeln!(w, ">")?;
     Ok(())
 }
 
@@ -74,10 +96,20 @@ fn write_example_block_semantic<V: WritableVisitor<Error = Error>>(
 
     let mut writer = visitor.writer_mut();
     if is_collapsible {
+        // Collapsible: <details> with no class (unless id/roles)
+        write!(writer, "<details")?;
+        if !block.metadata.roles.is_empty() {
+            write!(writer, " class=\"{}\"", block.metadata.roles.join(" "))?;
+        }
+        if let Some(id) = &block.metadata.id {
+            write!(writer, " id=\"{}\"", id.id)?;
+        } else if let Some(anchor) = block.metadata.anchors.first() {
+            write!(writer, " id=\"{}\"", anchor.id)?;
+        }
         if is_open {
-            writeln!(writer, "<details class=\"example-block\" open>")?;
+            writeln!(writer, " open>")?;
         } else {
-            writeln!(writer, "<details class=\"example-block\">")?;
+            writeln!(writer, ">")?;
         }
         let _ = writer;
         if !block.title.is_empty() {
@@ -89,29 +121,47 @@ fn write_example_block_semantic<V: WritableVisitor<Error = Error>>(
                 "</summary>\n",
             )?;
         }
-    } else {
-        writeln!(writer, "<figure class=\"example-block\">")?;
+        // Collapsible content wrapper
+        writer = visitor.writer_mut();
+        writeln!(writer, "<div class=\"content\">")?;
         let _ = writer;
-        if !block.title.is_empty() {
-            let prefix =
-                processor.caption_prefix("example-caption", &processor.example_counter, "Example");
-            visitor.render_title_with_wrapper(
-                &block.title,
-                &format!("<figcaption>{prefix}"),
-                "</figcaption>\n",
-            )?;
+        for nested_block in blocks {
+            visitor.visit_block(nested_block)?;
         }
-    }
-
-    for nested_block in blocks {
-        visitor.visit_block(nested_block)?;
-    }
-
-    writer = visitor.writer_mut();
-    if is_collapsible {
+        writer = visitor.writer_mut();
+        writeln!(writer, "</div>")?;
         writeln!(writer, "</details>")?;
-    } else {
+    } else if !block.title.is_empty() {
+        // Titled: use figure/figcaption with inner div.example
+        write_semantic_tag_open(&mut writer, "figure", &block.metadata, "example-block")?;
+        let _ = writer;
+        let prefix =
+            processor.caption_prefix("example-caption", &processor.example_counter, "Example");
+        visitor.render_title_with_wrapper(
+            &block.title,
+            &format!("<figcaption>{prefix}"),
+            "</figcaption>\n",
+        )?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "<div class=\"example\">")?;
+        let _ = writer;
+        for nested_block in blocks {
+            visitor.visit_block(nested_block)?;
+        }
+        writer = visitor.writer_mut();
+        writeln!(writer, "</div>")?;
         writeln!(writer, "</figure>")?;
+    } else {
+        // Untitled: use div with inner div.example
+        write_semantic_tag_open(&mut writer, "div", &block.metadata, "example-block")?;
+        writeln!(writer, "<div class=\"example\">")?;
+        let _ = writer;
+        for nested_block in blocks {
+            visitor.visit_block(nested_block)?;
+        }
+        writer = visitor.writer_mut();
+        writeln!(writer, "</div>")?;
+        writeln!(writer, "</div>")?;
     }
     Ok(())
 }
@@ -127,9 +177,15 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     match &block.inner {
         DelimitedBlockType::DelimitedQuote(blocks) => {
             if processor.variant() == HtmlVariant::Semantic {
+                let has_title = !block.title.is_empty();
                 let mut writer = visitor.writer_mut();
-                if !block.title.is_empty() {
-                    writeln!(writer, "<section class=\"quote-block\">")?;
+                if has_title {
+                    write_semantic_tag_open(
+                        &mut writer,
+                        "section",
+                        &block.metadata,
+                        "quote-block",
+                    )?;
                     let _ = writer;
                     visitor.render_title_with_wrapper(
                         &block.title,
@@ -137,6 +193,8 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
                         "</h6>\n",
                     )?;
                     writer = visitor.writer_mut();
+                } else {
+                    write_semantic_tag_open(&mut writer, "div", &block.metadata, "quote-block")?;
                 }
                 writeln!(writer, "<blockquote>")?;
                 let _ = writer;
@@ -144,10 +202,13 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
                     visitor.visit_block(nested_block)?;
                 }
                 writer = visitor.writer_mut();
+                // Attribution goes inside blockquote as <footer>
+                write_semantic_attribution(&mut writer, &block.metadata)?;
                 writeln!(writer, "</blockquote>")?;
-                write_attribution(&mut writer, &block.metadata)?;
-                if !block.title.is_empty() {
+                if has_title {
                     writeln!(writer, "</section>")?;
+                } else {
+                    writeln!(writer, "</div>")?;
                 }
             } else {
                 let mut writer = visitor.writer_mut();
@@ -169,19 +230,101 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             }
         }
         DelimitedBlockType::DelimitedOpen(blocks) => {
-            let mut writer = visitor.writer_mut();
-            write_block_div_open(&mut writer, &block.metadata, "openblock")?;
-            let _ = writer;
-            visitor.render_title_with_wrapper(&block.title, "<div class=\"title\">", "</div>\n")?;
-            writer = visitor.writer_mut();
-            writeln!(writer, "<div class=\"content\">")?;
-            let _ = writer;
-            for nested_block in blocks {
-                visitor.visit_block(nested_block)?;
+            if processor.variant() == HtmlVariant::Semantic {
+                let is_abstract = block.metadata.style.as_deref() == Some("abstract");
+                if is_abstract {
+                    // Abstract style: render as quote-block abstract
+                    let has_title = !block.title.is_empty();
+                    let mut writer = visitor.writer_mut();
+                    if has_title {
+                        let base = build_class("quote-block abstract", &block.metadata.roles);
+                        write!(writer, "<section class=\"{base}\"")?;
+                        if let Some(id) = &block.metadata.id {
+                            write!(writer, " id=\"{}\"", id.id)?;
+                        } else if let Some(anchor) = block.metadata.anchors.first() {
+                            write!(writer, " id=\"{}\"", anchor.id)?;
+                        }
+                        writeln!(writer, ">")?;
+                        let _ = writer;
+                        visitor.render_title_with_wrapper(
+                            &block.title,
+                            "<h6 class=\"block-title\">",
+                            "</h6>\n",
+                        )?;
+                        writer = visitor.writer_mut();
+                    } else {
+                        write_semantic_tag_open(
+                            &mut writer,
+                            "div",
+                            &block.metadata,
+                            "quote-block abstract",
+                        )?;
+                    }
+                    writeln!(writer, "<blockquote>")?;
+                    let _ = writer;
+                    for nested_block in blocks {
+                        visitor.visit_block(nested_block)?;
+                    }
+                    writer = visitor.writer_mut();
+                    writeln!(writer, "</blockquote>")?;
+                    if has_title {
+                        writeln!(writer, "</section>")?;
+                    } else {
+                        writeln!(writer, "</div>")?;
+                    }
+                } else {
+                    // Regular open block in semantic mode
+                    let has_title = !block.title.is_empty();
+                    let mut writer = visitor.writer_mut();
+                    if has_title {
+                        write_semantic_tag_open(
+                            &mut writer,
+                            "section",
+                            &block.metadata,
+                            "open-block",
+                        )?;
+                        let _ = writer;
+                        visitor.render_title_with_wrapper(
+                            &block.title,
+                            "<h6 class=\"block-title\">",
+                            "</h6>\n",
+                        )?;
+                    } else {
+                        write_semantic_tag_open(&mut writer, "div", &block.metadata, "open-block")?;
+                    }
+                    writer = visitor.writer_mut();
+                    writeln!(writer, "<div class=\"content\">")?;
+                    let _ = writer;
+                    for nested_block in blocks {
+                        visitor.visit_block(nested_block)?;
+                    }
+                    writer = visitor.writer_mut();
+                    writeln!(writer, "</div>")?;
+                    if has_title {
+                        writeln!(writer, "</section>")?;
+                    } else {
+                        writeln!(writer, "</div>")?;
+                    }
+                }
+            } else {
+                let mut writer = visitor.writer_mut();
+                write_block_div_open(&mut writer, &block.metadata, "openblock")?;
+                let _ = writer;
+                visitor.render_title_with_wrapper(
+                    &block.title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
+                writer = visitor.writer_mut();
+                writeln!(writer, "<div class=\"content\">")?;
+                let _ = writer;
+                for nested_block in blocks {
+                    visitor.visit_block(nested_block)?;
+                }
+                writer = visitor.writer_mut();
+                writeln!(writer, "</div>")?;
+                writeln!(writer, "</div>")?;
             }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</div>")?;
-            writeln!(writer, "</div>")?;
         }
         DelimitedBlockType::DelimitedExample(blocks) => {
             if processor.variant() == HtmlVariant::Semantic {
@@ -192,8 +335,8 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
         }
         DelimitedBlockType::DelimitedSidebar(blocks) => {
             if processor.variant() == HtmlVariant::Semantic {
-                let writer = visitor.writer_mut();
-                writeln!(writer, "<aside class=\"sidebar\">")?;
+                let mut writer = visitor.writer_mut();
+                write_semantic_tag_open(&mut writer, "aside", &block.metadata, "sidebar")?;
                 let _ = writer;
                 visitor.render_title_with_wrapper(
                     &block.title,
@@ -234,6 +377,20 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
                 options,
                 &block.metadata,
                 &block.title,
+            )?;
+        }
+        // Verse, literal, and stem blocks need semantic handling
+        DelimitedBlockType::DelimitedVerse(_)
+        | DelimitedBlockType::DelimitedLiteral(_)
+        | DelimitedBlockType::DelimitedStem(_)
+            if processor.variant() == HtmlVariant::Semantic =>
+        {
+            render_delimited_block_inner_semantic(
+                &block.inner,
+                &block.title,
+                &block.metadata,
+                visitor,
+                processor,
             )?;
         }
         // For other block types, use the regular rendering
@@ -438,17 +595,22 @@ fn render_listing_block_semantic<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let mut w = visitor.writer_mut();
-    write_block_div_open(&mut w, metadata, "listing-block")?;
-    let _ = w;
-
-    if !title.is_empty() {
-        visitor.render_title_with_wrapper(title, "<h6 class=\"block-title\">", "</h6>\n")?;
+    if title.is_empty() {
+        // Untitled: use div
+        write_semantic_tag_open(&mut w, "div", metadata, "listing-block")?;
+        let _ = w;
+        render_listing_code(inlines, metadata, visitor, processor)?;
+        let w = visitor.writer_mut();
+        writeln!(w, "</div>")?;
+    } else {
+        // Titled: use figure/figcaption
+        write_semantic_tag_open(&mut w, "figure", metadata, "listing-block")?;
+        let _ = w;
+        visitor.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+        render_listing_code(inlines, metadata, visitor, processor)?;
+        let w = visitor.writer_mut();
+        writeln!(w, "</figure>")?;
     }
-
-    render_listing_code(inlines, metadata, visitor, processor)?;
-
-    let w = visitor.writer_mut();
-    writeln!(w, "</div>")?;
     Ok(())
 }
 
@@ -558,6 +720,150 @@ fn render_stem_content<W: Write + ?Sized>(
         }
     }
     writeln!(w, "</div>")?;
+    Ok(())
+}
+
+/// Render stem content in semantic mode with `<div class="math" data-lang="...">`.
+fn render_stem_content_semantic<W: Write + ?Sized>(
+    stem: &StemContent,
+    w: &mut W,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let forced = processor
+        .document_attributes()
+        .get("html5s-force-stem-type")
+        .and_then(|v| v.to_string().parse::<StemNotation>().ok());
+    let notation = forced.as_ref().unwrap_or(&stem.notation);
+    let data_lang = match notation {
+        StemNotation::Latexmath => "tex",
+        StemNotation::Asciimath => "asciimath",
+    };
+    write!(w, "<div class=\"math\" data-lang=\"{data_lang}\">")?;
+    match notation {
+        StemNotation::Latexmath => {
+            write!(w, "\\[{}\\]", stem.content)?;
+        }
+        StemNotation::Asciimath => {
+            write!(w, "\\${}\\$", stem.content)?;
+        }
+    }
+    writeln!(w, "</div>")?;
+    Ok(())
+}
+
+/// Render verse, literal, and stem blocks in semantic HTML5 mode.
+fn render_delimited_block_inner_semantic<V: WritableVisitor<Error = Error>>(
+    inner: &DelimitedBlockType,
+    title: &[InlineNode],
+    metadata: &BlockMetadata,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    match inner {
+        DelimitedBlockType::DelimitedVerse(inlines) => {
+            let has_title = !title.is_empty();
+            let has_attribution = metadata.attributes.get_string("attribution").is_some()
+                || metadata.attributes.get_string("citation").is_some();
+
+            let mut w = visitor.writer_mut();
+            if has_title {
+                write_semantic_tag_open(&mut w, "section", metadata, "verse-block")?;
+                let _ = w;
+                visitor.render_title_with_wrapper(
+                    title,
+                    "<h6 class=\"block-title\">",
+                    "</h6>\n",
+                )?;
+                w = visitor.writer_mut();
+            } else {
+                write_semantic_tag_open(&mut w, "div", metadata, "verse-block")?;
+            }
+
+            if has_attribution {
+                // With attribution: wrap in <blockquote class="verse">
+                writeln!(w, "<blockquote class=\"verse\">")?;
+                write!(w, "<pre class=\"verse\">")?;
+                let _ = w;
+                visitor.visit_inline_nodes(inlines)?;
+                w = visitor.writer_mut();
+                writeln!(w, "</pre>")?;
+                write_semantic_attribution(&mut w, metadata)?;
+                writeln!(w, "</blockquote>")?;
+            } else {
+                write!(w, "<pre class=\"verse\">")?;
+                let _ = w;
+                visitor.visit_inline_nodes(inlines)?;
+                w = visitor.writer_mut();
+                writeln!(w, "</pre>")?;
+            }
+
+            if has_title {
+                writeln!(w, "</section>")?;
+            } else {
+                writeln!(w, "</div>")?;
+            }
+        }
+        DelimitedBlockType::DelimitedLiteral(inlines) => {
+            let has_title = !title.is_empty();
+            let mut w = visitor.writer_mut();
+            if has_title {
+                write_semantic_tag_open(&mut w, "section", metadata, "literal-block")?;
+                let _ = w;
+                visitor.render_title_with_wrapper(
+                    title,
+                    "<h6 class=\"block-title\">",
+                    "</h6>\n",
+                )?;
+                w = visitor.writer_mut();
+            } else {
+                write_semantic_tag_open(&mut w, "div", metadata, "literal-block")?;
+            }
+            write!(w, "<pre>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</pre>")?;
+            if has_title {
+                writeln!(w, "</section>")?;
+            } else {
+                writeln!(w, "</div>")?;
+            }
+        }
+        DelimitedBlockType::DelimitedStem(stem) => {
+            let has_title = !title.is_empty();
+            let mut w = visitor.writer_mut();
+            if has_title {
+                write_semantic_tag_open(&mut w, "figure", metadata, "stem-block")?;
+                let _ = w;
+                visitor.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+                w = visitor.writer_mut();
+            } else {
+                write_semantic_tag_open(&mut w, "div", metadata, "stem-block")?;
+            }
+            render_stem_content_semantic(stem, w, processor)?;
+            w = visitor.writer_mut();
+            if has_title {
+                writeln!(w, "</figure>")?;
+            } else {
+                writeln!(w, "</div>")?;
+            }
+        }
+        DelimitedBlockType::DelimitedComment(_)
+        | DelimitedBlockType::DelimitedExample(_)
+        | DelimitedBlockType::DelimitedListing(_)
+        | DelimitedBlockType::DelimitedOpen(_)
+        | DelimitedBlockType::DelimitedSidebar(_)
+        | DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedQuote(_)
+        | _ => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                format!("Unsupported delimited block type for semantic rendering: {inner:?}"),
+            )
+            .into());
+        }
+    }
     Ok(())
 }
 

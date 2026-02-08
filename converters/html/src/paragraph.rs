@@ -78,8 +78,8 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         let has_id = para.metadata.id.is_some() || !para.metadata.anchors.is_empty();
         let has_roles = !para.metadata.roles.is_empty();
 
-        if has_title || has_id || has_roles {
-            // Titled/identified paragraphs get a section wrapper
+        if has_title {
+            // Titled paragraphs get a section wrapper
             let mut w = visitor.writer_mut();
             let class = build_class("paragraph", &para.metadata.roles);
             write!(w, "<section")?;
@@ -102,6 +102,23 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
             w = visitor.writer_mut();
             writeln!(w, "</p>")?;
             writeln!(w, "</section>")?;
+        } else if has_id || has_roles {
+            // Id/roles without title: put attributes directly on <p>
+            let mut w = visitor.writer_mut();
+            write!(w, "<p")?;
+            if has_roles {
+                write!(w, " class=\"{}\"", para.metadata.roles.join(" "))?;
+            }
+            if let Some(id) = &para.metadata.id {
+                write!(w, " id=\"{}\"", id.id)?;
+            } else if let Some(anchor) = para.metadata.anchors.first() {
+                write!(w, " id=\"{}\"", anchor.id)?;
+            }
+            write!(w, ">")?;
+            let _ = w;
+            visitor.visit_inline_nodes(&para.content)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</p>")?;
         } else {
             // Bare paragraph — no wrapper
             let mut w = visitor.writer_mut();

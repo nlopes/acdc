@@ -494,6 +494,35 @@ pub(crate) fn write_attribution<W: std::io::Write>(
     Ok(())
 }
 
+/// Write semantic attribution as `<footer>` inside a `<blockquote>` for html5s mode.
+/// Format: `<footer>&#8212; <cite>Author, Citation</cite></footer>`
+pub(crate) fn write_semantic_attribution<W: std::io::Write>(
+    writer: &mut W,
+    metadata: &acdc_parser::BlockMetadata,
+) -> Result<(), std::io::Error> {
+    let author = metadata.attributes.get_string("attribution");
+    let citation = metadata.attributes.get_string("citation");
+
+    if author.is_some() || citation.is_some() {
+        match (author, &citation) {
+            (Some(author), Some(citation)) => {
+                writeln!(
+                    writer,
+                    "<footer>&#8212; <cite>{author}, {citation}</cite></footer>"
+                )?;
+            }
+            (Some(author), None) => {
+                writeln!(writer, "<footer>&#8212; <cite>{author}</cite></footer>")?;
+            }
+            (None, Some(citation)) => {
+                writeln!(writer, "<footer>&#8212; <cite>{citation}</cite></footer>")?;
+            }
+            (None, None) => {}
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

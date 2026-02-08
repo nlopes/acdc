@@ -108,18 +108,30 @@ fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
     };
 
     let mut writer = visitor.writer_mut();
-    writeln!(
-        writer,
-        "<{tag} class=\"admonition-block {}\" role=\"{role}\">",
-        admon.variant
-    )?;
-    writeln!(
-        writer,
-        "<h6 class=\"block-title label-only\"><span class=\"title-label\">{caption}: </span></h6>"
-    )?;
+    // Build class: "admonition-block {variant}" + roles
+    let base_class = format!("admonition-block {}", admon.variant);
+    let class = crate::build_class(&base_class, &admon.metadata.roles);
+    write!(writer, "<{tag} class=\"{class}\"")?;
+    // Propagate id
+    if let Some(id) = &admon.metadata.id {
+        write!(writer, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = admon.metadata.anchors.first() {
+        write!(writer, " id=\"{}\"", anchor.id)?;
+    }
+    writeln!(writer, " role=\"{role}\">")?;
 
-    if !admon.title.is_empty() {
-        write!(writer, "<h6 class=\"block-title\">")?;
+    if admon.title.is_empty() {
+        // Label-only: no trailing space after colon
+        writeln!(
+            writer,
+            "<h6 class=\"block-title label-only\"><span class=\"title-label\">{caption}:</span></h6>"
+        )?;
+    } else {
+        // With title: single h6 combining label + title (space after colon)
+        write!(
+            writer,
+            "<h6 class=\"block-title\"><span class=\"title-label\">{caption}: </span>"
+        )?;
         let _ = writer;
         visitor.visit_inline_nodes(&admon.title)?;
         writer = visitor.writer_mut();

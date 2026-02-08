@@ -2,7 +2,8 @@ use std::io::Write;
 
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
 use acdc_parser::{
-    CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList, UnorderedList,
+    Block, CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList,
+    UnorderedList,
 };
 
 use crate::{Error, HtmlVariant, Processor, build_class};
@@ -42,13 +43,28 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     let has_title = !list.title.is_empty();
 
     let writer = visitor.writer_mut();
-    write!(writer, "<div")?;
+    // Semantic mode: use <section> for titled, <div> otherwise
+    let wrapper_tag = if semantic && has_title {
+        "section"
+    } else {
+        "div"
+    };
+    write!(writer, "<{wrapper_tag}")?;
     if let Some(id) = &list.metadata.id {
         write!(writer, " id=\"{}\"", id.id)?;
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
-    if is_checklist {
+    if semantic {
+        // Semantic mode: no "checklist" on wrapper div
+        if is_bibliography {
+            let class = build_class("ulist bibliography", &list.metadata.roles);
+            writeln!(writer, " class=\"{class}\">")?;
+        } else {
+            let class = build_class("ulist", &list.metadata.roles);
+            writeln!(writer, " class=\"{class}\">")?;
+        }
+    } else if is_checklist {
         writeln!(writer, " class=\"ulist checklist\">")?;
     } else if is_bibliography {
         writeln!(writer, " class=\"ulist bibliography\">")?;
@@ -63,7 +79,9 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
     }
 
     let mut writer = visitor.writer_mut();
-    if is_checklist {
+    if is_checklist && semantic {
+        writeln!(writer, "<ul class=\"task-list\">")?;
+    } else if is_checklist {
         writeln!(writer, "<ul class=\"checklist\">")?;
     } else if is_bibliography {
         writeln!(writer, "<ul class=\"bibliography\">")?;
@@ -71,10 +89,10 @@ pub(crate) fn visit_unordered_list<V: WritableVisitor<Error = Error>>(
         writeln!(writer, "<ul>")?;
     }
     let _ = writer;
-    render_nested_list_items(&list.items, visitor, 1, false, 1, !semantic)?;
+    render_nested_list_items(&list.items, visitor, 1, false, 1, !semantic, semantic)?;
     writer = visitor.writer_mut();
     writeln!(writer, "</ul>")?;
-    writeln!(writer, "</div>")?;
+    writeln!(writer, "</{wrapper_tag}>")?;
     Ok(())
 }
 
@@ -94,13 +112,20 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
     let has_title = !list.title.is_empty();
 
     let writer = visitor.writer_mut();
-    write!(writer, "<div")?;
+    // Semantic mode: use <section> for titled, <div> otherwise
+    let wrapper_tag = if semantic && has_title {
+        "section"
+    } else {
+        "div"
+    };
+    write!(writer, "<{wrapper_tag}")?;
     if let Some(id) = &list.metadata.id {
         write!(writer, " id=\"{}\"", id.id)?;
     } else if let Some(anchor) = list.metadata.anchors.first() {
         write!(writer, " id=\"{}\"", anchor.id)?;
     }
-    writeln!(writer, " class=\"olist {style}\">")?;
+    let class = build_class(&format!("olist {style}"), &list.metadata.roles);
+    writeln!(writer, " class=\"{class}\">")?;
     let _ = writer;
     if semantic && has_title {
         visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
@@ -115,10 +140,10 @@ pub(crate) fn visit_ordered_list<V: WritableVisitor<Error = Error>>(
         writeln!(writer, "<ol class=\"{style}\">")?;
     }
     let _ = writer;
-    render_nested_list_items(&list.items, visitor, 1, true, 1, !semantic)?;
+    render_nested_list_items(&list.items, visitor, 1, true, 1, !semantic, semantic)?;
     writer = visitor.writer_mut();
     writeln!(writer, "</ol>")?;
-    writeln!(writer, "</div>")?;
+    writeln!(writer, "</{wrapper_tag}>")?;
     Ok(())
 }
 
@@ -259,7 +284,11 @@ fn render_checked_status_list<W: Write + ?Sized>(
         }
         write!(writer, "<ul")?;
         if checked.is_some() {
-            writeln!(writer, " class=\"checklist\">")?;
+            if semantic {
+                writeln!(writer, " class=\"task-list\">")?;
+            } else {
+                writeln!(writer, " class=\"checklist\">")?;
+            }
         } else {
             writeln!(writer, ">")?;
         }
@@ -277,6 +306,7 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
     is_ordered: bool,
     depth: u8,
     wrap_li_in_p: bool,
+    semantic: bool,
 ) -> Result<(), Error> {
     let mut i = 0;
     while i < items.len() {
@@ -293,14 +323,19 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
         if item.level == expected_level {
             // Render item at current level
             let mut writer = visitor.writer_mut();
-            writeln!(writer, "<li>")?;
+            // In semantic mode, checklist items get task-list-item class
+            if semantic && item.checked.is_some() {
+                writeln!(writer, "<li class=\"task-list-item\">")?;
+            } else {
+                writeln!(writer, "<li>")?;
+            }
             // Render principal text, optionally wrapped in <p>
             // Checkbox goes inside the <p> tag (or directly before content)
             if !item.principal.is_empty() || item.checked.is_some() {
                 if wrap_li_in_p {
                     write!(writer, "<p>")?;
                 }
-                render_checked_status(item.checked.as_ref(), writer)?;
+                render_checked_status(item.checked.as_ref(), writer, semantic)?;
                 let _ = writer;
                 visitor.visit_inline_nodes(&item.principal)?;
                 writer = visitor.writer_mut();
@@ -347,6 +382,7 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
                         is_ordered,
                         depth + 1,
                         wrap_li_in_p,
+                        semantic,
                     )?;
                 }
                 writer = visitor.writer_mut();
@@ -374,12 +410,16 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             // Item at higher level than expected, shouldn't happen in well-formed input
             // but handle gracefully by treating as same level - render the item inline
             let mut writer = visitor.writer_mut();
-            writeln!(writer, "<li>")?;
+            if semantic && item.checked.is_some() {
+                writeln!(writer, "<li class=\"task-list-item\">")?;
+            } else {
+                writeln!(writer, "<li>")?;
+            }
             if !item.principal.is_empty() || item.checked.is_some() {
                 if wrap_li_in_p {
                     write!(writer, "<p>")?;
                 }
-                render_checked_status(item.checked.as_ref(), writer)?;
+                render_checked_status(item.checked.as_ref(), writer, semantic)?;
                 let _ = writer;
                 visitor.visit_inline_nodes(&item.principal)?;
                 writer = visitor.writer_mut();
@@ -402,7 +442,14 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
 pub(crate) fn visit_description_list<V: WritableVisitor<Error = Error>>(
     list: &DescriptionList,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    let semantic = processor.variant() == HtmlVariant::Semantic;
+
+    if semantic {
+        return visit_description_list_semantic(list, visitor, processor);
+    }
+
     // Start the description list outer div
     let writer = visitor.writer_mut();
     write!(writer, "<div")?;
@@ -534,19 +581,242 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+/// Render a block inside a list item in semantic mode.
+/// In semantic mode, list blocks (ulist, olist, dlist) inside list items
+/// should not have their outer wrapper div/section — just the bare list element.
+fn render_block_in_semantic_list_context<V: WritableVisitor<Error = Error>>(
+    block: &Block,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    match block {
+        Block::UnorderedList(list) => render_bare_ulist_semantic(list, visitor, processor),
+        Block::OrderedList(list) => render_bare_olist_semantic(list, visitor, processor),
+        Block::DescriptionList(list) => render_bare_dlist_semantic(list, visitor, processor),
+        _ => visitor.visit_block(block),
+    }
+}
+
+/// Render an unordered list without the wrapper div/section (bare `<ul>` only).
+fn render_bare_ulist_semantic<V: WritableVisitor<Error = Error>>(
+    list: &UnorderedList,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let is_checklist = has_checklist_items(&list.items);
+    let semantic = processor.variant() == HtmlVariant::Semantic;
+
+    let mut writer = visitor.writer_mut();
+    if is_checklist {
+        writeln!(writer, "<ul class=\"task-list\">")?;
+    } else {
+        writeln!(writer, "<ul>")?;
+    }
+    let _ = writer;
+    render_nested_list_items(&list.items, visitor, 1, false, 1, false, semantic)?;
+    writer = visitor.writer_mut();
+    writeln!(writer, "</ul>")?;
+    Ok(())
+}
+
+/// Render an ordered list without the wrapper div/section (bare `<ol>` only).
+fn render_bare_olist_semantic<V: WritableVisitor<Error = Error>>(
+    list: &OrderedList,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let raw_depth = list.marker.matches('.').count().max(1);
+    let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
+    let (style, type_attr) = ordered_list_style(depth);
+    let semantic = processor.variant() == HtmlVariant::Semantic;
+
+    let mut writer = visitor.writer_mut();
+    if let Some(t) = type_attr {
+        writeln!(writer, "<ol class=\"{style}\" type=\"{t}\">")?;
+    } else {
+        writeln!(writer, "<ol class=\"{style}\">")?;
+    }
+    let _ = writer;
+    render_nested_list_items(&list.items, visitor, 1, true, 1, false, semantic)?;
+    writer = visitor.writer_mut();
+    writeln!(writer, "</ol>")?;
+    Ok(())
+}
+
+/// Render a description list without the wrapper div/section (bare `<dl>` only).
+fn render_bare_dlist_semantic<V: WritableVisitor<Error = Error>>(
+    list: &DescriptionList,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let mut writer = visitor.writer_mut();
+    writeln!(writer, "<dl>")?;
+    let _ = writer;
+
+    for item in &list.items {
+        writer = visitor.writer_mut();
+        writeln!(writer, "<dt>")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&item.term)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</dt>")?;
+
+        if !item.principal_text.is_empty() || !item.description.is_empty() {
+            writeln!(writer, "<dd>")?;
+            if !item.principal_text.is_empty() {
+                if item.description.is_empty() {
+                    let _ = writer;
+                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    writer = visitor.writer_mut();
+                } else {
+                    write!(writer, "<p>")?;
+                    let _ = writer;
+                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    writer = visitor.writer_mut();
+                    writeln!(writer, "</p>")?;
+                }
+            }
+            let _ = writer;
+            for block in &item.description {
+                render_block_in_semantic_list_context(block, visitor, processor)?;
+            }
+            writer = visitor.writer_mut();
+            writeln!(writer, "</dd>")?;
+        }
+    }
+
+    writer = visitor.writer_mut();
+    writeln!(writer, "</dl>")?;
+    Ok(())
+}
+
+/// Render a description list in semantic HTML5 mode.
+/// Key differences from standard mode:
+/// - No `hdlist1` class on `<dt>` elements
+/// - `<section>` wrapper for titled lists, `<div>` for untitled
+/// - `<h6 class="block-title">` for titles
+/// - qanda style gets `role="doc-qna"` and `<dl class="qanda">`
+/// - horizontal style uses `<dl class="horizontal">` instead of `<table>`
+/// - Simple `<dd>` text not wrapped in `<p>` unless there are also blocks
+fn visit_description_list_semantic<V: WritableVisitor<Error = Error>>(
+    list: &DescriptionList,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let has_title = !list.title.is_empty();
+    let is_qanda = list.metadata.style.as_deref() == Some("qanda");
+    let is_horizontal = list.metadata.style.as_deref() == Some("horizontal");
+
+    // Build wrapper class
+    let base_class = if let Some(style) = &list.metadata.style {
+        format!("dlist {style}")
+    } else {
+        "dlist".to_string()
+    };
+    let class = build_class(&base_class, &list.metadata.roles);
+
+    let wrapper_tag = if has_title { "section" } else { "div" };
+    let writer = visitor.writer_mut();
+    write!(writer, "<{wrapper_tag}")?;
+    if let Some(id) = &list.metadata.id {
+        write!(writer, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = list.metadata.anchors.first() {
+        write!(writer, " id=\"{}\"", anchor.id)?;
+    }
+    write!(writer, " class=\"{class}\"")?;
+    if is_qanda {
+        write!(writer, " role=\"doc-qna\"")?;
+    }
+    writeln!(writer, ">")?;
+    let _ = writer;
+
+    if has_title {
+        visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+    }
+
+    let writer = visitor.writer_mut();
+    // Inner <dl> with optional class
+    if is_qanda {
+        writeln!(writer, "<dl class=\"qanda\">")?;
+    } else if is_horizontal {
+        writeln!(writer, "<dl class=\"horizontal\">")?;
+    } else {
+        writeln!(writer, "<dl>")?;
+    }
+    let _ = writer;
+
+    for item in &list.items {
+        let mut writer = visitor.writer_mut();
+        writeln!(writer, "<dt>")?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&item.term)?;
+        writer = visitor.writer_mut();
+        writeln!(writer, "</dt>")?;
+
+        // Only render <dd> if there's content
+        if !item.principal_text.is_empty() || !item.description.is_empty() {
+            writeln!(writer, "<dd>")?;
+            if !item.principal_text.is_empty() {
+                // Wrap in <p> only when there are also blocks
+                if item.description.is_empty() {
+                    let _ = writer;
+                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    writer = visitor.writer_mut();
+                } else {
+                    write!(writer, "<p>")?;
+                    let _ = writer;
+                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    writer = visitor.writer_mut();
+                    writeln!(writer, "</p>")?;
+                }
+            }
+            let _ = writer;
+            for block in &item.description {
+                render_block_in_semantic_list_context(block, visitor, processor)?;
+            }
+            writer = visitor.writer_mut();
+            writeln!(writer, "</dd>")?;
+        }
+    }
+
+    let writer = visitor.writer_mut();
+    writeln!(writer, "</dl>")?;
+    writeln!(writer, "</{wrapper_tag}>")?;
+    Ok(())
+}
+
 #[tracing::instrument(skip(w))]
 fn render_checked_status<W: Write + ?Sized>(
     checked: Option<&ListItemCheckedStatus>,
     w: &mut W,
+    semantic: bool,
 ) -> Result<(), Error> {
-    match checked {
-        Some(ListItemCheckedStatus::Checked) => {
-            write!(w, "&#10003; ")?; // Checked box
+    if semantic {
+        match checked {
+            Some(ListItemCheckedStatus::Checked) => {
+                write!(
+                    w,
+                    "<input class=\"task-list-item-checkbox\" type=\"checkbox\" disabled checked> "
+                )?;
+            }
+            Some(ListItemCheckedStatus::Unchecked) => {
+                write!(
+                    w,
+                    "<input class=\"task-list-item-checkbox\" type=\"checkbox\" disabled> "
+                )?;
+            }
+            Some(_) | None => {}
         }
-        Some(ListItemCheckedStatus::Unchecked) => {
-            write!(w, "&#10063; ")?; // Unchecked box
+    } else {
+        match checked {
+            Some(ListItemCheckedStatus::Checked) => {
+                write!(w, "&#10003; ")?;
+            }
+            Some(ListItemCheckedStatus::Unchecked) => {
+                write!(w, "&#10063; ")?;
+            }
+            Some(_) | None => {}
         }
-        Some(_) | None => {}
     }
     Ok(())
 }

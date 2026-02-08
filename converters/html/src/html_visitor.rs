@@ -688,7 +688,8 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        crate::list::visit_description_list(list, self)
+        let processor = self.processor.clone();
+        crate::list::visit_description_list(list, self, &processor)
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
