@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Tables after definition list items now parse correctly** — when a definition list
+  term with an empty description was immediately followed by block attributes (e.g.,
+  `[cols="..."]`) and a table delimiter, the attributes line was consumed as principal
+  text of the dlist item. The `principal_content` continuation loop now has a negative
+  lookahead for `attributes_line()`. ([#332])
 - **Bare autolinks no longer capture trailing punctuation** — URLs like
   `https://example.com.` now correctly exclude the trailing `.` from the link target.
   A new `bare_url()` rule with balanced parenthesis handling ensures sentence-level
@@ -282,6 +287,7 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#321]: https://github.com/nlopes/acdc/issues/321
 [#323]: https://github.com/nlopes/acdc/issues/323
 [#327]: https://github.com/nlopes/acdc/issues/327
+[#332]: https://github.com/nlopes/acdc/issues/332
 [#335]: https://github.com/nlopes/acdc/issues/335
 
 [0.4.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.4.0

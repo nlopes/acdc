@@ -1,0 +1,16 @@
+[cols="35%,35%,30%",options="header"]
+|===
+|col 1|col 2|col 3
+|row1c1|row1c2|row1c3
+|row2c1|row2c2|row2c3
+|===
+
+
+
+Table Nested in Definition List:::
+[cols="35%,35%,30%",options="header"]
+|===
+|col 1|col 2|col 3
+|row1c1|row1c2|row1c3
+|row2c1|row2c2|row2c3
+|===

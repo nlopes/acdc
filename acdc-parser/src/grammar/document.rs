@@ -3427,6 +3427,7 @@ peg::parser! {
              !table_delimiter()
              !(open_delimiter() (whitespace()* eol()))
              !markdown_code_delimiter()
+             !attributes_line()                           // not a block attributes line
              !((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))  // not a section heading
              (!eol() [_])+                             // continuation line content
             )*
