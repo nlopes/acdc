@@ -262,8 +262,11 @@ fn render_colgroup<W: std::io::Write + ?Sized>(
         };
 
         for width in widths {
-            // Match asciidoctor's 4-decimal precision for non-round percentages
-            if (width - width.round()).abs() < 0.0001 {
+            if width == 0.0 {
+                // Auto width - let the browser decide
+                writeln!(writer, "<col>")?;
+            } else if (width - width.round()).abs() < 0.0001 {
+                // Match asciidoctor's 4-decimal precision for non-round percentages
                 writeln!(writer, "<col style=\"width: {width:.0}%;\">")?;
             } else {
                 writeln!(writer, "<col style=\"width: {width:.4}%;\">")?;

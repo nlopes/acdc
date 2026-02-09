@@ -39,7 +39,7 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
         .sum();
 
     // Calculate percentage for each column
-    columns
+    let mut widths: Vec<f64> = columns
         .iter()
         .map(|c| match c.width {
             ColumnWidth::Proportional(w) if total_proportional > 0 => {
@@ -49,7 +49,21 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
             // No proportional context, auto, or unknown width - let renderer decide
             ColumnWidth::Proportional(_) | ColumnWidth::Auto | _ => 0.0,
         })
-        .collect()
+        .collect();
+
+    // Normalize percentage widths to sum to 100% (like asciidoctor does).
+    // Only non-zero (non-auto) widths participate in normalization.
+    let pct_sum: f64 = widths.iter().filter(|w| **w > 0.0).sum();
+    if pct_sum > 0.0 && (pct_sum - 100.0).abs() > f64::EPSILON {
+        let scale = 100.0 / pct_sum;
+        for w in &mut widths {
+            if *w > 0.0 {
+                *w *= scale;
+            }
+        }
+    }
+
+    widths
 }
 
 #[cfg(test)]
@@ -111,6 +125,76 @@ mod tests {
     fn test_empty_columns() {
         let widths = calculate_column_widths(&[]);
         assert!(widths.is_empty());
+    }
+
+    #[test]
+    fn test_percentage_over_100_normalized() {
+        // [cols="34%,36%,31%"] sums to 101% → normalize to 100%
+        let columns = vec![
+            make_column(ColumnWidth::Percentage(34)),
+            make_column(ColumnWidth::Percentage(36)),
+            make_column(ColumnWidth::Percentage(31)),
+        ];
+        let widths = calculate_column_widths(&columns);
+        let sum: f64 = widths.iter().sum();
+        assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
+        // Each scaled by 100/101
+        assert!((widths[0] - 34.0 * 100.0 / 101.0).abs() < 0.01);
+        assert!((widths[1] - 36.0 * 100.0 / 101.0).abs() < 0.01);
+        assert!((widths[2] - 31.0 * 100.0 / 101.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_percentage_under_100_normalized() {
+        // [cols="20%,30%,40%"] sums to 90% → normalize to 100%
+        let columns = vec![
+            make_column(ColumnWidth::Percentage(20)),
+            make_column(ColumnWidth::Percentage(30)),
+            make_column(ColumnWidth::Percentage(40)),
+        ];
+        let widths = calculate_column_widths(&columns);
+        let sum: f64 = widths.iter().sum();
+        assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
+        assert!((widths[0] - 20.0 * 100.0 / 90.0).abs() < 0.01);
+        assert!((widths[1] - 30.0 * 100.0 / 90.0).abs() < 0.01);
+        assert!((widths[2] - 40.0 * 100.0 / 90.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_percentage_exact_100_unchanged() {
+        let columns = vec![
+            make_column(ColumnWidth::Percentage(25)),
+            make_column(ColumnWidth::Percentage(25)),
+            make_column(ColumnWidth::Percentage(50)),
+        ];
+        let widths = calculate_column_widths(&columns);
+        assert_eq!(widths, vec![25.0, 25.0, 50.0]);
+    }
+
+    #[test]
+    fn test_auto_with_percentage_over_100() {
+        // [cols="~,60%,50%"] non-auto sum=110% → normalize percentages, auto stays 0.0
+        let columns = vec![
+            make_column(ColumnWidth::Auto),
+            make_column(ColumnWidth::Percentage(60)),
+            make_column(ColumnWidth::Percentage(50)),
+        ];
+        let widths = calculate_column_widths(&columns);
+        assert!((widths[0] - 0.0).abs() < f64::EPSILON);
+        let pct_sum: f64 = widths[1] + widths[2];
+        assert!((pct_sum - 100.0).abs() < 0.01, "pct sum was {pct_sum}");
+        assert!((widths[1] - 60.0 * 100.0 / 110.0).abs() < 0.01);
+        assert!((widths[2] - 50.0 * 100.0 / 110.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_all_auto_no_normalization() {
+        let columns = vec![
+            make_column(ColumnWidth::Auto),
+            make_column(ColumnWidth::Auto),
+        ];
+        let widths = calculate_column_widths(&columns);
+        assert_eq!(widths, vec![0.0, 0.0]);
     }
 
     #[test]
