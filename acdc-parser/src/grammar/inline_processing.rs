@@ -137,6 +137,38 @@ pub(crate) fn parse_inlines(
     Ok(inlines)
 }
 
+#[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
+pub(crate) fn parse_inlines_no_autolinks(
+    processed: &ProcessedContent,
+    state: &mut ParserState,
+    block_metadata: &BlockParsingMetadata,
+    location: &Location,
+) -> Result<Vec<InlineNode>, Error> {
+    let mut inline_peg_state = ParserState::new(&processed.text);
+    inline_peg_state.document_attributes = state.document_attributes.clone();
+    inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
+
+    let inlines = match document_parser::inlines_no_autolinks(
+        &processed.text,
+        &mut inline_peg_state,
+        0,
+        block_metadata,
+    ) {
+        Ok(inlines) => inlines,
+        Err(err) => {
+            return Err(adjust_peg_error_position(
+                &err,
+                &processed.text,
+                location.absolute_start,
+                state,
+            ));
+        }
+    };
+
+    state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
+    Ok(inlines)
+}
+
 /// Process inlines
 ///
 /// This function processes inline content by first preprocessing it and then parsing it
@@ -159,5 +191,27 @@ pub(crate) fn process_inlines(
         return Ok(Vec::new());
     }
     let content = parse_inlines(&processed, state, block_metadata, &location)?;
+    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
+}
+
+/// Process inlines with autolinks suppressed.
+///
+/// Used inside URL macros, mailto macros, and cross-references where nested
+/// autolinks would cause incorrect parsing.
+#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
+pub(crate) fn process_inlines_no_autolinks(
+    state: &mut ParserState,
+    block_metadata: &BlockParsingMetadata,
+    content_start: &PositionWithOffset,
+    end: usize,
+    offset: usize,
+    content: &str,
+) -> Result<Vec<InlineNode>, Error> {
+    let (location, processed) =
+        preprocess_inline_content(state, content_start, end, offset, content)?;
+    if processed.text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let content = parse_inlines_no_autolinks(&processed, state, block_metadata, &location)?;
     super::location_mapping::map_inline_locations(state, &processed, &content, &location)
 }

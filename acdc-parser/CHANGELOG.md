@@ -5,6 +5,18 @@ All notable changes to `acdc-parser` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Bare autolinks no longer capture trailing punctuation** — URLs like
+  `https://example.com.` now correctly exclude the trailing `.` from the link target.
+  A new `bare_url()` rule with balanced parenthesis handling ensures sentence-level
+  punctuation (`.`, `,`, `;`, `!`, `?`, `:`) and surrounding parens are not consumed.
+- **URL macro display text no longer produces nested autolinks** — display text in
+  `http://example.com[http://example.com]` is now parsed with autolinks suppressed,
+  preventing the inner URL from being double-linked.
+
 ## [0.4.0] - 2026-02-07
 
 ### Fixed

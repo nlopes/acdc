@@ -43,7 +43,7 @@ In parentheses (\c
 No trailing: \c
 .MTO "user\(atexample.com" "" ""
 .PP
-URL should not capture: \(lahttps://example.com.\(ra
+URL should not capture: \(lahttps://example.com\(ra\&.
 .PP
 Multiple trailing: \c
 .MTO "user\(atexample.com" "" ".,;"

@@ -316,125 +316,96 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
         ))?;
 
         if item.level < expected_level {
-            // Item at lower level, return to parent
             break;
         }
 
-        if item.level == expected_level {
-            // Render item at current level
-            let mut writer = visitor.writer_mut();
-            // In semantic mode, checklist items get task-list-item class
-            if semantic && item.checked.is_some() {
-                writeln!(writer, "<li class=\"task-list-item\">")?;
-            } else {
-                writeln!(writer, "<li>")?;
-            }
-            // Render principal text, optionally wrapped in <p>
-            // Checkbox goes inside the <p> tag (or directly before content)
-            if !item.principal.is_empty() || item.checked.is_some() {
-                if wrap_li_in_p {
-                    write!(writer, "<p>")?;
-                }
-                render_checked_status(item.checked.as_ref(), writer, semantic)?;
-                let _ = writer;
-                visitor.visit_inline_nodes(&item.principal)?;
-                writer = visitor.writer_mut();
-                if wrap_li_in_p {
-                    writeln!(writer, "</p>")?;
-                }
-            }
-            let _ = writer;
-            // Render attached blocks with their full wrapper divs
-            for block in &item.blocks {
-                visitor.visit_block(block)?;
-            }
+        render_list_item_content(item, visitor, wrap_li_in_p, semantic)?;
 
-            // Check if next items are nested (higher level)
-            if i + 1 < items.len()
-                && let Some(inner_item) = items.get(i + 1)
-                && inner_item.level > expected_level
-            {
-                // Find all items at the next level
-                let next_level = inner_item.level;
+        // Check if next items are nested (higher level) - only for items at expected level
+        if item.level == expected_level
+            && i + 1 < items.len()
+            && let Some(inner_item) = items.get(i + 1)
+            && inner_item.level > expected_level
+        {
+            let next_level = inner_item.level;
 
-                writer = visitor.writer_mut();
-                render_checked_status_list(
-                    is_ordered,
-                    inner_item.checked.as_ref(),
-                    depth + 1,
-                    writer,
-                    !wrap_li_in_p,
-                )?;
-                let _ = writer;
+            let writer = visitor.writer_mut();
+            render_checked_status_list(
+                is_ordered,
+                inner_item.checked.as_ref(),
+                depth + 1,
+                writer,
+                !wrap_li_in_p,
+            )?;
 
-                // Recursively render nested items
+            // Recursively render nested items
+            i += 1;
+            let nested_start = i;
+            while i < items.len() && items.get(i).is_some_and(|item| item.level >= next_level) {
                 i += 1;
-                let nested_start = i;
-                // Find all consecutive items at or deeper than next_level
-                while i < items.len() && items.get(i).is_some_and(|item| item.level >= next_level) {
-                    i += 1;
-                }
-                if let Some(inner_items) = items.get(nested_start..i) {
-                    render_nested_list_items(
-                        inner_items,
-                        visitor,
-                        next_level,
-                        is_ordered,
-                        depth + 1,
-                        wrap_li_in_p,
-                        semantic,
-                    )?;
-                }
-                writer = visitor.writer_mut();
-                // Close nested list
-                if is_ordered {
-                    writeln!(writer, "</ol>")?;
-                    if wrap_li_in_p {
-                        writeln!(writer, "</div>")?;
-                    }
-                } else {
-                    writeln!(writer, "</ul>")?;
-                    if wrap_li_in_p {
-                        writeln!(writer, "</div>")?;
-                    }
-                }
-                let _ = writer;
-
-                i -= 1; // Adjust because we'll increment at the end of the loop
             }
-
-            writer = visitor.writer_mut();
-            writeln!(writer, "</li>")?;
-            i += 1;
-        } else {
-            // Item at higher level than expected, shouldn't happen in well-formed input
-            // but handle gracefully by treating as same level - render the item inline
-            let mut writer = visitor.writer_mut();
-            if semantic && item.checked.is_some() {
-                writeln!(writer, "<li class=\"task-list-item\">")?;
+            if let Some(inner_items) = items.get(nested_start..i) {
+                render_nested_list_items(
+                    inner_items,
+                    visitor,
+                    next_level,
+                    is_ordered,
+                    depth + 1,
+                    wrap_li_in_p,
+                    semantic,
+                )?;
+            }
+            let writer = visitor.writer_mut();
+            if is_ordered {
+                writeln!(writer, "</ol>")?;
             } else {
-                writeln!(writer, "<li>")?;
+                writeln!(writer, "</ul>")?;
             }
-            if !item.principal.is_empty() || item.checked.is_some() {
-                if wrap_li_in_p {
-                    write!(writer, "<p>")?;
-                }
-                render_checked_status(item.checked.as_ref(), writer, semantic)?;
-                let _ = writer;
-                visitor.visit_inline_nodes(&item.principal)?;
-                writer = visitor.writer_mut();
-                if wrap_li_in_p {
-                    writeln!(writer, "</p>")?;
-                }
+            if wrap_li_in_p {
+                let writer = visitor.writer_mut();
+                writeln!(writer, "</div>")?;
             }
-            let _ = writer;
-            for block in &item.blocks {
-                visitor.visit_block(block)?;
-            }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</li>")?;
-            i += 1;
+
+            i -= 1; // Adjust because we'll increment at the end of the loop
         }
+
+        let writer = visitor.writer_mut();
+        writeln!(writer, "</li>")?;
+        i += 1;
+    }
+    Ok(())
+}
+
+/// Render the opening `<li>` tag, principal text, and attached blocks of a list item.
+fn render_list_item_content<V: WritableVisitor<Error = Error>>(
+    item: &ListItem,
+    visitor: &mut V,
+    wrap_li_in_p: bool,
+    semantic: bool,
+) -> Result<(), Error> {
+    let writer = visitor.writer_mut();
+    if semantic && item.checked.is_some() {
+        writeln!(writer, "<li class=\"task-list-item\">")?;
+    } else {
+        writeln!(writer, "<li>")?;
+    }
+    if !item.principal.is_empty() || item.checked.is_some() {
+        if wrap_li_in_p {
+            write!(writer, "<p>")?;
+        }
+        render_checked_status(item.checked.as_ref(), writer, semantic)?;
+        let _ = writer;
+        visitor.visit_inline_nodes(&item.principal)?;
+        let writer = visitor.writer_mut();
+        if wrap_li_in_p {
+            writeln!(writer, "</p>")?;
+        }
+        let _ = writer;
+    } else {
+        let _ = writer;
+    }
+    for block in &item.blocks {
+        visitor.visit_block(block)?;
     }
     Ok(())
 }
@@ -593,7 +564,21 @@ fn render_block_in_semantic_list_context<V: WritableVisitor<Error = Error>>(
         Block::UnorderedList(list) => render_bare_ulist_semantic(list, visitor, processor),
         Block::OrderedList(list) => render_bare_olist_semantic(list, visitor, processor),
         Block::DescriptionList(list) => render_bare_dlist_semantic(list, visitor, processor),
-        _ => visitor.visit_block(block),
+        Block::TableOfContents(_)
+        | Block::Admonition(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Section(_)
+        | Block::DelimitedBlock(_)
+        | Block::Paragraph(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        | _ => visitor.visit_block(block),
     }
 }
 
