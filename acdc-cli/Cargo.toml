@@ -25,6 +25,7 @@ anyhow = "1.0.100"
 clap.workspace = true
 crossterm.workspace = true
 miette = { version = "7", features = ["derive", "fancy"] }
+open = "5"
 rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true

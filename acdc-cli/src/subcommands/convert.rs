@@ -92,6 +92,14 @@ pub struct Args {
     #[cfg(feature = "terminal")]
     #[arg(long)]
     pub no_pager: bool,
+
+    /// Open the output file(s) after conversion
+    ///
+    /// Uses the system's default application to open generated files.
+    /// For HTML output, this typically opens a web browser.
+    /// Ignored when output is stdout (`-o -`).
+    #[arg(long)]
+    pub open: bool,
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
@@ -147,11 +155,11 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .safe_mode(safe_mode)
         .timings(args.timings)
         .embedded(args.embedded)
-        .output_destination(output_destination)
+        .output_destination(output_destination.clone())
         .backend(args.backend)
         .build();
 
-    match args.backend {
+    let result = match args.backend {
         #[cfg(feature = "html")]
         Backend::Html | Backend::Html5s => run_processor::<acdc_converters_html::Processor>(
             args,
@@ -185,6 +193,42 @@ pub fn run(args: &Args) -> miette::Result<()> {
         backend => Err(Report::msg(format!(
             "backend '{backend}' is not available - rebuild with the '{backend}' feature enabled"
         ))),
+    };
+
+    if args.open && result.is_ok() {
+        open_output_files(args, &output_destination);
+    }
+
+    result
+}
+
+fn open_output_files(args: &Args, output_destination: &OutputDestination) {
+    let paths: Vec<PathBuf> = match output_destination {
+        OutputDestination::Stdout => {
+            tracing::warn!("--open ignored when output is stdout");
+            eprintln!("Warning: --open ignored when output is stdout");
+            return;
+        }
+        OutputDestination::File(path) => vec![path.clone()],
+        OutputDestination::Derived => {
+            let ext = match args.backend {
+                Backend::Html | Backend::Html5s => "html",
+                Backend::Manpage => return,
+                Backend::Terminal => {
+                    tracing::warn!("--open ignored for terminal backend");
+                    eprintln!("Warning: --open ignored for terminal backend");
+                    return;
+                }
+            };
+            args.files.iter().map(|f| f.with_extension(ext)).collect()
+        }
+    };
+
+    for path in &paths {
+        if let Err(error) = open::that(path) {
+            tracing::error!(%error, path = %path.display(), "could not open output file");
+            eprintln!("Warning: could not open {}: {error}", path.display());
+        }
     }
 }
 

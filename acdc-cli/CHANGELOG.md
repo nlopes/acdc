@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   document.
 - **Semantic HTML5 backend** — `--backend html5s` produces semantic HTML5 output with proper
   elements and ARIA roles instead of div-based layout. ([#329])
+- `--open` flag to open generated output files after conversion using the system's default
+  application (e.g., browser for HTML). Ignored when output goes to stdout. ([#330])
 
 ### Fixed
 
@@ -55,6 +57,7 @@ This is tagged but unreleased in crates.io for now.
 [#273]: https://github.com/nlopes/acdc/issues/273
 [#311]: https://github.com/nlopes/acdc/issues/311
 [#329]: https://github.com/nlopes/acdc/issues/329
+[#330]: https://github.com/nlopes/acdc/issues/330
 
 [Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.1.0...HEAD
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-cli-v0.1.0
