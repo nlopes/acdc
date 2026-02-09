@@ -17,6 +17,7 @@ use crate::{
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{
             adjust_and_log_parse_error, parse_inlines, preprocess_inline_content, process_inlines,
+            process_inlines_no_autolinks,
         },
         location_mapping::map_inline_locations,
         manpage::{
@@ -3555,9 +3556,12 @@ peg::parser! {
         }
 
         pub(crate) rule inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
-        = (non_plain_text(offset, block_metadata) / plain_text(offset, block_metadata))+
+        = (non_plain_text(offset, block_metadata, true) / plain_text(offset, block_metadata, true))+
 
-        rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        pub(crate) rule inlines_no_autolinks(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
+        = (non_plain_text(offset, block_metadata, false) / plain_text(offset, block_metadata, false))+
+
+        rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata, allow_autolinks: bool) -> InlineNode
         = inline:(
             // Escaped superscript/subscript must come first - produces RawText to prevent re-parsing
             escaped_super_sub:escaped_superscript_subscript(offset) { escaped_super_sub }
@@ -3587,7 +3591,7 @@ peg::parser! {
             / url_macro:url_macro(offset, block_metadata) { url_macro }
             / pass:inline_pass(offset) { pass }
             / link_macro:link_macro(offset) { link_macro }
-            / inline_autolink:inline_autolink(offset) { inline_autolink }
+            / check_autolinks(allow_autolinks) inline_autolink:inline_autolink(offset) { inline_autolink }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
             / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
             / bold_text_constrained:bold_text_constrained(offset, block_metadata) { bold_text_constrained }
@@ -4000,7 +4004,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines(state, block_metadata, &start, end, offset, &text)
+                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, &text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process URL macro text");
                         "could not process URL macro text"
@@ -4048,7 +4052,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines(state, block_metadata, &start, end, offset, &text)
+                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, &text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process mailto macro text");
                         "could not process mailto macro text"
@@ -4065,12 +4069,16 @@ peg::parser! {
             })))
         }
 
+        rule check_autolinks(allow: bool) -> ()
+        = {? if allow { Ok(()) } else { Err("autolinks suppressed") } }
+
         rule inline_autolink(offset: usize) -> InlineNode
-        = start:position!()
+        =
+        start:position!()
         url_info:(
             "<" url:url() ">" { (url, true) }
             / "<" url:email_address() ">" { (format!("mailto:{url}"), true) }
-            / url:url() { (url, false) }
+            / url:bare_url() { (url, false) }
             / url:email_address() { (format!("mailto:{url}"), false) }
         )
         end:position!()
@@ -4299,7 +4307,7 @@ peg::parser! {
                 if trimmed.is_empty() {
                     vec![]
                 } else {
-                    process_inlines(state, block_metadata, &start, end, offset, trimmed)
+                    process_inlines_no_autolinks(state, block_metadata, &start, end, offset, trimmed)
                         .map_err(|e| {
                             tracing::error!(?e, xref_text = trimmed, "could not process xref text");
                             "could not process xref text"
@@ -4331,7 +4339,7 @@ peg::parser! {
             let text = if raw_text.is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &start, end, offset, raw_text)
+                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, raw_text)
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
@@ -4860,14 +4868,14 @@ peg::parser! {
             }))
         }
 
-        rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        rule plain_text(offset: usize, block_metadata: &BlockParsingMetadata, allow_autolinks: bool) -> InlineNode
         = start_pos:position!()
         content:$((
             // Escape sequences for superscript/subscript markers - only when NOT followed by
             // a complete pattern (those are handled by escaped_superscript_subscript rule)
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / index_term_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / inline_autolink(start_pos) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / index_term_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / (check_autolinks(allow_autolinks) inline_autolink(start_pos)) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
         {
@@ -5589,6 +5597,63 @@ peg::parser! {
             // from normalizing backslashes to forward slashes
             Ok(strip_url_backslash_escapes(&processed.text))
         }
+
+        /// URL for bare autolinks — avoids capturing trailing sentence punctuation
+        /// (., ;, !, etc.) by only consuming punctuation when more URL chars follow.
+        rule bare_url() -> String =
+        proto:$("https" / "http" / "ftp" / "irc") "://" path:bare_url_path()
+        { format!("{proto}://{path}") }
+
+        /// URL path for bare autolinks. Like url_path() but:
+        /// - Trailing punctuation (. , ; ! ? : ' *) only consumed when followed by more URL chars.
+        /// - `)` only consumed as part of a balanced `(...)` group, preventing capture of
+        ///   sentence-level parens like `(see http://example.com)`.
+        rule bare_url_path() -> String = path:$(
+            bare_url_safe_char()
+            ( bare_url_safe_char()
+            / bare_url_paren_group()
+            / "("
+            / bare_url_trailing_char() &bare_url_char()
+            )*
+        )
+        {?
+            let inline_state = InlinePreprocessorParserState::new(
+                path,
+                state.line_map.clone(),
+                &state.input,
+            );
+            let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
+                .map_err(|e| {
+                    tracing::error!(?e, "could not preprocess bare url path");
+                    "could not preprocess bare url path"
+                })?;
+            for warning in inline_state.drain_warnings() {
+                state.add_warning(warning);
+            }
+            Ok(strip_url_backslash_escapes(&processed.text))
+        }
+
+        /// Balanced parenthesized group in a URL path.
+        /// Handles nested parens: `http://example.com/wiki/Foo_(bar_(baz))`
+        /// Only `)` consumed via this rule — unbalanced `)` is never captured.
+        rule bare_url_paren_group()
+        = "(" (bare_url_safe_char() / bare_url_trailing_char() / bare_url_paren_group() / "(")* ")"
+
+        /// URL chars that are safe to end a bare URL — won't be confused with sentence punctuation.
+        /// Excludes `(` and `)` which are handled separately via `bare_url_paren_group`.
+        rule bare_url_safe_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '~'
+            | '/' | '#' | '@' | '$' | '&'
+            | '+' | '=' | '%' | '\\']
+
+        /// URL chars that are valid mid-URL but should not end a bare URL.
+        /// Excludes `)` which is only consumed via balanced `bare_url_paren_group`.
+        rule bare_url_trailing_char() = ['.' | ',' | ';' | '!' | '?' | ':' | '\'' | '*']
+
+        /// Any valid URL path char (for lookahead in trailing char rule).
+        /// Includes `(` because it can start a paren group.
+        /// Excludes `)` so that trailing chars before `)` aren't greedily consumed
+        /// (e.g., `http://example.com.)` keeps both `.` and `)` outside).
+        rule bare_url_char() = bare_url_safe_char() / bare_url_trailing_char() / "("
 
         /// Filesystem path - conservative character set for cross-platform compatibility
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution

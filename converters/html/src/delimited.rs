@@ -761,47 +761,7 @@ fn render_delimited_block_inner_semantic<V: WritableVisitor<Error = Error>>(
 ) -> Result<(), Error> {
     match inner {
         DelimitedBlockType::DelimitedVerse(inlines) => {
-            let has_title = !title.is_empty();
-            let has_attribution = metadata.attributes.get_string("attribution").is_some()
-                || metadata.attributes.get_string("citation").is_some();
-
-            let mut w = visitor.writer_mut();
-            if has_title {
-                write_semantic_tag_open(&mut w, "section", metadata, "verse-block")?;
-                let _ = w;
-                visitor.render_title_with_wrapper(
-                    title,
-                    "<h6 class=\"block-title\">",
-                    "</h6>\n",
-                )?;
-                w = visitor.writer_mut();
-            } else {
-                write_semantic_tag_open(&mut w, "div", metadata, "verse-block")?;
-            }
-
-            if has_attribution {
-                // With attribution: wrap in <blockquote class="verse">
-                writeln!(w, "<blockquote class=\"verse\">")?;
-                write!(w, "<pre class=\"verse\">")?;
-                let _ = w;
-                visitor.visit_inline_nodes(inlines)?;
-                w = visitor.writer_mut();
-                writeln!(w, "</pre>")?;
-                write_semantic_attribution(&mut w, metadata)?;
-                writeln!(w, "</blockquote>")?;
-            } else {
-                write!(w, "<pre class=\"verse\">")?;
-                let _ = w;
-                visitor.visit_inline_nodes(inlines)?;
-                w = visitor.writer_mut();
-                writeln!(w, "</pre>")?;
-            }
-
-            if has_title {
-                writeln!(w, "</section>")?;
-            } else {
-                writeln!(w, "</div>")?;
-            }
+            render_verse_block_semantic(inlines, title, metadata, visitor)?;
         }
         DelimitedBlockType::DelimitedLiteral(inlines) => {
             let has_title = !title.is_empty();
@@ -863,6 +823,51 @@ fn render_delimited_block_inner_semantic<V: WritableVisitor<Error = Error>>(
             )
             .into());
         }
+    }
+    Ok(())
+}
+
+fn render_verse_block_semantic<V: WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    title: &[InlineNode],
+    metadata: &BlockMetadata,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let has_title = !title.is_empty();
+    let has_attribution = metadata.attributes.get_string("attribution").is_some()
+        || metadata.attributes.get_string("citation").is_some();
+
+    let mut w = visitor.writer_mut();
+    if has_title {
+        write_semantic_tag_open(&mut w, "section", metadata, "verse-block")?;
+        let _ = w;
+        visitor.render_title_with_wrapper(title, "<h6 class=\"block-title\">", "</h6>\n")?;
+        w = visitor.writer_mut();
+    } else {
+        write_semantic_tag_open(&mut w, "div", metadata, "verse-block")?;
+    }
+
+    if has_attribution {
+        writeln!(w, "<blockquote class=\"verse\">")?;
+        write!(w, "<pre class=\"verse\">")?;
+        let _ = w;
+        visitor.visit_inline_nodes(inlines)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
+        write_semantic_attribution(&mut w, metadata)?;
+        writeln!(w, "</blockquote>")?;
+    } else {
+        write!(w, "<pre class=\"verse\">")?;
+        let _ = w;
+        visitor.visit_inline_nodes(inlines)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
+    }
+
+    if has_title {
+        writeln!(w, "</section>")?;
+    } else {
+        writeln!(w, "</div>")?;
     }
     Ok(())
 }

@@ -1,0 +1,3 @@
+Link: http://example.com/test4. End of sentence.
+
+Another link: http://example.com/page.html is fine.
