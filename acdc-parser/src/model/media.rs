@@ -51,9 +51,62 @@ pub enum Source {
     /// A filesystem path (relative or absolute).
     Path(std::path::PathBuf),
     /// A URL (http, https, ftp, etc.).
-    Url(url::Url),
+    Url(SourceUrl),
     /// A simple name (used for icon names, menu targets, etc.).
     Name(String),
+}
+
+/// A parsed URL that preserves the author's original input for display.
+///
+/// The `url` crate normalizes URLs (e.g., `http://example.com` becomes
+/// `http://example.com/`). This wrapper stores the original string so URLs
+/// are displayed exactly as written.
+///
+/// See [issue #335](https://github.com/nlopes/acdc/issues/335).
+#[derive(Clone, Debug)]
+pub struct SourceUrl {
+    url: url::Url,
+    original: String,
+}
+
+impl SourceUrl {
+    /// Create a new `SourceUrl` from a string, preserving the original for display.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is not a valid URL.
+    pub fn new(input: &str) -> Result<Self, url::ParseError> {
+        let url = url::Url::parse(input)?;
+        Ok(Self {
+            url,
+            original: input.to_string(),
+        })
+    }
+
+    /// Get the underlying `url::Url`.
+    #[must_use]
+    pub fn url(&self) -> &url::Url {
+        &self.url
+    }
+}
+
+impl std::ops::Deref for SourceUrl {
+    type Target = url::Url;
+    fn deref(&self) -> &Self::Target {
+        &self.url
+    }
+}
+
+impl PartialEq for SourceUrl {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
+    }
+}
+
+impl Display for SourceUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.original)
+    }
 }
 
 impl Source {
@@ -85,7 +138,7 @@ impl FromStr for Source {
             || value.starts_with("irc://")
             || value.starts_with("mailto:")
         {
-            url::Url::parse(value).map(Source::Url).map_err(|e| {
+            SourceUrl::new(value).map(Source::Url).map_err(|e| {
                 Error::Parse(
                     Box::new(SourceLocation {
                         file: None,
@@ -109,17 +162,7 @@ impl Display for Source {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Source::Path(path) => write!(f, "{}", path.display()),
-            Source::Url(url) => {
-                // The url crate normalizes domain-only URLs by adding a trailing slash
-                // (e.g., "https://example.com" -> "https://example.com/").
-                // Strip it to match asciidoctor's output behavior.
-                let url_str = url.as_str();
-                if url.path() == "/" && !url_str.ends_with("://") {
-                    write!(f, "{}", url_str.trim_end_matches('/'))
-                } else {
-                    write!(f, "{url}")
-                }
-            }
+            Source::Url(url) => write!(f, "{url}"),
             Source::Name(name) => write!(f, "{name}"),
         }
     }
@@ -138,7 +181,7 @@ impl Serialize for Source {
             }
             Source::Url(url) => {
                 state.serialize_entry("type", "url")?;
-                state.serialize_entry("value", url.as_str())?;
+                state.serialize_entry("value", &url.to_string())?;
             }
             Source::Name(name) => {
                 state.serialize_entry("type", "name")?;
@@ -322,5 +365,55 @@ impl Serialize for Video {
         }
         state.serialize_entry("location", &self.location)?;
         state.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_display_preserves_trailing_slash() -> Result<(), Error> {
+        // Issue #335: URLs with trailing slashes should preserve them
+        let source = Source::from_str("http://example.com/")?;
+        assert_eq!(source.to_string(), "http://example.com/");
+        Ok(())
+    }
+
+    #[test]
+    fn source_display_no_trailing_slash_when_absent() -> Result<(), Error> {
+        // Domain-only URL without trailing slash should not gain one
+        let source = Source::from_str("http://example.com")?;
+        assert_eq!(source.to_string(), "http://example.com");
+        Ok(())
+    }
+
+    #[test]
+    fn source_display_preserves_path_trailing_slash() -> Result<(), Error> {
+        let source = Source::from_str("http://example.com/foo/")?;
+        assert_eq!(source.to_string(), "http://example.com/foo/");
+        Ok(())
+    }
+
+    #[test]
+    fn source_display_preserves_path_without_trailing_slash() -> Result<(), Error> {
+        let source = Source::from_str("http://example.com/foo")?;
+        assert_eq!(source.to_string(), "http://example.com/foo");
+        Ok(())
+    }
+
+    #[test]
+    fn source_display_preserves_query_without_path() -> Result<(), Error> {
+        // Original URL preserved exactly, even without explicit path before query
+        let source = Source::from_str("https://example.com?a=1&b=2")?;
+        assert_eq!(source.to_string(), "https://example.com?a=1&b=2");
+        Ok(())
+    }
+
+    #[test]
+    fn source_display_preserves_trailing_slash_with_query() -> Result<(), Error> {
+        let source = Source::from_str("https://example.com/?a=1&b=2")?;
+        assert_eq!(source.to_string(), "https://example.com/?a=1&b=2");
+        Ok(())
     }
 }

@@ -60,11 +60,11 @@ pub use model::{
     IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
     ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace,
     NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Role,
-    Section, Source, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Table, TableColumn,
-    TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES,
-    UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video, inlines_to_string,
-    substitute,
+    Section, Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation,
+    Subscript, Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Table,
+    TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
+    UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
+    inlines_to_string, substitute,
 };
 pub use options::{Options, OptionsBuilder, SafeMode};
 

@@ -31,7 +31,7 @@ pub use lists::{
     ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
 };
 pub use location::*;
-pub use media::{Audio, Image, Source, Video};
+pub use media::{Audio, Image, Source, SourceUrl, Video};
 pub use metadata::{BlockMetadata, Role};
 pub use section::*;
 pub use substitution::*;

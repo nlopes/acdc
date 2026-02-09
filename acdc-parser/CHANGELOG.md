@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`Source::Url` now wraps `SourceUrl` instead of `url::Url`** — the new `SourceUrl` type
+  preserves the original URL string for display, preventing the `url` crate from silently
+  altering author URLs (e.g., stripping trailing slashes).
+  `SourceUrl` implements `Deref<Target = url::Url>` so existing method calls continue to
+  work. ([#335])
+
 ### Fixed
 
 - **Bare autolinks no longer capture trailing punctuation** — URLs like
@@ -16,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **URL macro display text no longer produces nested autolinks** — display text in
   `http://example.com[http://example.com]` is now parsed with autolinks suppressed,
   preventing the inner URL from being double-linked.
+- **URLs are no longer altered during parsing** — trailing slashes and other author-written
+  URL details are now preserved exactly as written. Previously, `http://example.com/` was
+  incorrectly shortened to `http://example.com`. ([#335])
 
 ## [0.4.0] - 2026-02-07
 
@@ -271,6 +282,7 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#321]: https://github.com/nlopes/acdc/issues/321
 [#323]: https://github.com/nlopes/acdc/issues/323
 [#327]: https://github.com/nlopes/acdc/issues/327
+[#335]: https://github.com/nlopes/acdc/issues/335
 
 [0.4.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.4.0
 [0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0
