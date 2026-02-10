@@ -28,11 +28,11 @@
           "location": [
             {
               "line": 1,
-              "col": 17
+              "col": 18
             },
             {
               "line": 1,
-              "col": 20
+              "col": 19
             }
           ]
         },
@@ -58,11 +58,11 @@
           "location": [
             {
               "line": 1,
-              "col": 42
+              "col": 43
             },
             {
               "line": 1,
-              "col": 45
+              "col": 44
             }
           ]
         },
@@ -88,11 +88,11 @@
           "location": [
             {
               "line": 2,
-              "col": 1
+              "col": 2
             },
             {
               "line": 2,
-              "col": 4
+              "col": 3
             }
           ]
         },

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Passthrough quote processing now uses the PEG grammar** — replaced ~800 lines of
+  hand-rolled pattern matching (`markup_patterns.rs`) with a dedicated `quotes_only_inlines`
+  PEG rule. The new rule matches only formatting markup (bold, italic, monospace, highlight,
+  superscript, subscript, curved quotes) without macros, xrefs, or autolinks, matching
+  what "quotes" substitution actually means. Fixes edge cases the manual approach missed
+  (nested markup, boundary detection) and makes the passthrough processing consistent with
+  the main inline parser.
 - **`Source::Url` now wraps `SourceUrl` instead of `url::Url`** — the new `SourceUrl` type
   preserves the original URL string for display, preventing the `url` crate from silently
   altering author URLs (e.g., stripping trailing slashes).
@@ -17,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Constrained markup boundary detection expanded** — `^`, `~`, `(`, `[`, `{`, and `|`
+  are now recognized as valid boundary characters for constrained bold, italic, monospace,
+  and highlight markup. Fixes cases where formatting wasn't properly terminated before
+  these characters (e.g., `*bold*^super^`).
+- **Passthrough content locations are now precise** — `RawText` nodes from non-quotes
+  passthroughs now point to the content portion only, not the full macro span including
+  delimiters.
 - **Tables after definition list items now parse correctly** — when a definition list
   term with an empty description was immediately followed by block attributes (e.g.,
   `[cols="..."]`) and a table delimiter, the attributes line was consumed as principal

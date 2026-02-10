@@ -105,6 +105,8 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'"'
             | b'<'
             | b'>'
+            | b'^'
+            | b'~'
     )
 }
 
@@ -3562,6 +3564,54 @@ peg::parser! {
         pub(crate) rule inlines_no_autolinks(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
         = (non_plain_text(offset, block_metadata, false) / plain_text(offset, block_metadata, false))+
 
+        /// Reduced inline rule set for "quotes" substitution in passthroughs.
+        /// Only matches formatting markup + escaped markup + plain text.
+        /// Does not match macros, xrefs, anchors, autolinks, footnotes, etc.
+        pub(crate) rule quotes_only_inlines(offset: usize, block_metadata: &BlockParsingMetadata) -> Vec<InlineNode>
+        = (quotes_non_plain_text(offset, block_metadata) / quotes_plain_text(offset, block_metadata))+
+
+        /// Non-plain-text alternatives for quotes-only mode: formatting markup only.
+        /// Keep in sync with the formatting entries in `non_plain_text` above.
+        rule quotes_non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = inline:(
+            escaped_super_sub:escaped_superscript_subscript(offset) { escaped_super_sub }
+            / escaped_syntax:escaped_syntax(offset) { escaped_syntax }
+            / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
+            / bold_text_constrained:bold_text_constrained(offset, block_metadata) { bold_text_constrained }
+            / italic_text_unconstrained:italic_text_unconstrained(offset, block_metadata) { italic_text_unconstrained }
+            / italic_text_constrained:italic_text_constrained(offset, block_metadata) { italic_text_constrained }
+            / monospace_text_unconstrained:monospace_text_unconstrained(offset, block_metadata) { monospace_text_unconstrained }
+            / monospace_text_constrained:monospace_text_constrained(offset, block_metadata) { monospace_text_constrained }
+            / highlight_text_unconstrained:highlight_text_unconstrained(offset, block_metadata) { highlight_text_unconstrained }
+            / highlight_text_constrained:highlight_text_constrained(offset, block_metadata) { highlight_text_constrained }
+            / superscript_text:superscript_text(offset, block_metadata) { superscript_text }
+            / subscript_text:subscript_text(offset, block_metadata) { subscript_text }
+            / curved_quotation_text:curved_quotation_text(offset, block_metadata) { curved_quotation_text }
+            / curved_apostrophe_text:curved_apostrophe_text(offset, block_metadata) { curved_apostrophe_text }
+            / standalone_curved_apostrophe:standalone_curved_apostrophe(offset, block_metadata) { standalone_curved_apostrophe }
+        ) {
+            inline
+        }
+
+        /// Plain text for quotes-only mode: reduced negative lookaheads (formatting patterns only).
+        /// Keep in sync with the formatting lookaheads in `plain_text` below.
+        rule quotes_plain_text(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start_pos:position!()
+        content:$((
+            "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
+            / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
+            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+        )+)
+        end:position!()
+        {
+            tracing::info!(?content, "Found quotes-only plain text inline");
+            InlineNode::PlainText(Plain {
+                content: content.to_string(),
+                location: state.create_block_location(start_pos, end, offset),
+                escaped: false,
+            })
+        }
+
         rule non_plain_text(offset: usize, block_metadata: &BlockParsingMetadata, allow_autolinks: bool) -> InlineNode
         = inline:(
             // Escaped superscript/subscript must come first - produces RawText to prevent re-parsing
@@ -4393,9 +4443,9 @@ peg::parser! {
         start:position!()
         content_start:position()
         "*"
-        content:$([^(' ' | '\t' | '\n')] [^'*']* ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'*']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'*']* ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'*']*)*)
         "*"
-        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -4444,9 +4494,9 @@ peg::parser! {
         start:position!()
         content_start:position()
         "_"
-        content:$([^(' ' | '\t' | '\n')] [^'_']* ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'_']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'_']* ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'_']*)*)
         "_"
-        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -4494,9 +4544,9 @@ peg::parser! {
         "*"
         [^(' ' | '\t' | '\n')]
         [^'*']*
-        ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'*']*)*
+        ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'*']*)*
         "*"
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no asterisk)
             let valid_boundary = boundary_pos == 0 || {
@@ -4515,9 +4565,9 @@ peg::parser! {
         "_"
         [^(' ' | '\t' | '\n')]
         [^'_']*
-        ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'_']*)*
+        ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'_']*)*
         "_"
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no underscore)
             let valid_boundary = boundary_pos == 0 || {
@@ -4587,10 +4637,10 @@ peg::parser! {
         start:position!()
         content_start:position()
         "`"
-        content:$([^(' ' | '\t' | '\n')] [^'`']* ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'`']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'`']* ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'`']*)*)
         "`"
         end:position!()
-        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -4636,9 +4686,9 @@ peg::parser! {
         "`"
         [^(' ' | '\t' | '\n')]
         [^'`']*
-        ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'`']*)*
+        ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'`']*)*
         "`"
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no backtick)
             let valid_boundary = boundary_pos == 0 || {
@@ -4685,10 +4735,10 @@ peg::parser! {
         start:position!()
         content_start:position()
         "#"
-        content:$([^(' ' | '\t' | '\n')] [^'#']* ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'#']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'#']* ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'#']*)*)
         "#"
         end:position!()
-        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -4736,9 +4786,9 @@ peg::parser! {
         "#"
         [^(' ' | '\t' | '\n')]
         [^'#']*
-        ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_]) [^'#']*)*
+        ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'#']*)*
         "#"
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])
+        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
             // Check if we're at start OR preceded by word boundary (no hash)
             let valid_boundary = boundary_pos == 0 || {

@@ -1,183 +1,12 @@
-use crate::{InlineNode, Location, Pass, Plain, ProcessedContent, Raw, Substitution};
+use crate::{
+    InlineNode, Location, Pass, PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
+};
 
 use super::{
     ParserState,
+    document::{BlockParsingMetadata, document_parser},
     location_mapping::{clamp_inline_node_locations, remap_inline_node_location},
-    markup_patterns::{
-        MarkupMatch, find_constrained_bold_pattern, find_curved_apostrophe_pattern,
-        find_curved_quotation_pattern, find_highlight_constrained_pattern,
-        find_highlight_unconstrained_pattern, find_italic_pattern,
-        find_monospace_constrained_pattern, find_monospace_unconstrained_pattern,
-        find_subscript_pattern, find_superscript_pattern, find_unconstrained_bold_pattern,
-        find_unconstrained_italic_pattern,
-    },
 };
-use crate::{
-    Bold, CurvedApostrophe, CurvedQuotation, Form, Highlight, Italic, Monospace, Subscript,
-    Superscript,
-};
-
-/// Markup type for passthrough inline content parsing.
-#[derive(Debug, Clone, Copy)]
-enum MarkupType {
-    UnconstrainedBold,
-    UnconstrainedItalic,
-    ConstrainedBold,
-    ConstrainedItalic,
-    Superscript,
-    Subscript,
-    CurvedQuotation,
-    CurvedApostrophe,
-    UnconstrainedMonospace,
-    ConstrainedMonospace,
-    UnconstrainedHighlight,
-    ConstrainedHighlight,
-}
-
-impl MarkupType {
-    /// Returns the delimiter length for this markup type.
-    const fn delimiter_len(self) -> usize {
-        match self {
-            Self::UnconstrainedBold
-            | Self::UnconstrainedItalic
-            | Self::CurvedQuotation
-            | Self::CurvedApostrophe
-            | Self::UnconstrainedMonospace
-            | Self::UnconstrainedHighlight => 2,
-            Self::ConstrainedBold
-            | Self::ConstrainedItalic
-            | Self::Superscript
-            | Self::Subscript
-            | Self::ConstrainedMonospace
-            | Self::ConstrainedHighlight => 1,
-        }
-    }
-
-    /// Returns the Form for this markup type.
-    const fn form(self) -> Form {
-        match self {
-            Self::UnconstrainedBold
-            | Self::UnconstrainedItalic
-            | Self::Superscript
-            | Self::Subscript
-            | Self::CurvedQuotation
-            | Self::CurvedApostrophe
-            | Self::UnconstrainedMonospace
-            | Self::UnconstrainedHighlight => Form::Unconstrained,
-            Self::ConstrainedBold
-            | Self::ConstrainedItalic
-            | Self::ConstrainedMonospace
-            | Self::ConstrainedHighlight => Form::Constrained,
-        }
-    }
-
-    /// Whether this pattern uses <= priority (curved quotes take precedence at same position).
-    const fn uses_lte_priority(self) -> bool {
-        matches!(self, Self::CurvedQuotation | Self::CurvedApostrophe)
-    }
-
-    /// Find this pattern in the input.
-    fn find(self, input: &str) -> Option<MarkupMatch> {
-        match self {
-            Self::UnconstrainedBold => find_unconstrained_bold_pattern(input),
-            Self::UnconstrainedItalic => find_unconstrained_italic_pattern(input),
-            Self::ConstrainedBold => find_constrained_bold_pattern(input),
-            Self::ConstrainedItalic => find_italic_pattern(input),
-            Self::Superscript => find_superscript_pattern(input),
-            Self::Subscript => find_subscript_pattern(input),
-            Self::CurvedQuotation => find_curved_quotation_pattern(input),
-            Self::CurvedApostrophe => find_curved_apostrophe_pattern(input),
-            Self::UnconstrainedMonospace => find_monospace_unconstrained_pattern(input),
-            Self::ConstrainedMonospace => find_monospace_constrained_pattern(input),
-            Self::UnconstrainedHighlight => find_highlight_unconstrained_pattern(input),
-            Self::ConstrainedHighlight => find_highlight_constrained_pattern(input),
-        }
-    }
-
-    /// Create an `InlineNode` for this markup type.
-    fn create_node(self, inner_content: InlineNode, outer_location: Location) -> InlineNode {
-        let form = self.form();
-        match self {
-            Self::UnconstrainedBold | Self::ConstrainedBold => InlineNode::BoldText(Bold {
-                content: vec![inner_content],
-                form,
-                role: None,
-                id: None,
-                location: outer_location,
-            }),
-            Self::UnconstrainedItalic | Self::ConstrainedItalic => InlineNode::ItalicText(Italic {
-                content: vec![inner_content],
-                form,
-                role: None,
-                id: None,
-                location: outer_location,
-            }),
-            Self::Superscript => InlineNode::SuperscriptText(Superscript {
-                content: vec![inner_content],
-                form,
-                role: None,
-                id: None,
-                location: outer_location,
-            }),
-            Self::Subscript => InlineNode::SubscriptText(Subscript {
-                content: vec![inner_content],
-                form,
-                role: None,
-                id: None,
-                location: outer_location,
-            }),
-            Self::CurvedQuotation => InlineNode::CurvedQuotationText(CurvedQuotation {
-                content: vec![inner_content],
-                form,
-                role: None,
-                id: None,
-                location: outer_location,
-            }),
-            Self::CurvedApostrophe => InlineNode::CurvedApostropheText(CurvedApostrophe {
-                content: vec![inner_content],
-                form,
-                role: None,
-                id: None,
-                location: outer_location,
-            }),
-            Self::UnconstrainedMonospace | Self::ConstrainedMonospace => {
-                InlineNode::MonospaceText(Monospace {
-                    content: vec![inner_content],
-                    form,
-                    role: None,
-                    id: None,
-                    location: outer_location,
-                })
-            }
-            Self::UnconstrainedHighlight | Self::ConstrainedHighlight => {
-                InlineNode::HighlightText(Highlight {
-                    content: vec![inner_content],
-                    form,
-                    role: None,
-                    id: None,
-                    location: outer_location,
-                })
-            }
-        }
-    }
-}
-
-/// All markup types to check, in priority order.
-const MARKUP_TYPES: &[MarkupType] = &[
-    MarkupType::UnconstrainedBold,
-    MarkupType::UnconstrainedItalic,
-    MarkupType::ConstrainedBold,
-    MarkupType::ConstrainedItalic,
-    MarkupType::Superscript,
-    MarkupType::Subscript,
-    // Curved quotes checked before monospace since they start with backticks
-    MarkupType::CurvedQuotation,
-    MarkupType::CurvedApostrophe,
-    MarkupType::UnconstrainedMonospace,
-    MarkupType::ConstrainedMonospace,
-    MarkupType::UnconstrainedHighlight,
-    MarkupType::ConstrainedHighlight,
-];
 
 /// Process passthrough content that contains quote substitutions, parsing nested markup
 pub(crate) fn process_passthrough_with_quotes(
@@ -196,9 +25,35 @@ pub(crate) fn process_passthrough_with_quotes(
         // adjacent PlainText nodes (which would lose the passthrough's substitution info).
         // Carry the passthrough's own subs (minus Quotes, already handled) so the
         // converter applies exactly those instead of the block's subs.
+        // Compute content-only location by stripping the delimiter prefix/suffix
+        // from the full passthrough macro location.
+        let suffix_len = match passthrough.kind {
+            PassthroughKind::Macro | PassthroughKind::Single => 1, // ] or +
+            PassthroughKind::Double => 2,                          // ++
+            PassthroughKind::Triple => 3,                          // +++
+        };
+        let total_span = passthrough.location.absolute_end - passthrough.location.absolute_start;
+        let prefix_len = total_span - content.len() - suffix_len;
+
+        let content_abs_start = passthrough.location.absolute_start + prefix_len;
+        let content_col_start = passthrough.location.start.column + prefix_len;
+
+        let content_location = Location {
+            absolute_start: content_abs_start,
+            absolute_end: content_abs_start + content.len(),
+            start: crate::Position {
+                line: passthrough.location.start.line,
+                column: content_col_start,
+            },
+            end: crate::Position {
+                line: passthrough.location.start.line,
+                column: content_col_start + content.len(),
+            },
+        };
+
         return vec![InlineNode::RawText(Raw {
             content: content.to_string(),
-            location: passthrough.location.clone(),
+            location: content_location,
             subs: passthrough
                 .substitutions
                 .iter()
@@ -210,8 +65,6 @@ pub(crate) fn process_passthrough_with_quotes(
 
     tracing::debug!(content = ?content, "Parsing passthrough content with quotes");
 
-    // Manual parsing for bold and italic patterns in passthrough content
-    // This is a simpler approach than trying to use the full PEG parser
     parse_text_for_quotes(content)
 }
 
@@ -240,116 +93,28 @@ pub(crate) fn process_passthrough_with_quotes(
 /// ```
 #[must_use]
 pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
-    let mut result = Vec::new();
-    let mut remaining = content;
-    let mut current_offset = 0;
+    if content.is_empty() {
+        return Vec::new();
+    }
 
-    while !remaining.is_empty() {
-        // Find the earliest pattern in the remaining text
-        let earliest = find_earliest_pattern(remaining);
+    let mut state = ParserState::new(content);
+    state.quotes_only = true;
+    let block_metadata = BlockParsingMetadata::default();
 
-        if let Some((markup_match, markup_type)) = earliest {
-            // Add any content before the markup as plain text
-            if markup_match.start > 0 {
-                let before_content = &remaining[..markup_match.start];
-                result.push(InlineNode::PlainText(Plain {
-                    content: before_content.to_string(),
-                    location: create_relative_location(
-                        current_offset,
-                        current_offset + before_content.len(),
-                    ),
-                    escaped: false,
-                }));
-                current_offset += before_content.len();
-            }
-
-            // Create inner content location
-            let delim_len = markup_type.delimiter_len();
-            let inner_location = create_relative_location(
-                current_offset + delim_len,
-                current_offset + delim_len + markup_match.content.len(),
+    match document_parser::quotes_only_inlines(content, &mut state, 0, &block_metadata) {
+        Ok(nodes) => nodes,
+        Err(err) => {
+            tracing::warn!(
+                ?err,
+                ?content,
+                "quotes-only PEG parse failed, falling back to plain text"
             );
-            let inner_content = InlineNode::PlainText(Plain {
-                content: markup_match.content.clone(),
-                location: inner_location,
+            vec![InlineNode::PlainText(Plain {
+                content: content.to_string(),
+                location: Location::default(),
                 escaped: false,
-            });
-
-            // Create outer location
-            let outer_location = create_relative_location(
-                current_offset,
-                current_offset + markup_match.end - markup_match.start,
-            );
-
-            // Create the appropriate node
-            result.push(markup_type.create_node(inner_content, outer_location));
-
-            // Move past the markup pattern
-            remaining = &remaining[markup_match.end..];
-            current_offset += markup_match.end - markup_match.start;
-        } else {
-            // No patterns found, add remaining content as plain text and exit
-            if !remaining.is_empty() {
-                if let Some(InlineNode::PlainText(last_plain)) = result.last_mut() {
-                    // Merge with the last plain text node
-                    last_plain.content.push_str(remaining);
-                    last_plain.location.absolute_end = current_offset + remaining.len();
-                    last_plain.location.end.column = current_offset + remaining.len() + 1;
-                } else {
-                    result.push(InlineNode::PlainText(Plain {
-                        content: remaining.to_string(),
-                        location: create_relative_location(
-                            current_offset,
-                            current_offset + remaining.len(),
-                        ),
-                        escaped: false,
-                    }));
-                }
-            }
-            break;
+            })]
         }
-    }
-
-    result
-}
-
-/// Find the earliest matching pattern in the input.
-fn find_earliest_pattern(input: &str) -> Option<(MarkupMatch, MarkupType)> {
-    let mut earliest: Option<(MarkupMatch, MarkupType)> = None;
-
-    for &markup_type in MARKUP_TYPES {
-        if let Some(markup_match) = markup_type.find(input) {
-            let dominated = earliest.as_ref().is_some_and(|(e, _)| {
-                if markup_type.uses_lte_priority() {
-                    markup_match.start > e.start
-                } else {
-                    markup_match.start >= e.start
-                }
-            });
-
-            if !dominated {
-                earliest = Some((markup_match, markup_type));
-            }
-        }
-    }
-
-    earliest
-}
-
-/// Create a location for relative positions within passthrough content.
-/// These positions will be remapped later during final location mapping.
-fn create_relative_location(start: usize, end: usize) -> Location {
-    Location {
-        absolute_start: start,
-        absolute_end: end,
-        start: crate::Position {
-            line: 1,
-            column: start + 1,
-        },
-        end: crate::Position {
-            line: 1,
-            column: end + 1,
-        },
     }
 }
 
@@ -413,11 +178,32 @@ pub(crate) fn process_passthrough_placeholders(
                 // Remap locations of processed nodes to use original string coordinates
                 // The passthrough content starts after "pass:q[" so we need to account for that offset
                 let macro_prefix_len = "pass:q[".len(); // 7 characters
+                let has_quotes = passthrough.substitutions.contains(&Substitution::Quotes);
+                let remaining_subs: Vec<Substitution> = passthrough
+                    .substitutions
+                    .iter()
+                    .filter(|s| **s != Substitution::Quotes)
+                    .cloned()
+                    .collect();
                 for mut node in processed_nodes {
                     remap_inline_node_location(
                         &mut node,
                         passthrough.location.absolute_start + macro_prefix_len,
                     );
+                    // For passthroughs with quotes, convert PlainText to RawText so
+                    // HTML content passes through unescaped. Must happen AFTER
+                    // remapping since remap_inline_node_location handles PlainText
+                    // but not RawText (RawText from non-quotes path already has
+                    // correct locations from passthrough.location).
+                    if has_quotes {
+                        if let InlineNode::PlainText(p) = node {
+                            node = InlineNode::RawText(Raw {
+                                content: p.content,
+                                location: p.location,
+                                subs: remaining_subs.clone(),
+                            });
+                        }
+                    }
                     result.push(node);
                 }
             }

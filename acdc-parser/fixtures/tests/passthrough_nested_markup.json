@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Nested markup: <del>",
+          "value": "Nested markup: ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 28
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 23
+            },
+            {
+              "line": 1,
+              "col": 27
             }
           ]
         },
@@ -30,7 +45,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "bold _italic_",
+              "value": "bold ",
               "location": [
                 {
                   "line": 1,
@@ -38,7 +53,40 @@
                 },
                 {
                   "line": 1,
-                  "col": 42
+                  "col": 33
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "italic",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 35
+                    },
+                    {
+                      "line": 1,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 1,
+                  "col": 34
+                },
+                {
+                  "line": 1,
+                  "col": 41
                 }
               ]
             }
@@ -50,14 +98,14 @@
             },
             {
               "line": 1,
-              "col": 43
+              "col": 42
             }
           ]
         },
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
-          "value": "</del> and <del>",
+          "value": "</del>",
           "location": [
             {
               "line": 1,
@@ -65,7 +113,37 @@
             },
             {
               "line": 1,
-              "col": 67
+              "col": 48
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 50
+            },
+            {
+              "line": 1,
+              "col": 55
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 62
+            },
+            {
+              "line": 1,
+              "col": 66
             }
           ]
         },
@@ -78,7 +156,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "italic *bold*",
+              "value": "italic ",
               "location": [
                 {
                   "line": 1,
@@ -86,7 +164,40 @@
                 },
                 {
                   "line": 1,
-                  "col": 81
+                  "col": 74
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "bold",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 76
+                    },
+                    {
+                      "line": 1,
+                      "col": 79
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 1,
+                  "col": 75
+                },
+                {
+                  "line": 1,
+                  "col": 80
                 }
               ]
             }
@@ -98,18 +209,33 @@
             },
             {
               "line": 1,
+              "col": 81
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
               "col": 82
+            },
+            {
+              "line": 1,
+              "col": 87
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": "</del> combinations.",
+          "value": " combinations.",
           "location": [
             {
               "line": 1,
-              "col": 82
+              "col": 89
             },
             {
               "line": 1,

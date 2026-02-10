@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "The text <del>strike ",
+          "value": "The text ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 29
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>strike ",
+          "location": [
+            {
+              "line": 1,
+              "col": 17
+            },
+            {
+              "line": 1,
+              "col": 28
             }
           ]
         },
@@ -38,7 +53,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 34
+                  "col": 33
                 }
               ]
             }
@@ -50,18 +65,33 @@
             },
             {
               "line": 1,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
               "col": 35
+            },
+            {
+              "line": 1,
+              "col": 40
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": "</del> is marked as deleted.",
+          "value": " is marked as deleted.",
           "location": [
             {
               "line": 1,
-              "col": 35
+              "col": 42
             },
             {
               "line": 1,

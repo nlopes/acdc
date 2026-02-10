@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Complex boundaries: <del>*bold*text*more*</del> and <del>text*notbold*</del> and <del>",
+          "value": "Complex boundaries: ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,130 @@
             },
             {
               "line": 1,
-              "col": 110
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 28
+            },
+            {
+              "line": 1,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold*text*more",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 34
+                },
+                {
+                  "line": 1,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 33
+            },
+            {
+              "line": 1,
+              "col": 48
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 49
+            },
+            {
+              "line": 1,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 56
+            },
+            {
+              "line": 1,
+              "col": 61
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>text*notbold*</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 68
+            },
+            {
+              "line": 1,
+              "col": 91
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 93
+            },
+            {
+              "line": 1,
+              "col": 98
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 105
+            },
+            {
+              "line": 1,
+              "col": 109
             }
           ]
         },
@@ -38,7 +161,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 115
+                  "col": 114
                 }
               ]
             }
@@ -50,18 +173,33 @@
             },
             {
               "line": 1,
+              "col": 115
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": ".</del>",
+          "location": [
+            {
+              "line": 1,
               "col": 116
+            },
+            {
+              "line": 1,
+              "col": 122
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": ".</del> patterns.",
+          "value": " patterns.",
           "location": [
             {
               "line": 1,
-              "col": 116
+              "col": 124
             },
             {
               "line": 1,

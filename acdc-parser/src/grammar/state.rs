@@ -26,6 +26,11 @@ pub(crate) struct ParserState {
     /// PEG backtracking can cause the same warning to fire multiple times;
     /// storing them here with deduplication and emitting after parsing avoids duplicates.
     pub(crate) warnings: Vec<String>,
+    /// When true, inline parsing uses a reduced rule set that only matches
+    /// formatting markup (bold, italic, monospace, highlight, superscript,
+    /// subscript, curved quotes) and plain text. Used by `parse_text_for_quotes`
+    /// to apply "quotes" substitution without matching macros, xrefs, etc.
+    pub(crate) quotes_only: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +122,7 @@ impl ParserState {
             current_file: None,
             leveloffset_ranges: Vec::new(),
             warnings: Vec::new(),
+            quotes_only: false,
         }
     }
 

@@ -60,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **No trailing newline after `</html>`** — the HTML output no longer appends an extra
+  newline after the closing `</html>` tag.
 - **Ordered list depth styling** - Nested ordered lists rendered via cross-type
   nesting (e.g., an ordered list inside an unordered item) now get depth-appropriate
   styling (`loweralpha` for depth 2, `lowerroman` for depth 3, etc.) instead of

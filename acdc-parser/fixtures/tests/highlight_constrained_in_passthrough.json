@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Important This is ",
+          "value": "Important ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 26
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "This is ",
+          "location": [
+            {
+              "line": 1,
+              "col": 18
+            },
+            {
+              "line": 1,
+              "col": 25
             }
           ]
         },
@@ -38,7 +53,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 36
+                  "col": 35
                 }
               ]
             }
@@ -50,18 +65,33 @@
             },
             {
               "line": 1,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " text",
+          "location": [
+            {
+              "line": 1,
               "col": 37
+            },
+            {
+              "line": 1,
+              "col": 41
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": " text here.",
+          "value": " here.",
           "location": [
             {
               "line": 1,
-              "col": 37
+              "col": 43
             },
             {
               "line": 1,

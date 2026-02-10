@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Unconstrained italic: <del>",
+          "value": "Unconstrained italic: ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 35
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 30
+            },
+            {
+              "line": 1,
+              "col": 34
             }
           ]
         },
@@ -38,7 +53,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 57
+                  "col": 56
                 }
               ]
             }
@@ -50,14 +65,14 @@
             },
             {
               "line": 1,
-              "col": 59
+              "col": 58
             }
           ]
         },
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
-          "value": "</del> and mixed <del>",
+          "value": "</del>",
           "location": [
             {
               "line": 1,
@@ -65,7 +80,37 @@
             },
             {
               "line": 1,
-              "col": 89
+              "col": 64
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and mixed ",
+          "location": [
+            {
+              "line": 1,
+              "col": 66
+            },
+            {
+              "line": 1,
+              "col": 77
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 84
+            },
+            {
+              "line": 1,
+              "col": 88
             }
           ]
         },
@@ -86,7 +131,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 101
+                  "col": 100
                 }
               ]
             }
@@ -98,12 +143,12 @@
             },
             {
               "line": 1,
-              "col": 102
+              "col": 101
             }
           ]
         },
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": " ",
           "location": [
@@ -113,7 +158,7 @@
             },
             {
               "line": 1,
-              "col": 103
+              "col": 102
             }
           ]
         },
@@ -134,7 +179,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 118
+                  "col": 117
                 }
               ]
             }
@@ -146,18 +191,33 @@
             },
             {
               "line": 1,
+              "col": 119
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
               "col": 120
+            },
+            {
+              "line": 1,
+              "col": 125
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": "</del> patterns.",
+          "value": " patterns.",
           "location": [
             {
               "line": 1,
-              "col": 120
+              "col": 127
             },
             {
               "line": 1,

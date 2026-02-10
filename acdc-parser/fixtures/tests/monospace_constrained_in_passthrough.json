@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Code example Use ",
+          "value": "Code example ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 25
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Use ",
+          "location": [
+            {
+              "line": 1,
+              "col": 21
+            },
+            {
+              "line": 1,
+              "col": 24
             }
           ]
         },
@@ -38,7 +53,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 36
+                  "col": 35
                 }
               ]
             }
@@ -50,18 +65,33 @@
             },
             {
               "line": 1,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " to call",
+          "location": [
+            {
+              "line": 1,
               "col": 37
+            },
+            {
+              "line": 1,
+              "col": 44
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": " to call it.",
+          "value": " it.",
           "location": [
             {
               "line": 1,
-              "col": 37
+              "col": 46
             },
             {
               "line": 1,

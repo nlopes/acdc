@@ -9,11 +9,101 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Malformed patterns: <del>**</del> empty and <del>*unclosed bold</del> and <del>no*space*here</del> cases.",
+          "value": "Malformed patterns: ",
           "location": [
             {
               "line": 1,
               "col": 1
+            },
+            {
+              "line": 1,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>**</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 28
+            },
+            {
+              "line": 1,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " empty and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 42
+            },
+            {
+              "line": 1,
+              "col": 53
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>*unclosed bold</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 60
+            },
+            {
+              "line": 1,
+              "col": 84
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 86
+            },
+            {
+              "line": 1,
+              "col": 91
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>no*space*here</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 98
+            },
+            {
+              "line": 1,
+              "col": 121
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " cases.",
+          "location": [
+            {
+              "line": 1,
+              "col": 123
             },
             {
               "line": 1,

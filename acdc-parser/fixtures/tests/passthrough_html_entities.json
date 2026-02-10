@@ -9,11 +9,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": "HTML entities: <del>&amp;*bold*&amp;</del> and <del>&lt;*emphasis*&gt;</del> with entities.",
+          "value": "HTML entities: ",
           "location": [
             {
               "line": 1,
               "col": 1
+            },
+            {
+              "line": 1,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>&amp;*bold*&amp;</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 23
+            },
+            {
+              "line": 1,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 51
+            },
+            {
+              "line": 1,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>&lt;*emphasis*&gt;</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 63
+            },
+            {
+              "line": 1,
+              "col": 91
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " with entities.",
+          "location": [
+            {
+              "line": 1,
+              "col": 93
             },
             {
               "line": 1,

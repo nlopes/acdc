@@ -80,11 +80,11 @@
               "location": [
                 {
                   "line": 5,
-                  "col": 10
+                  "col": 16
                 },
                 {
                   "line": 5,
-                  "col": 32
+                  "col": 31
                 }
               ]
             },
@@ -175,11 +175,11 @@
               "location": [
                 {
                   "line": 9,
-                  "col": 13
+                  "col": 16
                 },
                 {
                   "line": 9,
-                  "col": 36
+                  "col": 33
                 }
               ]
             },

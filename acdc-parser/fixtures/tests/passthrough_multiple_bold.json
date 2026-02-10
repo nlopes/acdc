@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Multiple bold patterns: <del>",
+          "value": "Multiple bold patterns: ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 37
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 32
+            },
+            {
+              "line": 1,
+              "col": 36
             }
           ]
         },
@@ -38,7 +53,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 43
+                  "col": 42
                 }
               ]
             }
@@ -50,12 +65,12 @@
             },
             {
               "line": 1,
-              "col": 44
+              "col": 43
             }
           ]
         },
         {
-          "name": "text",
+          "name": "raw",
           "type": "string",
           "value": " and ",
           "location": [
@@ -65,7 +80,7 @@
             },
             {
               "line": 1,
-              "col": 49
+              "col": 48
             }
           ]
         },
@@ -86,7 +101,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 56
+                  "col": 55
                 }
               ]
             }
@@ -98,18 +113,33 @@
             },
             {
               "line": 1,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
               "col": 57
+            },
+            {
+              "line": 1,
+              "col": 62
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": "</del> in one passthrough.",
+          "value": " in one passthrough.",
           "location": [
             {
               "line": 1,
-              "col": 57
+              "col": 64
             },
             {
               "line": 1,

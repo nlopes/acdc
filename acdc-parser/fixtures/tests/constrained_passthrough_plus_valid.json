@@ -28,11 +28,11 @@
           "location": [
             {
               "line": 1,
-              "col": 6
+              "col": 7
             },
             {
               "line": 1,
-              "col": 19
+              "col": 18
             }
           ]
         },
@@ -89,11 +89,11 @@
           "location": [
             {
               "line": 3,
-              "col": 6
+              "col": 7
             },
             {
               "line": 3,
-              "col": 19
+              "col": 18
             }
           ]
         }
@@ -120,11 +120,11 @@
           "location": [
             {
               "line": 5,
-              "col": 1
+              "col": 2
             },
             {
               "line": 5,
-              "col": 14
+              "col": 13
             }
           ]
         },
@@ -166,11 +166,11 @@
           "location": [
             {
               "line": 7,
-              "col": 1
+              "col": 2
             },
             {
               "line": 7,
-              "col": 14
+              "col": 13
             }
           ]
         }
@@ -212,11 +212,11 @@
           "location": [
             {
               "line": 9,
-              "col": 2
+              "col": 3
             },
             {
               "line": 9,
-              "col": 15
+              "col": 14
             }
           ]
         },
@@ -242,11 +242,11 @@
           "location": [
             {
               "line": 9,
-              "col": 22
+              "col": 23
             },
             {
               "line": 9,
-              "col": 35
+              "col": 34
             }
           ]
         },

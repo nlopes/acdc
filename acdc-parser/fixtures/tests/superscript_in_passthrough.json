@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "The formula E=mc",
+          "value": "The formula ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,22 @@
             },
             {
               "line": 1,
-              "col": 24
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "E=mc",
+          "location": [
+            {
+              "line": 1,
+              "col": 20
+            },
+            {
+              "line": 1,
+              "col": 23
             }
           ]
         },
@@ -38,7 +53,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 26
+                  "col": 25
                 }
               ]
             }
@@ -50,7 +65,7 @@
             },
             {
               "line": 1,
-              "col": 27
+              "col": 26
             }
           ]
         },

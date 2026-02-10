@@ -489,7 +489,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         }
 
         writeln!(self.writer, "</body>")?;
-        writeln!(self.writer, "</html>")?;
+        write!(self.writer, "</html>")?;
 
         Ok(())
     }

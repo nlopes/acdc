@@ -9,7 +9,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped asterisks: <del>\\*not bold\\*</del> and mixed <del>\\*escaped\\* ",
+          "value": "Escaped asterisks: ",
           "location": [
             {
               "line": 1,
@@ -17,7 +17,172 @@
             },
             {
               "line": 1,
-              "col": 86
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 27
+            },
+            {
+              "line": 1,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*",
+          "location": [
+            {
+              "line": 1,
+              "col": 32
+            },
+            {
+              "line": 1,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "not bold",
+          "location": [
+            {
+              "line": 1,
+              "col": 34
+            },
+            {
+              "line": 1,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*",
+          "location": [
+            {
+              "line": 1,
+              "col": 42
+            },
+            {
+              "line": 1,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 44
+            },
+            {
+              "line": 1,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and mixed ",
+          "location": [
+            {
+              "line": 1,
+              "col": 51
+            },
+            {
+              "line": 1,
+              "col": 62
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<del>",
+          "location": [
+            {
+              "line": 1,
+              "col": 69
+            },
+            {
+              "line": 1,
+              "col": 73
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*",
+          "location": [
+            {
+              "line": 1,
+              "col": 74
+            },
+            {
+              "line": 1,
+              "col": 76
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "escaped",
+          "location": [
+            {
+              "line": 1,
+              "col": 76
+            },
+            {
+              "line": 1,
+              "col": 82
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*",
+          "location": [
+            {
+              "line": 1,
+              "col": 83
+            },
+            {
+              "line": 1,
+              "col": 85
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 1,
+              "col": 85
+            },
+            {
+              "line": 1,
+              "col": 85
             }
           ]
         },
@@ -38,7 +203,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 91
+                  "col": 90
                 }
               ]
             }
@@ -50,18 +215,33 @@
             },
             {
               "line": 1,
+              "col": 91
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "</del>",
+          "location": [
+            {
+              "line": 1,
               "col": 92
+            },
+            {
+              "line": 1,
+              "col": 97
             }
           ]
         },
         {
           "name": "text",
           "type": "string",
-          "value": "</del> patterns.",
+          "value": " patterns.",
           "location": [
             {
               "line": 1,
-              "col": 92
+              "col": 99
             },
             {
               "line": 1,

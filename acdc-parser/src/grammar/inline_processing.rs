@@ -119,19 +119,30 @@ pub(crate) fn parse_inlines(
     let mut inline_peg_state = ParserState::new(&processed.text);
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
+    inline_peg_state.quotes_only = state.quotes_only;
 
-    let inlines =
-        match document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata) {
-            Ok(inlines) => inlines,
-            Err(err) => {
-                return Err(adjust_peg_error_position(
-                    &err,
-                    &processed.text,
-                    location.absolute_start,
-                    state,
-                ));
-            }
-        };
+    let inlines = if inline_peg_state.quotes_only {
+        document_parser::quotes_only_inlines(
+            &processed.text,
+            &mut inline_peg_state,
+            0,
+            block_metadata,
+        )
+    } else {
+        document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)
+    };
+
+    let inlines = match inlines {
+        Ok(inlines) => inlines,
+        Err(err) => {
+            return Err(adjust_peg_error_position(
+                &err,
+                &processed.text,
+                location.absolute_start,
+                state,
+            ));
+        }
+    };
 
     state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
     Ok(inlines)
