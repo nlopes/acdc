@@ -10,14 +10,15 @@ Here's a link to [Rust](https://rust-lang.org) and an email [contact](mailto:mai
 
 ### Code Example
 
-```
-`fn fibonacci(n: u32) -> u32 {
+```rust
+fn fibonacci(n: u32) -> u32 {
     match n {
         0 => 0,
         1 => 1,
         _ => fibonacci(n - 1) + fibonacci(n - 2),
     }
-}````
+}
+```
 
 ### Lists and Tables
 
