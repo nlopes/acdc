@@ -225,6 +225,7 @@ fn open_output_files(args: &Args, output_destination: &OutputDestination) {
         OutputDestination::Derived => {
             let ext = match args.backend {
                 Backend::Html | Backend::Html5s => "html",
+                Backend::Markdown => "md",
                 Backend::Manpage => return,
                 Backend::Terminal => {
                     tracing::warn!("--open ignored for terminal backend");

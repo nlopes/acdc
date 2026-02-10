@@ -22,7 +22,7 @@ This has multiple blank lines above.
 
 ## URLs and Emails
 
-Auto-linked: https://example.com/
+Auto-linked: https://example.com
 
 Email: mailto:user@example.com
 

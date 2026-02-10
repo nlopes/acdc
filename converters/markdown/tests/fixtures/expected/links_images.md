@@ -2,9 +2,9 @@
 
 ## External Links
 
-This is a link to [Example Website](https://example.com/).
+This is a link to [Example Website](https://example.com).
 
-Link without text: https://example.com/
+Link without text: https://example.com
 
 Email link: [Contact Us](mailto:mailto:user@example.com)
 

@@ -17,8 +17,6 @@ pub struct MarkdownVisitor<W: Write> {
     pub(crate) processor: Processor,
     /// Current heading level (for nested sections).
     pub(crate) heading_level: usize,
-    /// Whether we're in a list context (for proper nesting).
-    pub(crate) in_list: bool,
     /// Collected footnotes for rendering at document end.
     pub(crate) footnotes: Vec<(String, Vec<InlineNode>)>,
 }
@@ -30,7 +28,6 @@ impl<W: Write> MarkdownVisitor<W> {
             writer,
             processor,
             heading_level: 0,
-            in_list: false,
             footnotes: Vec::new(),
         }
     }
@@ -167,7 +164,10 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
 
     fn visit_table_of_contents(&mut self, _toc: &TableOfContents) -> Result<(), Self::Error> {
         // TOC must be manually generated in Markdown
-        self.write_warning("automatic table of contents", "skipping (must be generated manually)")?;
+        self.write_warning(
+            "automatic table of contents",
+            "skipping (must be generated manually)",
+        )?;
         Ok(())
     }
 
@@ -256,7 +256,6 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
                 self.write_warning("STEM/math blocks", "skipping (use LaTeX-enabled renderer)")?;
             }
             _ => {
-                // Handle any future variants
                 tracing::warn!("Unsupported delimited block type");
             }
         }
@@ -286,7 +285,10 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
                 acdc_parser::AdmonitionVariant::Warning => "Warning",
                 acdc_parser::AdmonitionVariant::Caution => "Caution",
             };
-            self.write_warning(&format!("{label} admonitions"), "using blockquote with label")?;
+            self.write_warning(
+                &format!("{label} admonitions"),
+                "using blockquote with label",
+            )?;
             writeln!(self.writer, "> **{label}**")?;
         }
 
@@ -316,7 +318,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
             .get_string("alt")
             .unwrap_or_else(|| "image".to_string());
 
-        let target = self.source_to_string(&image.source);
+        let target = Self::source_to_string(&image.source);
 
         // Markdown image syntax: ![alt](url "title")
         if let Some(title) = image.metadata.attributes.get_string("title") {
@@ -332,7 +334,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
         // Video embedding not supported in standard Markdown
         self.write_warning("video embedding", "providing link")?;
         if let Some(first_source) = video.sources.first() {
-            let target = self.source_to_string(first_source);
+            let target = Self::source_to_string(first_source);
             writeln!(self.writer, "[Video: {target}]({target})")?;
         }
         writeln!(self.writer)?;
@@ -342,7 +344,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
         // Audio embedding not supported in standard Markdown
         self.write_warning("audio embedding", "providing link")?;
-        let target = self.source_to_string(&audio.source);
+        let target = Self::source_to_string(&audio.source);
         writeln!(self.writer, "[Audio: {target}]({target})")?;
         writeln!(self.writer)?;
         Ok(())
@@ -364,7 +366,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
         match node {
             InlineNode::PlainText(text) => {
-                write!(self.writer, "{}", self.escape_markdown(&text.content))?;
+                write!(self.writer, "{}", Self::escape_markdown(&text.content))?;
             }
             InlineNode::BoldText(text) => {
                 write!(self.writer, "**")?;
@@ -434,7 +436,6 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
                 // Skip silently
             }
             _ => {
-                // Handle any future variants
                 tracing::warn!(?node, "Unsupported inline node type");
             }
         }
@@ -449,14 +450,14 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
-        write!(self.writer, "{}", self.escape_markdown(text))?;
+        write!(self.writer, "{}", Self::escape_markdown(text))?;
         Ok(())
     }
 }
 
 impl<W: Write> MarkdownVisitor<W> {
     /// Convert a Source to a string for use in Markdown links/images.
-    fn source_to_string(&self, source: &acdc_parser::Source) -> String {
+    fn source_to_string(source: &acdc_parser::Source) -> String {
         match source {
             acdc_parser::Source::Path(path) => path.display().to_string(),
             acdc_parser::Source::Url(url) => url.to_string(),
@@ -468,13 +469,13 @@ impl<W: Write> MarkdownVisitor<W> {
     fn visit_inline_macro_inner(&mut self, mac: &InlineMacro) -> Result<(), Error> {
         match mac {
             InlineMacro::Link(link) => {
-                let target = self.source_to_string(&link.target);
+                let target = Self::source_to_string(&link.target);
                 let text = link.text.as_deref().unwrap_or(&target);
                 write!(self.writer, "[{text}]({target})")?;
             }
             InlineMacro::Image(image) => {
                 // Inline image macro
-                let target = self.source_to_string(&image.source);
+                let target = Self::source_to_string(&image.source);
                 // Use the image alt text or default
                 let alt = "image"; // Inline images don't have attributes field
                 write!(self.writer, "![{alt}]({target})")?;
@@ -494,12 +495,18 @@ impl<W: Write> MarkdownVisitor<W> {
             InlineMacro::Footnote(footnote) => {
                 if self.variant() == MarkdownVariant::GitHubFlavored {
                     // GFM supports footnotes
-                    let id = footnote.id.as_ref()
-                        .map(|s| s.clone())
+                    let id = footnote
+                        .id
+                        .clone()
                         .unwrap_or_else(|| footnote.number.to_string());
 
                     // Store footnote for later rendering (only if not already stored)
-                    if !footnote.content.is_empty() && !self.footnotes.iter().any(|(existing_id, _)| existing_id == &id) {
+                    if !footnote.content.is_empty()
+                        && !self
+                            .footnotes
+                            .iter()
+                            .any(|(existing_id, _)| existing_id == &id)
+                    {
                         self.footnotes.push((id.clone(), footnote.content.clone()));
                     }
 
@@ -512,7 +519,7 @@ impl<W: Write> MarkdownVisitor<W> {
             }
             InlineMacro::Url(url) => {
                 // URL macro - text is Vec<InlineNode>
-                let target = self.source_to_string(&url.target);
+                let target = Self::source_to_string(&url.target);
                 if url.text.is_empty() {
                     write!(self.writer, "[{target}]({target})")?;
                 } else {
@@ -525,7 +532,7 @@ impl<W: Write> MarkdownVisitor<W> {
             }
             InlineMacro::Mailto(mailto) => {
                 // Email link - text is Vec<InlineNode>
-                let target = self.source_to_string(&mailto.target);
+                let target = Self::source_to_string(&mailto.target);
                 if mailto.text.is_empty() {
                     write!(self.writer, "[{target}](mailto:{target})")?;
                 } else {
@@ -538,11 +545,14 @@ impl<W: Write> MarkdownVisitor<W> {
             }
             InlineMacro::Autolink(autolink) => {
                 // Auto-detected link
-                let target = self.source_to_string(&autolink.url);
+                let target = Self::source_to_string(&autolink.url);
                 write!(self.writer, "{target}")?;
             }
-            _ => {
-                // Handle any future variants
+            InlineMacro::CrossReference(_)
+            | InlineMacro::Pass(_)
+            | InlineMacro::Stem(_)
+            | InlineMacro::IndexTerm(_)
+            | _ => {
                 tracing::warn!("Unsupported inline macro type");
             }
         }
@@ -561,7 +571,10 @@ impl<W: Write> MarkdownVisitor<W> {
 
             // Check for task list items (GFM extension)
             let is_task = item.checked.is_some();
-            let is_checked = matches!(item.checked, Some(acdc_parser::ListItemCheckedStatus::Checked));
+            let is_checked = matches!(
+                item.checked,
+                Some(acdc_parser::ListItemCheckedStatus::Checked)
+            );
 
             if is_task && self.variant() == MarkdownVariant::GitHubFlavored {
                 let checkbox = if is_checked { "[x]" } else { "[ ]" };
@@ -634,9 +647,8 @@ impl<W: Write> MarkdownVisitor<W> {
                 write!(self.writer, " --- |")?;
             }
             writeln!(self.writer)?;
-        } else if !rows.is_empty() {
+        } else if let Some(first_row) = rows.first() {
             // No explicit header, use first row as header
-            let first_row = &rows[0];
             write!(self.writer, "|")?;
             for column in &first_row.columns {
                 write!(self.writer, " ")?;
@@ -658,7 +670,7 @@ impl<W: Write> MarkdownVisitor<W> {
         }
 
         // Render body rows (skip first if it was used as header)
-        let start_idx = if has_header { 0 } else { 1 };
+        let start_idx = usize::from(!has_header);
         for row in rows.iter().skip(start_idx) {
             write!(self.writer, "|")?;
             for column in &row.columns {
@@ -681,7 +693,7 @@ impl<W: Write> MarkdownVisitor<W> {
     ///
     /// Only escapes characters that actually need escaping in prose context.
     /// Most special characters only need escaping in specific positions.
-    fn escape_markdown(&self, text: &str) -> String {
+    fn escape_markdown(text: &str) -> String {
         // Characters that ALWAYS need escaping: \ ` * _ [ ] |
         // Characters that only need escaping in specific contexts are not escaped
         let mut result = String::with_capacity(text.len());
