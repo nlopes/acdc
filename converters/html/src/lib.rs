@@ -300,9 +300,14 @@ impl Converter for Processor {
     }
 
     fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
-        let variant = match options.backend() {
+        let backend = options.backend();
+        let variant = match backend {
             Backend::Html5s => HtmlVariant::Semantic,
-            Backend::Html | Backend::Manpage | Backend::Terminal => HtmlVariant::Standard,
+            Backend::Html => HtmlVariant::Standard,
+            Backend::Manpage | Backend::Markdown | Backend::Terminal => {
+                tracing::error!(%backend, "backend not appropriate for this processor, assuming user meant html");
+                HtmlVariant::Standard
+            }
         };
         Self::new_with_variant(options, document_attributes, variant)
     }

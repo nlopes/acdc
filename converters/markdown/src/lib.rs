@@ -1,6 +1,6 @@
 //! Markdown converter for `AsciiDoc` documents.
 //!
-//! This converter outputs Markdown format with support for both CommonMark
+//! This converter outputs Markdown format with support for both `CommonMark`
 //! and GitHub Flavored Markdown (GFM) variants.
 //!
 //! # Example
@@ -18,13 +18,13 @@
 //!
 //! # Markdown Variants
 //!
-//! ## CommonMark
+//! ## `CommonMark`
 //! - Standard Markdown specification (spec.commonmark.org)
 //! - Basic features: headings, lists, links, images, code blocks, blockquotes
 //! - No tables, task lists, or strikethrough
 //!
 //! ## GitHub Flavored Markdown (GFM)
-//! - Extends CommonMark with GitHub-specific features
+//! - Extends `CommonMark` with GitHub-specific features
 //! - Tables with alignment support
 //! - Task lists (checkboxes)
 //! - GitHub Alerts (admonitions using `> [!NOTE]` syntax)
@@ -34,17 +34,17 @@
 //!
 //! # Limitations
 //!
-//! AsciiDoc features that cannot be fully represented in Markdown:
-//! - **Admonitions** (NOTE, TIP, etc.) - Native GitHub Alerts in GFM, blockquotes in CommonMark
-//! - **Footnotes** - Native GFM syntax `[^1]`, HTML superscript in CommonMark
-//! - **Tables** - Supported in GFM only, skipped in CommonMark with warning
-//! - **Task lists** - Supported in GFM only, converted to regular lists in CommonMark
+//! `AsciiDoc` features that cannot be fully represented in Markdown:
+//! - **Admonitions** (NOTE, TIP, etc.) - Native GitHub Alerts in GFM, blockquotes in `CommonMark`
+//! - **Footnotes** - Native GFM syntax `[^1]`, HTML superscript in `CommonMark`
+//! - **Tables** - Supported in GFM only, skipped in `CommonMark` with warning
+//! - **Task lists** - Supported in GFM only, converted to regular lists in `CommonMark`
 //! - **Include directives** - not supported (Markdown is single-file oriented)
 //! - **Substitutions** - no control over text substitutions
 //! - **Callouts** - code annotations not supported in standard Markdown
 //! - **Table cell spanning** - GFM tables don't support rowspan/colspan
 //! - **Video/audio embedding** - converted to links with warning
-//! - **Complex tables** - GFM tables are simpler than AsciiDoc tables
+//! - **Complex tables** - GFM tables are simpler than `AsciiDoc` tables
 //!
 //! When unsupported features are encountered, the converter will:
 //! - Emit a warning to stderr via `tracing::warn!`
@@ -68,9 +68,9 @@ pub use markdown_visitor::MarkdownVisitor;
 /// Markdown variant/flavor for conversion.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum MarkdownVariant {
-    /// CommonMark specification (basic Markdown features only).
+    /// `CommonMark` specification (basic Markdown features only).
     CommonMark,
-    /// GitHub Flavored Markdown (extends CommonMark with tables, task lists, etc.).
+    /// GitHub Flavored Markdown (extends `CommonMark` with tables, task lists, etc.).
     #[default]
     GitHubFlavored,
 }
@@ -84,7 +84,7 @@ pub struct Processor {
 }
 
 impl Processor {
-    /// Set the Markdown variant (CommonMark or GitHub Flavored).
+    /// Set the Markdown variant (`CommonMark` or GitHub Flavored).
     #[must_use]
     pub fn with_variant(mut self, variant: MarkdownVariant) -> Self {
         self.variant = variant;

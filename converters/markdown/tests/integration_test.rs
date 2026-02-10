@@ -57,7 +57,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     Ok(())
 }
 
-/// Test CommonMark variant separately for features that differ
+/// Test `CommonMark` variant separately for features that differ
 #[rstest::rstest]
 #[tracing_test::traced_test]
 fn test_commonmark_variant(

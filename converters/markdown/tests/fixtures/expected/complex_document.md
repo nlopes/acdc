@@ -6,7 +6,7 @@ This is the preamble with an introduction paragraph.
 
 This section contains **bold**, *italic*, and `monospace` text.
 
-Here's a link to [Rust](https://rust-lang.org/) and an email [contact](mailto:mailto:info@example.com).
+Here's a link to [Rust](https://rust-lang.org) and an email [contact](mailto:mailto:info@example.com).
 
 ### Code Example
 
