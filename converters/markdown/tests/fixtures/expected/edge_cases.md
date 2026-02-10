@@ -32,7 +32,8 @@ Email: mailto:user@example.com
     Continuation paragraph
 
     ```
-`Code block in list````
+Code block in list
+```
 
 - List item 2
 

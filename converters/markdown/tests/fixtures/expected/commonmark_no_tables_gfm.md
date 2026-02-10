@@ -20,7 +20,8 @@ Regular features work fine:
 - **Bold** and *italic*
 - `Code`
 
+```python
+print("Hello, World!")
 ```
-`print("Hello, World!")````
 
 

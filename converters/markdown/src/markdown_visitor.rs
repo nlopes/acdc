@@ -2,6 +2,7 @@
 
 use std::io::Write;
 
+use acdc_converters_core::code::detect_language;
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType, DescriptionList,
@@ -175,26 +176,17 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
         match &block.inner {
             DelimitedBlockType::DelimitedListing(content) => {
                 // Use fenced code block
-                let language = block
-                    .metadata
-                    .attributes
-                    .get_string("language")
-                    .unwrap_or_default();
+                let language = detect_language(&block.metadata).unwrap_or_default();
 
                 writeln!(self.writer, "```{language}")?;
-                // Content is Vec<InlineNode>, need to render it
-                for node in content {
-                    self.visit_inline_node(node)?;
-                }
+                self.write_code_block_content(content)?;
                 writeln!(self.writer, "```")?;
                 writeln!(self.writer)?;
             }
             DelimitedBlockType::DelimitedLiteral(content) => {
                 // Use fenced code block without syntax highlighting
                 writeln!(self.writer, "```")?;
-                for node in content {
-                    self.visit_inline_node(node)?;
-                }
+                self.write_code_block_content(content)?;
                 writeln!(self.writer, "```")?;
                 writeln!(self.writer)?;
             }
@@ -456,6 +448,33 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
 }
 
 impl<W: Write> MarkdownVisitor<W> {
+    /// Write code block content as raw text (no inline formatting).
+    fn write_code_block_content(&mut self, content: &[InlineNode]) -> Result<(), Error> {
+        for node in content {
+            match node {
+                InlineNode::VerbatimText(text) => write!(self.writer, "{}", text.content)?,
+                InlineNode::RawText(text) => write!(self.writer, "{}", text.content)?,
+                InlineNode::PlainText(text) => write!(self.writer, "{}", text.content)?,
+                InlineNode::LineBreak(_) => writeln!(self.writer)?,
+                InlineNode::BoldText(_)
+                | InlineNode::ItalicText(_)
+                | InlineNode::MonospaceText(_)
+                | InlineNode::HighlightText(_)
+                | InlineNode::SubscriptText(_)
+                | InlineNode::SuperscriptText(_)
+                | InlineNode::CurvedQuotationText(_)
+                | InlineNode::CurvedApostropheText(_)
+                | InlineNode::StandaloneCurvedApostrophe(_)
+                | InlineNode::InlineAnchor(_)
+                | InlineNode::Macro(_)
+                | InlineNode::CalloutRef(_)
+                | _ => {}
+            }
+        }
+        writeln!(self.writer)?;
+        Ok(())
+    }
+
     /// Convert a Source to a string for use in Markdown links/images.
     fn source_to_string(source: &acdc_parser::Source) -> String {
         match source {
