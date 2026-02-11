@@ -2225,11 +2225,13 @@ peg::parser! {
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "toc::" attributes:attributes() end:position!()
+          trailing:$([^'\n']*)
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let mut metadata = block_metadata.metadata.clone();
             metadata.merge(&metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
+            state.warn_trailing_macro_content("toc", trailing, end, offset);
             tracing::info!("Found Table of Contents block");
             Ok(Block::TableOfContents(TableOfContents {
                 metadata,
@@ -2239,7 +2241,9 @@ peg::parser! {
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "image::" source:source() attributes:macro_attributes() end:position!()
+          trailing:$([^'\n']*)
         {
+            state.warn_trailing_macro_content("image", trailing, end, offset);
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
@@ -2266,7 +2270,9 @@ peg::parser! {
 
         rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "audio::" source:source() attributes:macro_attributes() end:position!()
+          trailing:$([^'\n']*)
         {
+            state.warn_trailing_macro_content("audio", trailing, end, offset);
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
@@ -2285,7 +2291,9 @@ peg::parser! {
         // ids to form a playlist.
         rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = "video::" sources:(source() ** comma()) attributes:macro_attributes() end:position!()
+          trailing:$([^'\n']*)
         {
+            state.warn_trailing_macro_content("video", trailing, end, offset);
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
@@ -6939,6 +6947,44 @@ Content C.
             img.metadata.roles,
             vec!["thumbnail".to_string()],
             "Named role= attribute should work"
+        );
+
+        Ok(())
+    }
+
+    /// Block macros with trailing content after the attribute list should parse
+    /// successfully and emit a warning rather than failing.
+    /// Regression test for #337.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_block_macro_trailing_content_emits_warning() -> Result<(), Error> {
+        // image macro with trailing content followed by an attributed paragraph
+        let input = "image::foo.svg[role=inline][100,100]\n\n[.lead]\nHello\n";
+        let mut state = ParserState::new(input);
+        let result = document_parser::document(input, &mut state)??;
+
+        // Should have parsed an image block and a paragraph
+        assert!(
+            result.blocks.iter().any(|b| matches!(b, Block::Image(_))),
+            "document should contain an image block"
+        );
+        assert!(
+            result
+                .blocks
+                .iter()
+                .any(|b| matches!(b, Block::Paragraph(_))),
+            "document should contain a paragraph block"
+        );
+
+        // Should have emitted a warning about the trailing content
+        assert!(
+            state
+                .warnings
+                .iter()
+                .any(|w| w.contains("unexpected content after image macro")
+                    && w.contains("[100,100]")),
+            "should warn about trailing content, got: {:?}",
+            state.warnings
         );
 
         Ok(())
