@@ -1,56 +1,13 @@
 use acdc_parser::BlockMetadata;
 
-/// Programming languages for syntax highlighting detection.
-const LANGUAGES: &[&str] = &[
-    "bash",
-    "shell",
-    "sh",
-    "zsh",
-    "fish",
-    "python",
-    "py",
-    "ruby",
-    "rb",
-    "javascript",
-    "js",
-    "typescript",
-    "ts",
-    "java",
-    "c",
-    "cpp",
-    "c++",
-    "csharp",
-    "cs",
-    "go",
-    "rust",
-    "rs",
-    "php",
-    "perl",
-    "lua",
-    "swift",
-    "kotlin",
-    "scala",
-    "clojure",
-    "html",
-    "xml",
-    "css",
-    "json",
-    "yaml",
-    "yml",
-    "toml",
-    "ini",
-    "sql",
-    "dockerfile",
-    "makefile",
-    "cmake",
-    "groovy",
-];
-
-/// Detect programming language from block metadata for syntax highlighting.
+/// Detect programming language from block metadata.
 ///
 /// Returns the language if:
 /// - The block has `style="source"`
-/// - The metadata contains a recognized language in its attributes
+/// - The metadata contains a language attribute (the first attribute key)
+///
+/// Any language string is returned, not just known ones. This ensures
+/// `[source,text]` and other arbitrary languages get proper `<code>` wrappers.
 #[must_use]
 pub fn detect_language(metadata: &BlockMetadata) -> Option<&str> {
     let is_source = metadata.style.as_deref() == Some("source");
@@ -58,14 +15,12 @@ pub fn detect_language(metadata: &BlockMetadata) -> Option<&str> {
         return None;
     }
 
-    // Look for a known language in the attributes
-    metadata.attributes.iter().find_map(|(key, _)| {
-        if LANGUAGES.contains(&key.as_str()) {
-            Some(key.as_str())
-        } else {
-            None
-        }
-    })
+    // Return the first attribute key as the language
+    metadata
+        .attributes
+        .iter()
+        .next()
+        .map(|(key, _)| key.as_str())
 }
 
 /// Get the default line comment prefix for a programming language.

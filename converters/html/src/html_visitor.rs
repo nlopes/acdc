@@ -496,11 +496,9 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
         if self.render_options.embedded {
-            // In embedded semantic mode, still render the TOC
-            if self.processor.variant() == HtmlVariant::Semantic {
-                let processor = self.processor.clone();
-                crate::toc::render(None, self, "auto", &processor)?;
-            }
+            // In embedded mode, render the TOC but skip the header chrome
+            let processor = self.processor.clone();
+            crate::toc::render(None, self, "auto", &processor)?;
             return Ok(());
         }
         if self.processor.variant() == HtmlVariant::Semantic {
@@ -593,10 +591,39 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         Ok(())
     }
 
-    fn visit_body_content_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        // In embedded mode, skip the content wrapper div
+    fn visit_body_content_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
         if self.render_options.embedded {
+            // When there's no header, the TOC hasn't been rendered yet
+            if doc.header.is_none() {
+                let processor = self.processor.clone();
+                crate::toc::render(None, self, "auto", &processor)?;
+            }
             return Ok(());
+        }
+        // When there's no header, emit a header wrapper for the TOC
+        // (matching asciidoctor which always emits <div id="header"> when TOC is enabled)
+        if doc.header.is_none() && !self.processor.toc_entries.is_empty() {
+            let toc_config = acdc_converters_core::toc::Config::from_attributes(
+                None,
+                &self.processor.document_attributes,
+            );
+            if matches!(
+                toc_config.placement(),
+                "auto" | "left" | "right" | "top" | "bottom"
+            ) {
+                if self.processor.variant() == HtmlVariant::Semantic {
+                    writeln!(self.writer, "<header id=\"header\">")?;
+                } else {
+                    writeln!(self.writer, "<div id=\"header\">")?;
+                }
+                let processor = self.processor.clone();
+                crate::toc::render(None, self, "auto", &processor)?;
+                if self.processor.variant() == HtmlVariant::Semantic {
+                    writeln!(self.writer, "</header>")?;
+                } else {
+                    writeln!(self.writer, "</div>")?;
+                }
+            }
         }
         if self.processor.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "<main id=\"content\">")?;

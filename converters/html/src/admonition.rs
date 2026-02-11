@@ -61,14 +61,17 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     let _ = writer;
 
     // Handle paragraph rendering based on block count
-    // Single paragraph: render content directly (no wrapper)
+    // Single paragraph: wrap in <div class="paragraph"><p>...</p></div>
     // Multiple blocks: render each with normal wrapper
     match admon.blocks.as_slice() {
         [acdc_parser::Block::Paragraph(para)] => {
-            // Single paragraph: render inline content directly without wrapper
+            writeln!(writer, "<div class=\"paragraph\">")?;
+            write!(writer, "<p>")?;
+            let _ = writer;
             visitor.visit_inline_nodes(&para.content)?;
             writer = visitor.writer_mut();
-            writeln!(writer)?;
+            writeln!(writer, "</p>")?;
+            writeln!(writer, "</div>")?;
         }
         [block] => {
             // Single non-paragraph block: use normal rendering

@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Section IDs now preserve underscores** — `id_from_title()` no longer strips underscores
+  within words (e.g., `CHART_BOT` now generates `_chart_bot` instead of `_chartbot`). This
+  also fixes broken cross-references and TOC links that depended on correct section IDs.
 - **Warnings and errors now reference the correct file for included content** — warnings
   (e.g., trailing macro content, callout list validation) and errors (e.g., mismatched
   delimiters, section level mismatches) from `include::` directives previously reported

@@ -194,6 +194,17 @@ pub(crate) fn render<W: Write>(
 
     if should_render && !processor.toc_entries.is_empty() {
         let semantic = processor.variant() == HtmlVariant::Semantic;
+        let embedded = visitor.render_options.embedded;
+
+        // In embedded mode, sidebar positioning doesn't apply, so downgrade toc2 → toc
+        let toc_class = if embedded && config.toc_class() == "toc2" {
+            "toc"
+        } else {
+            config.toc_class()
+        };
+
+        // toc::[] macro adds class="title" to the toctitle div
+        let is_macro = placement == "macro";
 
         // Compute section numbers for TOC entries
         // Also check :numbered: as a deprecated alias for :sectnums:
@@ -215,23 +226,25 @@ pub(crate) fn render<W: Write>(
         if semantic {
             writeln!(
                 visitor.writer_mut(),
-                "<nav id=\"toc\" class=\"{}\" role=\"doc-toc\">",
-                config.toc_class()
+                "<nav id=\"toc\" class=\"{toc_class}\" role=\"doc-toc\">"
             )?;
             let title = config.title().unwrap_or("Table of Contents");
             writeln!(visitor.writer_mut(), "<h2 id=\"toc-title\">{title}</h2>")?;
         } else {
             writeln!(
                 visitor.writer_mut(),
-                "<div id=\"toc\" class=\"{}\">",
-                config.toc_class()
+                "<div id=\"toc\" class=\"{toc_class}\">"
             )?;
+            let title_class = if is_macro { " class=\"title\"" } else { "" };
             if let Some(title) = config.title() {
-                writeln!(visitor.writer_mut(), "<div id=\"toctitle\">{title}</div>")?;
+                writeln!(
+                    visitor.writer_mut(),
+                    "<div id=\"toctitle\"{title_class}>{title}</div>"
+                )?;
             } else {
                 writeln!(
                     visitor.writer_mut(),
-                    "<div id=\"toctitle\">Table of Contents</div>"
+                    "<div id=\"toctitle\"{title_class}>Table of Contents</div>"
                 )?;
             }
         }

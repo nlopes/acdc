@@ -2687,9 +2687,11 @@ Perhaps use the syntax <code>== &lt;&lt;&lt;</code> or <code>== !</code> or even
 <div class="title">Note</div>
 </td>
 <td class="content">
-One of the reasons we got into the habit of modifying the idprefix and idseparator was because GitHub uses its own IDs for headings.
+<div class="paragraph">
+<p>One of the reasons we got into the habit of modifying the idprefix and idseparator was because GitHub uses its own IDs for headings.
 However, this could be avoided by having the processor rewrite the xrefs target for the output to match the ID that would be generated in the output.
-Another thing to consider is whether the default <code>idprefix</code> and <code>idseparator</code> should be changed, though that would constitute a significant breaking change.
+Another thing to consider is whether the default <code>idprefix</code> and <code>idseparator</code> should be changed, though that would constitute a significant breaking change.</p>
+</div>
 </td>
 </tr>
 </table>
@@ -2831,7 +2833,9 @@ Another thing to consider is whether the default <code>idprefix</code> and <code
 <div class="title">Note</div>
 </td>
 <td class="content">
-The TOC must be represented in the ASG so that we can validate the processor correctly identified entries, their titles, and filled it in to the specified number of levels.
+<div class="paragraph">
+<p>The TOC must be represented in the ASG so that we can validate the processor correctly identified entries, their titles, and filled it in to the specified number of levels.</p>
+</div>
 </td>
 </tr>
 </table>
@@ -5324,8 +5328,10 @@ This will introduce a slight incompatibility, but one that is reasonable to expl
 <div class="title">Note</div>
 </td>
 <td class="content">
-We are considering different models for how to define the preprocessor such that it makes AsciiDoc more parsable.
-Possible solutions include: pure, priority (nesting restrictions), hybrid (header=priority, body=pure).
+<div class="paragraph">
+<p>We are considering different models for how to define the preprocessor such that it makes AsciiDoc more parsable.
+Possible solutions include: pure, priority (nesting restrictions), hybrid (header=priority, body=pure).</p>
+</div>
 </td>
 </tr>
 </table>
