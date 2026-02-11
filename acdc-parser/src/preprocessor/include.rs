@@ -11,7 +11,7 @@ use url::Url;
 use crate::{
     Options, Preprocessor, SafeMode,
     error::{Error, Positioning, SourceLocation},
-    model::{HEADER, LeveloffsetRange, Position, substitute},
+    model::{HEADER, LeveloffsetRange, Position, SourceRange, substitute},
 };
 
 use super::tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters};
@@ -239,6 +239,11 @@ pub(crate) struct IncludeResult {
     /// Leveloffset ranges from nested includes within this included file.
     /// These need to be merged into the parent's ranges with adjusted byte offsets.
     pub(crate) nested_leveloffset_ranges: Vec<LeveloffsetRange>,
+    /// The resolved file path of the included content.
+    pub(crate) file: Option<PathBuf>,
+    /// Source ranges from nested includes within this included file.
+    /// These need to be merged into the parent's ranges with adjusted byte offsets.
+    pub(crate) nested_source_ranges: Vec<SourceRange>,
 }
 
 impl Include {
@@ -435,14 +440,15 @@ impl Include {
         lines
     }
 
-    /// Read and process content from a file, returning the text and any nested leveloffset ranges.
+    /// Read and process content from a file, returning the text and any nested ranges.
     ///
-    /// For `AsciiDoc` files, this recursively processes includes and returns leveloffset ranges
-    /// from nested includes. For non-`AsciiDoc` files, returns just the normalized content.
+    /// For `AsciiDoc` files, this recursively processes includes and returns leveloffset
+    /// and source ranges from nested includes. For non-`AsciiDoc` files, returns just the
+    /// normalized content.
     pub(crate) fn read_content_from_file(
         &self,
         file_path: &Path,
-    ) -> Result<(String, Vec<LeveloffsetRange>), Error> {
+    ) -> Result<(String, Vec<LeveloffsetRange>, Vec<SourceRange>), Error> {
         let content =
             crate::preprocessor::read_and_decode_file(file_path, self.encoding.as_deref())?;
         if let Some(ext) = file_path.extension() &&
@@ -463,11 +469,11 @@ impl Include {
             // primary document and a few command line attributes.
              ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref())
         {
-            // For nested AsciiDoc includes, return both the text and any leveloffset ranges.
-            // This enables proper accumulation of leveloffset through nested includes.
+            // For nested AsciiDoc includes, return the text and any nested ranges.
+            // This enables proper accumulation through nested includes.
             return super::Preprocessor
                 .process_inner(&content, Some(file_path), &self.options)
-                .map(|result| (result.text, result.leveloffset_ranges))
+                .map(|result| (result.text, result.leveloffset_ranges, result.source_ranges))
                 .map_err(|error| {
                     tracing::error!(path=?file_path, ?error, "failed to process file");
                     error
@@ -475,7 +481,7 @@ impl Include {
         }
 
         // For non-AsciiDoc files, normalize the content and return empty nested ranges.
-        Ok((Preprocessor::normalize(&content), Vec::new()))
+        Ok((Preprocessor::normalize(&content), Vec::new(), Vec::new()))
     }
 
     pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {
@@ -485,6 +491,8 @@ impl Include {
                 lines: Vec::new(),
                 effective_leveloffset: None,
                 nested_leveloffset_ranges: Vec::new(),
+                file: None,
+                nested_source_ranges: Vec::new(),
             });
         };
 
@@ -497,10 +505,13 @@ impl Include {
                 lines: Vec::new(),
                 effective_leveloffset: None,
                 nested_leveloffset_ranges: Vec::new(),
+                file: None,
+                nested_source_ranges: Vec::new(),
             });
         }
 
-        let (content, nested_ranges) = self.read_content_from_file(&path)?;
+        let (content, nested_leveloffset_ranges, nested_source_ranges) =
+            self.read_content_from_file(&path)?;
         let effective_leveloffset = self.calculate_effective_leveloffset();
 
         if let Some(indent) = self.indent {
@@ -513,7 +524,9 @@ impl Include {
         Ok(IncludeResult {
             lines,
             effective_leveloffset,
-            nested_leveloffset_ranges: nested_ranges,
+            nested_leveloffset_ranges,
+            file: Some(path),
+            nested_source_ranges,
         })
     }
 

@@ -6977,16 +6977,78 @@ Content C.
         );
 
         // Should have emitted a warning about the trailing content
+        // Without source_ranges, it falls back to entry-point file ("input")
         assert!(
-            state
-                .warnings
-                .iter()
-                .any(|w| w.contains("unexpected content after image macro")
-                    && w.contains("[100,100]")),
-            "should warn about trailing content, got: {:?}",
+            state.warnings.iter().any(|w| w.contains("input: line")
+                && w.contains("unexpected content after image macro")
+                && w.contains("[100,100]")),
+            "should warn about trailing content with 'input' as file, got: {:?}",
             state.warnings
         );
 
         Ok(())
+    }
+
+    /// When source_ranges are set, warn_trailing_macro_content should resolve
+    /// the correct file name and line number from the included file.
+    #[test]
+    fn test_trailing_content_warning_resolves_source_range() {
+        use crate::model::SourceRange;
+        use std::path::PathBuf;
+
+        // Simulate: lines 0..30 are from the main file, lines 30..80 are from
+        // "sponsor.adoc" (included), and the trailing content is at byte 45.
+        let input = "a]b\n".repeat(20); // 80 bytes total (4 bytes per line)
+        let mut state = ParserState::new(&input);
+        state.current_file = Some(PathBuf::from("/docs/main.adoc"));
+        state.source_ranges = vec![SourceRange {
+            start_offset: 28, // byte 28 starts the included region
+            end_offset: 60,
+            file: PathBuf::from("/docs/sponsor.adoc"),
+            start_line: 1,
+        }];
+
+        // Trigger warning at byte offset 40 (inside the included range)
+        // 40 - 28 = 12 bytes into the included content = 3 newlines = line 4
+        state.warn_trailing_macro_content("image", "[100,100]", 40, 0);
+
+        assert_eq!(state.warnings.len(), 1);
+        assert!(
+            state.warnings[0].contains("sponsor.adoc"),
+            "should reference included file, got: {}",
+            state.warnings[0]
+        );
+        assert!(
+            state.warnings[0].contains("line 4"),
+            "should reference line 4 in included file, got: {}",
+            state.warnings[0]
+        );
+    }
+
+    /// When offset is outside any source_range, warn_trailing_macro_content
+    /// should fall back to the entry-point file.
+    #[test]
+    fn test_trailing_content_warning_falls_back_to_entry_file() {
+        use crate::model::SourceRange;
+        use std::path::PathBuf;
+
+        let input = "image::x.png[alt]extra\nsecond line\n";
+        let mut state = ParserState::new(input);
+        state.current_file = Some(PathBuf::from("/docs/main.adoc"));
+        state.source_ranges = vec![SourceRange {
+            start_offset: 100, // well beyond input - shouldn't match
+            end_offset: 200,
+            file: PathBuf::from("/docs/other.adoc"),
+            start_line: 1,
+        }];
+
+        state.warn_trailing_macro_content("image", "extra", 17, 0);
+
+        assert_eq!(state.warnings.len(), 1);
+        assert!(
+            state.warnings[0].contains("main.adoc"),
+            "should reference entry-point file, got: {}",
+            state.warnings[0]
+        );
     }
 }

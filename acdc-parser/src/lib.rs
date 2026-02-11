@@ -227,7 +227,13 @@ pub fn parse_from_reader<R: std::io::Read>(
     options: &Options,
 ) -> Result<Document, Error> {
     let result = Preprocessor.process_reader(reader, options)?;
-    parse_input(&result.text, options, None, result.leveloffset_ranges)
+    parse_input(
+        &result.text,
+        options,
+        None,
+        result.leveloffset_ranges,
+        result.source_ranges,
+    )
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -251,7 +257,13 @@ pub fn parse_from_reader<R: std::io::Read>(
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
     let result = Preprocessor.process(input, options)?;
-    parse_input(&result.text, options, None, result.leveloffset_ranges)
+    parse_input(
+        &result.text,
+        options,
+        None,
+        result.leveloffset_ranges,
+        result.source_ranges,
+    )
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -277,7 +289,13 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let path = file_path.as_ref().to_path_buf();
     let result = Preprocessor.process_file(file_path, options)?;
-    parse_input(&result.text, options, Some(path), result.leveloffset_ranges)
+    parse_input(
+        &result.text,
+        options,
+        Some(path),
+        result.leveloffset_ranges,
+        result.source_ranges,
+    )
 }
 
 /// Helper to convert a PEG parse error to our `SourceLocation` type
@@ -300,6 +318,7 @@ fn parse_input(
     options: &Options,
     file_path: Option<PathBuf>,
     leveloffset_ranges: Vec<model::LeveloffsetRange>,
+    source_ranges: Vec<model::SourceRange>,
 ) -> Result<Document, Error> {
     tracing::trace!(?input, "post preprocessor");
     let mut state = grammar::ParserState::new(input);
@@ -307,6 +326,7 @@ fn parse_input(
     state.options = options.clone();
     state.current_file.clone_from(&file_path);
     state.leveloffset_ranges = leveloffset_ranges;
+    state.source_ranges = source_ranges;
     let result = match grammar::document_parser::document(input, &mut state) {
         Ok(doc) => doc,
         Err(error) => {

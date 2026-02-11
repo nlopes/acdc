@@ -54,6 +54,31 @@ pub(crate) fn calculate_leveloffset_at(ranges: &[LeveloffsetRange], byte_offset:
         .sum()
 }
 
+/// Maps a byte range in the preprocessed output back to its source file and starting line.
+///
+/// When `include::` directives merge content into a single string, we track which byte
+/// ranges came from which files. The parser queries these ranges to produce accurate
+/// file names and line numbers in warnings and errors.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct SourceRange {
+    /// Byte offset where this source range begins (inclusive).
+    pub(crate) start_offset: usize,
+    /// Byte offset where this source range ends (exclusive).
+    pub(crate) end_offset: usize,
+    /// The source file this range came from.
+    pub(crate) file: std::path::PathBuf,
+    /// The line number (1-indexed) of the first line in this range within the source file.
+    pub(crate) start_line: usize,
+}
+
+impl SourceRange {
+    /// Check if a byte offset falls within this range.
+    #[must_use]
+    pub(crate) fn contains(&self, byte_offset: usize) -> bool {
+        byte_offset >= self.start_offset && byte_offset < self.end_offset
+    }
+}
+
 pub(crate) trait Locateable {
     /// Get a reference to the location.
     fn location(&self) -> &Location;

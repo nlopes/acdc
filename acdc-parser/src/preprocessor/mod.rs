@@ -7,7 +7,7 @@ use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 use crate::{
     Options,
     error::{Error, Positioning, SourceLocation},
-    model::{LeveloffsetRange, Position},
+    model::{LeveloffsetRange, Position, SourceRange},
 };
 
 mod attribute;
@@ -26,6 +26,9 @@ pub(crate) struct PreprocessorResult {
     /// Byte ranges where specific leveloffset values apply.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+    /// Byte ranges mapping preprocessed output back to source files.
+    /// Used by the parser to produce accurate file/line info in warnings.
+    pub(crate) source_ranges: Vec<SourceRange>,
 }
 
 /// BOM (Byte Order Mark) patterns for encoding detection
@@ -339,16 +342,17 @@ impl Preprocessor {
     }
 
     /// Handle the result of processing an include directive.
-    /// Records leveloffset ranges and extends output with included lines.
+    /// Records leveloffset and source ranges, and extends output with included lines.
     ///
-    /// This also merges nested leveloffset ranges from included files, adjusting their
-    /// byte offsets to be relative to the current output position. This enables proper
-    /// leveloffset accumulation through arbitrarily deep include nesting.
+    /// This also merges nested ranges from included files, adjusting their byte offsets
+    /// to be relative to the current output position. This enables proper accumulation
+    /// through arbitrarily deep include nesting.
     fn handle_include_result(
         include_result: IncludeResult,
         output: &mut Vec<String>,
         output_byte_offset: &mut usize,
         leveloffset_ranges: &mut Vec<LeveloffsetRange>,
+        source_ranges: &mut Vec<SourceRange>,
     ) {
         let start_offset = *output_byte_offset;
 
@@ -396,6 +400,32 @@ impl Preprocessor {
             leveloffset_ranges.push(adjusted_range);
         }
 
+        // Record a SourceRange for the included content
+        if let Some(file) = include_result.file {
+            source_ranges.push(SourceRange {
+                start_offset,
+                end_offset: start_offset + content_len,
+                file: file.clone(),
+                start_line: 1,
+            });
+            tracing::trace!(
+                ?file,
+                start_offset,
+                end_offset = start_offset + content_len,
+                "Recording source range for include"
+            );
+
+            // Merge nested source ranges, adjusting byte offsets
+            for nested_range in include_result.nested_source_ranges {
+                source_ranges.push(SourceRange {
+                    start_offset: nested_range.start_offset + start_offset,
+                    end_offset: nested_range.end_offset + start_offset,
+                    file: nested_range.file,
+                    start_line: nested_range.start_line,
+                });
+            }
+        }
+
         *output_byte_offset += content_len;
         output.extend(include_result.lines);
     }
@@ -418,6 +448,8 @@ impl Preprocessor {
 
         // Track leveloffset ranges for accurate section level parsing
         let mut leveloffset_ranges: Vec<LeveloffsetRange> = Vec::new();
+        // Track source ranges for accurate file/line info in warnings
+        let mut source_ranges: Vec<SourceRange> = Vec::new();
         // Track the current byte offset in the OUTPUT (not input)
         let mut output_byte_offset: usize = 0;
 
@@ -504,6 +536,7 @@ impl Preprocessor {
                             &mut output,
                             &mut output_byte_offset,
                             &mut leveloffset_ranges,
+                            &mut source_ranges,
                         );
                     }
                 } else {
@@ -524,6 +557,7 @@ impl Preprocessor {
         Ok(PreprocessorResult {
             text: output.join("\n"),
             leveloffset_ranges,
+            source_ranges,
         })
     }
 }

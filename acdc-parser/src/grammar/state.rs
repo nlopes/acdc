@@ -1,8 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-    CalloutRef, DocumentAttributes, Footnote, Location, Options, Title, TocEntry, grammar::LineMap,
-    model::LeveloffsetRange,
+    CalloutRef, DocumentAttributes, Footnote, Location, Options, Title, TocEntry,
+    grammar::LineMap,
+    model::{LeveloffsetRange, SourceRange},
 };
 
 #[derive(Debug)]
@@ -22,6 +23,10 @@ pub(crate) struct ParserState {
     /// Set by the preprocessor when processing includes with `leveloffset=` attributes.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+    /// Byte ranges mapping preprocessed output back to source files.
+    /// Set by the preprocessor when processing `include::` directives.
+    /// Used to produce accurate file/line info in warnings.
+    pub(crate) source_ranges: Vec<SourceRange>,
     /// Warnings collected during PEG parsing for post-parse emission.
     /// PEG backtracking can cause the same warning to fire multiple times;
     /// storing them here with deduplication and emitting after parsing avoids duplicates.
@@ -121,8 +126,46 @@ impl ParserState {
             last_verbatim_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
+            source_ranges: Vec::new(),
             warnings: Vec::new(),
             quotes_only: false,
+        }
+    }
+
+    /// Resolve a byte offset in the combined preprocessed text to the correct
+    /// source file name and line number. For offsets within included content,
+    /// returns the included file's name and line; otherwise falls back to the
+    /// entry-point file.
+    pub(crate) fn resolve_source_location(&self, offset: usize) -> (String, usize) {
+        // Find the most specific (innermost/last) SourceRange containing this offset
+        if let Some(range) = self.source_ranges.iter().rev().find(|r| r.contains(offset)) {
+            let file_name = range
+                .file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            // Count newlines from range start to offset to get line within the included file
+            let line_in_file =
+                if offset >= range.start_offset && range.start_offset <= self.input.len() {
+                    let end = offset.min(self.input.len());
+                    let bytes_before = &self.input[range.start_offset..end];
+                    range.start_line + bytes_before.matches('\n').count()
+                } else {
+                    range.start_line
+                };
+            (file_name, line_in_file)
+        } else {
+            // Not from an include — use the entry-point file
+            let file_name = self
+                .current_file
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("input")
+                .to_string();
+            let pos = self.line_map.offset_to_position(offset, &self.input);
+            (file_name, pos.line)
         }
     }
 
@@ -135,16 +178,9 @@ impl ParserState {
         offset: usize,
     ) {
         if !trailing.trim().is_empty() {
-            let file_name = self
-                .current_file
-                .as_ref()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("input");
-            let pos = self.line_map.offset_to_position(end + offset, &self.input);
+            let (file_name, line) = self.resolve_source_location(end + offset);
             self.add_warning(format!(
-                "{file_name}: line {}: unexpected content after {macro_name} macro: '{trailing}'",
-                pos.line
+                "{file_name}: line {line}: unexpected content after {macro_name} macro: '{trailing}'"
             ));
         }
     }
