@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`detect_language()` now returns any source block language** — instead of matching against
+  a hardcoded list of known languages, the function returns the first positional attribute
+  for any `[source,LANG]` block. This means `[source,text]` and other unlisted languages
+  now correctly produce `<code class="language-text">` wrappers. Removed the `LANGUAGES`
+  constant.
 - **BREAKING**: Renamed crate from `acdc-converters-common` to `acdc-converters-core`
 - **BREAKING**: `Options` struct now uses builder pattern with private fields -
   use `Options::builder().doctype(...).build()` instead of struct construction

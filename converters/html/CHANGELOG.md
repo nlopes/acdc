@@ -60,6 +60,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Curly quotes no longer over-applied** — single quotes are now only converted to
+  `&#8217;` when they appear between alphanumeric characters (actual apostrophes like
+  `it's`). Previously, `'word'` pairs were incorrectly converted to curly quotes.
+- **Admonition content wrapped in paragraph** — single-paragraph admonition content now
+  renders inside `<div class="paragraph"><p>...</p></div>`, matching asciidoctor output.
+- **TOC renders in embedded mode** — documents with `:toc:` attribute now generate a
+  table of contents in embedded mode for both standard and semantic HTML variants.
+  Previously, TOC was only rendered for the semantic variant.
+- **TOC renders for headerless documents** — documents without a `= Title` but with
+  `:toc:` attribute now generate a TOC. In full mode, the TOC is wrapped in a
+  `<div id="header">` block matching asciidoctor placement.
+- **TOC class downgraded in embedded mode** — `:toc: left` and `:toc: right` now use
+  `class="toc"` instead of `class="toc2"` in embedded mode, since sidebar positioning
+  doesn't apply without the full page layout.
+- **`toc::[]` macro adds `class="title"` to toctitle** — the `#toctitle` div inside a
+  `toc::[]` macro block now includes `class="title"`, matching asciidoctor output.
 - **No trailing newline after `</html>`** — the HTML output no longer appends an extra
   newline after the closing `</html>` tag.
 - **Ordered list depth styling** - Nested ordered lists rendered via cross-type

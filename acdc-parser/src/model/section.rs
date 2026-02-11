@@ -68,7 +68,7 @@ impl Section {
             .filter_map(|c| {
                 if c.is_alphanumeric() {
                     Some(c)
-                } else if c.is_whitespace() || c == '-' || c == '.' {
+                } else if c.is_whitespace() || c == '-' || c == '.' || c == '_' {
                     Some('_')
                 } else {
                     None
@@ -176,6 +176,32 @@ mod tests {
     }
 
     #[test]
+    fn test_id_from_title_preserves_underscores() {
+        // Underscores within words should be preserved (matching asciidoctor behavior)
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+            content: "CHART_BOT".to_string(),
+            location: Location::default(),
+            escaped: false,
+        })];
+        assert_eq!(Section::id_from_title(inlines), "chart_bot".to_string());
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+            content: "haiku_robot".to_string(),
+            location: Location::default(),
+            escaped: false,
+        })];
+        assert_eq!(Section::id_from_title(inlines), "haiku_robot".to_string());
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+            content: "meme_transcriber".to_string(),
+            location: Location::default(),
+            escaped: false,
+        })];
+        assert_eq!(
+            Section::id_from_title(inlines),
+            "meme_transcriber".to_string()
+        );
+    }
+
+    #[test]
     fn test_section_generate_id() {
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
             content: "This is a b__i__g title.".to_string(),
@@ -186,7 +212,7 @@ mod tests {
         let metadata = BlockMetadata::default();
         assert_eq!(
             Section::generate_id(&metadata, inlines),
-            SafeId::Generated("this_is_a_big_title".to_string())
+            SafeId::Generated("this_is_a_b_i_g_title".to_string())
         );
 
         // metadata has a specific id in metadata.id

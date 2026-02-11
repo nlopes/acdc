@@ -903,11 +903,12 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
     // Now escape remaining < and > (after arrow patterns have been replaced)
     let text = text.replace('>', "&gt;").replace('<', "&lt;");
 
-    // Apply typography transformations (ellipsis, smart quotes) only when replacements enabled
+    // Apply typography transformations (ellipsis, apostrophes) only when replacements enabled
     let text = if should_apply_replacements {
-        text.replace("(TM)", "&#8482;")
-            .replace("...", "&#8230;&#8203;")
-            .replace('\'', "&#8217;")
+        let text = text
+            .replace("(TM)", "&#8482;")
+            .replace("...", "&#8230;&#8203;");
+        replace_apostrophes(&text)
     } else {
         text
     };
@@ -923,4 +924,30 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
     // Encode non-ASCII Unicode characters as HTML numeric entities
     // to match asciidoctor's output format
     encode_html_entities(&text)
+}
+
+/// Replace apostrophes between word characters with curly apostrophe entities.
+///
+/// Only `'` that appears between two word characters (alphanumeric) is treated as
+/// an apostrophe and converted to `&#8217;`. Standalone `'` used as quotation marks
+/// (e.g., `'word'`) are left unchanged, matching asciidoctor behavior.
+fn replace_apostrophes(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut result = String::with_capacity(text.len());
+
+    for (i, &c) in chars.iter().enumerate() {
+        if c == '\'' {
+            let prev_is_word = i > 0 && chars.get(i - 1).is_some_and(|ch| ch.is_alphanumeric());
+            let next_is_word = chars.get(i + 1).is_some_and(|ch| ch.is_alphanumeric());
+            if prev_is_word && next_is_word {
+                result.push_str("&#8217;");
+            } else {
+                result.push(c);
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
 }
