@@ -126,6 +126,29 @@ impl ParserState {
         }
     }
 
+    /// Warn about unexpected trailing content after a block macro's attribute list.
+    pub(crate) fn warn_trailing_macro_content(
+        &mut self,
+        macro_name: &str,
+        trailing: &str,
+        end: usize,
+        offset: usize,
+    ) {
+        if !trailing.trim().is_empty() {
+            let file_name = self
+                .current_file
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("input");
+            let pos = self.line_map.offset_to_position(end + offset, &self.input);
+            self.add_warning(format!(
+                "{file_name}: line {}: unexpected content after {macro_name} macro: '{trailing}'",
+                pos.line
+            ));
+        }
+    }
+
     /// Collect a warning for post-parse emission. Deduplicates by message.
     pub(crate) fn add_warning(&mut self, message: String) {
         if !self.warnings.contains(&message) {
