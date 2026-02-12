@@ -134,14 +134,6 @@ macro_rules! process_inlines_or_err {
     };
 }
 
-/// Helper to create `SourceLocation` from a Location and file path
-fn create_source_location(location: Location, file: Option<std::path::PathBuf>) -> SourceLocation {
-    SourceLocation {
-        file,
-        positioning: crate::Positioning::Location(location),
-    }
-}
-
 /// Strip backslash escapes from URL paths.
 ///
 /// In `AsciiDoc`, backslash escapes prevent typography substitutions.
@@ -329,10 +321,7 @@ fn parse_table_block_impl(
         open_delim,
         close_delim,
         "table",
-        create_source_location(
-            state.create_block_location(start, end, offset),
-            state.current_file.clone(),
-        ),
+        state.create_error_source_location(state.create_block_location(start, end, offset)),
     )?;
 
     let mut metadata = block_metadata.metadata.clone();
@@ -1372,7 +1361,7 @@ peg::parser! {
             if let Some(parent_level) = parent_section_level && (
                 section_level.1 < parent_level  || section_level.1+1 > parent_level+1 || section_level.1 > 5) {
                     return Err(Error::NestedSectionLevelMismatch(
-                        Box::new(create_source_location(state.create_block_location(section_level_start, section_level_end, offset), state.current_file.clone())),
+                        Box::new(state.create_error_source_location(state.create_block_location(section_level_start, section_level_end, offset))),
                         section_level.1+1,
                         parent_level + 1,
                     ));
@@ -1839,7 +1828,7 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
-            check_delimiters(open_delim, close_delim, "example", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "example", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -1876,7 +1865,7 @@ peg::parser! {
             content_start:position!() content:until_comment_delimiter() content_end:position!()
             eol() close_delim:comment_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "comment", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "comment", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
@@ -1905,7 +1894,7 @@ peg::parser! {
             content_start:position!() content:until_listing_delimiter() content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "listing", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -1929,7 +1918,7 @@ peg::parser! {
             content_start:position!() content:until_markdown_code_delimiter() content_end:position!()
             eol() close_delim:markdown_code_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "listing", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
 
             // If we captured a language, add it as a positional attribute and set style
@@ -1966,7 +1955,7 @@ peg::parser! {
         close_delim:literal_delimiter()
         end:position!()
         {
-            check_delimiters(open_delim, close_delim, "literal", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "literal", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -1990,7 +1979,7 @@ peg::parser! {
             content_start:position!() content:until_open_delimiter() content_end:position!()
             eol() close_delim:open_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "open", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "open", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -2020,7 +2009,7 @@ peg::parser! {
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
-            check_delimiters(open_delim, close_delim, "sidebar", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "sidebar", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -2117,7 +2106,7 @@ peg::parser! {
             content_start:position!() content:until_pass_delimiter() content_end:position!()
             eol() close_delim:pass_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "pass", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "pass", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
@@ -2170,7 +2159,7 @@ peg::parser! {
             content_start:position!() content:until_quote_delimiter() content_end:position!()
             eol() close_delim:quote_delimiter() end:position!()
         {
-            check_delimiters(open_delim, close_delim, "quote", create_source_location(state.create_block_location(start, end, offset), state.current_file.clone()))?;
+            check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             // Extract quote/verse attribution from positional attributes
             //
@@ -3255,12 +3244,7 @@ peg::parser! {
             let mut expected_number = 1;
             for item in &items {
                 let actual_number = item.callout.number;
-                let file_name = state.current_file.as_ref()
-                    .and_then(|p| p.file_name())
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-                let line = item.location.start.line;
+                let (file_name, line) = state.resolve_source_location(item.location.absolute_start);
 
                 // Check sequential order
                 if actual_number != expected_number {
@@ -5138,7 +5122,7 @@ peg::parser! {
                 let Ok(parsed_variant) = AdmonitionVariant::from_str(&variant) else {
                     tracing::error!(%variant, "invalid admonition variant");
                     return Err(Error::InvalidAdmonitionVariant(
-                        Box::new(create_source_location(state.create_location(admonition_start + offset, admonition_end + offset - 1), state.current_file.clone())),
+                        Box::new(state.create_error_source_location(state.create_location(admonition_start + offset, admonition_end + offset - 1))),
                         variant
                     ));
                 };
@@ -6989,7 +6973,7 @@ Content C.
         Ok(())
     }
 
-    /// When source_ranges are set, warn_trailing_macro_content should resolve
+    /// When `source_ranges` are set, `warn_trailing_macro_content` should resolve
     /// the correct file name and line number from the included file.
     #[test]
     fn test_trailing_content_warning_resolves_source_range() {
@@ -7025,7 +7009,7 @@ Content C.
         );
     }
 
-    /// When offset is outside any source_range, warn_trailing_macro_content
+    /// When offset is outside any `source_range`, `warn_trailing_macro_content`
     /// should fall back to the entry-point file.
     #[test]
     fn test_trailing_content_warning_falls_back_to_entry_file() {

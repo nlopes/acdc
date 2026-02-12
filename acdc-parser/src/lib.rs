@@ -298,17 +298,38 @@ pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Doc
     )
 }
 
-/// Helper to convert a PEG parse error to our `SourceLocation` type
+/// Helper to convert a PEG parse error to our `SourceLocation` type,
+/// resolving the correct file and line for included content.
 fn peg_error_to_source_location(
     error: &peg::error::ParseError<peg::str::LineCol>,
-    file: Option<PathBuf>,
+    state: &grammar::ParserState,
 ) -> SourceLocation {
-    SourceLocation {
-        file,
-        positioning: Positioning::Position(Position {
-            line: error.location.line,
-            column: error.location.column,
-        }),
+    let offset = error.location.offset;
+    if let Some(range) = state
+        .source_ranges
+        .iter()
+        .rev()
+        .find(|r| r.contains(offset))
+    {
+        let line_in_file = state
+            .input
+            .get(range.start_offset..offset)
+            .map_or(0, |s| s.matches('\n').count());
+        SourceLocation {
+            file: Some(range.file.clone()),
+            positioning: Positioning::Position(Position {
+                line: range.start_line + line_in_file,
+                column: error.location.column,
+            }),
+        }
+    } else {
+        SourceLocation {
+            file: state.current_file.clone(),
+            positioning: Positioning::Position(Position {
+                line: error.location.line,
+                column: error.location.column,
+            }),
+        }
     }
 }
 
@@ -324,14 +345,14 @@ fn parse_input(
     let mut state = grammar::ParserState::new(input);
     state.document_attributes = options.document_attributes.clone();
     state.options = options.clone();
-    state.current_file.clone_from(&file_path);
+    state.current_file = file_path;
     state.leveloffset_ranges = leveloffset_ranges;
     state.source_ranges = source_ranges;
     let result = match grammar::document_parser::document(input, &mut state) {
         Ok(doc) => doc,
         Err(error) => {
             tracing::error!(?error, "error parsing document content");
-            let source_location = peg_error_to_source_location(&error, file_path);
+            let source_location = peg_error_to_source_location(&error, &state);
             Err(Error::Parse(Box::new(source_location), error.to_string()))
         }
     };
@@ -379,7 +400,7 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
         Err(error) => {
             tracing::error!(?error, "error parsing inline content");
             Err(Error::Parse(
-                Box::new(peg_error_to_source_location(&error, None)),
+                Box::new(peg_error_to_source_location(&error, &state)),
                 error.to_string(),
             ))
         }

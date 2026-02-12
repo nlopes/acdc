@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Warnings and errors now reference the correct file for included content** — warnings
+  (e.g., trailing macro content, callout list validation) and errors (e.g., mismatched
+  delimiters, section level mismatches) from `include::` directives previously reported
+  the entry-point file with wrong line numbers. They now resolve the correct source file
+  and line via `source_ranges`. ([#337])
 - **Constrained markup boundary detection expanded** — `^`, `~`, `(`, `[`, `{`, and `|`
   are now recognized as valid boundary characters for constrained bold, italic, monospace,
   and highlight markup. Fixes cases where formatting wasn't properly terminated before
