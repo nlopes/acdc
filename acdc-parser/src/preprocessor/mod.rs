@@ -31,6 +31,21 @@ pub(crate) struct PreprocessorResult {
     pub(crate) source_ranges: Vec<SourceRange>,
 }
 
+/// Mutable state accumulated during preprocessing.
+struct PreprocessorState {
+    lines: Vec<String>,
+    byte_offset: usize,
+    leveloffset_ranges: Vec<LeveloffsetRange>,
+    source_ranges: Vec<SourceRange>,
+}
+
+impl PreprocessorState {
+    fn push_line(&mut self, line: String) {
+        self.byte_offset += line.len() + 1;
+        self.lines.push(line);
+    }
+}
+
 /// BOM (Byte Order Mark) patterns for encoding detection
 const BOM_PATTERNS: &[(&[u8], &Encoding, usize, &str)] = &[
     (&[0xEF, 0xBB, 0xBF], UTF_8, 3, "UTF-8"),
@@ -347,14 +362,8 @@ impl Preprocessor {
     /// This also merges nested ranges from included files, adjusting their byte offsets
     /// to be relative to the current output position. This enables proper accumulation
     /// through arbitrarily deep include nesting.
-    fn handle_include_result(
-        include_result: IncludeResult,
-        output: &mut Vec<String>,
-        output_byte_offset: &mut usize,
-        leveloffset_ranges: &mut Vec<LeveloffsetRange>,
-        source_ranges: &mut Vec<SourceRange>,
-    ) {
-        let start_offset = *output_byte_offset;
+    fn handle_include_result(include_result: IncludeResult, state: &mut PreprocessorState) {
+        let start_offset = state.byte_offset;
 
         // Calculate the byte length of the included content
         let content_len: usize = include_result
@@ -366,7 +375,7 @@ impl Preprocessor {
         // If there's an effective leveloffset, record the range
         if let Some(leveloffset) = include_result.effective_leveloffset {
             if leveloffset != 0 {
-                leveloffset_ranges.push(LeveloffsetRange::new(
+                state.leveloffset_ranges.push(LeveloffsetRange::new(
                     start_offset,
                     start_offset + content_len,
                     leveloffset,
@@ -397,12 +406,12 @@ impl Preprocessor {
                 leveloffset = adjusted_range.value,
                 "Merging nested leveloffset range"
             );
-            leveloffset_ranges.push(adjusted_range);
+            state.leveloffset_ranges.push(adjusted_range);
         }
 
         // Record a SourceRange for the included content
         if let Some(file) = include_result.file {
-            source_ranges.push(SourceRange {
+            state.source_ranges.push(SourceRange {
                 start_offset,
                 end_offset: start_offset + content_len,
                 file: file.clone(),
@@ -417,7 +426,7 @@ impl Preprocessor {
 
             // Merge nested source ranges, adjusting byte offsets
             for nested_range in include_result.nested_source_ranges {
-                source_ranges.push(SourceRange {
+                state.source_ranges.push(SourceRange {
                     start_offset: nested_range.start_offset + start_offset,
                     end_offset: nested_range.end_offset + start_offset,
                     file: nested_range.file,
@@ -426,8 +435,51 @@ impl Preprocessor {
             }
         }
 
-        *output_byte_offset += content_len;
-        output.extend(include_result.lines);
+        state.byte_offset += content_len;
+        state.lines.extend(include_result.lines);
+    }
+
+    fn process_directive_line<'a>(
+        line: &'a str,
+        lines: &mut std::iter::Peekable<std::str::Lines<'a>>,
+        line_number: &mut usize,
+        current_offset: usize,
+        file_parent: Option<&Path>,
+        options: &Options,
+        out: &mut PreprocessorState,
+    ) -> Result<(), Error> {
+        if line.starts_with("\\include")
+            || line.starts_with("\\ifdef")
+            || line.starts_with("\\ifndef")
+            || line.starts_with("\\ifeval")
+        {
+            out.push_line(line[1..].to_string());
+        } else if line.starts_with("ifdef")
+            || line.starts_with("ifndef")
+            || line.starts_with("ifeval")
+        {
+            let current_line = *line_number;
+            if let Some(content) = Self::process_conditional(
+                line,
+                lines,
+                line_number,
+                current_line,
+                current_offset,
+                file_parent,
+                &options.document_attributes,
+            )? {
+                out.push_line(content);
+            }
+        } else if line.starts_with("include") {
+            if let Some(include_result) =
+                Self::process_include(line, *line_number, current_offset, file_parent, options)?
+            {
+                Self::handle_include_result(include_result, out);
+            }
+        } else {
+            out.push_line(line.to_string());
+        }
+        Ok(())
     }
 
     #[tracing::instrument]
@@ -439,27 +491,21 @@ impl Preprocessor {
     ) -> Result<PreprocessorResult, Error> {
         let input = Preprocessor::normalize(input);
         let mut options = options.clone();
-        // Pre-allocate output Vec with estimated line count
-        let estimated_lines = input.lines().count();
-        let mut output = Vec::with_capacity(estimated_lines);
+        let output = Vec::with_capacity(input.lines().count());
         let mut lines = input.lines().peekable();
-        let mut line_number = 1; // Track the current line number (1-indexed)
-        let mut current_offset = 0; // Track absolute byte offset in document
-
-        // Track leveloffset ranges for accurate section level parsing
-        let mut leveloffset_ranges: Vec<LeveloffsetRange> = Vec::new();
-        // Track source ranges for accurate file/line info in warnings
-        let mut source_ranges: Vec<SourceRange> = Vec::new();
-        // Track the current byte offset in the OUTPUT (not input)
-        let mut output_byte_offset: usize = 0;
-
-        // Track verbatim block state for comment filtering
+        let mut line_number = 1;
+        let mut current_offset = 0;
+        let mut out = PreprocessorState {
+            lines: output,
+            byte_offset: 0,
+            leveloffset_ranges: Vec::new(),
+            source_ranges: Vec::new(),
+        };
         let mut in_verbatim_block = false;
         let mut current_delimiter: Option<&str> = None;
 
         while let Some(line) = lines.next() {
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
-                // Pre-allocate with initial line length as estimate
                 let mut attribute_content = String::with_capacity(line.len() * 2);
                 if line.ends_with(" + \\") {
                     attribute_content.push_str(line);
@@ -469,95 +515,45 @@ impl Preprocessor {
                 }
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
                 attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
-                // Update output byte offset
-                output_byte_offset += attribute_content.len() + 1; // +1 for newline
-                output.push(attribute_content);
+                out.push_line(attribute_content);
                 continue;
             } else if line.starts_with(':') {
                 attribute::parse_line(&mut options.document_attributes, line.trim());
             }
-            // Check for verbatim block delimiters to track when to preserve comments
             if let Some(delimiter_type) = Self::is_verbatim_delimiter(line) {
                 if in_verbatim_block && Some(delimiter_type) == current_delimiter {
-                    // Closing delimiter - exit verbatim block
                     tracing::trace!(?delimiter_type, "Closing verbatim block");
                     in_verbatim_block = false;
                     current_delimiter = None;
                 } else if !in_verbatim_block {
-                    // Opening delimiter - enter verbatim block
                     tracing::trace!(?delimiter_type, "Opening verbatim block");
                     in_verbatim_block = true;
                     current_delimiter = Some(delimiter_type);
                 }
-                output_byte_offset += line.len() + 1;
-                output.push(line.to_string());
-            }
-            // Preserve comments for parser (serve as semantic list separators)
-            else if line.starts_with("//") {
-                output_byte_offset += line.len() + 1;
-                output.push(line.to_string());
+                out.push_line(line.to_string());
+            } else if line.starts_with("//") {
+                out.push_line(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
-                if line.starts_with("\\include")
-                    || line.starts_with("\\ifdef")
-                    || line.starts_with("\\ifndef")
-                    || line.starts_with("\\ifeval")
-                {
-                    // Return the directive as is (minus the backslash)
-                    let content = &line[1..];
-                    output_byte_offset += content.len() + 1;
-                    output.push(content.to_string());
-                } else if line.starts_with("ifdef")
-                    || line.starts_with("ifndef")
-                    || line.starts_with("ifeval")
-                {
-                    let current_line = line_number;
-                    if let Some(content) = Self::process_conditional(
-                        line,
-                        &mut lines,
-                        &mut line_number,
-                        current_line,
-                        current_offset,
-                        file_parent,
-                        &options.document_attributes,
-                    )? {
-                        output_byte_offset += content.len() + 1;
-                        output.push(content);
-                    }
-                } else if line.starts_with("include") {
-                    if let Some(include_result) = Self::process_include(
-                        line,
-                        line_number,
-                        current_offset,
-                        file_parent,
-                        &options,
-                    )? {
-                        Self::handle_include_result(
-                            include_result,
-                            &mut output,
-                            &mut output_byte_offset,
-                            &mut leveloffset_ranges,
-                            &mut source_ranges,
-                        );
-                    }
-                } else {
-                    // Return the directive as is
-                    output_byte_offset += line.len() + 1;
-                    output.push(line.to_string());
-                }
+                Self::process_directive_line(
+                    line,
+                    &mut lines,
+                    &mut line_number,
+                    current_offset,
+                    file_parent,
+                    &options,
+                    &mut out,
+                )?;
             } else {
-                // Return the line as is
-                output_byte_offset += line.len() + 1;
-                output.push(line.to_string());
+                out.push_line(line.to_string());
             }
-            // Move to next line: account for line length + newline character
             current_offset += line.len() + 1;
             line_number += 1;
         }
 
         Ok(PreprocessorResult {
-            text: output.join("\n"),
-            leveloffset_ranges,
-            source_ranges,
+            text: out.lines.join("\n"),
+            leveloffset_ranges: out.leveloffset_ranges,
+            source_ranges: out.source_ranges,
         })
     }
 }

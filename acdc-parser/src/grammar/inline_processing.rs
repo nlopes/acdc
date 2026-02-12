@@ -31,15 +31,38 @@ pub(crate) fn adjust_peg_error_position(
     // Add the substring's starting position to get the absolute document position
     let absolute_offset = doc_start_offset + byte_offset;
 
-    // Convert the absolute offset back to line:column using the state's line_map
-    let doc_position = state
-        .line_map
-        .offset_to_position(absolute_offset, &state.input);
+    // Resolve file and line from source ranges (for included content)
+    let (file, position) = if let Some(range) = state
+        .source_ranges
+        .iter()
+        .rev()
+        .find(|r| r.contains(absolute_offset))
+    {
+        let line_in_file = state
+            .input
+            .get(range.start_offset..absolute_offset)
+            .map_or(0, |s| s.matches('\n').count());
+        let doc_position = state
+            .line_map
+            .offset_to_position(absolute_offset, &state.input);
+        (
+            Some(range.file.clone()),
+            crate::Position {
+                line: range.start_line + line_in_file,
+                column: doc_position.column,
+            },
+        )
+    } else {
+        let doc_position = state
+            .line_map
+            .offset_to_position(absolute_offset, &state.input);
+        (state.current_file.clone(), doc_position)
+    };
 
     Error::PegParse(
         Box::new(crate::SourceLocation {
-            file: state.current_file.clone(),
-            positioning: crate::Positioning::Position(doc_position),
+            file,
+            positioning: crate::Positioning::Position(position),
         }),
         err.to_string()
             .split_once(": ")

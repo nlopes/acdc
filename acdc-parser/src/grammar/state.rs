@@ -1,7 +1,8 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-    CalloutRef, DocumentAttributes, Footnote, Location, Options, Title, TocEntry,
+    CalloutRef, DocumentAttributes, Footnote, Location, Options, Positioning, SourceLocation,
+    Title, TocEntry,
     grammar::LineMap,
     model::{LeveloffsetRange, SourceRange},
 };
@@ -199,6 +200,49 @@ impl ParserState {
         }
     }
 
+    /// Create a `SourceLocation` for an error/warning, resolving the correct
+    /// file and adjusting line numbers for included content.
+    pub(crate) fn create_error_source_location(&self, location: Location) -> SourceLocation {
+        if let Some(range) = self
+            .source_ranges
+            .iter()
+            .rev()
+            .find(|r| r.contains(location.absolute_start))
+        {
+            let file = Some(range.file.clone());
+            let start_newlines = self
+                .input
+                .get(range.start_offset..location.absolute_start)
+                .map_or(0, |s| s.matches('\n').count());
+            let end_newlines = self
+                .input
+                .get(range.start_offset..location.absolute_end.min(self.input.len()))
+                .map_or(0, |s| s.matches('\n').count());
+            let adjusted_start_line = range.start_line + start_newlines;
+            let adjusted_end_line = range.start_line + end_newlines;
+            SourceLocation {
+                file,
+                positioning: Positioning::Location(Location {
+                    absolute_start: location.absolute_start,
+                    absolute_end: location.absolute_end,
+                    start: crate::Position {
+                        line: adjusted_start_line,
+                        column: location.start.column,
+                    },
+                    end: crate::Position {
+                        line: adjusted_end_line,
+                        column: location.end.column,
+                    },
+                }),
+            }
+        } else {
+            SourceLocation {
+                file: self.current_file.clone(),
+                positioning: Positioning::Location(location),
+            }
+        }
+    }
+
     /// Create a Location from raw byte offsets.
     ///
     /// This method enforces UTF-8 character boundaries:
@@ -264,6 +308,7 @@ impl ParserState {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::indexing_slicing)]
+#[allow(clippy::panic)]
 mod tests {
     use super::*;
 
@@ -305,5 +350,55 @@ mod tests {
         state.emit_warnings();
         assert!(logs_contain("warning one"));
         assert!(logs_contain("warning two"));
+    }
+
+    #[test]
+    fn create_error_source_location_resolves_included_file() {
+        use crate::model::SourceRange;
+
+        // Simulate: main file "line1\n", included file "inc_line1\ninc_line2\n"
+        let input = "line1\ninc_line1\ninc_line2\n";
+        let mut state = ParserState::new(input);
+        state.current_file = Some(PathBuf::from("main.adoc"));
+        state.source_ranges.push(SourceRange {
+            start_offset: 6, // "inc_line1\n..." starts at byte 6
+            end_offset: 25,
+            file: PathBuf::from("/tmp/included.adoc"),
+            start_line: 1,
+        });
+
+        // Location inside the included range (second line of include: "inc_line2")
+        let loc = state.create_location(16, 24); // "inc_line2"
+        let src_loc = state.create_error_source_location(loc);
+
+        assert_eq!(src_loc.file, Some(PathBuf::from("/tmp/included.adoc")));
+        match &src_loc.positioning {
+            Positioning::Location(l) => {
+                // From start_offset=6 to absolute_start=16, there's 1 newline ("inc_line1\n")
+                // So start_line = 1 + 1 = 2
+                assert_eq!(l.start.line, 2);
+            }
+            Positioning::Position(_) => panic!("expected Positioning::Location"),
+        }
+    }
+
+    #[test]
+    fn create_error_source_location_falls_back_to_current_file() {
+        let input = "main content\n";
+        let mut state = ParserState::new(input);
+        state.current_file = Some(PathBuf::from("main.adoc"));
+        // No source ranges
+
+        let loc = state.create_location(0, 11);
+        let src_loc = state.create_error_source_location(loc.clone());
+
+        assert_eq!(src_loc.file, Some(PathBuf::from("main.adoc")));
+        match &src_loc.positioning {
+            Positioning::Location(l) => {
+                assert_eq!(l.start.line, loc.start.line);
+                assert_eq!(l.end.line, loc.end.line);
+            }
+            Positioning::Position(_) => panic!("expected Positioning::Location"),
+        }
     }
 }
