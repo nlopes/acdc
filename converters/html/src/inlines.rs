@@ -906,6 +906,8 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
     // Apply typography transformations (ellipsis, apostrophes) only when replacements enabled
     let text = if should_apply_replacements {
         let text = text
+            .replace("(C)", "&#169;")
+            .replace("(R)", "&#174;")
             .replace("(TM)", "&#8482;")
             .replace("...", "&#8230;&#8203;");
         replace_apostrophes(&text)

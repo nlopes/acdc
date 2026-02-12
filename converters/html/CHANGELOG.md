@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Trademark replacement** - `(TM)` is now converted to `&#8482;` (™) in normal text.
   Use `\(TM)` to escape and keep the literal text.
+- **Copyright replacement** - `(C)` is now converted to `&#169;` (©) in normal text.
+  Use `\(C)` to escape and keep the literal text.
+- **Registered replacement** - `(R)` is now converted to `&#174;` (®) in normal text.
+  Use `\(R)` to escape and keep the literal text.
 
 - **Dark mode support** - Documents with `:dark-mode:` attribute now render with a full
   dark color scheme (`#1a1a1a` background, adapted headings, links, code blocks, tables,

@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `acdc-converters-dev` crate for test utilities (not published to crates.io)
 - Visitor method `visit_callout_ref` for processing callout references
 - `Backend::Html5s` variant for semantic HTML5 output
+- **Copyright and registered escape handling** - `\(C)` and `\(R)` are now recognized as
+  escapable patterns alongside `\(TM)`, preventing accidental symbol conversion.
 
 ### Fixed
 

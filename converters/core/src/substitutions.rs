@@ -13,6 +13,8 @@ const ESCAPED_DARROW_RIGHT: &str = "\u{E000}RDARROW\u{E000}";
 const ESCAPED_DARROW_LEFT: &str = "\u{E000}LDARROW\u{E000}";
 const ESCAPED_EMDASH: &str = "\u{E000}EMDASH\u{E000}";
 const ESCAPED_TRADEMARK: &str = "\u{E000}TRADEMARK\u{E000}";
+const ESCAPED_COPYRIGHT: &str = "\u{E000}COPYRIGHT\u{E000}";
+const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 
 /// Remove backslash escapes from `AsciiDoc` formatting characters and patterns.
 ///
@@ -46,6 +48,8 @@ const ESCAPED_TRADEMARK: &str = "\u{E000}TRADEMARK\u{E000}";
 /// - `\<=` → placeholder (prevents left double arrow conversion)
 /// - `\--` → placeholder (prevents em-dash conversion)
 /// - `\(TM)` → placeholder (prevents trademark conversion)
+/// - `\(C)` → placeholder (prevents copyright conversion)
+/// - `\(R)` → placeholder (prevents registered conversion)
 ///
 /// Call [`restore_escaped_patterns`] after typography substitutions to convert
 /// placeholders back to their literal forms.
@@ -74,7 +78,9 @@ pub fn strip_backslash_escapes(text: &str) -> String {
         .replace("\\=>", ESCAPED_DARROW_RIGHT)
         .replace("\\<=", ESCAPED_DARROW_LEFT)
         .replace("\\--", ESCAPED_EMDASH)
-        .replace("\\(TM)", ESCAPED_TRADEMARK);
+        .replace("\\(TM)", ESCAPED_TRADEMARK)
+        .replace("\\(C)", ESCAPED_COPYRIGHT)
+        .replace("\\(R)", ESCAPED_REGISTERED);
 
     // Then handle single-character escapes
     let mut result = String::with_capacity(text.len());
@@ -131,6 +137,8 @@ pub fn restore_escaped_patterns(text: &str) -> String {
         .replace(ESCAPED_DARROW_LEFT, "<=")
         .replace(ESCAPED_EMDASH, "--")
         .replace(ESCAPED_TRADEMARK, "(TM)")
+        .replace(ESCAPED_COPYRIGHT, "(C)")
+        .replace(ESCAPED_REGISTERED, "(R)")
 }
 
 #[cfg(test)]
@@ -194,6 +202,8 @@ mod tests {
         assert_eq!(strip_backslash_escapes(r"\<="), ESCAPED_DARROW_LEFT);
         assert_eq!(strip_backslash_escapes(r"\--"), ESCAPED_EMDASH);
         assert_eq!(strip_backslash_escapes(r"\(TM)"), ESCAPED_TRADEMARK);
+        assert_eq!(strip_backslash_escapes(r"\(C)"), ESCAPED_COPYRIGHT);
+        assert_eq!(strip_backslash_escapes(r"\(R)"), ESCAPED_REGISTERED);
     }
 
     #[test]
@@ -205,6 +215,8 @@ mod tests {
         assert_eq!(restore_escaped_patterns(ESCAPED_DARROW_LEFT), "<=");
         assert_eq!(restore_escaped_patterns(ESCAPED_EMDASH), "--");
         assert_eq!(restore_escaped_patterns(ESCAPED_TRADEMARK), "(TM)");
+        assert_eq!(restore_escaped_patterns(ESCAPED_COPYRIGHT), "(C)");
+        assert_eq!(restore_escaped_patterns(ESCAPED_REGISTERED), "(R)");
     }
 
     #[test]
