@@ -24,7 +24,7 @@ Thank you for your interest in contributing! This guide covers the essentials. F
 Before submitting, ensure:
 
 - Code is formatted: `cargo fmt --all`
-- Lints pass: `cargo clippy --all-targets --all-features`
+- Lints pass: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
 - Tests pass: `cargo nextest run`
 
 The project uses strict linting (see `Cargo.toml` workspace lints). Key standards:
@@ -46,7 +46,7 @@ Examples:
 
 1. Create a branch: `git checkout -b feat/your-feature-name`
 2. Make your changes (with tests!)
-3. Run checks: `cargo fmt --all && cargo clippy --all-targets --all-features && cargo nextest run`
+3. Run checks: `cargo fmt --all && cargo clippy --all-targets --all-features -- --deny clippy::pedantic && cargo nextest run`
 4. Commit using conventional commits
 5. Push and open a Pull Request
 
