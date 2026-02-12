@@ -399,7 +399,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             .get("doctype")
             .map_or_else(
                 || self.processor.options.doctype().to_string(),
-                |v| v.to_string(),
+                ToString::to_string,
             );
         let mut body_classes = vec![doctype_str];
 
