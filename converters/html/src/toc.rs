@@ -29,7 +29,13 @@ fn compute_toc_section_numbers(
             continue;
         }
 
-        if level == 0 || level > MAX_TOC_LEVELS + 1 {
+        if level > MAX_TOC_LEVELS + 1 {
+            numbers.push(None);
+            continue;
+        }
+
+        // Level 0 (parts) are not numbered by default
+        if level == 0 {
             numbers.push(None);
             continue;
         }
@@ -248,11 +254,18 @@ pub(crate) fn render<W: Write>(
                 )?;
             }
         }
+        // Start at level 0 if parts exist, otherwise level 1
+        let min_level = processor
+            .toc_entries
+            .iter()
+            .map(|e| e.level)
+            .min()
+            .unwrap_or(1);
         render_entries(
             &processor.toc_entries,
             visitor,
             config.levels(),
-            1,
+            min_level,
             &section_numbers,
             0,
             semantic,

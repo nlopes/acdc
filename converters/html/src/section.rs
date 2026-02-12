@@ -133,12 +133,17 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
 
     let mut w = visitor.writer_mut();
 
-    if processor.variant() == HtmlVariant::Semantic {
-        writeln!(w, "<section class=\"doc-section level-{}\">", section.level)?;
+    if section.level == 0 {
+        // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
+        write!(w, "<h{level} id=\"{id}\" class=\"sect0\">")?;
     } else {
-        writeln!(w, "<div class=\"sect{}\">", section.level)?;
+        if processor.variant() == HtmlVariant::Semantic {
+            writeln!(w, "<section class=\"doc-section level-{}\">", section.level)?;
+        } else {
+            writeln!(w, "<div class=\"sect{}\">", section.level)?;
+        }
+        write!(w, "<h{level} id=\"{id}\">")?;
     }
-    write!(w, "<h{level} id=\"{id}\">")?;
 
     // Special section styles (bibliography, glossary, etc.) should not be numbered
     let skip_numbering = section
@@ -176,6 +181,11 @@ fn render_section_footer<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &Processor,
 ) -> Result<(), Error> {
+    // Parts (level 0) have no wrapper div to close
+    if section.level == 0 {
+        return Ok(());
+    }
+
     let w = visitor.writer_mut();
 
     if processor.variant() == HtmlVariant::Semantic {

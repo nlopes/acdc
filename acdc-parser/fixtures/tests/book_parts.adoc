@@ -1,0 +1,18 @@
+= Book Title
+:doctype: book
+
+= Part One
+
+== Chapter One
+
+This is chapter one.
+
+== Chapter Two
+
+This is chapter two.
+
+= Part Two
+
+== Chapter Three
+
+This is chapter three.

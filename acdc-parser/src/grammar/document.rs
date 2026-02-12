@@ -13,6 +13,7 @@ use crate::{
     grammar::{
         ParserState,
         attributes::AttributeEntry,
+        doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{
@@ -20,10 +21,7 @@ use crate::{
             process_inlines_no_autolinks,
         },
         location_mapping::map_inline_locations,
-        manpage::{
-            derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text,
-            is_manpage_doctype,
-        },
+        manpage::{derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text},
         revision::{RevisionInfo, process_revision_info},
         table::parse_table_cell,
     },
@@ -1260,8 +1258,8 @@ peg::parser! {
             let underline_char = underline.chars().next().ok_or("empty underline")?;
             let level = setext::char_to_level(underline_char).ok_or("invalid setext char")?;
 
-            // Level 0 (=) is document title, not section
-            if level == 0 {
+            // Level 0 (=) is document title, not section — unless doctype is book (parts)
+            if level == 0 && !is_book_doctype(&state.document_attributes) {
                 return Err("not a section, seems like you're trying to define a document title");
             }
 
@@ -1431,8 +1429,8 @@ peg::parser! {
             let underline_char = underline.chars().next().ok_or("empty underline")?;
             let level = setext::char_to_level(underline_char).ok_or("invalid setext underline character")?;
 
-            // Document title (level 0) uses =, not allowed here
-            if level == 0 {
+            // Document title (level 0) uses =, not allowed here — unless doctype is book (parts)
+            if level == 0 && !is_book_doctype(&state.document_attributes) {
                 return Err("use = underline for document title, not section");
             }
 

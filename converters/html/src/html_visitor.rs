@@ -392,7 +392,16 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         }
 
         // Build body class with doctype and optional TOC placement classes
-        let mut body_classes = vec![self.processor.options.doctype().to_string()];
+        // Prefer document attribute :doctype: over CLI option (inline attribute wins)
+        let doctype_str = self
+            .processor
+            .document_attributes
+            .get("doctype")
+            .map_or_else(
+                || self.processor.options.doctype().to_string(),
+                |v| v.to_string(),
+            );
+        let mut body_classes = vec![doctype_str];
 
         if self.is_dark_mode() {
             body_classes.push("dark".to_string());

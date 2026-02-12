@@ -278,13 +278,6 @@ pub fn derive_name_section_attrs(content: &str, attrs: &mut DocumentAttributes) 
     false
 }
 
-/// Check if the document has doctype=manpage.
-pub fn is_manpage_doctype(attrs: &DocumentAttributes) -> bool {
-    attrs
-        .get("doctype")
-        .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "manpage"))
-}
-
 #[cfg(test)]
 mod tests {
     #![allow(clippy::expect_used)]

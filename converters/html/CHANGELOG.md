@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Book doctype parts rendering** — level 0 sections render as standalone
+  `<h1 class="sect0">` (no wrapper div), matching asciidoctor. Body class now respects
+  `:doctype: book` document attribute, and TOC includes level 0 entries. ([#312])
 - **Semantic HTML5 backend (`html5s`)** — new `--backend html5s` option produces semantic HTML5
   using `<section>`, `<aside>`, `<figure>`, ARIA roles, and proper heading hierarchy instead of
   the traditional div-based layout. Inspired by Jakub Jirutka's

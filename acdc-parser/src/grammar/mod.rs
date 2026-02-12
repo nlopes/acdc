@@ -1,4 +1,5 @@
 mod attributes;
+pub(crate) mod doctype;
 mod document;
 mod inline_preprocessor;
 mod inline_processing;

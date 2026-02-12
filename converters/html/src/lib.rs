@@ -1019,4 +1019,100 @@ This is a paragraph.
         );
         Ok(())
     }
+
+    #[test]
+    fn test_book_doctype_body_class() -> TestResult {
+        let content = "= Book Title\n:doctype: book\n\nSome content.\n";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains("<body class=\"book\">"),
+            "body class should be 'book' when :doctype: book is set"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_book_with_parts() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+
+= Part One
+
+== Chapter One
+
+Content.
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains("<h1 id=\"_part_one\" class=\"sect0\">Part One</h1>"),
+            "level 0 section should render as standalone h1 with class=\"sect0\""
+        );
+        assert!(
+            !html.contains("<div class=\"sect0\">"),
+            "level 0 section should NOT have a wrapper div"
+        );
+        assert!(
+            html.contains("<div class=\"sect1\">"),
+            "chapter should render as sect1"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_book_toc_includes_parts() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+:toc:
+
+= Part One
+
+== Chapter One
+
+Content.
+
+= Part Two
+
+== Chapter Two
+
+Content.
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains("<ul class=\"sectlevel0\">"),
+            "TOC should include level 0 entries"
+        );
+        assert!(
+            html.contains("<a href=\"#_part_one\">Part One</a>"),
+            "TOC should contain Part One link"
+        );
+        assert!(
+            html.contains("<a href=\"#_part_two\">Part Two</a>"),
+            "TOC should contain Part Two link"
+        );
+        Ok(())
+    }
 }
