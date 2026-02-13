@@ -26,6 +26,15 @@ pub(crate) struct SectionNumberTracker {
 }
 
 impl SectionNumberTracker {
+    /// Reset all section counters to zero.
+    /// Used when entering a new part boundary to restart chapter numbering.
+    pub(crate) fn reset(&self) {
+        let mut counters = self.counters.borrow_mut();
+        for c in counters.iter_mut() {
+            *c = 0;
+        }
+    }
+
     /// Create a new section number tracker.
     pub(crate) fn new(document_attributes: &DocumentAttributes) -> Self {
         // sectnums is enabled if the attribute exists and is not set to false
@@ -81,6 +90,104 @@ impl SectionNumberTracker {
     }
 }
 
+/// Convert a number to uppercase Roman numerals using subtractive notation.
+pub(crate) fn to_upper_roman(mut n: usize) -> String {
+    const TABLE: &[(usize, &str)] = &[
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+    let mut result = String::new();
+    for &(value, numeral) in TABLE {
+        while n >= value {
+            result.push_str(numeral);
+            n -= value;
+        }
+    }
+    result
+}
+
+/// Tracks part numbers for `:partnums:` attribute support in book doctype.
+/// Formats part headings as "Part I. ", "Part II. ", etc.
+#[derive(Clone, Debug)]
+pub(crate) struct PartNumberTracker {
+    counter: Rc<Cell<usize>>,
+    enabled: bool,
+    signifier: Option<String>,
+    section_tracker: SectionNumberTracker,
+}
+
+impl PartNumberTracker {
+    /// Create a new part number tracker from document attributes.
+    /// `section_tracker` should be a clone of the processor's `SectionNumberTracker`
+    /// so they share state — entering a part resets section counters.
+    pub(crate) fn new(
+        document_attributes: &DocumentAttributes,
+        section_tracker: SectionNumberTracker,
+    ) -> Self {
+        let is_book = document_attributes
+            .get("doctype")
+            .is_some_and(|v| v.to_string() == "book");
+        let enabled = is_book && document_attributes.contains_key("partnums");
+
+        // :part-signifier: defaults to None (no prefix text before the Roman numeral)
+        // If set, e.g. :part-signifier: Part, produces "Part I. "
+        // If negated (:!part-signifier:), also None
+        let signifier = document_attributes
+            .get("part-signifier")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.clone()),
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
+            });
+
+        Self {
+            counter: Rc::new(Cell::new(0)),
+            enabled,
+            signifier,
+            section_tracker,
+        }
+    }
+
+    /// Enter a part boundary. Returns the formatted part label (e.g. "Part I. ")
+    /// if part numbering is enabled, or `None` otherwise.
+    /// Also resets section counters for the new part.
+    pub(crate) fn enter_part(&self) -> Option<String> {
+        if !self.enabled {
+            return None;
+        }
+        let count = self.counter.get() + 1;
+        self.counter.set(count);
+        self.section_tracker.reset();
+
+        let roman = to_upper_roman(count);
+        if let Some(ref sig) = self.signifier {
+            Some(format!("{sig} {roman}: "))
+        } else {
+            Some(format!("{roman}: "))
+        }
+    }
+
+    /// Whether part numbering is enabled (`:partnums:` is set).
+    pub(crate) fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    /// Get the part signifier text, if any.
+    pub(crate) fn signifier(&self) -> Option<&str> {
+        self.signifier.as_deref()
+    }
+}
+
 /// Visit a section using the visitor pattern
 ///
 /// Renders the section header, walks nested blocks, then renders footer.
@@ -131,20 +238,6 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
     let level = section.level + 1; // Level 1 = h2
     let id = Section::generate_id(&section.metadata, &section.title);
 
-    let mut w = visitor.writer_mut();
-
-    if section.level == 0 {
-        // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
-        write!(w, "<h{level} id=\"{id}\" class=\"sect0\">")?;
-    } else {
-        if processor.variant() == HtmlVariant::Semantic {
-            writeln!(w, "<section class=\"doc-section level-{}\">", section.level)?;
-        } else {
-            writeln!(w, "<div class=\"sect{}\">", section.level)?;
-        }
-        write!(w, "<h{level} id=\"{id}\">")?;
-    }
-
     // Special section styles (bibliography, glossary, etc.) should not be numbered
     let skip_numbering = section
         .metadata
@@ -152,13 +245,32 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
         .as_ref()
         .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
 
-    // Prepend section number if sectnums is enabled and this isn't a special section
-    if !skip_numbering
-        && let Some(number) = processor
-            .section_number_tracker()
-            .enter_section(section.level)
-    {
-        write!(w, "{number}")?;
+    let mut w = visitor.writer_mut();
+
+    if section.level == 0 {
+        // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
+        write!(w, "<h{level} id=\"{id}\" class=\"sect0\">")?;
+
+        // Prepend part number if :partnums: is enabled
+        if !skip_numbering && let Some(part_label) = processor.part_number_tracker().enter_part() {
+            write!(w, "{part_label}")?;
+        }
+    } else {
+        if processor.variant() == HtmlVariant::Semantic {
+            writeln!(w, "<section class=\"doc-section level-{}\">", section.level)?;
+        } else {
+            writeln!(w, "<div class=\"sect{}\">", section.level)?;
+        }
+        write!(w, "<h{level} id=\"{id}\">")?;
+
+        // Prepend section number if sectnums is enabled and this isn't a special section
+        if !skip_numbering
+            && let Some(number) = processor
+                .section_number_tracker()
+                .enter_section(section.level)
+        {
+            write!(w, "{number}")?;
+        }
     }
 
     let _ = w;
@@ -363,5 +475,111 @@ mod tests {
         assert_eq!(tracker1.enter_section(1), Some("1. ".to_string()));
         // Clone should see the same counter state
         assert_eq!(tracker2.enter_section(1), Some("2. ".to_string()));
+    }
+
+    #[test]
+    fn test_tracker_reset() {
+        let tracker = SectionNumberTracker::new(&attrs_with_sectnums());
+
+        assert_eq!(tracker.enter_section(1), Some("1. ".to_string()));
+        assert_eq!(tracker.enter_section(2), Some("1.1. ".to_string()));
+        tracker.reset();
+        assert_eq!(tracker.enter_section(1), Some("1. ".to_string()));
+        assert_eq!(tracker.enter_section(2), Some("1.1. ".to_string()));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Roman numeral tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_to_upper_roman() {
+        assert_eq!(to_upper_roman(1), "I");
+        assert_eq!(to_upper_roman(2), "II");
+        assert_eq!(to_upper_roman(3), "III");
+        assert_eq!(to_upper_roman(4), "IV");
+        assert_eq!(to_upper_roman(5), "V");
+        assert_eq!(to_upper_roman(9), "IX");
+        assert_eq!(to_upper_roman(10), "X");
+        assert_eq!(to_upper_roman(14), "XIV");
+        assert_eq!(to_upper_roman(40), "XL");
+        assert_eq!(to_upper_roman(49), "XLIX");
+        assert_eq!(to_upper_roman(99), "XCIX");
+        assert_eq!(to_upper_roman(399), "CCCXCIX");
+        assert_eq!(to_upper_roman(1994), "MCMXCIV");
+        assert_eq!(to_upper_roman(3999), "MMMCMXCIX");
+    }
+
+    #[test]
+    fn test_to_upper_roman_zero() {
+        assert_eq!(to_upper_roman(0), "");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PartNumberTracker tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    fn attrs_with_partnums() -> DocumentAttributes {
+        let mut attrs = attrs_with_sectnums();
+        attrs.insert(
+            "doctype".to_string(),
+            AttributeValue::String("book".to_string()),
+        );
+        attrs.insert("partnums".to_string(), AttributeValue::Bool(true));
+        attrs
+    }
+
+    #[test]
+    fn test_part_tracker_disabled_without_partnums() {
+        let attrs = DocumentAttributes::default();
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let tracker = PartNumberTracker::new(&attrs, section_tracker);
+
+        assert!(!tracker.is_enabled());
+        assert!(tracker.enter_part().is_none());
+    }
+
+    #[test]
+    fn test_part_tracker_enabled_no_signifier() {
+        let attrs = attrs_with_partnums();
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let tracker = PartNumberTracker::new(&attrs, section_tracker);
+
+        assert!(tracker.is_enabled());
+        assert!(tracker.signifier().is_none());
+        assert_eq!(tracker.enter_part(), Some("I: ".to_string()));
+        assert_eq!(tracker.enter_part(), Some("II: ".to_string()));
+        assert_eq!(tracker.enter_part(), Some("III: ".to_string()));
+    }
+
+    #[test]
+    fn test_part_tracker_with_signifier() {
+        let mut attrs = attrs_with_partnums();
+        attrs.insert(
+            "part-signifier".to_string(),
+            AttributeValue::String("Part".to_string()),
+        );
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let tracker = PartNumberTracker::new(&attrs, section_tracker);
+
+        assert_eq!(tracker.signifier(), Some("Part"));
+        assert_eq!(tracker.enter_part(), Some("Part I: ".to_string()));
+        assert_eq!(tracker.enter_part(), Some("Part II: ".to_string()));
+    }
+
+    #[test]
+    fn test_part_tracker_resets_section_counters() {
+        let attrs = attrs_with_partnums();
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let part_tracker = PartNumberTracker::new(&attrs, section_tracker.clone());
+
+        // Enter first part, then some sections
+        part_tracker.enter_part();
+        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
+        assert_eq!(section_tracker.enter_section(1), Some("2. ".to_string()));
+
+        // Enter second part — should reset section counters
+        part_tracker.enter_part();
+        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
     }
 }

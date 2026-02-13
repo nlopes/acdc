@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Part numbering (`:partnums:` / `:part-signifier:`)** — book doctype documents with
+  `:partnums:` now render part headings and TOC entries with uppercase Roman numeral
+  prefixes (e.g., "Part I. ", "Part II. "). The signifier text is configurable via
+  `:part-signifier:`. Chapter numbering resets at each part boundary. ([#342])
 - **Book doctype parts rendering** — level 0 sections render as standalone
   `<h1 class="sect0">` (no wrapper div), matching asciidoctor. Body class now respects
   `:doctype: book` document attribute, and TOC includes level 0 entries. ([#312])
@@ -130,6 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
 [#280]: https://github.com/nlopes/acdc/issues/280
+[#342]: https://github.com/nlopes/acdc/issues/342
 [#291]: https://github.com/nlopes/acdc/issues/291
 [#313]: https://github.com/nlopes/acdc/pull/313
 [#323]: https://github.com/nlopes/acdc/issues/323

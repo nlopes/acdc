@@ -1,6 +1,8 @@
 = Book Title
 :doctype: book
 :toc:
+:partnums:
+:part-signifier: Part
 
 = Part One
 

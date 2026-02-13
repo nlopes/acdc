@@ -449,9 +449,15 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
-<ul class="sectlevel0">
+<ul class="sectlevel1">
 <li>
-<a href="#_fundamentals">Fundamentals</a>
+<a href="#_specification_goals">Specification Goals</a>
+</li>
+<li>
+<a href="#_asciidoc_language_introduction_and_purpose">AsciiDoc Language introduction and purpose</a>
+</li>
+<li>
+<a href="#_fundamentals">Part I: Fundamentals</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_lexicon_concepts_and_common_patterns">Lexicon, concepts, and common patterns</a>
@@ -518,7 +524,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_documents_document_metadata_and_document_attributes">Documents, Document Metadata, and Document Attributes</a>
+<a href="#_documents_document_metadata_and_document_attributes">Part II: Documents, Document Metadata, and Document Attributes</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_document">Document</a>
@@ -578,7 +584,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_blocks">Blocks</a>
+<a href="#_blocks">Part III: Blocks</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_document_body">Document body</a>
@@ -838,7 +844,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_inlines">Inlines</a>
+<a href="#_inlines">Part IV: Inlines</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_inline_structure">Inline structure</a>
@@ -951,7 +957,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_referencing_system">Referencing System</a>
+<a href="#_referencing_system">Part V: Referencing System</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_resources_and_references">Resources and references</a>
@@ -968,7 +974,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_preprocessor">Preprocessor</a>
+<a href="#_preprocessor">Part VI: Preprocessor</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_line_normalization">Line normalization</a>
@@ -991,7 +997,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_extension_points">Extension Points</a>
+<a href="#_extension_points">Part VII: Extension Points</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_lifecycle_extensions">Lifecycle extensions</a>
@@ -1019,7 +1025,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </ul>
 </li>
 <li>
-<a href="#_compliance_tck">Compliance / TCK</a>
+<a href="#_compliance_tck">Part VIII: Compliance / TCK</a>
 <ul class="sectlevel1">
 <li>
 <a href="#_tck_introduction">TCK introduction</a>
@@ -1134,7 +1140,7 @@ It&#8217;s up to the processor to identify these.</p>
 </div>
 </div>
 </div>
-<h1 id="_fundamentals" class="sect0">Fundamentals</h1>
+<h1 id="_fundamentals" class="sect0">Part I: Fundamentals</h1>
 <div class="sect1">
 <h2 id="_lexicon_concepts_and_common_patterns">Lexicon, concepts, and common patterns</h2>
 <div class="sectionbody">
@@ -1863,7 +1869,7 @@ It should be considered for the following block-level constructs:</p>
 </div>
 </div>
 </div>
-<h1 id="_documents_document_metadata_and_document_attributes" class="sect0">Documents, Document Metadata, and Document Attributes</h1>
+<h1 id="_documents_document_metadata_and_document_attributes" class="sect0">Part II: Documents, Document Metadata, and Document Attributes</h1>
 <div class="sect1">
 <h2 id="_document">Document</h2>
 <div class="sectionbody">
@@ -2236,7 +2242,7 @@ When set, a boolean attribute typically has an empty value.</p>
 </div>
 </div>
 </div>
-<h1 id="_blocks" class="sect0">Blocks</h1>
+<h1 id="_blocks" class="sect0">Part III: Blocks</h1>
 <div class="sect1">
 <h2 id="_document_body">Document body</h2>
 <div class="sectionbody">
@@ -4092,7 +4098,7 @@ It seems that horizontal being an option (<code>%horizontal</code>) rather than 
 </div>
 </div>
 </div>
-<h1 id="_inlines" class="sect0">Inlines</h1>
+<h1 id="_inlines" class="sect0">Part IV: Inlines</h1>
 <div class="sect1">
 <h2 id="_inline_structure">Inline structure</h2>
 <div class="sectionbody">
@@ -5191,7 +5197,7 @@ This will introduce a slight incompatibility, but one that is reasonable to expl
 </div>
 </div>
 </div>
-<h1 id="_referencing_system" class="sect0">Referencing System</h1>
+<h1 id="_referencing_system" class="sect0">Part V: Referencing System</h1>
 <div class="sect1">
 <h2 id="_resources_and_references">Resources and references</h2>
 <div class="sectionbody">
@@ -5352,7 +5358,7 @@ This will introduce a slight incompatibility, but one that is reasonable to expl
 </div>
 </div>
 </div>
-<h1 id="_preprocessor" class="sect0">Preprocessor</h1>
+<h1 id="_preprocessor" class="sect0">Part VI: Preprocessor</h1>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -5542,7 +5548,7 @@ If they are preprocessor directives, do they need to be captured by the preproce
 </div>
 </div>
 </div>
-<h1 id="_extension_points" class="sect0">Extension Points</h1>
+<h1 id="_extension_points" class="sect0">Part VII: Extension Points</h1>
 <div class="ulist">
 <ul>
 <li>
@@ -5637,7 +5643,7 @@ It&#8217;s not clear if we can match what we&#8217;ve done in the past.</p>
 </div>
 </div>
 </div>
-<h1 id="_compliance_tck" class="sect0">Compliance / TCK</h1>
+<h1 id="_compliance_tck" class="sect0">Part VIII: Compliance / TCK</h1>
 <div class="sect1">
 <h2 id="_tck_introduction">TCK introduction</h2>
 <div class="sectionbody">

@@ -30,7 +30,7 @@ mod video;
 
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
-pub(crate) use section::SectionNumberTracker;
+pub(crate) use section::{PartNumberTracker, SectionNumberTracker};
 
 /// Controls the HTML output style.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -79,6 +79,8 @@ pub struct Processor {
     has_valid_index_section: bool,
     /// Section number tracker for `:sectnums:` support.
     section_number_tracker: SectionNumberTracker,
+    /// Part number tracker for `:partnums:` support in book doctype.
+    part_number_tracker: PartNumberTracker,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -126,6 +128,12 @@ impl Processor {
     #[must_use]
     pub(crate) fn section_number_tracker(&self) -> &SectionNumberTracker {
         &self.section_number_tracker
+    }
+
+    /// Get a reference to the part number tracker
+    #[must_use]
+    pub(crate) fn part_number_tracker(&self) -> &PartNumberTracker {
+        &self.part_number_tracker
     }
 
     /// Generate a caption prefix based on document attributes.
@@ -185,11 +193,15 @@ impl Processor {
         writer: W,
         options: &RenderOptions,
     ) -> Result<(), Error> {
+        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
+        let part_number_tracker =
+            PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
         let processor = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
             has_valid_index_section: Self::last_section_is_index(&doc.blocks),
-            section_number_tracker: SectionNumberTracker::new(&doc.attributes),
+            section_number_tracker,
+            part_number_tracker,
             ..self.clone()
         };
         let mut visitor = HtmlVisitor::new(writer, processor, options.clone());
@@ -377,6 +389,8 @@ impl Processor {
         }
 
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+        let part_number_tracker =
+            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
 
         Self {
             options,
@@ -390,6 +404,7 @@ impl Processor {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             section_number_tracker,
+            part_number_tracker,
             variant,
         }
     }

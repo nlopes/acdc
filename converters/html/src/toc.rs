@@ -3,7 +3,10 @@ use std::io::Write;
 use acdc_converters_core::{toc::Config as TocConfig, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, TableOfContents, TocEntry};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, Processor, section::DEFAULT_SECTION_LEVEL};
+use crate::{
+    Error, HtmlVariant, HtmlVisitor, Processor,
+    section::{DEFAULT_SECTION_LEVEL, to_upper_roman},
+};
 
 /// Compute section numbers for TOC entries.
 /// Returns a vector of optional section number strings for each entry.
@@ -11,12 +14,15 @@ fn compute_toc_section_numbers(
     entries: &[TocEntry],
     sectnums_enabled: bool,
     sectnumlevels: u8,
+    partnums_enabled: bool,
+    part_signifier: Option<&str>,
 ) -> Vec<Option<String>> {
-    if !sectnums_enabled {
+    if !sectnums_enabled && !partnums_enabled {
         return vec![None; entries.len()];
     }
 
     let mut counters = [0u8; MAX_TOC_LEVELS as usize + 1];
+    let mut part_counter: usize = 0;
     let mut numbers = Vec::with_capacity(entries.len());
 
     for entry in entries {
@@ -34,8 +40,26 @@ fn compute_toc_section_numbers(
             continue;
         }
 
-        // Level 0 (parts) are not numbered by default
+        // Level 0 (parts): number with Roman numerals if :partnums: is set
         if level == 0 {
+            if partnums_enabled {
+                part_counter += 1;
+                // Reset section counters at part boundary
+                counters.fill(0);
+                let roman = to_upper_roman(part_counter);
+                let formatted = if let Some(sig) = part_signifier {
+                    format!("{sig} {roman}: ")
+                } else {
+                    format!("{roman}: ")
+                };
+                numbers.push(Some(formatted));
+            } else {
+                numbers.push(None);
+            }
+            continue;
+        }
+
+        if !sectnums_enabled {
             numbers.push(None);
             continue;
         }
@@ -75,6 +99,12 @@ fn compute_toc_section_numbers(
     numbers
 }
 
+/// Render TOC entries recursively.
+///
+/// When `parts_at_current_level` is true, level-0 entries (parts) are rendered
+/// alongside level-1 entries in the same list. This matches asciidoctor behavior
+/// when pre-part sections exist before the first level-0 section.
+#[allow(clippy::too_many_arguments)]
 fn render_entries<W: Write>(
     entries: &[TocEntry],
     visitor: &mut HtmlVisitor<W>,
@@ -83,6 +113,7 @@ fn render_entries<W: Write>(
     section_numbers: &[Option<String>],
     base_index: usize,
     semantic: bool,
+    parts_at_current_level: bool,
 ) -> Result<(), Error> {
     use acdc_converters_core::visitor::Visitor;
 
@@ -90,11 +121,32 @@ fn render_entries<W: Write>(
         return Ok(());
     }
 
-    // Filter entries to only process those at the current level
+    // When parts_at_current_level is true, include level-0 entries alongside
+    // level-1 entries. Only include level-1 entries that appear before the
+    // first level-0 entry (pre-part sections); level-1 entries after a part
+    // are children of that part.
+    let first_level0_idx = if parts_at_current_level {
+        entries.iter().position(|e| e.level == 0)
+    } else {
+        None
+    };
+
     let current_level_entries: Vec<(usize, &TocEntry)> = entries
         .iter()
         .enumerate()
-        .filter(|(_, entry)| entry.level == current_level)
+        .filter(|(idx, entry)| {
+            if entry.level == current_level {
+                // When merging, only include level-1 entries before the first part
+                if let Some(first_l0) = first_level0_idx {
+                    *idx < first_l0
+                } else {
+                    true
+                }
+            } else {
+                // Include level-0 entries at the level-1 tier
+                parts_at_current_level && entry.level == 0
+            }
+        })
         .collect();
 
     if current_level_entries.is_empty() {
@@ -130,8 +182,8 @@ fn render_entries<W: Write>(
         visitor.render_options.toc_mode = was_toc_mode;
 
         writeln!(visitor.writer_mut(), "</a>")?;
-        // Find children: entries that come after this one and have level = current_level + 1
-        // but before the next entry at current_level or lower
+        // Find children: entries that come after this one but before the next
+        // entry at the current tier
         let start_search = entry_index + 1;
         let end_search = if let Some(next_entry) = current_level_entries.get(i + 1) {
             next_entry.0 // Next entry at current level
@@ -139,31 +191,24 @@ fn render_entries<W: Write>(
             entries.len() // End of all entries
         };
 
-        // Find children: only entries that are direct children (level = current_level + 1)
-        // and stop when we hit another entry at current_level or higher
-        if let Some(direct_children) = entries.get(start_search..end_search) {
-            let mut children: Vec<&TocEntry> = Vec::new();
-            for entry in direct_children {
-                // Stop if we encounter another entry at the same level or higher
-                // This prevents us from claiming children that belong to later siblings
-                if entry.level <= current_level {
-                    break;
-                }
-                if entry.level == current_level + 1 {
-                    children.push(entry);
-                }
-            }
+        // Detect direct children using the entry's actual level:
+        // - For level-0 entries (parts): children are at level 1
+        // - For level-N entries: children are at level N+1
+        let child_level = entry.level + 1;
 
-            if !children.is_empty() && current_level < max_level {
-                // Create a slice containing potential children and their descendants
+        if let Some(direct_children) = entries.get(start_search..end_search) {
+            let has_children = direct_children.iter().any(|e| e.level == child_level);
+
+            if has_children && child_level <= max_level {
                 render_entries(
                     direct_children,
                     visitor,
                     max_level,
-                    current_level + 1,
+                    child_level,
                     section_numbers,
                     base_index + start_search,
                     semantic,
+                    false, // no more merging in nested lists
                 )?;
             }
         }
@@ -226,8 +271,15 @@ pub(crate) fn render<W: Write>(
             .and_then(|s| s.parse().ok())
             .unwrap_or(DEFAULT_SECTION_LEVEL)
             .min(MAX_SECTION_LEVELS);
-        let section_numbers =
-            compute_toc_section_numbers(&processor.toc_entries, sectnums_enabled, sectnumlevels);
+        let partnums_enabled = processor.part_number_tracker().is_enabled();
+        let part_signifier = processor.part_number_tracker().signifier();
+        let section_numbers = compute_toc_section_numbers(
+            &processor.toc_entries,
+            sectnums_enabled,
+            sectnumlevels,
+            partnums_enabled,
+            part_signifier,
+        );
 
         if semantic {
             writeln!(
@@ -254,21 +306,28 @@ pub(crate) fn render<W: Write>(
                 )?;
             }
         }
-        // Start at level 0 if parts exist, otherwise level 1
-        let min_level = processor
-            .toc_entries
-            .iter()
-            .map(|e| e.level)
-            .min()
-            .unwrap_or(1);
+
+        // Determine starting level: use the first entry's level.
+        // When pre-part sections (level 1) appear before the first part (level 0),
+        // the outer list starts at sectlevel1 and parts are merged into that tier.
+        let first_level = processor.toc_entries.first().map_or(1, |e| e.level);
+        let has_parts = processor.toc_entries.iter().any(|e| e.level == 0);
+        let parts_at_current_level = first_level > 0 && has_parts;
+        let start_level = if parts_at_current_level {
+            1
+        } else {
+            first_level
+        };
+
         render_entries(
             &processor.toc_entries,
             visitor,
             config.levels(),
-            min_level,
+            start_level,
             &section_numbers,
             0,
             semantic,
+            parts_at_current_level,
         )?;
         if semantic {
             writeln!(visitor.writer_mut(), "</nav>")?;
