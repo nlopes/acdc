@@ -8,46 +8,73 @@ use crate::{
     section::{DEFAULT_SECTION_LEVEL, to_upper_roman},
 };
 
+struct SectionNumberConfig<'a> {
+    sectnums_enabled: bool,
+    sectnumlevels: u8,
+    partnums_enabled: bool,
+    part_signifier: Option<&'a str>,
+    appendix_caption: Option<&'a str>,
+}
+
+struct TocRenderConfig<'a> {
+    max_level: u8,
+    section_numbers: &'a [Option<String>],
+    semantic: bool,
+}
+
+/// Returns the effective TOC level for an entry.
+/// Appendix level-0 entries are demoted to level 1.
+fn effective_toc_level(entry: &TocEntry) -> u8 {
+    if entry.level == 0 && entry.style.as_ref().is_some_and(|s| s == "appendix") {
+        1
+    } else {
+        entry.level
+    }
+}
+
 /// Compute section numbers for TOC entries.
 /// Returns a vector of optional section number strings for each entry.
 fn compute_toc_section_numbers(
     entries: &[TocEntry],
-    sectnums_enabled: bool,
-    sectnumlevels: u8,
-    partnums_enabled: bool,
-    part_signifier: Option<&str>,
+    config: &SectionNumberConfig,
 ) -> Vec<Option<String>> {
-    if !sectnums_enabled && !partnums_enabled {
+    if !config.sectnums_enabled && !config.partnums_enabled && config.appendix_caption.is_none() {
         return vec![None; entries.len()];
     }
 
     let mut counters = [0u8; MAX_TOC_LEVELS as usize + 1];
     let mut part_counter: usize = 0;
+    let mut appendix_counter: usize = 0;
     let mut numbers = Vec::with_capacity(entries.len());
 
     for entry in entries {
         let level = entry.level;
+        let is_appendix = entry.style.as_ref().is_some_and(|s| s == "appendix");
 
-        // Skip numbering for special sections (bibliography, glossary, etc.)
-        // Don't increment counters - subsequent sections continue the sequence
-        if !entry.numbered {
-            numbers.push(None);
-            continue;
-        }
-
-        if level > MAX_TOC_LEVELS + 1 {
-            numbers.push(None);
+        // Appendix sections: use letter numbering (A, B, C) instead of regular numbering.
+        // Check before the `!numbered` skip since appendix is in UNNUMBERED_SECTION_STYLES.
+        if is_appendix {
+            counters.fill(0);
+            if let Some(caption) = config.appendix_caption {
+                let letter =
+                    char::from(b'A' + u8::try_from(appendix_counter).unwrap_or(25).min(25));
+                appendix_counter += 1;
+                numbers.push(Some(format!("{caption} {letter}: ")));
+            } else {
+                appendix_counter += 1;
+                numbers.push(None);
+            }
             continue;
         }
 
         // Level 0 (parts): number with Roman numerals if :partnums: is set
         if level == 0 {
-            if partnums_enabled {
+            if config.partnums_enabled {
                 part_counter += 1;
                 // Reset section counters at part boundary
                 counters.fill(0);
                 let roman = to_upper_roman(part_counter);
-                let formatted = if let Some(sig) = part_signifier {
+                let formatted = if let Some(sig) = config.part_signifier {
                     format!("{sig} {roman}: ")
                 } else {
                     format!("{roman}: ")
@@ -59,7 +86,20 @@ fn compute_toc_section_numbers(
             continue;
         }
 
-        if !sectnums_enabled {
+        // Skip numbering for special sections (bibliography, glossary, etc.)
+        // Don't increment counters — subsequent sections continue the sequence.
+        // Checked after appendix/part handling so those get their own labels.
+        if !entry.numbered {
+            numbers.push(None);
+            continue;
+        }
+
+        if level > MAX_TOC_LEVELS + 1 {
+            numbers.push(None);
+            continue;
+        }
+
+        if !config.sectnums_enabled {
             numbers.push(None);
             continue;
         }
@@ -80,7 +120,7 @@ fn compute_toc_section_numbers(
         }
 
         // Only show number if within sectnumlevels
-        if level <= sectnumlevels {
+        if level <= config.sectnumlevels {
             if let Some(slice) = counters.get(..=level_idx) {
                 let number: String = slice
                     .iter()
@@ -104,20 +144,17 @@ fn compute_toc_section_numbers(
 /// When `parts_at_current_level` is true, level-0 entries (parts) are rendered
 /// alongside level-1 entries in the same list. This matches asciidoctor behavior
 /// when pre-part sections exist before the first level-0 section.
-#[allow(clippy::too_many_arguments)]
 fn render_entries<W: Write>(
     entries: &[TocEntry],
     visitor: &mut HtmlVisitor<W>,
-    max_level: u8,
+    config: &TocRenderConfig,
     current_level: u8,
-    section_numbers: &[Option<String>],
     base_index: usize,
-    semantic: bool,
     parts_at_current_level: bool,
 ) -> Result<(), Error> {
     use acdc_converters_core::visitor::Visitor;
 
-    if current_level > max_level {
+    if current_level > config.max_level {
         return Ok(());
     }
 
@@ -125,8 +162,11 @@ fn render_entries<W: Write>(
     // level-1 entries. Only include level-1 entries that appear before the
     // first level-0 entry (pre-part sections); level-1 entries after a part
     // are children of that part.
-    let first_level0_idx = if parts_at_current_level {
-        entries.iter().position(|e| e.level == 0)
+    // Note: appendix level-0 entries are treated as level 1 via effective_toc_level.
+    let first_real_part_idx = if parts_at_current_level {
+        entries
+            .iter()
+            .position(|e| e.level == 0 && effective_toc_level(e) == 0)
     } else {
         None
     };
@@ -135,16 +175,17 @@ fn render_entries<W: Write>(
         .iter()
         .enumerate()
         .filter(|(idx, entry)| {
-            if entry.level == current_level {
+            let eff_level = effective_toc_level(entry);
+            if eff_level == current_level {
                 // When merging, only include level-1 entries before the first part
-                if let Some(first_l0) = first_level0_idx {
-                    *idx < first_l0
+                if let Some(first_l0) = first_real_part_idx {
+                    *idx < first_l0 || entry.level != current_level
                 } else {
                     true
                 }
             } else {
-                // Include level-0 entries at the level-1 tier
-                parts_at_current_level && entry.level == 0
+                // Include level-0 entries (non-appendix) at the level-1 tier
+                parts_at_current_level && entry.level == 0 && eff_level == 0
             }
         })
         .collect();
@@ -153,7 +194,7 @@ fn render_entries<W: Write>(
         return Ok(());
     }
 
-    if semantic {
+    if config.semantic {
         writeln!(
             visitor.writer_mut(),
             "<ol class=\"toc-list level-{current_level}\">"
@@ -171,7 +212,7 @@ fn render_entries<W: Write>(
 
         // Include section number if available
         let global_index = base_index + entry_index;
-        if let Some(Some(number)) = section_numbers.get(global_index) {
+        if let Some(Some(number)) = config.section_numbers.get(global_index) {
             write!(visitor.writer_mut(), "{number}")?;
         }
 
@@ -191,23 +232,22 @@ fn render_entries<W: Write>(
             entries.len() // End of all entries
         };
 
-        // Detect direct children using the entry's actual level:
+        // Detect direct children using the entry's effective level:
         // - For level-0 entries (parts): children are at level 1
+        // - For appendix entries (demoted to 1): children are at level 2
         // - For level-N entries: children are at level N+1
-        let child_level = entry.level + 1;
+        let child_level = effective_toc_level(entry) + 1;
 
         if let Some(direct_children) = entries.get(start_search..end_search) {
             let has_children = direct_children.iter().any(|e| e.level == child_level);
 
-            if has_children && child_level <= max_level {
+            if has_children && child_level <= config.max_level {
                 render_entries(
                     direct_children,
                     visitor,
-                    max_level,
+                    config,
                     child_level,
-                    section_numbers,
                     base_index + start_search,
-                    semantic,
                     false, // no more merging in nested lists
                 )?;
             }
@@ -215,12 +255,42 @@ fn render_entries<W: Write>(
         writeln!(visitor.writer_mut(), "</li>")?;
     }
 
-    if semantic {
+    if config.semantic {
         writeln!(visitor.writer_mut(), "</ol>")?;
     } else {
         writeln!(visitor.writer_mut(), "</ul>")?;
     }
     Ok(())
+}
+
+fn section_number_config(processor: &Processor) -> SectionNumberConfig<'_> {
+    // Also check :numbered: as a deprecated alias for :sectnums:
+    let sectnums_enabled = processor
+        .document_attributes()
+        .get("sectnums")
+        .or_else(|| processor.document_attributes().get("numbered"))
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+    // Clamp to valid range: 0-5 (0 effectively disables numbering)
+    let sectnumlevels = processor
+        .document_attributes()
+        .get_string("sectnumlevels")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_SECTION_LEVEL)
+        .min(MAX_SECTION_LEVELS);
+    // Appendix caption: default "Appendix", customizable via :appendix-caption:,
+    // disabled if :appendix-caption!: is set
+    let appendix_caption = match processor.document_attributes().get("appendix-caption") {
+        Some(AttributeValue::String(s)) => Some(s.as_str()),
+        Some(AttributeValue::Bool(false)) => None,
+        _ => Some("Appendix"),
+    };
+    SectionNumberConfig {
+        sectnums_enabled,
+        sectnumlevels,
+        partnums_enabled: processor.part_number_tracker().is_enabled(),
+        part_signifier: processor.part_number_tracker().signifier(),
+        appendix_caption,
+    }
 }
 
 pub(crate) fn render<W: Write>(
@@ -257,29 +327,8 @@ pub(crate) fn render<W: Write>(
         // toc::[] macro adds class="title" to the toctitle div
         let is_macro = placement == "macro";
 
-        // Compute section numbers for TOC entries
-        // Also check :numbered: as a deprecated alias for :sectnums:
-        let sectnums_enabled = processor
-            .document_attributes()
-            .get("sectnums")
-            .or_else(|| processor.document_attributes().get("numbered"))
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
-        // Clamp to valid range: 0-5 (0 effectively disables numbering)
-        let sectnumlevels = processor
-            .document_attributes()
-            .get_string("sectnumlevels")
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(DEFAULT_SECTION_LEVEL)
-            .min(MAX_SECTION_LEVELS);
-        let partnums_enabled = processor.part_number_tracker().is_enabled();
-        let part_signifier = processor.part_number_tracker().signifier();
-        let section_numbers = compute_toc_section_numbers(
-            &processor.toc_entries,
-            sectnums_enabled,
-            sectnumlevels,
-            partnums_enabled,
-            part_signifier,
-        );
+        let section_numbers =
+            compute_toc_section_numbers(&processor.toc_entries, &section_number_config(processor));
 
         if semantic {
             writeln!(
@@ -307,26 +356,33 @@ pub(crate) fn render<W: Write>(
             }
         }
 
-        // Determine starting level: use the first entry's level.
+        // Determine starting level: use the first entry's effective level.
+        // Appendix level-0 entries are demoted to level 1, so they don't count as parts.
         // When pre-part sections (level 1) appear before the first part (level 0),
         // the outer list starts at sectlevel1 and parts are merged into that tier.
-        let first_level = processor.toc_entries.first().map_or(1, |e| e.level);
-        let has_parts = processor.toc_entries.iter().any(|e| e.level == 0);
-        let parts_at_current_level = first_level > 0 && has_parts;
+        let first_level = processor.toc_entries.first().map_or(1, effective_toc_level);
+        let has_real_parts = processor
+            .toc_entries
+            .iter()
+            .any(|e| e.level == 0 && effective_toc_level(e) == 0);
+        let parts_at_current_level = first_level > 0 && has_real_parts;
         let start_level = if parts_at_current_level {
             1
         } else {
             first_level
         };
 
+        let render_config = TocRenderConfig {
+            max_level: config.levels(),
+            section_numbers: &section_numbers,
+            semantic,
+        };
         render_entries(
             &processor.toc_entries,
             visitor,
-            config.levels(),
+            &render_config,
             start_level,
-            &section_numbers,
             0,
-            semantic,
             parts_at_current_level,
         )?;
         if semantic {

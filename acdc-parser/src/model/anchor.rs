@@ -73,6 +73,8 @@ pub struct TocEntry {
     ///
     /// False for special section styles like `[bibliography]`, `[glossary]`, etc.
     pub numbered: bool,
+    /// Optional style from block metadata (e.g., "appendix", "bibliography").
+    pub style: Option<String>,
 }
 
 impl Serialize for TocEntry {
@@ -86,6 +88,9 @@ impl Serialize for TocEntry {
         state.serialize_entry("level", &self.level)?;
         if self.xreflabel.is_some() {
             state.serialize_entry("xreflabel", &self.xreflabel)?;
+        }
+        if self.style.is_some() {
+            state.serialize_entry("style", &self.style)?;
         }
         state.end()
     }

@@ -103,6 +103,7 @@ impl TocTracker {
         id: String,
         xreflabel: Option<String>,
         numbered: bool,
+        style: Option<String>,
     ) {
         self.entries.push(TocEntry {
             id,
@@ -110,6 +111,7 @@ impl TocTracker {
             level,
             xreflabel,
             numbered,
+            style,
         });
     }
 }

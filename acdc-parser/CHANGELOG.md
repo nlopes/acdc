@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`style` field on `TocEntry`** — TOC entries now carry the section's style (e.g.,
+  `"appendix"`, `"bibliography"`), enabling converters to handle special section rendering
+  like appendix letter numbering. ([#343])
 - **Book doctype level-0 section (parts) support** — documents with `:doctype: book` now
   accept level 0 sections (parts) in both ATX (`= Part Title`) and setext styles. Added
   `doctype` module with `is_book_doctype()` helper (moved `is_manpage_doctype()` there too).

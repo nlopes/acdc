@@ -188,6 +188,53 @@ impl PartNumberTracker {
     }
 }
 
+/// Tracks appendix numbering for `[appendix]` style on level-0 sections in book doctype.
+/// Appendix sections are demoted from level 0 to level 1 and prefixed with
+/// "Appendix A: ", "Appendix B: ", etc.
+#[derive(Clone, Debug)]
+pub(crate) struct AppendixTracker {
+    counter: Rc<Cell<usize>>,
+    caption: Option<String>,
+    section_tracker: SectionNumberTracker,
+}
+
+impl AppendixTracker {
+    /// Create a new appendix tracker from document attributes.
+    /// `section_tracker` should be a clone of the processor's `SectionNumberTracker`
+    /// so they share state — entering an appendix resets section counters.
+    pub(crate) fn new(
+        document_attributes: &DocumentAttributes,
+        section_tracker: SectionNumberTracker,
+    ) -> Self {
+        // :appendix-caption: defaults to "Appendix" unless explicitly set or negated
+        let caption = match document_attributes.get("appendix-caption") {
+            Some(AttributeValue::String(s)) => Some(s.clone()),
+            Some(AttributeValue::Bool(false)) => None,
+            _ => Some("Appendix".to_string()),
+        };
+
+        Self {
+            counter: Rc::new(Cell::new(0)),
+            caption,
+            section_tracker,
+        }
+    }
+
+    /// Enter an appendix boundary. Returns the formatted prefix (e.g. "Appendix A: ")
+    /// if caption is enabled, or `None` if caption is disabled.
+    /// Also resets section counters for the new appendix.
+    pub(crate) fn enter_appendix(&self) -> Option<String> {
+        let count = self.counter.get();
+        self.counter.set(count + 1);
+        self.section_tracker.reset();
+
+        self.caption.as_ref().map(|caption| {
+            let letter = char::from(b'A' + u8::try_from(count).unwrap_or(25).min(25));
+            format!("{caption} {letter}: ")
+        })
+    }
+}
+
 /// Visit a section using the visitor pattern
 ///
 /// Renders the section header, walks nested blocks, then renders footer.
@@ -235,7 +282,6 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &Processor,
 ) -> Result<(), Error> {
-    let level = section.level + 1; // Level 1 = h2
     let id = Section::generate_id(&section.metadata, &section.title);
 
     // Special section styles (bibliography, glossary, etc.) should not be numbered
@@ -245,11 +291,24 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
         .as_ref()
         .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
 
+    // Appendix sections at level 0 are demoted to level 1
+    let is_appendix = section
+        .metadata
+        .style
+        .as_ref()
+        .is_some_and(|s| s == "appendix");
+    let effective_level = if is_appendix && section.level == 0 {
+        1
+    } else {
+        section.level
+    };
+    let heading_level = effective_level + 1; // Level 1 = h2
+
     let mut w = visitor.writer_mut();
 
-    if section.level == 0 {
+    if section.level == 0 && !is_appendix {
         // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
-        write!(w, "<h{level} id=\"{id}\" class=\"sect0\">")?;
+        write!(w, "<h{heading_level} id=\"{id}\" class=\"sect0\">")?;
 
         // Prepend part number if :partnums: is enabled
         if !skip_numbering && let Some(part_label) = processor.part_number_tracker().enter_part() {
@@ -257,18 +316,23 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
         }
     } else {
         if processor.variant() == HtmlVariant::Semantic {
-            writeln!(w, "<section class=\"doc-section level-{}\">", section.level)?;
+            writeln!(w, "<section class=\"doc-section level-{effective_level}\">")?;
         } else {
-            writeln!(w, "<div class=\"sect{}\">", section.level)?;
+            writeln!(w, "<div class=\"sect{effective_level}\">")?;
         }
-        write!(w, "<h{level} id=\"{id}\">")?;
+        write!(w, "<h{heading_level} id=\"{id}\">")?;
 
-        // Prepend section number if sectnums is enabled and this isn't a special section
-        if !skip_numbering
+        // Prepend appendix label for appendix sections (any level)
+        if is_appendix {
+            if let Some(appendix_label) = processor.appendix_tracker().enter_appendix() {
+                write!(w, "{appendix_label}")?;
+            }
+        } else if !skip_numbering
             && let Some(number) = processor
                 .section_number_tracker()
-                .enter_section(section.level)
+                .enter_section(effective_level)
         {
+            // Prepend section number if sectnums is enabled and this isn't a special section
             write!(w, "{number}")?;
         }
     }
@@ -276,10 +340,10 @@ fn render_section_header<V: WritableVisitor<Error = Error>>(
     let _ = w;
     visitor.visit_inline_nodes(&section.title)?;
     w = visitor.writer_mut();
-    writeln!(w, "</h{level}>")?;
+    writeln!(w, "</h{heading_level}>")?;
 
-    // Only sect1 gets a sectionbody wrapper in standard mode
-    if processor.variant() == HtmlVariant::Standard && section.level == 1 {
+    // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
+    if processor.variant() == HtmlVariant::Standard && effective_level == 1 {
         writeln!(w, "<div class=\"sectionbody\">")?;
     }
     Ok(())
@@ -293,8 +357,20 @@ fn render_section_footer<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     processor: &Processor,
 ) -> Result<(), Error> {
-    // Parts (level 0) have no wrapper div to close
-    if section.level == 0 {
+    // Appendix sections at level 0 are demoted to level 1
+    let is_appendix = section
+        .metadata
+        .style
+        .as_ref()
+        .is_some_and(|s| s == "appendix");
+    let effective_level = if is_appendix && section.level == 0 {
+        1
+    } else {
+        section.level
+    };
+
+    // Parts (level 0, non-appendix) have no wrapper div to close
+    if section.level == 0 && !is_appendix {
         return Ok(());
     }
 
@@ -303,8 +379,8 @@ fn render_section_footer<V: WritableVisitor<Error = Error>>(
     if processor.variant() == HtmlVariant::Semantic {
         writeln!(w, "</section>")?;
     } else {
-        // Only sect1 has a sectionbody wrapper to close
-        if section.level == 1 {
+        // sect1 (or appendix demoted to sect1) has a sectionbody wrapper to close
+        if effective_level == 1 {
             writeln!(w, "</div>")?; // Close sectionbody
         }
         writeln!(w, "</div>")?; // Close sectN
@@ -580,6 +656,61 @@ mod tests {
 
         // Enter second part — should reset section counters
         part_tracker.enter_part();
+        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AppendixTracker tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_appendix_tracker_default_caption() {
+        let attrs = DocumentAttributes::default();
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let tracker = AppendixTracker::new(&attrs, section_tracker);
+
+        assert_eq!(tracker.enter_appendix(), Some("Appendix A: ".to_string()));
+        assert_eq!(tracker.enter_appendix(), Some("Appendix B: ".to_string()));
+        assert_eq!(tracker.enter_appendix(), Some("Appendix C: ".to_string()));
+    }
+
+    #[test]
+    fn test_appendix_tracker_custom_caption() {
+        let mut attrs = DocumentAttributes::default();
+        attrs.set(
+            "appendix-caption".to_string(),
+            AttributeValue::String("Annexe".to_string()),
+        );
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let tracker = AppendixTracker::new(&attrs, section_tracker);
+
+        assert_eq!(tracker.enter_appendix(), Some("Annexe A: ".to_string()));
+        assert_eq!(tracker.enter_appendix(), Some("Annexe B: ".to_string()));
+    }
+
+    #[test]
+    fn test_appendix_tracker_disabled_caption() {
+        let mut attrs = DocumentAttributes::default();
+        attrs.set("appendix-caption".to_string(), AttributeValue::Bool(false));
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let tracker = AppendixTracker::new(&attrs, section_tracker);
+
+        assert!(tracker.enter_appendix().is_none());
+        assert!(tracker.enter_appendix().is_none());
+    }
+
+    #[test]
+    fn test_appendix_tracker_resets_section_counters() {
+        let attrs = attrs_with_sectnums();
+        let section_tracker = SectionNumberTracker::new(&attrs);
+        let appendix_tracker = AppendixTracker::new(&attrs, section_tracker.clone());
+
+        // Some sections before appendix
+        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
+        assert_eq!(section_tracker.enter_section(1), Some("2. ".to_string()));
+
+        // Entering appendix should reset section counters
+        appendix_tracker.enter_appendix();
         assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
     }
 }

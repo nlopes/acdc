@@ -30,7 +30,7 @@ mod video;
 
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
-pub(crate) use section::{PartNumberTracker, SectionNumberTracker};
+pub(crate) use section::{AppendixTracker, PartNumberTracker, SectionNumberTracker};
 
 /// Controls the HTML output style.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -81,6 +81,8 @@ pub struct Processor {
     section_number_tracker: SectionNumberTracker,
     /// Part number tracker for `:partnums:` support in book doctype.
     part_number_tracker: PartNumberTracker,
+    /// Appendix tracker for `[appendix]` style on level-0 sections.
+    appendix_tracker: AppendixTracker,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -134,6 +136,12 @@ impl Processor {
     #[must_use]
     pub(crate) fn part_number_tracker(&self) -> &PartNumberTracker {
         &self.part_number_tracker
+    }
+
+    /// Get a reference to the appendix tracker
+    #[must_use]
+    pub(crate) fn appendix_tracker(&self) -> &AppendixTracker {
+        &self.appendix_tracker
     }
 
     /// Generate a caption prefix based on document attributes.
@@ -196,12 +204,15 @@ impl Processor {
         let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
         let part_number_tracker =
             PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
+        let appendix_tracker =
+            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
         let processor = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
             has_valid_index_section: Self::last_section_is_index(&doc.blocks),
             section_number_tracker,
             part_number_tracker,
+            appendix_tracker,
             ..self.clone()
         };
         let mut visitor = HtmlVisitor::new(writer, processor, options.clone());
@@ -391,6 +402,8 @@ impl Processor {
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
         let part_number_tracker =
             PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let appendix_tracker =
+            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
 
         Self {
             options,
@@ -405,6 +418,7 @@ impl Processor {
             has_valid_index_section: false,
             section_number_tracker,
             part_number_tracker,
+            appendix_tracker,
             variant,
         }
     }
@@ -1128,6 +1142,170 @@ Content.
             html.contains("<a href=\"#_part_two\">Part Two</a>"),
             "TOC should contain Part Two link"
         );
+        Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Appendix rendering tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_appendix_level0_demoted_to_sect1() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+
+= Part One
+
+== Chapter One
+
+Content.
+
+[appendix]
+= First Appendix
+
+Appendix content.
+
+[appendix]
+= Second Appendix
+
+More appendix content.
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        // Appendix sections should be demoted to sect1 with h2
+        assert!(
+            html.contains(
+                "<div class=\"sect1\">\n<h2 id=\"_first_appendix\">Appendix A: First Appendix</h2>"
+            ),
+            "first appendix should render as sect1 with 'Appendix A: ' prefix"
+        );
+        assert!(
+            html.contains("<div class=\"sect1\">\n<h2 id=\"_second_appendix\">Appendix B: Second Appendix</h2>"),
+            "second appendix should render as sect1 with 'Appendix B: ' prefix"
+        );
+
+        // Appendix sections should have sectionbody wrapper
+        assert!(
+            html.contains(
+                "<div class=\"sectionbody\">\n<div class=\"paragraph\">\n<p>Appendix content.</p>"
+            ),
+            "appendix should have sectionbody wrapper"
+        );
+
+        // Part should still render as h1 sect0
+        assert!(
+            html.contains("<h1 id=\"_part_one\" class=\"sect0\">Part One</h1>"),
+            "part should remain as h1 sect0"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_appendix_toc_entries() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+:toc:
+
+= Part One
+
+== Chapter One
+
+Content.
+
+[appendix]
+= First Appendix
+
+Content.
+
+[appendix]
+= Second Appendix
+
+Content.
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        // TOC should have appendix entries with letter prefix
+        assert!(
+            html.contains("<a href=\"#_first_appendix\">Appendix A: First Appendix</a>"),
+            "TOC should contain 'Appendix A: First Appendix'"
+        );
+        assert!(
+            html.contains("<a href=\"#_second_appendix\">Appendix B: Second Appendix</a>"),
+            "TOC should contain 'Appendix B: Second Appendix'"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_appendix_custom_caption() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+:appendix-caption: Annexe
+
+[appendix]
+= First Appendix
+
+Content.
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        assert!(
+            html.contains(">Annexe A: First Appendix</h2>"),
+            "should use custom appendix caption"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_appendix_disabled_caption() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+:!appendix-caption:
+
+[appendix]
+= First Appendix
+
+Content.
+";
+        let parser_options = acdc_parser::Options::default();
+        let doc = acdc_parser::parse(content, &parser_options)?;
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(&doc, &RenderOptions::default())?;
+
+        // Should still be demoted to sect1/h2, just no prefix
+        assert!(
+            html.contains("<div class=\"sect1\">\n<h2 id=\"_first_appendix\">First Appendix</h2>"),
+            "appendix with disabled caption should have no prefix but still be demoted"
+        );
+
         Ok(())
     }
 }

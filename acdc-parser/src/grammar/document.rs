@@ -1,3 +1,5 @@
+// The `peg` macro adds 5 hidden parameters to every rule function, so even
+// rules with just 3 explicit params exceed clippy's 7-argument threshold.
 #![allow(clippy::too_many_arguments)]
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
@@ -1346,7 +1348,7 @@ peg::parser! {
                 .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
 
             // Register section for TOC immediately after title is parsed, before content
-            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel, numbered);
+            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel, numbered, block_metadata.metadata.style.clone());
 
             Ok::<(Title, String), Error>((title, section_id))
         })
@@ -1473,7 +1475,7 @@ peg::parser! {
                         .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
 
                     // Register section for TOC
-                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel, numbered);
+                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel, numbered, block_metadata.metadata.style.clone());
 
                     Ok::<(Title, String), Error>((processed_title, section_id))
                 }

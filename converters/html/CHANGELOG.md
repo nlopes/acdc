@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Appendix support (`[appendix]` style on level-0 sections)** — in book doctype, level-0
+  sections with `[appendix]` style are demoted to level 1 and prefixed with "Appendix A: ",
+  "Appendix B: ", etc. in both section headings and TOC entries. The caption is configurable
+  via `:appendix-caption:` and can be disabled with `:!appendix-caption:`. ([#343])
 - **Part numbering (`:partnums:` / `:part-signifier:`)** — book doctype documents with
   `:partnums:` now render part headings and TOC entries with uppercase Roman numeral
   prefixes (e.g., "Part I. ", "Part II. "). The signifier text is configurable via
