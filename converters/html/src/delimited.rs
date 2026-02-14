@@ -488,15 +488,13 @@ fn render_listing_code<V: WritableVisitor<Error = Error>>(
                 "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
             let _ = w;
-            let dark_mode = processor
-                .document_attributes
-                .get("dark-mode")
-                .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
+            let (theme_name, mode) = crate::resolve_highlight_settings(processor);
             crate::syntax::highlight_code(
                 visitor.writer_mut(),
                 &processed_inlines,
                 lang,
-                dark_mode,
+                &theme_name,
+                mode,
             )?;
             w = visitor.writer_mut();
             writeln!(w, "</code></pre>")?;

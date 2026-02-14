@@ -84,6 +84,42 @@ fn link_css<W: Write>(
     Ok(())
 }
 
+/// Try to read a custom stylesheet from disk based on `stylesheet` and `stylesdir` attributes.
+///
+/// Returns `Some(contents)` if a custom stylesheet is specified and readable,
+/// `None` otherwise (falls back to default CSS).
+fn resolve_custom_css(
+    attributes: &DocumentAttributes,
+    source_dir: Option<&std::path::Path>,
+) -> Option<String> {
+    let stylesheet = attributes.get("stylesheet").and_then(|v| {
+        let s = v.to_string();
+        if s.is_empty() { None } else { Some(s) }
+    })?;
+
+    let stylesdir = attributes
+        .get("stylesdir")
+        .map_or_else(|| crate::STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+
+    let path = if std::path::Path::new(&stylesdir).is_absolute() {
+        std::path::PathBuf::from(&stylesdir).join(&stylesheet)
+    } else {
+        let base = source_dir.unwrap_or_else(|| std::path::Path::new("."));
+        base.join(&stylesdir).join(&stylesheet)
+    };
+
+    match std::fs::read_to_string(&path) {
+        Ok(contents) => Some(contents),
+        Err(e) => {
+            tracing::warn!(
+                path = %path.display(),
+                "could not read custom stylesheet, falling back to default: {e}"
+            );
+            None
+        }
+    }
+}
+
 fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
     writeln!(
         writer,
@@ -164,6 +200,124 @@ impl<W: Write> HtmlVisitor<W> {
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
     }
 
+    /// Emit syntax highlighting CSS in `<head>` when class-based mode is active.
+    ///
+    /// - Without `linkcss`: embeds CSS in a `<style>` block (default).
+    /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-syntect.css`.
+    #[cfg(feature = "highlighting")]
+    fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
+        if self
+            .processor
+            .document_attributes
+            .get("source-highlighter")
+            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)))
+        {
+            let (theme_name, mode) = crate::resolve_highlight_settings(&self.processor);
+            if mode == crate::syntax::HighlightMode::Class {
+                let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+
+                if linkcss {
+                    let stylesdir = self
+                        .processor
+                        .document_attributes
+                        .get("stylesdir")
+                        .map_or_else(|| crate::STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+                    writeln!(
+                        self.writer,
+                        r#"<link rel="stylesheet" href="{}/{}">"#,
+                        stylesdir.as_str().trim_end_matches('/'),
+                        crate::SYNTECT_STYLESHEET
+                    )?;
+                } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
+                    writeln!(self.writer, "<style>\n{css}</style>")?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Render webfonts link, stylesheet (embedded or linked), and max-width constraint.
+    ///
+    /// Skipped entirely when `:!stylesheet:` is set (no-stylesheet mode).
+    fn render_stylesheet(&mut self, dark_mode: bool) -> Result<(), Error> {
+        let stylesheet_disabled = self
+            .processor
+            .document_attributes
+            .get("stylesheet")
+            .is_some_and(|v| matches!(v, AttributeValue::Bool(false)));
+
+        if stylesheet_disabled {
+            return Ok(());
+        }
+
+        // Render Google Fonts link (controlled by :webfonts: attribute)
+        match self.processor.document_attributes.get("webfonts") {
+            Some(AttributeValue::Bool(false)) => {
+                // :!webfonts: — skip font link entirely
+            }
+            Some(AttributeValue::String(custom)) if !custom.is_empty() => {
+                writeln!(
+                    self.writer,
+                    r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family={custom}">"#
+                )?;
+            }
+            _ => {
+                writeln!(
+                    self.writer,
+                    r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">"#
+                )?;
+            }
+        }
+
+        // Handle stylesheet rendering based on linkcss attribute
+        let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+        let variant = self.processor.variant();
+        let default_filename = match (variant, dark_mode) {
+            (HtmlVariant::Semantic, true) => crate::STYLESHEET_HTML5S_DARK_MODE,
+            (HtmlVariant::Semantic, false) => crate::STYLESHEET_HTML5S_LIGHT_MODE,
+            (HtmlVariant::Standard, true) => crate::STYLESHEET_DARK_MODE,
+            (HtmlVariant::Standard, false) => crate::STYLESHEET_LIGHT_MODE,
+        };
+
+        if linkcss {
+            link_css(
+                &mut self.writer,
+                &self.processor.document_attributes,
+                default_filename,
+            )?;
+        } else {
+            let custom_css = resolve_custom_css(
+                &self.processor.document_attributes,
+                self.render_options.source_dir.as_deref(),
+            );
+            let css = custom_css
+                .as_deref()
+                .unwrap_or_else(|| crate::load_css(dark_mode, variant));
+            writeln!(
+                self.writer,
+                "<style>\n{css}\n.stemblock .content {{\n  text-align: center;\n}}\n</style>"
+            )?;
+        }
+
+        // Add max-width constraint if specified
+        if let Some(AttributeValue::String(max_width)) =
+            self.processor.document_attributes.get("max-width")
+            && !max_width.is_empty()
+        {
+            tracing::warn!(%max_width, "`max-width` usage is not recommended. Use CSS stylesheet instead.");
+            writeln!(
+                self.writer,
+                "<style>
+#content {{
+  max-width: {max_width};
+}}
+</style>"
+            )?;
+        }
+
+        Ok(())
+    }
+
     fn render_head(&mut self, document: &Document) -> Result<(), Error> {
         let dark_mode = self.is_dark_mode();
 
@@ -203,52 +357,8 @@ impl<W: Write> HtmlVisitor<W> {
             )?;
         }
 
-        // Render Google Fonts link
-        writeln!(
-            self.writer,
-            r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">"#
-        )?;
-
-        // Handle stylesheet rendering based on linkcss attribute
-        let linkcss = self.processor.document_attributes.get("linkcss").is_some();
-        let variant = self.processor.variant();
-        let default_filename = match (variant, dark_mode) {
-            (HtmlVariant::Semantic, true) => crate::STYLESHEET_HTML5S_DARK_MODE,
-            (HtmlVariant::Semantic, false) => crate::STYLESHEET_HTML5S_LIGHT_MODE,
-            (HtmlVariant::Standard, true) => crate::STYLESHEET_DARK_MODE,
-            (HtmlVariant::Standard, false) => crate::STYLESHEET_LIGHT_MODE,
-        };
-
-        if linkcss {
-            link_css(
-                &mut self.writer,
-                &self.processor.document_attributes,
-                default_filename,
-            )?;
-        } else {
-            // Embed stylesheet directly (default behavior)
-            let css = crate::load_css(dark_mode, variant);
-            writeln!(
-                self.writer,
-                "<style>\n{css}\n.stemblock .content {{\n  text-align: center;\n}}\n</style>"
-            )?;
-        }
-
-        // Add max-width constraint if specified
-        if let Some(AttributeValue::String(max_width)) =
-            self.processor.document_attributes.get("max-width")
-            && !max_width.is_empty()
-        {
-            tracing::warn!(%max_width, "`max-width` usage is not recommended. Use CSS stylesheet instead.");
-            writeln!(
-                self.writer,
-                "<style>
-#content {{
-  max-width: {max_width};
-}}
-</style>"
-            )?;
-        }
+        // Render stylesheet and webfonts (skipped when :!stylesheet: is set)
+        self.render_stylesheet(dark_mode)?;
 
         // Add MathJax if stem is enabled
         if self.processor.document_attributes.get("stem").is_some() {
@@ -268,6 +378,10 @@ impl<W: Write> HtmlVisitor<W> {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/v4-shims.min.css">"#
             )?;
         }
+
+        // Emit syntax highlighting CSS (embedded or linked) when using class-based mode
+        #[cfg(feature = "highlighting")]
+        self.maybe_emit_syntax_css()?;
 
         writeln!(self.writer, "</head>")?;
         Ok(())

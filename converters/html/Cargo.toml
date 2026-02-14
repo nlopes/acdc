@@ -24,6 +24,7 @@ tracing.workspace = true
 acdc-converters-dev.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+tempfile = "3.25.0"
 tracing-test.workspace = true
 
 [lints.rust]

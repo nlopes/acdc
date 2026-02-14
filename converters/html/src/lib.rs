@@ -275,11 +275,16 @@ pub struct RenderOptions {
     /// would be invalid HTML. This mode renders link-producing macros as text only
     /// and skips decorative elements like images and icons.
     pub toc_mode: bool,
+    /// Directory of the source document, used to resolve relative `stylesdir` paths.
+    pub source_dir: Option<PathBuf>,
 }
 
 pub(crate) const COPYCSS_DEFAULT: &str = "";
 pub(crate) const STYLESDIR_DEFAULT: &str = ".";
 pub(crate) const STYLESHEET_DEFAULT: &str = "";
+/// Default filename for the syntect syntax highlighting stylesheet (class-based mode).
+/// Analogous to asciidoctor's `asciidoctor-coderay.css` / `asciidoctor-pygments.css`.
+pub(crate) const SYNTECT_STYLESHEET: &str = "acdc-syntect.css";
 // NOTE: If you change the values below, you need to also change them in `load_css`
 pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
 pub(crate) const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
@@ -294,6 +299,44 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
         (HtmlVariant::Standard, true) => include_str!("../static/asciidoctor-dark-mode.css"),
         (HtmlVariant::Standard, false) => include_str!("../static/asciidoctor-light-mode.css"),
     }
+}
+
+/// Resolve the syntax highlighting theme name and mode from document attributes.
+///
+/// - `:syntect-style:` overrides the theme (falls back to light/dark default).
+/// - `:syntect-css: class` switches to CSS-class mode (default is inline).
+pub(crate) fn resolve_highlight_settings(processor: &Processor) -> (String, syntax::HighlightMode) {
+    let dark_mode = processor
+        .document_attributes
+        .get("dark-mode")
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
+
+    let theme_name = processor
+        .document_attributes
+        .get("syntect-style")
+        .and_then(|v| match v {
+            AttributeValue::String(s) if !s.is_empty() => Some(s.clone()),
+            AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => None,
+        })
+        .unwrap_or_else(|| {
+            if dark_mode {
+                syntax::DEFAULT_THEME_DARK.to_string()
+            } else {
+                syntax::DEFAULT_THEME_LIGHT.to_string()
+            }
+        });
+
+    let mode = if processor
+        .document_attributes
+        .get("syntect-css")
+        .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "class"))
+    {
+        syntax::HighlightMode::Class
+    } else {
+        syntax::HighlightMode::Inline
+    };
+
+    (theme_name, mode)
 }
 
 impl Converter for Processor {
@@ -366,13 +409,18 @@ impl Converter for Processor {
                     .map(chrono::DateTime::from)
             }),
             embedded: self.options.embedded(),
+            source_dir: source_file.and_then(|f| f.parent().map(Path::to_path_buf)),
             ..RenderOptions::default()
         };
         self.convert_to_writer(doc, writer, &render_options)
     }
 
     fn after_write(&self, doc: &Document, output_path: &Path) {
+        if self.options.embedded() {
+            return;
+        }
         self.handle_copycss(doc, output_path);
+        self.handle_copy_syntax_css(doc, output_path);
     }
 
     fn backend(&self) -> Backend {
@@ -434,7 +482,21 @@ impl Processor {
     }
 
     /// Handle copying CSS if linkcss and copycss are set.
+    ///
+    /// When the default (built-in) stylesheet is active, the CSS content is written
+    /// directly to disk since there is no source file to copy.  When `copycss` has a
+    /// non-empty string value it is used as the source path override (the file to read
+    /// from), decoupling the source location from the output reference.
     fn handle_copycss(&self, doc: &acdc_parser::Document, html_path: &std::path::Path) {
+        // No-stylesheet mode — nothing to copy
+        let stylesheet_disabled = doc
+            .attributes
+            .get("stylesheet")
+            .is_some_and(|v| matches!(v, AttributeValue::Bool(false)));
+        if stylesheet_disabled {
+            return;
+        }
+
         let linkcss = doc.attributes.get("linkcss").is_some();
         if !linkcss {
             return;
@@ -453,6 +515,12 @@ impl Processor {
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
         let default_filename = self.default_stylesheet_name(is_dark);
 
+        // Determine whether the default (built-in) stylesheet is in use
+        let using_default = doc
+            .attributes
+            .get("stylesheet")
+            .is_none_or(|v| v.to_string().is_empty());
+
         let stylesheet = doc
             .attributes
             .get("stylesheet")
@@ -462,38 +530,138 @@ impl Processor {
             })
             .unwrap_or_else(|| default_filename.into());
 
-        let stylesdir = doc
-            .attributes
-            .get("stylesdir")
-            .map_or_else(|| STYLESDIR_DEFAULT.into(), ToString::to_string);
-
-        let source_path = if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
-            std::path::Path::new(&stylesheet).to_path_buf()
-        } else {
-            std::path::Path::new(&stylesdir).join(&stylesheet)
-        };
-
         let output_dir = html_path
             .parent()
             .unwrap_or_else(|| std::path::Path::new("."));
         let dest_path = output_dir.join(&stylesheet);
 
-        if source_path != dest_path && source_path.exists() {
-            if let Err(e) = std::fs::copy(&source_path, &dest_path) {
+        // Check if copycss has a non-empty value (source path override)
+        let copycss_source = doc.attributes.get("copycss").and_then(|v| {
+            let s = v.to_string();
+            if s.is_empty() { None } else { Some(s) }
+        });
+
+        if using_default && copycss_source.is_none() {
+            // Write built-in CSS content to disk (no source file exists)
+            let css_content = load_css(is_dark, self.variant);
+            if let Err(e) = std::fs::write(&dest_path, css_content) {
                 tracing::warn!(
-                    "Failed to copy stylesheet from {} to {}: {e}",
-                    source_path.display(),
+                    "Failed to write built-in stylesheet to {}: {e}",
                     dest_path.display(),
                 );
             } else {
-                tracing::debug!(
-                    "Copied stylesheet from {} to {}",
-                    source_path.display(),
-                    dest_path.display()
-                );
+                tracing::debug!("Wrote built-in stylesheet to {}", dest_path.display());
+            }
+        } else {
+            // Custom stylesheet or copycss source override — copy file
+            let stylesdir = doc
+                .attributes
+                .get("stylesdir")
+                .map_or_else(|| STYLESDIR_DEFAULT.into(), ToString::to_string);
+
+            let source_path = if let Some(ref custom_source) = copycss_source {
+                std::path::PathBuf::from(custom_source)
+            } else if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
+                std::path::Path::new(&stylesheet).to_path_buf()
+            } else {
+                std::path::Path::new(&stylesdir).join(&stylesheet)
+            };
+
+            if source_path != dest_path && source_path.exists() {
+                if let Err(e) = std::fs::copy(&source_path, &dest_path) {
+                    tracing::warn!(
+                        "Failed to copy stylesheet from {} to {}: {e}",
+                        source_path.display(),
+                        dest_path.display(),
+                    );
+                } else {
+                    tracing::debug!(
+                        "Copied stylesheet from {} to {}",
+                        source_path.display(),
+                        dest_path.display()
+                    );
+                }
             }
         }
     }
+
+    /// Write the syntect CSS file next to the HTML output when `linkcss` is set
+    /// and class-based syntax highlighting is active.
+    ///
+    /// Analogous to how asciidoctor writes `asciidoctor-coderay.css` /
+    /// `asciidoctor-pygments.css` alongside the output.
+    #[cfg(feature = "highlighting")]
+    fn handle_copy_syntax_css(&self, doc: &Document, html_path: &Path) {
+        let linkcss = doc.attributes.get("linkcss").is_some();
+        if !linkcss {
+            return;
+        }
+
+        let processor_attrs = &doc.attributes;
+        let source_highlighter_set = processor_attrs
+            .get("source-highlighter")
+            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+        if !source_highlighter_set {
+            return;
+        }
+
+        // Build a temporary processor to resolve settings from doc attributes
+        let (theme_name, mode) = {
+            let tmp = Processor {
+                document_attributes: doc.attributes.clone(),
+                ..self.clone()
+            };
+            crate::resolve_highlight_settings(&tmp)
+        };
+
+        if mode != syntax::HighlightMode::Class {
+            return;
+        }
+
+        let Ok(css) = syntax::highlight_css(&theme_name) else {
+            return;
+        };
+
+        let output_dir = html_path.parent().unwrap_or_else(|| Path::new("."));
+
+        let stylesdir = doc
+            .attributes
+            .get("stylesdir")
+            .map_or_else(|| STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+
+        let dest_dir = if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
+            output_dir.to_path_buf()
+        } else if Path::new(&stylesdir).is_absolute() {
+            PathBuf::from(&stylesdir)
+        } else {
+            output_dir.join(&stylesdir)
+        };
+
+        let dest_path = dest_dir.join(SYNTECT_STYLESHEET);
+
+        if let Err(e) = std::fs::create_dir_all(&dest_dir) {
+            tracing::warn!(
+                path = %dest_dir.display(),
+                "could not create stylesdir for syntax CSS: {e}"
+            );
+            return;
+        }
+
+        if let Err(e) = std::fs::write(&dest_path, css) {
+            tracing::warn!(
+                path = %dest_path.display(),
+                "could not write syntax highlighting stylesheet: {e}"
+            );
+        } else {
+            tracing::debug!(
+                "Wrote syntax highlighting stylesheet to {}",
+                dest_path.display()
+            );
+        }
+    }
+
+    #[cfg(not(feature = "highlighting"))]
+    fn handle_copy_syntax_css(&self, _doc: &Document, _html_path: &Path) {}
 }
 
 /// Build a class string from a base class and optional roles
