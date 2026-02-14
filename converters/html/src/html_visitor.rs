@@ -10,7 +10,7 @@ use acdc_parser::{
     SubstitutionSpec, TableOfContents, ThematicBreak, UnorderedList, VERBATIM, Video,
 };
 
-use crate::{Error, HtmlVariant, Processor, RenderOptions};
+use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
 
 /// Compute effective substitutions for a block.
 ///
@@ -174,16 +174,29 @@ pub struct HtmlVisitor<W: Write> {
     /// Current section style (e.g., "bibliography", "glossary").
     /// Set when entering a section, used by child blocks for style inheritance.
     pub(crate) section_style: Option<String>,
+    /// Resolved docinfo content for injection at head, header, and footer positions.
+    docinfo: DocInfo,
 }
 
 impl<W: Write> HtmlVisitor<W> {
     pub fn new(writer: W, processor: Processor, render_options: RenderOptions) -> Self {
+        let docinfo = if render_options.embedded {
+            DocInfo::empty()
+        } else {
+            DocInfo::resolve(
+                &processor.document_attributes,
+                processor.options.safe_mode(),
+                render_options.source_dir.as_deref(),
+                render_options.docname.as_deref(),
+            )
+        };
         Self {
             writer,
             processor,
             render_options,
             current_subs: NORMAL.to_vec(),
             section_style: None,
+            docinfo,
         }
     }
 
@@ -346,6 +359,7 @@ impl<W: Write> HtmlVisitor<W> {
                 },
                 current_subs: self.current_subs.clone(),
                 section_style: None,
+                docinfo: DocInfo::empty(),
             };
             let processor = temp_visitor.processor.clone();
             let options = temp_visitor.render_options.clone();
@@ -383,6 +397,9 @@ impl<W: Write> HtmlVisitor<W> {
         #[cfg(feature = "highlighting")]
         self.maybe_emit_syntax_css()?;
 
+        if let Some(content) = &self.docinfo.head {
+            writeln!(self.writer, "{content}")?;
+        }
         writeln!(self.writer, "</head>")?;
         Ok(())
     }
@@ -570,6 +587,9 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         } else {
             writeln!(self.writer, "<body class=\"{body_class}\">")?;
         }
+        if let Some(content) = &self.docinfo.header {
+            writeln!(self.writer, "{content}")?;
+        }
         Ok(())
     }
 
@@ -601,6 +621,9 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         // Skip footer in embedded mode
         if !self.render_options.embedded {
             self.render_body_footer()?;
+            if let Some(content) = &self.docinfo.footer {
+                writeln!(self.writer, "{content}")?;
+            }
         }
         Ok(())
     }

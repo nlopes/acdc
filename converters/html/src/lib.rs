@@ -12,6 +12,7 @@ mod admonition;
 mod audio;
 mod constants;
 mod delimited;
+mod docinfo;
 mod document;
 mod error;
 mod html_visitor;
@@ -277,6 +278,9 @@ pub struct RenderOptions {
     pub toc_mode: bool,
     /// Directory of the source document, used to resolve relative `stylesdir` paths.
     pub source_dir: Option<PathBuf>,
+    /// Stem of the source document filename (e.g., `"mydoc"` for `mydoc.adoc`),
+    /// used to locate private docinfo files like `mydoc-docinfo.html`.
+    pub docname: Option<String>,
 }
 
 pub(crate) const COPYCSS_DEFAULT: &str = "";
@@ -410,6 +414,10 @@ impl Converter for Processor {
             }),
             embedded: self.options.embedded(),
             source_dir: source_file.and_then(|f| f.parent().map(Path::to_path_buf)),
+            docname: source_file
+                .and_then(|f| f.file_stem())
+                .and_then(|s| s.to_str())
+                .map(String::from),
             ..RenderOptions::default()
         };
         self.convert_to_writer(doc, writer, &render_options)
