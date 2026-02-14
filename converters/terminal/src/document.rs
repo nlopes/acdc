@@ -118,16 +118,31 @@ mod tests {
     #[test]
     fn test_render_document() -> Result<(), Error> {
         use crate::Appearance;
+        use acdc_converters_core::section::{
+            AppendixTracker, PartNumberTracker, SectionNumberTracker,
+        };
         use std::{cell::Cell, rc::Rc};
         let doc = Document::default();
         let options = Options::default();
         let appearance = Appearance::detect();
+        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
+        let part_number_tracker =
+            PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
+        let appendix_tracker =
+            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
             appearance,
+            section_number_tracker,
+            part_number_tracker,
+            appendix_tracker,
+            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
+            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
         let buffer = Vec::new();
         let mut visitor = TerminalVisitor::new(buffer, processor);
@@ -154,12 +169,29 @@ mod tests {
         let buffer = Vec::new();
         let options = Options::default();
         let appearance = Appearance::detect();
+        let section_number_tracker =
+            acdc_converters_core::section::SectionNumberTracker::new(&doc.attributes);
+        let part_number_tracker = acdc_converters_core::section::PartNumberTracker::new(
+            &doc.attributes,
+            section_number_tracker.clone(),
+        );
+        let appendix_tracker = acdc_converters_core::section::AppendixTracker::new(
+            &doc.attributes,
+            section_number_tracker.clone(),
+        );
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             appearance,
+            section_number_tracker,
+            part_number_tracker,
+            appendix_tracker,
+            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
+            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;
@@ -202,12 +234,29 @@ mod tests {
         let buffer = Vec::new();
         let options = Options::default();
         let appearance = Appearance::detect();
+        let section_number_tracker =
+            acdc_converters_core::section::SectionNumberTracker::new(&doc.attributes);
+        let part_number_tracker = acdc_converters_core::section::PartNumberTracker::new(
+            &doc.attributes,
+            section_number_tracker.clone(),
+        );
+        let appendix_tracker = acdc_converters_core::section::AppendixTracker::new(
+            &doc.attributes,
+            section_number_tracker.clone(),
+        );
         let processor = Processor {
             options,
             document_attributes: doc.attributes.clone(),
             toc_entries: vec![],
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             appearance,
+            section_number_tracker,
+            part_number_tracker,
+            appendix_tracker,
+            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
+            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;

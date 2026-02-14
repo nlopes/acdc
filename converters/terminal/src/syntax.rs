@@ -136,15 +136,30 @@ mod tests {
 
     fn create_test_processor() -> Processor {
         use crate::Appearance;
+        use acdc_converters_core::section::{
+            AppendixTracker, PartNumberTracker, SectionNumberTracker,
+        };
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
         let appearance = Appearance::detect();
+        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+        let part_number_tracker =
+            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let appendix_tracker =
+            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
             appearance,
+            section_number_tracker,
+            part_number_tracker,
+            appendix_tracker,
+            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
+            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         }
     }
 

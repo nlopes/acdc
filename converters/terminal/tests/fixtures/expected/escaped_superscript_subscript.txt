@@ -1,3 +1,3 @@
-Escaped caret \^not superscript^ and real ^{superscript} text.
-Escaped tilde \~not subscript~ and real _{subscript} text.
-Mixed: H~2~O and E=mc^2^ vs H_{2}O and E=mc^{2}.
+Escaped caret \^not superscript^ and real [2msuperscript[22m text.
+Escaped tilde \~not subscript~ and real [2msubscript[22m text.
+Mixed: H~2~O and E=mc^2^ vs H₂O and E=mc².

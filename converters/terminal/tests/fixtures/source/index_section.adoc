@@ -1,0 +1,16 @@
+= Document with Index
+
+== Introduction
+
+This document covers ((terminal rendering)) and ((AsciiDoc processing)).
+
+We also discuss (((formatting, inline, bold))) and (((formatting, inline, italic))).
+
+Advanced topics include (((rendering, output, terminal))) and (((rendering, output, HTML))).
+
+== Content
+
+The ((parser)) handles all input processing.
+
+[index]
+== Index

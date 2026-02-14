@@ -1,0 +1,269 @@
+= Comprehensive Terminal Test: A Subtitle
+First Author <first@example.com>; Jane M. Doe <jane@example.com>
+v1.2, 2024-03-15: Spring release
+:sectnums:
+:experimental:
+:description: A comprehensive test document for terminal rendering.
+:toc:
+
+This is the preamble paragraph with *bold*, _italic_, `monospace`, #highlight#, ^super^, ~sub~, and [.underline]#underlined# text.
+
+Curved quotes: "`quoted text`" and curved apostrophes: '`it`' and it's a contraction.
+
+== Inline formatting
+
+This paragraph has *bold text* and _italic text_ mixed together.
+
+Here is some `monospace code` in a paragraph.
+
+Text with #highlighted content# for emphasis.
+
+Superscript: E = mc^2^ and subscript: H~2~O.
+
+Nested: *bold with _italic inside_* and _italic with *bold inside*_.
+
+== Inline macros
+
+A link: https://example.com[Example Website].
+
+A mailto: mailto:user@example.com[Send Email].
+
+An autolink: https://rust-lang.org.
+
+A cross-reference: <<_inline_formatting,see Inline Formatting>>.
+
+A footnote reference.footnote:[This is a footnote with *bold* in it.]
+
+A keyboard shortcut: kbd:[Ctrl+C].
+
+A button: btn:[OK].
+
+A menu: menu:File[Save As... > PDF].
+
+An inline image: image:logo.png[Logo].
+
+An index term: ((terminal rendering)) is useful.
+
+A pass-through: pass:[<raw>content</raw>].
+
+== Lists
+
+=== Unordered lists
+
+* Item 1
+** Nested item 1.1
+*** Deep nested 1.1.1
+** Nested item 1.2
+* Item 2
+* Item 3
+
+=== Ordered lists
+
+. First
+.. Sub-first
+... Sub-sub-first
+.. Sub-second
+. Second
+. Third
+
+=== Checklists
+
+* [x] Completed task
+* [ ] Incomplete task
+* [x] Another done task
+
+=== Description list
+
+Term 1:: Definition of term 1.
+Term 2:: Definition of term 2 with *bold*.
+Term 3::
+A longer definition that spans
+multiple concepts.
+
+=== Horizontal description list
+
+[horizontal]
+CPU:: Central Processing Unit
+RAM:: Random Access Memory
+SSD:: Solid State Drive
+
+=== Q&A list
+
+[qanda]
+What is AsciiDoc?:: AsciiDoc is a lightweight markup language.
+Why use it?:: It produces professional output from plain text.
+
+=== Callout list
+
+[source,rust]
+----
+fn main() { <1>
+    println!("Hello!"); <2>
+}
+----
+<1> Entry point
+<2> Print greeting
+
+== Tables
+
+=== Basic table
+
+[cols="1,2,1",options="header"]
+|===
+| Name | Description | Status
+
+| Feature A
+| First feature
+| Done
+
+| Feature B
+| Second feature
+| Pending
+|===
+
+=== Table with footer
+
+[%header%footer]
+|===
+| Item | Price
+
+| Widget | $10
+| Gadget | $25
+
+| Total | $35
+|===
+
+=== Table with alignment
+
+[cols="<,^,>"]
+|===
+| Left | Center | Right
+| aligned | aligned | aligned
+|===
+
+=== Table with column styles
+
+[cols="s,e"]
+|===
+| Strong Column | Emphasis Column
+| Bold content | Italic content
+|===
+
+.A titled table
+|===
+| Cell A | Cell B
+|===
+
+== Admonitions
+
+NOTE: This is a note admonition.
+
+TIP: This is a tip admonition.
+
+IMPORTANT: This is an important admonition.
+
+WARNING: This is a warning admonition.
+
+CAUTION: This is a caution admonition.
+
+[NOTE]
+.Titled admonition
+====
+This is a note with a title and block content.
+
+It has multiple paragraphs.
+====
+
+== Delimited blocks
+
+=== Example block
+
+.Example title
+====
+This is an example block with a title.
+
+It can contain multiple paragraphs.
+====
+
+=== Sidebar block
+
+.Sidebar title
+****
+This is a sidebar with a title.
+
+Sidebars contain supplementary content.
+****
+
+=== Quote block
+
+[quote, Albert Einstein]
+____
+Imagination is more important than knowledge.
+____
+
+=== Verse block
+
+[verse, Robert Frost, The Road Not Taken]
+____
+Two roads diverged in a yellow wood,
+And sorry I could not travel both
+And be one traveler, long I stood
+____
+
+=== Source code block
+
+[source,python]
+----
+def greet(name):
+    """Greet someone by name."""
+    print(f"Hello, {name}!")
+
+greet("World")
+----
+
+=== Literal block
+
+....
+This is a literal block.
+  It preserves   spacing.
+    And indentation.
+....
+
+=== Open block
+
+--
+This is an open block.
+
+It can contain any content.
+--
+
+== Section levels
+
+=== Level 3 section
+
+==== Level 4 section
+
+===== Level 5 section
+
+====== Level 6 section
+
+Content at the deepest level.
+
+== Breaks
+
+Before the thematic break.
+
+'''
+
+After the thematic break.
+
+[appendix]
+== Appendix section
+
+This is appendix content.
+
+[glossary]
+== Glossary
+
+AsciiDoc:: A text document format.
+Terminal:: A text-based interface.

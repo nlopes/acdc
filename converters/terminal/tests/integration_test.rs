@@ -42,6 +42,8 @@ generate_tests!([
     (macros_with_quoted_attributes, false),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
+    (comprehensive, false),
+    (index_section, false),
 ]);
 
 /// Helper function to run a single integration test.

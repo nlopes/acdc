@@ -13,7 +13,7 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::{FALLBACK_TERMINAL_WIDTH, Processor};
+use crate::Processor;
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
 pub struct TerminalVisitor<W: Write> {
@@ -78,12 +78,29 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
+        let is_index_section = section
+            .metadata
+            .style
+            .as_ref()
+            .is_some_and(|s| s == "index");
+
+        // Index sections are only rendered if they're the last section
+        if is_index_section && !self.processor.has_valid_index_section() {
+            return Ok(());
+        }
+
         let processor = self.processor.clone();
         crate::section::visit_section(section, self, &processor)?;
 
-        // Walk nested blocks within the section
-        for nested_block in &section.content {
-            self.visit_block(nested_block)?;
+        if is_index_section {
+            // Render the collected index catalog instead of normal content
+            let processor = self.processor.clone();
+            crate::index::render(self, &processor)?;
+        } else {
+            // Walk nested blocks within the section
+            for nested_block in &section.content {
+                self.visit_block(nested_block)?;
+            }
         }
 
         Ok(())
@@ -142,17 +159,13 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {
-        let width = crossterm::terminal::size()
-            .map(|(cols, _)| usize::from(cols))
-            .unwrap_or(FALLBACK_TERMINAL_WIDTH);
+        let width = self.processor.terminal_width;
         writeln!(self.writer, "{}", "─".repeat(width))?;
         Ok(())
     }
 
     fn visit_page_break(&mut self, _br: &PageBreak) -> Result<(), Self::Error> {
-        let width = crossterm::terminal::size()
-            .map(|(cols, _)| usize::from(cols))
-            .unwrap_or(FALLBACK_TERMINAL_WIDTH);
+        let width = self.processor.terminal_width;
         writeln!(self.writer, "\n{}\n", "═".repeat(width))?;
         Ok(())
     }

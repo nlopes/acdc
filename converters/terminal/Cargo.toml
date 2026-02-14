@@ -13,7 +13,7 @@ highlighting = ["dep:syntect"]
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
-comfy-table = "7.2"
+comfy-table = { version = "7.2", features = ["custom_styling"] }
 crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

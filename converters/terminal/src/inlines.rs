@@ -15,6 +15,115 @@ use crossterm::{
 
 use crate::{Error, Processor};
 
+/// Try to convert a character to its Unicode superscript equivalent.
+/// Only digits and a few reliable symbols are mapped; letters are not included
+/// because Unicode superscript coverage for letters is incomplete and inconsistent.
+fn to_superscript(c: char) -> Option<char> {
+    match c {
+        '0' => Some('\u{2070}'),
+        '1' => Some('\u{00B9}'),
+        '2' => Some('\u{00B2}'),
+        '3' => Some('\u{00B3}'),
+        '4' => Some('\u{2074}'),
+        '5' => Some('\u{2075}'),
+        '6' => Some('\u{2076}'),
+        '7' => Some('\u{2077}'),
+        '8' => Some('\u{2078}'),
+        '9' => Some('\u{2079}'),
+        '+' => Some('\u{207A}'),
+        '-' => Some('\u{207B}'),
+        '=' => Some('\u{207C}'),
+        '(' => Some('\u{207D}'),
+        ')' => Some('\u{207E}'),
+        _ => None,
+    }
+}
+
+/// Try to convert a character to its Unicode subscript equivalent.
+/// Only digits and a few reliable symbols are mapped; letters are not included
+/// because Unicode subscript coverage for letters is incomplete and inconsistent.
+fn to_subscript(c: char) -> Option<char> {
+    match c {
+        '0' => Some('\u{2080}'),
+        '1' => Some('\u{2081}'),
+        '2' => Some('\u{2082}'),
+        '3' => Some('\u{2083}'),
+        '4' => Some('\u{2084}'),
+        '5' => Some('\u{2085}'),
+        '6' => Some('\u{2086}'),
+        '7' => Some('\u{2087}'),
+        '8' => Some('\u{2088}'),
+        '9' => Some('\u{2089}'),
+        '+' => Some('\u{208A}'),
+        '-' => Some('\u{208B}'),
+        '=' => Some('\u{208C}'),
+        '(' => Some('\u{208D}'),
+        ')' => Some('\u{208E}'),
+        _ => None,
+    }
+}
+
+/// Try to convert a string entirely to Unicode superscript characters.
+/// Returns `None` if any character cannot be converted.
+fn try_to_unicode_superscript(text: &str) -> Option<String> {
+    text.chars().map(to_superscript).collect()
+}
+
+/// Try to convert a string entirely to Unicode subscript characters.
+/// Returns `None` if any character cannot be converted.
+fn try_to_unicode_subscript(text: &str) -> Option<String> {
+    text.chars().map(to_subscript).collect()
+}
+
+/// Render super/subscript content: try Unicode conversion first, fall back to
+/// dim-styled text to subtly indicate super/subscript.
+fn render_script_text<W: Write>(
+    nodes: &[InlineNode],
+    w: &mut W,
+    processor: &Processor,
+    converter: fn(&str) -> Option<String>,
+) -> Result<(), Error> {
+    // Collect plain text to attempt Unicode conversion
+    let plain: Option<String> = nodes
+        .iter()
+        .map(|n| match n {
+            InlineNode::PlainText(p) => Some(p.content.as_str()),
+            InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            | _ => None,
+        })
+        .collect::<Option<Vec<_>>>()
+        .map(|parts| parts.join(""));
+
+    if let Some(ref text) = plain
+        && let Some(converted) = converter(text)
+    {
+        write!(w, "{converted}")?;
+        return Ok(());
+    }
+
+    // Fall back to dim-styled text
+    w.queue(SetAttribute(Attribute::Dim))?;
+    for node in nodes {
+        render_inline_node_to_writer(node, w, processor)?;
+    }
+    w.queue(SetAttribute(Attribute::NormalIntensity))?;
+    Ok(())
+}
+
 /// Helper to render inline nodes to a string buffer.
 ///
 /// This is used to render styled text (bold, italic, etc.) where crossterm
@@ -63,8 +172,15 @@ fn render_inline_node_to_writer<W: Write>(
             }
         }
         InlineNode::HighlightText(h) => {
-            for inner in &h.content {
-                render_inline_node_to_writer(inner, w, processor)?;
+            if h.role.as_deref() == Some("underline") {
+                // Underline role: just render content (no highlight styling in buffer)
+                for inner in &h.content {
+                    render_inline_node_to_writer(inner, w, processor)?;
+                }
+            } else {
+                for inner in &h.content {
+                    render_inline_node_to_writer(inner, w, processor)?;
+                }
             }
         }
         InlineNode::MonospaceText(m) => {
@@ -76,18 +192,10 @@ fn render_inline_node_to_writer<W: Write>(
             render_inline_macro_to_writer(m, w, processor)?;
         }
         InlineNode::SuperscriptText(s) => {
-            write!(w, "^{{")?;
-            for inner in &s.content {
-                render_inline_node_to_writer(inner, w, processor)?;
-            }
-            write!(w, "}}")?;
+            render_script_text(&s.content, w, processor, try_to_unicode_superscript)?;
         }
         InlineNode::SubscriptText(s) => {
-            write!(w, "_{{")?;
-            for inner in &s.content {
-                render_inline_node_to_writer(inner, w, processor)?;
-            }
-            write!(w, "}}")?;
+            render_script_text(&s.content, w, processor, try_to_unicode_subscript)?;
         }
         InlineNode::CurvedQuotationText(c) => {
             write!(w, "\u{201C}")?;
@@ -154,15 +262,23 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
             w.queue(SetAttribute(Attribute::Bold))?;
             visitor.visit_inline_nodes(&b.content)?;
             let w = visitor.writer_mut();
-            w.queue(SetAttribute(Attribute::NoBold))?;
+            w.queue(SetAttribute(Attribute::NormalIntensity))?;
         }
         InlineNode::HighlightText(h) => {
-            let w = visitor.writer_mut();
-            w.queue(SetForegroundColor(Color::Black))?;
-            w.queue(SetBackgroundColor(Color::Yellow))?;
-            visitor.visit_inline_nodes(&h.content)?;
-            let w = visitor.writer_mut();
-            w.queue(ResetColor)?;
+            if h.role.as_deref() == Some("underline") {
+                let w = visitor.writer_mut();
+                w.queue(SetAttribute(Attribute::Underlined))?;
+                visitor.visit_inline_nodes(&h.content)?;
+                let w = visitor.writer_mut();
+                w.queue(SetAttribute(Attribute::NoUnderline))?;
+            } else {
+                let w = visitor.writer_mut();
+                w.queue(SetForegroundColor(Color::Black))?;
+                w.queue(SetBackgroundColor(Color::Yellow))?;
+                visitor.visit_inline_nodes(&h.content)?;
+                let w = visitor.writer_mut();
+                w.queue(ResetColor)?;
+            }
         }
         InlineNode::MonospaceText(m) => {
             let w = visitor.writer_mut();
@@ -189,18 +305,26 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
             write!(w, "{}", v.content)?;
         }
         InlineNode::SuperscriptText(s) => {
+            let text = render_inline_nodes_to_string(&s.content, processor)?;
             let w = visitor.writer_mut();
-            write!(w, "^{{")?;
-            visitor.visit_inline_nodes(&s.content)?;
-            let w = visitor.writer_mut();
-            write!(w, "}}")?;
+            if let Some(converted) = try_to_unicode_superscript(&text) {
+                write!(w, "{converted}")?;
+            } else {
+                w.queue(SetAttribute(Attribute::Dim))?;
+                write!(w, "{text}")?;
+                w.queue(SetAttribute(Attribute::NormalIntensity))?;
+            }
         }
         InlineNode::SubscriptText(s) => {
+            let text = render_inline_nodes_to_string(&s.content, processor)?;
             let w = visitor.writer_mut();
-            write!(w, "_{{")?;
-            visitor.visit_inline_nodes(&s.content)?;
-            let w = visitor.writer_mut();
-            write!(w, "}}")?;
+            if let Some(converted) = try_to_unicode_subscript(&text) {
+                write!(w, "{converted}")?;
+            } else {
+                w.queue(SetAttribute(Attribute::Dim))?;
+                write!(w, "{text}")?;
+                w.queue(SetAttribute(Attribute::NormalIntensity))?;
+            }
         }
         InlineNode::CurvedQuotationText(c) => {
             let w = visitor.writer_mut();
@@ -232,7 +356,7 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
             ))?;
             write!(w, "({})", callout.number)?;
             w.queue(crossterm::style::SetAttribute(
-                crossterm::style::Attribute::NoBold,
+                crossterm::style::Attribute::NormalIntensity,
             ))?;
         }
         _ => {
@@ -254,13 +378,17 @@ fn maybe_render_osc8_link<W: Write + ?Sized>(
 ) -> Result<(), crate::Error> {
     if processor.appearance.capabilities.osc8_links {
         w.queue(Print(
-            format!("\x1B]8;;{target}\x1B\\{text}\x1B]8;;\x1B",)
+            format!("\x1B]8;;{target}\x1B\\{text}\x1B]8;;\x1B\\",)
                 .with(processor.appearance.colors.link),
         ))?;
     } else {
+        // Non-OSC8: show "text (url)" with text styled and URL dim
         w.queue(PrintStyledContent(
-            target.with(processor.appearance.colors.link),
+            text.with(processor.appearance.colors.link),
         ))?;
+        if text != target {
+            w.queue(PrintStyledContent(format!(" ({target})").dim()))?;
+        }
     }
     Ok(())
 }
@@ -345,12 +473,14 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             write!(w, "[{}]", stem.content)?;
         }
         InlineMacro::IndexTerm(it) => {
+            // Collect entry for index catalog rendering
+            processor.add_index_entry(it.kind.clone());
+
             // Flow terms (visible): output the term text
             // Concealed terms (hidden): output nothing
             if it.is_visible() {
                 write!(w, "{}", it.term())?;
             }
-            // Concealed terms produce no output - they're only for index generation
         }
         _ => {
             return Err(std::io::Error::new(
@@ -421,16 +551,31 @@ mod tests {
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
         use crate::Appearance;
+        use acdc_converters_core::section::{
+            AppendixTracker, PartNumberTracker, SectionNumberTracker,
+        };
         use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
         let appearance = Appearance::detect();
+        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+        let part_number_tracker =
+            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let appendix_tracker =
+            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
             appearance,
+            section_number_tracker,
+            part_number_tracker,
+            appendix_tracker,
+            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
+            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         }
     }
 
@@ -582,17 +727,36 @@ mod tests {
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
 
-        // Check for presence of components rather than exact format with braces
         assert!(output.contains('x'), "Should contain base text");
         assert!(
-            output.contains("^{") && output.contains('2'),
-            "Should render superscript notation"
+            output.contains('\u{00B2}'),
+            "Should render '2' as Unicode superscript '²'"
         );
         Ok(())
     }
 
     #[test]
     fn test_subscript_text() -> Result<(), Error> {
+        let subscript = InlineNode::SubscriptText(Subscript {
+            content: vec![create_plain_text("2")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
+
+        assert!(output.contains('a'), "Should contain base text");
+        assert!(
+            output.contains('\u{2082}'),
+            "Should render '2' as Unicode subscript '₂'"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_subscript_fallback_for_letters() -> Result<(), Error> {
         let subscript = InlineNode::SubscriptText(Subscript {
             content: vec![create_plain_text("n")],
             role: None,
@@ -602,12 +766,35 @@ mod tests {
         });
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
-
-        // Check for presence of components rather than exact format with braces
-        assert!(output.contains('a'), "Should contain base text");
         assert!(
-            output.contains("_{") && output.contains('n'),
-            "Should render subscript notation"
+            output.contains("\x1b[2m"),
+            "Letters should fall back to dim styling, got: {output:?}"
+        );
+        assert!(
+            output.contains('n'),
+            "Should contain the original text, got: {output:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_superscript_fallback_for_letters() -> Result<(), Error> {
+        let superscript = InlineNode::SuperscriptText(Superscript {
+            content: vec![create_plain_text("abc")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![superscript])?;
+        assert!(
+            output.contains("\x1b[2m"),
+            "Letters should fall back to dim styling, got: {output:?}"
+        );
+        assert!(
+            output.contains("abc"),
+            "Should contain the original text, got: {output:?}"
         );
         Ok(())
     }
@@ -785,6 +972,117 @@ mod tests {
         assert!(
             !output.contains("anchor-id"),
             "Anchor ID should not be visible"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_highlight_text_with_underline_role() -> Result<(), Error> {
+        let highlight = InlineNode::HighlightText(Highlight {
+            content: vec![create_plain_text("underlined text")],
+            role: Some("underline".to_string()),
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![highlight])?;
+        assert!(
+            output.contains("underlined text"),
+            "Should contain the text"
+        );
+        // Should use ANSI underline attribute (\x1b[4m), NOT highlight colors
+        assert!(
+            output.contains("\x1b[4m"),
+            "Should contain ANSI underline code, got: {output:?}"
+        );
+        // Should NOT contain yellow background (highlight styling)
+        assert!(
+            !output.contains("\x1b[48;5;11m"),
+            "Should NOT use highlight background color for underline role"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_superscript_renders_unicode() -> Result<(), Error> {
+        let superscript = InlineNode::SuperscriptText(Superscript {
+            content: vec![create_plain_text("2")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
+        assert!(output.contains('x'), "Should contain base text");
+        assert!(
+            output.contains('\u{00B2}'),
+            "Should render '2' as Unicode superscript '²', got: {output:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_subscript_renders_unicode() -> Result<(), Error> {
+        let subscript = InlineNode::SubscriptText(Subscript {
+            content: vec![create_plain_text("2")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![create_plain_text("H"), subscript])?;
+        assert!(output.contains('H'), "Should contain base text");
+        assert!(
+            output.contains('\u{2082}'),
+            "Should render '2' as Unicode subscript '₂', got: {output:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_superscript_fallback_for_unsupported_chars() -> Result<(), Error> {
+        // Characters without Unicode superscript equivalents should fall back
+        let superscript = InlineNode::SuperscriptText(Superscript {
+            content: vec![create_plain_text("@")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![superscript])?;
+        assert!(
+            output.contains("\x1b[2m"),
+            "Should fall back to dim styling for unsupported chars, got: {output:?}"
+        );
+        assert!(
+            output.contains('@'),
+            "Should contain the original text, got: {output:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_subscript_fallback_for_unsupported_chars() -> Result<(), Error> {
+        let subscript = InlineNode::SubscriptText(Subscript {
+            content: vec![create_plain_text("@")],
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            location: Location::default(),
+        });
+
+        let output = render_paragraph(vec![subscript])?;
+        assert!(
+            output.contains("\x1b[2m"),
+            "Should fall back to dim styling for unsupported chars, got: {output:?}"
+        );
+        assert!(
+            output.contains('@'),
+            "Should contain the original text, got: {output:?}"
         );
         Ok(())
     }

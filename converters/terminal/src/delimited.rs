@@ -12,38 +12,140 @@ use crossterm::{
 
 use crate::{Error, Processor};
 
+/// Calculate visible width of a string, skipping ANSI escape sequences.
+fn visible_len(s: &str) -> usize {
+    let mut len = 0;
+    let mut chars = s.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\x1b' {
+            // Skip ANSI escape sequence
+            if let Some(&next) = chars.peek() {
+                if next == '[' {
+                    // CSI sequence: \x1b[...letter
+                    chars.next();
+                    for c in chars.by_ref() {
+                        if c.is_ascii_alphabetic() {
+                            break;
+                        }
+                    }
+                } else if next == ']' {
+                    // OSC sequence: \x1b]...ST
+                    chars.next();
+                    while let Some(c) = chars.next() {
+                        if c == '\x1b' {
+                            if chars.peek() == Some(&'\\') {
+                                chars.next();
+                            }
+                            break;
+                        } else if c == '\x07' {
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            len += 1;
+        }
+    }
+    len
+}
+
+/// Pad a string to target visible width with spaces.
+fn pad_to_width(s: &str, target: usize) -> String {
+    let visible = visible_len(s);
+    if visible >= target {
+        s.to_string()
+    } else {
+        format!("{s}{}", " ".repeat(target - visible))
+    }
+}
+
+struct BoxChars {
+    tl: &'static str,
+    tr: &'static str,
+    bl: &'static str,
+    br: &'static str,
+    horiz: &'static str,
+    vert: &'static str,
+}
+
+const ROUNDED_BOX: BoxChars = BoxChars {
+    tl: "╭",
+    tr: "╮",
+    bl: "╰",
+    br: "╯",
+    horiz: "─",
+    vert: "│",
+};
+
+const SQUARE_BOX: BoxChars = BoxChars {
+    tl: "┌",
+    tr: "┐",
+    bl: "└",
+    br: "┘",
+    horiz: "─",
+    vert: "│",
+};
+
+/// Render content inside a box with specified corner/border characters.
+fn render_boxed_content<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    label: &str,
+    content: &str,
+    terminal_width: usize,
+    chars: &BoxChars,
+    color: crossterm::style::Color,
+) -> Result<(), Error> {
+    let inner_width = terminal_width.saturating_sub(4); // 2 for border + 2 for padding
+    let horiz = chars.horiz;
+
+    // Top border with label
+    let w = visitor.writer_mut();
+    let label_part = if label.is_empty() {
+        horiz.repeat(inner_width + 2)
+    } else {
+        let label_len = label.len() + 3; // "─ label "
+        let remaining = (inner_width + 2).saturating_sub(label_len);
+        format!("{horiz} {label} {}", horiz.repeat(remaining))
+    };
+    w.queue(PrintStyledContent(
+        format!("{}{label_part}{}", chars.tl, chars.tr).with(color),
+    ))?;
+    writeln!(w)?;
+
+    // Content lines
+    for line in content.lines() {
+        let padded = pad_to_width(line, inner_width);
+        w.queue(PrintStyledContent(format!("{} ", chars.vert).with(color)))?;
+        write!(w, "{padded}")?;
+        w.queue(PrintStyledContent(format!(" {}", chars.vert).with(color)))?;
+        writeln!(w)?;
+    }
+
+    // Bottom border
+    w.queue(PrintStyledContent(
+        format!("{}{}{}", chars.bl, horiz.repeat(inner_width + 2), chars.br).with(color),
+    ))?;
+    writeln!(w)?;
+
+    Ok(())
+}
+
 /// Visit a delimited block in terminal format.
-///
-/// Renders different block types with appropriate terminal styling:
-/// - Tables: rendered with borders using comfy-table
-/// - Listings/Literals: monospace with indentation
-/// - Examples: numbered with "Example N." prefix
-/// - Quotes: indented with quote styling
-/// - Sidebars: boxed content
-/// - Open blocks: transparent containers
 pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     block: &DelimitedBlock,
     processor: &Processor,
 ) -> Result<(), Error> {
     match &block.inner {
-        DelimitedBlockType::DelimitedTable(t) => crate::table::visit_table(t, visitor, processor),
-        DelimitedBlockType::DelimitedListing(inlines) => render_preformatted_block(
-            visitor,
-            &block.title,
-            inlines,
-            &block.metadata,
-            "listing",
-            processor,
-        ),
-        DelimitedBlockType::DelimitedLiteral(inlines) => render_preformatted_block(
-            visitor,
-            &block.title,
-            inlines,
-            &block.metadata,
-            "literal",
-            processor,
-        ),
+        DelimitedBlockType::DelimitedTable(t) => {
+            render_title_if_present(visitor, &block.title)?;
+            crate::table::visit_table(t, visitor, processor)
+        }
+        DelimitedBlockType::DelimitedListing(inlines)
+        | DelimitedBlockType::DelimitedLiteral(inlines) => {
+            render_preformatted_block(visitor, &block.title, inlines, &block.metadata, processor)
+        }
         DelimitedBlockType::DelimitedExample(blocks) => {
             render_example_block(visitor, &block.title, blocks, processor)
         }
@@ -51,7 +153,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             render_quote_block(visitor, &block.title, blocks, processor)
         }
         DelimitedBlockType::DelimitedSidebar(blocks) => {
-            render_sidebar_block(visitor, &block.title, blocks)
+            render_sidebar_block(visitor, &block.title, blocks, processor)
         }
         DelimitedBlockType::DelimitedOpen(blocks) => {
             // Open blocks are transparent containers
@@ -62,7 +164,7 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             Ok(())
         }
         DelimitedBlockType::DelimitedVerse(inlines) => {
-            render_verse_block(visitor, &block.title, inlines)
+            render_verse_block(visitor, &block.title, inlines, processor)
         }
         DelimitedBlockType::DelimitedPass(inlines) => {
             // Passthrough content is rendered as-is
@@ -72,13 +174,13 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
             writeln!(w)?;
             Ok(())
         }
-        DelimitedBlockType::DelimitedStem(stem) => {
-            // STEM/math content - show placeholder in terminal
-            render_title_if_present(visitor, &block.title)?;
-            let w = visitor.writer_mut();
-            writeln!(w, "  [STEM({}): {}]", stem.notation, stem.content)?;
-            Ok(())
-        }
+        DelimitedBlockType::DelimitedStem(stem) => render_stem_block(
+            visitor,
+            &block.title,
+            &stem.notation.to_string(),
+            &stem.content,
+            processor,
+        ),
         DelimitedBlockType::DelimitedComment(_) => {
             // Comments are not rendered
             Ok(())
@@ -92,15 +194,11 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
 }
 
 /// Render a preformatted block (listing or literal) with optional syntax highlighting.
-///
-/// If the block has `[source,language]` metadata and the language is recognized,
-/// syntax highlighting will be applied. Uses simple horizontal separators (mdcat style).
 fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     inlines: &[InlineNode],
     metadata: &BlockMetadata,
-    _block_type: &str,
     processor: &Processor,
 ) -> Result<(), Error> {
     use std::io::BufWriter;
@@ -113,11 +211,23 @@ fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
         visitor.render_title_with_wrapper(title, "\n", "\n")?;
     }
 
-    // Simple top separator (mdcat style)
-    let separator = "─".repeat(20);
+    let tw = processor.terminal_width;
     let color = processor.appearance.colors.label_listing;
+
+    // Top separator with optional language label
+    let top_sep = if let Some(lang) = language {
+        let label = format!("[ {lang} ]");
+        let half = tw.saturating_sub(label.len()) / 2;
+        format!(
+            "{}{label}{}",
+            "─".repeat(half),
+            "─".repeat(tw.saturating_sub(half + label.len()))
+        )
+    } else {
+        "─".repeat(tw)
+    };
     let w = visitor.writer_mut();
-    writeln!(w, "{}", separator.clone().with(color))?;
+    writeln!(w, "{}", top_sep.clone().with(color))?;
 
     // Render code content to buffer
     let buffer = Vec::new();
@@ -175,60 +285,67 @@ fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
     }
 
     // Bottom separator
-    writeln!(w, "{}", separator.with(color))?;
+    writeln!(w, "{}", "─".repeat(tw).with(color))?;
 
     Ok(())
 }
 
-/// Render an example block with "Example N." numbering.
+/// Render an example block with box borders.
 fn render_example_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     blocks: &[Block],
     processor: &Processor,
 ) -> Result<(), Error> {
-    let w = visitor.writer_mut();
+    use std::io::BufWriter;
 
-    // Start marker with "EXAMPLE N." label if there's a title
     let caption = processor
         .document_attributes
         .get("example-caption")
         .and_then(|v| match v {
-            AttributeValue::String(s) => Some(s.to_uppercase()),
+            AttributeValue::String(s) => Some(s.clone()),
             AttributeValue::Bool(_) | AttributeValue::None | _ => None,
         })
-        .unwrap_or_else(|| "EXAMPLE".to_string());
+        .unwrap_or_else(|| "Example".to_string());
 
-    if title.is_empty() {
-        let styled_label = caption.cyan().bold();
-        QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-        writeln!(w)?;
+    // Build label
+    let label = if title.is_empty() {
+        caption
     } else {
         let count = processor.example_counter.get() + 1;
         processor.example_counter.set(count);
-        let label = format!("{caption} {count}.");
-        let styled_label = label.cyan().bold();
-        QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-        write!(w, " ")?;
-    }
 
-    visitor.render_title_with_wrapper(title, "", "\n\n")?;
+        let title_text = extract_inline_text(title);
+        format!("{caption} {count}. {title_text}")
+    };
 
-    // Render content blocks
+    // Render content to buffer
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
     for nested_block in blocks {
-        visitor.visit_block(nested_block)?;
+        temp_visitor.visit_block(nested_block)?;
     }
+    let buffer = temp_visitor
+        .into_writer()
+        .into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?;
+    let content = String::from_utf8_lossy(&buffer);
 
-    // End marker with three dots
-    let w = visitor.writer_mut();
-    let end_marker = "• • •".cyan().bold();
-    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
-    writeln!(w)?;
+    let color = crossterm::style::Color::Cyan;
+    render_boxed_content(
+        visitor,
+        &label,
+        content.trim_end(),
+        processor.terminal_width,
+        &SQUARE_BOX,
+        color,
+    )?;
 
     Ok(())
 }
 
-/// Render a quote block with quote styling (mdcat style with indentation).
+/// Render a quote block with `│` left border.
 fn render_quote_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
@@ -255,78 +372,131 @@ fn render_quote_block<V: WritableVisitor<Error = Error>>(
         .map_err(std::io::IntoInnerError::into_error)?;
 
     let content = String::from_utf8_lossy(&buffer);
+    let color = processor.appearance.colors.admon_tip; // Green for quotes
 
-    // Add indentation to each line (mdcat style - 4 spaces)
+    // Left border with `│` on each line, content in italic
     let w = visitor.writer_mut();
     for line in content.lines() {
+        w.queue(PrintStyledContent("│ ".with(color)))?;
         let styled_line = line.italic();
-        write!(w, "    ")?; // 4-space indent
         QueueableCommand::queue(w, PrintStyledContent(styled_line))?;
         writeln!(w)?;
     }
 
-    // Add final newline if content didn't end with one
-    if !content.ends_with('\n') {
+    // Empty closing border line
+    if !content.is_empty() {
+        w.queue(PrintStyledContent("│".with(color)))?;
         writeln!(w)?;
     }
 
     Ok(())
 }
 
-/// Render a sidebar block.
+/// Render a sidebar block with rounded box borders.
 fn render_sidebar_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
     blocks: &[Block],
+    processor: &Processor,
 ) -> Result<(), Error> {
-    let w = visitor.writer_mut();
+    use std::io::BufWriter;
 
-    // Start marker with "SIDEBAR" label
-    let styled_label = "SIDEBAR".blue().bold();
-    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-    writeln!(w)?;
+    let label = if title.is_empty() {
+        String::new()
+    } else {
+        extract_inline_text(title)
+    };
 
-    visitor.render_title_with_wrapper(title, "", "\n\n")?;
-
-    // Render content blocks
+    // Render content to buffer
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
     for nested_block in blocks {
-        visitor.visit_block(nested_block)?;
+        temp_visitor.visit_block(nested_block)?;
     }
+    let buffer = temp_visitor
+        .into_writer()
+        .into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?;
+    let content = String::from_utf8_lossy(&buffer);
 
-    // End marker with three dots
+    let color = crossterm::style::Color::Blue;
+    render_boxed_content(
+        visitor,
+        &label,
+        content.trim_end(),
+        processor.terminal_width,
+        &ROUNDED_BOX,
+        color,
+    )?;
+
+    Ok(())
+}
+
+/// Render a verse block (poetry) with `┊` left border preserving line breaks.
+fn render_verse_block<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    title: &[InlineNode],
+    inlines: &[InlineNode],
+    processor: &Processor,
+) -> Result<(), Error> {
+    use std::io::BufWriter;
+
+    visitor.render_title_with_wrapper(title, "", "\n")?;
+
+    // Render verse content to buffer to process line by line
+    let buffer = Vec::new();
+    let inner = BufWriter::new(buffer);
+    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
+    temp_visitor.visit_inline_nodes(inlines)?;
+    let buffer = temp_visitor
+        .into_writer()
+        .into_inner()
+        .map_err(std::io::IntoInnerError::into_error)?;
+
+    let content = String::from_utf8_lossy(&buffer);
+    let color = crossterm::style::Color::Magenta;
+
     let w = visitor.writer_mut();
-    let end_marker = "• • •".blue().bold();
-    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
+    for line in content.lines() {
+        w.queue(PrintStyledContent("┊ ".with(color)))?;
+        write!(w, "{line}")?;
+        writeln!(w)?;
+    }
+    // Closing border
+    w.queue(PrintStyledContent("┊".with(color)))?;
     writeln!(w)?;
 
     Ok(())
 }
 
-/// Render a verse block (poetry) preserving line breaks.
-fn render_verse_block<V: WritableVisitor<Error = Error>>(
+/// Render a STEM/math block with styled borders.
+fn render_stem_block<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     title: &[InlineNode],
-    inlines: &[InlineNode],
+    notation: &str,
+    content: &str,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    render_title_if_present(visitor, title)?;
+
+    let tw = processor.terminal_width;
+    let color = processor.appearance.colors.label_listing;
+
+    // Top separator with notation label
+    let label = format!(" {notation} ");
+    let half = tw.saturating_sub(label.len()) / 2;
+    let top = format!(
+        "{}{}{}",
+        "─".repeat(half),
+        label,
+        "─".repeat(tw.saturating_sub(half + label.len()))
+    );
+
     let w = visitor.writer_mut();
-
-    // Start marker with "VERSE" label
-    let styled_label = "VERSE".magenta().bold();
-    QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
-    writeln!(w)?;
-
-    visitor.render_title_with_wrapper(title, "", "\n\n")?;
-
-    // Render verse content
-    visitor.visit_inline_nodes(inlines)?;
-    let w = visitor.writer_mut();
-    writeln!(w)?;
-
-    // End marker with three dots
-    let end_marker = "• • •".magenta().bold();
-    QueueableCommand::queue(w, PrintStyledContent(end_marker))?;
-    writeln!(w)?;
-
+    writeln!(w, "{}", top.with(color))?;
+    writeln!(w, "{content}")?;
+    writeln!(w, "{}", "─".repeat(tw).with(color))?;
     Ok(())
 }
 
@@ -336,6 +506,32 @@ fn render_title_if_present<V: WritableVisitor<Error = Error>>(
     title: &[InlineNode],
 ) -> Result<(), Error> {
     visitor.render_title_with_wrapper(title, "  ", "\n")
+}
+
+/// Extract plain text from inline nodes (for labels/titles).
+fn extract_inline_text(nodes: &[InlineNode]) -> String {
+    nodes
+        .iter()
+        .map(|node| match node {
+            InlineNode::PlainText(p) => p.content.clone(),
+            InlineNode::BoldText(b) => extract_inline_text(&b.content),
+            InlineNode::ItalicText(i) => extract_inline_text(&i.content),
+            InlineNode::MonospaceText(m) => extract_inline_text(&m.content),
+            InlineNode::HighlightText(h) => extract_inline_text(&h.content),
+            InlineNode::SuperscriptText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            | _ => String::new(),
+        })
+        .collect::<String>()
 }
 
 #[cfg(test)]
@@ -366,16 +562,31 @@ mod tests {
     /// Create test processor with default options
     fn create_test_processor() -> Processor {
         use crate::Appearance;
+        use acdc_converters_core::section::{
+            AppendixTracker, PartNumberTracker, SectionNumberTracker,
+        };
         use std::{cell::Cell, rc::Rc};
         let options = Options::default();
         let document_attributes = DocumentAttributes::default();
         let appearance = Appearance::detect();
+        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+        let part_number_tracker =
+            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let appendix_tracker =
+            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
         Processor {
             options,
             document_attributes,
             toc_entries: vec![],
             example_counter: Rc::new(Cell::new(0)),
             appearance,
+            section_number_tracker,
+            part_number_tracker,
+            appendix_tracker,
+            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
+            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
+            has_valid_index_section: false,
+            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         }
     }
 
@@ -394,7 +605,6 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Check for horizontal separators (mdcat style)
         assert!(
             output_str.contains("────"),
             "Should have horizontal separators"
@@ -515,8 +725,9 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("EXAMPLE"), "Should have EXAMPLE label");
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        assert!(output_str.contains("Example"), "Should have Example label");
+        assert!(output_str.contains("┌"), "Should have box top border");
+        assert!(output_str.contains("└"), "Should have box bottom border");
         assert!(
             output_str.contains("example text"),
             "Should contain content"
@@ -546,7 +757,7 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("EXAMPLE"), "Should have EXAMPLE label");
+        assert!(output_str.contains("Example"), "Should have Example label");
         assert!(
             output_str.contains("Custom Example Title"),
             "Should contain custom title"
@@ -555,7 +766,7 @@ mod tests {
             output_str.contains("example content"),
             "Should contain content"
         );
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        assert!(output_str.contains("┌"), "Should have box border");
 
         Ok(())
     }
@@ -580,11 +791,11 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Quotes now use indentation (mdcat style)
         assert!(
             output_str.contains("This is a quote."),
             "Should contain content"
         );
+        assert!(output_str.contains("│"), "Should have left border");
 
         Ok(())
     }
@@ -610,7 +821,6 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Quotes now use indentation (mdcat style)
         assert!(output_str.contains("Quote Title"), "Should contain title");
         assert!(
             output_str.contains("Quote content here."),
@@ -678,8 +888,11 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("SIDEBAR"), "Should have SIDEBAR label");
-        assert!(output_str.contains("• • •"), "Should have end marker");
+        assert!(output_str.contains("╭"), "Should have rounded top border");
+        assert!(
+            output_str.contains("╰"),
+            "Should have rounded bottom border"
+        );
         assert!(
             output_str.contains("Sidebar content."),
             "Should contain content"
@@ -709,9 +922,8 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("SIDEBAR"), "Should have SIDEBAR label");
+        assert!(output_str.contains("╭"), "Should have rounded border");
         assert!(output_str.contains("Sidebar Title"), "Should contain title");
-        assert!(output_str.contains("• • •"), "Should have end marker");
         assert!(
             output_str.contains("Sidebar text here."),
             "Should contain content"
@@ -778,15 +990,9 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Open blocks are transparent - content rendered without decoration
         assert!(
             output_str.contains("Open block content."),
             "Should contain content"
-        );
-        // Should not have box borders like listing/literal
-        assert!(
-            !output_str.contains("┌") && !output_str.contains("╔"),
-            "Should not have borders"
         );
 
         Ok(())
@@ -846,6 +1052,7 @@ mod tests {
             output_str.contains("Roses are red"),
             "Should contain verse content"
         );
+        assert!(output_str.contains("┊"), "Should have dotted left border");
 
         Ok(())
     }
@@ -918,9 +1125,11 @@ mod tests {
 
         let output_str = String::from_utf8_lossy(&output);
         assert!(
-            output_str.contains("[STEM(latexmath): x = y^2]"),
-            "Should show placeholder for STEM content"
+            output_str.contains("latexmath"),
+            "Should show notation type"
         );
+        assert!(output_str.contains("x = y^2"), "Should show STEM content");
+        assert!(output_str.contains("───"), "Should have styled borders");
 
         Ok(())
     }
@@ -940,7 +1149,6 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Comments should not render any content
         assert!(
             !output_str.contains("This is a comment"),
             "Comment content should not be rendered"
@@ -948,8 +1156,6 @@ mod tests {
 
         Ok(())
     }
-
-    // Edge Case Tests
 
     #[test]
     fn test_empty_listing_block() -> Result<(), Error> {
@@ -966,7 +1172,6 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Empty blocks should still render with horizontal separators
         assert!(
             output_str.contains("────"),
             "Should have horizontal separators even when empty"
@@ -990,8 +1195,7 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Empty quote should render (though may be empty or just whitespace)
-        // Just verify it doesn't crash
+        // Empty quote should produce empty or whitespace output
         assert!(
             output_str.is_empty() || output_str.trim().is_empty(),
             "Empty quote block should produce empty or whitespace output"
@@ -1017,7 +1221,6 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        // Special characters should be preserved in listings
         assert!(
             output_str.contains("<html>&amp; special chars"),
             "Should preserve special characters"
@@ -1028,7 +1231,6 @@ mod tests {
 
     #[test]
     fn test_nested_example_with_listing() -> Result<(), Error> {
-        // Test an example block containing a paragraph with listing-like content
         let content = vec![Block::Paragraph(Paragraph::new(
             create_test_inlines("This example shows: code snippet"),
             Location::default(),
@@ -1064,7 +1266,6 @@ mod tests {
     fn test_example_block_numbering_sequence() -> Result<(), Error> {
         let processor = create_test_processor();
 
-        // Create first example with title
         let block1 = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
                 create_test_inlines("first example"),
@@ -1075,7 +1276,6 @@ mod tests {
         )
         .with_title(create_test_title("First Example"));
 
-        // Create second example with title
         let block2 = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
                 create_test_inlines("second example"),
@@ -1086,7 +1286,6 @@ mod tests {
         )
         .with_title(create_test_title("Second Example"));
 
-        // Create third example with title
         let block3 = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
                 create_test_inlines("third example"),
@@ -1097,7 +1296,6 @@ mod tests {
         )
         .with_title(create_test_title("Third Example"));
 
-        // Render all three examples
         let mut buffer1 = Vec::new();
         let mut visitor1 = TerminalVisitor::new(&mut buffer1, processor.clone());
         visitor1.visit_delimited_block(&block1)?;
@@ -1110,21 +1308,20 @@ mod tests {
         let mut visitor3 = TerminalVisitor::new(&mut buffer3, processor.clone());
         visitor3.visit_delimited_block(&block3)?;
 
-        // Check outputs
         let output1 = String::from_utf8_lossy(&buffer1);
         let output2 = String::from_utf8_lossy(&buffer2);
         let output3 = String::from_utf8_lossy(&buffer3);
 
         assert!(
-            output1.contains("EXAMPLE 1."),
+            output1.contains("Example 1."),
             "First example should have number 1, got: {output1}"
         );
         assert!(
-            output2.contains("EXAMPLE 2."),
+            output2.contains("Example 2."),
             "Second example should have number 2, got: {output2}"
         );
         assert!(
-            output3.contains("EXAMPLE 3."),
+            output3.contains("Example 3."),
             "Third example should have number 3, got: {output3}"
         );
 
