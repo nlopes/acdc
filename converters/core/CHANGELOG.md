@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Section numbering utilities** — new `section` module with `SectionNumberTracker`,
+  `PartNumberTracker`, `AppendixTracker`, and `to_upper_roman` moved from `acdc-converters-html`
+  so they can be shared across converters.
 - `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
   `Doctype`, and `IconMode` for semver-safe future additions
 - Comprehensive module-level documentation

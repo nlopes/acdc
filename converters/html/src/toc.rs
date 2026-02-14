@@ -3,10 +3,9 @@ use std::io::Write;
 use acdc_converters_core::{toc::Config as TocConfig, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, TableOfContents, TocEntry};
 
-use crate::{
-    Error, HtmlVariant, HtmlVisitor, Processor,
-    section::{DEFAULT_SECTION_LEVEL, to_upper_roman},
-};
+use acdc_converters_core::section::{DEFAULT_SECTION_LEVEL, to_upper_roman};
+
+use crate::{Error, HtmlVariant, HtmlVisitor, Processor};
 
 struct SectionNumberConfig<'a> {
     sectnums_enabled: bool,

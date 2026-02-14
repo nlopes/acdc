@@ -38,6 +38,7 @@ mod backend;
 pub mod code;
 mod doctype;
 pub mod icon;
+pub mod section;
 pub mod substitutions;
 pub mod table;
 pub mod toc;

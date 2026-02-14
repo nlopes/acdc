@@ -170,6 +170,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Section numbering types moved to `acdc-converters-core`** — `SectionNumberTracker`,
+  `PartNumberTracker`, `AppendixTracker`, `to_upper_roman`, and `DEFAULT_SECTION_LEVEL`
+  are now re-exported from `acdc-converters-core::section` instead of being defined locally.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
 [#280]: https://github.com/nlopes/acdc/issues/280

@@ -29,9 +29,11 @@ mod table;
 mod toc;
 mod video;
 
+pub(crate) use acdc_converters_core::section::{
+    AppendixTracker, PartNumberTracker, SectionNumberTracker,
+};
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
-pub(crate) use section::{AppendixTracker, PartNumberTracker, SectionNumberTracker};
 
 /// Controls the HTML output style.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
