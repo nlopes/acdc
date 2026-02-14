@@ -31,11 +31,11 @@ pub struct Args {
     pub files: Vec<PathBuf>,
 
     /// Backend output format
-    #[arg(long, value_parser = clap::value_parser!(Backend), default_value_t = Backend::Html)]
+    #[arg(short = 'b', long, value_parser = clap::value_parser!(Backend), default_value_t = Backend::Html)]
     pub backend: Backend,
 
     /// Document type to use when converting document
-    #[arg(long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
+    #[arg(short = 'd', long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
     pub doctype: Doctype,
 
     /// Set safe mode to safe
@@ -43,11 +43,11 @@ pub struct Args {
     pub safe: bool,
 
     /// Safe mode to use when converting document
-    #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "unsafe")]
+    #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "unsafe", conflicts_with = "safe")]
     pub safe_mode: SafeMode,
 
     /// Show timing information
-    #[arg(long)]
+    #[arg(short = 't', long)]
     pub timings: bool,
 
     /// Attributes to pass to the backend
