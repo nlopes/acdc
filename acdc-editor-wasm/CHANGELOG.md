@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-14
+
 ### Added
 
 - Add `:toc: macro` and `toc::[]` to the default template.
@@ -55,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions release workflow (`release-editor-wasm.yml`) for building
   with wasm-pack and publishing as GitHub Release assets
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.2...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.3.0...HEAD
+[0.3.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.2...acdc-editor-wasm-v0.3.0
 [0.2.2]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.1...acdc-editor-wasm-v0.2.2
 [0.2.1]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.0...acdc-editor-wasm-v0.2.1
 [0.2.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.1.0...acdc-editor-wasm-v0.2.0

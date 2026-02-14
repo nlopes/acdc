@@ -1,6 +1,6 @@
 [package]
 name = "acdc-editor-wasm"
-version = "0.2.2"
+version = "0.3.0"
 edition.workspace = true
 description = "WASM-based AsciiDoc live editor with syntax highlighting and preview"
 repository = "https://github.com/nlopes/acdc"
