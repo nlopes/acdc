@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-14
+
 ### Added
 
 - **`style` field on `TocEntry`** — TOC entries now carry the section's style (e.g.,
@@ -320,8 +322,12 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#323]: https://github.com/nlopes/acdc/issues/323
 [#327]: https://github.com/nlopes/acdc/issues/327
 [#332]: https://github.com/nlopes/acdc/issues/332
+[#312]: https://github.com/nlopes/acdc/issues/312
 [#335]: https://github.com/nlopes/acdc/issues/335
+[#337]: https://github.com/nlopes/acdc/issues/337
+[#343]: https://github.com/nlopes/acdc/issues/343
 
+[0.5.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.5.0
 [0.4.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.4.0
 [0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0
 [0.2.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.2.0
