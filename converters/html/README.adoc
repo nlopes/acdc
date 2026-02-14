@@ -78,6 +78,125 @@ acdc convert document.adoc
 
 Falls back to plain text when the language isn't recognized.
 
+### Stylesheets
+
+The HTML converter handles CSS output through document attributes, matching https://docs.asciidoctor.org/asciidoctor/latest/html-backend/stylesheet-modes/[Asciidoctor's stylesheet modes]. By default, CSS is embedded directly in the HTML `<style>` tag — no external files needed.
+
+NOTE: Stylesheet handling only applies to standalone HTML output. In embedded mode (`acdc convert --embedded`), the `<head>` element is not generated, so stylesheet attributes have no effect on the output. `copycss` is also skipped.
+
+#### Default (embedded CSS)
+
+Out of the box, acdc embeds the full stylesheet and links Google Fonts:
+
+[source,console]
+....
+acdc convert document.adoc
+....
+
+The output is self-contained — one HTML file with everything included.
+
+#### External stylesheet (`:linkcss:`)
+
+Set `:linkcss:` to reference CSS via a `<link>` tag instead of embedding it. The built-in stylesheet is automatically written to disk next to the HTML output (see https://docs.asciidoctor.org/asciidoctor/latest/html-backend/stylesheet-modes/#link-mode[link mode]):
+
+[source,console]
+....
+acdc convert -a linkcss document.adoc
+....
+
+Or in the document header:
+
+[source,asciidoc]
+....
+= My Document
+:linkcss:
+....
+
+This produces a `<link rel="stylesheet" href="./asciidoctor-light-mode.css">` in the HTML and copies the CSS file alongside the output.
+
+#### Custom stylesheet (`:stylesheet:`)
+
+Point to your own CSS file with `:stylesheet:`. When combined with `:linkcss:`, it links to the file. Without `:linkcss:`, the file is read from disk and embedded (see https://docs.asciidoctor.org/asciidoctor/latest/html-backend/stylesheet-modes/#custom[custom stylesheet]):
+
+[source,console]
+....
+# Embed custom CSS
+acdc convert -a stylesheet=custom.css document.adoc
+
+# Link to custom CSS
+acdc convert -a linkcss -a stylesheet=custom.css document.adoc
+....
+
+The converter looks for the file relative to `:stylesdir:` (default: `.`) and the source document directory. If the file can't be read, it falls back to the built-in stylesheet.
+
+#### No stylesheet (`:!stylesheet:`)
+
+Suppress all CSS and webfont output entirely (see https://docs.asciidoctor.org/asciidoctor/latest/html-backend/stylesheet-modes/#disable[disable mode]):
+
+[source,console]
+....
+acdc convert -a stylesheet! document.adoc
+....
+
+Or in the document:
+
+[source,asciidoc]
+....
+= My Document
+:!stylesheet:
+....
+
+No `<style>` block, no `<link>` tags for CSS or fonts — just raw HTML.
+
+#### Styles directory (`:stylesdir:`)
+
+Controls where stylesheet references point and where copies are written (see https://docs.asciidoctor.org/asciidoctor/latest/html-backend/manage-images/#stylesdir[stylesdir]):
+
+[source,console]
+....
+acdc convert -a linkcss -a stylesdir=css document.adoc
+....
+
+Produces `<link rel="stylesheet" href="css/asciidoctor-light-mode.css">` and writes the CSS to `css/`.
+
+#### Copy CSS (`:copycss:`)
+
+When `:linkcss:` is set, `:copycss:` controls whether the stylesheet is written to the output directory. It's enabled by default. A non-empty value overrides the source path — useful when the CSS lives somewhere other than `:stylesdir:` (see https://docs.asciidoctor.org/asciidoctor/latest/html-backend/manage-images/#copycss[copycss]):
+
+[source,console]
+....
+# Copy from a custom location
+acdc convert -a linkcss -a copycss=/path/to/source.css document.adoc
+....
+
+#### Webfonts (`:webfonts:`)
+
+By default, the converter links Google Fonts (Open Sans, Noto Serif, Droid Sans Mono). You can customize or disable this (see https://docs.asciidoctor.org/asciidoctor/latest/html-backend/default-stylesheet/#webfonts[webfonts]):
+
+[source,console]
+....
+# Disable webfonts
+acdc convert -a webfonts! document.adoc
+
+# Custom font families
+acdc convert -a "webfonts=Roboto:400,700|Fira+Code:400" document.adoc
+....
+
+Webfonts are suppressed automatically when `:!stylesheet:` is set.
+
+#### Dark mode
+
+Set `:dark-mode:` to use the dark variant of the built-in stylesheet. This adds a `<meta name="color-scheme" content="dark">` tag and uses `asciidoctor-dark-mode.css` (or `html5s-dark-mode.css` for the semantic backend):
+
+[source,console]
+....
+acdc convert -a dark-mode document.adoc
+....
+
+#### Syntax highlighting CSS
+
+When using class-based syntax highlighting (`:syntect-css: class`), the highlighting CSS is handled the same way — embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
+
 ### Table Enhancements
 
 Full table feature support:

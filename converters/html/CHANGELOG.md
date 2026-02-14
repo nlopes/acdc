@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **No-stylesheet mode (`:!stylesheet:`)** — setting `:!stylesheet:` now disables all
+  stylesheet output: no embedded `<style>`, no linked `<link>`, no Google Fonts link, and
+  no `copycss` file writing. Other head elements (MathJax, Font Awesome, syntax CSS) are
+  still rendered.
+- **Webfonts attribute control** — the `:webfonts:` attribute now controls the Google Fonts
+  `<link>` tag: `:!webfonts:` suppresses it entirely, a custom value like
+  `:webfonts: Roboto:400,700` uses that value in the URL, and the default (empty) emits
+  the standard Open Sans / Noto Serif / Droid Sans Mono link.
+- **Built-in stylesheet copying for `linkcss`** — when `:linkcss:` is set with the default
+  stylesheet, the built-in CSS content is now written to disk (e.g., `asciidoctor-light-mode.css`)
+  instead of silently failing because no source file exists.
+- **`copycss` source path override** — when `:copycss:` has a non-empty string value, it is
+  used as the source file path to read the stylesheet from, decoupling the source location
+  from the output filename specified by `:stylesheet:`.
 - **Appendix support (`[appendix]` style on level-0 sections)** — in book doctype, level-0
   sections with `[appendix]` style are demoted to level 1 and prefixed with "Appendix A: ",
   "Appendix B: ", etc. in both section headings and TOC entries. The caption is configurable
@@ -17,6 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:partnums:` now render part headings and TOC entries with uppercase Roman numeral
   prefixes (e.g., "Part I. ", "Part II. "). The signifier text is configurable via
   `:part-signifier:`. Chapter numbering resets at each part boundary. ([#342])
+- **Custom embedded stylesheets** — when `stylesheet` and `stylesdir` attributes are set
+  without `linkcss`, the CSS file is read from disk and embedded in a `<style>` tag,
+  replacing the default stylesheet. Falls back to the built-in CSS if the file cannot be
+  read.
+- **CSS class-based syntax highlighting** — new `:syntect-css: class` document attribute
+  switches syntax highlighting from inline `style=` attributes to CSS class names
+  (`class="syntax-*"`). A corresponding `<style>` block with theme CSS is automatically
+  embedded in `<head>`. When `:linkcss:` is set, the CSS is instead linked via
+  `<link rel="stylesheet" href="{stylesdir}/acdc-syntect.css">` and written to disk
+  alongside the HTML output (analogous to asciidoctor's `asciidoctor-coderay.css`).
+  The `:syntect-style:` attribute allows overriding the default theme
+  (e.g., `:syntect-style: Solarized (dark)`). Inline mode remains the default
+  for backward compatibility. ([#341])
 - **Book doctype parts rendering** — level 0 sections render as standalone
   `<h1 class="sect0">` (no wrapper div), matching asciidoctor. Body class now respects
   `:doctype: book` document attribute, and TOC includes level 0 entries. ([#312])
@@ -75,6 +102,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`copycss` skipped in embedded mode** — `after_write()` no longer runs `handle_copycss()`
+  or `handle_copy_syntax_css()` when embedded mode is active, matching asciidoctor's behavior
+  of only writing stylesheet files for standalone output.
 - **Curly quotes no longer over-applied** — single quotes are now only converted to
   `&#8217;` when they appear between alphanumeric characters (actual apostrophes like
   `it's`). Previously, `'word'` pairs were incorrectly converted to curly quotes.
