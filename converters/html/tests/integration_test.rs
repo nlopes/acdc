@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acdc_converters_core::{Backend, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, Options as ParserOptions};
+use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -573,6 +573,394 @@ mod copycss {
                 .collect::<Vec<_>>()
         );
 
+        Ok(())
+    }
+}
+
+mod docinfo {
+    use super::*;
+
+    /// Helper: create a temp dir with an `.adoc` source file and optional docinfo files,
+    /// parse it, and return the converted HTML string.
+    fn convert_with_docinfo(
+        adoc_content: &str,
+        docinfo_files: &[(&str, &str)],
+        embedded: bool,
+        safe_mode: SafeMode,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let tmp = tempfile::tempdir()?;
+        let adoc_path = tmp.path().join("mydoc.adoc");
+        std::fs::write(&adoc_path, adoc_content)?;
+
+        for (name, content) in docinfo_files {
+            std::fs::write(tmp.path().join(name), content)?;
+        }
+
+        let parser_options = ParserOptions::default();
+        let doc = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+
+        let converter_options = ConverterOptions::builder()
+            .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+            .safe_mode(safe_mode)
+            .build();
+        let processor = Processor::new_with_variant(
+            converter_options,
+            doc.attributes.clone(),
+            HtmlVariant::Standard,
+        );
+        let render_options = RenderOptions {
+            embedded,
+            source_dir: Some(tmp.path().to_path_buf()),
+            docname: Some("mydoc".to_string()),
+            ..RenderOptions::default()
+        };
+
+        let html = processor.convert_to_string(&doc, &render_options)?;
+        Ok(html)
+    }
+
+    #[test]
+    fn shared_head_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n\nHello.\n",
+            &[("docinfo.html", "<style>.custom { color: red; }</style>")],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<style>.custom { color: red; }</style>"),
+            "shared head docinfo content should be in output"
+        );
+        // Content should appear before </head>
+        let before_head_close = html.split("</head>").next().unwrap_or("");
+        assert!(
+            before_head_close.contains("<style>.custom { color: red; }</style>"),
+            "docinfo head content should appear before </head>"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn private_head_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: private\n\nHello.\n",
+            &[(
+                "mydoc-docinfo.html",
+                "<meta name=\"custom\" content=\"value\">",
+            )],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<meta name=\"custom\" content=\"value\">"),
+            "private head docinfo content should be in output"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shared_header_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n\nHello.\n",
+            &[(
+                "docinfo-header.html",
+                "<div id=\"custom-banner\">Banner</div>",
+            )],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<div id=\"custom-banner\">Banner</div>"),
+            "shared header docinfo content should be in output"
+        );
+        // Content should appear after <body...>
+        let after_body_open = html.split("<body").nth(1).unwrap_or("");
+        assert!(
+            after_body_open.contains("<div id=\"custom-banner\">Banner</div>"),
+            "docinfo header content should appear after <body>"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn private_header_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: private\n\nHello.\n",
+            &[(
+                "mydoc-docinfo-header.html",
+                "<nav id=\"private-nav\">Nav</nav>",
+            )],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<nav id=\"private-nav\">Nav</nav>"),
+            "private header docinfo content should be in output"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn shared_footer_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n\nHello.\n",
+            &[(
+                "docinfo-footer.html",
+                "<script>console.log('analytics');</script>",
+            )],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<script>console.log('analytics');</script>"),
+            "shared footer docinfo content should be in output"
+        );
+        // Content should appear before </body>
+        let before_body_close = html.split("</body>").next().unwrap_or("");
+        assert!(
+            before_body_close.contains("<script>console.log('analytics');</script>"),
+            "docinfo footer content should appear before </body>"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn private_footer_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: private\n\nHello.\n",
+            &[(
+                "mydoc-docinfo-footer.html",
+                "<div id=\"private-footer\">PF</div>",
+            )],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<div id=\"private-footer\">PF</div>"),
+            "private footer docinfo content should be in output"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn combined_shared_and_private() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared,private\n\nHello.\n",
+            &[
+                ("docinfo.html", "<!-- shared-head -->"),
+                ("mydoc-docinfo.html", "<!-- private-head -->"),
+                ("docinfo-header.html", "<!-- shared-header -->"),
+                ("mydoc-docinfo-header.html", "<!-- private-header -->"),
+                ("docinfo-footer.html", "<!-- shared-footer -->"),
+                ("mydoc-docinfo-footer.html", "<!-- private-footer -->"),
+            ],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        // All six should be present
+        assert!(html.contains("<!-- shared-head -->"), "shared head missing");
+        assert!(
+            html.contains("<!-- private-head -->"),
+            "private head missing"
+        );
+        assert!(
+            html.contains("<!-- shared-header -->"),
+            "shared header missing"
+        );
+        assert!(
+            html.contains("<!-- private-header -->"),
+            "private header missing"
+        );
+        assert!(
+            html.contains("<!-- shared-footer -->"),
+            "shared footer missing"
+        );
+        assert!(
+            html.contains("<!-- private-footer -->"),
+            "private footer missing"
+        );
+
+        // Private should appear before shared (within each position)
+        let before_shared = html.split("<!-- shared-head -->").next().unwrap_or("");
+        assert!(
+            before_shared.contains("<!-- private-head -->"),
+            "private head should come before shared head"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn embedded_mode_skips_docinfo() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n\nHello.\n",
+            &[
+                ("docinfo.html", "<!-- should-not-appear -->"),
+                ("docinfo-footer.html", "<!-- also-hidden -->"),
+            ],
+            true,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            !html.contains("<!-- should-not-appear -->"),
+            "docinfo head should not appear in embedded mode"
+        );
+        assert!(
+            !html.contains("<!-- also-hidden -->"),
+            "docinfo footer should not appear in embedded mode"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn missing_file_no_error() -> Result<(), Box<dyn std::error::Error>> {
+        // No docinfo files present, should not error
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n\nHello.\n",
+            &[],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        // Should still produce valid HTML
+        assert!(html.contains("<!DOCTYPE html>"));
+        assert!(html.contains("</html>"));
+        Ok(())
+    }
+
+    #[test]
+    fn docinfodir_overrides_source_dir() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = tempfile::tempdir()?;
+
+        // Create source file in root
+        let adoc_path = tmp.path().join("mydoc.adoc");
+        std::fs::write(
+            &adoc_path,
+            "= Title\n:docinfo: shared\n:docinfodir: custom-docinfo\n\nHello.\n",
+        )?;
+
+        // Create docinfo in a subdirectory
+        let docinfo_dir = tmp.path().join("custom-docinfo");
+        std::fs::create_dir(&docinfo_dir)?;
+        std::fs::write(docinfo_dir.join("docinfo.html"), "<!-- from-custom-dir -->")?;
+
+        // Also create one in source dir (should NOT be picked up)
+        std::fs::write(tmp.path().join("docinfo.html"), "<!-- from-source-dir -->")?;
+
+        let parser_options = ParserOptions::default();
+        let doc = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+
+        let converter_options = ConverterOptions::builder()
+            .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+            .build();
+        let processor = Processor::new_with_variant(
+            converter_options,
+            doc.attributes.clone(),
+            HtmlVariant::Standard,
+        );
+        let render_options = RenderOptions {
+            source_dir: Some(tmp.path().to_path_buf()),
+            docname: Some("mydoc".to_string()),
+            ..RenderOptions::default()
+        };
+
+        let html = processor.convert_to_string(&doc, &render_options)?;
+
+        assert!(
+            html.contains("<!-- from-custom-dir -->"),
+            "should use docinfo from docinfodir"
+        );
+        assert!(
+            !html.contains("<!-- from-source-dir -->"),
+            "should not use docinfo from source dir when docinfodir is set"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn secure_safe_mode_disables_docinfo() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n\nHello.\n",
+            &[("docinfo.html", "<!-- secret-content -->")],
+            false,
+            SafeMode::Secure,
+        )?;
+
+        assert!(
+            !html.contains("<!-- secret-content -->"),
+            "docinfo should not appear in secure safe mode"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn attribute_substitution_in_docinfo() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared\n:my-custom-attr: replaced-value\n\nHello.\n",
+            &[(
+                "docinfo.html",
+                "<meta name=\"custom\" content=\"{my-custom-attr}\">",
+            )],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<meta name=\"custom\" content=\"replaced-value\">"),
+            "attribute references in docinfo should be substituted"
+        );
+        assert!(
+            !html.contains("{my-custom-attr}"),
+            "raw attribute reference should not remain"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn docinfo_bare_attribute_defaults_to_private() -> Result<(), Box<dyn std::error::Error>> {
+        // `:docinfo:` with no value should default to "private"
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo:\n\nHello.\n",
+            &[("mydoc-docinfo.html", "<!-- private-default -->")],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<!-- private-default -->"),
+            "bare :docinfo: should default to private scope"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn granular_shared_head_only() -> Result<(), Box<dyn std::error::Error>> {
+        let html = convert_with_docinfo(
+            "= Title\n:docinfo: shared-head\n\nHello.\n",
+            &[
+                ("docinfo.html", "<!-- head-content -->"),
+                ("docinfo-footer.html", "<!-- footer-should-not-appear -->"),
+            ],
+            false,
+            SafeMode::Unsafe,
+        )?;
+
+        assert!(
+            html.contains("<!-- head-content -->"),
+            "shared-head docinfo should appear"
+        );
+        assert!(
+            !html.contains("<!-- footer-should-not-appear -->"),
+            "footer docinfo should not appear when only shared-head is set"
+        );
         Ok(())
     }
 }

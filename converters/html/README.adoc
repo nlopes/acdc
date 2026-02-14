@@ -197,6 +197,86 @@ acdc convert -a dark-mode document.adoc
 
 When using class-based syntax highlighting (`:syntect-css: class`), the highlighting CSS is handled the same way — embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
 
+### Docinfo files
+
+Docinfo files let you inject custom HTML into specific positions in the output — analytics snippets, custom `<meta>` tags, banners, footers, or anything else that doesn't belong in the AsciiDoc source itself.
+
+Enable docinfo with the `:docinfo:` document attribute:
+
+[source,asciidoc]
+....
+= My Document
+:docinfo: shared
+....
+
+The `:docinfo:` attribute accepts:
+
+- `shared` — load shared docinfo files (used across all documents)
+- `private` — load private docinfo files (specific to this document). This is the default when `:docinfo:` is set with no value
+- Granular values: `shared-head`, `shared-header`, `shared-footer`, `private-head`, `private-header`, `private-footer`
+- Comma-separated combinations: `shared, private-footer`
+
+#### File naming
+
+Docinfo files follow a naming convention based on scope and injection position:
+
+[cols="1,1,1", options="header"]
+|===
+| Position | Shared filename | Private filename
+
+| Head (before `</head>`)
+| `docinfo.html`
+| `{docname}-docinfo.html`
+
+| Header (after `<body>`)
+| `docinfo-header.html`
+| `{docname}-docinfo-header.html`
+
+| Footer (before `</body>`)
+| `docinfo-footer.html`
+| `{docname}-docinfo-footer.html`
+|===
+
+For a document named `guide.adoc`, the private head file would be `guide-docinfo.html`.
+
+#### Docinfo directory (`:docinfodir:`)
+
+By default, docinfo files are loaded from the same directory as the source document. Set `:docinfodir:` to load them from a different location:
+
+[source,asciidoc]
+....
+= My Document
+:docinfo: shared
+:docinfodir: _docinfo
+....
+
+The path is resolved relative to the source document directory, or can be absolute.
+
+#### Attribute substitution (`:docinfosubs:`)
+
+Docinfo content is processed with attribute substitution by default — `\{attribute-name}` references in docinfo files are replaced with their values. Control this with `:docinfosubs:`:
+
+[source,asciidoc]
+....
+= My Document
+:docinfo: shared
+:docinfosubs: attributes
+....
+
+NOTE: Currently only `attributes` substitution is supported for docinfo content.
+
+#### Injection points
+
+- **Head** — injected just before the closing `</head>` tag
+- **Header** — injected immediately after the opening `<body>` tag
+- **Footer** — injected just before the closing `</body>` tag
+
+When both private and shared files exist for the same position, private content is injected first.
+
+NOTE: Docinfo is disabled when running in secure safe mode (`--safe-mode secure`). In embedded mode, head docinfo has no effect since the `<head>` element is not generated.
+
+For full details, see the https://docs.asciidoctor.org/asciidoc/latest/docinfo/[Asciidoctor docinfo documentation].
+
 ### Table Enhancements
 
 Full table feature support:

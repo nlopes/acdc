@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docinfo file support** — inject custom HTML snippets into `<head>`, after `<body>`, or
+  before `</body>` via the `:docinfo:` attribute. Supports `shared`, `private`, and granular
+  values (`shared-head`, `private-footer`, etc.), `:docinfodir:` for alternate directories,
+  and `:docinfosubs:` for attribute substitution. Disabled in embedded mode and
+  `SafeMode::Secure`.
 - **No-stylesheet mode (`:!stylesheet:`)** — setting `:!stylesheet:` now disables all
   stylesheet output: no embedded `<style>`, no linked `<link>`, no Google Fonts link, and
   no `copycss` file writing. Other head elements (MathJax, Font Awesome, syntax CSS) are
