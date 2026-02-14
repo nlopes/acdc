@@ -693,12 +693,9 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             } else {
                 let sup_class = if is_ref { "footnoteref" } else { "footnote" };
                 if options.toc_mode {
-                    // In TOC mode, render footnote without anchor link (matches asciidoctor)
-                    write!(w, "<sup class=\"{sup_class}\"")?;
-                    if !is_ref && let Some(id) = &f.id {
-                        write!(w, " id=\"_footnote_{id}\"")?;
-                    }
-                    write!(w, ">[{}]</sup>", f.number)?;
+                    // In TOC mode, render footnote without anchor link or id
+                    // (id stays on the heading's footnote to avoid duplicate IDs)
+                    write!(w, "<sup class=\"{sup_class}\">[{}]</sup>", f.number)?;
                 } else {
                     let number = f.number;
                     write!(w, "<sup class=\"{sup_class}\"")?;

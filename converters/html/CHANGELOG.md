@@ -107,6 +107,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Duplicate footnote IDs in TOC entries** — footnote `<sup>` elements in TOC entries
+  no longer emit `id="_footnote_{id}"`, avoiding duplicate IDs that caused broken DOM
+  rendering in browsers (particularly visible in the WASM editor preview).
 - **`copycss` skipped in embedded mode** — `after_write()` no longer runs `handle_copycss()`
   or `handle_copy_syntax_css()` when embedded mode is active, matching asciidoctor's behavior
   of only writing stylesheet files for standalone output.

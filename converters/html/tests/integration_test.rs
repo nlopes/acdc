@@ -964,3 +964,69 @@ mod docinfo {
         Ok(())
     }
 }
+
+mod toc_footnote {
+    use super::*;
+
+    /// Helper: convert an `AsciiDoc` string to embedded HTML (mirrors WASM editor path).
+    fn convert_embedded(input: &str) -> Result<String, Error> {
+        let attrs = acdc_converters_core::default_rendering_attributes();
+        let parser_options = ParserOptions::with_attributes(attrs);
+        let doc = acdc_parser::parse(input, &parser_options)?;
+        let converter_options = ConverterOptions::builder()
+            .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+            .backend(Backend::Html)
+            .build();
+        let processor = Processor::new_with_variant(
+            converter_options,
+            doc.attributes.clone(),
+            HtmlVariant::Standard,
+        );
+        let render_options = RenderOptions {
+            embedded: true,
+            ..RenderOptions::default()
+        };
+        let mut output = Vec::new();
+        processor.convert_to_writer(&doc, &mut output, &render_options)?;
+        Ok(String::from_utf8(output)?)
+    }
+
+    #[test]
+    fn toc_footnote_id_not_duplicated() -> Result<(), Error> {
+        // Use a named footnote so the id="_footnote_{name}" path is exercised
+        let input = "= Document\n:toc:\n\n== Section with footnotefootnote:fn1[A note]\n\nBody.\n";
+        let html = convert_embedded(input)?;
+
+        // TOC should render in embedded mode
+        assert!(
+            html.contains("id=\"toc\""),
+            "TOC should render in embedded mode:\n{html}"
+        );
+
+        // The footnote id should appear exactly once (on the heading, not in the TOC)
+        let count = html.matches("id=\"_footnote_fn1\"").count();
+        assert_eq!(
+            count, 1,
+            "id=\"_footnote_fn1\" should appear exactly once, found {count}:\n{html}"
+        );
+
+        // TOC entry should not contain nested <a> tags inside the TOC link
+        let toc_section = html
+            .split("id=\"toc\"")
+            .nth(1)
+            .and_then(|s| s.split("</div>\n</div>").next())
+            .unwrap_or("");
+        assert!(
+            !toc_section.contains("<a class=\"footnote-ref\""),
+            "TOC should not contain footnote anchor links:\n{toc_section}"
+        );
+
+        // Footnotes section should still render correctly
+        assert!(
+            html.contains("id=\"footnotes\""),
+            "Footnotes section should render:\n{html}"
+        );
+
+        Ok(())
+    }
+}
