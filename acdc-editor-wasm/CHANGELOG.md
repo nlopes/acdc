@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-02-14
+
 ### Fixed
 
 - When a block gives an error, don't hide the block, show it without any highlighting.
+- TOC preview no longer breaks when a section title contains a footnote (duplicate
+  `id` attributes caused browsers to corrupt the DOM when using `set_inner_html`).
 
 ## [0.2.1] - 2026-02-05
 
@@ -47,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions release workflow (`release-editor-wasm.yml`) for building
   with wasm-pack and publishing as GitHub Release assets
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.1...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.2...HEAD
+[0.2.2]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.1...acdc-editor-wasm-v0.2.2
 [0.2.1]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.0...acdc-editor-wasm-v0.2.1
 [0.2.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.1.0...acdc-editor-wasm-v0.2.0
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-editor-wasm-v0.1.0
