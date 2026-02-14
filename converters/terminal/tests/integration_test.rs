@@ -42,7 +42,7 @@ generate_tests!([
     (macros_with_quoted_attributes, false),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
-    (comprehensive, false),
+    (comprehensive, true),
     (index_section, false),
 ]);
 

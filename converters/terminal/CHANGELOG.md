@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test fixture covering all major terminal output features.
 - Index section test fixture.
 
+### Fixed
+
+- Comprehensive test fixture now marked as OSC8 so it is skipped in CI environments without OSC8 support.
+
 ### Changed
 
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
