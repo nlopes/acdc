@@ -137,6 +137,15 @@ impl Converter for Processor {
 }
 
 impl Processor {
+    /// Override the detected terminal width.
+    ///
+    /// Useful for tests and fixture generation where a deterministic width is needed.
+    #[must_use]
+    pub fn with_terminal_width(mut self, width: usize) -> Self {
+        self.terminal_width = width.min(MAX_TERMINAL_WIDTH);
+        self
+    }
+
     /// Returns the terminal capabilities.
     #[must_use]
     pub fn terminal_capabilities(&self) -> &Capabilities {

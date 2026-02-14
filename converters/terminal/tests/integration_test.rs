@@ -59,7 +59,8 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
 
     // Convert to Terminal output
     let mut output = Vec::new();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
     processor.write_to(&doc, &mut output, Some(input_path.as_path()))?;
 
     if osc8 && !processor.terminal_capabilities().osc8_links {

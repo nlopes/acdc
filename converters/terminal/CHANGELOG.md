@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Processor::with_terminal_width()` for deterministic width control in tests and fixture generation.
 - Section numbering support (`sectnums`, `partnums`, appendix tracking).
 - Index term collection and alphabetized index catalog rendering (`[index]` sections).
 - Table column alignment and column style support (strong, emphasis, header).
