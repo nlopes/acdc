@@ -35,6 +35,7 @@ unsafe_code = "forbid"
 [lints.clippy]
 indexing_slicing = "deny"
 fallible_impl_from = "deny"
+wildcard_enum_match_arm = "deny"
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
