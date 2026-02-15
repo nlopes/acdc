@@ -69,8 +69,18 @@ fn collect_block_anchors(block: &Block, anchors: &mut HashMap<String, Location>)
                 collect_block_anchors(b, anchors);
             }
         }
-        // Block types that don't contain nested content with anchors (Block is non_exhaustive)
-        _ => {}
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive: silently ignore future variants
+        | _ => {}
     }
 }
 
@@ -126,8 +136,10 @@ fn collect_delimited_block_anchors(
         | DelimitedBlockType::DelimitedComment(inlines) => {
             collect_inline_anchors(inlines, anchors);
         }
-        // Tables, stem, and future types don't contain anchors (DelimitedBlockType is non_exhaustive)
-        _ => {}
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -145,8 +157,17 @@ fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, 
             InlineNode::HighlightText(h) => collect_inline_anchors(&h.content, anchors),
             InlineNode::SubscriptText(s) => collect_inline_anchors(&s.content, anchors),
             InlineNode::SuperscriptText(s) => collect_inline_anchors(&s.content, anchors),
-            // Text nodes and other inlines don't contain anchors (InlineNode is non_exhaustive)
-            _ => {}
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            // non_exhaustive
+            | _ => {}
         }
     }
 }
@@ -205,8 +226,18 @@ fn collect_block_xrefs(block: &Block, xrefs: &mut Vec<(String, Location)>) {
                 collect_block_xrefs(b, xrefs);
             }
         }
-        // Block types that don't contain xrefs (Block is non_exhaustive)
-        _ => {}
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -227,8 +258,10 @@ fn collect_delimited_block_xrefs(inner: &DelimitedBlockType, xrefs: &mut Vec<(St
         | DelimitedBlockType::DelimitedComment(inlines) => {
             collect_inline_xrefs(inlines, xrefs);
         }
-        // Tables, stem, and future types don't contain xrefs (DelimitedBlockType is non_exhaustive)
-        _ => {}
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -246,8 +279,18 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
             InlineNode::HighlightText(h) => collect_inline_xrefs(&h.content, xrefs),
             InlineNode::SubscriptText(s) => collect_inline_xrefs(&s.content, xrefs),
             InlineNode::SuperscriptText(s) => collect_inline_xrefs(&s.content, xrefs),
-            // Other inlines don't contain xrefs (InlineNode is non_exhaustive)
-            _ => {}
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            // non_exhaustive
+            | _ => {}
         }
     }
 }

@@ -42,8 +42,18 @@ fn collect_ranges_from_block(block: &Block, ranges: &mut Vec<FoldingRange>) {
             // Determine kind based on block type
             let kind = match &delimited.inner {
                 DelimitedBlockType::DelimitedComment(_) => FoldingRangeKind::Comment,
-                // All other delimited block types are regions (non_exhaustive)
-                _ => FoldingRangeKind::Region,
+                DelimitedBlockType::DelimitedExample(_)
+                | DelimitedBlockType::DelimitedOpen(_)
+                | DelimitedBlockType::DelimitedSidebar(_)
+                | DelimitedBlockType::DelimitedQuote(_)
+                | DelimitedBlockType::DelimitedListing(_)
+                | DelimitedBlockType::DelimitedLiteral(_)
+                | DelimitedBlockType::DelimitedPass(_)
+                | DelimitedBlockType::DelimitedVerse(_)
+                | DelimitedBlockType::DelimitedTable(_)
+                | DelimitedBlockType::DelimitedStem(_)
+                // non_exhaustive
+                | _ => FoldingRangeKind::Region,
             };
             if let Some(range) = make_folding_range(&delimited.location, kind) {
                 ranges.push(range);
@@ -86,8 +96,18 @@ fn collect_ranges_from_block(block: &Block, ranges: &mut Vec<FoldingRange>) {
                 ranges.push(range);
             }
         }
-        // These blocks don't have nested foldable content (Block is non_exhaustive)
-        _ => {}
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Paragraph(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -99,8 +119,15 @@ fn collect_ranges_from_delimited(inner: &DelimitedBlockType, ranges: &mut Vec<Fo
         | DelimitedBlockType::DelimitedQuote(blocks) => {
             collect_ranges_from_blocks(blocks, ranges);
         }
-        // These don't have nested block structure (DelimitedBlockType is non_exhaustive)
-        _ => {}
+        DelimitedBlockType::DelimitedListing(_)
+        | DelimitedBlockType::DelimitedLiteral(_)
+        | DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedVerse(_)
+        | DelimitedBlockType::DelimitedComment(_)
+        | DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 

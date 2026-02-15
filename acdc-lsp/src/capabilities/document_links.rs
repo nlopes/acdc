@@ -89,8 +89,17 @@ fn collect_links_from_block(block: &Block, links: &mut Vec<LinkInfo>) {
                 tooltip: Some("Open image".to_string()),
             });
         }
-        // Other block types don't contain links (Block is non_exhaustive)
-        _ => {}
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -109,8 +118,10 @@ fn collect_links_from_delimited(inner: &DelimitedBlockType, links: &mut Vec<Link
         | DelimitedBlockType::DelimitedComment(inlines) => {
             collect_links_from_inlines(inlines, links);
         }
-        // Other types don't contain links (DelimitedBlockType is non_exhaustive)
-        _ => {}
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -157,8 +168,18 @@ fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
         InlineNode::HighlightText(h) => collect_links_from_inlines(&h.content, links),
         InlineNode::SubscriptText(s) => collect_links_from_inlines(&s.content, links),
         InlineNode::SuperscriptText(s) => collect_links_from_inlines(&s.content, links),
-        // No links in these (InlineNode is non_exhaustive)
-        _ => {}
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 

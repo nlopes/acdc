@@ -143,8 +143,18 @@ fn find_xref_in_block(block: &Block, offset: usize) -> Option<(String, Location)
             }
             None
         }
-        // Other block types don't contain xrefs (Block is non_exhaustive)
-        _ => None,
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -166,8 +176,10 @@ fn find_xref_in_delimited(inner: &DelimitedBlockType, offset: usize) -> Option<(
         | DelimitedBlockType::DelimitedPass(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines)
         | DelimitedBlockType::DelimitedComment(inlines) => find_xref_in_inlines(inlines, offset),
-        // Other types don't contain xrefs (DelimitedBlockType is non_exhaustive)
-        _ => None,
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -194,8 +206,18 @@ fn find_xref_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
         InlineNode::HighlightText(h) => find_xref_in_inlines(&h.content, offset),
         InlineNode::SubscriptText(s) => find_xref_in_inlines(&s.content, offset),
         InlineNode::SuperscriptText(s) => find_xref_in_inlines(&s.content, offset),
-        // Other inlines don't contain xrefs (InlineNode is non_exhaustive)
-        _ => None,
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -282,8 +304,18 @@ fn find_inline_anchor_in_block(block: &Block, offset: usize) -> Option<(String, 
             }
             None
         }
-        // Other block types don't contain inline anchors (Block is non_exhaustive)
-        _ => None,
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -310,8 +342,10 @@ fn find_inline_anchor_in_delimited(
         | DelimitedBlockType::DelimitedComment(inlines) => {
             find_inline_anchor_in_inlines(inlines, offset)
         }
-        // Other types don't contain inline anchors (DelimitedBlockType is non_exhaustive)
-        _ => None,
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -341,8 +375,17 @@ fn find_inline_anchor_in_inline(inline: &InlineNode, offset: usize) -> Option<(S
         InlineNode::HighlightText(h) => find_inline_anchor_in_inlines(&h.content, offset),
         InlineNode::SubscriptText(s) => find_inline_anchor_in_inlines(&s.content, offset),
         InlineNode::SuperscriptText(s) => find_inline_anchor_in_inlines(&s.content, offset),
-        // Other inlines don't contain inline anchors (InlineNode is non_exhaustive)
-        _ => None,
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -415,8 +458,18 @@ fn find_link_in_block(block: &Block, offset: usize) -> Option<(String, Location)
             }
             None
         }
-        // Other block types don't contain links (Block is non_exhaustive)
-        _ => None,
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -438,8 +491,10 @@ fn find_link_in_delimited(inner: &DelimitedBlockType, offset: usize) -> Option<(
         | DelimitedBlockType::DelimitedPass(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines)
         | DelimitedBlockType::DelimitedComment(inlines) => find_link_in_inlines(inlines, offset),
-        // Other types don't contain links (DelimitedBlockType is non_exhaustive)
-        _ => None,
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -478,8 +533,18 @@ fn find_link_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
         InlineNode::HighlightText(h) => find_link_in_inlines(&h.content, offset),
         InlineNode::SubscriptText(s) => find_link_in_inlines(&s.content, offset),
         InlineNode::SuperscriptText(s) => find_link_in_inlines(&s.content, offset),
-        // Other inlines don't contain links (InlineNode is non_exhaustive)
-        _ => None,
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 
@@ -508,8 +573,24 @@ fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<S
             }
             None
         }
-        // Other block types don't contain section titles (Block is non_exhaustive)
-        _ => None,
+        Block::TableOfContents(_)
+        | Block::Admonition(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::UnorderedList(_)
+        | Block::OrderedList(_)
+        | Block::CalloutList(_)
+        | Block::DescriptionList(_)
+        | Block::DelimitedBlock(_)
+        | Block::Paragraph(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 

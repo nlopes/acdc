@@ -40,8 +40,24 @@ pub fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
 fn block_to_symbol(block: &Block) -> Option<DocumentSymbol> {
     match block {
         Block::Section(section) => Some(section_to_symbol(section)),
-        // MVP: only sections in outline (Block is non_exhaustive)
-        _ => None,
+        Block::TableOfContents(_)
+        | Block::Admonition(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::UnorderedList(_)
+        | Block::OrderedList(_)
+        | Block::CalloutList(_)
+        | Block::DescriptionList(_)
+        | Block::DelimitedBlock(_)
+        | Block::Paragraph(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => None,
     }
 }
 

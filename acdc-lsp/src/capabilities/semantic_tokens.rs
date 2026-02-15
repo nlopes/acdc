@@ -158,8 +158,16 @@ fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
                 token_modifiers: 0,
             });
         }
-        // Skip other block types (Block is non_exhaustive)
-        _ => {}
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -179,8 +187,11 @@ fn collect_tokens_from_delimited(delimited: &DelimitedBlock, tokens: &mut Vec<Ra
         | DelimitedBlockType::DelimitedVerse(inlines) => {
             collect_tokens_from_inlines(inlines, tokens);
         }
-        // Skip other types (DelimitedBlockType is non_exhaustive)
-        _ => {}
+        DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -240,8 +251,17 @@ fn collect_tokens_from_inline(inline: &InlineNode, tokens: &mut Vec<RawToken>) {
             add_token_for_location(&s.location, 4, 0, tokens); // VARIABLE
             collect_tokens_from_inlines(&s.content, tokens);
         }
-        // Plain text, raw text, etc. don't need semantic tokens (InlineNode is non_exhaustive)
-        _ => {}
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        // non_exhaustive
+        | _ => {}
     }
 }
 
@@ -281,8 +301,17 @@ fn inline_text_len(inline: &InlineNode) -> usize {
         InlineNode::HighlightText(h) => h.content.iter().map(inline_text_len).sum(),
         InlineNode::SubscriptText(s) => s.content.iter().map(inline_text_len).sum(),
         InlineNode::SuperscriptText(s) => s.content.iter().map(inline_text_len).sum(),
-        // Other inline types don't contribute meaningful text length (InlineNode is non_exhaustive)
-        _ => 0,
+        InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        // non_exhaustive
+        | _ => 0,
     }
 }
 
