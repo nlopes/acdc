@@ -14,6 +14,7 @@ use crate::{
 };
 
 /// Visit a delimited block.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn visit_delimited_block<W: Write>(
     block: &DelimitedBlock,
     visitor: &mut ManpageVisitor<W>,
@@ -21,7 +22,7 @@ pub(crate) fn visit_delimited_block<W: Write>(
     // Handle title if present
     if !block.title.is_empty() {
         let w = visitor.writer_mut();
-        writeln!(w, ".PP")?;
+        writeln!(w, ".sp")?;
         write!(w, "\\fB")?;
         visitor.visit_inline_nodes(&block.title)?;
         let w = visitor.writer_mut();
@@ -78,7 +79,7 @@ pub(crate) fn visit_delimited_block<W: Write>(
         }
 
         DelimitedBlockType::DelimitedQuote(blocks) => {
-            // Quote block - indented (no attribution in this variant)
+            // Quote block - indented with optional attribution
             let w = visitor.writer_mut();
             writeln!(w, ".RS 4")?;
 
@@ -88,6 +89,31 @@ pub(crate) fn visit_delimited_block<W: Write>(
 
             let w = visitor.writer_mut();
             writeln!(w, ".RE")?;
+
+            // Render attribution if present (from [quote, author, citation] style)
+            let attribution = block.metadata.attributes.get_string("attribution");
+            let citation = block.metadata.attributes.get_string("citation");
+            if attribution.is_some() || citation.is_some() {
+                let w = visitor.writer_mut();
+                writeln!(w, ".RS 5")?;
+                writeln!(w, ".ll -.10i")?;
+
+                if let Some(cite) = citation {
+                    let escaped = manify(&cite, EscapeMode::Normalize);
+                    write!(w, "{escaped}")?;
+                    if attribution.is_some() {
+                        write!(w, " ")?;
+                    }
+                }
+                if let Some(author) = attribution {
+                    let escaped = manify(&author, EscapeMode::Normalize);
+                    write!(w, "\\(em {escaped}")?;
+                }
+                writeln!(w)?;
+                writeln!(w, ".RE")?;
+                writeln!(w, ".ll")?;
+            }
+
             Ok(())
         }
 
@@ -104,6 +130,32 @@ pub(crate) fn visit_delimited_block<W: Write>(
             }
 
             writeln!(w, ".fi")?;
+
+            // Render verse attribution if present
+            let attribution = block.metadata.attributes.get_string("attribution");
+            let citation = block.metadata.attributes.get_string("citation");
+            if attribution.is_some() || citation.is_some() {
+                let w = visitor.writer_mut();
+                writeln!(w, ".br")?;
+                writeln!(w, ".in +.5i")?;
+                writeln!(w, ".ll -.5i")?;
+
+                if let Some(cite) = citation {
+                    let escaped = manify(&cite, EscapeMode::Normalize);
+                    write!(w, "{escaped}")?;
+                    if attribution.is_some() {
+                        write!(w, " ")?;
+                    }
+                }
+                if let Some(author) = attribution {
+                    let escaped = manify(&author, EscapeMode::Normalize);
+                    write!(w, "\\(em {escaped}")?;
+                }
+                writeln!(w)?;
+                writeln!(w, ".in")?;
+                writeln!(w, ".ll")?;
+            }
+
             Ok(())
         }
 
@@ -127,7 +179,7 @@ pub(crate) fn visit_delimited_block<W: Write>(
         DelimitedBlockType::DelimitedStem(stem) => {
             // STEM (math) - render content as-is
             let w = visitor.writer_mut();
-            writeln!(w, ".PP")?;
+            writeln!(w, ".sp")?;
             writeln!(w, "{}", stem.content)?;
             Ok(())
         }

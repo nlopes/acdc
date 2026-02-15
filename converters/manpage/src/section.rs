@@ -44,15 +44,16 @@ pub(crate) fn visit_section<W: Write>(
             ".SH \"{}\"",
             escape_quoted(&uppercase_title(&title_text))
         )?;
+    } else if section.level <= 2 {
+        // Subsection - .SS (preserve original case, matching asciidoctor)
+        writeln!(w, ".SS \"{}\"", escape_quoted(&title_text))?;
     } else {
-        // Subsection - .SS
-        // Level 2 subsections are also typically uppercased in manpages
-        let title = if section.level == 2 {
-            uppercase_title(&title_text)
-        } else {
-            title_text
-        };
-        writeln!(w, ".SS \"{}\"", escape_quoted(&title))?;
+        // Levels 3+ - no roff section macro exists; render as bold paragraph heading
+        writeln!(w, ".sp")?;
+        write!(w, "\\fB")?;
+        visitor.visit_inline_nodes(&section.title)?;
+        let w = visitor.writer_mut();
+        writeln!(w, "\\fP")?;
     }
 
     // Set NAME section flag for content rendering

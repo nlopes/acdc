@@ -1,0 +1,291 @@
+'\" t
+.\"     Title: comprehensive-test
+.\"    Author: Test Author, Second Author
+.\" Generator: acdc 0.1.0
+.\"      Date: 2025-06-01
+.\"    Manual: Comprehensive Manual
+.\"    Source: Test Suite 1.0
+.\"  Language: English
+.\"
+.TH "COMPREHENSIVE\-TEST" "1" "2025-06-01" "Test Suite 1.0" "Comprehensive Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R <>
+.\}
+.SH "NAME"
+comprehensive\-test \- exercise all manpage converter features
+.SH "SYNOPSIS"
+.sp
+\fBcomprehensive\-test\fP [\fB\-v\fP|\fB\-\-verbose\fP] [\fB\-o\fP \fIFILE\fP] \fIINPUT\fP\&...
+.SH "DESCRIPTION"
+.sp
+This is the main description paragraph.
+.SS "Basic Formatting"
+.sp
+This tests \fBbold\fP, \fIitalic\fP, \f(CRmonospace\fP, \fBhighlight\fP, ^(superscript), _(subscript),
+and \fBunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe's\fP text.
+.SS "Links and Cross References"
+.sp
+Visit \c
+.URL "https://example.com" "" ""
+for more info.
+Email \c
+.MTO "user\(atexample.com" "" ""
+for support.
+See \c
+.URL "https://example.com" "Example Site" ""
+for details.
+Also see \c
+.MTO "admin\(atexample.com" "the admin" ""
+\&.
+Cross\-reference to other-section\&.
+Man page style reference: git(1).
+.SS "Footnotes"
+.sp
+This has a footnote.[1]
+And another footnote here.[2]
+And a reference back.[2]
+.SH "OPTIONS"
+.RS 0
+.TP
+\fB\fB\-v\fP, *\-\-verbose*\fP
+Increase verbosity level.
+.TP
+\fB\fB\-o\fP _FILE_\fP
+Write output to \fIFILE\fP instead of stdout.
+.RS 0
+.sp
+If \fIFILE\fP exists, it will be overwritten.
+.RE
+.TP
+\fB\fB\-q\fP\fP
+Quiet mode.
+.RE
+.SH "LISTS"
+.SS "Unordered List"
+.sp
+\fBA titled list\fP
+.RS 0
+.IP \(bu 2
+Item one
+.IP \(bu 2
+Item two with \fBbold\fP
+.RS 2
+.RS 4
+.IP \(bu 2
+Nested item alpha
+.IP \(bu 2
+Nested item beta
+.RE
+.RE
+.IP \(bu 2
+Item three
+.RE
+.SS "Ordered List"
+.RS 0
+.IP 1. 4
+First step
+.IP 2. 4
+Second step
+.RS 0
+.RS 4
+.IP 1. 4
+Sub\-step one
+.IP 2. 4
+Sub\-step two
+.RE
+.RE
+.IP 3. 4
+Third step
+.RE
+.SS "Checklist"
+.RS 0
+.IP \(bu 2
+\(bu Completed task
+.IP \(bu 2
+  Pending task
+.IP \(bu 2
+Regular item (no checkbox)
+.RE
+.SS "Description List"
+.RS 0
+.TP
+\fBterm one\fP
+Definition of term one.
+.TP
+\fBterm two\fP
+Multi\-line definition for term two.
+.TP
+\fBterm with *formatting*\fP
+A \fIstyled\fP definition.
+.RE
+.SS "Callout List"
+.EX
+echo "hello" 
+echo "world" 
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Prints hello to stdout
+.IP \fB(2)\fP 4
+Prints world to stdout
+.RE
+.SH "BLOCKS"
+.SS "Code Block"
+.sp
+\fBExample script\fP
+.EX
+#!/bin/bash
+set \-euo pipefail
+echo "Hello, $USER"
+.EE
+.SS "Literal Block"
+.nf
+This is literal text.
+  Indentation preserved.
+    More indentation.
+.fi
+.SS "Quote Block"
+.RS 4
+.sp
+Everything should be made as simple as possible, but not simpler.
+.RE
+.RS 5
+.ll -.10i
+On Simplicity \(em Albert Einstein
+.RE
+.ll
+.SS "Example Block"
+.sp
+\fBExample title\fP
+.RS 4
+.sp
+This is an example block.
+It can contain multiple paragraphs.
+.sp
+\fBNOTE:\fP
+.RS 4
+.sp
+Including admonitions.
+.RE
+.RE
+.SS "Sidebar Block"
+.RS 4
+.sp
+This is sidebar content.
+.RE
+.SS "Verse Block"
+.nf
+The fog comes
+on little cat feet.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Fog \(em Carl Sandburg
+.in
+.ll
+.SS "Open Block"
+.sp
+Content in an open block.
+.SH "ADMONITIONS"
+.sp
+\fBNOTE:\fP
+.RS 4
+.sp
+This is a note admonition.
+.RE
+.sp
+\fBTIP:\fP
+.RS 4
+.sp
+This is a tip admonition.
+.RE
+.sp
+\fBWARNING:\fP
+.RS 4
+.sp
+This is a warning.
+.RE
+.sp
+\fBCAUTION:\fP
+.RS 4
+.sp
+Exercise caution here.
+.RE
+.sp
+\fBIMPORTANT:\fP
+.RS 4
+.sp
+This is important.
+.RE
+.SH "TABLES"
+.sp
+\fBSimple table\fP
+.TS
+allbox tab(:);
+ltB ltB ltB
+lt lt lt.
+Name:Description:Status
+Alpha:T{
+First item with \fBbold\fP
+T}:Active
+Beta:Second item:Inactive
+.TE
+.SH "OTHER SECTION"
+.sp
+Thematic break below:
+.sp
+.ce
+* * *
+.ce 0
+.sp
+\fBNot a Real Section\fP
+.sp
+This paragraph follows a discrete header.
+.SS "Inline Macros"
+.sp
+Keyboard shortcut: \fBCtrl+C\fP
+.sp
+Button: [\fBOK\fP]
+.sp
+Menu: \fBFile\fP \(ra \fBSave As...\fP
+.SS "Deep Nesting"
+.sp
+\fBLevel 3 Section\fP
+.sp
+This is a level 3 section.
+.sp
+\fBLevel 4 Section\fP
+.sp
+This is a level 4 section.
+.SH "SEE ALSO"
+.sp
+\fBother\-tool\fP(1), \fBrelated\-cmd\fP(5)
+.SH "NOTES"
+.IP [1] 4
+First footnote content with \fBbold\fP\&.
+.IP [2] 4
+Named footnote content.
+.SH "AUTHORS"
+.sp
+\fBTest Author\fP \c
+.MTO "test\(atexample.com" "" ""
+.sp
+\fBSecond Author\fP \c
+.MTO "second\(atexample.com" "" ""

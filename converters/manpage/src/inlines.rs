@@ -19,14 +19,26 @@ pub(crate) fn visit_inline_node<W: Write>(
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(text) => {
-            let escaped = manify(&text.content, EscapeMode::Normalize);
+            let content = if visitor.strip_next_leading_space {
+                visitor.strip_next_leading_space = false;
+                text.content.trim_start()
+            } else {
+                &text.content
+            };
+            let escaped = manify(content, EscapeMode::Normalize);
             let w = visitor.writer_mut();
             write!(w, "{escaped}")?;
         }
 
         InlineNode::RawText(text) => {
             // Raw text - pass through with minimal escaping
-            let escaped = manify(&text.content, EscapeMode::Normalize);
+            let content = if visitor.strip_next_leading_space {
+                visitor.strip_next_leading_space = false;
+                text.content.trim_start()
+            } else {
+                &text.content
+            };
+            let escaped = manify(content, EscapeMode::Normalize);
             let w = visitor.writer_mut();
             write!(w, "{escaped}")?;
         }
@@ -51,8 +63,8 @@ pub(crate) fn visit_inline_node<W: Write>(
         }
 
         InlineNode::MonospaceText(mono) => {
-            // Monospace is typically rendered as bold in man pages (for commands)
-            write!(visitor.writer_mut(), "\\fB")?;
+            // Monospace uses Courier font (matching asciidoctor's \f(CR)
+            write!(visitor.writer_mut(), "\\f(CR")?;
             visitor.visit_inline_nodes(&mono.content)?;
             write!(visitor.writer_mut(), "\\fP")?;
         }
@@ -126,23 +138,18 @@ pub(crate) fn visit_inline_node<W: Write>(
 }
 
 fn write_link<W: Write>(visitor: &mut ManpageVisitor<W>, link: &Link) -> Result<(), Error> {
-    // Link has Option<String> for text, not Vec<InlineNode>
+    // Use .URL macro for links (matching asciidoctor)
+    // The macro must be on its own line; continuation text goes on the next line
     let target_str = link.target.to_string();
+    let escaped_target = manify(&target_str, EscapeMode::Normalize);
     let w = visitor.writer_mut();
     if let Some(text) = &link.text {
-        write!(w, "{}", manify(text, EscapeMode::Normalize))?;
-        write!(
-            w,
-            " \\(la{}\\(ra",
-            manify(&target_str, EscapeMode::Normalize)
-        )?;
+        let display = manify(text, EscapeMode::Normalize);
+        writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display}\" \"\"")?;
     } else {
-        write!(
-            w,
-            "\\(la{}\\(ra",
-            manify(&target_str, EscapeMode::Normalize)
-        )?;
+        writeln!(w, "\\c\n.URL \"{escaped_target}\" \"\" \"\"")?;
     }
+    visitor.strip_next_leading_space = true;
 
     Ok(())
 }
@@ -171,7 +178,9 @@ fn write_mailto<W: Write>(visitor: &mut ManpageVisitor<W>, mailto: &Mailto) -> R
 
     let w = visitor.writer_mut();
     // Use \c to continue on same line, then .MTO on next line
-    write!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"\"")?;
+    // The macro must end with newline; continuation text goes on the next line
+    writeln!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"\"")?;
+    visitor.strip_next_leading_space = true;
     Ok(())
 }
 
@@ -194,39 +203,50 @@ pub(crate) fn write_autolink_with_trailing<W: Write>(
 ) -> Result<(), Error> {
     let url_str = autolink.url.to_string();
     // Use .MTO macro for mailto autolinks
+    // The macro must end with newline; continuation text goes on the next line
     if let Some(email) = url_str.strip_prefix("mailto:") {
         let escaped_email = email.replace('@', "\\(at");
         let w = visitor.writer_mut();
-        write!(w, "\\c\n.MTO \"{escaped_email}\" \"\" \"{trailing}\"")?;
+        writeln!(w, "\\c\n.MTO \"{escaped_email}\" \"\" \"{trailing}\"")?;
     } else {
+        // Use .URL macro for HTTP(S) links
         let w = visitor.writer_mut();
-        write!(
+        writeln!(
             w,
-            "\\(la{}\\(ra{trailing}",
+            "\\c\n.URL \"{}\" \"\" \"{trailing}\"",
             manify(&url_str, EscapeMode::Normalize)
         )?;
     }
+    visitor.strip_next_leading_space = true;
     Ok(())
 }
 
 /// Visit an inline macro.
+#[allow(clippy::too_many_lines)]
 fn visit_inline_macro<W: Write>(
     macro_node: &InlineMacro,
     visitor: &mut ManpageVisitor<W>,
 ) -> Result<(), Error> {
     match macro_node {
         InlineMacro::Url(url) => {
-            // URL - show as "text <url>" or just url if no text
+            // URL - use .URL macro for proper rendering (matching asciidoctor)
+            // The macro must end with newline; continuation text goes on the next line
             let target_str = url.target.to_string();
             let escaped_target = manify(&target_str, EscapeMode::Normalize);
             if url.text.is_empty() {
                 let w = visitor.writer_mut();
-                write!(w, "\\(la{escaped_target}\\(ra")?;
+                writeln!(w, "\\c\n.URL \"{escaped_target}\" \"\" \"\"")?;
             } else {
-                visitor.visit_inline_nodes(&url.text)?;
+                // Render text to a buffer for the .URL macro
+                let mut buf = Vec::new();
+                let processor = visitor.processor.clone();
+                let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
+                text_visitor.visit_inline_nodes(&url.text)?;
+                let display_text = String::from_utf8_lossy(&buf).trim().to_string();
                 let w = visitor.writer_mut();
-                write!(w, " \\(la{escaped_target}\\(ra")?;
+                writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display_text}\" \"\"")?;
             }
+            visitor.strip_next_leading_space = true;
         }
 
         InlineMacro::Mailto(mailto) => {
@@ -306,13 +326,11 @@ fn visit_inline_macro<W: Write>(
         }
 
         InlineMacro::Menu(menu) => {
-            // Menu - render with arrows between items
+            // Menu - render target and items with arrows between them
             let w = visitor.writer_mut();
-            for (i, item) in menu.items.iter().enumerate() {
-                if i > 0 {
-                    write!(w, " > ")?;
-                }
-                write!(w, "\\fB{item}\\fP")?;
+            write!(w, "\\fB{}\\fP", menu.target)?;
+            for item in &menu.items {
+                write!(w, " \\(ra \\fB{item}\\fP")?;
             }
         }
 

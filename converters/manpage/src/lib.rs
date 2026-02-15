@@ -121,10 +121,19 @@ impl Converter for Processor {
         &self,
         doc: &Document,
         writer: W,
-        _source_file: Option<&Path>,
+        source_file: Option<&Path>,
     ) -> Result<(), Self::Error> {
+        let mut attrs = doc.attributes.clone();
+
+        // If no revdate is set, use the source file's modification date
+        if !attrs.contains_key("revdate")
+            && let Some(date_str) = source_file.and_then(file_modified_date)
+        {
+            attrs.insert("revdate".into(), AttributeValue::String(date_str));
+        }
+
         let processor = Processor {
-            document_attributes: doc.attributes.clone(),
+            document_attributes: attrs,
             ..self.clone()
         };
         let mut visitor = ManpageVisitor::new(writer, processor);
@@ -135,4 +144,12 @@ impl Converter for Processor {
     fn backend(&self) -> Backend {
         Backend::Manpage
     }
+}
+
+/// Get a file's modification date as a `YYYY-MM-DD` string.
+fn file_modified_date(path: &Path) -> Option<String> {
+    let metadata = std::fs::metadata(path).ok()?;
+    let modified = metadata.modified().ok()?;
+    let datetime: chrono::DateTime<chrono::Local> = modified.into();
+    Some(datetime.format("%Y-%m-%d").to_string())
 }

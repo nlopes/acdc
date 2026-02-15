@@ -9,6 +9,8 @@ use acdc_parser::{
     TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
+use crate::escape::{EscapeMode, manify};
+
 use crate::{Error, Processor};
 
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
@@ -17,8 +19,11 @@ pub struct ManpageVisitor<W: Write> {
     pub(crate) processor: Processor,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
-    /// Whether we're currently in the NAME section (which shouldn't have .PP before content).
+    /// Whether we're currently in the NAME section (which shouldn't have .sp before content).
     pub(crate) in_name_section: bool,
+    /// Whether the next text node should have leading whitespace stripped.
+    /// Set after `.URL`/`.MTO` macros which end with a newline.
+    pub(crate) strip_next_leading_space: bool,
     /// Title of the first level-1 section (for NAME validation).
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
@@ -33,6 +38,7 @@ impl<W: Write> ManpageVisitor<W> {
             processor,
             list_depth: 0,
             in_name_section: false,
+            strip_next_leading_space: false,
             first_section_title: None,
             second_section_title: None,
         }
@@ -62,13 +68,19 @@ impl<W: Write> ManpageVisitor<W> {
     /// Collect trailing content for a mailto autolink.
     ///
     /// Collects and renders all inline nodes following the mailto until whitespace
-    /// is encountered (in `PlainText`). Returns the rendered trailing string and the
-    /// number of complete nodes to skip.
-    fn collect_trailing_for_mailto(&self, nodes: &[InlineNode]) -> Result<(String, usize), Error> {
+    /// is encountered (in `PlainText`). Returns:
+    /// - The rendered trailing string
+    /// - The number of fully consumed nodes to skip
+    /// - The number of bytes consumed from a partially consumed `PlainText` (0 if none)
+    fn collect_trailing_for_mailto(
+        &self,
+        nodes: &[InlineNode],
+    ) -> Result<(String, usize, usize), Error> {
         let mut buf = Vec::new();
         let processor = self.processor.clone();
         let mut trailing_visitor = ManpageVisitor::new(&mut buf, processor);
         let mut skip_count = 0;
+        let mut partial_bytes = 0;
 
         for next_node in nodes {
             match next_node {
@@ -84,7 +96,8 @@ impl<W: Write> ManpageVisitor<W> {
                         // (don't escape leading periods - they won't be interpreted as macros)
                         let escaped = partial.replace('-', "\\-");
                         write!(trailing_visitor.writer, "{escaped}")?;
-                        // Don't increment skip_count - we only consumed part of this node
+                        // Record how many bytes we consumed from this node
+                        partial_bytes = ws_pos;
                         break;
                     }
                     // Render entire PlainText - only escape hyphens for trailing content
@@ -116,7 +129,7 @@ impl<W: Write> ManpageVisitor<W> {
         }
 
         let trailing = String::from_utf8_lossy(&buf).to_string();
-        Ok((trailing, skip_count))
+        Ok((trailing, skip_count, partial_bytes))
     }
 }
 
@@ -125,6 +138,48 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
         crate::document::visit_document_start(doc, self)
+    }
+
+    fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
+        // Render footnotes as NOTES section (matching asciidoctor)
+        if !doc.footnotes.is_empty() {
+            let w = self.writer_mut();
+            writeln!(w, ".SH \"NOTES\"")?;
+
+            for footnote in &doc.footnotes {
+                let w = self.writer_mut();
+                writeln!(w, ".IP [{}] 4", footnote.number)?;
+                self.visit_inline_nodes(&footnote.content)?;
+                let w = self.writer_mut();
+                writeln!(w)?;
+            }
+        }
+
+        // Render AUTHOR(S) section if document has authors
+        if let Some(header) = &doc.header
+            && !header.authors.is_empty()
+        {
+            let w = self.writer_mut();
+            if header.authors.len() == 1 {
+                writeln!(w, ".SH \"AUTHOR\"")?;
+            } else {
+                writeln!(w, ".SH \"AUTHORS\"")?;
+            }
+            for author in &header.authors {
+                let w = self.writer_mut();
+                writeln!(w, ".sp")?;
+                let name = crate::document::format_author_name(author);
+                write!(w, "\\fB{}\\fP", manify(&name, EscapeMode::Normalize))?;
+                if let Some(email) = &author.email {
+                    let escaped_email = email.replace('@', "\\(at");
+                    writeln!(w, " \\c\n.MTO \"{escaped_email}\" \"\" \"\"")?;
+                } else {
+                    writeln!(w)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
@@ -264,11 +319,30 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
             if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
                 && al.url.to_string().starts_with("mailto:")
             {
-                let (trailing, skip_count) =
+                let (trailing, skip_count, partial_bytes) =
                     self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
 
                 crate::inlines::write_autolink_with_trailing(self, al, &trailing)?;
                 i += 1 + skip_count;
+
+                // If a PlainText node was partially consumed, render only the remainder
+                if partial_bytes > 0
+                    && let Some(InlineNode::PlainText(text)) = nodes.get(i)
+                {
+                    let remaining = &text.content[partial_bytes..];
+                    let content = if self.strip_next_leading_space {
+                        self.strip_next_leading_space = false;
+                        remaining.trim_start()
+                    } else {
+                        remaining
+                    };
+                    if !content.is_empty() {
+                        let escaped =
+                            crate::escape::manify(content, crate::escape::EscapeMode::Normalize);
+                        write!(self.writer_mut(), "{escaped}")?;
+                    }
+                    i += 1;
+                }
                 continue;
             }
 

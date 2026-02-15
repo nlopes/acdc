@@ -1,26 +1,23 @@
 '\" t
-."     Title: email-test(1)
-."    Author: [see the "AUTHOR(S)" section]
-." Generator: acdc 0.1.0
-."      Date: 2025-01-20
-."    Manual: \ \&
-."    Source: \ \&
-."  Language: English
-."
+.\"     Title: email-test
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2025-01-20
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
 .TH "EMAIL\-TEST" "1" "2025-01-20" "\ \&" "\ \&"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
-.\" Disable hyphenation
 .nh
-.\" Left-align only
 .ad l
-.\" URL/email macros
 .de URL
 \fI\\$2\fP <\\$1>\\$3
 ..
 .als MTO URL
-.if \n[.g] \{
+.if \n[.g] \{\
 .  mso www.tmac
 .  am URL
 .    ad l
@@ -33,32 +30,43 @@
 .SH "NAME"
 email\-test \- test email autolink trailing punctuation
 .SH "DESCRIPTION"
-.PP
+.sp
 Contact \c
 .MTO "user\(atexample.com" "" "."
-.PP
+
+.sp
 In parentheses (\c
 .MTO "user\(atexample.com" "" ")"
-.PP
+
+.sp
 No trailing: \c
 .MTO "user\(atexample.com" "" ""
-.PP
-URL should not capture: \(lahttps://example.com\(ra\&.
-.PP
+
+.sp
+URL should not capture: \c
+.URL "https://example.com" "" ""
+\&.
+.sp
 Multiple trailing: \c
 .MTO "user\(atexample.com" "" ".,;"
-.PP
+
+.sp
 In braces {\c
 .MTO "user\(atexample.com" "" "}"
-.PP
+
+.sp
 In quotes "\c
 .MTO "user\(atexample.com" "" """
-.PP
+
+.sp
 Exclamation: \c
 .MTO "user\(atexample.com" "" "!"
-.PP
+
+.sp
 Punct then bold: \c
-.MTO "user\(atexample.com" "" ".\fBbold\fP" text
-.PP
+.MTO "user\(atexample.com" "" ".\fBbold\fP"
+text
+.sp
 Space then text: \c
-.MTO "user\(atexample.com" "" "" more text here
+.MTO "user\(atexample.com" "" ""
+more text here

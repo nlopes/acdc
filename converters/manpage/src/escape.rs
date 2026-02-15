@@ -140,6 +140,10 @@ fn needs_escaping(text: &str, mode: EscapeMode) -> bool {
         || text.contains('\u{00B0}')
         || text.contains('\u{00A0}')
         || text.contains('\u{2022}')
+        || text.contains('\u{2192}')
+        || text.contains('\u{2190}')
+        || text.contains('\u{21D2}')
+        || text.contains('\u{21D0}')
     {
         return true;
     }
@@ -217,7 +221,7 @@ fn replace_special_chars(text: &str) -> String {
         .replace('\u{201C}', "\\(lq") // Left double quote
         .replace('\u{201D}', "\\(rq") // Right double quote
         // Ellipsis
-        .replace('\u{2026}', "...") // Ellipsis
+        .replace('\u{2026}', ".\\|.\\|.") // Ellipsis (dots with thin-space separators)
         // Symbols
         .replace('\u{00A9}', "\\(co") // Copyright
         .replace('\u{00AE}', "\\(rg") // Registered
@@ -225,6 +229,11 @@ fn replace_special_chars(text: &str) -> String {
         .replace('\u{00B0}', "\\(de") // Degree
         .replace('\u{00A0}', "\\ ") // Non-breaking space
         .replace('\u{2022}', "\\(bu") // Bullet
+        // Arrows
+        .replace('\u{2192}', "\\(->") // Right arrow
+        .replace('\u{2190}', "\\(<-") // Left arrow
+        .replace('\u{21D2}', "\\(rA") // Double right arrow
+        .replace('\u{21D0}', "\\(lA") // Double left arrow
 }
 
 /// Escape text for use in double-quoted strings.

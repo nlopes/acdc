@@ -15,7 +15,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const SEE_THE_AUTHOR_SECTION: &str = r#"[see the "AUTHOR(S)" section]"#;
 
 /// Format an author's full name for display.
-fn format_author_name(author: &Author) -> String {
+pub(crate) fn format_author_name(author: &Author) -> String {
     match &author.middle_name {
         Some(middle) => format!("{} {middle} {}", author.first_name, author.last_name),
         None => format!("{} {}", author.first_name, author.last_name),
@@ -24,12 +24,18 @@ fn format_author_name(author: &Author) -> String {
 
 /// Format the author line for the comment header.
 ///
-/// Returns the first author's name if available, otherwise a reference to
-/// the AUTHOR(S) section.
+/// Returns all author names comma-separated if available, otherwise a
+/// reference to the AUTHOR(S) section.
 fn format_author_line(authors: &[Author]) -> String {
-    authors
-        .first()
-        .map_or_else(|| SEE_THE_AUTHOR_SECTION.to_string(), format_author_name)
+    if authors.is_empty() {
+        SEE_THE_AUTHOR_SECTION.to_string()
+    } else {
+        authors
+            .iter()
+            .map(format_author_name)
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
 }
 
 /// Write a comment line with a right-aligned label (12 chars total width).
@@ -40,17 +46,16 @@ fn write_comment_line<W: Write + ?Sized>(
 ) -> std::io::Result<()> {
     // Labels are right-aligned to 11 characters (including the colon)
     // This matches asciidoctor's comment header alignment
-    writeln!(w, r#"."{:>11} {value}"#, format!("{label}:"))
+    writeln!(w, r#".\"{:>11} {value}"#, format!("{label}:"))
 }
 
 /// Write URL and MTO macro definitions for link handling.
 fn write_url_macros<W: Write + ?Sized>(w: &mut W, linkstyle: &str) -> std::io::Result<()> {
-    writeln!(w, r#".\" URL/email macros"#)?;
     writeln!(w, ".de URL")?;
     writeln!(w, r"\fI\\$2\fP <\\$1>\\$3")?;
     writeln!(w, "..")?;
     writeln!(w, ".als MTO URL")?;
-    writeln!(w, r".if \n[.g] \{{")?;
+    writeln!(w, ".if \\n[.g] \\{{\\")?;
     writeln!(w, ".  mso www.tmac")?;
     writeln!(w, ".  am URL")?;
     writeln!(w, ".    ad l")?;
@@ -106,6 +111,7 @@ pub(crate) fn extract_plain_text(nodes: &[InlineNode]) -> String {
 /// - `manname`: From NAME section (or falls back to mantitle)
 /// - `manpurpose`: From NAME section (after ` - `)
 /// - `_manpage_title_conforming`: Whether the title conforms to name(volume) format
+#[allow(clippy::too_many_lines)]
 pub(crate) fn visit_document_start<W: Write>(
     doc: &Document,
     visitor: &mut ManpageVisitor<W>,
@@ -154,14 +160,26 @@ pub(crate) fn visit_document_start<W: Write>(
     }
 
     // Get optional attributes (user-provided or defaults)
-    let mansource = doc.attributes.get_string("mansource").unwrap_or_default();
-    let manmanual = doc.attributes.get_string("manmanual").unwrap_or_default();
+    // Support both forms: :mansource: and :man source: (asciidoctor accepts both)
+    let mansource = doc
+        .attributes
+        .get_string("mansource")
+        .or_else(|| doc.attributes.get_string("man source"))
+        .or_else(|| doc.attributes.get_string("man-source"))
+        .unwrap_or_default();
+    let manmanual = doc
+        .attributes
+        .get_string("manmanual")
+        .or_else(|| doc.attributes.get_string("man manual"))
+        .or_else(|| doc.attributes.get_string("man-manual"))
+        .unwrap_or_default();
 
-    // Get date - use revdate attribute or current date
+    // Get date - use revdate from document, then processor (source file mtime), then current date
     let date = doc
         .attributes
         .get_string("revdate")
-        .unwrap_or(chrono::Local::now().format("%Y-%m-%d").to_string());
+        .or_else(|| visitor.processor.document_attributes.get_string("revdate"))
+        .unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
 
     let w = visitor.writer_mut();
 
@@ -169,11 +187,18 @@ pub(crate) fn visit_document_start<W: Write>(
     writeln!(w, r#"'\" t"#)?;
 
     // Get the document title for the header comment
-    // Use the original document title (not mantitle) to match asciidoctor behavior
-    let title_for_comment = doc
-        .header
-        .as_ref()
-        .map_or_else(|| mantitle.clone(), |h| extract_plain_text(&h.title));
+    // Use the original document title without volume number (matching asciidoctor)
+    let title_for_comment = doc.header.as_ref().map_or_else(
+        || mantitle.clone(),
+        |h| {
+            let full_title = extract_plain_text(&h.title);
+            // Strip trailing (N) volume number if present
+            full_title
+                .rsplit_once('(')
+                .filter(|(_, vol)| vol.ends_with(')') && vol.len() <= 3)
+                .map_or(full_title.clone(), |(name, _)| name.to_string())
+        },
+    );
 
     // Get author information from the header
     let author_line = doc.header.as_ref().map_or_else(
@@ -201,7 +226,7 @@ pub(crate) fn visit_document_start<W: Write>(
     write_comment_line(w, "Manual", &manual_display)?;
     write_comment_line(w, "Source", &source_display)?;
     write_comment_line(w, "Language", "English")?;
-    writeln!(w, r#".""#)?;
+    writeln!(w, r#".\""#)?;
 
     // Write .TH macro
     // Format: .TH "NAME" "VOLUME" "DATE" "SOURCE" "MANUAL"
@@ -241,10 +266,8 @@ pub(crate) fn visit_document_start<W: Write>(
     // Disable extra space after sentence-ending punctuation (modern convention)
     writeln!(w, r".ss \n[.ss] 0")?;
 
-    // Write preamble settings (targeting modern groff)
-    writeln!(w, r#".\" Disable hyphenation"#)?;
+    // Disable hyphenation and left-align only
     writeln!(w, ".nh")?;
-    writeln!(w, r#".\" Left-align only"#)?;
     writeln!(w, ".ad l")?;
 
     // Get linkstyle from document attributes (default: "blue R < >")

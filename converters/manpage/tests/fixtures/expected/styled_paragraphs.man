@@ -1,26 +1,23 @@
 '\" t
-."     Title: styled_paragraphs(1)
-."    Author: [see the "AUTHOR(S)" section]
-." Generator: acdc 0.1.0
-."      Date: 2025-12-08
-."    Manual: Test Manual
-."    Source: acdc
-."  Language: English
-."
+.\"     Title: styled_paragraphs
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2025-12-08
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
 .TH "STYLED_PARAGRAPHS" "1" "2025-12-08" "acdc" "Test Manual"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
-.\" Disable hyphenation
 .nh
-.\" Left-align only
 .ad l
-.\" URL/email macros
 .de URL
 \fI\\$2\fP <\\$1>\\$3
 ..
 .als MTO URL
-.if \n[.g] \{
+.if \n[.g] \{\
 .  mso www.tmac
 .  am URL
 .    ad l
@@ -33,7 +30,7 @@
 .SH "NAME"
 styled_paragraphs \- test styled paragraph rendering
 .SH "SYNOPSIS"
-.PP
+.sp
 \fBstyled_paragraphs\fP [\fIOPTIONS\fP]
 .SH "QUOTE STYLE"
 .RS 3

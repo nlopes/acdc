@@ -1,6 +1,6 @@
 //! Paragraph rendering for manpages.
 //!
-//! Handles `.PP` paragraph macro, paragraph titles, and styled paragraphs.
+//! Handles paragraph breaks, titles, and styled paragraphs (quote, verse, literal).
 
 use std::io::Write;
 
@@ -29,10 +29,10 @@ pub(crate) fn visit_paragraph<W: Write>(
     }
 
     // Paragraph break (skip in NAME section per manpage convention)
-    let skip_pp = visitor.in_name_section;
+    let skip_sp = visitor.in_name_section;
     let w = visitor.writer_mut();
-    if !skip_pp {
-        writeln!(w, ".PP")?;
+    if !skip_sp {
+        writeln!(w, ".sp")?;
     }
 
     // Optional title (rendered as bold)

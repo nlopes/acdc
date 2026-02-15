@@ -1,0 +1,212 @@
+= comprehensive-test(1)
+Test Author <test@example.com>; Second Author <second@example.com>
+:doctype: manpage
+:manmanual: Comprehensive Manual
+:mansource: Test Suite 1.0
+:man-linkstyle: blue R <>
+:revdate: 2025-06-01
+
+== Name
+
+comprehensive-test - exercise all manpage converter features
+
+== Synopsis
+
+*comprehensive-test* [*-v*|*--verbose*] [*-o* _FILE_] _INPUT_...
+
+== Description
+
+This is the main description paragraph.
+
+=== Basic Formatting
+
+This tests *bold*, _italic_, `monospace`, #highlight#, ^superscript^, ~subscript~,
+and [.underline]#underlined# text. Also curved ``double quotes'' and `single apostrophe's` text.
+
+=== Links and Cross References
+
+Visit https://example.com for more info.
+Email user@example.com for support.
+See link:https://example.com[Example Site] for details.
+Also see mailto:admin@example.com[the admin].
+Cross-reference to <<other-section>>.
+Man page style reference: git(1).
+
+=== Footnotes
+
+This has a footnote.footnote:[First footnote content with *bold*.]
+And another footnote here.footnote:named[Named footnote content.]
+And a reference back.footnote:named[]
+
+== Options
+
+*-v*, *--verbose*::
+  Increase verbosity level.
+
+*-o* _FILE_::
+  Write output to _FILE_ instead of stdout.
++
+If _FILE_ exists, it will be overwritten.
+
+*-q*::
+  Quiet mode.
+
+== Lists
+
+=== Unordered List
+
+.A titled list
+* Item one
+* Item two with *bold*
+** Nested item alpha
+** Nested item beta
+* Item three
+
+=== Ordered List
+
+. First step
+. Second step
+.. Sub-step one
+.. Sub-step two
+. Third step
+
+=== Checklist
+
+* [x] Completed task
+* [ ] Pending task
+* Regular item (no checkbox)
+
+=== Description List
+
+term one:: Definition of term one.
+term two::
+  Multi-line definition for term two.
+term with *formatting*:: A _styled_ definition.
+
+=== Callout List
+
+[source,bash]
+----
+echo "hello" <1>
+echo "world" <2>
+----
+<1> Prints hello to stdout
+<2> Prints world to stdout
+
+== Blocks
+
+=== Code Block
+
+.Example script
+[source,bash]
+----
+#!/bin/bash
+set -euo pipefail
+echo "Hello, $USER"
+----
+
+=== Literal Block
+
+....
+This is literal text.
+  Indentation preserved.
+    More indentation.
+....
+
+=== Quote Block
+
+[quote, Albert Einstein, On Simplicity]
+____
+Everything should be made as simple as possible, but not simpler.
+____
+
+=== Example Block
+
+.Example title
+====
+This is an example block.
+It can contain multiple paragraphs.
+
+NOTE: Including admonitions.
+====
+
+=== Sidebar Block
+
+****
+This is sidebar content.
+****
+
+=== Verse Block
+
+[verse, Carl Sandburg, Fog]
+____
+The fog comes
+on little cat feet.
+____
+
+=== Open Block
+
+--
+Content in an open block.
+--
+
+== Admonitions
+
+NOTE: This is a note admonition.
+
+TIP: This is a tip admonition.
+
+WARNING: This is a warning.
+
+CAUTION: Exercise caution here.
+
+IMPORTANT: This is important.
+
+== Tables
+
+.Simple table
+|===
+| Name | Description | Status
+
+| Alpha
+| First item with *bold*
+| Active
+
+| Beta
+| Second item
+| Inactive
+|===
+
+[[other-section]]
+== Other Section
+
+Thematic break below:
+
+'''
+
+[discrete]
+=== Not a Real Section
+
+This paragraph follows a discrete header.
+
+=== Inline Macros
+
+Keyboard shortcut: kbd:[Ctrl+C]
+
+Button: btn:[OK]
+
+Menu: menu:File[Save As...]
+
+=== Deep Nesting
+
+==== Level 3 Section
+
+This is a level 3 section.
+
+===== Level 4 Section
+
+This is a level 4 section.
+
+== See Also
+
+*other-tool*(1), *related-cmd*(5)
