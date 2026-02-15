@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 acdc-parser.workspace = true
 acdc-converters-core.workspace = true
 acdc-converters-html = { workspace = true, features = ["highlighting"] }
+acdc-converters-manpage-html.workspace = true
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [

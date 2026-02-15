@@ -376,7 +376,7 @@ impl Converter for Processor {
         let variant = match backend {
             Backend::Html5s => HtmlVariant::Semantic,
             Backend::Html => HtmlVariant::Standard,
-            Backend::Manpage | Backend::Markdown | Backend::Terminal => {
+            Backend::Manpage | Backend::ManpageHtml | Backend::Markdown | Backend::Terminal => {
                 tracing::error!(%backend, "backend not appropriate for this processor, assuming user meant html");
                 HtmlVariant::Standard
             }

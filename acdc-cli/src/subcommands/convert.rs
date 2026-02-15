@@ -188,6 +188,15 @@ pub fn run(args: &Args) -> miette::Result<()> {
             .map_err(|e| error::display(&e))
         }
 
+        #[cfg(feature = "manpage-html")]
+        Backend::ManpageHtml => run_processor::<acdc_converters_manpage_html::Processor>(
+            args,
+            options,
+            document_attributes,
+            true,
+        )
+        .map_err(|e| error::display(&e)),
+
         #[cfg(feature = "markdown")]
         Backend::Markdown => {
             // Markdown outputs to separate files - can process in parallel
@@ -224,7 +233,7 @@ fn open_output_files(args: &Args, output_destination: &OutputDestination) {
         OutputDestination::File(path) => vec![path.clone()],
         OutputDestination::Derived => {
             let ext = match args.backend {
-                Backend::Html | Backend::Html5s => "html",
+                Backend::Html | Backend::Html5s | Backend::ManpageHtml => "html",
                 Backend::Markdown => "md",
                 Backend::Manpage => return,
                 Backend::Terminal => {

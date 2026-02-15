@@ -47,16 +47,29 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
 
     let highlight_html = ast_highlight::highlight_from_ast(input, &document);
 
-    let html_options = Options::builder().embedded(true).build();
-    let processor = Processor::new(html_options, document.attributes.clone());
-    let render_options = RenderOptions {
-        embedded: true,
-        ..RenderOptions::default()
-    };
+    let is_manpage = document
+        .attributes
+        .get("doctype")
+        .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "manpage"));
 
-    let preview_html = processor
-        .convert_to_string(&document, &render_options)
-        .map_err(|e| format!("{e}"))?;
+    let preview_html = if is_manpage {
+        let mp_options = Options::builder().embedded(true).build();
+        let processor =
+            acdc_converters_manpage_html::Processor::new(mp_options, document.attributes.clone());
+        processor
+            .convert_to_string(&document)
+            .map_err(|e| format!("{e}"))?
+    } else {
+        let html_options = Options::builder().embedded(true).build();
+        let processor = Processor::new(html_options, document.attributes.clone());
+        let render_options = RenderOptions {
+            embedded: true,
+            ..RenderOptions::default()
+        };
+        processor
+            .convert_to_string(&document, &render_options)
+            .map_err(|e| format!("{e}"))?
+    };
 
     Ok(ParseResult {
         highlight_html,

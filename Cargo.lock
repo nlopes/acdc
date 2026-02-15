@@ -9,6 +9,7 @@ dependencies = [
  "acdc-converters-core",
  "acdc-converters-html",
  "acdc-converters-manpage",
+ "acdc-converters-manpage-html",
  "acdc-converters-markdown",
  "acdc-converters-terminal",
  "acdc-parser",
@@ -76,6 +77,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "acdc-converters-manpage-html"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-dev",
+ "acdc-parser",
+ "pretty_assertions",
+ "rstest",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "acdc-converters-markdown"
 version = "0.1.0"
 dependencies = [
@@ -111,6 +125,7 @@ version = "0.3.0"
 dependencies = [
  "acdc-converters-core",
  "acdc-converters-html",
+ "acdc-converters-manpage-html",
  "acdc-parser",
  "console_error_panic_hook",
  "js-sys",

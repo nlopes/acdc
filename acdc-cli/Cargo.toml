@@ -21,6 +21,7 @@ acdc-converters-html = { path = "../converters/html", optional = true }
 acdc-parser.workspace = true
 acdc-converters-terminal = { path = "../converters/terminal", optional = true }
 acdc-converters-manpage = { path = "../converters/manpage", optional = true }
+acdc-converters-manpage-html = { path = "../converters/manpage-html", optional = true }
 acdc-converters-markdown = { path = "../converters/markdown", optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
@@ -41,6 +42,7 @@ default = ["html"]
 # Output converters
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
 manpage = ["dep:acdc-converters-manpage"]      # Manpage (roff/troff) converter for man pages
+manpage-html = ["dep:acdc-converters-manpage-html"]  # Manpage-styled HTML converter
 markdown = ["dep:acdc-converters-markdown"]    # Markdown converter (CommonMark and GitHub Flavored Markdown)
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
@@ -55,7 +57,7 @@ tck = []      # Technology Compatibility Kit for spec compliance testing
 setext = ["acdc-parser/setext"]  # Enable Setext-style (underlined) header parsing
 
 # Feature groups for convenience
-all-backends = ["html", "manpage", "markdown", "terminal"]  # Enable all output converters
+all-backends = ["html", "manpage", "manpage-html", "markdown", "terminal"]  # Enable all output converters
 dev-tools = ["inspect"]              # Enable development utilities
 test-tools = ["tck"]                 # Enable testing and compliance tools
 

@@ -1,0 +1,256 @@
+/*
+ * Terminal theme for manpage-styled HTML output.
+ * Mimics how `man` renders in a terminal — monospace, fixed-width layout.
+ * Uses mandoc-compatible class names (.Sh, .Ss, .Pp, .Li, etc.).
+ * Active when root element has class "manpage-terminal".
+ */
+
+.manpage.manpage-terminal {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 80ch;
+  color: #d4d4d4;
+  background: #1e1e1e;
+}
+
+/* Light mode */
+@media (prefers-color-scheme: light) {
+  .manpage.manpage-terminal {
+    color: #1a1a1a;
+    background: #ffffff;
+  }
+
+  .manpage.manpage-terminal a {
+    color: #0550ae;
+  }
+
+  .manpage.manpage-terminal pre.Li {
+    border-color: #d0d7de;
+  }
+
+  .manpage.manpage-terminal .admonition {
+    border-left-color: #d0d7de;
+    background: #f6f8fa;
+  }
+
+  .manpage.manpage-terminal table {
+    border-color: #d0d7de;
+  }
+
+  .manpage.manpage-terminal th,
+  .manpage.manpage-terminal td {
+    border-color: #d0d7de;
+  }
+
+  .manpage.manpage-terminal th {
+    background: #f6f8fa;
+  }
+
+  .manpage.manpage-terminal hr {
+    border-color: #d0d7de;
+  }
+
+  .manpage.manpage-terminal code.Li {
+    border-color: #d0d7de;
+  }
+
+  .manpage.manpage-terminal blockquote {
+    border-left-color: #d0d7de;
+  }
+}
+
+/* Sections */
+.manpage.manpage-terminal .Sh {
+  margin-top: 1.5em;
+}
+
+.manpage.manpage-terminal .Sh > h1 {
+  font-size: 1em;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin: 0 0 0.5em 0;
+}
+
+.manpage.manpage-terminal .Ss {
+  margin-top: 1em;
+  margin-left: 2ch;
+}
+
+.manpage.manpage-terminal .Ss > h2,
+.manpage.manpage-terminal .Ss > h3 {
+  font-size: 1em;
+  font-weight: bold;
+  margin: 0 0 0.3em 0;
+}
+
+/* Paragraphs */
+.manpage.manpage-terminal p.Pp {
+  margin: 0.8em 0 0.8em 4ch;
+}
+
+.manpage.manpage-terminal p.Pp.title {
+  margin-bottom: 0;
+}
+
+/* Inline formatting */
+.manpage.manpage-terminal b {
+  font-weight: bold;
+  color: inherit;
+}
+
+.manpage.manpage-terminal i {
+  font-style: italic;
+}
+
+.manpage.manpage-terminal code.Li {
+  border: 1px solid #555;
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+}
+
+.manpage.manpage-terminal mark {
+  background: #4a3f00;
+  color: #ffd700;
+}
+
+/* Code blocks */
+.manpage.manpage-terminal pre.Li {
+  margin: 0.8em 0 0.8em 4ch;
+  padding: 0.5em 1ch;
+  border: 1px solid #555;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.manpage.manpage-terminal pre.verse {
+  margin: 0.8em 0 0.8em 4ch;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.manpage.manpage-terminal pre.stem {
+  margin: 0.8em 0 0.8em 4ch;
+}
+
+/* Links */
+.manpage.manpage-terminal a {
+  color: #6cb6ff;
+  text-decoration: underline;
+}
+
+/* Lists */
+.manpage.manpage-terminal ul {
+  margin: 0.6em 0 0.6em 4ch;
+  padding-left: 2ch;
+  list-style-type: disc;
+}
+
+.manpage.manpage-terminal ol {
+  margin: 0.6em 0 0.6em 4ch;
+  padding-left: 2ch;
+  list-style-type: decimal;
+}
+
+.manpage.manpage-terminal li {
+  margin: 0.3em 0;
+}
+
+.manpage.manpage-terminal dl.Bl-tag {
+  margin: 0.6em 0 0.6em 4ch;
+}
+
+.manpage.manpage-terminal dl.Bl-tag dt {
+  font-weight: bold;
+  margin-top: 0.5em;
+}
+
+.manpage.manpage-terminal dl.Bl-tag dd {
+  margin-left: 4ch;
+  margin-bottom: 0.3em;
+}
+
+/* Admonitions */
+.manpage.manpage-terminal .admonition {
+  margin: 0.8em 0 0.8em 4ch;
+  padding: 0.3em 1ch;
+  border-left: 3px solid #404040;
+  background: #2a2a2a;
+}
+
+.manpage.manpage-terminal .admonition > p.Pp {
+  margin-left: 0;
+}
+
+/* Blockquotes */
+.manpage.manpage-terminal blockquote {
+  margin: 0.8em 0 0.8em 4ch;
+  padding-left: 2ch;
+  border-left: 2px solid #555;
+}
+
+.manpage.manpage-terminal footer.attribution,
+.manpage.manpage-terminal footer.verse-footer {
+  margin-left: 4ch;
+  font-style: italic;
+  color: #999;
+}
+
+/* Indented blocks */
+.manpage.manpage-terminal .Bd-indent {
+  margin-left: 4ch;
+}
+
+/* Tables */
+.manpage.manpage-terminal table {
+  margin: 0.8em 0 0.8em 4ch;
+  border-collapse: collapse;
+  border: 1px solid #555;
+}
+
+.manpage.manpage-terminal th,
+.manpage.manpage-terminal td {
+  padding: 0.2em 1ch;
+  border: 1px solid #555;
+}
+
+.manpage.manpage-terminal th {
+  font-weight: bold;
+  background: #2d2d2d;
+}
+
+/* Horizontal rules */
+.manpage.manpage-terminal hr {
+  border: none;
+  border-top: 1px solid #555;
+  margin: 1em 0;
+}
+
+/* Keyboard */
+.manpage.manpage-terminal kbd {
+  font-weight: bold;
+  font-family: inherit;
+}
+
+/* Discrete headers */
+.manpage.manpage-terminal .discrete {
+  font-weight: bold;
+  margin: 0.8em 0 0.4em 4ch;
+  font-size: 1em;
+}
+
+/* Footnotes */
+.manpage.manpage-terminal .footnote {
+  margin-left: 4ch;
+}
+
+.manpage.manpage-terminal sup.footnote {
+  font-size: 0.8em;
+  vertical-align: super;
+}
+
+/* Checklist checkboxes */
+.manpage.manpage-terminal input[type="checkbox"] {
+  margin-right: 0.3ch;
+}
