@@ -763,6 +763,30 @@ fn process_attribute_list(
     title_position
 }
 
+/// Check if a title line looks like a description list item.
+///
+/// Description list items have the form `term::`, `term:::`, `term::::`, or `term;;`
+/// optionally followed by content. This check prevents these from being matched
+/// as setext section titles.
+fn title_looks_like_description_list(title: &str) -> bool {
+    // Check for :: ;; ::: :::: markers that indicate description list items
+    // The marker must appear after some term text, optionally followed by content
+    let trimmed = title.trim();
+    // Look for description list markers: ::::, :::, ::, ;;
+    for marker in &["::::", ":::", "::", ";;"] {
+        if let Some(pos) = trimmed.find(marker) &&
+            // Marker must not be at the start (there must be a term before it)
+            pos > 0 &&
+            // After the marker, must be end of string, space, or tab
+            let Some(after) = trimmed.get(pos + marker.len()..)
+                && (after.is_empty() || after.starts_with(' ') || after.starts_with('\t'))
+        {
+            return true;
+        }
+    }
+    false
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState) for str {
         use std::str::FromStr;
@@ -1241,9 +1265,12 @@ peg::parser! {
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
         rule setext_section_lookahead(parent_section_level: Option<SectionLevel>) -> ()
-        = !check_start_of_description_list()
-          title:$([^'\n']+) eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
+        = title:$([^'\n']+) eol() underline:$(['-' | '~' | '^' | '+']+) &(eol() / ![_])
         {?
+            // Exclude description list items
+            if title_looks_like_description_list(title) {
+                return Err("title looks like a description list item");
+            }
             // Only check if setext mode is enabled
             if !setext::is_enabled(state) {
                 return Err("setext mode not enabled");
@@ -1451,7 +1478,7 @@ peg::parser! {
         /// match as setext titles.
         pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
         = start:position!()
-        !check_start_of_description_list()
+        !check_line_is_description_list()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section_setext");
@@ -3353,6 +3380,12 @@ peg::parser! {
 
         rule check_start_of_description_list()
         = &((!(description_list_marker() (eol() / " ")) [_])+ description_list_marker())
+
+        /// Like check_start_of_description_list but restricted to the current line.
+        /// Used by setext section rules to avoid false positives when a description
+        /// list marker (::, ;;) appears later in the document but not on the current line.
+        rule check_line_is_description_list()
+        = &((!(description_list_marker() (eol() / " " / ![_])) [^'\n'])+ description_list_marker())
 
         rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = check_start_of_description_list()
@@ -6784,6 +6817,113 @@ Content C.
             })
             .expect("level 4 section");
         assert_eq!(section.level, 4);
+
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_manpage_style_document() -> Result<(), Error> {
+        let input = "gitdatamodel(7)\n===============\n\nNAME\n----\ngitdatamodel - Git's core data model\n\nSYNOPSIS\n--------\ngitdatamodel\n";
+        let mut state = ParserState::new(input);
+        state.options.setext = true;
+        let result = document_parser::document(input, &mut state)??;
+
+        // Verify document title parsed
+        let header = result.header.expect("document has a header");
+        assert!(
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        );
+
+        // Verify NAME and SYNOPSIS are level-1 sections
+        let sections: Vec<&Section> = result
+            .blocks
+            .iter()
+            .filter_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(
+            sections.len(),
+            2,
+            "should have 2 top-level sections (NAME and SYNOPSIS)"
+        );
+        assert_eq!(sections[0].level, 1);
+        assert_eq!(sections[1].level, 1);
+        assert!(
+            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "NAME")
+        );
+        assert!(
+            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "SYNOPSIS")
+        );
+
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_setext_with_description_lists() -> Result<(), Error> {
+        // Regression: description list markers (::) anywhere in the document
+        // used to cause setext sections to fail because the lookahead
+        // `check_start_of_description_list` scanned the entire remaining input
+        let input = "\
+gitdatamodel(7)
+===============
+
+NAME
+----
+gitdatamodel - description
+
+SYNOPSIS
+--------
+gitdatamodel
+
+OBJECTS
+-------
+
+commit::
+    A commit.
+
+REFERENCES
+----------
+
+References.
+";
+        let options = crate::Options::builder().with_setext().build();
+        let result = crate::parse(input, &options)?;
+
+        let header = result.header.expect("document has a header");
+        assert!(
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        );
+
+        let sections: Vec<&Section> = result
+            .blocks
+            .iter()
+            .filter_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(
+            sections.len(),
+            4,
+            "should have 4 sections (NAME, SYNOPSIS, OBJECTS, REFERENCES)"
+        );
+        for section in &sections {
+            assert_eq!(section.level, 1);
+        }
 
         Ok(())
     }
