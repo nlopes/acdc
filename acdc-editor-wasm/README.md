@@ -225,10 +225,10 @@ To run it locally:
 
 2. Serve the directory (you need a web server to handle WASM MIME types correctly):
    ```bash
-   # Using Python
-   python3 -m http.server
+   # Using miniserve
+   miniserve . --index www/index.html
    
-   # Open browser at http://localhost:8000/www/
+   # Open browser at http://localhost:8080
    ```
 
 The example is also deployed to GitHub Pages: https://nlopes.github.io/acdc/
