@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACDC Editor</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Default Asciidoctor stylesheet fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script type="module">
+        import init from './acdc_editor_wasm.js';
+        
+        async function run() {
+            try {
+                await init();
+                console.log("WASM initialized successfully");
+            } catch (e) {
+                console.error("Failed to initialize WASM:", e);
+                document.getElementById('status').textContent = "Error: " + e;
+            }
+        }
+        
+        run();
+    </script>
+</head>
+<body>
+    <div class="main-container">
+        <div class="editor-pane">
+            <div class="editor-container">
+                <textarea id="editor" spellcheck="false"></textarea>
+                <div id="editor-backdrop">
+                    <pre id="highlight"></pre>
+                </div>
+            </div>
+            <div id="status">Loading...</div>
+        </div>
+        <div class="preview-pane">
+            <div id="preview"></div>
+        </div>
+    </div>
+</body>
+</html>
