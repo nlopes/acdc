@@ -78,13 +78,38 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
     match block {
         Block::Section(section) => {
             let start = section.location.absolute_start;
+            let end = section.location.absolute_end;
             let heading_end = find_line_end(input, start);
+
             spans.push(Span {
                 start,
                 end: heading_end,
                 class: "adoc-heading",
                 priority: 1,
             });
+
+            // Check if this is a setext header (multi-line)
+            // If the section block extends past the first line, check the next line for underline chars
+            if heading_end < end {
+                let next_line_start = heading_end + 1; // Skip newline
+                if next_line_start < end {
+                    let next_line_end = find_line_end(input, next_line_start);
+
+                    if let Some(next_line) = input.get(next_line_start..next_line_end) {
+                        let trimmed = next_line.trim();
+                        if !trimmed.is_empty()
+                            && trimmed.chars().all(|c| matches!(c, '-' | '~' | '^' | '+'))
+                        {
+                            spans.push(Span {
+                                start: next_line_start,
+                                end: next_line_end,
+                                class: "adoc-heading",
+                                priority: 1,
+                            });
+                        }
+                    }
+                }
+            }
             for child in &section.content {
                 collect_block_spans(input, child, spans);
             }
@@ -102,15 +127,21 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
             push_block_span(spans, &pb.location, "adoc-page-break");
         }
         Block::Admonition(adm) => {
+            collect_block_metadata_spans(input, &adm.metadata, adm.location.absolute_start, spans);
             let label_len = admonition_label_len(&adm.variant);
             let start = adm.location.absolute_start;
-            if start + label_len <= input.len() {
-                spans.push(Span {
-                    start,
-                    end: start + label_len,
-                    class: "adoc-admonition",
-                    priority: 1,
-                });
+            // Only highlight the label if the text actually starts with it (handles NOTE: vs [NOTE])
+            // The label length includes the colon and space, so we check for that prefix
+            let expected_label_prefix = format!("{}:", adm.variant).to_uppercase();
+            if let Some(text) = input.get(start..) {
+                if text.starts_with(&expected_label_prefix) && start + label_len <= input.len() {
+                    spans.push(Span {
+                        start,
+                        end: start + label_len,
+                        class: "adoc-admonition",
+                        priority: 1,
+                    });
+                }
             }
             for child in &adm.blocks {
                 collect_block_spans(input, child, spans);
@@ -510,7 +541,14 @@ fn collect_block_metadata_spans(
         || !metadata.options.is_empty()
         || metadata.style.is_some();
 
-    if has_attrs {
+    // Even if metadata is empty (e.g. [NOTE] consumed into AdmonitionVariant),
+    // we should check for attribute lines in the source.
+    let looks_like_meta = input.get(block_start..).map_or(false, |s| {
+        let trimmed = s.trim_start();
+        trimmed.starts_with('[') || (trimmed.starts_with('.') && !trimmed.starts_with(".."))
+    });
+
+    if has_attrs || looks_like_meta {
         // Try scanning backwards first (metadata before block location)
         scan_preceding_attributes(input, block_start, spans);
         // Also scan forward from block_start for metadata lines included in
@@ -1126,5 +1164,40 @@ mod tests {
     fn test_plain_text_escaped() {
         let result = highlight("Hello world");
         assert_eq!(result, "Hello world");
+    }
+
+    #[test]
+    fn test_setext_header_highlight() {
+        // Setext header: title line + underline line
+        let input = "Setext Header\n-------------";
+        // Enable setext in options for this test
+        let options = acdc_parser::Options::builder().with_setext().build();
+        let doc = acdc_parser::parse(input, &options).expect("failed to parse setext");
+        let result = highlight_from_ast(input, &doc);
+
+        // Should contain two adoc-heading spans (one for title, one for underline)
+        let matches: Vec<_> = result.matches("adoc-heading").collect();
+        assert_eq!(matches.len(), 2, "result: {result}");
+        assert!(result.contains("Setext Header"), "result: {result}");
+        assert!(result.contains("-------------"), "result: {result}");
+    }
+
+    #[test]
+    fn test_admonition_style_colon() {
+        let result = highlight("NOTE: This is a note.");
+        assert!(result.contains("adoc-admonition"), "result: {result}");
+        assert!(result.contains(">NOTE:</span>"), "result: {result}");
+    }
+
+    #[test]
+    fn test_admonition_style_block() {
+        // [NOTE] style should NOT trigger adoc-admonition on the label itself
+        // because it's handled as an attribute
+        let result = highlight("[NOTE]\n====\nThis is a note.\n====");
+        // The [NOTE] line is highlighted as an attribute
+        assert!(result.contains("adoc-attribute"), "result: {result}");
+        // The content inside might be, but there shouldn't be an adoc-admonition span wrapping "NOTE"
+        // (unless we decide to treat block attributes differently, but current logic is consistent)
+        assert!(!result.contains("adoc-admonition"), "result: {result}");
     }
 }

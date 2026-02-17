@@ -10,7 +10,7 @@ license = "MIT"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-acdc-parser.workspace = true
+acdc-parser = { workspace = true, features = ["setext"] }
 acdc-converters-core.workspace = true
 acdc-converters-html = { workspace = true, features = ["highlighting"] }
 wasm-bindgen = "0.2"
