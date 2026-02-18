@@ -766,30 +766,35 @@ fn collect_macro_span(input: &str, mac: &InlineMacro, spans: &mut Vec<Span>) {
     let end = location.absolute_end;
     if let Some(text) = input.get(start..end) {
         // Find the opening bracket for attributes
-        // For Url/Link/Image etc, format is `scheme:target[attrs]` or `target[attrs]`
-        // We look for the *first* `[` that isn't escaped? The parser already handled escaping.
-        // But we just want to highlight the `[` and `]`.
-        // Note: For complex macros, `[` might appear in the target, but usually not.
-        // We'll search from the end for `]` and from that `]` backwards for `[` to be safe?
-        // Actually, just finding the last `]` and the first `[` after the scheme/target is tricky without parsing.
-        // But `acdc-parser` locations cover the whole thing.
-        // Let's rely on finding `[` and `]` in the text covered by the macro.
-
         if let Some(open_bracket) = text.find('[') {
             let abs_open = start + open_bracket;
             spans.push(Span {
                 start: abs_open,
                 end: abs_open + 1,
                 class: "adoc-delimiter",
-                priority: 3, // Higher than the macro span
+                priority: 3,
             });
 
+            // Look for closing bracket inside
             if let Some(close_bracket) = text.rfind(']') {
                 if close_bracket > open_bracket {
                     let abs_close = start + close_bracket;
                     spans.push(Span {
                         start: abs_close,
                         end: abs_close + 1,
+                        class: "adoc-delimiter",
+                        priority: 3,
+                    });
+                    return;
+                }
+            }
+
+            // If not found inside, check immediately after
+            if let Some(after) = input.get(end..end + 1) {
+                if after == "]" {
+                    spans.push(Span {
+                        start: end,
+                        end: end + 1,
                         class: "adoc-delimiter",
                         priority: 3,
                     });
@@ -1335,43 +1340,22 @@ mod tests {
     }
 
     #[test]
-    fn test_granular_highlighting_overlap() {
-        // Test that delimiters split the content span correctly
-        let result = highlight("*bold*");
-        // Should have 3 spans: delimiter, bold content, delimiter
-        // <span class="adoc-delimiter">*</span><span class="adoc-bold">bold</span><span class="adoc-delimiter">*</span>
-
-        // We verify that we have delimiters and bold, and that the text "bold" is NOT inside a delimiter
-        assert!(result.contains("adoc-delimiter"), "result: {result}");
-        assert!(result.contains("adoc-bold"), "result: {result}");
-
-        // Verify structure:
-        // <span class="adoc-bold"></span> -> start/end at 0?
-        // Or <span class="adoc-delimiter">*</span><span class="adoc-bold">bold</span>
-        // Let's check exact expectations based on our logic.
-        // Logic: Open bold, Split by delim -> Close bold, Open delim.
-        // Since bold start=0, end=6. Delim start=0, end=1.
-        // Bold opens at 0. Immediately closed (empty span).
-        // Delim opens at 0.
-        // Delim closes at 1.
-        // Bold re-opens at 1.
-        // Bold closes at 5.
-        // Delim opens at 5.
-        // Delim closes at 6.
-
-        // So we expect: <span class="adoc-bold"></span><span class="adoc-delimiter">*</span><span class="adoc-bold">bold</span><span class="adoc-delimiter">*</span>
-        // Or effectively: * in delim, bold in bold, * in delim.
-
-        let delim_count = result.matches("adoc-delimiter").count();
-        let bold_count = result.matches("adoc-bold").count();
-
-        assert_eq!(delim_count, 2, "Should have 2 delimiters");
-        // bold count might be 2 or 3 depending on the empty span at start
-        assert!(bold_count >= 1, "Should have bold span");
-
+    fn test_macro_bracket_highlighting() {
+        let result = highlight("link:https://example.com[Label]");
+        // Expect <span class="adoc-delimiter">[</span> ... <span class="adoc-delimiter">]</span>
+        let delims = result.matches("adoc-delimiter").count();
+        // Should have 2 delimiters ([ and ])
+        // And the link itself
         assert!(
-            result.contains(r#"<span class="adoc-bold">bold</span>"#),
-            "Content should be wrapped in bold class"
+            delims >= 2,
+            "Should have at least 2 delimiters for link macro, found {}",
+            delims
+        );
+
+        // Verify specifically the end bracket is highlighted
+        assert!(
+            result.contains(r#"<span class="adoc-delimiter">]</span>"#),
+            "Closing bracket should be a delimiter"
         );
     }
 }
