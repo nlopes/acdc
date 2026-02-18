@@ -160,7 +160,7 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
         Block::CalloutList(list) => {
             for item in &list.items {
                 push_inline_span(spans, &item.callout.location, "adoc-callout");
-                collect_inline_spans(&item.principal, spans);
+                collect_inline_spans(input, &item.principal, spans);
                 for child in &item.blocks {
                     collect_block_spans(input, child, spans);
                 }
@@ -179,7 +179,7 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
                 para.location.absolute_start,
                 spans,
             );
-            collect_inline_spans(&para.content, spans);
+            collect_inline_spans(input, &para.content, spans);
         }
         Block::Image(img) => push_block_span(spans, &img.location, "adoc-macro"),
         Block::Audio(audio) => push_block_span(spans, &audio.location, "adoc-macro"),
@@ -208,6 +208,61 @@ fn push_inline_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, cla
     });
 }
 
+fn highlight_delimited_inline(
+    input: &str,
+    location: &acdc_parser::Location,
+    marker_char: char,
+    spans: &mut Vec<Span>,
+) {
+    let start = location.absolute_start;
+    let end = location.absolute_end;
+    if let Some(text) = input.get(start..end) {
+        // Count consecutive markers at start (e.g. "**" or "*")
+        let len = text.chars().take_while(|&c| c == marker_char).count();
+        if len > 0 {
+            // Opening marker
+            spans.push(Span {
+                start,
+                end: start + len,
+                class: "adoc-delimiter",
+                priority: 3,
+            });
+
+            // Closing marker
+            // First check if it's inside the node (at the end)
+            if text.len() >= len {
+                let close_start = end - len;
+                if input
+                    .get(close_start..end)
+                    .map_or(false, |s| s.chars().all(|c| c == marker_char))
+                {
+                    spans.push(Span {
+                        start: close_start,
+                        end,
+                        class: "adoc-delimiter",
+                        priority: 3,
+                    });
+                    return;
+                }
+            }
+
+            // If not found inside, check immediately after the node (parser might exclude closing delim)
+            // This happens with some inline nodes where the location covers only up to the content end?
+            // Or if there's an off-by-one in the parser location mapping.
+            if let Some(after) = input.get(end..end + len) {
+                if after.chars().all(|c| c == marker_char) {
+                    spans.push(Span {
+                        start: end,
+                        end: end + len,
+                        class: "adoc-delimiter",
+                        priority: 3,
+                    });
+                }
+            }
+        }
+    }
+}
+
 fn collect_description_list_spans(
     input: &str,
     list: &acdc_parser::DescriptionList,
@@ -228,8 +283,8 @@ fn collect_description_list_spans(
                 priority: 1,
             });
         }
-        collect_inline_spans(&item.term, spans);
-        collect_inline_spans(&item.principal_text, spans);
+        collect_inline_spans(input, &item.term, spans);
+        collect_inline_spans(input, &item.principal_text, spans);
         for child in &item.description {
             collect_block_spans(input, child, spans);
         }
@@ -274,7 +329,7 @@ fn collect_list_item_spans(input: &str, item: &acdc_parser::ListItem, spans: &mu
         }
     }
 
-    collect_inline_spans(&item.principal, spans);
+    collect_inline_spans(input, &item.principal, spans);
     for child in &item.blocks {
         collect_block_spans(input, child, spans);
     }
@@ -382,7 +437,7 @@ fn collect_delimited_content(
             push_verbatim_spans(inlines, "adoc-passthrough-content", spans);
         }
         DelimitedBlockType::DelimitedVerse(inlines) => {
-            collect_inline_spans(inlines, spans);
+            collect_inline_spans(input, inlines, spans);
         }
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
@@ -622,41 +677,48 @@ fn scan_leading_attributes(input: &str, block_start: usize, spans: &mut Vec<Span
 // Inline-level span collection
 // ---------------------------------------------------------------------------
 
-fn collect_inline_spans(nodes: &[InlineNode], spans: &mut Vec<Span>) {
+fn collect_inline_spans(input: &str, nodes: &[InlineNode], spans: &mut Vec<Span>) {
     for node in nodes {
-        collect_single_inline_span(node, spans);
+        collect_single_inline_span(input, node, spans);
     }
 }
 
-fn collect_single_inline_span(node: &InlineNode, spans: &mut Vec<Span>) {
+fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Span>) {
     match node {
         InlineNode::BoldText(b) => {
             push_inline_span(spans, &b.location, "adoc-bold");
-            collect_inline_spans(&b.content, spans);
+            highlight_delimited_inline(input, &b.location, '*', spans);
+            collect_inline_spans(input, &b.content, spans);
         }
         InlineNode::ItalicText(i) => {
             push_inline_span(spans, &i.location, "adoc-italic");
-            collect_inline_spans(&i.content, spans);
+            highlight_delimited_inline(input, &i.location, '_', spans);
+            collect_inline_spans(input, &i.content, spans);
         }
         InlineNode::MonospaceText(m) => {
             push_inline_span(spans, &m.location, "adoc-monospace");
-            collect_inline_spans(&m.content, spans);
+            highlight_delimited_inline(input, &m.location, '`', spans);
+            collect_inline_spans(input, &m.content, spans);
         }
         InlineNode::HighlightText(h) => {
             push_inline_span(spans, &h.location, "adoc-highlight");
-            collect_inline_spans(&h.content, spans);
+            highlight_delimited_inline(input, &h.location, '#', spans);
+            collect_inline_spans(input, &h.content, spans);
         }
         InlineNode::SuperscriptText(s) => {
             push_inline_span(spans, &s.location, "adoc-superscript");
-            collect_inline_spans(&s.content, spans);
+            highlight_delimited_inline(input, &s.location, '^', spans);
+            collect_inline_spans(input, &s.content, spans);
         }
         InlineNode::SubscriptText(s) => {
             push_inline_span(spans, &s.location, "adoc-subscript");
-            collect_inline_spans(&s.content, spans);
+            highlight_delimited_inline(input, &s.location, '~', spans);
+            collect_inline_spans(input, &s.content, spans);
         }
         InlineNode::CurvedQuotationText(q) => {
-            push_inline_span(spans, &q.location, "adoc-bold");
-            collect_inline_spans(&q.content, spans);
+            push_inline_span(spans, &q.location, "adoc-bold"); // Usually treated as bold or quote
+            highlight_delimited_inline(input, &q.location, '"', spans);
+            collect_inline_spans(input, &q.content, spans);
         }
         InlineNode::InlineAnchor(a) => {
             push_inline_span(spans, &a.location, "adoc-anchor");
@@ -665,7 +727,7 @@ fn collect_single_inline_span(node: &InlineNode, spans: &mut Vec<Span>) {
             push_inline_span(spans, &cr.location, "adoc-callout");
         }
         InlineNode::Macro(m) => {
-            collect_macro_span(m, spans);
+            collect_macro_span(input, m, spans);
         }
         InlineNode::PlainText(_)
         | InlineNode::RawText(_)
@@ -677,7 +739,7 @@ fn collect_single_inline_span(node: &InlineNode, spans: &mut Vec<Span>) {
     }
 }
 
-fn collect_macro_span(mac: &InlineMacro, spans: &mut Vec<Span>) {
+fn collect_macro_span(input: &str, mac: &InlineMacro, spans: &mut Vec<Span>) {
     let (class, location) = match mac {
         InlineMacro::Url(u) => ("adoc-link", &u.location),
         InlineMacro::Link(l) => ("adoc-link", &l.location),
@@ -695,7 +757,46 @@ fn collect_macro_span(mac: &InlineMacro, spans: &mut Vec<Span>) {
         InlineMacro::Stem(s) => ("adoc-inline-macro", &s.location),
         _ => return,
     };
+
+    // Base span for the whole macro
     push_inline_span(spans, location, class);
+
+    // Add granular highlighting for delimiters [ ]
+    let start = location.absolute_start;
+    let end = location.absolute_end;
+    if let Some(text) = input.get(start..end) {
+        // Find the opening bracket for attributes
+        // For Url/Link/Image etc, format is `scheme:target[attrs]` or `target[attrs]`
+        // We look for the *first* `[` that isn't escaped? The parser already handled escaping.
+        // But we just want to highlight the `[` and `]`.
+        // Note: For complex macros, `[` might appear in the target, but usually not.
+        // We'll search from the end for `]` and from that `]` backwards for `[` to be safe?
+        // Actually, just finding the last `]` and the first `[` after the scheme/target is tricky without parsing.
+        // But `acdc-parser` locations cover the whole thing.
+        // Let's rely on finding `[` and `]` in the text covered by the macro.
+
+        if let Some(open_bracket) = text.find('[') {
+            let abs_open = start + open_bracket;
+            spans.push(Span {
+                start: abs_open,
+                end: abs_open + 1,
+                class: "adoc-delimiter",
+                priority: 3, // Higher than the macro span
+            });
+
+            if let Some(close_bracket) = text.rfind(']') {
+                if close_bracket > open_bracket {
+                    let abs_close = start + close_bracket;
+                    spans.push(Span {
+                        start: abs_close,
+                        end: abs_close + 1,
+                        class: "adoc-delimiter",
+                        priority: 3,
+                    });
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -704,7 +805,9 @@ fn collect_macro_span(mac: &InlineMacro, spans: &mut Vec<Span>) {
 
 /// Flatten collected spans and emit the highlighted HTML.
 fn render_spans(input: &str, spans: &mut [Span]) -> String {
-    spans.sort_by(|a, b| a.start.cmp(&b.start).then(b.priority.cmp(&a.priority)));
+    // Sort by start position. For same start, process lower priority first
+    // so they can be split by higher priority spans (which become inner).
+    spans.sort_by(|a, b| a.start.cmp(&b.start).then(a.priority.cmp(&b.priority)));
 
     let events = flatten_spans(spans);
 
@@ -738,11 +841,12 @@ fn render_spans(input: &str, spans: &mut [Span]) -> String {
 /// Flatten sorted spans into open/close events, handling overlaps.
 fn flatten_spans(spans: &[Span]) -> Vec<(usize, &'static str, bool)> {
     let mut events: Vec<(usize, &str, bool)> = Vec::with_capacity(spans.len() * 2);
-    let mut active: Vec<(usize, &str, u8)> = Vec::new();
+    // (end, class, priority, start)
+    let mut active: Vec<(usize, &str, u8, usize)> = Vec::new();
 
     for span in spans {
         // Close active spans that end before this span starts
-        while let Some(&(end, _, _)) = active.last() {
+        while let Some(&(end, _, _, _)) = active.last() {
             if end <= span.start {
                 events.push((end, "", false));
                 active.pop();
@@ -754,31 +858,61 @@ fn flatten_spans(spans: &[Span]) -> Vec<(usize, &'static str, bool)> {
         // Skip spans dominated by a higher-priority active span
         let dominated = active
             .iter()
-            .any(|&(end, _, prio)| prio > span.priority && end >= span.end);
+            .any(|&(end, _, prio, _)| prio > span.priority && end >= span.end);
         if dominated {
             continue;
         }
 
         // If active span has lower priority, split it around ours
-        if let Some(&(parent_end, parent_class, parent_prio)) = active.last()
+        if let Some(&(parent_end, parent_class, parent_prio, parent_start)) = active.last()
             && parent_prio < span.priority
             && parent_end > span.start
         {
-            events.push((span.start, "", false));
-            active.pop();
-            events.push((span.start, span.class, true));
-            active.push((span.end, span.class, span.priority));
-            if parent_end > span.end {
-                active.push((parent_end, parent_class, parent_prio));
+            // Optimization: If parent started at the same position as this span,
+            // we haven't written any content for it yet. Instead of Close+Open,
+            // we can just remove the Parent Open event and defer it.
+            if parent_start == span.start {
+                // Remove the last event (which must be Open parent)
+                if let Some((pos, _, true)) = events.last() {
+                    if *pos == span.start {
+                        events.pop();
+                    }
+                }
+                active.pop(); // Remove parent from active
+
+                events.push((span.start, span.class, true)); // Open child
+
+                // Push parent back (bottom)
+                if parent_end > span.end {
+                    active.push((parent_end, parent_class, parent_prio, parent_start));
+                    events.push((span.end, parent_class, true));
+                }
+                // Push child (top)
+                active.push((span.end, span.class, span.priority, span.start));
+                continue;
             }
+
+            events.push((span.start, "", false)); // Close parent
+            active.pop();
+            events.push((span.start, span.class, true)); // Open child
+
+            // Push parent back first (so it's under child in the stack)
+            if parent_end > span.end {
+                active.push((parent_end, parent_class, parent_prio, parent_start));
+                // Schedule re-open of parent when child ends
+                events.push((span.end, parent_class, true));
+            }
+            // Push child (so it's on top and popped first)
+            active.push((span.end, span.class, span.priority, span.start));
+
             continue;
         }
 
         events.push((span.start, span.class, true));
-        active.push((span.end, span.class, span.priority));
+        active.push((span.end, span.class, span.priority, span.start));
     }
 
-    while let Some((end, _, _)) = active.pop() {
+    while let Some((end, _, _, _)) = active.pop() {
         events.push((end, "", false));
     }
 
@@ -786,7 +920,6 @@ fn flatten_spans(spans: &[Span]) -> Vec<(usize, &'static str, bool)> {
 
     events
 }
-
 // ---------------------------------------------------------------------------
 // Utility helpers
 // ---------------------------------------------------------------------------
@@ -1199,5 +1332,46 @@ mod tests {
         // The content inside might be, but there shouldn't be an adoc-admonition span wrapping "NOTE"
         // (unless we decide to treat block attributes differently, but current logic is consistent)
         assert!(!result.contains("adoc-admonition"), "result: {result}");
+    }
+
+    #[test]
+    fn test_granular_highlighting_overlap() {
+        // Test that delimiters split the content span correctly
+        let result = highlight("*bold*");
+        // Should have 3 spans: delimiter, bold content, delimiter
+        // <span class="adoc-delimiter">*</span><span class="adoc-bold">bold</span><span class="adoc-delimiter">*</span>
+
+        // We verify that we have delimiters and bold, and that the text "bold" is NOT inside a delimiter
+        assert!(result.contains("adoc-delimiter"), "result: {result}");
+        assert!(result.contains("adoc-bold"), "result: {result}");
+
+        // Verify structure:
+        // <span class="adoc-bold"></span> -> start/end at 0?
+        // Or <span class="adoc-delimiter">*</span><span class="adoc-bold">bold</span>
+        // Let's check exact expectations based on our logic.
+        // Logic: Open bold, Split by delim -> Close bold, Open delim.
+        // Since bold start=0, end=6. Delim start=0, end=1.
+        // Bold opens at 0. Immediately closed (empty span).
+        // Delim opens at 0.
+        // Delim closes at 1.
+        // Bold re-opens at 1.
+        // Bold closes at 5.
+        // Delim opens at 5.
+        // Delim closes at 6.
+
+        // So we expect: <span class="adoc-bold"></span><span class="adoc-delimiter">*</span><span class="adoc-bold">bold</span><span class="adoc-delimiter">*</span>
+        // Or effectively: * in delim, bold in bold, * in delim.
+
+        let delim_count = result.matches("adoc-delimiter").count();
+        let bold_count = result.matches("adoc-bold").count();
+
+        assert_eq!(delim_count, 2, "Should have 2 delimiters");
+        // bold count might be 2 or 3 depending on the empty span at start
+        assert!(bold_count >= 1, "Should have bold span");
+
+        assert!(
+            result.contains(r#"<span class="adoc-bold">bold</span>"#),
+            "Content should be wrapped in bold class"
+        );
     }
 }
