@@ -115,6 +115,28 @@ impl<'a> InlinePreprocessorParserState<'a> {
             end: self.get_position(),
         }
     }
+
+    /// Record a passthrough and return its placeholder string.
+    ///
+    /// Pushes the passthrough to the list, creates a placeholder, records it
+    /// in the source map, and increments the counter.
+    fn record_passthrough(&self, pass: Pass, location: &Location) -> String {
+        self.passthroughs.borrow_mut().push(pass);
+        let placeholder = passthrough_placeholder(self.pass_found_count.get());
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            placeholder.chars().count(),
+            ProcessedKind::Passthrough,
+        );
+        self.pass_found_count.set(self.pass_found_count.get() + 1);
+        placeholder
+    }
+}
+
+/// Format a passthrough placeholder string for the given index.
+pub(crate) fn passthrough_placeholder(index: usize) -> String {
+    format!("\u{FFFD}\u{FFFD}\u{FFFD}{index}\u{FFFD}\u{FFFD}\u{FFFD}")
 }
 
 #[derive(Debug)]
@@ -311,21 +333,12 @@ parser!(
                         if is_char_ref {
                             // Treat {lt}, {gt}, {amp} as passthroughs (like +++<+++)
                             // Empty substitutions = RawText = bypasses HTML escaping
-                            state.passthroughs.borrow_mut().push(Pass {
+                            state.record_passthrough(Pass {
                                 text: Some(value.clone()),
                                 substitutions: Vec::new(),
                                 location: location.clone(),
                                 kind: PassthroughKind::Triple,
-                            });
-                            let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                            state.source_map.borrow_mut().add_replacement(
-                                location.absolute_start,
-                                location.absolute_end,
-                                new_content.chars().count(),
-                                ProcessedKind::Passthrough,
-                            );
-                            state.pass_found_count.set(state.pass_found_count.get() + 1);
-                            new_content
+                            }, &location)
                         } else {
                             // Normal attribute substitution
                             let mut attributes = state.attributes.borrow_mut();
@@ -415,68 +428,38 @@ parser!(
                 // Not a valid constrained passthrough - return literal text without creating passthrough
                 return format!("+{content}+");
             }
-            state.passthroughs.borrow_mut().push(Pass {
+            state.record_passthrough(Pass {
                 text: Some(content.to_string()),
                 // We add SpecialChars here for single and double but we don't do
                 // anything with them, only the converter does.
                 substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
                 location: location.clone(),
                 kind: PassthroughKind::Single,
-            });
-            let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-            let original_span = location.absolute_end - location.absolute_start;
-            state.source_map.borrow_mut().add_replacement(
-                location.absolute_start,
-                location.absolute_end,
-                new_content.chars().count(),
-                ProcessedKind::Passthrough,
-            );
-            state.pass_found_count.set(state.pass_found_count.get() + 1);
-            new_content
+            }, &location)
         }
 
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
                 let location = state.calculate_location(start, content, 4);
-                state.passthroughs.borrow_mut().push(Pass {
+                state.record_passthrough(Pass {
                     text: Some(content.to_string()),
                     // We add SpecialChars here for single and double but we don't do
                     // anything with them, only the converter does.
                     substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
                     location: location.clone(),
                     kind: PassthroughKind::Double,
-                });
-                let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                let original_span = location.absolute_end - location.absolute_start;
-                state.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    new_content.chars().count(),
-                    ProcessedKind::Passthrough,
-                );
-                state.pass_found_count.set(state.pass_found_count.get() + 1);
-                new_content
+                }, &location)
             }
 
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
                 let location = state.calculate_location(start, content, 6);
-                state.passthroughs.borrow_mut().push(Pass {
+                state.record_passthrough(Pass {
                     text: Some(content.to_string()),
                     substitutions: Vec::new(),
                     location: location.clone(),
                     kind: PassthroughKind::Triple,
-                });
-                let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                let original_span = location.absolute_end - location.absolute_start;
-                state.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    new_content.chars().count(),
-                    ProcessedKind::Passthrough,
-                );
-                state.pass_found_count.set(state.pass_found_count.get() + 1);
-                new_content
+                }, &location)
             }
 
         rule pass_macro() -> String
@@ -499,21 +482,12 @@ parser!(
             } else {
                 content.to_string()
             };
-                state.passthroughs.borrow_mut().push(Pass {
+                state.record_passthrough(Pass {
                     text: Some(content.clone()),
                     substitutions: substitutions.clone(),
                     location: location.clone(),
                     kind: PassthroughKind::Macro,
-                });
-                let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    new_content.chars().count(),
-                    ProcessedKind::Passthrough,
-                );
-                state.pass_found_count.set(state.pass_found_count.get() + 1);
-                new_content
+                }, &location)
             }
 
         rule substitutions() -> Vec<Substitution>

@@ -135,7 +135,7 @@ pub(crate) fn process_passthrough_placeholders(
 
     // Process each passthrough placeholder in order
     for (index, passthrough) in processed.passthroughs.iter().enumerate() {
-        let placeholder = format!("���{index}���");
+        let placeholder = crate::grammar::inline_preprocessor::passthrough_placeholder(index);
 
         if let Some(placeholder_pos) = remaining.find(&placeholder) {
             let before_content = if placeholder_pos > 0 {
@@ -293,7 +293,7 @@ pub(crate) fn replace_passthrough_placeholders(
 
     // Replace each passthrough placeholder with its content
     for (index, passthrough) in processed.passthroughs.iter().enumerate() {
-        let placeholder = format!("���{index}���");
+        let placeholder = crate::grammar::inline_preprocessor::passthrough_placeholder(index);
         if let Some(text) = &passthrough.text {
             result = result.replace(&placeholder, text);
         }

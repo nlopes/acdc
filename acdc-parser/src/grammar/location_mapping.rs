@@ -7,7 +7,7 @@ use crate::{
 use super::{
     ParserState,
     marked_text::WithLocationMappingContext,
-    utf8_utils::{self, RoundDirection, snap_to_boundary},
+    utf8_utils::{RoundDirection, snap_to_boundary, step_char},
 };
 
 /// Maximum base length for constrained formatting heuristic.
@@ -41,10 +41,10 @@ pub(crate) fn clamp_location_bounds(location: &mut Location, input: &str) {
     location.absolute_end = location.absolute_end.min(input_len);
 
     // Ensure start is on a valid UTF-8 boundary (round backward)
-    location.absolute_start = utf8_utils::ensure_char_boundary(input, location.absolute_start);
+    location.absolute_start = snap_to_boundary(input, location.absolute_start, RoundDirection::Backward);
 
     // Ensure end is on a valid UTF-8 boundary (round forward)
-    location.absolute_end = utf8_utils::ensure_char_boundary_forward(input, location.absolute_end);
+    location.absolute_end = snap_to_boundary(input, location.absolute_end, RoundDirection::Forward);
 
     // Ensure start <= end
     if location.absolute_start > location.absolute_end {
@@ -222,16 +222,18 @@ pub(crate) fn create_location_mapper<'a>(
                         base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
                 } else {
                     // General case: expand collapsed locations to the next UTF-8 boundary
-                    processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
+                    processed_abs_end = step_char(
                         &state.input,
                         processed_abs_end,
+                        RoundDirection::Forward,
                     );
                 }
             } else {
                 // General case: expand collapsed locations to the next UTF-8 boundary
-                processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
+                processed_abs_end = step_char(
                     &state.input,
                     processed_abs_end,
+                    RoundDirection::Forward,
                 );
             }
         }
@@ -456,7 +458,7 @@ pub(crate) fn create_original_source_location(
     // Check if this PlainText content actually contains passthrough placeholders
     let contains_passthroughs = !processed.passthroughs.is_empty()
         && processed.passthroughs.iter().enumerate().any(|(index, _)| {
-            let placeholder = format!("���{index}���");
+            let placeholder = super::inline_preprocessor::passthrough_placeholder(index);
             plain_content.contains(&placeholder)
         });
 
@@ -609,7 +611,7 @@ fn map_plain_text_inline_locations<'a>(
     // Check if this PlainText contains passthrough placeholders
     let contains_passthroughs = !processed.passthroughs.is_empty()
         && processed.passthroughs.iter().enumerate().any(|(index, _)| {
-            let placeholder = format!("���{index}���");
+            let placeholder = super::inline_preprocessor::passthrough_placeholder(index);
             original_content.contains(&placeholder)
         });
 

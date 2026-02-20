@@ -88,38 +88,9 @@ pub fn step_char(input: &str, offset: usize, direction: RoundDirection) -> usize
     }
 }
 
-// --- Backward-compatible function wrappers ---
-// These will be removed after all callsites are migrated.
-
-/// Safely increment a byte offset to the next UTF-8 character boundary.
-#[inline]
-pub fn safe_increment_offset(input: &str, offset: usize) -> usize {
-    step_char(input, offset, RoundDirection::Forward)
-}
-
-/// Safely decrement a byte offset by one character, ensuring valid UTF-8 boundary.
-#[inline]
-pub fn safe_decrement_offset(input: &str, offset: usize) -> usize {
-    step_char(input, offset, RoundDirection::Backward)
-}
-
-/// Ensure an offset is on a valid UTF-8 character boundary (round backward).
-#[inline]
-pub fn ensure_char_boundary(input: &str, offset: usize) -> usize {
-    snap_to_boundary(input, offset, RoundDirection::Backward)
-}
-
-/// Ensure an offset is on a valid UTF-8 character boundary (round forward).
-#[inline]
-pub fn ensure_char_boundary_forward(input: &str, offset: usize) -> usize {
-    snap_to_boundary(input, offset, RoundDirection::Forward)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // --- Tests for new unified API ---
 
     #[test]
     fn test_snap_backward_on_boundary() {
@@ -178,77 +149,26 @@ mod tests {
         assert_eq!(step_char(input, 0, RoundDirection::Backward), 0); // start -> start
     }
 
-    // --- Tests for backward-compatible wrappers ---
-
     #[test]
-    fn test_safe_decrement_ascii() {
+    fn test_step_backward_ascii() {
         let input = "hello";
-        assert_eq!(safe_decrement_offset(input, 5), 4);
-        assert_eq!(safe_decrement_offset(input, 1), 0);
-        assert_eq!(safe_decrement_offset(input, 0), 0);
+        assert_eq!(step_char(input, 5, RoundDirection::Backward), 4);
+        assert_eq!(step_char(input, 1, RoundDirection::Backward), 0);
+        assert_eq!(step_char(input, 0, RoundDirection::Backward), 0);
     }
 
     #[test]
-    fn test_safe_decrement_emoji() {
+    fn test_step_backward_emoji() {
         let input = "😀"; // 4 bytes, single character
-        assert_eq!(safe_decrement_offset(input, 4), 0);
-        assert_eq!(safe_decrement_offset(input, 3), 0);
-        assert_eq!(safe_decrement_offset(input, 2), 0);
-        assert_eq!(safe_decrement_offset(input, 1), 0);
+        assert_eq!(step_char(input, 4, RoundDirection::Backward), 0);
     }
 
     #[test]
-    fn test_safe_decrement_mixed() {
-        let input = "a😀b"; // 1 + 4 + 1 = 6 bytes
-        assert_eq!(safe_decrement_offset(input, 6), 5);
-        assert_eq!(safe_decrement_offset(input, 5), 1);
-        assert_eq!(safe_decrement_offset(input, 1), 0);
-    }
-
-    #[test]
-    fn test_safe_decrement_with_newline() {
+    fn test_step_backward_with_newline() {
         let input = "😀\n"; // 4 + 1 = 5 bytes
-        assert_eq!(safe_decrement_offset(input, 5), 4);
+        assert_eq!(step_char(input, 5, RoundDirection::Backward), 4);
 
         let input2 = "a\n";
-        assert_eq!(safe_decrement_offset(input2, 2), 1);
-    }
-
-    #[test]
-    fn test_ensure_boundary() {
-        let input = "😀";
-        assert_eq!(ensure_char_boundary(input, 0), 0);
-        assert_eq!(ensure_char_boundary(input, 1), 0);
-        assert_eq!(ensure_char_boundary(input, 2), 0);
-        assert_eq!(ensure_char_boundary(input, 3), 0);
-        assert_eq!(ensure_char_boundary(input, 4), 4);
-    }
-
-    #[test]
-    fn test_ensure_boundary_forward() {
-        let input = "😀"; // 4 bytes
-        assert_eq!(ensure_char_boundary_forward(input, 0), 0);
-        assert_eq!(ensure_char_boundary_forward(input, 1), 4);
-        assert_eq!(ensure_char_boundary_forward(input, 2), 4);
-        assert_eq!(ensure_char_boundary_forward(input, 3), 4);
-        assert_eq!(ensure_char_boundary_forward(input, 4), 4);
-    }
-
-    #[test]
-    fn test_ensure_boundary_forward_mixed() {
-        let input = "a😀b"; // 1 + 4 + 1 = 6 bytes
-        assert_eq!(ensure_char_boundary_forward(input, 0), 0);
-        assert_eq!(ensure_char_boundary_forward(input, 1), 1);
-        assert_eq!(ensure_char_boundary_forward(input, 2), 5);
-        assert_eq!(ensure_char_boundary_forward(input, 3), 5);
-        assert_eq!(ensure_char_boundary_forward(input, 4), 5);
-        assert_eq!(ensure_char_boundary_forward(input, 5), 5);
-        assert_eq!(ensure_char_boundary_forward(input, 6), 6);
-    }
-
-    #[test]
-    fn test_ensure_boundary_forward_beyond_input() {
-        let input = "hello";
-        assert_eq!(ensure_char_boundary_forward(input, 100), 5);
+        assert_eq!(step_char(input2, 2, RoundDirection::Backward), 1);
     }
 }

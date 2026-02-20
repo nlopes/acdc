@@ -818,7 +818,7 @@ peg::parser! {
             let document_end_offset = if document_end_offset == 0 {
                 0
             } else {
-                crate::grammar::utf8_utils::safe_decrement_offset(&state.input, document_end_offset)
+                crate::grammar::utf8_utils::step_char(&state.input, document_end_offset, crate::grammar::utf8_utils::RoundDirection::Backward)
             };
 
             // Ensure the invariant: absolute_start <= absolute_end
@@ -875,7 +875,7 @@ peg::parser! {
             if let Some((title, subtitle, authors)) = title_authors {
                 let mut location = state.create_location(start, end);
                 // Decrement end by one character (for byte offset, use safe UTF-8 decrement)
-                location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(&state.input, location.absolute_end);
+                location.absolute_end = crate::grammar::utf8_utils::step_char(&state.input, location.absolute_end, crate::grammar::utf8_utils::RoundDirection::Backward);
                 location.end.column = location.end.column.saturating_sub(1);
                 let header = Header {
                     metadata,
@@ -3360,7 +3360,7 @@ peg::parser! {
             let callout = if marker == "<.>" {
                 CalloutRef::auto(0, location.clone()) // Number will be resolved later
             } else {
-                let number = extract_callout_number(marker).unwrap_or(0);
+                let number = extract_callout_number_with_position(marker).map(|(n, _)| n).unwrap_or(0);
                 CalloutRef::explicit(number, location.clone())
             };
 
@@ -5965,17 +5965,6 @@ fn extract_callout_number_with_position(line: &str) -> Option<(usize, usize)> {
     }
 }
 
-/// Extract callout number from a line ending with <N>
-fn extract_callout_number(line: &str) -> Option<usize> {
-    if line.ends_with('>')
-        && let Some(start) = line.rfind('<')
-    {
-        let number_str = &line[start + 1..line.len() - 1];
-        number_str.parse().ok()
-    } else {
-        None
-    }
-}
 
 #[cfg(test)]
 #[allow(

@@ -108,7 +108,7 @@ pub(crate) fn preprocess_inline_content(
     let content_end_offset = if adjusted_end == 0 {
         0
     } else {
-        crate::grammar::utf8_utils::safe_decrement_offset(&state.input, adjusted_end)
+        crate::grammar::utf8_utils::step_char(&state.input, adjusted_end, crate::grammar::utf8_utils::RoundDirection::Backward)
     };
     let location = state.create_location(content_start.offset + offset, content_end_offset);
     inline_state.set_initial_position(&location, content_start.offset + offset);
@@ -132,27 +132,52 @@ pub(crate) fn preprocess_inline_content(
     Ok((location, processed))
 }
 
+/// Whether autolinks should be matched during inline parsing.
+enum AutolinkMode {
+    /// Normal parsing: match autolinks (bare URLs).
+    Enabled,
+    /// Suppress autolinks. Used inside URL/mailto macros and cross-references
+    /// where nested autolinks would cause incorrect parsing.
+    Suppressed,
+}
+
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
-pub(crate) fn parse_inlines(
+fn parse_inlines_impl(
     processed: &ProcessedContent,
     state: &mut ParserState,
     block_metadata: &BlockParsingMetadata,
     location: &Location,
+    autolink_mode: AutolinkMode,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
-    inline_peg_state.quotes_only = state.quotes_only;
 
-    let inlines = if inline_peg_state.quotes_only {
-        document_parser::quotes_only_inlines(
+    let inlines = match autolink_mode {
+        AutolinkMode::Enabled => {
+            inline_peg_state.quotes_only = state.quotes_only;
+            if inline_peg_state.quotes_only {
+                document_parser::quotes_only_inlines(
+                    &processed.text,
+                    &mut inline_peg_state,
+                    0,
+                    block_metadata,
+                )
+            } else {
+                document_parser::inlines(
+                    &processed.text,
+                    &mut inline_peg_state,
+                    0,
+                    block_metadata,
+                )
+            }
+        }
+        AutolinkMode::Suppressed => document_parser::inlines_no_autolinks(
             &processed.text,
             &mut inline_peg_state,
             0,
             block_metadata,
-        )
-    } else {
-        document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)
+        ),
     };
 
     let inlines = match inlines {
@@ -171,43 +196,36 @@ pub(crate) fn parse_inlines(
     Ok(inlines)
 }
 
-#[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
-pub(crate) fn parse_inlines_no_autolinks(
+pub(crate) fn parse_inlines(
     processed: &ProcessedContent,
     state: &mut ParserState,
     block_metadata: &BlockParsingMetadata,
     location: &Location,
 ) -> Result<Vec<InlineNode>, Error> {
-    let mut inline_peg_state = ParserState::new(&processed.text);
-    inline_peg_state.document_attributes = state.document_attributes.clone();
-    inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
-
-    let inlines = match document_parser::inlines_no_autolinks(
-        &processed.text,
-        &mut inline_peg_state,
-        0,
-        block_metadata,
-    ) {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(
-                &err,
-                &processed.text,
-                location.absolute_start,
-                state,
-            ));
-        }
-    };
-
-    state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
-    Ok(inlines)
+    parse_inlines_impl(processed, state, block_metadata, location, AutolinkMode::Enabled)
 }
 
-/// Process inlines
-///
-/// This function processes inline content by first preprocessing it and then parsing it
-/// into inline nodes. Then, it maps the locations of the parsed inline nodes back to their
-/// original positions in the source.
+/// Process inline content: preprocess, parse, and map locations back to source.
+fn process_inlines_impl(
+    state: &mut ParserState,
+    block_metadata: &BlockParsingMetadata,
+    content_start: &PositionWithOffset,
+    end: usize,
+    offset: usize,
+    content: &str,
+    autolink_mode: AutolinkMode,
+) -> Result<Vec<InlineNode>, Error> {
+    let (location, processed) =
+        preprocess_inline_content(state, content_start, end, offset, content)?;
+    // After preprocessing, attribute substitution may result in empty content
+    // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
+    if processed.text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let content = parse_inlines_impl(&processed, state, block_metadata, &location, autolink_mode)?;
+    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
+}
+
 #[tracing::instrument(skip_all, fields(?content_start, end, offset))]
 pub(crate) fn process_inlines(
     state: &mut ParserState,
@@ -217,21 +235,9 @@ pub(crate) fn process_inlines(
     offset: usize,
     content: &str,
 ) -> Result<Vec<InlineNode>, Error> {
-    let (location, processed) =
-        preprocess_inline_content(state, content_start, end, offset, content)?;
-    // After preprocessing, attribute substitution may result in empty content
-    // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
-    if processed.text.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-    let content = parse_inlines(&processed, state, block_metadata, &location)?;
-    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
+    process_inlines_impl(state, block_metadata, content_start, end, offset, content, AutolinkMode::Enabled)
 }
 
-/// Process inlines with autolinks suppressed.
-///
-/// Used inside URL macros, mailto macros, and cross-references where nested
-/// autolinks would cause incorrect parsing.
 #[tracing::instrument(skip_all, fields(?content_start, end, offset))]
 pub(crate) fn process_inlines_no_autolinks(
     state: &mut ParserState,
@@ -241,11 +247,5 @@ pub(crate) fn process_inlines_no_autolinks(
     offset: usize,
     content: &str,
 ) -> Result<Vec<InlineNode>, Error> {
-    let (location, processed) =
-        preprocess_inline_content(state, content_start, end, offset, content)?;
-    if processed.text.trim().is_empty() {
-        return Ok(Vec::new());
-    }
-    let content = parse_inlines_no_autolinks(&processed, state, block_metadata, &location)?;
-    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
+    process_inlines_impl(state, block_metadata, content_start, end, offset, content, AutolinkMode::Suppressed)
 }

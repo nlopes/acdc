@@ -256,15 +256,15 @@ impl ParserState {
     /// semantics - it represents the last byte of the range, not one past it.
     /// When a byte lands mid-character, rounding backward includes that character.
     pub(crate) fn create_location(&self, start: usize, end: usize) -> Location {
-        use crate::grammar::utf8_utils::ensure_char_boundary;
+        use crate::grammar::utf8_utils::{RoundDirection, snap_to_boundary};
 
         // Clamp to input bounds first
         let clamped_start = start.min(self.input.len());
         let clamped_end = end.min(self.input.len());
 
         // Ensure UTF-8 boundaries (both round backward for inclusive semantics)
-        let safe_start = ensure_char_boundary(&self.input, clamped_start);
-        let safe_end = ensure_char_boundary(&self.input, clamped_end);
+        let safe_start = snap_to_boundary(&self.input, clamped_start, RoundDirection::Backward);
+        let safe_end = snap_to_boundary(&self.input, clamped_end, RoundDirection::Backward);
 
         // Ensure start <= end
         let safe_end = safe_end.max(safe_start);
@@ -290,7 +290,7 @@ impl ParserState {
         end: usize,
         offset: usize,
     ) -> Location {
-        use crate::grammar::utf8_utils::safe_decrement_offset;
+        use crate::grammar::utf8_utils::{RoundDirection, step_char};
 
         let adjusted_start = start + offset;
         let adjusted_end = end + offset;
@@ -299,7 +299,7 @@ impl ParserState {
         let final_end = if adjusted_end == 0 {
             0
         } else {
-            safe_decrement_offset(&self.input, adjusted_end)
+            step_char(&self.input, adjusted_end, RoundDirection::Backward)
         };
 
         // create_location handles all UTF-8 boundary enforcement
