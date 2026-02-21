@@ -8,8 +8,8 @@ publish = false
 
 [features]
 default = []
-# Enable syntax highlighting for source blocks using syntect
-highlighting = ["dep:syntect"]
+# Enable syntax highlighting for source blocks using giallo
+highlighting = ["dep:giallo"]
 # Render terminal-converter output into selectable HTML via libghostty-vt.
 terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/emulator", "acdc-converters-terminal/highlighting"]
 
@@ -23,7 +23,7 @@ base64.workspace = true
 chrono.workspace = true
 percent-encoding.workspace = true
 quick-xml = "0.41"
-syntect = { version = "5.3", optional = true, default-features = false, features = ["default-fancy"] }
+giallo = { git = "https://github.com/getzola/giallo.git", branch = "fancy-regex", optional = true, features = ["dump"] }
 thiserror.workspace = true
 tracing.workspace = true
 ureq = { workspace = true, optional = true }
