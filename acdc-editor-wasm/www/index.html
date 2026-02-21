@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>acdc - live AsciiDoc preview</title>
@@ -8,42 +8,42 @@
     <!-- Default Asciidoctor stylesheet fonts -->
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/v4-shims.min.css">
     <script type="module">
-        import init from './acdc_editor_wasm.js';
+     import init from './acdc_editor_wasm.js';
 
-        async function run() {
-            try {
-                await init();
-                console.log("WASM initialized successfully");
-            } catch (e) {
-                console.error("Failed to initialize WASM:", e);
-            }
-        }
+     async function run() {
+       try {
+         await init();
+         console.log("WASM initialized successfully");
+       } catch (e) {
+         console.error("Failed to initialize WASM:", e);
+       }
+     }
 
-        run();
+     run();
     </script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="main-container">
-        <div class="editor-pane">
-            <div class="editor-container">
-                <textarea id="editor" spellcheck="false"></textarea>
-                <div id="editor-backdrop">
-                    <pre id="highlight"></pre>
-                </div>
-                <div id="parse-status" class="parse-ok" title="Parse OK">
-                    <span class="parse-status-icon"><i class="fa-solid fa-check"></i></span>
-                    <span class="parse-status-text"></span>
-                </div>
-            </div>
+      <div class="editor-pane">
+        <div class="editor-container">
+          <textarea id="editor" spellcheck="false"></textarea>
+          <div id="editor-backdrop">
+            <pre id="highlight"></pre>
+          </div>
+          <div id="parse-status" class="parse-ok" title="Parse OK">
+            <span class="parse-status-icon"><i class="fa-solid fa-check"></i></span>
+            <span class="parse-status-text"></span>
+          </div>
         </div>
-        <div class="preview-pane">
-            <div id="preview"></div>
-        </div>
+      </div>
+      <div class="preview-pane">
+        <div id="preview"></div>
+      </div>
     </div>
     <footer class="site-footer">
-        <a href="https://github.com/nlopes/acdc" target="_blank" rel="noopener noreferrer">acdc</a> — Made by <a href="https://github.com/nlopes" target="_blank" rel="noopener noreferrer">nlopes</a>
+      <a href="https://github.com/nlopes/acdc" target="_blank" rel="noopener noreferrer">acdc</a> — Made by <a href="https://github.com/nlopes" target="_blank" rel="noopener noreferrer">nlopes</a>
     </footer>
-</body>
+    <script data-goatcounter="https://acdc-live-editor.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+  </body>
 </html>
