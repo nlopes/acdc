@@ -107,6 +107,7 @@ html, body {
 .adoc-highlight { background: #fff3cd; }
 .adoc-link { color: #0077b6; text-decoration: underline; }
 .adoc-xref { color: #7209b7; }
+.adoc-footnote { color: #7209b7; font-weight: normal; }
 .adoc-code-content { color: #495057; }
 .adoc-callout { color: #e85d04; font-weight: bold; }
 .adoc-table-delimiter { color: #9d4edd; }
