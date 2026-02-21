@@ -33,6 +33,45 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         return Ok(());
     }
 
+    // Check if this paragraph should be rendered as a collapsible example block
+    if para.metadata.style.as_deref() == Some("example")
+        && para.metadata.options.contains(&"collapsible".to_string())
+    {
+        let is_open = para.metadata.options.contains(&"open".to_string());
+        let w = visitor.writer_mut();
+        write!(w, "<details")?;
+        if let Some(id) = &para.metadata.id {
+            write!(w, " id=\"{}\"", id.id)?;
+        } else if let Some(anchor) = para.metadata.anchors.first() {
+            write!(w, " id=\"{}\"", anchor.id)?;
+        }
+        if is_open {
+            writeln!(w, " open>")?;
+        } else {
+            writeln!(w, ">")?;
+        }
+        let _ = w;
+        if para.title.is_empty() {
+            let w = visitor.writer_mut();
+            writeln!(w, "<summary class=\"title\">Details</summary>")?;
+        } else {
+            visitor.render_title_with_wrapper(
+                &para.title,
+                "<summary class=\"title\">",
+                "</summary>\n",
+            )?;
+        }
+        let mut w = visitor.writer_mut();
+        writeln!(w, "<div class=\"content\">")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&para.content)?;
+        w = visitor.writer_mut();
+        writeln!(w)?;
+        writeln!(w, "</div>")?;
+        writeln!(w, "</details>")?;
+        return Ok(());
+    }
+
     if let Some(style) = &para.metadata.style {
         // Check if this paragraph should be rendered as a quote block
         if style == "quote" {
