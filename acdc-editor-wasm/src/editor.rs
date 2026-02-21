@@ -420,5 +420,16 @@ pub fn setup() -> Result<(), JsValue> {
 
     set_parse_status(&state, "OK", false);
 
+    // Populate build info in footer (if the element and git info exist)
+    if let (Some(build_info), Some(sha), Some(short_sha)) = (
+        doc.get_element_by_id("build-info"),
+        option_env!("GIT_SHA"),
+        option_env!("GIT_SHORT_SHA"),
+    ) {
+        build_info.set_inner_html(&format!(
+            r#"| Built from commit <a href="https://github.com/nlopes/acdc/commit/{sha}" target="_blank" rel="noopener noreferrer">{short_sha}</a>."#,
+        ));
+    }
+
     Ok(())
 }
