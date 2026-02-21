@@ -397,10 +397,10 @@ pub struct RenderOptions {
 pub(crate) const COPYCSS_DEFAULT: &str = "";
 pub(crate) const STYLESDIR_DEFAULT: &str = ".";
 pub(crate) const STYLESHEET_DEFAULT: &str = "";
-/// Default filename for the syntect syntax highlighting stylesheet (class-based mode).
+/// Default filename for the syntax highlighting stylesheet (class-based mode).
 /// Analogous to asciidoctor's `asciidoctor-coderay.css` / `asciidoctor-pygments.css`.
 #[cfg(feature = "highlighting")]
-pub(crate) const SYNTECT_STYLESHEET: &str = "acdc-syntect.css";
+pub(crate) const HIGHLIGHT_STYLESHEET: &str = "acdc-highlight.css";
 // NOTE: If you change the values below, you need to also change them in `load_css`
 pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
 pub(crate) const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
@@ -432,8 +432,10 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 
 /// Resolve the syntax highlighting theme name and mode from document attributes.
 ///
-/// - `:syntect-style:` overrides the theme (falls back to light/dark default).
-/// - `:syntect-css: class` switches to CSS-class mode (default is inline).
+/// - `:highlight-style:` (or legacy `:syntect-style:`) overrides the theme
+///   (falls back to light/dark default).
+/// - `:highlight-css: class` (or legacy `:syntect-css: class`) switches to
+///   CSS-class mode (default is inline).
 #[cfg(feature = "highlighting")]
 pub(crate) fn resolve_highlight_settings(
     document_attributes: &DocumentAttributes<'_>,
@@ -441,7 +443,8 @@ pub(crate) fn resolve_highlight_settings(
     let dark_mode = document_attributes.get("dark-mode").is_some();
 
     let theme_name: String = document_attributes
-        .get("syntect-style")
+        .get("highlight-style")
+        .or_else(|| document_attributes.get("syntect-style"))
         .and_then(|value| value.text())
         .filter(|value| !value.is_empty())
         .map_or_else(
@@ -456,7 +459,8 @@ pub(crate) fn resolve_highlight_settings(
         );
 
     let mode = if document_attributes
-        .get("syntect-css")
+        .get("highlight-css")
+        .or_else(|| document_attributes.get("syntect-css"))
         .and_then(|value| value.text())
         == Some("class")
     {
@@ -732,8 +736,8 @@ impl<'a> Processor<'a> {
         }
     }
 
-    /// Write the syntect CSS file next to the HTML output when `linkcss` is set
-    /// and class-based syntax highlighting is active.
+    /// Write the syntax highlighting CSS file next to the HTML output when
+    /// `linkcss` is set and class-based syntax highlighting is active.
     ///
     /// Analogous to how asciidoctor writes `asciidoctor-coderay.css` /
     /// `asciidoctor-pygments.css` alongside the output.
@@ -780,7 +784,7 @@ impl<'a> Processor<'a> {
             output_dir.join(&stylesdir)
         };
 
-        let dest_path = dest_dir.join(SYNTECT_STYLESHEET);
+        let dest_path = dest_dir.join(HIGHLIGHT_STYLESHEET);
 
         if let Err(e) = std::fs::create_dir_all(&dest_dir) {
             diagnostics.warn_with_advice(

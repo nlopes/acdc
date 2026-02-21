@@ -10,8 +10,8 @@ publish = false
 default = ["pre-spec-subs"]
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
 pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
-# Enable syntax highlighting for source blocks using syntect
-highlighting = ["dep:syntect"]
+# Enable syntax highlighting for source blocks using giallo
+highlighting = ["dep:giallo"]
 # Render terminal-converter output into selectable HTML via libghostty-vt.
 terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/emulator", "acdc-converters-terminal/highlighting"]
 
@@ -20,7 +20,7 @@ acdc-converters-core.workspace = true
 acdc-converters-terminal = { workspace = true, optional = true }
 acdc-parser.workspace = true
 chrono.workspace = true
-syntect = { version = "5.3", optional = true, default-features = false, features = ["default-fancy"] }
+giallo = { git = "https://github.com/getzola/giallo.git", branch = "fancy-regex", optional = true, features = ["dump"] }
 thiserror.workspace = true
 tracing.workspace = true
 
