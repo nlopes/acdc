@@ -50,7 +50,7 @@ struct EditorState {
     highlight: Element,
     backdrop: Element,
     preview: Element,
-    status: HtmlElement,
+    parse_status: HtmlElement,
     /// Timer handle for the debounced parse. 0 means no pending timer.
     debounce_handle: Cell<i32>,
 }
@@ -69,9 +69,9 @@ impl EditorState {
             .get_element_by_id("editor-backdrop")
             .ok_or("missing #editor-backdrop")?;
         let preview = doc.get_element_by_id("preview").ok_or("missing #preview")?;
-        let status: HtmlElement = doc
-            .get_element_by_id("status")
-            .ok_or("missing #status")?
+        let parse_status: HtmlElement = doc
+            .get_element_by_id("parse-status")
+            .ok_or("missing #parse-status")?
             .dyn_into()?;
 
         Ok(Self {
@@ -80,21 +80,66 @@ impl EditorState {
             highlight,
             backdrop,
             preview,
-            status,
+            parse_status,
             debounce_handle: Cell::new(0),
         })
     }
 }
 
 // ---------------------------------------------------------------------------
-// Status
+// Parse status badge
 // ---------------------------------------------------------------------------
 
-fn set_status(state: &EditorState, msg: &str, is_error: bool) {
-    state.status.set_text_content(Some(msg));
-    let cl = state.status.class_list();
-    let _ = cl.toggle_with_force("text-red-500", is_error);
-    let _ = cl.toggle_with_force("text-slate-500", !is_error);
+fn set_parse_status(state: &EditorState, msg: &str, is_error: bool) {
+    let cl = state.parse_status.class_list();
+    if is_error {
+        let _ = cl.remove_1("parse-ok");
+        let _ = cl.add_1("parse-error");
+        let _ = cl.remove_1("expanded");
+        // Update the text span with the error message
+        if let Some(text_el) = state
+            .parse_status
+            .query_selector(".parse-status-text")
+            .ok()
+            .flatten()
+        {
+            text_el.set_text_content(Some(msg));
+        }
+        // Update the icon to an exclamation triangle
+        if let Some(icon_el) = state
+            .parse_status
+            .query_selector(".parse-status-icon")
+            .ok()
+            .flatten()
+        {
+            icon_el.set_inner_html(r#"<i class="fa-solid fa-triangle-exclamation"></i>"#);
+        }
+        state.parse_status.set_attribute("title", msg).unwrap_or(());
+    } else {
+        let _ = cl.remove_1("parse-error");
+        let _ = cl.remove_1("expanded");
+        let _ = cl.add_1("parse-ok");
+        if let Some(text_el) = state
+            .parse_status
+            .query_selector(".parse-status-text")
+            .ok()
+            .flatten()
+        {
+            text_el.set_text_content(Some(""));
+        }
+        if let Some(icon_el) = state
+            .parse_status
+            .query_selector(".parse-status-icon")
+            .ok()
+            .flatten()
+        {
+            icon_el.set_inner_html(r#"<i class="fa-solid fa-check"></i>"#);
+        }
+        state
+            .parse_status
+            .set_attribute("title", "Parse OK")
+            .unwrap_or(());
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -103,7 +148,7 @@ fn set_status(state: &EditorState, msg: &str, is_error: bool) {
 
 /// Parse the editor content once and update both the highlight overlay and the
 /// preview pane. On parse error, keeps the last-good highlight and shows an
-/// error in the status bar.
+/// error in the parse status badge.
 fn parse_and_update_both(state: &EditorState) {
     let input = state.editor.value();
 
@@ -115,7 +160,7 @@ fn parse_and_update_both(state: &EditorState) {
                 .highlight
                 .set_inner_html(&(result.highlight_html.clone() + "\n"));
             state.preview.set_inner_html(&result.preview_html);
-            set_status(state, "OK", false);
+            set_parse_status(state, "OK", false);
         }
         Err(e) => {
             // Show plain escaped text so the input stays visible (the textarea
@@ -124,7 +169,7 @@ fn parse_and_update_both(state: &EditorState) {
             let escaped = crate::ast_highlight::escape_html(&input);
             state.highlight.set_inner_html(&(escaped + "\n"));
             let msg = format!("Parse error: {e}");
-            set_status(state, &msg, true);
+            set_parse_status(state, &msg, true);
         }
     }
 }
@@ -355,10 +400,25 @@ pub fn setup() -> Result<(), JsValue> {
     attach_copy_listener(&state, &doc)?;
     attach_issue_listener(&state, &doc)?;
 
+    // Click-to-expand on error badge
+    {
+        let s = Rc::clone(&state);
+        let badge_cb: Closure<dyn Fn()> = Closure::new(move || {
+            let cl = s.parse_status.class_list();
+            if cl.contains("parse-error") {
+                let _ = cl.toggle("expanded");
+            }
+        });
+        state
+            .parse_status
+            .add_event_listener_with_callback("click", badge_cb.as_ref().unchecked_ref())?;
+        badge_cb.forget();
+    }
+
     // Keep the debounce closure alive for the lifetime of the page
     parse_cb.forget();
 
-    set_status(&state, "OK", false);
+    set_parse_status(&state, "OK", false);
 
     Ok(())
 }

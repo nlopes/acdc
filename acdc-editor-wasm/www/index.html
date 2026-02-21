@@ -18,7 +18,6 @@
                 console.log("WASM initialized successfully");
             } catch (e) {
                 console.error("Failed to initialize WASM:", e);
-                document.getElementById('status').textContent = "Error: " + e;
             }
         }
 
@@ -33,12 +32,18 @@
                 <div id="editor-backdrop">
                     <pre id="highlight"></pre>
                 </div>
+                <div id="parse-status" class="parse-ok" title="Parse OK">
+                    <span class="parse-status-icon"><i class="fa-solid fa-check"></i></span>
+                    <span class="parse-status-text"></span>
+                </div>
             </div>
-            <div id="status">Loading...</div>
         </div>
         <div class="preview-pane">
             <div id="preview"></div>
         </div>
     </div>
+    <footer class="site-footer">
+        <a href="https://github.com/nlopes/acdc" target="_blank" rel="noopener noreferrer">acdc</a> — Made by <a href="https://github.com/nlopes" target="_blank" rel="noopener noreferrer">nlopes</a>
+    </footer>
 </body>
 </html>
