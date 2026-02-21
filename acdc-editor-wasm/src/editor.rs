@@ -16,9 +16,11 @@ const DEFAULT_CONTENT: &str = r#"= My document
 :date: 2025-01-15T10:00:00+00:00
 :description: A quick preview
 :toc: macro
+:icons: font
 
 toc::[]
 
+icon:arrow-right[]
 This is a *live preview* editor for https://asciidoc.org[AsciiDoc].
 
 == Getting started
