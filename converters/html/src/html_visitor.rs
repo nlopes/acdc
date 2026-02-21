@@ -239,7 +239,7 @@ impl<W: Write> HtmlVisitor<W> {
                         self.writer,
                         r#"<link rel="stylesheet" href="{}/{}">"#,
                         stylesdir.as_str().trim_end_matches('/'),
-                        crate::SYNTECT_STYLESHEET
+                        crate::HIGHLIGHT_STYLESHEET
                     )?;
                 } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
                     writeln!(self.writer, "<style>\n{css}</style>")?;

@@ -104,7 +104,7 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
 mod syntax_highlighting {
     use super::*;
 
-    const SOURCE_BLOCK: &str = r#":source-highlighter: syntect
+    const SOURCE_BLOCK: &str = r#":source-highlighter: giallo
 
 [source,rust]
 ----
@@ -118,7 +118,7 @@ fn main() {
     fn class_mode_produces_class_spans() -> Result<(), Error> {
         let html = convert_string(
             SOURCE_BLOCK,
-            &[("syntect-css", AttributeValue::String("class".into()))],
+            &[("highlight-css", AttributeValue::String("class".into()))],
         )?;
         assert!(
             html.contains("class=\"syntax-"),
@@ -135,7 +135,7 @@ fn main() {
     fn class_mode_embeds_css_in_head() -> Result<(), Error> {
         let html = convert_string(
             SOURCE_BLOCK,
-            &[("syntect-css", AttributeValue::String("class".into()))],
+            &[("highlight-css", AttributeValue::String("class".into()))],
         )?;
         assert!(
             html.contains(".syntax-"),
@@ -159,12 +159,12 @@ fn main() {
     }
 
     #[test]
-    fn syntect_style_overrides_theme() -> Result<(), Error> {
+    fn highlight_style_overrides_theme() -> Result<(), Error> {
         let html = convert_string(
             SOURCE_BLOCK,
             &[(
-                "syntect-style",
-                AttributeValue::String("base16-ocean.dark".into()),
+                "highlight-style",
+                AttributeValue::String("catppuccin-frappe".into()),
             )],
         )?;
         // With a dark theme the background / colours will differ from default light.
@@ -181,10 +181,10 @@ fn main() {
         let html = convert_string(
             SOURCE_BLOCK,
             &[
-                ("syntect-css", AttributeValue::String("class".into())),
+                ("highlight-css", AttributeValue::String("class".into())),
                 (
-                    "syntect-style",
-                    AttributeValue::String("Solarized (dark)".into()),
+                    "highlight-style",
+                    AttributeValue::String("solarized-dark".into()),
                 ),
             ],
         )?;
@@ -202,14 +202,14 @@ fn main() {
         let html = convert_string(
             SOURCE_BLOCK,
             &[
-                ("syntect-css", AttributeValue::String("class".into())),
+                ("highlight-css", AttributeValue::String("class".into())),
                 ("linkcss", AttributeValue::Bool(true)),
             ],
         )?;
         // Should link to the external stylesheet, not embed it
         assert!(
-            html.contains(r#"<link rel="stylesheet" href="./acdc-syntect.css">"#),
-            "Should link to acdc-syntect.css:\n{html}"
+            html.contains(r#"<link rel="stylesheet" href="./acdc-highlight.css">"#),
+            "Should link to acdc-highlight.css:\n{html}"
         );
         // Should NOT embed the CSS rules in the page
         assert!(
@@ -229,14 +229,14 @@ fn main() {
         let html = convert_string(
             SOURCE_BLOCK,
             &[
-                ("syntect-css", AttributeValue::String("class".into())),
+                ("highlight-css", AttributeValue::String("class".into())),
                 ("linkcss", AttributeValue::Bool(true)),
                 ("stylesdir", AttributeValue::String("css".into())),
             ],
         )?;
         assert!(
-            html.contains(r#"<link rel="stylesheet" href="css/acdc-syntect.css">"#),
-            "Should link to css/acdc-syntect.css:\n{html}"
+            html.contains(r#"<link rel="stylesheet" href="css/acdc-highlight.css">"#),
+            "Should link to css/acdc-highlight.css:\n{html}"
         );
         Ok(())
     }
@@ -244,10 +244,10 @@ fn main() {
     #[test]
     fn inline_mode_with_linkcss_no_syntax_link() -> Result<(), Error> {
         let html = convert_string(SOURCE_BLOCK, &[("linkcss", AttributeValue::Bool(true))])?;
-        // Inline mode should not link to acdc-syntect.css
+        // Inline mode should not link to acdc-highlight.css
         assert!(
-            !html.contains("acdc-syntect.css"),
-            "Inline mode should not reference acdc-syntect.css:\n{html}"
+            !html.contains("acdc-highlight.css"),
+            "Inline mode should not reference acdc-highlight.css:\n{html}"
         );
         Ok(())
     }

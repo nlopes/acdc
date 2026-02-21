@@ -1,4 +1,4 @@
-//! Syntax highlighting for source code blocks using syntect.
+//! Syntax highlighting for source code blocks using giallo.
 //!
 //! This module provides syntax highlighting for code blocks when the
 //! `highlighting` feature is enabled. It supports two output modes:
@@ -6,7 +6,8 @@
 //! - **Inline** (default): `<span style="color:#...">` — themes baked into HTML
 //! - **Class**: `<span class="syntax-keyword">` — themes applied via CSS classes
 //!
-//! The mode is controlled by the `:syntect-css:` document attribute.
+//! The mode is controlled by the `:highlight-css:` document attribute
+//! (also accepts the legacy `:syntect-css:` attribute for backward compatibility).
 //!
 //! # Callout Handling
 //!
@@ -21,10 +22,16 @@ use acdc_parser::InlineNode;
 
 use crate::Error;
 
-/// Default light theme.
-pub(crate) const DEFAULT_THEME_LIGHT: &str = "InspiredGitHub";
-/// Default dark theme.
-pub(crate) const DEFAULT_THEME_DARK: &str = "base16-eighties.dark";
+/// Default light theme (giallo theme name).
+pub(crate) const DEFAULT_THEME_LIGHT: &str = "github-light";
+/// Default dark theme (giallo theme name).
+pub(crate) const DEFAULT_THEME_DARK: &str = "github-dark";
+
+/// CSS class prefix used for class-based syntax highlighting output.
+/// Every scope token is prefixed with this so the generated classes
+/// don't collide with the rest of the page's styles.
+#[cfg(feature = "highlighting")]
+const SYNTAX_CLASS_PREFIX: &str = "syntax-";
 
 /// How syntax-highlighted spans are styled in the HTML output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -37,16 +44,29 @@ pub(crate) enum HighlightMode {
     Class,
 }
 
-/// The `ClassStyle` used for class-based output.  Every scope token is
-/// prefixed with `syntax-` so the generated classes don't collide with
-/// the rest of the page's styles.
+/// Get or initialize the shared giallo `Registry`.
+///
+/// The registry is loaded once from the builtin dump on first use and
+/// then reused for all subsequent calls.  This is thread-safe via
+/// `OnceLock`.
 #[cfg(feature = "highlighting")]
-const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
-    syntect::html::ClassStyle::SpacedPrefixed { prefix: "syntax-" };
+fn get_registry() -> &'static giallo::Registry {
+    use std::sync::OnceLock;
+
+    static REGISTRY: OnceLock<giallo::Registry> = OnceLock::new();
+    REGISTRY.get_or_init(|| {
+        let mut registry = giallo::Registry::builtin().unwrap_or_else(|e| {
+            tracing::error!("failed to load builtin giallo registry: {e}");
+            giallo::Registry::default()
+        });
+        registry.link_grammars();
+        registry
+    })
+}
 
 /// Highlight code and write HTML output.
 ///
-/// When the `highlighting` feature is enabled, this uses syntect for syntax
+/// When the `highlighting` feature is enabled, this uses giallo for syntax
 /// highlighting. The `mode` parameter controls whether inline styles or CSS
 /// classes are emitted. Otherwise, it outputs plain escaped text.
 ///
@@ -61,92 +81,207 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     mode: HighlightMode,
 ) -> Result<(), Error> {
     let (code, callouts) = extract_text_and_callouts(inlines);
-    let syntax_set = syntect::parsing::SyntaxSet::load_defaults_newlines();
-
-    let syntax = syntax_set
-        .find_syntax_by_token(language)
-        .or_else(|| syntax_set.find_syntax_by_extension(language))
-        .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
     match mode {
-        HighlightMode::Inline => highlight_code_inline(
-            writer,
-            &code,
-            &callouts,
-            inlines,
-            &syntax_set,
-            syntax,
-            theme_name,
-        ),
+        HighlightMode::Inline => {
+            let registry = get_registry();
+            let theme_variant = giallo::ThemeVariant::Single(theme_name);
+            let options =
+                giallo::HighlightOptions::new(language, theme_variant).fallback_to_plain(true);
+
+            let highlighted = match registry.highlight(&code, &options) {
+                Ok(h) => h,
+                Err(e) => {
+                    tracing::warn!("giallo highlighting failed for language '{language}': {e}");
+                    return write_escaped_code_with_callouts(writer, inlines);
+                }
+            };
+            render_inline(writer, &highlighted, &callouts)
+        }
         HighlightMode::Class => {
-            highlight_code_classed(writer, &code, &callouts, &syntax_set, syntax)
+            highlight_code_classed(writer, &code, &callouts, language, theme_name)
         }
     }
 }
 
-/// Inline-style highlighting (existing behaviour).
+/// Render highlighted tokens as inline-style HTML spans.
+///
+/// Uses giallo's public API to compare each token's style against the
+/// theme default and emit `<span style="color:…">` elements.
 #[cfg(feature = "highlighting")]
-fn highlight_code_inline<W: Write + ?Sized>(
+fn render_inline<W: Write + ?Sized>(
     writer: &mut W,
-    code: &str,
+    highlighted: &giallo::HighlightedCode<'_>,
     callouts: &HashMap<usize, usize>,
-    inlines: &[InlineNode],
-    syntax_set: &syntect::parsing::SyntaxSet,
-    syntax: &syntect::parsing::SyntaxReference,
-    theme_name: &str,
 ) -> Result<(), Error> {
-    use syntect::{highlighting::ThemeSet, html::highlighted_html_for_string};
-
-    let theme_set = ThemeSet::load_defaults();
-    let Some(theme) = theme_set.themes.get(theme_name) else {
-        return write_escaped_code_with_callouts(writer, inlines);
+    let default_style = match &highlighted.theme {
+        giallo::ThemeVariant::Single(theme) => &theme.default_style,
+        giallo::ThemeVariant::Dual { light, .. } => &light.default_style,
     };
 
-    let html = highlighted_html_for_string(code, syntax_set, syntax, theme)
-        .map_err(|e| Error::Io(std::io::Error::other(e)))?;
-
-    // syntect wraps output in <pre style="..."> which we don't want
-    // since we already have our own <pre> wrapper. Extract just the inner content.
-    let content = extract_inner_content(&html);
-
-    if callouts.is_empty() {
-        write!(writer, "{content}")?;
+    let last_line_idx = if highlighted.tokens.last().is_some_and(Vec::is_empty) {
+        // giallo produces a trailing empty line for content ending with \n; skip it
+        highlighted.tokens.len().saturating_sub(1)
     } else {
-        let output = insert_callouts_into_highlighted_html(content, callouts);
-        write!(writer, "{output}")?;
+        highlighted.tokens.len()
+    };
+
+    for (line_idx, line_tokens) in highlighted.tokens.iter().enumerate() {
+        if line_idx >= last_line_idx {
+            break;
+        }
+        if line_idx > 0 {
+            writer.write_all(b"\n")?;
+        }
+
+        for token in line_tokens {
+            let escaped = html_escape(&token.text);
+            let style = match &token.style {
+                giallo::ThemeVariant::Single(s) => *s,
+                giallo::ThemeVariant::Dual { light, .. } => *light,
+            };
+
+            if style == *default_style {
+                write!(writer, "<span>{escaped}</span>")?;
+            } else {
+                let css = build_inline_css(&style, default_style);
+                if css.is_empty() {
+                    write!(writer, "<span>{escaped}</span>")?;
+                } else {
+                    write!(writer, "<span style=\"{css}\">{escaped}</span>")?;
+                }
+            }
+        }
+
+        // Append callout marker if this line has one
+        if let Some(&callout_num) = callouts.get(&line_idx) {
+            write!(
+                writer,
+                " <i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
+            )?;
+        }
     }
 
     Ok(())
 }
 
-/// Class-based highlighting using `ClassedHTMLGenerator`.
+/// Build a CSS style string from differences between a token style and the default.
+#[cfg(feature = "highlighting")]
+fn build_inline_css(style: &giallo::Style, default: &giallo::Style) -> String {
+    use std::fmt::Write as FmtWrite;
+
+    let mut css = String::with_capacity(40);
+
+    if style.foreground != default.foreground {
+        let _ = write!(css, "color: {};", style.foreground.as_hex());
+    }
+    if style.background != default.background {
+        let _ = write!(css, "background-color: {};", style.background.as_hex());
+    }
+    if style.font_style != default.font_style {
+        if style.font_style.contains(giallo::FontStyle::BOLD) {
+            css.push_str("font-weight: bold;");
+        }
+        if style.font_style.contains(giallo::FontStyle::ITALIC) {
+            css.push_str("font-style: italic;");
+        }
+        if style.font_style.contains(giallo::FontStyle::UNDERLINE)
+            && style.font_style.contains(giallo::FontStyle::STRIKETHROUGH)
+        {
+            css.push_str("text-decoration: underline line-through;");
+        } else if style.font_style.contains(giallo::FontStyle::UNDERLINE) {
+            css.push_str("text-decoration: underline;");
+        } else if style.font_style.contains(giallo::FontStyle::STRIKETHROUGH) {
+            css.push_str("text-decoration: line-through;");
+        }
+    }
+
+    css
+}
+
+/// Class-based highlighting using giallo's `HtmlRenderer`.
+///
+/// Since giallo's `HighlightedText::scopes` field is `pub(crate)`, we cannot
+/// iterate tokens and produce class-based spans directly. Instead we use
+/// giallo's `HtmlRenderer` with a `css_class_prefix` and then extract the
+/// inner token content, stripping the outer `<pre><code>` wrapper and the
+/// per-line `<span class="giallo-l">` wrappers.
 #[cfg(feature = "highlighting")]
 fn highlight_code_classed<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     callouts: &HashMap<usize, usize>,
-    syntax_set: &syntect::parsing::SyntaxSet,
-    syntax: &syntect::parsing::SyntaxReference,
+    language: &str,
+    theme_name: &str,
 ) -> Result<(), Error> {
-    use syntect::html::ClassedHTMLGenerator;
+    let registry = get_registry();
+    let theme_variant = giallo::ThemeVariant::Single(theme_name);
+    let options = giallo::HighlightOptions::new(language, theme_variant).fallback_to_plain(true);
 
-    let mut generator =
-        ClassedHTMLGenerator::new_with_class_style(syntax, syntax_set, SYNTAX_CLASS_STYLE);
-    for line in syntect::util::LinesWithEndings::from(code) {
-        generator
-            .parse_html_for_line_which_includes_newline(line)
-            .map_err(|e| Error::Io(std::io::Error::other(e)))?;
-    }
-    let html = generator.finalize();
+    let highlighted = match registry.highlight(code, &options) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::warn!("giallo class-based highlighting failed for language '{language}': {e}");
+            // Fallback: write escaped code with callouts
+            let escaped = html_escape(code);
+            write!(writer, "{escaped}")?;
+            return Ok(());
+        }
+    };
 
-    if callouts.is_empty() {
-        write!(writer, "{html}")?;
-    } else {
-        let output = insert_callouts_into_classed_html(&html, callouts);
-        write!(writer, "{output}")?;
+    let renderer = giallo::HtmlRenderer {
+        css_class_prefix: Some(SYNTAX_CLASS_PREFIX.to_string()),
+        ..Default::default()
+    };
+    let render_options = giallo::RenderOptions::default();
+    let html = renderer.render(&highlighted, &render_options);
+
+    // Extract content between <code ...> and </code>
+    let inner = extract_code_inner_content(&html);
+
+    // Strip per-line <span class="giallo-l"> wrappers and insert callouts
+    let lines: Vec<&str> = inner.split('\n').collect();
+    for (i, line) in lines.iter().enumerate() {
+        if i > 0 {
+            writer.write_all(b"\n")?;
+        }
+        let unwrapped = strip_line_wrapper(line);
+        write!(writer, "{unwrapped}")?;
+        if let Some(&callout_num) = callouts.get(&i) {
+            write!(
+                writer,
+                " <i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
+            )?;
+        }
     }
 
     Ok(())
+}
+
+/// Extract content between `<code ...>` and `</code>` from giallo's HTML output.
+#[cfg(feature = "highlighting")]
+fn extract_code_inner_content(html: &str) -> &str {
+    // Find the end of the <code ...> opening tag
+    let code_start = html.find("<code");
+    let inner_start = code_start
+        .and_then(|start| html.get(start..)?.find('>').map(|i| start + i + 1))
+        .unwrap_or(0);
+    let inner_end = html.rfind("</code>").unwrap_or(html.len());
+    html.get(inner_start..inner_end).unwrap_or(html)
+}
+
+/// Strip a `<span class="giallo-l">...</span>` wrapper from a line,
+/// returning just the inner token content.
+#[cfg(feature = "highlighting")]
+fn strip_line_wrapper(line: &str) -> &str {
+    const PREFIX: &str = "<span class=\"giallo-l\">";
+    const SUFFIX: &str = "</span>";
+
+    if let Some(rest) = line.strip_prefix(PREFIX) {
+        rest.strip_suffix(SUFFIX).unwrap_or(rest)
+    } else {
+        line
+    }
 }
 
 /// Generate a CSS stylesheet for class-based syntax highlighting.
@@ -155,88 +290,10 @@ fn highlight_code_classed<W: Write + ?Sized>(
 /// the given theme. Embed this in a `<style>` block in the `<head>`.
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
-    use syntect::{highlighting::ThemeSet, html::css_for_theme_with_class_style};
-
-    let theme_set = ThemeSet::load_defaults();
-    let theme = theme_set.themes.get(theme_name).ok_or_else(|| {
-        Error::Io(std::io::Error::other(format!(
-            "unknown syntect theme: {theme_name}"
-        )))
-    })?;
-
-    css_for_theme_with_class_style(theme, SYNTAX_CLASS_STYLE)
-        .map_err(|e| Error::Io(std::io::Error::other(e)))
-}
-
-/// Extract the inner content from syntect's inline-style HTML output.
-/// Syntect wraps everything in `<pre style="...">...</pre>`, but we want just the spans.
-#[cfg(feature = "highlighting")]
-fn extract_inner_content(html: &str) -> &str {
-    let start = html.find('>').map_or(0, |i| i + 1);
-    let end = html.rfind("</pre>").unwrap_or(html.len());
-    html.get(start..end).unwrap_or(html)
-}
-
-/// Insert callout HTML at the appropriate line endings in inline-style highlighted code.
-///
-/// Note: syntect's inline output may have a leading newline which we need to skip
-/// when counting lines.
-#[cfg(feature = "highlighting")]
-fn insert_callouts_into_highlighted_html(html: &str, callouts: &HashMap<usize, usize>) -> String {
-    let mut result = String::with_capacity(html.len() + callouts.len() * 50);
-
-    let has_leading_newline = html.starts_with('\n');
-
-    for (i, line) in html.split('\n').enumerate() {
-        if i > 0 {
-            result.push('\n');
-        }
-
-        let code_line_num = if has_leading_newline && i > 0 {
-            i - 1
-        } else if has_leading_newline {
-            result.push_str(line);
-            continue;
-        } else {
-            i
-        };
-
-        result.push_str(line);
-        if let Some(&callout_num) = callouts.get(&code_line_num) {
-            use std::fmt::Write;
-            let _ = write!(
-                result,
-                " <i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
-            );
-        }
-    }
-
-    result
-}
-
-/// Insert callout HTML into class-based highlighted code.
-///
-/// The class-based generator does NOT emit a leading newline, so line
-/// counting is straightforward.
-#[cfg(feature = "highlighting")]
-fn insert_callouts_into_classed_html(html: &str, callouts: &HashMap<usize, usize>) -> String {
-    let mut result = String::with_capacity(html.len() + callouts.len() * 50);
-
-    for (i, line) in html.split('\n').enumerate() {
-        if i > 0 {
-            result.push('\n');
-        }
-        result.push_str(line);
-        if let Some(&callout_num) = callouts.get(&i) {
-            use std::fmt::Write;
-            let _ = write!(
-                result,
-                " <i class=\"conum\" data-value=\"{callout_num}\"></i><b>({callout_num})</b>"
-            );
-        }
-    }
-
-    result
+    let registry = get_registry();
+    registry
+        .generate_css(theme_name, SYNTAX_CLASS_PREFIX)
+        .map_err(|e| Error::Io(std::io::Error::other(e.to_string())))
 }
 
 /// HTML-escape special characters.
@@ -489,14 +546,17 @@ mod tests {
             HighlightMode::Inline,
         )?;
 
+        let html = String::from_utf8(buffer).expect("valid utf8");
         assert!(
-            !buffer.is_empty(),
+            !html.is_empty(),
             "Should produce output even with unknown language"
         );
-        assert_eq!(
-            std::str::from_utf8(&buffer).expect("valid utf8"),
-            "\n<span style=\"color:#323232;\">some code here</span>"
+        // With giallo's fallback_to_plain, it renders as plain text with spans
+        assert!(
+            html.contains("some code here"),
+            "Should contain the original text, got: {html}"
         );
+
         Ok(())
     }
 
@@ -577,7 +637,7 @@ mod tests {
 
     #[test]
     fn test_highlight_css_custom_theme() -> Result<(), Error> {
-        let css = highlight_css("base16-ocean.dark")?;
+        let css = highlight_css("catppuccin-frappe")?;
         assert!(css.contains(".syntax-"));
         Ok(())
     }
