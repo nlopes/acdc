@@ -1763,94 +1763,80 @@ peg::parser! {
         rule markdown_code_delimiter() -> &'input str = delim:$("`"*<3,>) { delim }
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
 
-        rule until_comment_delimiter() -> &'input str
-            = content:$((!(eol() comment_delimiter()) [_])*)
-        {
-            content
-        }
+        // Exact delimiter matching rules - these use conditional actions to ensure
+        // the matched delimiter is identical to the expected one. This prevents
+        // content lines that happen to contain delimiter-like characters (but of
+        // different length) from being incorrectly treated as closing delimiters.
+        rule exact_comment_delimiter(expected: &str) -> &'input str
+            = delim:comment_delimiter() {? if delim == expected { Ok(delim) } else { Err("comment delimiter mismatch") } }
+        rule exact_example_delimiter(expected: &str) -> &'input str
+            = delim:example_delimiter() {? if delim == expected { Ok(delim) } else { Err("example delimiter mismatch") } }
+        rule exact_listing_delimiter(expected: &str) -> &'input str
+            = delim:listing_delimiter() {? if delim == expected { Ok(delim) } else { Err("listing delimiter mismatch") } }
+        rule exact_literal_delimiter(expected: &str) -> &'input str
+            = delim:literal_delimiter() {? if delim == expected { Ok(delim) } else { Err("literal delimiter mismatch") } }
+        rule exact_open_delimiter(expected: &str) -> &'input str
+            = delim:open_delimiter() {? if delim == expected { Ok(delim) } else { Err("open delimiter mismatch") } }
+        rule exact_sidebar_delimiter(expected: &str) -> &'input str
+            = delim:sidebar_delimiter() {? if delim == expected { Ok(delim) } else { Err("sidebar delimiter mismatch") } }
+        rule exact_pass_delimiter(expected: &str) -> &'input str
+            = delim:pass_delimiter() {? if delim == expected { Ok(delim) } else { Err("pass delimiter mismatch") } }
+        rule exact_markdown_code_delimiter(expected: &str) -> &'input str
+            = delim:markdown_code_delimiter() {? if delim == expected { Ok(delim) } else { Err("markdown code delimiter mismatch") } }
+        rule exact_quote_delimiter(expected: &str) -> &'input str
+            = delim:quote_delimiter() {? if delim == expected { Ok(delim) } else { Err("quote delimiter mismatch") } }
 
-        rule until_example_delimiter() -> &'input str
-            = content:$((!(eol() example_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_comment_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_comment_delimiter(expected)) [_])*) { content }
 
-        rule until_listing_delimiter() -> &'input str
-            = content:$((!(eol() listing_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_example_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_example_delimiter(expected)) [_])*) { content }
 
-        rule until_literal_delimiter() -> &'input str
-            = content:$((!(eol() literal_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_listing_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_listing_delimiter(expected)) [_])*) { content }
 
-        rule until_open_delimiter() -> &'input str
-        = content:$((!(eol() open_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_literal_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_literal_delimiter(expected)) [_])*) { content }
 
-        rule until_sidebar_delimiter() -> &'input str
-            = content:$((!(eol() sidebar_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_open_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_open_delimiter(expected)) [_])*) { content }
+
+        rule until_sidebar_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_sidebar_delimiter(expected)) [_])*) { content }
 
         rule until_table_delimiter() -> &'input str
-            = content:$((!(eol() table_delimiter()) [_])*)
-        {
-            content
-        }
+        = content:$((!(eol() table_delimiter()) [_])*) { content }
 
         // Delimiter-specific content rules for nested table support.
         // Each rule only looks ahead for its specific delimiter, allowing
         // nested tables with different delimiters to be parsed correctly.
         rule until_pipe_table_delimiter() -> &'input str
-            = content:$((!(eol() pipe_table_delimiter()) [_])*)
-        { content }
+        = content:$((!(eol() pipe_table_delimiter()) [_])*) { content }
 
         rule until_excl_table_delimiter() -> &'input str
-            = content:$((!(eol() excl_table_delimiter()) [_])*)
-        { content }
+        = content:$((!(eol() excl_table_delimiter()) [_])*) { content }
 
         rule until_comma_table_delimiter() -> &'input str
-            = content:$((!(eol() comma_table_delimiter()) [_])*)
-        { content }
+        = content:$((!(eol() comma_table_delimiter()) [_])*) { content }
 
         rule until_colon_table_delimiter() -> &'input str
-            = content:$((!(eol() colon_table_delimiter()) [_])*)
-        { content }
+        = content:$((!(eol() colon_table_delimiter()) [_])*) { content }
 
-        rule until_pass_delimiter() -> &'input str
-            = content:$((!(eol() pass_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_pass_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_pass_delimiter(expected)) [_])*) { content }
 
-        rule until_quote_delimiter() -> &'input str
-            = content:$((!(eol() quote_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_quote_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_quote_delimiter(expected)) [_])*) { content }
 
-        rule until_markdown_code_delimiter() -> &'input str
-            = content:$((!(eol() markdown_code_delimiter()) [_])*)
-        {
-            content
-        }
+        rule until_markdown_code_delimiter(expected: &str) -> &'input str
+        = content:$((!(eol() exact_markdown_code_delimiter(expected)) [_])*) { content }
 
         rule markdown_language() -> &'input str
-            = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+)
-        {
-            lang
-        }
+        = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+) { lang }
 
         rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         = open_delim:example_delimiter() eol()
-        content_start:position!() content:until_example_delimiter() content_end:position!()
+        content_start:position!() content:until_example_delimiter(open_delim) content_end:position!()
         eol() close_delim:example_delimiter() end:position!()
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
@@ -1889,7 +1875,7 @@ peg::parser! {
 
         rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:comment_delimiter() eol()
-            content_start:position!() content:until_comment_delimiter() content_end:position!()
+            content_start:position!() content:until_comment_delimiter(open_delim) content_end:position!()
             eol() close_delim:comment_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "comment", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
@@ -1918,7 +1904,7 @@ peg::parser! {
 
         rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:listing_delimiter() eol()
-            content_start:position!() content:until_listing_delimiter() content_end:position!()
+            content_start:position!() content:until_listing_delimiter(open_delim) content_end:position!()
             eol() close_delim:listing_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
@@ -1942,7 +1928,7 @@ peg::parser! {
 
         rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
-            content_start:position!() content:until_markdown_code_delimiter() content_end:position!()
+            content_start:position!() content:until_markdown_code_delimiter(open_delim) content_end:position!()
             eol() close_delim:markdown_code_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
@@ -1977,7 +1963,7 @@ peg::parser! {
         =
         open_delim:literal_delimiter()
         eol()
-        content_start:position!() content:until_literal_delimiter() content_end:position!()
+        content_start:position!() content:until_literal_delimiter(open_delim) content_end:position!()
         eol()
         close_delim:literal_delimiter()
         end:position!()
@@ -2003,7 +1989,7 @@ peg::parser! {
 
         rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:open_delimiter() eol()
-            content_start:position!() content:until_open_delimiter() content_end:position!()
+            content_start:position!() content:until_open_delimiter(open_delim) content_end:position!()
             eol() close_delim:open_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "open", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
@@ -2031,7 +2017,7 @@ peg::parser! {
 
         rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:sidebar_delimiter() eol()
-            content_start:position!() content:until_sidebar_delimiter() content_end:position!()
+            content_start:position!() content:until_sidebar_delimiter(open_delim) content_end:position!()
             eol() close_delim:sidebar_delimiter() end:position!()
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
@@ -2130,7 +2116,7 @@ peg::parser! {
 
         rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:pass_delimiter() eol()
-            content_start:position!() content:until_pass_delimiter() content_end:position!()
+            content_start:position!() content:until_pass_delimiter(open_delim) content_end:position!()
             eol() close_delim:pass_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "pass", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
@@ -2183,7 +2169,7 @@ peg::parser! {
 
         rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = open_delim:quote_delimiter() eol()
-            content_start:position!() content:until_quote_delimiter() content_end:position!()
+            content_start:position!() content:until_quote_delimiter(open_delim) content_end:position!()
             eol() close_delim:quote_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, end, offset)))?;

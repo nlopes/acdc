@@ -1,0 +1,6 @@
+[source,console]
+----
+$ some_command
+--------------------
+output
+----

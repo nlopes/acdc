@@ -1,0 +1,55 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "console": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "$ some_command\n--------------------\noutput",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 6,
+      "col": 4
+    }
+  ]
+}
