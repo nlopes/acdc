@@ -1,0 +1,27 @@
+[%collapsible]
+.Click to expand
+====
+This is collapsible content.
+====
+
+[%collapsible%open]
+.Initially open
+====
+This content is visible by default.
+====
+
+[%collapsible]
+====
+No title collapsible block.
+====
+
+[example%collapsible]
+Collapsible paragraph without title.
+
+[example%collapsible]
+.Click to reveal
+Collapsible paragraph with title.
+
+[example%collapsible%open]
+.Open paragraph
+Collapsible paragraph initially open.

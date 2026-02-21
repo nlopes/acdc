@@ -94,7 +94,7 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
 fn write_example_block_collapsible<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     block: &DelimitedBlock,
-    processor: &Processor,
+    _processor: &Processor,
     blocks: &[Block],
 ) -> Result<(), Error> {
     let is_open = block.metadata.options.contains(&"open".to_string());
@@ -117,11 +117,9 @@ fn write_example_block_collapsible<V: WritableVisitor<Error = Error>>(
         let writer = visitor.writer_mut();
         writeln!(writer, "<summary class=\"title\">Details</summary>")?;
     } else {
-        let prefix =
-            processor.caption_prefix("example-caption", &processor.example_counter, "Example");
         visitor.render_title_with_wrapper(
             &block.title,
-            &format!("<summary class=\"title\">{prefix}"),
+            "<summary class=\"title\">",
             "</summary>\n",
         )?;
     }

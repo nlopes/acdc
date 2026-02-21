@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Collapsible example blocks in standard mode** — example blocks with `[%collapsible]` now
-  render as `<details>/<summary>` elements in the standard HTML backend, matching the semantic
-  mode behavior. Supports `[%collapsible%open]` for initially expanded blocks and defaults to
-  "Details" as the summary text when no title is provided.
+- **Collapsible blocks in standard mode** — example blocks with `[%collapsible]` and paragraphs
+  with `[example%collapsible]` now render as `<details>/<summary>` elements in the standard HTML
+  backend. Supports `%open` for initially expanded blocks and defaults to "Details" as the
+  summary text when no title is provided.
 
 ### Fixed
 
