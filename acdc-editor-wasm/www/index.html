@@ -3,7 +3,20 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>acdc - live AsciiDoc preview</title>
+    <title>acdc — Live AsciiDoc Editor &amp; Preview</title>
+    <meta name="description" content="Write AsciiDoc and see rendered HTML in real-time. A fast, browser-based editor powered by a Rust parser compiled to WebAssembly.">
+    <link rel="icon" href="data:,">
+    <link rel="canonical" href="https://acdc.nlopes.dev/">
+
+    <meta property="og:title" content="acdc — Live AsciiDoc Editor & Preview">
+    <meta property="og:description" content="Write AsciiDoc and see rendered HTML in real-time. A fast, browser-based editor powered by a Rust parser compiled to WebAssembly.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://acdc.nlopes.dev/">
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="acdc — Live AsciiDoc Editor & Preview">
+    <meta name="twitter:description" content="Write AsciiDoc and see rendered HTML in real-time. Rust + WebAssembly powered.">
+
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">
@@ -22,7 +35,8 @@
     </script>
   </head>
   <body>
-    <div class="main-container">
+    <h1 class="sr-only">acdc — Live AsciiDoc Editor & Preview</h1>
+    <main class="main-container">
       <div class="editor-pane">
         <div class="editor-container">
           <textarea id="editor" spellcheck="false"></textarea>
@@ -38,7 +52,7 @@
       <div class="preview-pane">
         <div id="preview"></div>
       </div>
-    </div>
+    </main>
     <footer class="site-footer">
       <a href="https://github.com/nlopes/acdc" target="_blank" rel="noopener noreferrer">acdc</a> — Made by <a href="https://github.com/nlopes" target="_blank" rel="noopener noreferrer">nlopes</a>
     </footer>
