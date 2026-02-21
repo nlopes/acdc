@@ -1,0 +1,144 @@
+/* Reset and layout */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: "Open Sans", "DejaVu Sans", sans-serif;
+}
+
+.main-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+.editor-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+    background: #f8f9fa;
+    position: relative;
+    min-width: 300px;
+}
+
+.preview-pane {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    background: white;
+    min-width: 300px;
+}
+
+/* Editor CSS from README */
+.editor-container {
+    position: relative;
+    flex: 1;
+    overflow: hidden; /* Handle scrolling within textarea/backdrop */
+}
+
+#editor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: transparent;
+    caret-color: black;
+    font-family: "Droid Sans Mono", "DejaVu Sans Mono", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 1rem;
+    border: none;
+    resize: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    z-index: 2; /* Needs to be above backdrop to receive input */
+    outline: none;
+    box-sizing: border-box;
+}
+
+#editor-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Let clicks pass through to textarea */
+    overflow: hidden;
+    z-index: 1;
+    box-sizing: border-box;
+}
+
+#highlight {
+    font-family: "Droid Sans Mono", "DejaVu Sans Mono", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 1rem;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #333; /* Default text color */
+}
+
+#status {
+    padding: 5px 10px;
+    background: #e9ecef;
+    border-top: 1px solid #dee2e6;
+    font-size: 12px;
+    color: #495057;
+}
+
+/* Syntax Highlighting Theme */
+.adoc-title { color: #1a1a2e; font-weight: bold; }
+.adoc-heading { color: #16213e; font-weight: bold; }
+.adoc-attribute { color: #7f5539; }
+.adoc-block-title { color: #6c757d; font-style: italic; }
+.adoc-comment { color: #6c757d; font-style: italic; }
+.adoc-delimiter { color: #9d4edd; }
+.adoc-list-marker { color: #e85d04; font-weight: bold; }
+.adoc-admonition { color: #d00000; font-weight: bold; }
+.adoc-bold { font-weight: bold; }
+.adoc-italic { font-style: italic; }
+.adoc-monospace { color: #d63384; background: #f8f9fa; border-radius: 3px; }
+.adoc-highlight { background: #fff3cd; }
+.adoc-link { color: #0077b6; text-decoration: underline; }
+.adoc-xref { color: #7209b7; }
+.adoc-footnote { color: #7209b7; font-weight: normal; }
+.adoc-code-content { color: #495057; }
+.adoc-callout { color: #e85d04; font-weight: bold; }
+.adoc-table-delimiter { color: #9d4edd; }
+.adoc-table-cell { color: #9d4edd; font-weight: bold; }
+
+/* Preview styling - mimics default Asciidoctor output */
+#preview {
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: "Open Sans", "DejaVu Sans", sans-serif;
+    line-height: 1.6;
+    color: rgba(0,0,0,0.8);
+}
+
+#preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6 {
+    color: #ba3925;
+    font-family: "Open Sans", "DejaVu Sans", sans-serif;
+    font-weight: 300;
+    border-bottom: 1px solid #dddddd;
+    padding-bottom: 0.1em;
+}
+
+#preview code {
+    font-family: "Droid Sans Mono", "DejaVu Sans Mono", monospace;
+    background-color: #f7f7f8;
+    color: rgba(0,0,0,0.9);
+}
+
+#preview pre {
+    background-color: #f7f7f8;
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+}

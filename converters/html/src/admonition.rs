@@ -41,10 +41,16 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
     // - Font mode (`icons=font`): Use Font Awesome <i> element
     // - Default: Use text label in <div class="title">
     if processor.is_font_icons_mode() {
+        let fa_icon = match admon.variant {
+            AdmonitionVariant::Note => "fa-circle-info",
+            AdmonitionVariant::Tip => "fa-lightbulb",
+            AdmonitionVariant::Important => "fa-circle-exclamation",
+            AdmonitionVariant::Warning => "fa-triangle-exclamation",
+            AdmonitionVariant::Caution => "fa-fire",
+        };
         writeln!(
             writer,
-            "<i class=\"fa icon-{}\" title=\"{caption}\"></i>",
-            admon.variant
+            "<i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i>",
         )?;
     } else {
         writeln!(writer, "<div class=\"title\">{caption}</div>")?;

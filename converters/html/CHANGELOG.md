@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Admonition font icons** — use native Font Awesome 7 class names (`fa-solid fa-circle-info`,
+  `fa-lightbulb`, etc.) instead of custom `icon-*` classes that only work with asciidoctor's
+  embedded CSS. Icons now render correctly with the FA 7.2.0 CDN.
+
 ### Added
 
 - **Docinfo file support** — inject custom HTML snippets into `<head>`, after `<body>`, or

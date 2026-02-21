@@ -212,6 +212,27 @@ Output goes to `pkg/` directory.
 .adoc-table-cell { color: #9d4edd; font-weight: bold; }
 ```
 
+## Running the Example
+
+A ready-to-use example is located in the `www/` directory.
+
+To run it locally:
+
+1. Build the WASM package:
+   ```bash
+   wasm-pack build --target web --release
+   ```
+
+2. Serve the directory (you need a web server to handle WASM MIME types correctly):
+   ```bash
+   # Using miniserve
+   miniserve . --index www/index.html
+   
+   # Open browser at http://localhost:8080
+   ```
+
+The example is also deployed to GitHub Pages: https://nlopes.github.io/acdc/
+
 ## License
 
 MIT
