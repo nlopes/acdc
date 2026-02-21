@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Block delimiters in source block content** — lines inside a delimited block containing
+  a longer sequence of the same delimiter character (e.g., `--------------------` inside a
+  `----` block) are no longer incorrectly treated as closing delimiters. The parser now
+  requires an exact match of the opening delimiter length. ([#349])
+
 ## [0.5.0] - 2026-02-14
 
 ### Added

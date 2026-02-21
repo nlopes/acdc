@@ -1,0 +1,207 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "example",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "====",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Here are your options:",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "example",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "======",
+          "metadata": {
+            "options": [
+              "collapsible"
+            ]
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Escape into the real world.",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Red Pill",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 2
+                },
+                {
+                  "line": 4,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "example",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "======",
+          "metadata": {
+            "options": [
+              "collapsible"
+            ]
+          },
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Live within the simulated reality without want or fear.",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 1
+                    },
+                    {
+                      "line": 13,
+                      "col": 55
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Blue Pill",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 2
+                },
+                {
+                  "line": 10,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 15,
+      "col": 4
+    }
+  ]
+}
