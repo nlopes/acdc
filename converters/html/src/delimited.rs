@@ -57,6 +57,12 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
     blocks: &[Block],
 ) -> Result<(), Error> {
+    let is_collapsible = block.metadata.options.contains(&"collapsible".to_string());
+
+    if is_collapsible {
+        return write_example_block_collapsible(visitor, block, processor, blocks);
+    }
+
     let mut writer = visitor.writer_mut();
     write_block_div_open(&mut writer, &block.metadata, "exampleblock")?;
     let _ = writer;
@@ -82,6 +88,53 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
     writer = visitor.writer_mut();
     writeln!(writer, "</div>")?;
     writeln!(writer, "</div>")?;
+    Ok(())
+}
+
+fn write_example_block_collapsible<V: WritableVisitor<Error = Error>>(
+    visitor: &mut V,
+    block: &DelimitedBlock,
+    processor: &Processor,
+    blocks: &[Block],
+) -> Result<(), Error> {
+    let is_open = block.metadata.options.contains(&"open".to_string());
+
+    let mut writer = visitor.writer_mut();
+    write!(writer, "<details")?;
+    if let Some(id) = &block.metadata.id {
+        write!(writer, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = block.metadata.anchors.first() {
+        write!(writer, " id=\"{}\"", anchor.id)?;
+    }
+    if is_open {
+        writeln!(writer, " open>")?;
+    } else {
+        writeln!(writer, ">")?;
+    }
+    let _ = writer;
+
+    if block.title.is_empty() {
+        let writer = visitor.writer_mut();
+        writeln!(writer, "<summary class=\"title\">Details</summary>")?;
+    } else {
+        let prefix =
+            processor.caption_prefix("example-caption", &processor.example_counter, "Example");
+        visitor.render_title_with_wrapper(
+            &block.title,
+            &format!("<summary class=\"title\">{prefix}"),
+            "</summary>\n",
+        )?;
+    }
+
+    writer = visitor.writer_mut();
+    writeln!(writer, "<div class=\"content\">")?;
+    let _ = writer;
+    for nested_block in blocks {
+        visitor.visit_block(nested_block)?;
+    }
+    writer = visitor.writer_mut();
+    writeln!(writer, "</div>")?;
+    writeln!(writer, "</details>")?;
     Ok(())
 }
 
@@ -1311,6 +1364,111 @@ mod tests {
         assert!(
             html.contains("<div id=\"open-id\" class=\"openblock open-role\">"),
             "Expected open block with ID and role, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_example_block_collapsible() -> Result<(), Error> {
+        let title = Title::new(vec![InlineNode::PlainText(Plain {
+            content: "Click to expand".to_string(),
+            location: Location::default(),
+            escaped: false,
+        })]);
+
+        let metadata = BlockMetadata::new().with_options(vec!["collapsible".to_string()]);
+
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata)
+        .with_title(title);
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<details>"),
+            "Collapsible block should render as <details>, got: {html}",
+        );
+        assert!(
+            html.contains("<summary class=\"title\">"),
+            "Collapsible block should have <summary class=\"title\">, got: {html}",
+        );
+        assert!(
+            !html.contains("<div class=\"exampleblock\">"),
+            "Collapsible block should not have exampleblock div, got: {html}",
+        );
+        assert!(
+            html.contains("</details>"),
+            "Collapsible block should close with </details>, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_example_block_collapsible_open() -> Result<(), Error> {
+        let title = Title::new(vec![InlineNode::PlainText(Plain {
+            content: "Initially open".to_string(),
+            location: Location::default(),
+            escaped: false,
+        })]);
+
+        let metadata =
+            BlockMetadata::new().with_options(vec!["collapsible".to_string(), "open".to_string()]);
+
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata)
+        .with_title(title);
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<details open>"),
+            "Collapsible open block should have open attribute, got: {html}",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_example_block_collapsible_without_title() -> Result<(), Error> {
+        let metadata = BlockMetadata::new().with_options(vec!["collapsible".to_string()]);
+
+        let block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(vec![]),
+            "====".to_string(),
+            Location::default(),
+        )
+        .with_metadata(metadata);
+
+        let output = Vec::new();
+        let processor = create_test_processor();
+        let options = RenderOptions::default();
+        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+
+        visitor.visit_delimited_block(&block)?;
+        let html = String::from_utf8(visitor.into_writer())?;
+
+        assert!(
+            html.contains("<summary class=\"title\">Details</summary>"),
+            "Collapsible block without title should use 'Details' as default summary, got: {html}",
         );
         Ok(())
     }
