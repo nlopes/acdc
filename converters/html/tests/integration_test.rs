@@ -1784,7 +1784,7 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
 
 #[rstest::rstest]
 #[case::primary(
-    "= T\n:source-highlighter: syntect\n:highlight-css: class\n:highlight-style: InspiredGitHub\n\nLiteral syntect-css and syntect-style.\n",
+    "= T\n:source-highlighter: syntect\n:highlight-css: class\n:highlight-style: github-light\n\nLiteral syntect-css and syntect-style.\n",
     false,
     &[]
 )]
@@ -1825,7 +1825,7 @@ fn deprecated_highlight_attributes_warn_once_per_conversion(
     if caller_aliases {
         options = options
             .with_attribute("syntect-css", "class")
-            .with_attribute("syntect-style", "InspiredGitHub");
+            .with_attribute("syntect-style", "github-light");
     }
     let parsed = parse(input, &options.build()?)?;
     let doc = parsed.document();
@@ -2194,7 +2194,7 @@ fn preface_subsections_are_not_numbered() -> Result<(), Error> {
 mod syntax_highlighting {
     use super::*;
 
-    const SOURCE_BLOCK: &str = r#":source-highlighter: syntect
+    const SOURCE_BLOCK: &str = r#":source-highlighter: giallo
 
 [source,rust]
 ----
@@ -2216,7 +2216,7 @@ fn main() {
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let attributes = [
                 (css, AttributeValue::String("class".into())),
-                (style, AttributeValue::String("Solarized (dark)".into())),
+                (style, AttributeValue::String("solarized-dark".into())),
             ];
             let canonical = convert_string_with_variant(
                 SOURCE_BLOCK,
@@ -2224,7 +2224,7 @@ fn main() {
                     ("highlight-css", AttributeValue::String("class".into())),
                     (
                         "highlight-style",
-                        AttributeValue::String("Solarized (dark)".into()),
+                        AttributeValue::String("solarized-dark".into()),
                     ),
                 ],
                 variant,
@@ -2280,39 +2280,39 @@ fn main() {
 
     #[rstest::rstest]
     #[case::primary_values(
-        ":highlight-css: inline\n:syntect-css: class\n:highlight-style: InspiredGitHub\n:syntect-style: Solarized (dark)\n",
+        ":highlight-css: inline\n:syntect-css: class\n:highlight-style: github-light\n:syntect-style: solarized-dark\n",
         "inline",
-        "InspiredGitHub"
+        "github-light"
     )]
     #[case::primary_empty(
-        ":highlight-css:\n:syntect-css: class\n:highlight-style:\n:syntect-style: Solarized (dark)\n",
+        ":highlight-css:\n:syntect-css: class\n:highlight-style:\n:syntect-style: solarized-dark\n",
         "inline",
-        "InspiredGitHub"
+        "github-light"
     )]
     #[case::primary_unsets(
-        ":highlight-css!:\n:syntect-css: class\n:highlight-style!:\n:syntect-style: Solarized (dark)\n",
+        ":highlight-css!:\n:syntect-css: class\n:highlight-style!:\n:syntect-style: solarized-dark\n",
         "inline",
-        "InspiredGitHub"
+        "github-light"
     )]
     #[case::primary_prefix_unsets(
-        ":!highlight-css:\n:syntect-css: class\n:!highlight-style:\n:syntect-style: Solarized (dark)\n",
+        ":!highlight-css:\n:syntect-css: class\n:!highlight-style:\n:syntect-style: solarized-dark\n",
         "inline",
-        "InspiredGitHub"
+        "github-light"
     )]
     #[case::dark_unset_theme(
-        ":highlight-css!:\n:syntect-css: class\n:highlight-style!:\n:syntect-style: Solarized (dark)\n:dark-mode:\n",
+        ":highlight-css!:\n:syntect-css: class\n:highlight-style!:\n:syntect-style: solarized-dark\n:dark-mode:\n",
         "inline",
-        "base16-eighties.dark"
+        "github-dark"
     )]
     #[case::unknown_primary_mode(
-        ":highlight-css: unknown\n:syntect-css: class\n:highlight-style: InspiredGitHub\n:syntect-style: Solarized (dark)\n",
+        ":highlight-css: unknown\n:syntect-css: class\n:highlight-style: github-light\n:syntect-style: solarized-dark\n",
         "inline",
-        "InspiredGitHub"
+        "github-light"
     )]
     #[case::primary_class_over_alias_inline(
-        ":highlight-css: class\n:syntect-css: inline\n:highlight-style: Solarized (dark)\n:syntect-style: InspiredGitHub\n",
+        ":highlight-css: class\n:syntect-css: inline\n:highlight-style: solarized-dark\n:syntect-style: github-light\n",
         "class",
-        "Solarized (dark)"
+        "solarized-dark"
     )]
     fn primary_highlight_assignments_override_aliases(
         #[case] declarations: &str,
@@ -2338,8 +2338,7 @@ fn main() {
 
     #[test]
     fn caller_highlight_unsets_suppress_legacy_stylesheet_writes() -> Result<(), Error> {
-        let input =
-            format!(":syntect-css: class\n:syntect-style: Solarized (dark)\n{SOURCE_BLOCK}");
+        let input = format!(":syntect-css: class\n:syntect-style: solarized-dark\n{SOURCE_BLOCK}");
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let temp = tempfile::tempdir()?;
             let path = temp.path().join("document.html");
@@ -2421,7 +2420,7 @@ fn main() {
             SOURCE_BLOCK,
             &[(
                 "highlight-style",
-                AttributeValue::String("base16-ocean.dark".into()),
+                AttributeValue::String("catppuccin-frappe".into()),
             )],
         )?;
         assert!(
@@ -2440,7 +2439,7 @@ fn main() {
                 ("highlight-css", AttributeValue::String("class".into())),
                 (
                     "highlight-style",
-                    AttributeValue::String("Solarized (dark)".into()),
+                    AttributeValue::String("solarized-dark".into()),
                 ),
             ],
         )?;
@@ -2500,6 +2499,7 @@ fn main() {
     #[test]
     fn inline_mode_with_linkcss_no_syntax_link() -> Result<(), Error> {
         let html = convert_string(SOURCE_BLOCK, &[("linkcss", AttributeValue::Bool(true))])?;
+        // Inline mode should not link to acdc-highlight.css
         assert!(
             !html.contains("acdc-highlight.css"),
             "Inline mode should not reference acdc-highlight.css:\n{html}"
