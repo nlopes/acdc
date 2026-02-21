@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Collapsible example blocks in standard mode** — example blocks with `[%collapsible]` now
+  render as `<details>/<summary>` elements in the standard HTML backend, matching the semantic
+  mode behavior. Supports `[%collapsible%open]` for initially expanded blocks and defaults to
+  "Details" as the summary text when no title is provided.
+
 ### Fixed
 
 - **Admonition font icons** — use native Font Awesome 7 class names (`fa-solid fa-circle-info`,
