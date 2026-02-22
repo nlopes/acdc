@@ -221,7 +221,7 @@ html, body {
     overflow-y: auto;
     padding: 2rem;
     max-width: 800px;
-    margin: 0 auto;
+    margin: 0 0;
     font-family: "Open Sans", "DejaVu Sans", sans-serif;
     line-height: 1.6;
     color: rgba(0,0,0,0.8);
