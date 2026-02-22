@@ -231,7 +231,7 @@ To run it locally:
    # Open browser at http://localhost:8080
    ```
 
-The example is also deployed to GitHub Pages: https://nlopes.github.io/acdc/
+The editor is live at https://acdc.nlopes.dev
 
 ## License
 

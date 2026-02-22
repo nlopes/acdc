@@ -1,3 +1,16 @@
+/* Screen-reader only (visually hidden, accessible to search engines and assistive tech) */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* Reset and layout */
 html, body {
     margin: 0;
@@ -6,12 +19,35 @@ html, body {
     width: 100%;
     overflow: hidden;
     font-family: "Open Sans", "DejaVu Sans", sans-serif;
+    display: flex;
+    flex-direction: column;
 }
 
 .main-container {
     display: flex;
-    height: 100vh;
+    flex: 1;
     width: 100vw;
+    min-height: 0;
+}
+
+.site-footer {
+    padding: 6px 0;
+    text-align: center;
+    font-size: 12px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.site-footer a {
+    color: #495057;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.site-footer a:hover {
+    color: #212529;
+    text-decoration: underline;
 }
 
 .editor-pane {
@@ -84,12 +120,55 @@ html, body {
     color: #333; /* Default text color */
 }
 
-#status {
-    padding: 5px 10px;
-    background: #e9ecef;
-    border-top: 1px solid #dee2e6;
+/* Parse status floating badge */
+#parse-status {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
     font-size: 12px;
-    color: #495057;
+    font-family: "Open Sans", "DejaVu Sans", sans-serif;
+    cursor: default;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s, padding 0.2s;
+    user-select: none;
+    pointer-events: auto;
+    max-width: calc(100% - 32px);
+}
+
+#parse-status.parse-ok {
+    background: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+    padding: 4px 8px;
+}
+
+#parse-status.parse-ok .parse-status-text {
+    display: none;
+}
+
+#parse-status.parse-error {
+    background: rgba(220, 53, 69, 0.12);
+    color: #dc3545;
+    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.15);
+    cursor: pointer;
+}
+
+#parse-status.parse-error .parse-status-text {
+    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 250px;
+}
+
+#parse-status.parse-error.expanded .parse-status-text {
+    white-space: normal;
+    max-width: none;
+    overflow: visible;
 }
 
 /* Syntax Highlighting Theme */

@@ -1,44 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACDC Editor</title>
+    <title>acdc — Live AsciiDoc Editor &amp; Preview</title>
+    <meta name="description" content="Write AsciiDoc and see rendered HTML in real-time. A fast, browser-based editor powered by a Rust parser compiled to WebAssembly.">
+    <link rel="icon" href="data:,">
+    <link rel="canonical" href="https://acdc.nlopes.dev/">
+
+    <meta property="og:title" content="acdc — Live AsciiDoc Editor & Preview">
+    <meta property="og:description" content="Write AsciiDoc and see rendered HTML in real-time. A fast, browser-based editor powered by a Rust parser compiled to WebAssembly.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://acdc.nlopes.dev/">
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="acdc — Live AsciiDoc Editor & Preview">
+    <meta name="twitter:description" content="Write AsciiDoc and see rendered HTML in real-time. Rust + WebAssembly powered.">
+
     <link rel="stylesheet" href="style.css">
-    <!-- Default Asciidoctor stylesheet fonts -->
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/v4-shims.min.css">
     <script type="module">
-        import init from './acdc_editor_wasm.js';
+     import init from './acdc_editor_wasm.js';
 
-        async function run() {
-            try {
-                await init();
-                console.log("WASM initialized successfully");
-            } catch (e) {
-                console.error("Failed to initialize WASM:", e);
-                document.getElementById('status').textContent = "Error: " + e;
-            }
-        }
+     async function run() {
+       try {
+         await init();
+       } catch (e) {
+         console.error("Failed to initialize WASM:", e);
+       }
+     }
 
-        run();
+     run();
     </script>
-</head>
-<body>
-    <div class="main-container">
-        <div class="editor-pane">
-            <div class="editor-container">
-                <textarea id="editor" spellcheck="false"></textarea>
-                <div id="editor-backdrop">
-                    <pre id="highlight"></pre>
-                </div>
-            </div>
-            <div id="status">Loading...</div>
+  </head>
+  <body>
+    <h1 class="sr-only">acdc — Live AsciiDoc Editor & Preview</h1>
+    <main class="main-container">
+      <div class="editor-pane">
+        <div class="editor-container">
+          <textarea id="editor" spellcheck="false"></textarea>
+          <div id="editor-backdrop">
+            <pre id="highlight"></pre>
+          </div>
+          <div id="parse-status" class="parse-ok" title="Parse OK">
+            <span class="parse-status-icon"><i class="fa-solid fa-check"></i></span>
+            <span class="parse-status-text"></span>
+          </div>
         </div>
-        <div class="preview-pane">
-            <div id="preview"></div>
-        </div>
-    </div>
-</body>
+      </div>
+      <div class="preview-pane">
+        <div id="preview"></div>
+      </div>
+    </main>
+    <footer class="site-footer">
+      <a href="https://github.com/nlopes/acdc" target="_blank" rel="noopener noreferrer">acdc</a> | Made by <a href="https://github.com/nlopes" target="_blank" rel="noopener noreferrer">nlopes</a>
+      <span id="build-info"></span>
+    </footer>
+    <script data-goatcounter="https://acdc-live-editor.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+  </body>
 </html>
