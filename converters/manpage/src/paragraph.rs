@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::Paragraph;
+use acdc_parser::{Paragraph, inlines_to_string};
 
 use crate::{
     Error, ManpageVisitor,
@@ -182,8 +182,16 @@ fn render_attribution<W: Write>(
     visitor: &mut ManpageVisitor<W>,
     para: &Paragraph,
 ) -> Result<(), Error> {
-    let attribution = para.metadata.attributes.get_string("attribution");
-    let citation = para.metadata.attributes.get_string("citation");
+    let attribution = para
+        .metadata
+        .attribution
+        .as_ref()
+        .map(|a| inlines_to_string(a));
+    let citation = para
+        .metadata
+        .citetitle
+        .as_ref()
+        .map(|c| inlines_to_string(c));
 
     if attribution.is_some() || citation.is_some() {
         let w = visitor.writer_mut();
@@ -220,8 +228,16 @@ fn render_verse_attribution<W: Write>(
     visitor: &mut ManpageVisitor<W>,
     para: &Paragraph,
 ) -> Result<(), Error> {
-    let attribution = para.metadata.attributes.get_string("attribution");
-    let citation = para.metadata.attributes.get_string("citation");
+    let attribution = para
+        .metadata
+        .attribution
+        .as_ref()
+        .map(|a| inlines_to_string(a));
+    let citation = para
+        .metadata
+        .citetitle
+        .as_ref()
+        .map(|c| inlines_to_string(c));
 
     if attribution.is_some() || citation.is_some() {
         let w = visitor.writer_mut();
