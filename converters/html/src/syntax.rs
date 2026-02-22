@@ -170,39 +170,28 @@ pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
 
 /// Extract the inner content from syntect's inline-style HTML output.
 /// Syntect wraps everything in `<pre style="...">...</pre>`, but we want just the spans.
+/// It also emits a leading newline after the opening tag which we strip to avoid
+/// extra whitespace at the top of the code block.
 #[cfg(feature = "highlighting")]
 fn extract_inner_content(html: &str) -> &str {
     let start = html.find('>').map_or(0, |i| i + 1);
     let end = html.rfind("</pre>").unwrap_or(html.len());
-    html.get(start..end).unwrap_or(html)
+    let content = html.get(start..end).unwrap_or(html);
+    content.strip_prefix('\n').unwrap_or(content)
 }
 
 /// Insert callout HTML at the appropriate line endings in inline-style highlighted code.
-///
-/// Note: syntect's inline output may have a leading newline which we need to skip
-/// when counting lines.
 #[cfg(feature = "highlighting")]
 fn insert_callouts_into_highlighted_html(html: &str, callouts: &HashMap<usize, usize>) -> String {
     let mut result = String::with_capacity(html.len() + callouts.len() * 50);
-
-    let has_leading_newline = html.starts_with('\n');
 
     for (i, line) in html.split('\n').enumerate() {
         if i > 0 {
             result.push('\n');
         }
 
-        let code_line_num = if has_leading_newline && i > 0 {
-            i - 1
-        } else if has_leading_newline {
-            result.push_str(line);
-            continue;
-        } else {
-            i
-        };
-
         result.push_str(line);
-        if let Some(&callout_num) = callouts.get(&code_line_num) {
+        if let Some(&callout_num) = callouts.get(&i) {
             use std::fmt::Write;
             let _ = write!(
                 result,
@@ -495,7 +484,7 @@ mod tests {
         );
         assert_eq!(
             std::str::from_utf8(&buffer).expect("valid utf8"),
-            "\n<span style=\"color:#323232;\">some code here</span>"
+            "<span style=\"color:#323232;\">some code here</span>"
         );
         Ok(())
     }
