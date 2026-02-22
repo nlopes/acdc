@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Comprehensive preview styling for all AsciiDoc constructs: admonitions,
+  example blocks, sidebars, quote blocks, verse blocks, listing/literal blocks,
+  tables (frames, grids, striping, alignment), lists (ordered, unordered,
+  checklists, description, callout), images, footnotes, keyboard/menu/button
+  macros, collapsible blocks, block titles, lead paragraphs, text color roles,
+  and utility classes.
 - Pane labels ("Editor" / "Preview") so users immediately know which side is which.
 - Default cursor on preview pane instead of text cursor.
 - Granular syntax highlighting for all macros (image, video, audio, footnote,
