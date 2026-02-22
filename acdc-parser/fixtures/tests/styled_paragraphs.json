@@ -75,10 +75,24 @@
             }
           ],
           "metadata": {
-            "attributes": {
-              "attribution": "Albert Einstein"
-            },
-            "style": "quote"
+            "style": "quote",
+            "attribution": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Albert Einstein",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 9
+                  },
+                  {
+                    "line": 5,
+                    "col": 24
+                  }
+                ]
+              }
+            ]
           },
           "location": [
             {
@@ -112,11 +126,41 @@
             }
           ],
           "metadata": {
-            "attributes": {
-              "attribution": "Abraham Lincoln",
-              "citation": "Gettysburg Address"
-            },
-            "style": "quote"
+            "style": "quote",
+            "attribution": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Abraham Lincoln",
+                "location": [
+                  {
+                    "line": 8,
+                    "col": 9
+                  },
+                  {
+                    "line": 8,
+                    "col": 24
+                  }
+                ]
+              }
+            ],
+            "citetitle": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Gettysburg Address",
+                "location": [
+                  {
+                    "line": 8,
+                    "col": 26
+                  },
+                  {
+                    "line": 8,
+                    "col": 44
+                  }
+                ]
+              }
+            ]
           },
           "location": [
             {
@@ -184,11 +228,41 @@
             }
           ],
           "metadata": {
-            "attributes": {
-              "attribution": "Carl Sandburg",
-              "citation": "Fog"
-            },
-            "style": "verse"
+            "style": "verse",
+            "attribution": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Carl Sandburg",
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 9
+                  },
+                  {
+                    "line": 13,
+                    "col": 22
+                  }
+                ]
+              }
+            ],
+            "citetitle": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Fog",
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 24
+                  },
+                  {
+                    "line": 13,
+                    "col": 27
+                  }
+                ]
+              }
+            ]
           },
           "location": [
             {

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Attribution and CiteTitle types** — blockquote attributions and citation titles are now
+  stored as `Attribution` and `CiteTitle` types (containing `Vec<InlineNode>`) on `BlockMetadata`,
+  instead of plain strings in the attributes map. This enables inline content (links, formatting)
+  in attributions. ([#357])
+- **Quoted paragraphs produce DelimitedQuote** — the `"text" -- Author` shorthand now produces
+  a `DelimitedBlock` with `DelimitedQuote` content, matching the markdown blockquote and
+  `[quote]` block output structure.
+
 ### Fixed
 
 - **Block delimiters in source block content** — lines inside a delimited block containing

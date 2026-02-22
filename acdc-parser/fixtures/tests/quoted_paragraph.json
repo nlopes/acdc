@@ -33,13 +33,68 @@
   "attributes": {},
   "blocks": [
     {
-      "name": "paragraph",
+      "name": "quote",
       "type": "block",
-      "inlines": [
+      "form": "delimited",
+      "delimiter": "\"",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Thomas Jefferson",
+            "location": [
+              {
+                "line": 4,
+                "col": 4
+              },
+              {
+                "line": 4,
+                "col": 19
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Papers of Thomas Jefferson",
+            "location": [
+              {
+                "line": 4,
+                "col": 22
+              },
+              {
+                "line": 4,
+                "col": 47
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "I hold it that a little rebellion now and then is a good thing.",
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "I hold it that a little rebellion now and then is a good thing.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 63
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
@@ -52,13 +107,6 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "attribution": "Thomas Jefferson",
-          "citation": "Papers of Thomas Jefferson"
-        },
-        "style": "quote"
-      },
       "location": [
         {
           "line": 3,
@@ -71,13 +119,51 @@
       ]
     },
     {
-      "name": "paragraph",
+      "name": "quote",
       "type": "block",
-      "inlines": [
+      "form": "delimited",
+      "delimiter": "\"",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Albert Einstein",
+            "location": [
+              {
+                "line": 7,
+                "col": 4
+              },
+              {
+                "line": 7,
+                "col": 18
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "Everything should be made as simple as possible, but not simpler.",
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Everything should be made as simple as possible, but not simpler.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 65
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 6,
@@ -90,12 +176,6 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "attribution": "Albert Einstein"
-        },
-        "style": "quote"
-      },
       "location": [
         {
           "line": 6,
@@ -108,13 +188,51 @@
       ]
     },
     {
-      "name": "paragraph",
+      "name": "quote",
       "type": "block",
-      "inlines": [
+      "form": "delimited",
+      "delimiter": "\"",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Anonymous",
+            "location": [
+              {
+                "line": 11,
+                "col": 4
+              },
+              {
+                "line": 11,
+                "col": 12
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
         {
-          "name": "text",
-          "type": "string",
-          "value": "Multi-line quote\nspanning two lines.",
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Multi-line quote\nspanning two lines.",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 18
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 9,
@@ -127,12 +245,6 @@
           ]
         }
       ],
-      "metadata": {
-        "attributes": {
-          "attribution": "Anonymous"
-        },
-        "style": "quote"
-      },
       "location": [
         {
           "line": 9,

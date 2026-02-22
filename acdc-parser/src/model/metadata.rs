@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
+use super::attribution::{Attribution, CiteTitle};
 use super::substitution::SubstitutionSpec;
 
 pub type Role = String;
@@ -34,6 +35,10 @@ pub struct BlockMetadata {
     /// - `Some(Modifiers(ops))`: Apply modifier operations to block-type defaults
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub substitutions: Option<SubstitutionSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attribution: Option<Attribution>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citetitle: Option<CiteTitle>,
 }
 
 impl BlockMetadata {
@@ -99,6 +104,8 @@ impl BlockMetadata {
             && self.attributes.is_empty()
             && self.positional_attributes.is_empty()
             && self.substitutions.is_none()
+            && self.attribution.is_none()
+            && self.citetitle.is_none()
     }
 
     #[tracing::instrument(level = "debug")]
@@ -117,6 +124,12 @@ impl BlockMetadata {
         self.anchors.extend(other.anchors.clone());
         if self.substitutions.is_none() {
             self.substitutions.clone_from(&other.substitutions);
+        }
+        if self.attribution.is_none() {
+            self.attribution.clone_from(&other.attribution);
+        }
+        if self.citetitle.is_none() {
+            self.citetitle.clone_from(&other.citetitle);
         }
     }
 }
