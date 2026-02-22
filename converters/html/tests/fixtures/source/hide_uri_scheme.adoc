@@ -1,0 +1,13 @@
+:hide-uri-scheme:
+
+Bare URL: https://example.com
+
+URL macro: https://example.com[example site]
+
+URL macro without text: https://example.com[]
+
+Link macro: link:https://example.com[]
+
+HTTP link: http://example.org/page
+
+FTP link: ftp://files.example.com/readme.txt
