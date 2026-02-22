@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Pane labels ("Editor" / "Preview") so users immediately know which side is which.
+- Default cursor on preview pane instead of text cursor.
+
 ## [0.3.0] - 2026-02-14
 
 ### Added

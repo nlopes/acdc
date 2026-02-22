@@ -62,10 +62,31 @@ html, body {
 
 .preview-pane {
     flex: 1;
-    overflow-y: auto;
-    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: white;
     min-width: 300px;
+    cursor: default;
+}
+
+.pane-label {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+    border-bottom: 1px solid #dee2e6;
+    user-select: none;
+}
+
+.editor-pane .pane-label {
+    background: #f0f1f3;
+}
+
+.preview-pane .pane-label {
+    background: #f8f9fa;
 }
 
 /* Editor CSS from README */
@@ -194,6 +215,9 @@ html, body {
 
 /* Preview styling - mimics default Asciidoctor output */
 #preview {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
     max-width: 800px;
     margin: 0 auto;
     font-family: "Open Sans", "DejaVu Sans", sans-serif;
