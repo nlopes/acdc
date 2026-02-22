@@ -977,9 +977,11 @@ fn collect_macro_span(input: &str, mac: &InlineMacro, spans: &mut Vec<Span>) {
         _ => return,
     };
 
-    // Determine effective end — parser may exclude trailing `]`
+    // Parser locations use inclusive end (absolute_end points to last byte).
+    // Convert to exclusive end for the span system.
     let start = location.absolute_start;
-    let mut end = location.absolute_end;
+    let mut end = location.absolute_end + 1;
+    // Parser may also exclude trailing `]` — include it if present
     if input.as_bytes().get(end) == Some(&b']') {
         end += 1;
     }
@@ -1463,6 +1465,17 @@ mod tests {
     fn test_autolink_https() {
         let result = highlight("Visit https://example.com today");
         assert!(result.contains("adoc-link"), "result: {result}");
+    }
+
+    #[test]
+    fn test_autolink_full_url_colored() {
+        // The entire URL should be inside the adoc-link span, including the last character
+        let result = highlight("https://asciidoc.org");
+        // The entire URL must be inside the span — no trailing characters outside
+        assert!(
+            result.contains(r#"<span class="adoc-link">https://asciidoc.org</span>"#),
+            "Entire URL should be inside adoc-link span, got: {result}"
+        );
     }
 
     #[test]

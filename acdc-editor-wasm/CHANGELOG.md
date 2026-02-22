@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Autolink highlighting now covers the entire URL (last character was excluded).
+
 ### Added
 
 - Pane labels ("Editor" / "Preview") so users immediately know which side is which.
