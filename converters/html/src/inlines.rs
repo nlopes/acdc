@@ -65,6 +65,15 @@ pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
 }
 
+/// Strip the URI scheme (e.g., `https://`, `http://`, `ftp://`) from a URL string.
+///
+/// Used when the `hide-uri-scheme` document attribute is set to display cleaner link text
+/// while preserving the full URL in the `href` attribute.
+fn strip_uri_scheme(url: &str) -> &str {
+    url.find("://")
+        .map_or(url, |pos| url.get(pos + 3..).unwrap_or(url))
+}
+
 /// Extract `target` and `rel` attributes from `window` or `target` attribute values.
 ///
 /// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
@@ -450,6 +459,10 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
     match m {
         InlineMacro::Autolink(al) => {
             let href = &al.url;
+            let hide_uri_scheme = processor
+                .document_attributes()
+                .get("hide-uri-scheme")
+                .is_some();
             // For mailto: URLs, display just the email address without the mailto: prefix
             let display_text = {
                 let url_str = href.to_string();
@@ -463,6 +476,8 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 };
                 if let Some(email) = url_str.strip_prefix("mailto:") {
                     email.to_string()
+                } else if hide_uri_scheme {
+                    strip_uri_scheme(url_str).to_string()
                 } else {
                     url_str.to_string()
                 }
@@ -487,6 +502,10 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Link(l) => {
+            let hide_uri_scheme = processor
+                .document_attributes()
+                .get("hide-uri-scheme")
+                .is_some();
             let text = l
                 .text
                 .as_ref()
@@ -495,10 +514,13 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 .unwrap_or_else(|| {
                     // For mailto: links without custom text, show just the email address
                     let target_str = l.target.to_string();
-                    target_str
-                        .strip_prefix("mailto:")
-                        .unwrap_or(&target_str)
-                        .to_string()
+                    if let Some(email) = target_str.strip_prefix("mailto:") {
+                        email.to_string()
+                    } else if hide_uri_scheme {
+                        strip_uri_scheme(&target_str).to_string()
+                    } else {
+                        target_str
+                    }
                 });
             if options.inlines_basic || options.toc_mode {
                 // In basic or TOC mode, render as text only (no link wrapper)
@@ -566,11 +588,21 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Url(u) => {
+            let hide_uri_scheme = processor
+                .document_attributes()
+                .get("hide-uri-scheme")
+                .is_some();
             if options.toc_mode {
                 // In TOC mode, render as text only (no link wrapper)
                 if u.text.is_empty() {
                     let target_str = u.target.to_string();
-                    let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                    let display = if let Some(email) = target_str.strip_prefix("mailto:") {
+                        email
+                    } else if hide_uri_scheme {
+                        strip_uri_scheme(&target_str)
+                    } else {
+                        &target_str
+                    };
                     write!(w, "{display}")?;
                 } else {
                     for inline in &u.text {
@@ -607,7 +639,13 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 if u.text.is_empty() {
                     // For mailto: URLs, display just the email address without the mailto: prefix
                     let target_str = u.target.to_string();
-                    let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
+                    let display = if let Some(email) = target_str.strip_prefix("mailto:") {
+                        email
+                    } else if hide_uri_scheme {
+                        strip_uri_scheme(&target_str)
+                    } else {
+                        &target_str
+                    };
                     write!(w, "{display}")?;
                 } else {
                     for inline in &u.text {

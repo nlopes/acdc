@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`:hide-uri-scheme:` support** — when the document attribute `:hide-uri-scheme:` is set, the URI
+  scheme (e.g., `https://`, `http://`, `ftp://`) is stripped from displayed link text for autolinks,
+  URL macros, and link macros without custom text. The `href` attribute retains the full URL. ([#359])
+
 - **Collapsible blocks in standard mode** — example blocks with `[%collapsible]` and paragraphs
   with `[example%collapsible]` now render as `<details>/<summary>` elements in the standard HTML
   backend. Supports `%open` for initially expanded blocks and defaults to "Details" as the
@@ -197,6 +201,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are now re-exported from `acdc-converters-core::section` instead of being defined locally.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
+[#357]: https://github.com/nlopes/acdc/issues/357
+[#359]: https://github.com/nlopes/acdc/issues/359
 [#280]: https://github.com/nlopes/acdc/issues/280
 [#342]: https://github.com/nlopes/acdc/issues/342
 [#291]: https://github.com/nlopes/acdc/issues/291
