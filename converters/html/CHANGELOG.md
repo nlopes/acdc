@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Blockquote citation links** — URL macros in blockquote attributions (e.g.,
+  `-- https://example.com/[Example]`) are now rendered as clickable links. Citation titles
+  use the `<cite>` element. ([#357])
+
 ### Added
 
 - **Collapsible blocks in standard mode** — example blocks with `[%collapsible]` and paragraphs
