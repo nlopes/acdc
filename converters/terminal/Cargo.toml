@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [features]
 default = []
 images = ["dep:viuer"]
-highlighting = ["dep:syntect"]
+highlighting = ["dep:giallo"]
 
 [dependencies]
 acdc-converters-core.workspace = true
@@ -18,7 +18,7 @@ crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 # syntax highlighting (optional - saves ~7s compile time when disabled)
-syntect = { version = "5.3", optional = true }
+giallo = { path = "../../../giallo", optional = true, features = ["dump"] }
 # images on the terminal (optional - saves ~16s compile time when disabled)
 viuer = { version = "0.11", features = ["print-file"], optional = true }
 
