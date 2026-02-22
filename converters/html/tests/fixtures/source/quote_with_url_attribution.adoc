@@ -1,0 +1,2 @@
+"This is the text of the quote."
+-- https://example.com/[Example]

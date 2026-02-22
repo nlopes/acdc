@@ -684,53 +684,76 @@ pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
 }
 
 /// Write attribution div for quote/verse blocks if author or citation present
-pub(crate) fn write_attribution<W: std::io::Write>(
-    writer: &mut W,
+pub(crate) fn write_attribution<
+    V: acdc_converters_core::visitor::WritableVisitor<Error = Error>,
+>(
+    visitor: &mut V,
     metadata: &acdc_parser::BlockMetadata,
-) -> Result<(), std::io::Error> {
-    let author = metadata.attributes.get_string("attribution");
-    let citation = metadata.attributes.get_string("citation");
+) -> Result<(), Error> {
+    let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
+    let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
 
-    if author.is_some() || citation.is_some() {
-        writeln!(writer, "<div class=\"attribution\">")?;
-        match (author, &citation) {
-            (Some(author), Some(citation)) => {
-                writeln!(writer, "&#8212; {author}<br>\n<cite>{citation}</cite>")?;
-            }
-            (Some(author), None) => writeln!(writer, "&#8212; {author}")?,
-            (None, Some(citation)) => writeln!(writer, "<cite>{citation}</cite>")?,
-            (None, None) => {}
+    if attribution.is_some() || citetitle.is_some() {
+        let w = visitor.writer_mut();
+        writeln!(w, "<div class=\"attribution\">")?;
+        if let (Some(attr), Some(cite)) = (attribution, citetitle) {
+            write!(w, "&#8212; ")?;
+            let _ = w;
+            visitor.visit_inline_nodes(attr)?;
+            let w = visitor.writer_mut();
+            writeln!(w, "<br>")?;
+            write!(w, "<cite>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(cite)?;
+            let w = visitor.writer_mut();
+            writeln!(w, "</cite>")?;
+        } else if let Some(attr) = attribution {
+            write!(w, "&#8212; ")?;
+            let _ = w;
+            visitor.visit_inline_nodes(attr)?;
+            let w = visitor.writer_mut();
+            writeln!(w)?;
+        } else if let Some(cite) = citetitle {
+            write!(w, "<cite>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(cite)?;
+            let w = visitor.writer_mut();
+            writeln!(w, "</cite>")?;
         }
-        writeln!(writer, "</div>")?;
+        let w = visitor.writer_mut();
+        writeln!(w, "</div>")?;
     }
     Ok(())
 }
 
 /// Write semantic attribution as `<footer>` inside a `<blockquote>` for html5s mode.
 /// Format: `<footer>&#8212; <cite>Author, Citation</cite></footer>`
-pub(crate) fn write_semantic_attribution<W: std::io::Write>(
-    writer: &mut W,
+pub(crate) fn write_semantic_attribution<
+    V: acdc_converters_core::visitor::WritableVisitor<Error = Error>,
+>(
+    visitor: &mut V,
     metadata: &acdc_parser::BlockMetadata,
-) -> Result<(), std::io::Error> {
-    let author = metadata.attributes.get_string("attribution");
-    let citation = metadata.attributes.get_string("citation");
+) -> Result<(), Error> {
+    let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
+    let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
 
-    if author.is_some() || citation.is_some() {
-        match (author, &citation) {
-            (Some(author), Some(citation)) => {
-                writeln!(
-                    writer,
-                    "<footer>&#8212; <cite>{author}, {citation}</cite></footer>"
-                )?;
+    if attribution.is_some() || citetitle.is_some() {
+        let w = visitor.writer_mut();
+        write!(w, "<footer>&#8212; <cite>")?;
+        let _ = w;
+        if let Some(attr) = attribution {
+            visitor.visit_inline_nodes(attr)?;
+            if citetitle.is_some() {
+                let w = visitor.writer_mut();
+                write!(w, ", ")?;
+                let _ = w;
             }
-            (Some(author), None) => {
-                writeln!(writer, "<footer>&#8212; <cite>{author}</cite></footer>")?;
-            }
-            (None, Some(citation)) => {
-                writeln!(writer, "<footer>&#8212; <cite>{citation}</cite></footer>")?;
-            }
-            (None, None) => {}
         }
+        if let Some(cite) = citetitle {
+            visitor.visit_inline_nodes(cite)?;
+        }
+        let w = visitor.writer_mut();
+        writeln!(w, "</cite></footer>")?;
     }
     Ok(())
 }
