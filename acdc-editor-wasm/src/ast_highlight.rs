@@ -211,9 +211,36 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
             collect_inline_spans(input, &para.title, spans);
             collect_inline_spans(input, &para.content, spans);
         }
-        Block::Image(img) => push_block_span(spans, &img.location, "adoc-macro"),
-        Block::Audio(audio) => push_block_span(spans, &audio.location, "adoc-macro"),
-        Block::Video(video) => push_block_span(spans, &video.location, "adoc-macro"),
+        Block::Image(img) => {
+            push_block_span(spans, &img.location, "adoc-macro");
+            collect_macro_target_spans(
+                input,
+                img.location.absolute_start,
+                img.location.absolute_end,
+                1,
+                spans,
+            );
+        }
+        Block::Audio(audio) => {
+            push_block_span(spans, &audio.location, "adoc-macro");
+            collect_macro_target_spans(
+                input,
+                audio.location.absolute_start,
+                audio.location.absolute_end,
+                1,
+                spans,
+            );
+        }
+        Block::Video(video) => {
+            push_block_span(spans, &video.location, "adoc-macro");
+            collect_macro_target_spans(
+                input,
+                video.location.absolute_start,
+                video.location.absolute_end,
+                1,
+                spans,
+            );
+        }
         Block::DiscreteHeader(dh) => {
             push_block_span(spans, &dh.location, "adoc-heading");
             collect_inline_spans(input, &dh.title, spans);
@@ -241,59 +268,85 @@ fn push_inline_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, cla
     });
 }
 
+/// Highlight opening and closing delimiters for an inline node.
+///
+/// Returns the effective end position of the delimited region. This may
+/// extend past `location.absolute_end` when the parser's location is off
+/// by one for unconstrained markers (e.g. `t**he**`).
 fn highlight_delimited_inline(
     input: &str,
     location: &acdc_parser::Location,
     marker_char: char,
     spans: &mut Vec<Span>,
-) {
+) -> usize {
     let start = location.absolute_start;
     let end = location.absolute_end;
-    if let Some(text) = input.get(start..end) {
-        // Count consecutive markers at start (e.g. "**" or "*")
-        let len = text.chars().take_while(|&c| c == marker_char).count();
-        if len > 0 {
-            // Opening marker
+    let Some(text) = input.get(start..end) else {
+        return end;
+    };
+
+    // Count consecutive markers at start (e.g. "**" or "*")
+    let len = text.chars().take_while(|&c| c == marker_char).count();
+    if len == 0 {
+        return end;
+    }
+
+    // Opening marker
+    spans.push(Span {
+        start,
+        end: start + len,
+        class: "adoc-delimiter",
+        priority: 3,
+    });
+
+    // Closing marker — try several positions to handle parser off-by-one
+    let is_marker = |s: usize, e: usize| -> bool {
+        s >= start + len
+            && e <= input.len()
+            && input
+                .get(s..e)
+                .is_some_and(|t| t.len() == len && t.chars().all(|c| c == marker_char))
+    };
+
+    // 1. Standard: closing delimiter at end of node location
+    let close_start = end.saturating_sub(len);
+    if is_marker(close_start, end) {
+        spans.push(Span {
+            start: close_start,
+            end,
+            class: "adoc-delimiter",
+            priority: 3,
+        });
+        return end;
+    }
+
+    // 2. Immediately after the node (parser excluded closing delim entirely)
+    if is_marker(end, end + len) {
+        spans.push(Span {
+            start: end,
+            end: end + len,
+            class: "adoc-delimiter",
+            priority: 3,
+        });
+        return end + len;
+    }
+
+    // 3. Straddling the node boundary (off by one for unconstrained markers)
+    if len > 1 {
+        let alt_start = end - len + 1;
+        let alt_end = alt_start + len;
+        if is_marker(alt_start, alt_end) {
             spans.push(Span {
-                start,
-                end: start + len,
+                start: alt_start,
+                end: alt_end,
                 class: "adoc-delimiter",
                 priority: 3,
             });
-
-            // Closing marker
-            // First check if it's inside the node (at the end)
-            if text.len() >= len {
-                let close_start = end - len;
-                if input
-                    .get(close_start..end)
-                    .is_some_and(|s| s.chars().all(|c| c == marker_char))
-                {
-                    spans.push(Span {
-                        start: close_start,
-                        end,
-                        class: "adoc-delimiter",
-                        priority: 3,
-                    });
-                    return;
-                }
-            }
-
-            // If not found inside, check immediately after the node (parser might exclude closing delim)
-            // This happens with some inline nodes where the location covers only up to the content end?
-            // Or if there's an off-by-one in the parser location mapping.
-            if let Some(after) = input.get(end..end + len)
-                && after.chars().all(|c| c == marker_char)
-            {
-                spans.push(Span {
-                    start: end,
-                    end: end + len,
-                    class: "adoc-delimiter",
-                    priority: 3,
-                });
-            }
+            return alt_end;
         }
     }
+
+    end
 }
 
 fn collect_description_list_spans(
@@ -426,17 +479,24 @@ fn collect_delimiter_lines(
         };
     }
 
-    // Closing delimiter: check the last line of the block
+    // Closing delimiter: check the last line of the block.
+    // Try both block_end and block_end+1 to handle parser off-by-one.
     if block_end > 0 {
-        let close_start = find_line_start(input, block_end.saturating_sub(1));
-        let close_line = input.get(close_start..block_end).unwrap_or("");
-        if close_start > block_start && close_line.trim() == delim {
-            spans.push(Span {
-                start: close_start,
-                end: block_end,
-                class: cls,
-                priority: 1,
-            });
+        for effective_end in [block_end, block_end + 1] {
+            if effective_end > input.len() {
+                continue;
+            }
+            let close_start = find_line_start(input, effective_end.saturating_sub(1));
+            let close_line = input.get(close_start..effective_end).unwrap_or("");
+            if close_start > block_start && close_line.trim() == delim {
+                spans.push(Span {
+                    start: close_start,
+                    end: effective_end,
+                    class: cls,
+                    priority: 1,
+                });
+                break;
+            }
         }
     }
 }
@@ -706,6 +766,95 @@ fn scan_leading_attributes(input: &str, block_start: usize, spans: &mut Vec<Span
     }
 }
 
+/// Add granular highlighting for macro target and attributes.
+///
+/// Splits `name:target[attrs]` or `name::target[attrs]` into a green target
+/// span and a dark-pink attributes span. Works for any macro with this pattern;
+/// macros without a target (e.g. `kbd:[Ctrl+C]`) only get the attrs span.
+fn collect_macro_target_spans(
+    input: &str,
+    start: usize,
+    end: usize,
+    base_priority: u8,
+    spans: &mut Vec<Span>,
+) {
+    let Some(text) = input.get(start..end) else {
+        return;
+    };
+
+    let Some(colon_pos) = text.find(':') else {
+        return;
+    };
+
+    // Skip past `:` or `::` to find the target start
+    let mut target_offset = colon_pos + 1;
+    if text.get(target_offset..target_offset + 1) == Some(":") {
+        target_offset += 1;
+    }
+    let target_start = start + target_offset;
+
+    let Some(bracket_pos) = text.find('[') else {
+        return;
+    };
+    let abs_bracket = start + bracket_pos;
+
+    // Target span (path/URL between colons and opening bracket)
+    if target_start < abs_bracket {
+        spans.push(Span {
+            start: target_start,
+            end: abs_bracket,
+            class: "adoc-macro-target",
+            priority: base_priority + 1,
+        });
+    }
+
+    // Attributes span (content between `[` and `]`, excluding brackets)
+    let attrs_start = abs_bracket + 1;
+    let attrs_end = if input.as_bytes().get(end - 1) == Some(&b']') {
+        end - 1
+    } else {
+        end
+    };
+    if attrs_start < attrs_end {
+        spans.push(Span {
+            start: attrs_start,
+            end: attrs_end,
+            class: "adoc-macro-attrs",
+            priority: base_priority + 1,
+        });
+    }
+}
+
+/// Highlight display text in URL-type macros (e.g. `https://example.com[Text]`).
+///
+/// Only highlights the bracket content as attrs — the URL part keeps the base
+/// link color. Brackets themselves get no extra color.
+fn collect_url_display_spans(input: &str, start: usize, end: usize, spans: &mut Vec<Span>) {
+    let Some(text) = input.get(start..end) else {
+        return;
+    };
+
+    let Some(bracket_pos) = text.find('[') else {
+        return;
+    };
+    let abs_bracket = start + bracket_pos;
+
+    let attrs_start = abs_bracket + 1;
+    let attrs_end = if input.as_bytes().get(end - 1) == Some(&b']') {
+        end - 1
+    } else {
+        end
+    };
+    if attrs_start < attrs_end {
+        spans.push(Span {
+            start: attrs_start,
+            end: attrs_end,
+            class: "adoc-macro-attrs",
+            priority: 3,
+        });
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Inline-level span collection
 // ---------------------------------------------------------------------------
@@ -719,38 +868,73 @@ fn collect_inline_spans(input: &str, nodes: &[InlineNode], spans: &mut Vec<Span>
 fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Span>) {
     match node {
         InlineNode::BoldText(b) => {
-            push_inline_span(spans, &b.location, "adoc-bold");
-            highlight_delimited_inline(input, &b.location, '*', spans);
+            let effective_end = highlight_delimited_inline(input, &b.location, '*', spans);
+            spans.push(Span {
+                start: b.location.absolute_start,
+                end: effective_end,
+                class: "adoc-bold",
+                priority: 2,
+            });
             collect_inline_spans(input, &b.content, spans);
         }
         InlineNode::ItalicText(i) => {
-            push_inline_span(spans, &i.location, "adoc-italic");
-            highlight_delimited_inline(input, &i.location, '_', spans);
+            let effective_end = highlight_delimited_inline(input, &i.location, '_', spans);
+            spans.push(Span {
+                start: i.location.absolute_start,
+                end: effective_end,
+                class: "adoc-italic",
+                priority: 2,
+            });
             collect_inline_spans(input, &i.content, spans);
         }
         InlineNode::MonospaceText(m) => {
-            push_inline_span(spans, &m.location, "adoc-monospace");
-            highlight_delimited_inline(input, &m.location, '`', spans);
+            let effective_end = highlight_delimited_inline(input, &m.location, '`', spans);
+            spans.push(Span {
+                start: m.location.absolute_start,
+                end: effective_end,
+                class: "adoc-monospace",
+                priority: 2,
+            });
             collect_inline_spans(input, &m.content, spans);
         }
         InlineNode::HighlightText(h) => {
-            push_inline_span(spans, &h.location, "adoc-highlight");
-            highlight_delimited_inline(input, &h.location, '#', spans);
+            let effective_end = highlight_delimited_inline(input, &h.location, '#', spans);
+            spans.push(Span {
+                start: h.location.absolute_start,
+                end: effective_end,
+                class: "adoc-highlight",
+                priority: 2,
+            });
             collect_inline_spans(input, &h.content, spans);
         }
         InlineNode::SuperscriptText(s) => {
-            push_inline_span(spans, &s.location, "adoc-superscript");
-            highlight_delimited_inline(input, &s.location, '^', spans);
+            let effective_end = highlight_delimited_inline(input, &s.location, '^', spans);
+            spans.push(Span {
+                start: s.location.absolute_start,
+                end: effective_end,
+                class: "adoc-superscript",
+                priority: 2,
+            });
             collect_inline_spans(input, &s.content, spans);
         }
         InlineNode::SubscriptText(s) => {
-            push_inline_span(spans, &s.location, "adoc-subscript");
-            highlight_delimited_inline(input, &s.location, '~', spans);
+            let effective_end = highlight_delimited_inline(input, &s.location, '~', spans);
+            spans.push(Span {
+                start: s.location.absolute_start,
+                end: effective_end,
+                class: "adoc-subscript",
+                priority: 2,
+            });
             collect_inline_spans(input, &s.content, spans);
         }
         InlineNode::CurvedQuotationText(q) => {
-            push_inline_span(spans, &q.location, "adoc-bold"); // Usually treated as bold or quote
-            highlight_delimited_inline(input, &q.location, '"', spans);
+            let effective_end = highlight_delimited_inline(input, &q.location, '"', spans);
+            spans.push(Span {
+                start: q.location.absolute_start,
+                end: effective_end,
+                class: "adoc-bold", // Usually treated as bold or quote
+                priority: 2,
+            });
             collect_inline_spans(input, &q.content, spans);
         }
         InlineNode::InlineAnchor(a) => {
@@ -773,67 +957,47 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
 }
 
 fn collect_macro_span(input: &str, mac: &InlineMacro, spans: &mut Vec<Span>) {
-    let (class, location) = match mac {
-        InlineMacro::Url(u) => ("adoc-link", &u.location),
-        InlineMacro::Link(l) => ("adoc-link", &l.location),
-        InlineMacro::Mailto(m) => ("adoc-link", &m.location),
-        InlineMacro::Autolink(a) => ("adoc-link", &a.location),
-        InlineMacro::CrossReference(xr) => ("adoc-xref", &xr.location),
-        InlineMacro::IndexTerm(it) => ("adoc-index-term", &it.location),
-        InlineMacro::Pass(p) => ("adoc-passthrough-inline", &p.location),
-        InlineMacro::Footnote(f) => ("adoc-footnote", &f.location),
-        InlineMacro::Icon(i) => ("adoc-inline-macro", &i.location),
-        InlineMacro::Image(img) => ("adoc-inline-macro", &img.location),
-        InlineMacro::Keyboard(k) => ("adoc-inline-macro", &k.location),
-        InlineMacro::Button(b) => ("adoc-inline-macro", &b.location),
-        InlineMacro::Menu(m) => ("adoc-inline-macro", &m.location),
-        InlineMacro::Stem(s) => ("adoc-inline-macro", &s.location),
+    // Macros where the colon is part of the content (URLs), not a name:target separator.
+    // These get only the base span with no granular target/attrs highlighting.
+    let (class, location, granular) = match mac {
+        InlineMacro::Url(u) => ("adoc-link", &u.location, false),
+        InlineMacro::Mailto(m) => ("adoc-link", &m.location, false),
+        InlineMacro::Autolink(a) => ("adoc-link", &a.location, false),
+        InlineMacro::Link(l) => ("adoc-link", &l.location, true),
+        InlineMacro::CrossReference(xr) => ("adoc-xref", &xr.location, true),
+        InlineMacro::IndexTerm(it) => ("adoc-index-term", &it.location, false),
+        InlineMacro::Pass(p) => ("adoc-passthrough-inline", &p.location, true),
+        InlineMacro::Footnote(f) => ("adoc-footnote", &f.location, true),
+        InlineMacro::Icon(i) => ("adoc-inline-macro", &i.location, true),
+        InlineMacro::Image(img) => ("adoc-inline-macro", &img.location, true),
+        InlineMacro::Keyboard(k) => ("adoc-inline-macro", &k.location, true),
+        InlineMacro::Button(b) => ("adoc-inline-macro", &b.location, true),
+        InlineMacro::Menu(m) => ("adoc-inline-macro", &m.location, true),
+        InlineMacro::Stem(s) => ("adoc-inline-macro", &s.location, true),
         _ => return,
     };
 
-    // Base span for the whole macro
-    push_inline_span(spans, location, class);
-
-    // Add granular highlighting for delimiters [ ]
+    // Determine effective end — parser may exclude trailing `]`
     let start = location.absolute_start;
-    let end = location.absolute_end;
-    if let Some(text) = input.get(start..end) {
-        // Find the opening bracket for attributes
-        if let Some(open_bracket) = text.find('[') {
-            let abs_open = start + open_bracket;
-            spans.push(Span {
-                start: abs_open,
-                end: abs_open + 1,
-                class: "adoc-delimiter",
-                priority: 3,
-            });
+    let mut end = location.absolute_end;
+    if input.as_bytes().get(end) == Some(&b']') {
+        end += 1;
+    }
 
-            // Look for closing bracket inside
-            if let Some(close_bracket) = text.rfind(']')
-                && close_bracket > open_bracket
-            {
-                let abs_close = start + close_bracket;
-                spans.push(Span {
-                    start: abs_close,
-                    end: abs_close + 1,
-                    class: "adoc-delimiter",
-                    priority: 3,
-                });
-                return;
-            }
+    // Base span for the whole macro
+    spans.push(Span {
+        start,
+        end,
+        class,
+        priority: 2,
+    });
 
-            // If not found inside, check immediately after
-            if let Some(after) = input.get(end..end + 1)
-                && after == "]"
-            {
-                spans.push(Span {
-                    start: end,
-                    end: end + 1,
-                    class: "adoc-delimiter",
-                    priority: 3,
-                });
-            }
-        }
+    // Granular highlighting: target in green, bracket content in dark pink
+    if granular {
+        collect_macro_target_spans(input, start, end, 2, spans);
+    } else {
+        // For URL-type macros, still highlight bracket content (display text)
+        collect_url_display_spans(input, start, end, spans);
     }
 }
 
@@ -906,28 +1070,8 @@ fn flatten_spans(spans: &[Span]) -> Vec<(usize, &'static str, bool)> {
             && parent_prio < span.priority
         {
             // If strictly nested (child ends before or at the same time as parent),
-            // we can just nest them without splitting the parent.
+            // nest the child inside the parent so both styles apply.
             if span.end <= parent_end {
-                // Optimization: If same start, we can still defer parent to avoid empty tags
-                if parent_start == span.start {
-                    if let Some((pos, _, true)) = events.last()
-                        && *pos == span.start
-                    {
-                        events.pop();
-                    }
-                    active.pop();
-
-                    events.push((span.start, span.class, true));
-
-                    if parent_end > span.end {
-                        active.push((parent_end, parent_class, parent_prio, parent_start));
-                        events.push((span.end, parent_class, true));
-                    }
-                    active.push((span.end, span.class, span.priority, span.start));
-                    continue;
-                }
-
-                // Normal nesting
                 events.push((span.start, span.class, true));
                 active.push((span.end, span.class, span.priority, span.start));
                 continue;
@@ -1175,6 +1319,12 @@ mod tests {
         let result = highlight("----\ncode here\n----");
         assert!(result.contains("adoc-delimiter"), "result: {result}");
         assert!(result.contains("adoc-code-content"), "result: {result}");
+        // Both opening and closing delimiters should be highlighted
+        let delim_count = result.matches("adoc-delimiter").count();
+        assert!(
+            delim_count >= 2,
+            "Both opening and closing ---- should be delimiters, found {delim_count}: {result}"
+        );
     }
 
     #[test]
@@ -1219,6 +1369,21 @@ mod tests {
     fn test_block_macro() {
         let result = highlight("image::photo.jpg[alt text]");
         assert!(result.contains("adoc-macro"), "result: {result}");
+    }
+
+    #[test]
+    fn test_block_image_media_highlighting() {
+        let result = highlight("image::sunset.jpg[Sunset,300,200]");
+        assert!(result.contains("adoc-macro-target"), "result: {result}");
+        assert!(result.contains("adoc-macro-attrs"), "result: {result}");
+        assert!(result.contains("sunset.jpg"), "result: {result}");
+    }
+
+    #[test]
+    fn test_inline_image_media_highlighting() {
+        let result = highlight("See image:icon.png[Icon] here");
+        assert!(result.contains("adoc-macro-target"), "result: {result}");
+        assert!(result.contains("adoc-macro-attrs"), "result: {result}");
     }
 
     #[test]
@@ -1301,6 +1466,28 @@ mod tests {
     }
 
     #[test]
+    fn test_url_with_display_text() {
+        // https://asciidoc.org[AsciiDoc] — brackets should not be link-colored,
+        // display text should differ from the URL
+        let result = highlight("https://asciidoc.org[AsciiDoc].");
+        assert!(
+            result.contains("adoc-macro-attrs"),
+            "Display text should be highlighted as attrs: {result}"
+        );
+    }
+
+    #[test]
+    fn test_footnote_closing_bracket_not_bold() {
+        let result = highlight("footnote:id[text here]");
+        // The closing ] should not be bold — it should be inside the footnote
+        // span, not outside it
+        assert!(
+            !result.ends_with("]"),
+            "Closing ] should be inside a span, not bare: {result}"
+        );
+    }
+
+    #[test]
     fn test_inline_macro_footnote() {
         let result = highlight("Text footnote:[A note]");
         assert!(result.contains("adoc-footnote"), "result: {result}");
@@ -1319,6 +1506,100 @@ mod tests {
     fn test_double_bold() {
         let result = highlight("**unconstrained**");
         assert!(result.contains("adoc-bold"), "result: {result}");
+    }
+
+    #[test]
+    fn test_unconstrained_bold_mid_word() {
+        // t**he** should highlight **he** as bold with both ** pairs as delimiters
+        let result = highlight("t**he**");
+        let delim_count = result.matches("adoc-delimiter").count();
+        assert!(
+            delim_count >= 2,
+            "Both opening and closing ** should be delimiters, found {delim_count}: {result}"
+        );
+        // No bare * should be outside delimiter/bold spans
+        assert!(
+            !result.contains("</span>*"),
+            "No bare * should be outside spans: {result}"
+        );
+        // Opening ** must be inside bold span (bold wraps delimiter)
+        assert!(
+            result.contains(r#"<span class="adoc-bold"><span class="adoc-delimiter">**</span>"#),
+            "Opening ** should be inside bold span: {result}"
+        );
+
+        // Also test Sara**h**
+        let result = highlight("Sara**h**");
+        // The 'a' before ** must NOT be inside a bold span
+        assert!(
+            !result.contains(r#"<span class="adoc-bold">a"#),
+            "The 'a' before ** should not be inside bold span: {result}"
+        );
+        // Both opening and closing ** should be highlighted as delimiters
+        let delim_count = result.matches("adoc-delimiter").count();
+        assert!(
+            delim_count >= 2,
+            "Both opening and closing ** should be delimiters, found {delim_count}: {result}"
+        );
+    }
+
+    #[test]
+    fn test_unconstrained_italic_mid_word() {
+        let result = highlight("Sara__h__");
+        assert!(
+            !result.contains(r#"<span class="adoc-italic">a"#),
+            "The 'a' before __ should not be inside italic span: {result}"
+        );
+        let delim_count = result.matches("adoc-delimiter").count();
+        assert!(
+            delim_count >= 2,
+            "Both opening and closing __ should be delimiters, found {delim_count}: {result}"
+        );
+        // Opening __ must be inside italic span
+        assert!(
+            result.contains(r#"<span class="adoc-italic"><span class="adoc-delimiter">__</span>"#),
+            "Opening __ should be inside italic span: {result}"
+        );
+    }
+
+    #[test]
+    fn test_unconstrained_monospace_mid_word() {
+        let result = highlight("Sara``h``");
+        assert!(
+            !result.contains(r#"<span class="adoc-monospace">a"#),
+            "The 'a' before `` should not be inside monospace span: {result}"
+        );
+        let delim_count = result.matches("adoc-delimiter").count();
+        assert!(
+            delim_count >= 2,
+            "Both opening and closing `` should be delimiters, found {delim_count}: {result}"
+        );
+        // Opening `` must be inside monospace span
+        assert!(
+            result
+                .contains(r#"<span class="adoc-monospace"><span class="adoc-delimiter">``</span>"#),
+            "Opening `` should be inside monospace span: {result}"
+        );
+    }
+
+    #[test]
+    fn test_unconstrained_highlight_mid_word() {
+        let result = highlight("Sara##h##");
+        assert!(
+            !result.contains(r#"<span class="adoc-highlight">a"#),
+            "The 'a' before ## should not be inside highlight span: {result}"
+        );
+        let delim_count = result.matches("adoc-delimiter").count();
+        assert!(
+            delim_count >= 2,
+            "Both opening and closing ## should be delimiters, found {delim_count}: {result}"
+        );
+        // Opening ## must be inside highlight span
+        assert!(
+            result
+                .contains(r#"<span class="adoc-highlight"><span class="adoc-delimiter">##</span>"#),
+            "Opening ## should be inside highlight span: {result}"
+        );
     }
 
     #[test]
@@ -1375,22 +1656,40 @@ mod tests {
     }
 
     #[test]
-    fn test_macro_bracket_highlighting() {
+    fn test_macro_granular_highlighting() {
         let result = highlight("link:https://example.com[Label]");
-        // Expect <span class="adoc-delimiter">[</span> ... <span class="adoc-delimiter">]</span>
-        let delims = result.matches("adoc-delimiter").count();
-        // Should have 2 delimiters ([ and ])
-        // And the link itself
+        // Target (URL) should be highlighted
         assert!(
-            delims >= 2,
-            "Should have at least 2 delimiters for link macro, found {}",
-            delims
+            result.contains("adoc-macro-target"),
+            "Link target should be highlighted: {result}"
         );
-
-        // Verify specifically the end bracket is highlighted
+        // Bracket content should be highlighted as attrs
         assert!(
-            result.contains(r#"<span class="adoc-delimiter">]</span>"#),
-            "Closing bracket should be a delimiter"
+            result.contains("adoc-macro-attrs"),
+            "Link attrs should be highlighted: {result}"
+        );
+    }
+
+    #[test]
+    fn test_footnote_granular_highlighting() {
+        let result = highlight("Text footnote:myid[A note]");
+        assert!(
+            result.contains("adoc-macro-target"),
+            "Footnote id should be highlighted as target: {result}"
+        );
+        assert!(
+            result.contains("adoc-macro-attrs"),
+            "Footnote content should be highlighted as attrs: {result}"
+        );
+    }
+
+    #[test]
+    fn test_macro_no_target_highlighting() {
+        // kbd has no target, only bracket content
+        let result = highlight("Press kbd:[Ctrl+C]");
+        assert!(
+            result.contains("adoc-macro-attrs"),
+            "kbd content should be highlighted as attrs: {result}"
         );
     }
 

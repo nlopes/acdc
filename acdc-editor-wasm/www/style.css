@@ -210,6 +210,8 @@ html, body {
 .adoc-footnote { color: #7209b7; font-weight: normal; }
 .adoc-code-content { color: #495057; }
 .adoc-callout { color: #e85d04; font-weight: bold; }
+.adoc-macro-target { color: #2e8b57; }
+.adoc-macro-attrs { color: #c2185b; }
 .adoc-table-delimiter { color: #9d4edd; }
 .adoc-table-cell { color: #9d4edd; font-weight: bold; }
 

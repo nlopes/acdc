@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pane labels ("Editor" / "Preview") so users immediately know which side is which.
 - Default cursor on preview pane instead of text cursor.
+- Granular syntax highlighting for all macros (image, video, audio, footnote,
+  link, icon, kbd, btn, menu, stem, pass, xref): target in green, bracket
+  content in dark pink.
 
 ## [0.3.0] - 2026-02-14
 
