@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
+  string attributes. ([#357])
+
 ### Added
 
 - `Processor::with_terminal_width()` for deterministic width control in tests and fixture generation.
