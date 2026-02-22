@@ -9,6 +9,7 @@ use serde::{
 mod admonition;
 mod anchor;
 mod attributes;
+mod attribution;
 mod inlines;
 mod lists;
 mod location;
@@ -25,6 +26,7 @@ pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS,
     MAX_TOC_LEVELS,
 };
+pub use attribution::{Attribution, CiteTitle};
 pub use inlines::*;
 pub use lists::{
     CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,

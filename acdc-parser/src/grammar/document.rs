@@ -2,16 +2,16 @@
 // rules with just 3 explicit params exceed clippy's 7-argument threshold.
 #![allow(clippy::too_many_arguments)]
 use crate::{
-    Admonition, AdmonitionVariant, Anchor, AttributeValue, Audio, Author, Autolink, Block,
-    BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef, Comment,
-    CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType, DescriptionList,
-    DescriptionListItem, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
-    Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
-    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus,
-    Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind,
-    Plain, Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe, Stem, StemContent,
-    StemNotation, Subscript, Subtitle, Superscript, Table, TableOfContents, TableRow,
-    ThematicBreak, Title, UnorderedList, Url, Verbatim, Video,
+    Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Autolink,
+    Block, BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef, CiteTitle,
+    Comment, CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
+    DocumentAttributes, Error, Footnote, Form, Header, Highlight, ICON_SIZES, Icon, Image,
+    IndexTerm, IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
+    ListItemCheckedStatus, Location, Mailto, Menu, Monospace, OrderedList, PageBreak, Paragraph,
+    Pass, PassthroughKind, Plain, Raw, Section, Source, SourceLocation, StandaloneCurvedApostrophe,
+    Stem, StemContent, StemNotation, Subscript, Subtitle, Superscript, Table, TableOfContents,
+    TableRow, ThematicBreak, Title, UnorderedList, Url, Verbatim, Video,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -1565,6 +1565,8 @@ peg::parser! {
                         metadata.attributes = attr_metadata.attributes;
                         metadata.positional_attributes = attr_metadata.positional_attributes;
                         metadata.substitutions = attr_metadata.substitutions;
+                        metadata.attribution = attr_metadata.attribution;
+                        metadata.citetitle = attr_metadata.citetitle;
                     },
                     BlockMetadataLine::DocumentAttribute(key, value) => {
                         // Set the document attribute immediately so it's available for
@@ -2174,18 +2176,6 @@ peg::parser! {
         {
             check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
-            // Extract quote/verse attribution from positional attributes
-            //
-            // [quote, attribution(author), citation] or
-            // [verse, attribution(author), citation]
-            if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("citation".into(),
-                    AttributeValue::String(metadata.positional_attributes.remove(1).trim().to_string()));
-            }
-            if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("attribution".into(),
-                    AttributeValue::String(metadata.positional_attributes.remove(0).trim().to_string()));
-            }
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
@@ -4959,52 +4949,71 @@ peg::parser! {
         /// -- Thomas Jefferson, Papers of Thomas Jefferson
         /// ```
         rule quoted_paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = content_start:position()
+        = content_start:position!()
           "\"" quoted_content:$((!"\"" [_])+) "\""
           eol()
-          "-- " attribution_line:$([^'\n']+)
+          "-- " attr_start:position() attribution_line:$([^'\n']+)
           end:position!()
         {
             tracing::info!(?quoted_content, ?attribution_line, "found quoted paragraph");
 
             // Parse attribution line: "Author Name, Source Title" or just "Author Name"
-            let (attribution, citation) = match attribution_line.split(',').collect::<Vec<_>>()[..] {
-                [attr, cite] => (attr.trim().to_string(), Some(cite.trim().to_string())),
-                [attr] => (attr.trim().to_string(), None),
-                _ => {
-                    state.add_warning(format!("attribution line has unexpected format, using full line as attribution: {attribution_line:?}"));
-                    (attribution_line.trim().to_string(), None)
-                }
+            let (attr_str, cite_str) = match attribution_line.split_once(',') {
+                Some((attr, cite)) => (attr.trim().to_string(), Some(cite.trim().to_string())),
+                None => (attribution_line.trim().to_string(), None),
             };
 
-            // Process the quoted content as inlines
-            let (location, processed) = preprocess_inline_content(
+            // Parse attribution through inline pipeline
+            let attr_end_offset = attr_start.offset + attr_str.len();
+            let (attr_location, attr_processed) = preprocess_inline_content(
                 state,
-                &content_start,
-                end,
+                &attr_start,
+                attr_end_offset,
                 offset,
-                quoted_content,
+                &attr_str,
             )?;
-            let content = parse_inlines(&processed, state, block_metadata, &location)?;
-            let content = map_inline_locations(state, &processed, &content, &location)?;
+            let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
+            let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
+
+            // Parse citation through inline pipeline if present
+            let cite_inlines = if let Some(ref cite) = cite_str {
+                let cite_offset_in_line = attribution_line.find(',').unwrap_or(0) + 1;
+                let cite_raw_start = attr_start.offset + cite_offset_in_line + (attribution_line[cite_offset_in_line..].len() - attribution_line[cite_offset_in_line..].trim_start().len());
+                let cite_pos = PositionWithOffset {
+                    offset: cite_raw_start,
+                    position: state.line_map.offset_to_position(cite_raw_start, &state.input),
+                };
+                let (cite_location, cite_processed) = preprocess_inline_content(
+                    state,
+                    &cite_pos,
+                    cite_raw_start + cite.len(),
+                    offset,
+                    cite,
+                )?;
+                let inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
+                Some(map_inline_locations(state, &cite_processed, &inlines, &cite_location)?)
+            } else {
+                None
+            };
+
+            // Parse the quoted content as blocks
+            let blocks = document_parser::blocks(quoted_content, state, content_start + offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                adjust_and_log_parse_error(&e, quoted_content, content_start + offset, state, "Error parsing content as blocks in quoted paragraph");
+                Ok(Vec::new())
+            })?;
 
             // Build metadata with quote style and attribution
             let mut metadata = block_metadata.metadata.clone();
             metadata.style = Some("quote".to_string());
-            metadata.attributes.insert(
-                "attribution".into(),
-                AttributeValue::String(attribution),
-            );
-            if let Some(cite) = citation {
-                metadata.attributes.insert(
-                    "citation".into(),
-                    AttributeValue::String(cite),
-                );
+            metadata.attribution = Some(Attribution::new(attr_inlines));
+            if let Some(inlines) = cite_inlines {
+                metadata.citetitle = Some(CiteTitle::new(inlines));
             }
 
-            Ok(Block::Paragraph(Paragraph {
-                content,
+            Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
+                delimiter: "\"".to_string(),
+                inner: DelimitedBlockType::DelimitedQuote(blocks),
                 title: block_metadata.title.clone(),
                 location: state.create_block_location(start, end, offset),
             }))
@@ -5032,16 +5041,40 @@ peg::parser! {
             // Build metadata with quote style and attribution
             let mut metadata = block_metadata.metadata.clone();
             metadata.style = Some("quote".to_string());
-            if let Some((author, citation)) = attribution {
-                metadata.attributes.insert(
-                    "attribution".into(),
-                    AttributeValue::String(author),
-                );
-                if let Some(cite) = citation {
-                    metadata.attributes.insert(
-                        "citation".into(),
-                        AttributeValue::String(cite),
-                    );
+            if let Some((author, author_start, citation)) = attribution {
+                // Parse author through inline pipeline
+                let author_pos = PositionWithOffset {
+                    offset: author_start,
+                    position: state.line_map.offset_to_position(author_start, &state.input),
+                };
+                let attr_end_offset = author_start + author.len();
+                let (attr_location, attr_processed) = preprocess_inline_content(
+                    state,
+                    &author_pos,
+                    attr_end_offset,
+                    offset,
+                    &author,
+                )?;
+                let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
+                let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
+                metadata.attribution = Some(Attribution::new(attr_inlines));
+
+                if let Some((cite, cite_start)) = citation {
+                    // Parse citation through inline pipeline
+                    let cite_pos = PositionWithOffset {
+                        offset: cite_start,
+                        position: state.line_map.offset_to_position(cite_start, &state.input),
+                    };
+                    let (cite_location, cite_processed) = preprocess_inline_content(
+                        state,
+                        &cite_pos,
+                        cite_start + cite.len(),
+                        offset,
+                        &cite,
+                    )?;
+                    let cite_inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
+                    let cite_inlines = map_inline_locations(state, &cite_processed, &cite_inlines, &cite_location)?;
+                    metadata.citetitle = Some(CiteTitle::new(cite_inlines));
                 }
             }
 
@@ -5079,13 +5112,13 @@ peg::parser! {
 
         /// Match an attribution line: `> -- Author[, Citation]`
         /// Only matches at the END of a blockquote (not followed by more `>` lines)
-        /// Returns (author, Option<citation>)
-        rule markdown_blockquote_attribution() -> (String, Option<String>)
-        = "> -- " author:$([^(',' | '\n')]+) ", " citation:$([^'\n']+) ((eol() !">") / ![_]) {
-            (author.trim().to_string(), Some(citation.trim().to_string()))
+        /// Returns (author, author_start, Option<(citation, cite_start)>)
+        rule markdown_blockquote_attribution() -> (String, usize, Option<(String, usize)>)
+        = "> -- " author_start:position!() author:$([^(',' | '\n')]+) ", " cite_start:position!() citation:$([^'\n']+) ((eol() !">") / ![_]) {
+            (author.trim().to_string(), author_start, Some((citation.trim().to_string(), cite_start)))
         }
-        / "> -- " author:$([^'\n']+) ((eol() !">") / ![_]) {
-            (author.trim().to_string(), None)
+        / "> -- " author_start:position!() author:$([^'\n']+) ((eol() !">") / ![_]) {
+            (author.trim().to_string(), author_start, None)
         }
 
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -5160,26 +5193,7 @@ peg::parser! {
 
                 }))
             } else {
-                // For quote/verse styled paragraphs, extract attribution/citation
                 let mut metadata = block_metadata.metadata.clone();
-                if let Some(ref style) = metadata.style
-                    && (style == "quote" || style == "verse")
-                {
-                    // Extract attribution/citation from positional attributes
-                    // [quote, attribution, citation] or [verse, attribution, citation]
-                    if metadata.positional_attributes.len() >= 2 {
-                        metadata.attributes.insert(
-                            "citation".into(),
-                            AttributeValue::String(metadata.positional_attributes.remove(1).trim().to_string()),
-                        );
-                    }
-                    if !metadata.positional_attributes.is_empty() {
-                        metadata.attributes.insert(
-                            "attribution".into(),
-                            AttributeValue::String(metadata.positional_attributes.remove(0).trim().to_string()),
-                        );
-                    }
-                }
                 metadata.move_positional_attributes_to_attributes();
 
                 tracing::info!(?content, ?location, "found paragraph block");
@@ -5373,10 +5387,45 @@ peg::parser! {
 
                 // Handle subs= attribute (block-specific, feature-gated)
                 if cfg!(feature = "pre-spec-subs") {
-                    for (k, v, _pos) in attributes.into_iter().flatten() {
-                        if k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
+                    for (k, v, _pos) in attributes.iter().flatten() {
+                        if *k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
                             state.add_warning("The subs= attribute is experimental and may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string());
-                            metadata.substitutions = Some(parse_subs_attribute(&v));
+                            metadata.substitutions = Some(parse_subs_attribute(v));
+                        }
+                    }
+                }
+
+                // Extract attribution/citetitle for quote/verse styles using positions
+                // from the original attributes vec (before positional_attributes is consumed)
+                if metadata.style.as_deref() == Some("quote") || metadata.style.as_deref() == Some("verse") {
+                    let positional_positions: Vec<Option<(usize, usize)>> = attributes.iter()
+                        .flatten()
+                        .filter(|(_, v, _)| *v == AttributeValue::None)
+                        .map(|(_, _, pos)| *pos)
+                        .collect();
+
+                    if metadata.positional_attributes.len() >= 2 {
+                        let cite = metadata.positional_attributes.remove(1).trim().to_string();
+                        if !cite.is_empty() {
+                            let loc = positional_positions.get(1).copied().flatten()
+                                .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
+                            metadata.citetitle = Some(CiteTitle::new(vec![InlineNode::PlainText(Plain {
+                                content: cite,
+                                location: loc,
+                                escaped: false,
+                            })]));
+                        }
+                    }
+                    if !metadata.positional_attributes.is_empty() {
+                        let attr = metadata.positional_attributes.remove(0).trim().to_string();
+                        if !attr.is_empty() {
+                            let loc = positional_positions.first().copied().flatten()
+                                .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
+                            metadata.attribution = Some(Attribution::new(vec![InlineNode::PlainText(Plain {
+                                content: attr,
+                                location: loc,
+                                escaped: false,
+                            })]));
                         }
                     }
                 }
@@ -5480,9 +5529,9 @@ peg::parser! {
 
         pub(crate) rule attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = whitespace()* att:named_attribute() { att }
-              / att:positional_attribute_value() {
+              / whitespace()* start:position!() att:positional_attribute_value() end:position!() {
                   let substituted = substitute(&att, &[Substitution::Attributes], &state.document_attributes);
-                  Some((substituted, AttributeValue::None, None))
+                  Some((substituted, AttributeValue::None, Some((start, end))))
               }
 
         // Add a simple ID rule
