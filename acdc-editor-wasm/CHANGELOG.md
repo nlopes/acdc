@@ -7,12 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Switch preview from standard (div-soup) HTML to html5s semantic HTML variant,
+  outputting `<section>`, `<aside>`, `<figure>`, ARIA roles, and semantic class
+  names instead of `<div class="sect1">`, `<div class="admonitionblock">`, etc.
+- Overhaul preview CSS to target html5s elements and classes (`section.doc-section`,
+  `aside.admonition-block`, `figure.example-block`, `aside.sidebar`,
+  `section.quote-block`, `.listing-block`, `figure.image-block`, `ol.toc-list`,
+  `section.footnotes`, `ol.callout-list`, semantic list wrappers, etc.).
+
 ### Fixed
 
 - Autolink highlighting now covers the entire URL (last character was excluded).
 
 ### Added
 
+- MathJax 4 integration for rendering `asciimath` and `latexmath` expressions in
+  the preview pane. Both stem blocks (`[stem]`) and inline stem macros (`stem:[]`)
+  are now rendered as typeset math instead of raw delimiters. MathJax is
+  lazy-loaded from CDN only when the document sets `:stem:`.
+- Preview styling for semantic HTML5 elements: literal blocks
+  (`section/div.literal-block`), verse blocks (`section/div.verse-block`), STEM/math
+  blocks (`figure/div.stem-block`), open blocks (`section/div.open-block`), description
+  list wrappers (`section/div.dlist`), horizontal description lists (`dl.horizontal`),
+  Q&A lists (`dl.qanda`), untitled image blocks (`div.image-block`), and titled listing
+  block figcaptions (`figure.listing-block`).
 - Comprehensive preview styling for all AsciiDoc constructs: admonitions,
   example blocks, sidebars, quote blocks, verse blocks, listing/literal blocks,
   tables (frames, grids, striping, alignment), lists (ordered, unordered,

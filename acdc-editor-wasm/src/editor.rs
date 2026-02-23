@@ -10,6 +10,15 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 use web_sys::{Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, Window};
 
+#[wasm_bindgen]
+extern "C" {
+    /// Re-typeset math in the preview pane via MathJax.
+    ///
+    /// Defined in `index.html`; silently no-ops if MathJax has not loaded yet.
+    #[wasm_bindgen(js_name = typesetMathPreview)]
+    fn typeset_math_preview();
+}
+
 const DEBOUNCE_MS: i32 = 25;
 
 const DEFAULT_CONTENT: &str = include_str!("../assets/default-content.adoc");
@@ -131,6 +140,9 @@ fn parse_and_update_both(state: &EditorState) {
                 .highlight
                 .set_inner_html(&(result.highlight_html.clone() + "\n"));
             state.preview.set_inner_html(&result.preview_html);
+            if result.has_stem {
+                typeset_math_preview();
+            }
             set_parse_status(state, "OK", false);
         }
         Err(e) => {

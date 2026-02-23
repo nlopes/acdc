@@ -28,7 +28,7 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
         .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
 
     if processor.variant() == HtmlVariant::Semantic {
-        return visit_admonition_semantic(visitor, admon, caption);
+        return visit_admonition_semantic(visitor, admon, caption, processor.is_font_icons_mode());
     }
 
     let mut writer = visitor.writer_mut();
@@ -105,6 +105,7 @@ fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
     admon: &Admonition,
     caption: &str,
+    font_icons: bool,
 ) -> Result<(), Error> {
     // Note/Tip use <aside> with role="note"/"doc-tip"
     // Warning/Important/Caution use <section> with role="doc-notice"
@@ -129,7 +130,26 @@ fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
     }
     writeln!(writer, " role=\"{role}\">")?;
 
-    if admon.title.is_empty() {
+    if font_icons {
+        let fa_icon = match admon.variant {
+            AdmonitionVariant::Note => "fa-circle-info",
+            AdmonitionVariant::Tip => "fa-lightbulb",
+            AdmonitionVariant::Important => "fa-circle-exclamation",
+            AdmonitionVariant::Warning => "fa-triangle-exclamation",
+            AdmonitionVariant::Caution => "fa-fire",
+        };
+        writeln!(
+            writer,
+            "<h6 class=\"block-title label-only\"><i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i></h6>"
+        )?;
+        if !admon.title.is_empty() {
+            write!(writer, "<h6 class=\"block-title\">")?;
+            let _ = writer;
+            visitor.visit_inline_nodes(&admon.title)?;
+            writer = visitor.writer_mut();
+            writeln!(writer, "</h6>")?;
+        }
+    } else if admon.title.is_empty() {
         // Label-only: no trailing space after colon
         writeln!(
             writer,

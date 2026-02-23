@@ -3,8 +3,8 @@ mod editor;
 
 use wasm_bindgen::prelude::*;
 
-use acdc_converters_core::{Converter, Options};
-use acdc_converters_html::{Processor, RenderOptions};
+use acdc_converters_core::Options;
+use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 use acdc_parser::{AttributeValue, DocumentAttributes};
 
 /// Result of a single parse operation: highlighted source + rendered preview.
@@ -13,6 +13,8 @@ pub struct ParseResult {
     pub highlight_html: String,
     /// Rendered HTML preview.
     pub preview_html: String,
+    /// Whether the document has `:stem:` set (needs MathJax).
+    pub has_stem: bool,
 }
 
 /// Initialize panic hook and set up the editor DOM orchestration.
@@ -48,7 +50,11 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
     let highlight_html = ast_highlight::highlight_from_ast(input, &document);
 
     let html_options = Options::builder().embedded(true).build();
-    let processor = Processor::new(html_options, document.attributes.clone());
+    let processor = Processor::new_with_variant(
+        html_options,
+        document.attributes.clone(),
+        HtmlVariant::Semantic,
+    );
     let render_options = RenderOptions {
         embedded: true,
         ..RenderOptions::default()
@@ -58,8 +64,11 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
         .convert_to_string(&document, &render_options)
         .map_err(|e| format!("{e}"))?;
 
+    let has_stem = document.attributes.get("stem").is_some();
+
     Ok(ParseResult {
         highlight_html,
         preview_html,
+        has_stem,
     })
 }

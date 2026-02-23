@@ -3,6 +3,7 @@
 :description: A quick preview
 :toc: macro
 :icons: font
+:stem: asciimath
 
 toc::[]
 
@@ -17,6 +18,15 @@ This is using icon:github[set=brands] https://github.com/nlopes/acdc/tree/main/a
 
 * Unordered list item
 * Another item
+
+=== Stem
+
+A matrix can be written as stem:[[[a,b\],[c,d\]\]((n),(k))].
+
+[stem]
+++++
+sqrt(4) = 2
+++++
 
 === Code blocks footnote:code-blocks[I love code blocks]
 

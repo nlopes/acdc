@@ -720,12 +720,12 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 } else if is_ref {
                     write!(
                         w,
-                        "<a class=\"footnote-ref\" href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">[{number}]</a>"
+                        "<sup class=\"footnote-ref\">[<a href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">{number}</a>]</sup>"
                     )?;
                 } else {
                     write!(
                         w,
-                        "<a class=\"footnote-ref\" id=\"_footnoteref_{number}\" href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">[{number}]</a>"
+                        "<sup class=\"footnote-ref\" id=\"_footnoteref_{number}\">[<a href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">{number}</a>]</sup>"
                     )?;
                 }
             } else {

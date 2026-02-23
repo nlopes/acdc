@@ -20,6 +20,63 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">
+    <script>
+    MathJax = {
+      loader: {load: ['input/asciimath']},
+      tex: {processEscapes: false},
+      asciimath: {
+        delimiters: {'[+]': [['\\$','\\$']]},
+        displaystyle: false
+      },
+      options: {
+        ignoreHtmlClass: 'tex2jax_ignore|nostem|nolatexmath|noasciimath',
+        processHtmlClass: 'tex2jax_process'
+      },
+      startup: {
+        ready() {
+          MathJax.startup.defaultReady();
+          MathJax.startup.promise.then(() => {
+            const asciimath = MathJax._.input.asciimath.AsciiMath;
+            if (asciimath) {
+              const origCompile = asciimath.compile;
+              asciimath.compile = function(math, display) {
+                const node = math.math;
+                if (node && node.parentElement && node.parentElement.parentElement) {
+                  const cl = node.parentElement.parentElement.classList;
+                  if (cl.contains('stemblock') || cl.contains('stem-block')) {
+                    display = true;
+                  }
+                }
+                return origCompile.call(this, math, display);
+              };
+            }
+            const preview = document.getElementById('preview');
+            if (preview) MathJax.typesetPromise([preview]);
+          });
+        }
+      }
+    };
+    </script>
+    <script>
+    window._mathJaxLoading = false;
+    window.typesetMathPreview = function() {
+      if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+        var p = document.getElementById('preview');
+        if (p) {
+          if (MathJax.typesetClear) MathJax.typesetClear([p]);
+          MathJax.typesetPromise([p]);
+        }
+        return;
+      }
+      if (!window._mathJaxLoading) {
+        window._mathJaxLoading = true;
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
+        s.async = true;
+        document.head.appendChild(s);
+      }
+    };
+    </script>
     <script type="module">
      import init from './acdc_editor_wasm.js';
 

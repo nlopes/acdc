@@ -187,7 +187,7 @@ section.doc-section+section.doc-section{border-top:1px solid #e7e7e9}
 #content h1>a.link,h2>a.link,h3>a.link,#toctitle>a.link,h4>a.link,h5>a.link,h6>a.link{color:#ba3925;text-decoration:none}
 #content h1>a.link:hover,h2>a.link:hover,h3>a.link:hover,#toctitle>a.link:hover,h4>a.link:hover,h5>a.link:hover,h6>a.link:hover{color:#a53221}
 details,.audioblock,.literalblock,.listingblock,.stemblock,.videoblock{margin-bottom:1.25em}
-figure.image-block,figure.example-block,details.example-block{margin-bottom:1.25em}
+figure.image-block,figure.example-block,details.example-block,div.image-block,figure.listing-block{margin-bottom:1.25em}
 details{margin-left:1.25rem}
 details>summary{cursor:pointer;display:block;position:relative;line-height:1.6;margin-bottom:.625rem;outline:none;-webkit-tap-highlight-color:transparent}
 details>summary::-webkit-details-marker{display:none}
@@ -195,7 +195,7 @@ details>summary::before{content:"";border:solid transparent;border-left:solid;bo
 details[open]>summary::before{border:solid transparent;border-top:solid;border-width:.5em .3em 0;transform:translateY(15%)}
 details>summary::after{content:"";width:1.25rem;height:1em;position:absolute;top:.3em;left:-1.25rem}
 .admonitionblock td.content>.title,.audioblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic}
-figure.image-block>figcaption,figure.example-block>figcaption,figure.table-block>figcaption{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic;line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em}
+figure.image-block>figcaption,figure.example-block>figcaption,figure.table-block>figcaption,figure.listing-block>figcaption{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic;line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em}
 table.tableblock.fit-content>caption.title{white-space:nowrap;width:0}
 .paragraph.lead>p,section#preamble>[class=paragraph]:first-of-type p{font-size:1.21875em;line-height:1.6;color:rgba(0,0,0,.85)}
 section#preamble>section.paragraph:first-of-type p{font-size:1.21875em;line-height:1.6;color:rgba(0,0,0,.85)}
@@ -307,6 +307,24 @@ section.quote-block .attribution{margin-top:.75em;margin-right:.5ex;text-align:r
 section.quote-block .attribution{font-size:.9375em;line-height:1.45;font-style:italic}
 section.quote-block .attribution br{display:none}
 section.quote-block .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+/* Semantic verse blocks (html5s) */
+section.verse-block,div.verse-block{margin:0 1em 1.25em}
+.verse-block pre{font-family:"Open Sans","DejaVu Sans",sans-serif;font-size:1.15rem;color:rgba(0,0,0,.85);font-weight:300;text-rendering:optimizeLegibility}
+.verse-block pre strong{font-weight:400}
+.verse-block .attribution{margin-top:1.25rem;margin-left:.5ex;font-size:.9375em;line-height:1.45;font-style:italic}
+.verse-block .attribution br{display:none}
+.verse-block .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+/* Semantic literal blocks (html5s) */
+section.literal-block,div.literal-block{margin-bottom:1.25em}
+.literal-block pre{border-radius:4px;overflow-x:auto;padding:1em;font-size:.8125em;background:#f7f7f8}
+@media screen and (min-width:768px){.literal-block pre{font-size:.90625em}}
+@media screen and (min-width:1280px){.literal-block pre{font-size:1em}}
+.literal-block.output pre{color:#f7f7f8;background:rgba(0,0,0,.9)}
+/* Semantic open blocks (html5s) */
+section.open-block,div.open-block{margin-bottom:1.25em}
+/* Semantic STEM/math blocks (html5s) */
+figure.stem-block,div.stem-block{margin-bottom:1.25em}
+.stem-block .math{text-align:center}
 /* Tables */
 p.tableblock:last-child{margin-bottom:0}
 td.tableblock>.content{margin-bottom:1.25em;word-wrap:anywhere}
@@ -346,6 +364,7 @@ figure.image-block.thumb>figcaption,figure.image-block.th>figcaption{padding:0 .
 .image.right{margin-left:.625em}
 a.image{text-decoration:none;display:inline-block}
 a.image object{pointer-events:none}
+div.image-block img{max-width:100%;height:auto}
 .thumb,.th{line-height:0;display:inline-block;border:4px solid #fff;box-shadow:0 0 0 1px #ddd}
 /* Lists */
 ol{margin-left:1.75em}
@@ -387,6 +406,15 @@ td.hdlist2{word-wrap:anywhere}
 ol.callout-list{margin-bottom:1.25em}
 .literalblock+.callout-list,.listingblock+.callout-list,.listing-block+.callout-list{margin-top:-.5em}
 ol.callout-list>li{margin-bottom:.25em}
+/* Semantic description list wrappers (html5s) */
+section.dlist,div.dlist{margin-bottom:1.25em}
+section.dlist>h6.block-title,div.dlist>h6.block-title{margin-bottom:.25em}
+/* Semantic horizontal description lists (html5s) */
+dl.horizontal{display:grid;grid-template-columns:auto 1fr;gap:0 .625em}
+dl.horizontal dt{font-weight:bold;padding-bottom:1.25em}
+dl.horizontal dd{margin-left:0}
+/* Semantic Q&A description lists (html5s) */
+dl.qanda dt{font-weight:bold}
 /* Footnotes */
 sup.footnote,sup.footnoteref{font-size:.875em;position:static;vertical-align:super}
 sup.footnote a,sup.footnoteref a{text-decoration:none}
@@ -404,8 +432,9 @@ ol.footnotes{margin-left:1.2em}
 ol.footnotes>.footnote{padding:0 .375em 0 .225em;line-height:1.3334;font-size:.875em;margin-bottom:.2em}
 ol.footnotes>.footnote:last-of-type{margin-bottom:0}
 /* Semantic footnote refs (html5s) */
-a.footnote-ref{font-size:.875em;vertical-align:super;text-decoration:none}
-a.footnote-ref:active{text-decoration:underline}
+sup.footnote-ref{font-size:.875em;position:static;vertical-align:super}
+sup.footnote-ref a{text-decoration:none}
+sup.footnote-ref a:active{text-decoration:underline}
 a.footnote-backref{text-decoration:none}
 a.footnote-backref:hover{text-decoration:underline}
 div.unbreakable{page-break-inside:avoid}

@@ -9,12 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **html5s semantic CSS gaps** — added missing rules for `.verse-block`, `.literal-block`,
+  `.open-block`, `.stem-block`, `dl.horizontal`, `dl.qanda`, `div.image-block`,
+  `figure.listing-block` figcaption, and `.dlist` wrappers to both light and dark mode
+  stylesheets.
 - **Font Awesome icon pack/set support** — icon macros now support `set=` and `pack=`
   attributes to select FA families (e.g., `icon:github[set=fab]` for brands,
   `icon:heart[set=far]` for regular). A document-level default can be set via
   `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
   `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
   `sharp-solid`) values. Defaults to `fa-solid` when no set is specified. ([#360])
+
+### Changed
+
+- html5s semantic admonitions now render Font Awesome icons when `:icons: font` is
+  set, matching the standard variant's behaviour.
+- html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
+  link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
 
 ### Fixed
 

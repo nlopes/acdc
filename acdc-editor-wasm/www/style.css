@@ -215,7 +215,7 @@ html, body {
 .adoc-table-delimiter { color: #9d4edd; }
 .adoc-table-cell { color: #9d4edd; font-weight: bold; }
 
-/* Preview styling - mimics default Asciidoctor output */
+/* Preview styling - html5s (semantic HTML) variant */
 #preview {
     flex: 1;
     overflow-y: auto;
@@ -292,22 +292,50 @@ html, body {
 }
 
 /* Lead paragraph */
-#preview .paragraph.lead > p {
+#preview .paragraph.lead > p,
+#preview section#preamble > .paragraph:first-of-type p,
+#preview section#preamble > section.paragraph:first-of-type p {
     font-size: 1.21875em;
     line-height: 1.6;
     color: rgba(0, 0, 0, .85);
 }
 
-/* Block titles (shared across many block types) */
-#preview .admonitionblock td.content > .title,
+/* Block titles — semantic h6.block-title and figcaption */
+#preview h6.block-title {
+    line-height: 1.45;
+    color: #7a2518;
+    font-weight: 400;
+    margin-top: 0;
+    margin-bottom: .25em;
+    font-size: 1rem;
+    font-style: italic;
+    font-family: "Noto Serif", "DejaVu Serif", serif;
+    text-rendering: optimizeLegibility;
+    text-align: left;
+}
+
+#preview figure.image-block > figcaption,
+#preview figure.example-block > figcaption,
+#preview figure.table-block > figcaption,
+#preview figure.listing-block > figcaption {
+    text-rendering: optimizeLegibility;
+    text-align: left;
+    font-family: "Noto Serif", "DejaVu Serif", serif;
+    font-size: 1rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: #7a2518;
+    font-weight: 400;
+    margin-top: 0;
+    margin-bottom: .25em;
+}
+
+/* Legacy block titles (for any standard-style blocks that may still appear) */
 #preview .audioblock > .title,
-#preview .exampleblock > .title,
-#preview .imageblock > .title,
 #preview .listingblock > .title,
 #preview .literalblock > .title,
 #preview .stemblock > .title,
 #preview .openblock > .title,
-#preview .paragraph > .title,
 #preview .quoteblock > .title,
 #preview .verseblock > .title,
 #preview .videoblock > .title,
@@ -328,55 +356,64 @@ html, body {
     margin-bottom: .25em;
 }
 
-/* --- Admonition blocks --- */
+/* --- Admonition blocks (semantic: aside/section) --- */
 
-#preview .admonitionblock > table {
-    border-collapse: separate;
-    border: 0;
-    background: none;
-    width: 100%;
+#preview aside.admonition-block,
+#preview section.admonition-block {
+    border-left: 3px solid #dddddf;
+    padding: .75em 1em;
+    margin-bottom: 1.25em;
+    color: rgba(0, 0, 0, .6);
+    word-wrap: anywhere;
 }
 
-#preview .admonitionblock > table td.icon {
-    text-align: center;
-    width: 80px;
-    vertical-align: top;
-}
-
-#preview .admonitionblock > table td.icon img { max-width: none; }
-
-#preview .admonitionblock > table td.icon .title {
+#preview aside.admonition-block > h6.block-title,
+#preview section.admonition-block > h6.block-title {
     font-weight: bold;
     font-family: "Open Sans", "DejaVu Sans", sans-serif;
     text-transform: uppercase;
+    font-style: normal;
+    color: #7a2518;
+    margin-bottom: .5em;
 }
 
-#preview .admonitionblock > table td.icon .fa-solid {
+#preview aside.admonition-block > :last-child,
+#preview section.admonition-block > :last-child { margin-bottom: 0; }
+
+#preview aside.admonition-block.note { border-left-color: #19407c; }
+#preview aside.admonition-block.tip { border-left-color: #a89700; }
+#preview aside.admonition-block.warning { border-left-color: #bf6900; }
+#preview aside.admonition-block.caution { border-left-color: #bf3400; }
+#preview aside.admonition-block.important { border-left-color: #bf0000; }
+#preview section.admonition-block.note { border-left-color: #19407c; }
+#preview section.admonition-block.tip { border-left-color: #a89700; }
+#preview section.admonition-block.warning { border-left-color: #bf6900; }
+#preview section.admonition-block.caution { border-left-color: #bf3400; }
+#preview section.admonition-block.important { border-left-color: #bf0000; }
+
+/* Semantic admonition font icons */
+#preview aside.admonition-block .fa-solid,
+#preview section.admonition-block .fa-solid {
     font-size: 2.5em;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, .5);
     cursor: default;
 }
 
-#preview .admonitionblock > table td.icon .fa-circle-info { color: #19407c; }
-#preview .admonitionblock > table td.icon .fa-lightbulb { text-shadow: 1px 1px 2px rgba(155, 155, 0, .8); color: #111; }
-#preview .admonitionblock > table td.icon .fa-triangle-exclamation { color: #bf6900; }
-#preview .admonitionblock > table td.icon .fa-fire { color: #bf3400; }
-#preview .admonitionblock > table td.icon .fa-circle-exclamation { color: #bf0000; }
+#preview aside.admonition-block .fa-circle-info,
+#preview section.admonition-block .fa-circle-info { color: #19407c; }
+#preview aside.admonition-block .fa-lightbulb,
+#preview section.admonition-block .fa-lightbulb { text-shadow: 1px 1px 2px rgba(155, 155, 0, .8); color: #111; }
+#preview aside.admonition-block .fa-triangle-exclamation,
+#preview section.admonition-block .fa-triangle-exclamation { color: #bf6900; }
+#preview aside.admonition-block .fa-fire,
+#preview section.admonition-block .fa-fire { color: #bf3400; }
+#preview aside.admonition-block .fa-circle-exclamation,
+#preview section.admonition-block .fa-circle-exclamation { color: #bf0000; }
 
-#preview .admonitionblock > table td.content {
-    padding-left: 1.125em;
-    padding-right: 1.25em;
-    border-left: 1px solid #dddddf;
-    color: rgba(0, 0, 0, .6);
-    word-wrap: anywhere;
-}
+/* --- Example blocks (semantic: figure.example-block) --- */
 
-#preview .admonitionblock > table td.content > :last-child > :last-child { margin-bottom: 0; }
-
-/* --- Example blocks --- */
-
-#preview .exampleblock > .content {
-    border: 1px solid #e0e0dc;
+#preview figure.example-block {
+    border: 1px solid #e6e6e6;
     margin-bottom: 1.25em;
     padding: 1.25em;
     background: #fffef7;
@@ -384,12 +421,25 @@ html, body {
     box-shadow: 0 1px 4px #e0e0dc;
 }
 
-#preview .exampleblock > .content > :first-child { margin-top: 0; }
-#preview .exampleblock > .content > :last-child > :last-child { margin-bottom: 0; }
+#preview figure.example-block > figcaption { margin-bottom: .75em; }
+#preview figure.example-block > :first-child { margin-top: 0; }
+#preview figure.example-block > :last-child { margin-bottom: 0; }
 
-/* --- Sidebar blocks --- */
+#preview details.example-block { margin-left: 1.25rem; }
+#preview details.example-block > summary {
+    cursor: pointer;
+    display: block;
+    position: relative;
+    line-height: 1.6;
+    margin-bottom: .625rem;
+    outline: none;
+    font-style: italic;
+    color: #7a2518;
+}
 
-#preview .sidebarblock {
+/* --- Sidebar blocks (semantic: aside.sidebar) --- */
+
+#preview aside.sidebar {
     border: 1px solid #dbdbd6;
     margin-bottom: 1.25em;
     padding: 1.25em;
@@ -397,17 +447,78 @@ html, body {
     border-radius: 4px;
 }
 
-#preview .sidebarblock > .content > .title {
+#preview aside.sidebar > h6.block-title {
     color: #7a2518;
     margin-top: 0;
     text-align: center;
 }
 
-#preview .sidebarblock > .content > :first-child { margin-top: 0; }
-#preview .sidebarblock > .content > :last-child > :last-child { margin-bottom: 0; }
+#preview aside.sidebar > :first-child { margin-top: 0; }
+#preview aside.sidebar > :last-child { margin-bottom: 0; }
+#preview aside.sidebar p,
+#preview aside.sidebar dt,
+#preview aside.sidebar td.content,
+#preview aside.sidebar p.tableblock { font-size: 1em; }
 
-/* --- Quote blocks --- */
+/* --- Quote blocks (semantic: section.quote-block) --- */
 
+#preview section.quote-block {
+    margin: 0 1em 1.25em 1.5em;
+    display: table;
+}
+
+#preview section.quote-block > h6.block-title {
+    margin-left: -1.5em;
+    margin-bottom: .75em;
+}
+
+#preview section.quote-block blockquote,
+#preview section.quote-block p {
+    color: rgba(0, 0, 0, .85);
+    font-size: 1.15rem;
+    line-height: 1.75;
+    word-spacing: .1em;
+    letter-spacing: 0;
+    font-style: italic;
+    text-align: justify;
+}
+
+#preview section.quote-block blockquote {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+#preview section.quote-block blockquote::before {
+    content: "\201c";
+    float: left;
+    font-size: 2.75em;
+    font-weight: bold;
+    line-height: .6em;
+    margin-left: -.6em;
+    color: #7a2518;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .1);
+}
+
+#preview section.quote-block blockquote > .paragraph:last-child p { margin-bottom: 0; }
+
+#preview section.quote-block .attribution {
+    margin-top: .75em;
+    margin-right: .5ex;
+    text-align: right;
+    font-size: .9375em;
+    line-height: 1.45;
+    font-style: italic;
+}
+
+#preview section.quote-block .attribution br { display: none; }
+#preview section.quote-block .attribution cite {
+    display: block;
+    letter-spacing: -.025em;
+    color: rgba(0, 0, 0, .6);
+}
+
+/* Also keep .quoteblock for any legacy output */
 #preview .quoteblock {
     margin: 0 1em 1.25em 1.5em;
     display: table;
@@ -446,45 +557,6 @@ html, body {
     text-shadow: 0 1px 2px rgba(0, 0, 0, .1);
 }
 
-#preview .quoteblock blockquote > .paragraph:last-child p { margin-bottom: 0; }
-
-#preview .quoteblock .attribution {
-    margin-top: .75em;
-    margin-right: .5ex;
-    text-align: right;
-}
-
-#preview .quoteblock .attribution,
-#preview .verseblock .attribution {
-    font-size: .9375em;
-    line-height: 1.45;
-    font-style: italic;
-}
-
-#preview .quoteblock .attribution br,
-#preview .verseblock .attribution br {
-    display: none;
-}
-
-#preview .quoteblock .attribution cite,
-#preview .verseblock .attribution cite {
-    display: block;
-    letter-spacing: -.025em;
-    color: rgba(0, 0, 0, .6);
-}
-
-#preview .quoteblock.abstract blockquote::before,
-#preview .quoteblock.excerpt blockquote::before,
-#preview .quoteblock .quoteblock blockquote::before {
-    display: none;
-}
-
-#preview .quoteblock.excerpt > blockquote,
-#preview .quoteblock .quoteblock {
-    padding: 0 0 .25em 1em;
-    border-left: .25em solid #dddddf;
-}
-
 /* --- Verse blocks --- */
 
 #preview .verseblock {
@@ -502,13 +574,96 @@ html, body {
     border-radius: 0;
 }
 
+#preview .verseblock .attribution,
+#preview .quoteblock .attribution {
+    font-size: .9375em;
+    line-height: 1.45;
+    font-style: italic;
+}
+
 #preview .verseblock .attribution {
     margin-top: 1.25rem;
     margin-left: .5ex;
 }
 
-/* --- Listing and literal blocks --- */
+#preview .quoteblock .attribution br,
+#preview .verseblock .attribution br { display: none; }
+#preview .quoteblock .attribution cite,
+#preview .verseblock .attribution cite {
+    display: block;
+    letter-spacing: -.025em;
+    color: rgba(0, 0, 0, .6);
+}
 
+/* --- Verse blocks (semantic: .verse-block) --- */
+
+#preview section.verse-block,
+#preview div.verse-block { margin: 0 1em 1.25em; }
+
+#preview .verse-block pre {
+    font-family: "Open Sans", "DejaVu Sans", sans-serif;
+    font-size: 1.15rem;
+    color: rgba(0, 0, 0, .85);
+    font-weight: 300;
+    text-rendering: optimizeLegibility;
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+#preview .verse-block .attribution {
+    margin-top: 1.25rem;
+    margin-left: .5ex;
+    font-size: .9375em;
+    line-height: 1.45;
+    font-style: italic;
+}
+
+#preview .verse-block .attribution br { display: none; }
+#preview .verse-block .attribution cite {
+    display: block;
+    letter-spacing: -.025em;
+    color: rgba(0, 0, 0, .6);
+}
+
+/* --- Listing and literal blocks (semantic: .listing-block) --- */
+
+#preview .listing-block {
+    margin-bottom: 1.25em;
+    position: relative;
+}
+
+#preview .listing-block > pre {
+    border-radius: 4px;
+    overflow-x: auto;
+    padding: 1em;
+    font-size: .8125em;
+}
+
+#preview .listing-block > pre:not(.highlight),
+#preview .listing-block > pre[class=highlight],
+#preview .listing-block > pre[class^="highlight "] {
+    background: #f7f7f8;
+}
+
+#preview .listing-block pre > code { display: block; }
+
+#preview .listing-block code[data-lang]::before {
+    display: none;
+    content: attr(data-lang);
+    position: absolute;
+    font-size: .75em;
+    top: .425rem;
+    right: .5rem;
+    line-height: 1;
+    text-transform: uppercase;
+    color: inherit;
+    opacity: .5;
+}
+
+#preview .listing-block:hover code[data-lang]::before { display: block; }
+
+/* Also keep .listingblock / .literalblock for any legacy references */
 #preview .listingblock,
 #preview .literalblock {
     margin-bottom: 1.25em;
@@ -552,14 +707,53 @@ html, body {
     background: rgba(0, 0, 0, .9);
 }
 
+/* --- Literal blocks (semantic: .literal-block) --- */
+
+#preview section.literal-block,
+#preview div.literal-block { margin-bottom: 1.25em; }
+
+#preview .literal-block pre {
+    border-radius: 4px;
+    overflow-x: auto;
+    padding: 1em;
+    font-size: .8125em;
+    background: #f7f7f8;
+}
+
+#preview .literal-block.output pre {
+    color: #f7f7f8;
+    background: rgba(0, 0, 0, .9);
+}
+
 /* --- Open blocks --- */
 
 #preview .openblock { margin-bottom: 1.25em; }
+
+/* --- Open blocks (semantic: .open-block) --- */
+
+#preview section.open-block,
+#preview div.open-block { margin-bottom: 1.25em; }
 
 /* --- STEM/Math blocks --- */
 
 #preview .stemblock { margin-bottom: 1.25em; }
 #preview .stemblock .content { text-align: center; }
+
+/* --- STEM/Math blocks (semantic: .stem-block) --- */
+
+#preview figure.stem-block,
+#preview div.stem-block { margin-bottom: 1.25em; }
+#preview .stem-block .math { text-align: center; }
+
+/* --- Semantic list wrappers --- */
+
+#preview section.ulist,
+#preview section.olist,
+#preview section.paragraph { margin-bottom: 1.25em; }
+
+#preview section.ulist > h6.block-title,
+#preview section.olist > h6.block-title,
+#preview section.paragraph > h6.block-title { margin-bottom: .25em; }
 
 /* --- Lists --- */
 
@@ -611,7 +805,28 @@ html, body {
 #preview td.hdlist1, #preview td.hdlist2 { vertical-align: top; padding: 0 .625em; }
 #preview td.hdlist1 { font-weight: bold; padding-bottom: 1.25em; }
 
-/* Callout lists */
+/* Description list wrappers (semantic: .dlist) */
+#preview section.dlist,
+#preview div.dlist { margin-bottom: 1.25em; }
+#preview section.dlist > h6.block-title,
+#preview div.dlist > h6.block-title { margin-bottom: .25em; }
+
+/* Horizontal description lists (semantic: dl.horizontal) */
+#preview dl.horizontal { display: grid; grid-template-columns: auto 1fr; gap: 0 .625em; }
+#preview dl.horizontal dt { font-weight: bold; padding-bottom: 1.25em; }
+#preview dl.horizontal dd { margin-left: 0; }
+
+/* Q&A description lists (semantic: dl.qanda) */
+#preview dl.qanda dt { font-weight: bold; }
+
+/* Callout lists (semantic: ol.callout-list) */
+#preview ol.callout-list { margin-bottom: 1.25em; }
+#preview .literalblock + .callout-list,
+#preview .listingblock + .callout-list,
+#preview .listing-block + .callout-list { margin-top: -.5em; }
+#preview ol.callout-list > li { margin-bottom: .25em; }
+
+/* Legacy callout lists */
 #preview .colist > table { border: 0; background: none; }
 #preview .colist > table > tbody > tr { background: none; }
 #preview .colist td:not([class]):first-child { padding: .4em .75em 0; line-height: 1; vertical-align: top; }
@@ -712,14 +927,21 @@ html, body {
 #preview p.tableblock:last-child { margin-bottom: 0; }
 #preview p.tableblock > code:only-child { background: none; padding: 0; }
 
-/* --- Images --- */
+/* --- Images (semantic: figure.image-block) --- */
 
-#preview .imageblock { margin-bottom: 1.25em; }
-#preview .imageblock > .title { margin-bottom: 0; }
-#preview .imageblock img { max-width: 100%; height: auto; }
-#preview .imageblock.left { margin: .25em .625em 1.25em 0; }
-#preview .imageblock.right { margin: .25em 0 1.25em .625em; }
-#preview .imageblock.thumb, #preview .imageblock.th { border-width: 6px; }
+#preview figure.image-block { margin-bottom: 1.25em; }
+#preview figure.image-block > figcaption { margin-bottom: 0; }
+#preview figure.image-block img { max-width: 100%; height: auto; }
+#preview figure.image-block.left { margin: .25em .625em 1.25em 0; }
+#preview figure.image-block.right { margin: .25em 0 1.25em .625em; }
+#preview figure.image-block.thumb,
+#preview figure.image-block.th { border-width: 6px; }
+#preview figure.image-block.thumb > figcaption,
+#preview figure.image-block.th > figcaption { padding: 0 .125em; }
+/* Untitled image blocks (div variant) */
+#preview div.image-block { margin-bottom: 1.25em; }
+#preview div.image-block img { max-width: 100%; height: auto; }
+
 #preview .thumb, #preview .th { line-height: 0; display: inline-block; border: 4px solid #fff; box-shadow: 0 0 0 1px #ddd; }
 #preview a.image { text-decoration: none; display: inline-block; }
 
@@ -727,8 +949,44 @@ html, body {
 
 #preview .audioblock, #preview .videoblock { margin-bottom: 1.25em; }
 
-/* --- Footnotes --- */
+/* --- Footnotes (semantic: section.footnotes / ol.footnotes) --- */
 
+#preview sup.footnote-ref {
+    font-size: .875em;
+    position: static;
+    vertical-align: super;
+}
+
+#preview sup.footnote-ref a { text-decoration: none; }
+#preview sup.footnote-ref a:active { text-decoration: underline; }
+#preview a.footnote-backref { text-decoration: none; }
+#preview a.footnote-backref:hover { text-decoration: underline; }
+
+#preview section.footnotes {
+    padding-top: .75em;
+    padding-bottom: .75em;
+    margin-bottom: .625em;
+}
+
+#preview section.footnotes hr {
+    width: 20%;
+    min-width: 6.25em;
+    margin: -.25em 0 .75em;
+    border-width: 1px 0 0;
+}
+
+#preview ol.footnotes { margin-left: 1.2em; }
+
+#preview ol.footnotes > .footnote {
+    padding: 0 .375em 0 .225em;
+    line-height: 1.3334;
+    font-size: .875em;
+    margin-bottom: .2em;
+}
+
+#preview ol.footnotes > .footnote:last-of-type { margin-bottom: 0; }
+
+/* Legacy footnote support */
 #preview sup.footnote, #preview sup.footnoteref {
     font-size: .875em;
     position: static;
@@ -822,18 +1080,37 @@ html, body {
     transform: translateY(15%);
 }
 
-/* --- Sections --- */
+/* --- Table wrapper (semantic: .table-block) --- */
 
-#preview .sect1 + .sect1 { border-top: 1px solid #e7e7e9; }
-#preview .sect1 { padding-bottom: .625em; }
+#preview .table-block { margin-bottom: 1.25em; }
+#preview .table-block caption.title {
+    text-align: left;
+    font-family: "Noto Serif", "DejaVu Serif", serif;
+    font-size: 1rem;
+    font-style: italic;
+    line-height: 1.45;
+    color: #7a2518;
+    font-weight: 400;
+    margin-bottom: .25em;
+    caption-side: top;
+}
+#preview .table-block table th,
+#preview .table-block table td { border: 0 solid #dedede; }
 
-/* --- Table of Contents --- */
+/* --- Sections (semantic: section.doc-section) --- */
+
+#preview section.doc-section { padding-bottom: .625em; }
+#preview section.doc-section:last-child { padding-bottom: 0; }
+#preview section.doc-section + section.doc-section { border-top: 1px solid #e7e7e9; }
+
+/* --- Table of Contents (semantic: ol.toc-list) --- */
 
 #preview #toc { border-bottom: 1px solid #e7e7e9; padding-bottom: .5em; }
 #preview #toc > ul { margin-left: .125em; }
-#preview #toc ul.sectlevel0 > li > a { font-style: italic; }
-#preview #toc ul.sectlevel0 ul.sectlevel1 { margin: .5em 0; }
 #preview #toc ul { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; }
+#preview #toc ol.toc-list { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; margin-left: .125em; padding-left: 0; }
+#preview #toc ol.toc-list li { line-height: 1.3334; margin-top: .3334em; }
+#preview #toc ol.toc-list ol.toc-list { margin-left: 0; padding-left: 1em; }
 #preview #toc li { line-height: 1.3334; margin-top: .3334em; }
 #preview #toc a { text-decoration: none; }
 #preview #toc a:active { text-decoration: underline; }
