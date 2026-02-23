@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Font Awesome icon pack/set support** — icon macros now support `set=` and `pack=`
+  attributes to select FA families (e.g., `icon:github[set=fab]` for brands,
+  `icon:heart[set=far]` for regular). A document-level default can be set via
+  `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
+  `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
+  `sharp-solid`) values. Falls back to `fa` (v4-compat) when no set is specified. ([#360])
+
 ### Fixed
 
 - **Blockquote citation links** — URL macros in blockquote attributions (e.g.,
@@ -201,6 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are now re-exported from `acdc-converters-core::section` instead of being defined locally.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
+[#360]: https://github.com/nlopes/acdc/issues/360
 [#357]: https://github.com/nlopes/acdc/issues/357
 [#359]: https://github.com/nlopes/acdc/issues/359
 [#280]: https://github.com/nlopes/acdc/issues/280

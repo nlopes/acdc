@@ -1,7 +1,9 @@
 use std::fmt::Write as _;
 use std::io::{self, Write};
 
-use acdc_parser::{AttributeValue, ElementAttributes, ICON_SIZES, Icon, Source};
+use acdc_parser::{
+    AttributeValue, DocumentAttributes, ElementAttributes, ICON_SIZES, Icon, Source,
+};
 
 use crate::Processor;
 
@@ -48,7 +50,13 @@ pub(crate) fn write_icon<W: Write + ?Sized>(
     // Determine icon mode based on document attribute
     if let Some(icons_value) = processor.document_attributes.get("icons") {
         if icons_value.to_string() == "font" {
-            write_font_icon(w, target, attrs, &span_class)?;
+            write_font_icon(
+                w,
+                target,
+                attrs,
+                &processor.document_attributes,
+                &span_class,
+            )?;
         } else {
             write_image_icon(w, processor, target, attrs, &span_class)?;
         }
@@ -60,15 +68,60 @@ pub(crate) fn write_icon<W: Write + ?Sized>(
     Ok(())
 }
 
+/// Resolve a Font Awesome family value to a CSS class prefix.
+///
+/// Supports both shorthand (e.g., `fab`) and long-form (e.g., `brands`) values.
+/// Returns `None` for unrecognized values, which means the caller should use
+/// the default `fa` prefix (v4-compat, maps to solid via FA shims).
+fn resolve_fa_family(value: &str) -> Option<&'static str> {
+    match value {
+        "fab" | "brands" => Some("fa-brands"),
+        "far" | "regular" => Some("fa-regular"),
+        "fas" | "solid" => Some("fa-solid"),
+        "fal" | "light" => Some("fa-light"),
+        "fat" | "thin" => Some("fa-thin"),
+        "fad" | "duotone" => Some("fa-duotone"),
+        "fass" | "sharp-solid" => Some("fa-sharp fa-solid"),
+        _ => None,
+    }
+}
+
+/// Get the FA family CSS class for an icon, checking macro attributes then document defaults.
+fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &DocumentAttributes) -> String {
+    // 1. Icon macro attribute: set= or pack= (aliases)
+    let macro_value = attrs.get_string("set").or_else(|| attrs.get_string("pack"));
+
+    if let Some(ref val) = macro_value
+        && let Some(css_class) = resolve_fa_family(val)
+    {
+        return css_class.to_string();
+    }
+
+    // 2. Document attribute: :icon-set: or :icon-pack: (aliases)
+    let doc_value = doc_attrs
+        .get_string("icon-set")
+        .or_else(|| doc_attrs.get_string("icon-pack"));
+
+    if let Some(ref val) = doc_value
+        && let Some(css_class) = resolve_fa_family(val)
+    {
+        return css_class.to_string();
+    }
+
+    // 3. Fallback: fa (v4-compat)
+    "fa".to_string()
+}
+
 /// Write a font-based icon (Font Awesome).
 fn write_font_icon<W: Write + ?Sized>(
     w: &mut W,
     target: &Source,
     attrs: &ElementAttributes,
+    doc_attrs: &DocumentAttributes,
     span_class: &str,
 ) -> io::Result<()> {
-    // Build icon classes: fa fa-{target} [fa-{size}] [fa-flip-{dir}|fa-rotate-{deg}] [fa-{modifier}]
-    let mut classes = format!("fa fa-{target}");
+    let family = get_fa_family(attrs, doc_attrs);
+    let mut classes = format!("{family} fa-{target}");
 
     if let Some(size) = get_icon_size(attrs) {
         let _ = write!(classes, " fa-{size}");
