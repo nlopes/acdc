@@ -13,7 +13,7 @@ This is a *live preview* editor for https://asciidoc.org[AsciiDoc].
 
 Type in the left pane and see the rendered output on the right.
 
-This is using https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the https://github.com/nlopes/acdc[`acdc`] repository.
+This is using icon:github[set=brands] https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the icon:github[set=brands] https://github.com/nlopes/acdc[`acdc`] repository.
 
 * Unordered list item
 * Another item
@@ -30,5 +30,14 @@ fn main() {
 }
 ----
 ====
+
+=== Tables
+.List of night agents
+[%header,cols="30%,"]
+|===
+|Name|Email
+|Peter Sutherland|peter.sutherland@example.com
+|Adam Corrigan|adam.corrigan@example.com
+|===
 
 TIP: Try adding sections, lists, and inline formatting.

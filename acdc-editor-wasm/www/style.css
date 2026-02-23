@@ -569,10 +569,10 @@ html, body {
     list-style-position: outside;
 }
 
-#preview ul, #preview ol { margin-left: 1.5em; }
+#preview ul, #preview ol { margin-left: 1.5em; padding-left: 0; }
 #preview ol { margin-left: 1.75em; }
-#preview ul li ul, #preview ul li ol { margin-left: 1.25em; margin-bottom: 0; }
-#preview ol li ul, #preview ol li ol { margin-left: 1.25em; margin-bottom: 0; }
+#preview ul li ul, #preview ul li ol { margin-left: 1em; margin-bottom: 0; }
+#preview ol li ul, #preview ol li ol { margin-left: 1em; margin-bottom: 0; }
 
 #preview ul.circle { list-style-type: circle; }
 #preview ul.disc { list-style-type: disc; }
@@ -665,21 +665,36 @@ html, body {
     color: rgba(0, 0, 0, .8);
 }
 
+#preview table thead th,
+#preview table tfoot th,
+#preview table tbody tr td,
+#preview table tr td,
+#preview table tfoot tr td { line-height: 1.6; }
+
 #preview table thead th, #preview table tfoot th { font-weight: bold; }
 #preview tbody tr th { background: #f7f8f7; }
+#preview tbody tr th, #preview tbody tr th p,
+#preview tfoot tr th, #preview tfoot tr th p { color: rgba(0, 0, 0, .8); font-weight: bold; }
 #preview table tr.even, #preview table tr.alt { background: #f8f8f7; }
 
 #preview table.tableblock, #preview th.tableblock, #preview td.tableblock { border: 0 solid #dedede; }
+#preview table.tableblock.fit-content > caption.title { white-space: nowrap; width: 0; }
+#preview td.tableblock > .content { margin-bottom: 1.25em; word-wrap: anywhere; }
+#preview td.tableblock > .content > :last-child { margin-bottom: -1.25em; }
 #preview table.grid-all > * > tr > * { border-width: 1px; }
 #preview table.grid-cols > * > tr > * { border-width: 0 1px; }
 #preview table.grid-rows > * > tr > * { border-width: 1px 0; }
 #preview table.frame-all { border-width: 1px; }
 #preview table.frame-ends { border-width: 1px 0; }
 #preview table.frame-sides { border-width: 0 1px; }
-#preview table.frame-none > colgroup + * > :first-child > * { border-top-width: 0; }
-#preview table.frame-none > :last-child > :last-child > * { border-bottom-width: 0; }
-#preview table.frame-none > * > tr > :first-child { border-left-width: 0; }
-#preview table.frame-none > * > tr > :last-child { border-right-width: 0; }
+#preview table.frame-none > colgroup + * > :first-child > *,
+#preview table.frame-sides > colgroup + * > :first-child > * { border-top-width: 0; }
+#preview table.frame-none > :last-child > :last-child > *,
+#preview table.frame-sides > :last-child > :last-child > * { border-bottom-width: 0; }
+#preview table.frame-none > * > tr > :first-child,
+#preview table.frame-ends > * > tr > :first-child { border-left-width: 0; }
+#preview table.frame-none > * > tr > :last-child,
+#preview table.frame-ends > * > tr > :last-child { border-right-width: 0; }
 
 #preview table.stripes-all > * > tr { background: #f8f8f7; }
 #preview table.stripes-odd > * > tr:nth-of-type(odd) { background: #f8f8f7; }
@@ -693,7 +708,9 @@ html, body {
 #preview th.valign-bottom, #preview td.valign-bottom { vertical-align: bottom; }
 #preview th.valign-middle, #preview td.valign-middle { vertical-align: middle; }
 
+#preview p.tableblock { font-size: 1em; }
 #preview p.tableblock:last-child { margin-bottom: 0; }
+#preview p.tableblock > code:only-child { background: none; padding: 0; }
 
 /* --- Images --- */
 
@@ -809,6 +826,23 @@ html, body {
 
 #preview .sect1 + .sect1 { border-top: 1px solid #e7e7e9; }
 #preview .sect1 { padding-bottom: .625em; }
+
+/* --- Table of Contents --- */
+
+#preview #toc { border-bottom: 1px solid #e7e7e9; padding-bottom: .5em; }
+#preview #toc > ul { margin-left: .125em; }
+#preview #toc ul.sectlevel0 > li > a { font-style: italic; }
+#preview #toc ul.sectlevel0 ul.sectlevel1 { margin: .5em 0; }
+#preview #toc ul { font-family: "Open Sans", "DejaVu Sans", sans-serif; list-style-type: none; }
+#preview #toc li { line-height: 1.3334; margin-top: .3334em; }
+#preview #toc a { text-decoration: none; }
+#preview #toc a:active { text-decoration: underline; }
+#preview #toctitle { color: #7a2518; font-size: 1.2em; }
+
+/* Macro-placed TOC (inside #content) */
+#preview #content #toc { border: 1px solid #e0e0dc; margin-bottom: 1.25em; padding: 1.25em; background: #f8f8f7; border-radius: 4px; }
+#preview #content #toc > :first-child { margin-top: 0; }
+#preview #content #toc > :last-child { margin-bottom: 0; }
 
 /* --- Utility classes --- */
 
