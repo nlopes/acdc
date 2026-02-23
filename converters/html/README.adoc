@@ -295,6 +295,64 @@ Verbatim blocks (listing, literal) support the `subs` attribute:
 - `subs=+attributes` - enable attribute expansion
 - `subs=+replacements` - enable typography (arrows, dashes, ellipsis)
 
+### Icon support
+
+When `:icons: font` is set, icon macros render as https://fontawesome.com/[Font Awesome] `<i>` elements. By default the icon uses `fa-solid`, but you can select a specific FA family with the `set` (or `pack`) attribute on the macro:
+
+[source,asciidoc]
+....
+:icons: font
+
+icon:github[set=fab]
+icon:heart[set=far]
+icon:bolt[]
+....
+
+This produces `fa-brands fa-github`, `fa-regular fa-heart`, and `fa-solid fa-bolt` respectively.
+
+You can also set a document-level default with `:icon-set:` (or `:icon-pack:`), which applies to all icons that don't specify their own `set`:
+
+[source,asciidoc]
+....
+:icons: font
+:icon-set: brands
+
+icon:github[]
+icon:heart[set=far]
+....
+
+Here `github` uses the document default (`fa-brands`), while `heart` overrides it with `fa-regular`.
+
+Both shorthand and long-form values are supported:
+
+[cols="1,1", options="header"]
+|===
+| Value | CSS class
+
+| `fab` / `brands`
+| `fa-brands`
+
+| `far` / `regular`
+| `fa-regular`
+
+| `fas` / `solid`
+| `fa-solid`
+
+| `fal` / `light`
+| `fa-light`
+
+| `fat` / `thin`
+| `fa-thin`
+
+| `fad` / `duotone`
+| `fa-duotone`
+
+| `fass` / `sharp-solid`
+| `fa-sharp fa-solid`
+|===
+
+For details on the icon macro syntax, see the https://docs.asciidoctor.org/asciidoc/latest/macros/icons/[AsciiDoc icon macro documentation]. For available icons per family, see the https://fontawesome.com/search[Font Awesome icon gallery].
+
 ### Mathematical Formulas (Stem)
 
 Render mathematical formulas using MathJax 4. Enable it by setting the `:stem:` document attribute.

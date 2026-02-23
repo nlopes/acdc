@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `icon:heart[set=far]` for regular). A document-level default can be set via
   `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
   `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
-  `sharp-solid`) values. Falls back to `fa` (v4-compat) when no set is specified. ([#360])
+  `sharp-solid`) values. Defaults to `fa-solid` when no set is specified. ([#360])
 
 ### Fixed
 

@@ -72,7 +72,7 @@ pub(crate) fn write_icon<W: Write + ?Sized>(
 ///
 /// Supports both shorthand (e.g., `fab`) and long-form (e.g., `brands`) values.
 /// Returns `None` for unrecognized values, which means the caller should use
-/// the default `fa` prefix (v4-compat, maps to solid via FA shims).
+/// the default `fa-solid` prefix.
 fn resolve_fa_family(value: &str) -> Option<&'static str> {
     match value {
         "fab" | "brands" => Some("fa-brands"),
@@ -108,8 +108,8 @@ fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &DocumentAttributes) -> S
         return css_class.to_string();
     }
 
-    // 3. Fallback: fa (v4-compat)
-    "fa".to_string()
+    // 3. Fallback: solid (FA v7 default)
+    "fa-solid".to_string()
 }
 
 /// Write a font-based icon (Font Awesome).
