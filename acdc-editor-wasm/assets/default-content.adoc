@@ -23,6 +23,8 @@ This is using icon:github[set=brands] https://github.com/nlopes/acdc/tree/main/a
 
 A matrix can be written as stem:[[[a,b\],[c,d\]\]((n),(k))].
 
+And another inline formula: latexmath:[C = \alpha + \beta Y^{\gamma} + \epsilon].
+
 [stem]
 ++++
 sqrt(4) = 2
