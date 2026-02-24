@@ -31,7 +31,7 @@
     ]
   },
   "attributes": {
-    "stem": "asciimath"
+    "stem": "latexmath"
   },
   "blocks": [
     {
@@ -627,6 +627,196 @@
           "col": 24
         }
       ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Stem with escaped brackets",
+          "location": [
+            {
+              "line": 63,
+              "col": 4
+            },
+            {
+              "line": 63,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "stem",
+          "type": "attribute",
+          "value": "latexmath",
+          "location": [
+            {
+              "line": 65,
+              "col": 1
+            },
+            {
+              "line": 65,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A matrix: ",
+              "location": [
+                {
+                  "line": 67,
+                  "col": 1
+                },
+                {
+                  "line": 67,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "[[a,b],[c,d]]((n),(k))",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 67,
+                  "col": 11
+                },
+                {
+                  "line": 67,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 67,
+              "col": 1
+            },
+            {
+              "line": 67,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Escaped close bracket: ",
+              "location": [
+                {
+                  "line": 69,
+                  "col": 1
+                },
+                {
+                  "line": 69,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "x \\in [0, 1]",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 69,
+                  "col": 24
+                },
+                {
+                  "line": 69,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 69,
+              "col": 1
+            },
+            {
+              "line": 69,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Double backslash before bracket: ",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 1
+                },
+                {
+                  "line": 71,
+                  "col": 33
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "a\\",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 71,
+                  "col": 34
+                },
+                {
+                  "line": 71,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 71,
+              "col": 1
+            },
+            {
+              "line": 71,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 63,
+          "col": 1
+        },
+        {
+          "line": 71,
+          "col": 43
+        }
+      ]
     }
   ],
   "location": [
@@ -635,8 +825,8 @@
       "col": 1
     },
     {
-      "line": 61,
-      "col": 24
+      "line": 71,
+      "col": 43
     }
   ]
 }

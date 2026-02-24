@@ -59,3 +59,13 @@ Regular paragraph before.
 ++++
 
 Regular paragraph after.
+
+== Stem with escaped brackets
+
+:stem: latexmath
+
+A matrix: stem:[[[a,b\],[c,d\]\]((n),(k))]
+
+Escaped close bracket: stem:[x \in [0, 1\]]
+
+Double backslash before bracket: stem:[a\\]

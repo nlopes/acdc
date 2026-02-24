@@ -3834,6 +3834,22 @@ peg::parser! {
         = nested_brackets:("[" inner:balanced_bracket_content() "]" { format!("[{inner}]") })
         / regular_text:$([^('[' | ']')]+) { regular_text.to_string() }
 
+        /// Parse content within brackets using escape handling (no bracket balancing).
+        /// Used for stem macros where `\]` and `\[` are common (math notation).
+        /// - `\\` → literal `\`
+        /// - `\[` or `\]` → literal bracket (backslash stripped)
+        /// - `\` before other chars → preserved
+        /// - `[` → regular text (no nesting)
+        /// - `]` → ends content (consumed by caller)
+        rule escaped_bracket_content() -> String
+        = parts:escaped_bracket_content_part()* { parts.join("") }
+
+        rule escaped_bracket_content_part() -> &'input str
+        = "\\\\" { "\\" }
+        / "\\" c:$(['[' | ']']) { c }
+        / s:$([^(']' | '\\')]+) { s }
+        / "\\" { "\\" }
+
         /// Parse link/URL title content that may contain balanced brackets
         ///
         /// This is similar to balanced_bracket_content but stops at comma and attribute
@@ -4222,7 +4238,7 @@ peg::parser! {
         }
 
         rule inline_stem(offset: usize) -> InlineNode
-        = start:position!() "stem:[" content:balanced_bracket_content() "]" end:position!()
+        = start:position!() "stem:[" content:escaped_bracket_content() "]" end:position!()
         {
             // Get notation from :stem: document attribute
             let notation = match state.document_attributes.get_string("stem") {
