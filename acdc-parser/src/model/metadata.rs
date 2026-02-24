@@ -5,6 +5,7 @@ use serde::Serialize;
 use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
 use super::attribution::{Attribution, CiteTitle};
+use super::location::Location;
 use super::substitution::SubstitutionSpec;
 
 pub type Role = String;
@@ -39,6 +40,8 @@ pub struct BlockMetadata {
     pub attribution: Option<Attribution>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citetitle: Option<CiteTitle>,
+    #[serde(skip)]
+    pub location: Option<Location>,
 }
 
 impl BlockMetadata {

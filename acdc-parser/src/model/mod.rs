@@ -409,6 +409,8 @@ pub struct DelimitedBlock {
     pub delimiter: String,
     pub title: Title,
     pub location: Location,
+    pub open_delimiter_location: Option<Location>,
+    pub close_delimiter_location: Option<Location>,
 }
 
 impl DelimitedBlock {
@@ -421,6 +423,8 @@ impl DelimitedBlock {
             delimiter,
             title: Title::default(),
             location,
+            open_delimiter_location: None,
+            close_delimiter_location: None,
         }
     }
 

@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`latexmath:[]` and `asciimath:[]` inline macros** — explicit notation overrides that
   set the stem notation directly instead of resolving from the `:stem:` document attribute.
+- **`BlockMetadata.location`** — metadata blocks now carry an `Option<Location>` tracking
+  their source position (attribute lines, anchors, titles).
+- **`DelimitedBlock.open_delimiter_location` / `close_delimiter_location`** — delimited
+  blocks now carry precise locations for both the opening and closing delimiter lines.
+- **`DescriptionListItem.delimiter_location`** — description list items now carry the
+  source location of their delimiter (`::`, `:::`, etc.).
 
 ## [0.6.0] - 2026-02-23
 

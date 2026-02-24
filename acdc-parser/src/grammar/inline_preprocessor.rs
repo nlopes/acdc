@@ -287,11 +287,6 @@ parser!(
                     "Counters ({{{counter_type}:{name}}}) are not supported and will be removed from output"
                 ));
 
-                // Calculate total length for position tracking
-                // We capture the full match including any optional initial value
-                let total_len = counter_type.len() + 1 + name.len() + 2; // "{" + counter_type + ":" + name + "}"
-                let _location = state.calculate_location(start, "", total_len);
-
                 // Return empty string - counter is removed from output
                 String::new()
             }
