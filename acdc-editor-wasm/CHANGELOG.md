@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Granular syntax highlighting for all macros (image, video, audio, footnote,
   link, icon, kbd, btn, menu, stem, pass, xref): target in green, bracket
   content in dark pink.
+- **Line numbers** - the editor now has line numbers!
 
 ## [0.3.0] - 2026-02-14
 

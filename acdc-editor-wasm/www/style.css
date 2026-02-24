@@ -94,13 +94,39 @@ html, body {
     position: relative;
     flex: 1;
     overflow: hidden; /* Handle scrolling within textarea/backdrop */
+    --gutter-width: 3.5rem;
+}
+
+#line-numbers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--gutter-width);
+    height: 100%;
+    overflow: hidden;
+    z-index: 1;
+    pointer-events: none;
+    background: #f0f1f3;
+    border-right: 1px solid #dee2e6;
+    box-sizing: border-box;
+}
+
+#line-numbers pre {
+    font-family: "Droid Sans Mono", "DejaVu Sans Mono", monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 1rem 0.5rem 1rem 0;
+    margin: 0;
+    text-align: right;
+    color: #999;
+    user-select: none;
 }
 
 #editor {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: var(--gutter-width);
+    width: calc(100% - var(--gutter-width));
     height: 100%;
     background: transparent;
     color: transparent;
@@ -121,8 +147,8 @@ html, body {
 #editor-backdrop {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: var(--gutter-width);
+    width: calc(100% - var(--gutter-width));
     height: 100%;
     pointer-events: none; /* Let clicks pass through to textarea */
     overflow: hidden;
