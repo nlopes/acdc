@@ -69,3 +69,11 @@ A matrix: stem:[[[a,b\],[c,d\]\]((n),(k))]
 Escaped close bracket: stem:[x \in [0, 1\]]
 
 Double backslash before bracket: stem:[a\\]
+
+== Explicit notation macros
+
+Using latexmath directly: latexmath:[C = \alpha + \beta Y^{\gamma} + \epsilon]
+
+Using asciimath directly: asciimath:[[[a,b\],[c,d\]\]((n),(k))]
+
+Mixed in same document: latexmath:[x^2] and asciimath:[sqrt(x)] and stem:[a + b]

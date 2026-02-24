@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`latexmath:[]` and `asciimath:[]` inline macros** — HTML rendering support for explicit
+  notation overrides.
 - **html5s semantic CSS gaps** — added missing rules for `.verse-block`, `.literal-block`,
   `.open-block`, `.stem-block`, `dl.horizontal`, `dl.qanda`, `div.image-block`,
   `figure.listing-block` figcaption, and `.dlist` wrappers to both light and dark mode
@@ -29,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **MathJax v4 inline/display math delimiters** — added explicit `inlineMath` and
+  `displayMath` delimiter configuration to the MathJax v4 config, which unlike v2 does not
+  process `\(` `\)` / `\[` `\]` delimiters by default.
 - **Blockquote citation links** — URL macros in blockquote attributions (e.g.,
   `-- https://example.com/[Example]`) are now rendered as clickable links. Citation titles
   use the `<cite>` element. ([#357])

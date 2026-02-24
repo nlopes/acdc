@@ -817,6 +817,243 @@
           "col": 43
         }
       ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicit notation macros",
+          "location": [
+            {
+              "line": 73,
+              "col": 4
+            },
+            {
+              "line": 73,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Using latexmath directly: ",
+              "location": [
+                {
+                  "line": 75,
+                  "col": 1
+                },
+                {
+                  "line": 75,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "C = \\alpha + \\beta Y^{\\gamma} + \\epsilon",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 75,
+                  "col": 27
+                },
+                {
+                  "line": 75,
+                  "col": 78
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 75,
+              "col": 1
+            },
+            {
+              "line": 75,
+              "col": 78
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Using asciimath directly: ",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 1
+                },
+                {
+                  "line": 77,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "[[a,b],[c,d]]((n),(k))",
+              "notation": "asciimath",
+              "location": [
+                {
+                  "line": 77,
+                  "col": 27
+                },
+                {
+                  "line": 77,
+                  "col": 63
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 77,
+              "col": 1
+            },
+            {
+              "line": 77,
+              "col": 63
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Mixed in same document: ",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 1
+                },
+                {
+                  "line": 79,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "x^2",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 25
+                },
+                {
+                  "line": 79,
+                  "col": 39
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 40
+                },
+                {
+                  "line": 79,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "sqrt(x)",
+              "notation": "asciimath",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 45
+                },
+                {
+                  "line": 79,
+                  "col": 63
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 64
+                },
+                {
+                  "line": 79,
+                  "col": 68
+                }
+              ]
+            },
+            {
+              "name": "stem",
+              "type": "inline",
+              "content": "a + b",
+              "notation": "latexmath",
+              "location": [
+                {
+                  "line": 79,
+                  "col": 69
+                },
+                {
+                  "line": 79,
+                  "col": 80
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 79,
+              "col": 1
+            },
+            {
+              "line": 79,
+              "col": 80
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 73,
+          "col": 1
+        },
+        {
+          "line": 79,
+          "col": 80
+        }
+      ]
     }
   ],
   "location": [
@@ -825,8 +1062,8 @@
       "col": 1
     },
     {
-      "line": 71,
-      "col": 43
+      "line": 79,
+      "col": 80
     }
   ]
 }

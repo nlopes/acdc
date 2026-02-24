@@ -4238,14 +4238,18 @@ peg::parser! {
         }
 
         rule inline_stem(offset: usize) -> InlineNode
-        = start:position!() "stem:[" content:escaped_bracket_content() "]" end:position!()
+        = start:position!() prefix:$("latexmath" / "asciimath" / "stem") ":[" content:escaped_bracket_content() "]" end:position!()
         {
-            // Get notation from :stem: document attribute
-            let notation = match state.document_attributes.get_string("stem") {
-                Some(s) => {
-                    StemNotation::from_str(&s).unwrap_or(StemNotation::Asciimath)
+            let notation = match prefix {
+                "latexmath" => StemNotation::Latexmath,
+                "asciimath" => StemNotation::Asciimath,
+                _ => {
+                    // stem:[] — resolve from :stem: document attribute
+                    match state.document_attributes.get_string("stem") {
+                        Some(s) => StemNotation::from_str(&s).unwrap_or(StemNotation::Asciimath),
+                        _ => StemNotation::Asciimath,
+                    }
                 }
-                _ => StemNotation::Asciimath,
             };
 
             InlineNode::Macro(InlineMacro::Stem(Stem {

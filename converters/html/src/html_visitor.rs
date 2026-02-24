@@ -127,7 +127,9 @@ fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
 MathJax = {{
       loader: {{load: ['input/asciimath']}},
       tex: {{
-        processEscapes: false
+        processEscapes: false,
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
       }},
       asciimath: {{
         delimiters: {{'[+]': [['\\$','\\$']]}},
