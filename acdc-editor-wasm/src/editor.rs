@@ -31,6 +31,9 @@ struct EditorState {
     backdrop: Element,
     preview: Element,
     parse_status: HtmlElement,
+    line_numbers_pre: Element,
+    line_numbers_container: Element,
+    editor_container: HtmlElement,
     /// Timer handle for the debounced parse. 0 means no pending timer.
     debounce_handle: Cell<i32>,
 }
@@ -53,6 +56,17 @@ impl EditorState {
             .get_element_by_id("parse-status")
             .ok_or("missing #parse-status")?
             .dyn_into()?;
+        let line_numbers_container = doc
+            .get_element_by_id("line-numbers")
+            .ok_or("missing #line-numbers")?;
+        let line_numbers_pre = line_numbers_container
+            .query_selector("pre")
+            .map_err(|_| "failed to query #line-numbers pre")?
+            .ok_or("missing pre inside #line-numbers")?;
+        let editor_container: HtmlElement = line_numbers_container
+            .parent_element()
+            .ok_or("missing .editor-container")?
+            .dyn_into()?;
 
         Ok(Self {
             window,
@@ -61,6 +75,9 @@ impl EditorState {
             backdrop,
             preview,
             parse_status,
+            line_numbers_pre,
+            line_numbers_container,
+            editor_container,
             debounce_handle: Cell::new(0),
         })
     }
@@ -123,6 +140,42 @@ fn set_parse_status(state: &EditorState, msg: &str, is_error: bool) {
 }
 
 // ---------------------------------------------------------------------------
+// Line number gutter
+// ---------------------------------------------------------------------------
+
+fn update_line_numbers(state: &EditorState) {
+    let value = state.editor.value();
+    let line_count = value.chars().filter(|&c| c == '\n').count() + 1;
+    let numbers: String = (1..=line_count)
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    state.line_numbers_pre.set_text_content(Some(&numbers));
+
+    // Resize gutter to fit the widest line number: digits × 1ch + 1rem padding
+    let digits = digit_count(line_count);
+    let width = format!("calc({digits}ch + 1rem)");
+    let _ = state
+        .editor_container
+        .style()
+        .set_property("--gutter-width", &width);
+}
+
+/// Number of decimal digits in `n` (minimum 1).
+const fn digit_count(n: usize) -> u32 {
+    if n == 0 {
+        return 1;
+    }
+    let mut v = n;
+    let mut d: u32 = 0;
+    while v > 0 {
+        v /= 10;
+        d += 1;
+    }
+    d
+}
+
+// ---------------------------------------------------------------------------
 // Unified parse + highlight + preview
 // ---------------------------------------------------------------------------
 
@@ -155,11 +208,14 @@ fn parse_and_update_both(state: &EditorState) {
             set_parse_status(state, &msg, true);
         }
     }
+    update_line_numbers(state);
 }
 
 fn sync_scroll(state: &EditorState) {
-    state.backdrop.set_scroll_top(state.editor.scroll_top());
+    let scroll_top = state.editor.scroll_top();
+    state.backdrop.set_scroll_top(scroll_top);
     state.backdrop.set_scroll_left(state.editor.scroll_left());
+    state.line_numbers_container.set_scroll_top(scroll_top);
 }
 
 /// Cancel any pending debounce timer and schedule a new parse + update.
