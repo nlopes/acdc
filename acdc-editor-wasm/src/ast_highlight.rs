@@ -1495,7 +1495,7 @@ mod tests {
         // The closing ] should not be bold — it should be inside the footnote
         // span, not outside it
         assert!(
-            !result.ends_with("]"),
+            !result.ends_with(']'),
             "Closing ] should be inside a span, not bare: {result}"
         );
     }

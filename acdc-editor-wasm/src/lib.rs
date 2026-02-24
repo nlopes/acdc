@@ -13,7 +13,7 @@ pub struct ParseResult {
     pub highlight_html: String,
     /// Rendered HTML preview.
     pub preview_html: String,
-    /// Whether the document has `:stem:` set (needs MathJax).
+    /// Whether the document has `:stem:` set (needs `MathJax`).
     pub has_stem: bool,
 }
 
