@@ -5,7 +5,7 @@
 //! `<span class="adoc-*">` for CSS-based highlighting.
 
 use acdc_parser::{
-    AdmonitionVariant, Block, DelimitedBlockType, Document, InlineMacro, InlineNode,
+    AdmonitionVariant, Block, DelimitedBlockType, Document, Form, InlineMacro, InlineNode,
 };
 
 /// A span of source text that should receive a CSS class.
@@ -140,7 +140,7 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
             collect_inline_spans(input, &pb.title, spans);
         }
         Block::Admonition(adm) => {
-            collect_block_metadata_spans(input, &adm.metadata, adm.location.absolute_start, spans);
+            collect_block_metadata_spans(&adm.metadata, spans);
             let label_len = admonition_label_len(&adm.variant);
             let start = adm.location.absolute_start;
             // Only highlight the label if the text actually starts with it (handles NOTE: vs [NOTE])
@@ -201,12 +201,7 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
             collect_inline_spans(input, &db.title, spans);
         }
         Block::Paragraph(para) => {
-            collect_block_metadata_spans(
-                input,
-                &para.metadata,
-                para.location.absolute_start,
-                spans,
-            );
+            collect_block_metadata_spans(&para.metadata, spans);
             // Highlight title if present
             collect_inline_spans(input, &para.title, spans);
             collect_inline_spans(input, &para.content, spans);
@@ -270,81 +265,31 @@ fn push_inline_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, cla
 
 /// Highlight opening and closing delimiters for an inline node.
 ///
-/// Returns the effective end position of the delimited region. This may
-/// extend past `location.absolute_end` when the parser's location is off
-/// by one for unconstrained markers (e.g. `t**he**`).
+/// Returns the exclusive end position of the delimited region.
+/// `absolute_end` is inclusive, so we convert with `+1`.
 fn highlight_delimited_inline(
-    input: &str,
     location: &acdc_parser::Location,
-    marker_char: char,
+    delimiter_len: usize,
     spans: &mut Vec<Span>,
 ) -> usize {
     let start = location.absolute_start;
-    let end = location.absolute_end;
-    let Some(text) = input.get(start..end) else {
-        return end;
-    };
+    let end = location.absolute_end + 1; // inclusive → exclusive
 
-    // Count consecutive markers at start (e.g. "**" or "*")
-    let len = text.chars().take_while(|&c| c == marker_char).count();
-    if len == 0 {
-        return end;
-    }
-
-    // Opening marker
+    // Opening delimiter
     spans.push(Span {
         start,
-        end: start + len,
+        end: start + delimiter_len,
         class: "adoc-delimiter",
         priority: 3,
     });
 
-    // Closing marker — try several positions to handle parser off-by-one
-    let is_marker = |s: usize, e: usize| -> bool {
-        s >= start + len
-            && e <= input.len()
-            && input
-                .get(s..e)
-                .is_some_and(|t| t.len() == len && t.chars().all(|c| c == marker_char))
-    };
-
-    // 1. Standard: closing delimiter at end of node location
-    let close_start = end.saturating_sub(len);
-    if is_marker(close_start, end) {
-        spans.push(Span {
-            start: close_start,
-            end,
-            class: "adoc-delimiter",
-            priority: 3,
-        });
-        return end;
-    }
-
-    // 2. Immediately after the node (parser excluded closing delim entirely)
-    if is_marker(end, end + len) {
-        spans.push(Span {
-            start: end,
-            end: end + len,
-            class: "adoc-delimiter",
-            priority: 3,
-        });
-        return end + len;
-    }
-
-    // 3. Straddling the node boundary (off by one for unconstrained markers)
-    if len > 1 {
-        let alt_start = end - len + 1;
-        let alt_end = alt_start + len;
-        if is_marker(alt_start, alt_end) {
-            spans.push(Span {
-                start: alt_start,
-                end: alt_end,
-                class: "adoc-delimiter",
-                priority: 3,
-            });
-            return alt_end;
-        }
-    }
+    // Closing delimiter
+    spans.push(Span {
+        start: end - delimiter_len,
+        end,
+        class: "adoc-delimiter",
+        priority: 3,
+    });
 
     end
 }
@@ -355,16 +300,10 @@ fn collect_description_list_spans(
     spans: &mut Vec<Span>,
 ) {
     for item in &list.items {
-        let item_start = item.location.absolute_start;
-        let item_source = input
-            .get(item_start..item.location.absolute_end)
-            .unwrap_or("");
-        if let Some(delim_pos) = item_source.find(&item.delimiter) {
-            let abs_delim_start = item_start + delim_pos;
-            let abs_delim_end = abs_delim_start + item.delimiter.len();
+        if let Some(loc) = &item.delimiter_location {
             spans.push(Span {
-                start: abs_delim_start,
-                end: abs_delim_end,
+                start: loc.absolute_start,
+                end: loc.absolute_end + 1, // inclusive → exclusive
                 class: "adoc-description-marker",
                 priority: 1,
             });
@@ -425,7 +364,6 @@ fn collect_list_item_spans(input: &str, item: &acdc_parser::ListItem, spans: &mu
 // Delimited blocks
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::too_many_lines)]
 fn collect_delimited_block_spans(
     input: &str,
     db: &acdc_parser::DelimitedBlock,
@@ -434,70 +372,30 @@ fn collect_delimited_block_spans(
     let block_start = db.location.absolute_start;
     let block_end = db.location.absolute_end;
 
-    collect_block_metadata_spans(input, &db.metadata, block_start, spans);
-    collect_delimiter_lines(input, db, block_start, block_end, spans);
+    collect_block_metadata_spans(&db.metadata, spans);
+    collect_delimiter_lines(db, spans);
     collect_delimited_content(input, &db.inner, block_start, block_end, spans);
 }
 
-/// Find the opening and closing delimiter lines within a delimited block.
-///
-/// The block location may include preceding metadata lines (e.g. `[source,rust]`),
-/// so we scan forward through lines to find one matching the delimiter string.
-fn collect_delimiter_lines(
-    input: &str,
-    db: &acdc_parser::DelimitedBlock,
-    block_start: usize,
-    block_end: usize,
-    spans: &mut Vec<Span>,
-) {
-    let delim = &db.delimiter;
-    if delim.is_empty() {
+/// Highlight opening and closing delimiter lines of a delimited block.
+fn collect_delimiter_lines(db: &acdc_parser::DelimitedBlock, spans: &mut Vec<Span>) {
+    if db.delimiter.is_empty() {
         return;
     }
 
     let cls = delimiter_class(&db.inner);
 
-    // Scan forward from block_start to find the opening delimiter line
-    let mut pos = block_start;
-    while pos < block_end {
-        let line_end = find_line_end(input, pos);
-        let line = input.get(pos..line_end).unwrap_or("");
-        if line.trim() == delim {
-            spans.push(Span {
-                start: pos,
-                end: line_end,
-                class: cls,
-                priority: 1,
-            });
-            break;
-        }
-        // Skip past the newline
-        pos = if line_end < input.len() {
-            line_end + 1
-        } else {
-            break;
-        };
-    }
-
-    // Closing delimiter: check the last line of the block.
-    // Try both block_end and block_end+1 to handle parser off-by-one.
-    if block_end > 0 {
-        for effective_end in [block_end, block_end + 1] {
-            if effective_end > input.len() {
-                continue;
-            }
-            let close_start = find_line_start(input, effective_end.saturating_sub(1));
-            let close_line = input.get(close_start..effective_end).unwrap_or("");
-            if close_start > block_start && close_line.trim() == delim {
-                spans.push(Span {
-                    start: close_start,
-                    end: effective_end,
-                    class: cls,
-                    priority: 1,
-                });
-                break;
-            }
-        }
+    for loc in db
+        .open_delimiter_location
+        .iter()
+        .chain(db.close_delimiter_location.iter())
+    {
+        spans.push(Span {
+            start: loc.absolute_start,
+            end: loc.absolute_end + 1, // inclusive → exclusive
+            class: cls,
+            priority: 1,
+        });
     }
 }
 
@@ -603,27 +501,9 @@ fn collect_table_spans(
     block_end: usize,
     spans: &mut Vec<Span>,
 ) {
-    let open_end = find_line_end(input, block_start);
-    spans.push(Span {
-        start: block_start,
-        end: open_end,
-        class: "adoc-table-delimiter",
-        priority: 1,
-    });
-
-    if block_end > 0 {
-        let close_start = find_line_start(input, block_end.saturating_sub(1));
-        if close_start > block_start {
-            spans.push(Span {
-                start: close_start,
-                end: block_end,
-                class: "adoc-table-delimiter",
-                priority: 1,
-            });
-        }
-    }
-
-    let content_start = open_end;
+    // Delimiters are already highlighted by collect_delimiter_lines.
+    // Compute content range between delimiter lines for cell highlighting.
+    let content_start = find_line_end(input, block_start);
     let content_end = if block_end > 0 {
         find_line_start(input, block_end.saturating_sub(1))
     } else {
@@ -666,15 +546,7 @@ fn collect_table_row_block_spans(
 }
 
 /// Add spans for block metadata (attributes like `[source,rust]`, block titles).
-///
-/// Metadata lines may either precede the block (scanned backwards) or be
-/// included in the block's own location range (scanned forwards).
-fn collect_block_metadata_spans(
-    input: &str,
-    metadata: &acdc_parser::BlockMetadata,
-    block_start: usize,
-    spans: &mut Vec<Span>,
-) {
+fn collect_block_metadata_spans(metadata: &acdc_parser::BlockMetadata, spans: &mut Vec<Span>) {
     if let Some(anchor) = &metadata.id {
         push_block_span(spans, &anchor.location, "adoc-anchor");
     }
@@ -683,86 +555,8 @@ fn collect_block_metadata_spans(
         push_block_span(spans, &anchor.location, "adoc-anchor");
     }
 
-    let has_attrs = !metadata.attributes.is_empty()
-        || !metadata.positional_attributes.is_empty()
-        || !metadata.roles.is_empty()
-        || !metadata.options.is_empty()
-        || metadata.style.is_some();
-
-    // Even if metadata is empty (e.g. [NOTE] consumed into AdmonitionVariant),
-    // we should check for attribute lines in the source.
-    let looks_like_meta = input.get(block_start..).is_some_and(|s| {
-        let trimmed = s.trim_start();
-        trimmed.starts_with('[') || (trimmed.starts_with('.') && !trimmed.starts_with(".."))
-    });
-
-    if has_attrs || looks_like_meta {
-        // Try scanning backwards first (metadata before block location)
-        scan_preceding_attributes(input, block_start, spans);
-        // Also scan forward from block_start for metadata lines included in
-        // the block's location (e.g. when `[source,rust]` is at byte 0)
-        scan_leading_attributes(input, block_start, spans);
-    }
-}
-
-fn scan_preceding_attributes(input: &str, block_start: usize, spans: &mut Vec<Span>) {
-    let mut pos = block_start;
-    while pos > 0 {
-        let line_start = find_line_start(input, pos.saturating_sub(1));
-        let line = input.get(line_start..pos).unwrap_or("");
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            spans.push(Span {
-                start: line_start,
-                end: pos,
-                class: "adoc-attribute",
-                priority: 1,
-            });
-            pos = line_start;
-        } else if trimmed.starts_with('.') && !trimmed.starts_with("..") {
-            spans.push(Span {
-                start: line_start,
-                end: pos,
-                class: "adoc-block-title",
-                priority: 1,
-            });
-            pos = line_start;
-        } else {
-            break;
-        }
-    }
-}
-
-/// Scan forward from `block_start` for attribute/title lines that are part of
-/// the block's location (e.g. `[source,rust]` at byte 0 before `----`).
-fn scan_leading_attributes(input: &str, block_start: usize, spans: &mut Vec<Span>) {
-    let mut pos = block_start;
-    loop {
-        let line_end = find_line_end(input, pos);
-        let line = input.get(pos..line_end).unwrap_or("");
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            spans.push(Span {
-                start: pos,
-                end: line_end,
-                class: "adoc-attribute",
-                priority: 1,
-            });
-        } else if trimmed.starts_with('.') && !trimmed.starts_with("..") {
-            spans.push(Span {
-                start: pos,
-                end: line_end,
-                class: "adoc-block-title",
-                priority: 1,
-            });
-        } else {
-            break;
-        }
-        pos = if line_end < input.len() {
-            line_end + 1
-        } else {
-            break;
-        };
+    if let Some(loc) = &metadata.location {
+        push_block_span(spans, loc, "adoc-attribute");
     }
 }
 
@@ -865,10 +659,15 @@ fn collect_inline_spans(input: &str, nodes: &[InlineNode], spans: &mut Vec<Span>
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Span>) {
     match node {
         InlineNode::BoldText(b) => {
-            let effective_end = highlight_delimited_inline(input, &b.location, '*', spans);
+            let dlen = match b.form {
+                Form::Constrained => 1,
+                Form::Unconstrained => 2,
+            };
+            let effective_end = highlight_delimited_inline(&b.location, dlen, spans);
             spans.push(Span {
                 start: b.location.absolute_start,
                 end: effective_end,
@@ -878,7 +677,11 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
             collect_inline_spans(input, &b.content, spans);
         }
         InlineNode::ItalicText(i) => {
-            let effective_end = highlight_delimited_inline(input, &i.location, '_', spans);
+            let dlen = match i.form {
+                Form::Constrained => 1,
+                Form::Unconstrained => 2,
+            };
+            let effective_end = highlight_delimited_inline(&i.location, dlen, spans);
             spans.push(Span {
                 start: i.location.absolute_start,
                 end: effective_end,
@@ -888,7 +691,11 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
             collect_inline_spans(input, &i.content, spans);
         }
         InlineNode::MonospaceText(m) => {
-            let effective_end = highlight_delimited_inline(input, &m.location, '`', spans);
+            let dlen = match m.form {
+                Form::Constrained => 1,
+                Form::Unconstrained => 2,
+            };
+            let effective_end = highlight_delimited_inline(&m.location, dlen, spans);
             spans.push(Span {
                 start: m.location.absolute_start,
                 end: effective_end,
@@ -898,7 +705,11 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
             collect_inline_spans(input, &m.content, spans);
         }
         InlineNode::HighlightText(h) => {
-            let effective_end = highlight_delimited_inline(input, &h.location, '#', spans);
+            let dlen = match h.form {
+                Form::Constrained => 1,
+                Form::Unconstrained => 2,
+            };
+            let effective_end = highlight_delimited_inline(&h.location, dlen, spans);
             spans.push(Span {
                 start: h.location.absolute_start,
                 end: effective_end,
@@ -908,7 +719,7 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
             collect_inline_spans(input, &h.content, spans);
         }
         InlineNode::SuperscriptText(s) => {
-            let effective_end = highlight_delimited_inline(input, &s.location, '^', spans);
+            let effective_end = highlight_delimited_inline(&s.location, 1, spans);
             spans.push(Span {
                 start: s.location.absolute_start,
                 end: effective_end,
@@ -918,7 +729,7 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
             collect_inline_spans(input, &s.content, spans);
         }
         InlineNode::SubscriptText(s) => {
-            let effective_end = highlight_delimited_inline(input, &s.location, '~', spans);
+            let effective_end = highlight_delimited_inline(&s.location, 1, spans);
             spans.push(Span {
                 start: s.location.absolute_start,
                 end: effective_end,
@@ -928,7 +739,7 @@ fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Sp
             collect_inline_spans(input, &s.content, spans);
         }
         InlineNode::CurvedQuotationText(q) => {
-            let effective_end = highlight_delimited_inline(input, &q.location, '"', spans);
+            let effective_end = highlight_delimited_inline(&q.location, 2, spans);
             spans.push(Span {
                 start: q.location.absolute_start,
                 end: effective_end,
@@ -977,14 +788,9 @@ fn collect_macro_span(input: &str, mac: &InlineMacro, spans: &mut Vec<Span>) {
         _ => return,
     };
 
-    // Parser locations use inclusive end (absolute_end points to last byte).
-    // Convert to exclusive end for the span system.
+    // Convert inclusive end to exclusive for the span system.
     let start = location.absolute_start;
-    let mut end = location.absolute_end + 1;
-    // Parser may also exclude trailing `]` — include it if present
-    if input.as_bytes().get(end) == Some(&b']') {
-        end += 1;
-    }
+    let end = location.absolute_end + 1;
 
     // Base span for the whole macro
     spans.push(Span {

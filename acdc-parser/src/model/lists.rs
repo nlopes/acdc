@@ -83,6 +83,9 @@ pub struct DescriptionListItem {
     pub term: Vec<InlineNode>,
     /// The delimiter used (`::`, `:::`, `::::`, or `;;`).
     pub delimiter: String,
+    /// Location of the delimiter in the source.
+    #[serde(skip)]
+    pub delimiter_location: Option<Location>,
     /// Inline content immediately after the delimiter on the same line.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub principal_text: Vec<InlineNode>,

@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `aside.admonition-block`, `figure.example-block`, `aside.sidebar`,
   `section.quote-block`, `.listing-block`, `figure.image-block`, `ol.toc-list`,
   `section.footnotes`, `ol.callout-list`, semantic list wrappers, etc.).
+- **Highlighter simplified to use AST locations** — replaced ~315 lines of raw text
+  scanning with direct use of parser location data. Inline delimiter highlighting,
+  block metadata spans, delimited block delimiters, macro spans, and description list
+  markers now use precise AST locations instead of heuristic text scanning.
 
 ### Fixed
 
