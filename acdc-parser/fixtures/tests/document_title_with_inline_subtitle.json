@@ -1,0 +1,127 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Main Title",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 12
+          }
+        ]
+      }
+    ],
+    "subtitle": [
+      {
+        "name": "span",
+        "type": "inline",
+        "variant": "strong",
+        "form": "constrained",
+        "inlines": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Bold",
+            "location": [
+              {
+                "line": 1,
+                "col": 16
+              },
+              {
+                "line": 1,
+                "col": 19
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 1,
+            "col": 15
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "value": " Subtitle",
+        "location": [
+          {
+            "line": 1,
+            "col": 21
+          },
+          {
+            "line": 1,
+            "col": 29
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 29
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Content here.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 13
+    }
+  ]
+}

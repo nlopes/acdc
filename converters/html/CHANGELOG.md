@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`<title>` uses plain text for document titles** — the `<title>` element now strips inline
+  markup (bold, italic, etc.) to plain text using `inlines_to_string()`, while the `<h1>`
+  retains full HTML formatting.
+
 ### Added
 
 - **`latexmath:[]` and `asciimath:[]` inline macros** — HTML rendering support for explicit

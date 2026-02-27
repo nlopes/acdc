@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
   direct access to location information without pattern matching on variants.
+- **Rich inline markup in document titles and subtitles** — document titles now support bold,
+  italic, monospace, links, macros, and other inline markup, matching section title behavior.
+  Previously, titles were always rendered as plain text.
 
 ## [0.7.0] - 2026-02-25
 

@@ -964,35 +964,47 @@ peg::parser! {
 
         /// ATX-style document title: `= Title` or `# Title`
         rule document_title_atx() -> (Title, Option<Subtitle>)
-        = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
-        {
-            // Substitute attribute references in the title before processing
-            let substituted_title = substitute(title, HEADER, &state.document_attributes);
-            tracing::debug!(?title, ?substituted_title, "Substituting document title");
+        = document_title_token() whitespace() start:position() title:$([^'\n']*) end:position!()
+        {?
+            tracing::debug!(?title, "Processing ATX document title");
+            let block_metadata = BlockParsingMetadata::default();
 
-            let (title_content, title_end_pos, subtitle) = if let Some(subtitle_start) = substituted_title.rfind(':') {
-                let title_part = substituted_title[..subtitle_start].trim().to_string();
-                let subtitle_part = substituted_title[subtitle_start + 1..].trim().to_string();
-                let title_end = start + subtitle_start;
-                let subtitle = Subtitle::new(vec![InlineNode::PlainText(Plain {
-                    content: subtitle_part,
-                    location: state.create_location(
-                        title_end + 1,
-                        end.saturating_sub(1),
-                    ),
-                    escaped: false,
-                })]);
-                (title_part, title_end.saturating_sub(1), Some(subtitle))
+            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(':') {
+                let subtitle_raw = &title[colon_pos + 1..];
+                let subtitle_text = subtitle_raw.trim();
+                if subtitle_text.is_empty() {
+                    // Empty subtitle after colon, treat whole text as title
+                    let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                        .map_err(|_| "could not process document title")?;
+                    (inlines, None)
+                } else {
+                    // Title: trim trailing whitespace before colon
+                    let title_raw = &title[..colon_pos];
+                    let title_text = title_raw.trim_end();
+                    let title_end = start.offset + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, &start, title_end, 0, title_text)
+                        .map_err(|_| "could not process document title")?;
+
+                    // Subtitle: trim leading whitespace after colon
+                    let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
+                    let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
+                    let subtitle_start = PositionWithOffset {
+                        offset: sub_start_offset,
+                        position: state.line_map.offset_to_position(sub_start_offset, &state.input),
+                    };
+                    let sub_end = sub_start_offset + subtitle_text.len();
+                    let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
+                        .map_err(|_| "could not process document subtitle")?;
+
+                    (inlines, Some(Subtitle::new(subtitle_inlines)))
+                }
             } else {
-                (substituted_title.trim().to_string(), end.saturating_sub(1), None)
+                let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                    .map_err(|_| "could not process document title")?;
+                (inlines, None)
             };
 
-            let title_location = state.create_location(start, title_end_pos);
-            (Title::new(vec![InlineNode::PlainText(Plain {
-                content: title_content,
-                location: title_location,
-                escaped: false,
-            })]), subtitle)
+            Ok((Title::new(title_inlines), subtitle))
         }
 
         /// Setext-style document title: Title underlined with `=` characters
@@ -1006,7 +1018,7 @@ peg::parser! {
         /// Only enabled when the setext feature is compiled in AND the runtime
         /// option is enabled.
         rule document_title_setext() -> (Title, Option<Subtitle>)
-        = start:position!() title:$([^'\n']+) end:position!() eol()
+        = start:position() title:$([^'\n']+) end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
             // Check if setext mode is enabled
@@ -1028,37 +1040,44 @@ peg::parser! {
                 return Err("document title must use = underline");
             }
 
-            // Substitute attribute references in the title before processing
-            let substituted_title = substitute(title_text, HEADER, &state.document_attributes);
-            tracing::debug!(?title_text, ?substituted_title, "Substituting setext document title");
+            tracing::debug!(?title_text, "Processing setext document title");
+            let block_metadata = BlockParsingMetadata::default();
 
-            // Parse subtitle (text after last colon) from substituted content
-            let mut subtitle = None;
-            let mut title_content = substituted_title.clone();
-            if let Some(subtitle_start) = substituted_title.rfind(':') &&
-            let Some(subtitle_text) = substituted_title.get(subtitle_start + 1..) {
-                let subtitle_text = subtitle_text.trim();
-                if !subtitle_text.is_empty() {
-                    if let Some(text) = substituted_title.get(..subtitle_start) {
-                        title_content = text.trim().to_string();
-                    }
-                    subtitle = Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
-                        content: subtitle_text.to_string(),
-                        location: state.create_location(
-                            start + subtitle_start + 1,
-                            end.saturating_sub(1),
-                        ),
-                        escaped: false,
-                    })]));
+            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(':') {
+                let subtitle_raw = &title[colon_pos + 1..];
+                let subtitle_text = subtitle_raw.trim();
+                if subtitle_text.is_empty() {
+                    let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                        .map_err(|_| "could not process setext document title")?;
+                    (inlines, None)
+                } else {
+                    // Title: trim trailing whitespace before colon
+                    let title_raw = &title[..colon_pos];
+                    let title_text = title_raw.trim_end();
+                    let title_end = start.offset + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, &start, title_end, 0, title_text)
+                        .map_err(|_| "could not process setext document title")?;
+
+                    // Subtitle: trim leading whitespace after colon
+                    let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
+                    let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
+                    let subtitle_start = PositionWithOffset {
+                        offset: sub_start_offset,
+                        position: state.line_map.offset_to_position(sub_start_offset, &state.input),
+                    };
+                    let sub_end = sub_start_offset + subtitle_text.len();
+                    let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
+                        .map_err(|_| "could not process setext document subtitle")?;
+
+                    (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
-            }
+            } else {
+                let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                    .map_err(|_| "could not process setext document title")?;
+                (inlines, None)
+            };
 
-            let title_location = state.create_location(start, end.saturating_sub(1));
-            Ok((Title::new(vec![InlineNode::PlainText(Plain {
-                content: title_content,
-                location: title_location,
-                escaped: false,
-            })]), subtitle))
+            Ok((Title::new(title_inlines), subtitle))
         }
 
         rule document_title_token() = "=" / "#"
@@ -6363,11 +6382,11 @@ v2.9, 01-09-2024: Fall incarnation
                 Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
                     content: "And a subtitle".to_string(),
                     location: Location {
-                        absolute_start: 17,
+                        absolute_start: 18,
                         absolute_end: 31,
                         start: crate::Position {
                             line: 1,
-                            column: 18,
+                            column: 19,
                         },
                         end: crate::Position {
                             line: 1,
