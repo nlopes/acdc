@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
+  direct access to location information without pattern matching on variants.
+
 ## [0.7.0] - 2026-02-25
 
 ### Added
