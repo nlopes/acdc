@@ -11,7 +11,7 @@ pub use converter::inlines_to_string;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, Image};
+use crate::{Anchor, Image, Location, model::Locateable};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -42,6 +42,43 @@ pub enum InlineNode {
     CalloutRef(CalloutRef),
 }
 
+impl Locateable for InlineNode {
+    fn location(&self) -> &Location {
+        match self {
+            InlineNode::PlainText(t) => &t.location,
+            InlineNode::RawText(t) => &t.location,
+            InlineNode::VerbatimText(t) => &t.location,
+            InlineNode::BoldText(t) => &t.location,
+            InlineNode::ItalicText(t) => &t.location,
+            InlineNode::MonospaceText(t) => &t.location,
+            InlineNode::HighlightText(t) => &t.location,
+            InlineNode::SubscriptText(t) => &t.location,
+            InlineNode::SuperscriptText(t) => &t.location,
+            InlineNode::CurvedQuotationText(t) => &t.location,
+            InlineNode::CurvedApostropheText(t) => &t.location,
+            InlineNode::StandaloneCurvedApostrophe(t) => &t.location,
+            InlineNode::LineBreak(l) => &l.location,
+            InlineNode::InlineAnchor(a) => &a.location,
+            InlineNode::Macro(m) => match m {
+                crate::InlineMacro::Footnote(f) => &f.location,
+                crate::InlineMacro::Icon(i) => &i.location,
+                crate::InlineMacro::Image(img) => &img.location,
+                crate::InlineMacro::Keyboard(k) => &k.location,
+                crate::InlineMacro::Button(b) => &b.location,
+                crate::InlineMacro::Menu(m) => &m.location,
+                crate::InlineMacro::Url(u) => &u.location,
+                crate::InlineMacro::Mailto(m) => &m.location,
+                crate::InlineMacro::Link(l) => &l.location,
+                crate::InlineMacro::Autolink(a) => &a.location,
+                crate::InlineMacro::CrossReference(x) => &x.location,
+                crate::InlineMacro::Pass(p) => &p.location,
+                crate::InlineMacro::Stem(s) => &s.location,
+                crate::InlineMacro::IndexTerm(i) => &i.location,
+            },
+            InlineNode::CalloutRef(c) => &c.location,
+        }
+    }
+}
 /// An inline macro - a functional element that produces inline content.
 ///
 /// Unlike a struct with `name`/`target`/`attributes` fields, `InlineMacro` is an **enum**

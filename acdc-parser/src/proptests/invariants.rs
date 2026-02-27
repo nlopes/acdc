@@ -8,7 +8,9 @@
 
 use proptest::prelude::*;
 
-use crate::{Block, Document, InlineNode, Location, Options, parse, parse_inline};
+use crate::{
+    Block, Document, InlineNode, Location, Options, model::Locateable, parse, parse_inline,
+};
 
 use super::generators::*;
 
@@ -81,7 +83,7 @@ proptest! {
     fn positions_are_monotonic(input in structured_document()) {
         let options = Options::default();
         if let Ok(doc) = parse(&input, &options) {
-            verify_monotonic_positions(&doc);
+            verify_monotonic_positions("Block", &doc.blocks);
         }
     }
 
@@ -590,70 +592,38 @@ fn verify_location_utf8(loc: &Location, input: &str, context: &str) {
 }
 
 /// Verify positions are monotonically increasing within scopes
-fn verify_monotonic_positions(doc: &Document) {
+fn verify_monotonic_positions(prefix: &str, blocks: &[Block]) {
     // Check blocks are in order
     let mut last_end = 0;
-    for block in &doc.blocks {
-        let loc = get_block_location(block);
-        let start = loc.absolute_start;
+    for block in blocks {
+        let location = block.location();
+        let start = location.absolute_start;
         assert!(
             start >= last_end,
-            "Block starts at {start} but previous ended at {last_end}"
+            "{prefix} starts at {start} but previous ended at {last_end}"
         );
-        last_end = loc.absolute_end;
+        last_end = location.absolute_end;
 
         // Recursively check within blocks
         verify_block_monotonic(block);
     }
 }
 
-fn get_block_location(block: &Block) -> &Location {
-    match block {
-        Block::Section(s) => &s.location,
-        Block::Paragraph(p) => &p.location,
-        Block::UnorderedList(l) => &l.location,
-        Block::OrderedList(l) => &l.location,
-        Block::DescriptionList(l) => &l.location,
-        Block::CalloutList(l) => &l.location,
-        Block::DelimitedBlock(d) => &d.location,
-        Block::Admonition(a) => &a.location,
-        Block::TableOfContents(t) => &t.location,
-        Block::DiscreteHeader(h) => &h.location,
-        Block::DocumentAttribute(a) => &a.location,
-        Block::ThematicBreak(b) => &b.location,
-        Block::PageBreak(p) => &p.location,
-        Block::Image(i) => &i.location,
-        Block::Audio(a) => &a.location,
-        Block::Video(v) => &v.location,
-        Block::Comment(c) => &c.location,
-    }
-}
-
 fn verify_block_monotonic(block: &Block) {
     match block {
         Block::Section(section) => {
-            let mut last_end = 0;
-            for child in &section.content {
-                let loc = get_block_location(child);
-                let start = loc.absolute_start;
-                assert!(
-                    start >= last_end,
-                    "Section child starts at {start} but previous ended at {last_end}"
-                );
-                last_end = loc.absolute_end;
-                verify_block_monotonic(child);
-            }
+            verify_monotonic_positions("Section child", &section.content);
         }
         Block::Paragraph(para) => {
             let mut last_end = 0;
             for inline in &para.content {
-                let loc = get_inline_location(inline);
-                let start = loc.absolute_start;
+                let location = inline.location();
+                let start = location.absolute_start;
                 assert!(
                     start >= last_end,
                     "Inline starts at {start} but previous ended at {last_end}"
                 );
-                last_end = loc.absolute_end;
+                last_end = location.absolute_end;
             }
         }
         Block::Admonition(_)
@@ -673,41 +643,5 @@ fn verify_block_monotonic(block: &Block) {
         | Block::Comment(_) => {
             // Add other block types as needed
         }
-    }
-}
-
-fn get_inline_location(inline: &InlineNode) -> &Location {
-    match inline {
-        InlineNode::PlainText(t) => &t.location,
-        InlineNode::RawText(t) => &t.location,
-        InlineNode::VerbatimText(t) => &t.location,
-        InlineNode::BoldText(t) => &t.location,
-        InlineNode::ItalicText(t) => &t.location,
-        InlineNode::MonospaceText(t) => &t.location,
-        InlineNode::HighlightText(t) => &t.location,
-        InlineNode::SubscriptText(t) => &t.location,
-        InlineNode::SuperscriptText(t) => &t.location,
-        InlineNode::CurvedQuotationText(t) => &t.location,
-        InlineNode::CurvedApostropheText(t) => &t.location,
-        InlineNode::StandaloneCurvedApostrophe(t) => &t.location,
-        InlineNode::LineBreak(l) => &l.location,
-        InlineNode::InlineAnchor(a) => &a.location,
-        InlineNode::Macro(m) => match m {
-            crate::InlineMacro::Footnote(f) => &f.location,
-            crate::InlineMacro::Icon(i) => &i.location,
-            crate::InlineMacro::Image(img) => &img.location,
-            crate::InlineMacro::Keyboard(k) => &k.location,
-            crate::InlineMacro::Button(b) => &b.location,
-            crate::InlineMacro::Menu(m) => &m.location,
-            crate::InlineMacro::Url(u) => &u.location,
-            crate::InlineMacro::Mailto(m) => &m.location,
-            crate::InlineMacro::Link(l) => &l.location,
-            crate::InlineMacro::Autolink(a) => &a.location,
-            crate::InlineMacro::CrossReference(x) => &x.location,
-            crate::InlineMacro::Pass(p) => &p.location,
-            crate::InlineMacro::Stem(s) => &s.location,
-            crate::InlineMacro::IndexTerm(i) => &i.location,
-        },
-        InlineNode::CalloutRef(c) => &c.location,
     }
 }
