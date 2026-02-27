@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `extract_title_text` now preserves inline content from `VerbatimText`, `RawText`,
+  `StandaloneCurvedApostrophe`, `LineBreak`, `CalloutRef`, and all `Macro` variants
+  in section titles. Previously these were silently dropped.
 - Comprehensive test fixture now marked as OSC8 so it is skipped in CI environments without OSC8 support.
 
 ### Changed
