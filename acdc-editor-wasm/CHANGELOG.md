@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dark mode support that automatically follows the system `prefers-color-scheme` setting.
+
 ## [0.4.0] - 2026-02-25
 
 ### Changed
