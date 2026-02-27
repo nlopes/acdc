@@ -1199,3 +1199,203 @@ html, body {
 #preview .teal-background { background: #007d7d; }
 #preview .white-background { background: #fafafa; }
 #preview .yellow-background { background: #fafa00; }
+
+/* Dark mode — follows system prefers-color-scheme */
+
+@media (prefers-color-scheme: dark) {
+
+    /* Editor chrome */
+    .site-footer { background: #1e1e1e; border-top-color: #3a3a3a; color: #8b929a; }
+    .site-footer a { color: #adb5bd; }
+    .site-footer a:hover { color: #e9ecef; }
+    .editor-pane { background: #1e1e1e; border-right-color: #3a3a3a; }
+    .preview-pane { background: #1a1a1a; }
+    .pane-label { color: #8b929a; border-bottom-color: #3a3a3a; }
+    .editor-pane .pane-label,
+    .preview-pane .pane-label { background: #252525; }
+    #line-numbers { background: #252525; border-right-color: #3a3a3a; }
+    #line-numbers pre { color: #666; }
+    #editor { caret-color: #e0e0e0; }
+    #highlight { color: #d4d4d4; }
+    #parse-status.parse-ok { background: rgba(40, 167, 69, 0.25); color: #4caf50; }
+    #parse-status.parse-error { background: rgba(220, 53, 69, 0.2); color: #ef5350; box-shadow: 0 1px 4px rgba(220, 53, 69, 0.3); }
+
+    /* Editor syntax highlighting */
+    .adoc-title { color: #c9d1d9; }
+    .adoc-heading { color: #d2dce6; }
+    .adoc-attribute { color: #c9a87c; }
+    .adoc-block-title, .adoc-comment { color: #8b929a; }
+    .adoc-delimiter, .adoc-table-delimiter, .adoc-table-cell { color: #c49cff; }
+    .adoc-list-marker, .adoc-callout { color: #f0923e; }
+    .adoc-admonition { color: #ff6b6b; }
+    .adoc-monospace { color: #e27db5; background: #2a2a2a; }
+    .adoc-highlight { background: #5c4d1a; }
+    .adoc-link { color: #58a6ff; }
+    .adoc-xref, .adoc-footnote { color: #bc8cff; }
+    .adoc-code-content { color: #adb5bd; }
+    .adoc-macro-target { color: #56d47e; }
+    .adoc-macro-attrs { color: #f06292; }
+
+    /* Preview base */
+    #preview { color: rgba(255, 255, 255, .85); }
+    #preview a { color: #58a6ff; }
+    #preview a:hover, #preview a:focus { color: #79b8ff; }
+    #preview code { color: rgba(255, 255, 255, .9); }
+    #preview :not(pre):not([class^=L]) > code { background: #2d2d2d; border: 1px solid #3a3a3a; }
+    #preview pre { color: rgba(255, 255, 255, .85); background-color: #252525; border: 1px solid #333; }
+
+    /* Override inline syntax-highlight colors from the highlighter's inline
+       style attributes (e.g. color:#323232). !important beats inline styles. */
+    #preview pre code span[style] { color: #c9d1d9 !important; }
+    #preview pre code span[style*="bold"][style*="color:#a71d5d"] { color: #ff7b72 !important; }
+    #preview pre code span[style*="bold"][style*="color:#795da3"] { color: #d2a8ff !important; }
+    #preview pre code span[style*="color:#183691"] { color: #a5d6ff !important; }
+    #preview pre code span[style*="color:#969896"] { color: #8b949e !important; }
+    #preview pre code span[style*="color:#0086b3"] { color: #79c0ff !important; }
+
+    #preview hr { border-color: #3a3a3a; }
+
+    /* Headings + all block-title/figcaption/caption variants → rust accent */
+    #preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6,
+    #preview h6.block-title,
+    #preview figure.image-block > figcaption,
+    #preview figure.example-block > figcaption,
+    #preview figure.table-block > figcaption,
+    #preview figure.listing-block > figcaption,
+    #preview .table-block caption.title,
+    #preview details.example-block > summary,
+    #preview :is(aside, section).admonition-block > h6.block-title,
+    #preview aside.sidebar > h6.block-title,
+    #preview section.quote-block blockquote::before,
+    #preview .quoteblock blockquote::before,
+    #preview #toctitle,
+    #preview .audioblock > .title,
+    #preview .listingblock > .title,
+    #preview .literalblock > .title,
+    #preview .stemblock > .title,
+    #preview .openblock > .title,
+    #preview .quoteblock > .title,
+    #preview .verseblock > .title,
+    #preview .videoblock > .title,
+    #preview .dlist > .title,
+    #preview .olist > .title,
+    #preview .ulist > .title,
+    #preview .hdlist > .title,
+    #preview table.tableblock > .title { color: #e2725b; }
+
+    /* Text that must override light-mode rgba(0,0,0,.85) at higher specificity */
+    #preview .paragraph.lead > p,
+    #preview section#preamble > .paragraph:first-of-type p,
+    #preview section#preamble > section.paragraph:first-of-type p,
+    #preview section.quote-block blockquote,
+    #preview section.quote-block p,
+    #preview .quoteblock blockquote,
+    #preview .quoteblock p,
+    #preview .verseblock pre,
+    #preview .verse-block pre { color: rgba(255, 255, 255, .85); }
+
+    /* Attribution cite */
+    #preview section.quote-block .attribution cite,
+    #preview .quoteblock .attribution cite,
+    #preview .verseblock .attribution cite,
+    #preview .verse-block .attribution cite { color: rgba(255, 255, 255, .6); }
+
+    /* Admonitions */
+    #preview :is(aside, section).admonition-block { border-left-color: #3a3a3a; color: rgba(255, 255, 255, .65); }
+    #preview :is(aside, section).admonition-block.note { border-left-color: #4a7ec8; }
+    #preview :is(aside, section).admonition-block.tip { border-left-color: #c8b830; }
+    #preview :is(aside, section).admonition-block.warning { border-left-color: #e08a30; }
+    #preview :is(aside, section).admonition-block.caution { border-left-color: #e05a30; }
+    #preview :is(aside, section).admonition-block.important { border-left-color: #e03030; }
+    #preview :is(aside, section).admonition-block .fa-solid { text-shadow: 1px 1px 2px rgba(0, 0, 0, .8); }
+    #preview :is(aside, section).admonition-block .fa-circle-info { color: #4a7ec8; }
+    #preview :is(aside, section).admonition-block .fa-lightbulb { text-shadow: 1px 1px 2px rgba(155, 155, 0, .5); color: #c8b830; }
+    #preview :is(aside, section).admonition-block .fa-triangle-exclamation { color: #e08a30; }
+    #preview :is(aside, section).admonition-block .fa-fire { color: #e05a30; }
+    #preview :is(aside, section).admonition-block .fa-circle-exclamation { color: #e03030; }
+
+    /* Example + sidebar blocks */
+    #preview figure.example-block { border-color: #3a3a3a; background: #252525; box-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+    #preview aside.sidebar { border-color: #3a3a3a; background: #252525; }
+
+    /* Listing / literal blocks */
+    #preview .listing-block > pre:not(.highlight),
+    #preview .listing-block > pre[class=highlight],
+    #preview .listing-block > pre[class^="highlight "],
+    #preview .literalblock pre,
+    #preview .listingblock > .content > pre:not(.highlight),
+    #preview .listingblock > .content > pre[class=highlight],
+    #preview .listingblock > .content > pre[class^="highlight "],
+    #preview .literal-block pre { background: #252525; border: 1px solid #333; }
+
+    #preview .literalblock.output pre,
+    #preview .literal-block.output pre { color: #1a1a1a; background: rgba(255, 255, 255, .9); }
+
+    /* Tables */
+    #preview table { background: #1a1a1a; border-color: #3a3a3a; }
+    #preview table thead, #preview table tfoot { background: #252525; }
+    #preview tbody tr th { background: #252525; }
+    #preview table tr th, #preview table tr td { color: rgba(255, 255, 255, .85); }
+    #preview table thead tr th, #preview table thead tr td,
+    #preview table tfoot tr th, #preview table tfoot tr td { color: rgba(255, 255, 255, .85); }
+    #preview tbody tr th, #preview tbody tr th p,
+    #preview tfoot tr th, #preview tfoot tr th p { color: rgba(255, 255, 255, .85); }
+    #preview table tr.even, #preview table tr.alt { background: #222; }
+    #preview table.tableblock, #preview th.tableblock, #preview td.tableblock { border-color: #3a3a3a; }
+    #preview table.stripes-all > * > tr,
+    #preview table.stripes-odd > * > tr:nth-of-type(odd),
+    #preview table.stripes-even > * > tr:nth-of-type(even),
+    #preview table.stripes-hover > * > tr:hover { background: #222; }
+    #preview .table-block table th,
+    #preview .table-block table td { border-color: #3a3a3a; }
+
+    /* Inline elements */
+    #preview kbd { color: rgba(255, 255, 255, .85); background: #2a2a2a; border-color: #555; box-shadow: 0 1px 0 rgba(255, 255, 255, .1), inset 0 0 0 .1em #333; }
+    #preview .keyseq { color: rgba(255, 255, 255, .8); }
+    #preview .menuseq, #preview .menuref { color: #e0e0e0; }
+    #preview .thumb, #preview .th { border-color: #333; box-shadow: 0 0 0 1px #555; }
+    #preview .conum[data-value] { background: rgba(255, 255, 255, .8); color: #1a1a1a !important; }
+
+    /* TOC + section dividers + footnotes */
+    #preview #toc { border-bottom-color: #3a3a3a; }
+    #preview #content #toc { border-color: #3a3a3a; background: #252525; }
+    #preview section.doc-section + section.doc-section { border-top-color: #3a3a3a; }
+    #preview section.footnotes hr,
+    #preview #footnotes hr { border-color: #3a3a3a; }
+
+    /* Text color roles (brightened for dark bg) */
+    #preview .aqua { color: #00e5e5; }
+    #preview .black { color: #999; }
+    #preview .blue { color: #5b8def; }
+    #preview .fuchsia { color: #e550e5; }
+    #preview .gray { color: #909090; }
+    #preview .green { color: #30b030; }
+    #preview .lime { color: #50e550; }
+    #preview .maroon { color: #d05050; }
+    #preview .navy { color: #5070d0; }
+    #preview .olive { color: #b0b040; }
+    #preview .purple { color: #b050b0; }
+    #preview .red { color: #e55050; }
+    #preview .silver { color: #b0b0b0; }
+    #preview .teal { color: #30b0b0; }
+    #preview .white { color: #e0e0e0; }
+    #preview .yellow { color: #e5e550; }
+
+    /* Background color roles (darkened for dark bg) */
+    #preview .aqua-background { background: #006060; }
+    #preview .black-background { background: #1a1a1a; }
+    #preview .blue-background { background: #000080; }
+    #preview .fuchsia-background { background: #800080; }
+    #preview .gray-background { background: #404040; }
+    #preview .green-background { background: #004000; }
+    #preview .lime-background { background: #006000; }
+    #preview .maroon-background { background: #400000; }
+    #preview .navy-background { background: #000040; }
+    #preview .olive-background { background: #404000; }
+    #preview .purple-background { background: #400040; }
+    #preview .red-background { background: #800000; }
+    #preview .silver-background { background: #505050; }
+    #preview .teal-background { background: #004040; }
+    #preview .white-background { background: #2a2a2a; }
+    #preview .yellow-background { background: #606000; }
+}
