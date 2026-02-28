@@ -3,12 +3,17 @@ use std::io::Write;
 use acdc_converters_core::{video::TryUrl, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, Video};
 
-use crate::Error;
+use crate::{Error, HtmlVariant, Processor};
 
 pub(crate) fn visit_video<V: WritableVisitor<Error = Error>>(
     video: &Video,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    if processor.variant() == HtmlVariant::Semantic {
+        return visit_video_semantic(video, visitor);
+    }
+
     let mut w = visitor.writer_mut();
     write!(w, "<div")?;
     if let Some(id) = &video.metadata.id {
@@ -125,5 +130,52 @@ fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(),
     writeln!(w, "Your browser does not support the video tag.")?;
     writeln!(w, "</video>")?;
 
+    Ok(())
+}
+
+fn visit_video_semantic<V: WritableVisitor<Error = Error>>(
+    video: &Video,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let has_title = !video.title.is_empty();
+    let mut w = visitor.writer_mut();
+
+    let tag = if has_title { "figure" } else { "div" };
+    write!(w, "<{tag} class=\"video-block\"")?;
+    if let Some(id) = &video.metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    }
+    writeln!(w, ">")?;
+
+    if video.sources.is_empty() {
+        writeln!(w, "</{tag}>")?;
+        return Ok(());
+    }
+
+    let is_youtube = matches!(
+        video.metadata.attributes.get("youtube"),
+        Some(AttributeValue::Bool(true))
+    );
+    let is_vimeo = matches!(
+        video.metadata.attributes.get("vimeo"),
+        Some(AttributeValue::Bool(true))
+    );
+
+    if is_youtube || is_vimeo {
+        render_iframe_video(video, w)?;
+    } else {
+        render_local_video(video, w)?;
+    }
+
+    if has_title {
+        w = visitor.writer_mut();
+        write!(w, "<figcaption>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&video.title)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</figcaption>")?;
+    }
+
+    writeln!(w, "</{tag}>")?;
     Ok(())
 }

@@ -887,11 +887,13 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        crate::video::visit_video(video, self)
+        let processor = self.processor.clone();
+        crate::video::visit_video(video, self, &processor)
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        crate::audio::visit_audio(audio, self)
+        let processor = self.processor.clone();
+        crate::audio::visit_audio(audio, self, &processor)
     }
 
     fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {

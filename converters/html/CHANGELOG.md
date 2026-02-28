@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **html5s semantic video and audio blocks** — video and audio blocks now render with semantic
+  HTML in html5s mode: `<figure class="video-block">` / `<figure class="audio-block">` with
+  `<figcaption>` for titled blocks, `<div>` wrapper for untitled blocks. No inner
+  `<div class="content">` wrapper — media sits directly inside the container.
 - **html5s fixture coverage** — added 18 new html5s fixture tests covering tables, TOC,
   footnotes, description lists, verse blocks, callout lists, index catalog, and book parts.
 - **fixture directory restructure** — fixtures now use an `embedded/`/`standalone/` layout
