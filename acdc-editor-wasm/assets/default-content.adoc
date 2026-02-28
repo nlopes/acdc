@@ -19,6 +19,11 @@ This is using icon:github[set=brands] https://github.com/nlopes/acdc/tree/main/a
 * Unordered list item
 * Another item
 
+=== Media
+
+.A random video
+video::RvRhUHTV_8k[youtube,list=PLDitloyBcHOm49bxNhvGgg0f9NRZ5lSaP]
+
 === Stem
 
 A matrix can be written as stem:[[[a,b\],[c,d\]\]((n),(k))].
