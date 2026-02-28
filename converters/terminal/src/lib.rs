@@ -10,7 +10,9 @@ use acdc_converters_core::{
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker},
     visitor::Visitor,
 };
-use acdc_parser::{Block, Document, DocumentAttributes, IndexTermKind, TocEntry};
+use acdc_parser::{
+    Block, Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, TocEntry,
+};
 
 pub(crate) use appearance::Appearance;
 
@@ -180,6 +182,83 @@ impl Processor {
                 .as_ref()
                 .is_some_and(|s| s == "index")
         })
+    }
+}
+
+/// Extract plain text from inline nodes, recursively handling all formatting variants.
+///
+/// `line_break` controls how `LineBreak` nodes are represented: `" "` for titles,
+/// `"\n"` for literal paragraphs.
+pub(crate) fn extract_inline_text(nodes: &[InlineNode], line_break: &str) -> String {
+    nodes
+        .iter()
+        .map(|node| match node {
+            InlineNode::PlainText(p) => p.content.clone(),
+            InlineNode::BoldText(b) => extract_inline_text(&b.content, line_break),
+            InlineNode::ItalicText(i) => extract_inline_text(&i.content, line_break),
+            InlineNode::MonospaceText(m) => extract_inline_text(&m.content, line_break),
+            InlineNode::HighlightText(h) => extract_inline_text(&h.content, line_break),
+            InlineNode::SuperscriptText(s) => extract_inline_text(&s.content, line_break),
+            InlineNode::SubscriptText(s) => extract_inline_text(&s.content, line_break),
+            InlineNode::CurvedQuotationText(c) => extract_inline_text(&c.content, line_break),
+            InlineNode::CurvedApostropheText(c) => extract_inline_text(&c.content, line_break),
+            InlineNode::VerbatimText(v) => v.content.clone(),
+            InlineNode::RawText(r) => r.content.clone(),
+            InlineNode::StandaloneCurvedApostrophe(_) => "\u{2019}".to_string(),
+            InlineNode::LineBreak(_) => line_break.to_string(),
+            InlineNode::CalloutRef(c) => format!("<{}>", c.number),
+            InlineNode::Macro(m) => extract_macro_text(m, line_break),
+            // InlineAnchor is an invisible marker; unknown future variants fall through
+            InlineNode::InlineAnchor(_) | _ => String::new(),
+        })
+        .collect::<String>()
+}
+
+pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
+    match m {
+        InlineMacro::Image(img) => img.source.to_string(),
+        InlineMacro::Icon(icon) => icon.target.to_string(),
+        InlineMacro::Keyboard(kbd) => kbd.keys.join("+"),
+        InlineMacro::Button(b) => b.label.clone(),
+        InlineMacro::Menu(menu) => {
+            let mut parts = vec![menu.target.clone()];
+            parts.extend(menu.items.iter().cloned());
+            parts.join(" > ")
+        }
+        InlineMacro::Link(l) => l.text.clone().unwrap_or_else(|| l.target.to_string()),
+        InlineMacro::Url(u) => {
+            let text = extract_inline_text(&u.text, line_break);
+            if text.is_empty() {
+                u.target.to_string()
+            } else {
+                text
+            }
+        }
+        InlineMacro::Mailto(m) => {
+            let text = extract_inline_text(&m.text, line_break);
+            if text.is_empty() {
+                m.target.to_string()
+            } else {
+                text
+            }
+        }
+        InlineMacro::Autolink(a) => a.url.to_string(),
+        InlineMacro::CrossReference(x) => {
+            let text = extract_inline_text(&x.text, line_break);
+            if text.is_empty() {
+                x.target.clone()
+            } else {
+                text
+            }
+        }
+        InlineMacro::Footnote(f) => format!("[{}]", f.number),
+        InlineMacro::Pass(p) => p.text.clone().unwrap_or_default(),
+        InlineMacro::Stem(s) => s.content.clone(),
+        InlineMacro::IndexTerm(it) => match &it.kind {
+            IndexTermKind::Flow(term) => term.clone(),
+            IndexTermKind::Concealed { .. } | _ => String::new(),
+        },
+        _ => String::new(),
     }
 }
 

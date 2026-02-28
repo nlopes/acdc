@@ -1,7 +1,5 @@
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::{
-    DiscreteHeader, IndexTermKind, InlineMacro, InlineNode, Section, UNNUMBERED_SECTION_STYLES,
-};
+use acdc_parser::{DiscreteHeader, InlineNode, Section, UNNUMBERED_SECTION_STYLES};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -133,88 +131,16 @@ pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = crate::Error>>(
     Ok(())
 }
 
-/// Extract plain text from inline nodes for section titles.
-///
-/// This recursively extracts text content from inline nodes, handling
-/// nested formatting like bold, italic, etc.
 fn extract_title_text(title: &[InlineNode]) -> String {
-    title
-        .iter()
-        .map(|node| match node {
-            InlineNode::PlainText(p) => p.content.clone(),
-            InlineNode::BoldText(b) => extract_title_text(&b.content),
-            InlineNode::ItalicText(i) => extract_title_text(&i.content),
-            InlineNode::MonospaceText(m) => extract_title_text(&m.content),
-            InlineNode::HighlightText(h) => extract_title_text(&h.content),
-            InlineNode::SuperscriptText(s) => extract_title_text(&s.content),
-            InlineNode::SubscriptText(s) => extract_title_text(&s.content),
-            InlineNode::CurvedQuotationText(c) => extract_title_text(&c.content),
-            InlineNode::CurvedApostropheText(c) => extract_title_text(&c.content),
-            InlineNode::VerbatimText(v) => v.content.clone(),
-            InlineNode::RawText(r) => r.content.clone(),
-            InlineNode::StandaloneCurvedApostrophe(_) => "\u{2019}".to_string(),
-            InlineNode::LineBreak(_) => " ".to_string(),
-            InlineNode::CalloutRef(c) => format!("<{}>", c.number),
-            InlineNode::Macro(m) => extract_macro_text(m),
-            // InlineAnchor is an invisible marker; unknown future variants fall through
-            InlineNode::InlineAnchor(_) | _ => String::new(),
-        })
-        .collect::<String>()
-}
-
-fn extract_macro_text(m: &InlineMacro) -> String {
-    match m {
-        InlineMacro::Image(img) => img.source.to_string(),
-        InlineMacro::Icon(icon) => icon.target.to_string(),
-        InlineMacro::Keyboard(kbd) => kbd.keys.join("+"),
-        InlineMacro::Button(b) => b.label.clone(),
-        InlineMacro::Menu(menu) => {
-            let mut parts = vec![menu.target.clone()];
-            parts.extend(menu.items.iter().cloned());
-            parts.join(" > ")
-        }
-        InlineMacro::Link(l) => l.text.clone().unwrap_or_else(|| l.target.to_string()),
-        InlineMacro::Url(u) => {
-            let text = extract_title_text(&u.text);
-            if text.is_empty() {
-                u.target.to_string()
-            } else {
-                text
-            }
-        }
-        InlineMacro::Mailto(m) => {
-            let text = extract_title_text(&m.text);
-            if text.is_empty() {
-                m.target.to_string()
-            } else {
-                text
-            }
-        }
-        InlineMacro::Autolink(a) => a.url.to_string(),
-        InlineMacro::CrossReference(x) => {
-            let text = extract_title_text(&x.text);
-            if text.is_empty() {
-                x.target.clone()
-            } else {
-                text
-            }
-        }
-        InlineMacro::Footnote(f) => format!("[{}]", f.number),
-        InlineMacro::Pass(p) => p.text.clone().unwrap_or_default(),
-        InlineMacro::Stem(s) => s.content.clone(),
-        InlineMacro::IndexTerm(it) => match &it.kind {
-            IndexTermKind::Flow(term) => term.clone(),
-            IndexTermKind::Concealed { .. } | _ => String::new(),
-        },
-        _ => String::new(),
-    }
+    crate::extract_inline_text(title, " ")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use acdc_parser::{
-        Bold, CalloutRef, CalloutRefKind, Form, InlineNode, Link, Location, Plain, Source, Verbatim,
+        Bold, CalloutRef, CalloutRefKind, Form, InlineMacro, InlineNode, Link, Location, Plain,
+        Source, Verbatim,
     };
 
     fn plain(s: &str) -> InlineNode {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `extract_plain_text` now preserves text content from formatted inline nodes (bold, italic, monospace, etc.) in literal paragraphs
+
 ### Changed
 
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
