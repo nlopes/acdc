@@ -1,1 +1,0 @@
-../../../../../acdc-parser/fixtures/tests/quote_block_with_paragraphs.adoc

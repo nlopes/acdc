@@ -1,1 +1,0 @@
-../../../../../acdc-parser/fixtures/tests/macros_with_quoted_attributes.adoc

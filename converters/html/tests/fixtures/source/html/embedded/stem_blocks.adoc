@@ -1,0 +1,1 @@
+../../../../../../../acdc-parser/fixtures/tests/stem_blocks.adoc

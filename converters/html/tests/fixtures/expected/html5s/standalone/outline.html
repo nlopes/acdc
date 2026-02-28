@@ -1,0 +1,4744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="acdc v0.1.0">
+<meta name="author" content="Dan Allen">
+<meta name="author" content="Sarah White">
+<title>AsciiDoc Language Specification Outline</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
+<style>
+/*! acdc html5s light mode stylesheet | MIT License | Semantic HTML variant */
+/* Uncomment the following line when using as a custom stylesheet */
+/* @import "https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700"; */
+html{font-family:sans-serif;-webkit-text-size-adjust:100%}
+a{background:none}
+a:focus{outline:thin dotted}
+a:active,a:hover{outline:0}
+h1{font-size:2em;margin:.67em 0}
+b,strong{font-weight:bold}
+abbr{font-size:.9em}
+abbr[title]{cursor:help;border-bottom:1px dotted #dddddf;text-decoration:none}
+dfn{font-style:italic}
+hr{height:0}
+mark{background:#ff0;color:#000}
+code,kbd,pre,samp{font-family:monospace;font-size:1em}
+pre{white-space:pre-wrap}
+q{quotes:"\201C" "\201D" "\2018" "\2019"}
+small{font-size:80%}
+sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}
+sup{top:-.5em}
+sub{bottom:-.25em}
+img{border:0}
+svg:not(:root){overflow:hidden}
+figure{margin:0}
+audio,video{display:inline-block}
+audio:not([controls]){display:none;height:0}
+fieldset{border:1px solid silver;margin:0 2px;padding:.35em .625em .75em}
+legend{border:0;padding:0}
+button,input,select,textarea{font-family:inherit;font-size:100%;margin:0}
+button,input{line-height:normal}
+button,select{text-transform:none}
+button,html input[type=button],input[type=reset],input[type=submit]{-webkit-appearance:button;cursor:pointer}
+button[disabled],html input[disabled]{cursor:default}
+input[type=checkbox],input[type=radio]{padding:0}
+button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0}
+textarea{overflow:auto;vertical-align:top}
+table{border-collapse:collapse;border-spacing:0}
+*,::before,::after{box-sizing:border-box}
+html,body{font-size:100%}
+body{background:#fff;color:rgba(0,0,0,.8);padding:0;margin:0;font-family:"Noto Serif","DejaVu Serif",serif;line-height:1;position:relative;cursor:auto;-moz-tab-size:4;-o-tab-size:4;tab-size:4;word-wrap:anywhere;-moz-osx-font-smoothing:grayscale;-webkit-font-smoothing:antialiased}
+a:hover{cursor:pointer}
+img,object,embed{max-width:100%;height:auto}
+object,embed{height:100%}
+img{-ms-interpolation-mode:bicubic}
+.left{float:left!important}
+.right{float:right!important}
+.text-left{text-align:left!important}
+.text-right{text-align:right!important}
+.text-center{text-align:center!important}
+.text-justify{text-align:justify!important}
+.hide{display:none}
+img,object,svg{display:inline-block;vertical-align:middle}
+textarea{height:auto;min-height:50px}
+select{width:100%}
+h6.block-title{line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em;font-size:1rem;font-style:italic;font-family:"Noto Serif","DejaVu Serif",serif;text-rendering:optimizeLegibility;text-align:left}
+.subheader,.admonitionblock td.content>.title,.audioblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em}
+div,dl,dt,dd,ul,ol,li,h1,h2,h3,#toctitle,h4,h5,h6,pre,form,p,blockquote,th,td{margin:0;padding:0}
+a{color:#2156a5;text-decoration:underline;line-height:inherit}
+a:hover,a:focus{color:#1d4b8f}
+a img{border:0}
+p{line-height:1.6;margin-bottom:1.25em;text-rendering:optimizeLegibility}
+p aside{font-size:.875em;line-height:1.35;font-style:italic}
+h1,h2,h3,#toctitle,h4,h5,h6{font-family:"Open Sans","DejaVu Sans",sans-serif;font-weight:300;font-style:normal;color:#ba3925;text-rendering:optimizeLegibility;margin-top:1em;margin-bottom:.5em;line-height:1.0125em}
+h1 small,h2 small,h3 small,#toctitle small,h4 small,h5 small,h6 small{font-size:60%;color:#e99b8f;line-height:0}
+h1{font-size:2.125em}
+h2{font-size:1.6875em}
+h3,#toctitle{font-size:1.375em}
+h4,h5{font-size:1.125em}
+h6{font-size:1em}
+hr{border:solid #dddddf;border-width:1px 0 0;clear:both;margin:1.25em 0 1.1875em}
+em,i{font-style:italic;line-height:inherit}
+strong,b{font-weight:bold;line-height:inherit}
+small{font-size:60%;line-height:inherit}
+code{font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;font-weight:400;color:rgba(0,0,0,.9)}
+ul,ol,dl{line-height:1.6;margin-bottom:1.25em;list-style-position:outside;font-family:inherit}
+ul,ol{margin-left:1.5em}
+ul li ul,ul li ol{margin-left:1.25em;margin-bottom:0}
+ul.circle{list-style-type:circle}
+ul.disc{list-style-type:disc}
+ul.square{list-style-type:square}
+ul.circle ul:not([class]),ul.disc ul:not([class]),ul.square ul:not([class]){list-style:inherit}
+ol li ul,ol li ol{margin-left:1.25em;margin-bottom:0}
+dl dt{margin-bottom:.3125em;font-weight:bold}
+dl dd{margin-bottom:1.25em}
+blockquote{margin:0 0 1.25em;padding:.5625em 1.25em 0 1.1875em;border-left:1px solid #ddd}
+blockquote,blockquote p{line-height:1.6;color:rgba(0,0,0,.85)}
+@media screen and (min-width:768px){h1,h2,h3,#toctitle,h4,h5,h6{line-height:1.2}
+h1{font-size:2.75em}
+h2{font-size:2.3125em}
+h3,#toctitle{font-size:1.6875em}
+h4{font-size:1.4375em}}
+table{background:#fff;margin-bottom:1.25em;border:1px solid #dedede;word-wrap:normal}
+table thead,table tfoot{background:#f7f8f7}
+table thead tr th,table thead tr td,table tfoot tr th,table tfoot tr td{padding:.5em .625em .625em;font-size:inherit;color:rgba(0,0,0,.8);text-align:left}
+table tr th,table tr td{padding:.5625em .625em;font-size:inherit;color:rgba(0,0,0,.8)}
+table tr.even,table tr.alt{background:#f8f8f7}
+table thead tr th,table tfoot tr th,table tbody tr td,table tr td,table tfoot tr td{line-height:1.6}
+h1,h2,h3,#toctitle,h4,h5,h6{line-height:1.2;word-spacing:-.05em}
+h1 strong,h2 strong,h3 strong,#toctitle strong,h4 strong,h5 strong,h6 strong{font-weight:400}
+.center{margin-left:auto;margin-right:auto}
+.stretch{width:100%}
+.clearfix::before,.clearfix::after,.float-group::before,.float-group::after{content:" ";display:table}
+.clearfix::after,.float-group::after{clear:both}
+:not(pre).nobreak{word-wrap:normal}
+:not(pre).nowrap{white-space:nowrap}
+:not(pre).pre-wrap{white-space:pre-wrap}
+:not(pre):not([class^=L])>code{font-size:.9375em;font-style:normal!important;letter-spacing:0;padding:.1em .5ex;word-spacing:-.15em;background:#f7f7f8;border-radius:4px;line-height:1.45;text-rendering:optimizeSpeed}
+pre{color:rgba(0,0,0,.9);font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;line-height:1.45;text-rendering:optimizeSpeed}
+pre code,pre pre{color:inherit;font-size:inherit;line-height:inherit}
+pre.nowrap,pre.nowrap pre{white-space:pre;word-wrap:normal}
+em em{font-style:normal}
+strong strong{font-weight:400}
+.keyseq{color:rgba(51,51,51,.8)}
+kbd{font-family:"Droid Sans Mono","DejaVu Sans Mono",monospace;display:inline-block;color:rgba(0,0,0,.8);font-size:.65em;line-height:1.45;background:#f7f7f7;border:1px solid #ccc;border-radius:3px;box-shadow:0 1px 0 rgba(0,0,0,.2),inset 0 0 0 .1em #fff;margin:0 .15em;padding:.2em .5em;vertical-align:middle;position:relative;top:-.1em;white-space:nowrap}
+.keyseq kbd:first-child{margin-left:0}
+.keyseq kbd:last-child{margin-right:0}
+.menuseq,.menuref{color:#000}
+.menuseq b:not(.caret),.menuref{font-weight:inherit}
+.menuseq{word-spacing:-.02em}
+.menuseq b.caret{font-size:1.25em;line-height:.8}
+.menuseq i.caret{font-weight:bold;text-align:center;width:.45em}
+b.button::before,b.button::after{position:relative;top:-1px;font-weight:400}
+b.button::before{content:"[";padding:0 3px 0 2px}
+b.button::after{content:"]";padding:0 2px 0 3px}
+p a>code:hover{color:rgba(0,0,0,.9)}
+#header,#content,#footnotes,#footer{width:100%;margin:0 auto;max-width:62.5em;*zoom:1;position:relative;padding-left:.9375em;padding-right:.9375em}
+#header::before,#header::after,#content::before,#content::after,#footnotes::before,#footnotes::after,#footer::before,#footer::after{content:" ";display:table}
+#header::after,#content::after,#footnotes::after,#footer::after{clear:both}
+#content{margin-top:1.25em}
+#content::before{content:none}
+#header>h1:first-child{color:rgba(0,0,0,.85);margin-top:2.25rem;margin-bottom:0}
+#header>h1:first-child+#toc{margin-top:8px;border-top:1px solid #dddddf}
+#header>h1:only-child{border-bottom:1px solid #dddddf;padding-bottom:8px}
+#header .details{border-bottom:1px solid #dddddf;line-height:1.45;padding-top:.25em;padding-bottom:.25em;padding-left:.25em;color:rgba(0,0,0,.6);display:flex;flex-flow:row wrap}
+#header .details span:first-child{margin-left:-.125em}
+#header .details span.email a{color:rgba(0,0,0,.85)}
+#header .details br{display:none}
+#header .details br+span::before{content:"\00a0\2013\00a0"}
+#header .details br+span.author::before{content:"\00a0\22c5\00a0";color:rgba(0,0,0,.85)}
+#header .details br+span#revremark::before{content:"\00a0|\00a0"}
+#header #revnumber{text-transform:capitalize}
+#header #revnumber::after{content:"\00a0"}
+#content>h1:first-child:not([class]){color:rgba(0,0,0,.85);border-bottom:1px solid #dddddf;padding-bottom:8px;margin-top:0;padding-top:1rem;margin-bottom:1.25rem}
+#toc{border-bottom:1px solid #e7e7e9;padding-bottom:.5em}
+#toc>ul{margin-left:.125em}
+#toc ul.sectlevel0>li>a{font-style:italic}
+#toc ul.sectlevel0 ul.sectlevel1{margin:.5em 0}
+#toc ul{font-family:"Open Sans","DejaVu Sans",sans-serif;list-style-type:none}
+#toc li{line-height:1.3334;margin-top:.3334em}
+#toc a{text-decoration:none}
+#toc a:active{text-decoration:underline}
+/* Semantic TOC lists (html5s) */
+#toc ol.toc-list{font-family:"Open Sans","DejaVu Sans",sans-serif;list-style-type:none}
+#toc ol.toc-list li{line-height:1.3334;margin-top:.3334em}
+#toc ol.toc-list ol.toc-list{margin-left:0;padding-left:1em}
+#toctitle{color:#7a2518;font-size:1.2em}
+@media screen and (min-width:768px){#toctitle{font-size:1.375em}
+body.toc2{padding-left:15em;padding-right:0}
+body.toc2 #header>h1:nth-last-child(2){border-bottom:1px solid #dddddf;padding-bottom:8px}
+#toc.toc2{margin-top:0!important;background:#f8f8f7;position:fixed;width:15em;left:0;top:0;border-right:1px solid #e7e7e9;border-top-width:0!important;border-bottom-width:0!important;z-index:1000;padding:1.25em 1em;height:100%;overflow:auto}
+#toc.toc2 #toctitle{margin-top:0;margin-bottom:.8rem;font-size:1.2em}
+#toc.toc2>ul{font-size:.9em;margin-bottom:0}
+#toc.toc2 ul ul{margin-left:0;padding-left:1em}
+#toc.toc2 ul.sectlevel0 ul.sectlevel1{padding-left:0;margin-top:.5em;margin-bottom:.5em}
+body.toc2.toc-right{padding-left:0;padding-right:15em}
+body.toc2.toc-right #toc.toc2{border-right-width:0;border-left:1px solid #e7e7e9;left:auto;right:0}}
+@media screen and (min-width:1280px){body.toc2{padding-left:20em;padding-right:0}
+#toc.toc2{width:20em}
+#toc.toc2 #toctitle{font-size:1.375em}
+#toc.toc2>ul{font-size:.95em}
+#toc.toc2 ul ul{padding-left:1.25em}
+body.toc2.toc-right{padding-left:0;padding-right:20em}}
+#content #toc{border:1px solid #e0e0dc;margin-bottom:1.25em;padding:1.25em;background:#f8f8f7;border-radius:4px}
+#content #toc>:first-child{margin-top:0}
+#content #toc>:last-child{margin-bottom:0}
+#footer{max-width:none;background:rgba(0,0,0,.8);padding:1.25em}
+#footer-text{color:hsla(0,0%,100%,.8);line-height:1.44}
+#content{margin-bottom:.625em}
+section.doc-section{padding-bottom:.625em}
+@media screen and (min-width:768px){#content{margin-bottom:1.25em}
+section.doc-section{padding-bottom:1.25em}}
+section.doc-section:last-child{padding-bottom:0}
+section.doc-section+section.doc-section{border-top:1px solid #e7e7e9}
+#content h1>a.anchor,h2>a.anchor,h3>a.anchor,#toctitle>a.anchor,h4>a.anchor,h5>a.anchor,h6>a.anchor{position:absolute;z-index:1001;width:1.5ex;margin-left:-1.5ex;display:block;text-decoration:none!important;visibility:hidden;text-align:center;font-weight:400}
+#content h1>a.anchor::before,h2>a.anchor::before,h3>a.anchor::before,#toctitle>a.anchor::before,h4>a.anchor::before,h5>a.anchor::before,h6>a.anchor::before{content:"\00A7";font-size:.85em;display:block;padding-top:.1em}
+#content h1:hover>a.anchor,#content h1>a.anchor:hover,h2:hover>a.anchor,h2>a.anchor:hover,h3:hover>a.anchor,#toctitle:hover>a.anchor,h3>a.anchor:hover,#toctitle>a.anchor:hover,h4:hover>a.anchor,h4>a.anchor:hover,h5:hover>a.anchor,h5>a.anchor:hover,h6:hover>a.anchor,h6>a.anchor:hover{visibility:visible}
+#content h1>a.link,h2>a.link,h3>a.link,#toctitle>a.link,h4>a.link,h5>a.link,h6>a.link{color:#ba3925;text-decoration:none}
+#content h1>a.link:hover,h2>a.link:hover,h3>a.link:hover,#toctitle>a.link:hover,h4>a.link:hover,h5>a.link:hover,h6>a.link:hover{color:#a53221}
+details,.audioblock,.literalblock,.listingblock,.stemblock,.videoblock{margin-bottom:1.25em}
+figure.image-block,figure.example-block,details.example-block,div.image-block,figure.listing-block{margin-bottom:1.25em}
+details{margin-left:1.25rem}
+details>summary{cursor:pointer;display:block;position:relative;line-height:1.6;margin-bottom:.625rem;outline:none;-webkit-tap-highlight-color:transparent}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"";border:solid transparent;border-left:solid;border-width:.3em 0 .3em .5em;position:absolute;top:.5em;left:-1.25rem;transform:translateX(15%)}
+details[open]>summary::before{border:solid transparent;border-top:solid;border-width:.5em .3em 0;transform:translateY(15%)}
+details>summary::after{content:"";width:1.25rem;height:1em;position:absolute;top:.3em;left:-1.25rem}
+.admonitionblock td.content>.title,.audioblock>.title,.listingblock>.title,.literalblock>.title,.stemblock>.title,.openblock>.title,.quoteblock>.title,table.tableblock>.title,.verseblock>.title,.videoblock>.title,.dlist>.title,.olist>.title,.ulist>.title,.qlist>.title,.hdlist>.title{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic}
+figure.image-block>figcaption,figure.example-block>figcaption,figure.table-block>figcaption,figure.listing-block>figcaption{text-rendering:optimizeLegibility;text-align:left;font-family:"Noto Serif","DejaVu Serif",serif;font-size:1rem;font-style:italic;line-height:1.45;color:#7a2518;font-weight:400;margin-top:0;margin-bottom:.25em}
+table.tableblock.fit-content>caption.title{white-space:nowrap;width:0}
+.paragraph.lead>p,section#preamble>[class=paragraph]:first-of-type p{font-size:1.21875em;line-height:1.6;color:rgba(0,0,0,.85)}
+section#preamble>section.paragraph:first-of-type p{font-size:1.21875em;line-height:1.6;color:rgba(0,0,0,.85)}
+/* Standard admonition (table-based) */
+.admonitionblock>table{border-collapse:separate;border:0;background:none;width:100%}
+.admonitionblock>table td.icon{text-align:center;width:80px}
+.admonitionblock>table td.icon img{max-width:none}
+.admonitionblock>table td.icon .title{font-weight:bold;font-family:"Open Sans","DejaVu Sans",sans-serif;text-transform:uppercase}
+.admonitionblock>table td.content{padding-left:1.125em;padding-right:1.25em;border-left:1px solid #dddddf;color:rgba(0,0,0,.6);word-wrap:anywhere}
+.admonitionblock>table td.content>:last-child>:last-child{margin-bottom:0}
+/* Semantic admonition (aside/section) */
+aside.admonition-block,section.admonition-block{border-left:3px solid #dddddf;padding:.75em 1em;margin-bottom:1.25em;color:rgba(0,0,0,.6);word-wrap:anywhere}
+aside.admonition-block>h6.block-title,section.admonition-block>h6.block-title{font-weight:bold;font-family:"Open Sans","DejaVu Sans",sans-serif;text-transform:uppercase;font-style:normal;color:#7a2518;margin-bottom:.5em}
+aside.admonition-block>h6.block-title.label-only,section.admonition-block>h6.block-title.label-only{margin-bottom:.5em}
+aside.admonition-block>:last-child,section.admonition-block>:last-child{margin-bottom:0}
+aside.admonition-block.note{border-left-color:#19407c}
+aside.admonition-block.tip{border-left-color:#a89700}
+aside.admonition-block.warning{border-left-color:#bf6900}
+aside.admonition-block.caution{border-left-color:#bf3400}
+aside.admonition-block.important{border-left-color:#bf0000}
+section.admonition-block.note{border-left-color:#19407c}
+section.admonition-block.tip{border-left-color:#a89700}
+section.admonition-block.warning{border-left-color:#bf6900}
+section.admonition-block.caution{border-left-color:#bf3400}
+section.admonition-block.important{border-left-color:#bf0000}
+/* Example blocks */
+figure.example-block{border:1px solid #e6e6e6;padding:1.25em;background:#fffef7;border-radius:4px;box-shadow:0 1px 4px #e0e0dc}
+figure.example-block>figcaption{margin-bottom:.75em}
+figure.example-block>:first-child{margin-top:0}
+figure.example-block>:last-child{margin-bottom:0}
+details.example-block{margin-left:1.25rem}
+details.example-block>summary{cursor:pointer;display:block;position:relative;line-height:1.6;margin-bottom:.625rem;outline:none;-webkit-tap-highlight-color:transparent;font-style:italic;color:#7a2518}
+/* Sidebar */
+aside.sidebar{border:1px solid #dbdbd6;margin-bottom:1.25em;padding:1.25em;background:#f3f3f2;border-radius:4px}
+aside.sidebar>h6.block-title{color:#7a2518;margin-top:0;text-align:center}
+aside.sidebar>:first-child{margin-top:0}
+aside.sidebar>:last-child{margin-bottom:0}
+aside.sidebar p,aside.sidebar dt,aside.sidebar td.content,aside.sidebar p.tableblock{font-size:1em}
+/* Listing/literal blocks */
+.literalblock pre,.listingblock>.content>pre{border-radius:4px;overflow-x:auto;padding:1em;font-size:.8125em}
+@media screen and (min-width:768px){.literalblock pre,.listingblock>.content>pre{font-size:.90625em}}
+@media screen and (min-width:1280px){.literalblock pre,.listingblock>.content>pre{font-size:1em}}
+.literalblock pre,.listingblock>.content>pre:not(.highlight),.listingblock>.content>pre[class=highlight],.listingblock>.content>pre[class^="highlight "]{background:#f7f7f8}
+.literalblock.output pre{color:#f7f7f8;background:rgba(0,0,0,.9)}
+.listingblock>.content{position:relative}
+.listingblock pre>code{display:block}
+.listingblock code[data-lang]::before{display:none;content:attr(data-lang);position:absolute;font-size:.75em;top:.425rem;right:.5rem;line-height:1;text-transform:uppercase;color:inherit;opacity:.5}
+.listingblock:hover code[data-lang]::before{display:block}
+.listingblock.terminal pre .command::before{content:attr(data-prompt);padding-right:.5em;color:inherit;opacity:.5}
+.listingblock.terminal pre .command:not([data-prompt])::before{content:"$"}
+.listingblock pre.highlightjs{padding:0}
+.listingblock pre.highlightjs>code{padding:1em;border-radius:4px}
+.listingblock pre.prettyprint{border-width:0}
+/* Semantic listing blocks (html5s) */
+.listing-block{margin-bottom:1.25em;position:relative}
+.listing-block>pre{border-radius:4px;overflow-x:auto;padding:1em;font-size:.8125em}
+@media screen and (min-width:768px){.listing-block>pre{font-size:.90625em}}
+@media screen and (min-width:1280px){.listing-block>pre{font-size:1em}}
+.listing-block>pre:not(.highlight),.listing-block>pre[class=highlight],.listing-block>pre[class^="highlight "]{background:#f7f7f8}
+.listing-block pre>code{display:block}
+.listing-block code[data-lang]::before{display:none;content:attr(data-lang);position:absolute;font-size:.75em;top:.425rem;right:.5rem;line-height:1;text-transform:uppercase;color:inherit;opacity:.5}
+.listing-block:hover code[data-lang]::before{display:block}
+.listing-block.terminal pre .command::before{content:attr(data-prompt);padding-right:.5em;color:inherit;opacity:.5}
+.listing-block.terminal pre .command:not([data-prompt])::before{content:"$"}
+.listing-block pre.highlightjs{padding:0}
+.listing-block pre.highlightjs>code{padding:1em;border-radius:4px}
+.listing-block pre.prettyprint{border-width:0}
+.prettyprint{background:#f7f7f8}
+pre.prettyprint .linenums{line-height:1.45;margin-left:2em}
+pre.prettyprint li{background:none;list-style-type:inherit;padding-left:0}
+pre.prettyprint li code[data-lang]::before{opacity:1}
+pre.prettyprint li:not(:first-child) code[data-lang]::before{display:none}
+table.linenotable{border-collapse:separate;border:0;margin-bottom:0;background:none}
+table.linenotable td[class]{color:inherit;vertical-align:top;padding:0;line-height:inherit;white-space:normal}
+table.linenotable td.code{padding-left:.75em}
+table.linenotable td.linenos,pre.pygments .linenos{border-right:1px solid;opacity:.35;padding-right:.5em;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}
+pre.pygments span.linenos{display:inline-block;margin-right:.75em}
+/* Quote/verse blocks */
+.quoteblock{margin:0 1em 1.25em 1.5em;display:table}
+.quoteblock:not(.excerpt)>.title{margin-left:-1.5em;margin-bottom:.75em}
+.quoteblock blockquote,.quoteblock p{color:rgba(0,0,0,.85);font-size:1.15rem;line-height:1.75;word-spacing:.1em;letter-spacing:0;font-style:italic;text-align:justify}
+.quoteblock blockquote{margin:0;padding:0;border:0}
+.quoteblock blockquote::before{content:"\201c";float:left;font-size:2.75em;font-weight:bold;line-height:.6em;margin-left:-.6em;color:#7a2518;text-shadow:0 1px 2px rgba(0,0,0,.1)}
+.quoteblock blockquote>.paragraph:last-child p{margin-bottom:0}
+.quoteblock .attribution{margin-top:.75em;margin-right:.5ex;text-align:right}
+.verseblock{margin:0 1em 1.25em}
+.verseblock pre{font-family:"Open Sans","DejaVu Sans",sans-serif;font-size:1.15rem;color:rgba(0,0,0,.85);font-weight:300;text-rendering:optimizeLegibility}
+.verseblock pre strong{font-weight:400}
+.verseblock .attribution{margin-top:1.25rem;margin-left:.5ex}
+.quoteblock .attribution,.verseblock .attribution{font-size:.9375em;line-height:1.45;font-style:italic}
+.quoteblock .attribution br,.verseblock .attribution br{display:none}
+.quoteblock .attribution cite,.verseblock .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+.quoteblock.abstract blockquote::before,.quoteblock.excerpt blockquote::before,.quoteblock .quoteblock blockquote::before{display:none}
+.quoteblock.abstract blockquote,.quoteblock.abstract p,.quoteblock.excerpt blockquote,.quoteblock.excerpt p,.quoteblock .quoteblock blockquote,.quoteblock .quoteblock p{line-height:1.6;word-spacing:0}
+.quoteblock.abstract{margin:0 1em 1.25em;display:block}
+.quoteblock.abstract>.title{margin:0 0 .375em;font-size:1.15em;text-align:center}
+.quoteblock.excerpt>blockquote,.quoteblock .quoteblock{padding:0 0 .25em 1em;border-left:.25em solid #dddddf}
+.quoteblock.excerpt,.quoteblock .quoteblock{margin-left:0}
+.quoteblock.excerpt blockquote,.quoteblock.excerpt p,.quoteblock .quoteblock blockquote,.quoteblock .quoteblock p{color:inherit;font-size:1.0625rem}
+.quoteblock.excerpt .attribution,.quoteblock .quoteblock .attribution{color:inherit;font-size:.85rem;text-align:left;margin-right:0}
+/* Semantic quote blocks (html5s) */
+section.quote-block{margin:0 1em 1.25em 1.5em;display:table}
+section.quote-block>h6.block-title{margin-left:-1.5em;margin-bottom:.75em}
+section.quote-block blockquote,section.quote-block p{color:rgba(0,0,0,.85);font-size:1.15rem;line-height:1.75;word-spacing:.1em;letter-spacing:0;font-style:italic;text-align:justify}
+section.quote-block blockquote{margin:0;padding:0;border:0}
+section.quote-block blockquote::before{content:"\201c";float:left;font-size:2.75em;font-weight:bold;line-height:.6em;margin-left:-.6em;color:#7a2518;text-shadow:0 1px 2px rgba(0,0,0,.1)}
+section.quote-block blockquote>.paragraph:last-child p{margin-bottom:0}
+section.quote-block .attribution{margin-top:.75em;margin-right:.5ex;text-align:right}
+section.quote-block .attribution{font-size:.9375em;line-height:1.45;font-style:italic}
+section.quote-block .attribution br{display:none}
+section.quote-block .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+/* Semantic verse blocks (html5s) */
+section.verse-block,div.verse-block{margin:0 1em 1.25em}
+.verse-block pre{font-family:"Open Sans","DejaVu Sans",sans-serif;font-size:1.15rem;color:rgba(0,0,0,.85);font-weight:300;text-rendering:optimizeLegibility}
+.verse-block pre strong{font-weight:400}
+.verse-block .attribution{margin-top:1.25rem;margin-left:.5ex;font-size:.9375em;line-height:1.45;font-style:italic}
+.verse-block .attribution br{display:none}
+.verse-block .attribution cite{display:block;letter-spacing:-.025em;color:rgba(0,0,0,.6)}
+/* Semantic literal blocks (html5s) */
+section.literal-block,div.literal-block{margin-bottom:1.25em}
+.literal-block pre{border-radius:4px;overflow-x:auto;padding:1em;font-size:.8125em;background:#f7f7f8}
+@media screen and (min-width:768px){.literal-block pre{font-size:.90625em}}
+@media screen and (min-width:1280px){.literal-block pre{font-size:1em}}
+.literal-block.output pre{color:#f7f7f8;background:rgba(0,0,0,.9)}
+/* Semantic open blocks (html5s) */
+section.open-block,div.open-block{margin-bottom:1.25em}
+/* Semantic STEM/math blocks (html5s) */
+figure.stem-block,div.stem-block{margin-bottom:1.25em}
+.stem-block .math{text-align:center}
+/* Tables */
+p.tableblock:last-child{margin-bottom:0}
+td.tableblock>.content{margin-bottom:1.25em;word-wrap:anywhere}
+td.tableblock>.content>:last-child{margin-bottom:-1.25em}
+table.tableblock,th.tableblock,td.tableblock{border:0 solid #dedede}
+table.grid-all>*>tr>*{border-width:1px}
+table.grid-cols>*>tr>*{border-width:0 1px}
+table.grid-rows>*>tr>*{border-width:1px 0}
+table.frame-all{border-width:1px}
+table.frame-ends{border-width:1px 0}
+table.frame-sides{border-width:0 1px}
+table.frame-none>colgroup+*>:first-child>*,table.frame-sides>colgroup+*>:first-child>*{border-top-width:0}
+table.frame-none>:last-child>:last-child>*,table.frame-sides>:last-child>:last-child>*{border-bottom-width:0}
+table.frame-none>*>tr>:first-child,table.frame-ends>*>tr>:first-child{border-left-width:0}
+table.frame-none>*>tr>:last-child,table.frame-ends>*>tr>:last-child{border-right-width:0}
+table.stripes-all>*>tr,table.stripes-odd>*>tr:nth-of-type(odd),table.stripes-even>*>tr:nth-of-type(even),table.stripes-hover>*>tr:hover{background:#f8f8f7}
+th.halign-left,td.halign-left{text-align:left}
+th.halign-right,td.halign-right{text-align:right}
+th.halign-center,td.halign-center{text-align:center}
+th.valign-top,td.valign-top{vertical-align:top}
+th.valign-bottom,td.valign-bottom{vertical-align:bottom}
+th.valign-middle,td.valign-middle{vertical-align:middle}
+table thead th,table tfoot th{font-weight:bold}
+tbody tr th{background:#f7f8f7}
+tbody tr th,tbody tr th p,tfoot tr th,tfoot tr th p{color:rgba(0,0,0,.8);font-weight:bold}
+p.tableblock>code:only-child{background:none;padding:0}
+p.tableblock{font-size:1em}
+/* Image blocks */
+figure.image-block{margin-bottom:1.25em}
+figure.image-block>figcaption{margin-bottom:0}
+figure.image-block.left{margin:.25em .625em 1.25em 0}
+figure.image-block.right{margin:.25em 0 1.25em .625em}
+figure.image-block.thumb,figure.image-block.th{border-width:6px}
+figure.image-block.thumb>figcaption,figure.image-block.th>figcaption{padding:0 .125em}
+.image.left,.image.right{margin-top:.25em;margin-bottom:.25em;display:inline-block;line-height:0}
+.image.left{margin-right:.625em}
+.image.right{margin-left:.625em}
+a.image{text-decoration:none;display:inline-block}
+a.image object{pointer-events:none}
+div.image-block img{max-width:100%;height:auto}
+.thumb,.th{line-height:0;display:inline-block;border:4px solid #fff;box-shadow:0 0 0 1px #ddd}
+/* Lists */
+ol{margin-left:1.75em}
+ul li ol{margin-left:1.5em}
+dl dd{margin-left:1.125em}
+dl dd:last-child,dl dd:last-child>:last-child{margin-bottom:0}
+li p,ul dd,ol dd,.olist .olist,.ulist .ulist,.ulist .olist,.olist .ulist{margin-bottom:.625em}
+ul.checklist,ul.none,ol.none,ul.no-bullet,ol.no-bullet,ol.unnumbered,ul.unstyled,ol.unstyled{list-style-type:none}
+ul.no-bullet,ol.no-bullet,ol.unnumbered{margin-left:.625em}
+ul.unstyled,ol.unstyled{margin-left:0}
+li>p:empty:only-child::before{content:"";display:inline-block}
+ul.checklist>li>p:first-child{margin-left:-1em}
+ul.checklist>li>p:first-child>.fa-square-o:first-child,ul.checklist>li>p:first-child>.fa-check-square-o:first-child{width:1.25em;font-size:.8em;position:relative;bottom:.125em}
+ul.checklist>li>p:first-child>input[type=checkbox]:first-child{margin-right:.25em}
+ul.inline{display:flex;flex-flow:row wrap;list-style:none;margin:0 0 .625em -1.25em}
+ul.inline>li{margin-left:1.25em}
+.unstyled dl dt{font-weight:400;font-style:normal}
+ol.arabic{list-style-type:decimal}
+ol.decimal{list-style-type:decimal-leading-zero}
+ol.loweralpha{list-style-type:lower-alpha}
+ol.upperalpha{list-style-type:upper-alpha}
+ol.lowerroman{list-style-type:lower-roman}
+ol.upperroman{list-style-type:upper-roman}
+ol.lowergreek{list-style-type:lower-greek}
+/* Semantic list wrappers */
+section.ulist,section.olist,section.paragraph{margin-bottom:1.25em}
+section.ulist>h6.block-title,section.olist>h6.block-title,section.paragraph>h6.block-title{margin-bottom:.25em}
+/* Description/horizontal/callout lists */
+.hdlist>table,.colist>table{border:0;background:none}
+.hdlist>table>tbody>tr,.colist>table>tbody>tr{background:none}
+td.hdlist1,td.hdlist2{vertical-align:top;padding:0 .625em}
+td.hdlist1{font-weight:bold;padding-bottom:1.25em}
+td.hdlist2{word-wrap:anywhere}
+.literalblock+.colist,.listingblock+.colist{margin-top:-.5em}
+.colist td:not([class]):first-child{padding:.4em .75em 0;line-height:1;vertical-align:top}
+.colist td:not([class]):first-child img{max-width:none}
+.colist td:not([class]):last-child{padding:.25em 0}
+/* Semantic callout lists (html5s) */
+ol.callout-list{margin-bottom:1.25em}
+.literalblock+.callout-list,.listingblock+.callout-list,.listing-block+.callout-list{margin-top:-.5em}
+ol.callout-list>li{margin-bottom:.25em}
+/* Semantic description list wrappers (html5s) */
+section.dlist,div.dlist{margin-bottom:1.25em}
+section.dlist>h6.block-title,div.dlist>h6.block-title{margin-bottom:.25em}
+/* Semantic horizontal description lists (html5s) */
+dl.horizontal{display:grid;grid-template-columns:auto 1fr;gap:0 .625em}
+dl.horizontal dt{font-weight:bold;padding-bottom:1.25em}
+dl.horizontal dd{margin-left:0}
+/* Semantic Q&A description lists (html5s) */
+dl.qanda dt{font-weight:bold}
+/* Footnotes */
+sup.footnote,sup.footnoteref{font-size:.875em;position:static;vertical-align:super}
+sup.footnote a,sup.footnoteref a{text-decoration:none}
+sup.footnote a:active,sup.footnoteref a:active,#footnotes .footnote a:first-of-type:active{text-decoration:underline}
+#footnotes{padding-top:.75em;padding-bottom:.75em;margin-bottom:.625em}
+#footnotes hr{width:20%;min-width:6.25em;margin:-.25em 0 .75em;border-width:1px 0 0}
+#footnotes .footnote{padding:0 .375em 0 .225em;line-height:1.3334;font-size:.875em;margin-left:1.2em;margin-bottom:.2em}
+#footnotes .footnote a:first-of-type{font-weight:bold;text-decoration:none;margin-left:-1.05em}
+#footnotes .footnote:last-of-type{margin-bottom:0}
+#content #footnotes{margin-top:-.625em;margin-bottom:0;padding:.75em 0}
+/* Semantic footnotes (html5s) */
+section.footnotes{padding-top:.75em;padding-bottom:.75em;margin-bottom:.625em}
+section.footnotes hr{width:20%;min-width:6.25em;margin:-.25em 0 .75em;border-width:1px 0 0}
+ol.footnotes{margin-left:1.2em}
+ol.footnotes>.footnote{padding:0 .375em 0 .225em;line-height:1.3334;font-size:.875em;margin-bottom:.2em}
+ol.footnotes>.footnote:last-of-type{margin-bottom:0}
+/* Semantic footnote refs (html5s) */
+sup.footnote-ref{font-size:.875em;position:static;vertical-align:super}
+sup.footnote-ref a{text-decoration:none}
+sup.footnote-ref a:active{text-decoration:underline}
+a.footnote-backref{text-decoration:none}
+a.footnote-backref:hover{text-decoration:underline}
+div.unbreakable{page-break-inside:avoid}
+.big{font-size:larger}
+.small{font-size:smaller}
+.underline{text-decoration:underline}
+.overline{text-decoration:overline}
+.line-through{text-decoration:line-through}
+.aqua{color:#00bfbf}
+.aqua-background{background:#00fafa}
+.black{color:#000}
+.black-background{background:#000}
+.blue{color:#0000bf}
+.blue-background{background:#0000fa}
+.fuchsia{color:#bf00bf}
+.fuchsia-background{background:#fa00fa}
+.gray{color:#606060}
+.gray-background{background:#7d7d7d}
+.green{color:#006000}
+.green-background{background:#007d00}
+.lime{color:#00bf00}
+.lime-background{background:#00fa00}
+.maroon{color:#600000}
+.maroon-background{background:#7d0000}
+.navy{color:#000060}
+.navy-background{background:#00007d}
+.olive{color:#606000}
+.olive-background{background:#7d7d00}
+.purple{color:#600060}
+.purple-background{background:#7d007d}
+.red{color:#bf0000}
+.red-background{background:#fa0000}
+.silver{color:#909090}
+.silver-background{background:#bcbcbc}
+.teal{color:#006060}
+.teal-background{background:#007d7d}
+.white{color:#bfbfbf}
+.white-background{background:#fafafa}
+.yellow{color:#bfbf00}
+.yellow-background{background:#fafa00}
+/* Icons */
+span.icon>.fa{cursor:default}
+a span.icon>.fa{cursor:inherit}
+.admonitionblock td.icon .fa-solid{font-size:2.5em;text-shadow:1px 1px 2px rgba(0,0,0,.5);cursor:default}
+.admonitionblock td.icon .fa-circle-info{color:#19407c}
+.admonitionblock td.icon .fa-lightbulb{text-shadow:1px 1px 2px rgba(155,155,0,.8);color:#111}
+.admonitionblock td.icon .fa-triangle-exclamation{color:#bf6900}
+.admonitionblock td.icon .fa-fire{color:#bf3400}
+.admonitionblock td.icon .fa-circle-exclamation{color:#bf0000}
+/* Semantic admonition font icons */
+aside.admonition-block .fa-solid,section.admonition-block .fa-solid{font-size:2.5em;text-shadow:1px 1px 2px rgba(0,0,0,.5);cursor:default}
+aside.admonition-block .fa-circle-info,section.admonition-block .fa-circle-info{color:#19407c}
+aside.admonition-block .fa-lightbulb,section.admonition-block .fa-lightbulb{text-shadow:1px 1px 2px rgba(155,155,0,.8);color:#111}
+aside.admonition-block .fa-triangle-exclamation,section.admonition-block .fa-triangle-exclamation{color:#bf6900}
+aside.admonition-block .fa-fire,section.admonition-block .fa-fire{color:#bf3400}
+aside.admonition-block .fa-circle-exclamation,section.admonition-block .fa-circle-exclamation{color:#bf0000}
+/* Callout numbers */
+.conum[data-value]{display:inline-block;color:#fff!important;background:rgba(0,0,0,.8);border-radius:50%;text-align:center;font-size:.75em;width:1.67em;height:1.67em;line-height:1.67em;font-family:"Open Sans","DejaVu Sans",sans-serif;font-style:normal;font-weight:bold}
+.conum[data-value] *{color:#fff!important}
+.conum[data-value]+b{display:none}
+.conum[data-value]::after{content:attr(data-value)}
+pre .conum[data-value]{position:relative;top:-.125em}
+b.conum *{color:inherit!important}
+.conum:not([data-value]):empty{display:none}
+/* Typography fine-tuning */
+dt,th.tableblock,td.content,div.footnote{text-rendering:optimizeLegibility}
+h1,h2,p,td.content,span.alt,summary{letter-spacing:-.01em}
+p strong,td.content strong,div.footnote strong{letter-spacing:-.005em}
+p,blockquote,dt,td.content,td.hdlist1,span.alt,summary{font-size:1.0625rem}
+p{margin-bottom:1.25rem}
+aside.sidebar p,aside.sidebar dt,aside.sidebar td.content,p.tableblock{font-size:1em}
+.print-only{display:none!important}
+@page{margin:1.25cm .75cm}
+@media print{*{box-shadow:none!important;text-shadow:none!important}
+html{font-size:80%}
+a{color:inherit!important;text-decoration:underline!important}
+a.bare,a[href^="#"],a[href^="mailto:"]{text-decoration:none!important}
+a[href^="http:"]:not(.bare)::after,a[href^="https:"]:not(.bare)::after{content:"(" attr(href) ")";display:inline-block;font-size:.875em;padding-left:.25em}
+abbr[title]{border-bottom:1px dotted}
+abbr[title]::after{content:" (" attr(title) ")"}
+pre,blockquote,tr,img,object,svg{page-break-inside:avoid}
+thead{display:table-header-group}
+svg{max-width:100%}
+p,blockquote,dt,td.content{font-size:1em;orphans:3;widows:3}
+h2,h3,#toctitle{page-break-after:avoid}
+#header,#content,#footnotes,#footer{max-width:none}
+#toc,aside.sidebar,figure.example-block{background:none!important}
+#toc{border-bottom:1px solid #dddddf!important;padding-bottom:0!important}
+body.book #header{text-align:center}
+body.book #header>h1:first-child{border:0!important;margin:2.5em 0 1em}
+body.book #header .details{border:0!important;display:block;padding:0!important}
+body.book #header .details span:first-child{margin-left:0!important}
+body.book #header .details br{display:block}
+body.book #header .details br+span::before{content:none!important}
+body.book #toc{border:0!important;text-align:left!important;padding:0!important;margin:0!important}
+body.book #toc,body.book #preamble,body.book h1.sect0,body.book section.doc-section>h2{page-break-before:always}
+.listingblock code[data-lang]::before{display:block}
+#footer{padding:0 .9375em}
+.hide-on-print{display:none!important}
+.print-only{display:block!important}
+.hide-for-print{display:none!important}
+.show-for-print{display:inherit!important}}
+@media amzn-kf8,print{#header>h1:first-child{margin-top:1.25rem}
+section.doc-section{padding:0!important}
+section.doc-section+section.doc-section{border:0}
+#footer{background:none}
+#footer-text{color:rgba(0,0,0,.6);font-size:.9em}}
+@media amzn-kf8{#header,#content,#footnotes,#footer{padding:0}}
+
+.stemblock .content {
+  text-align: center;
+}
+</style>
+</head>
+<body class="book">
+<header id="header">
+<h1>AsciiDoc Language Specification Outline</h1>
+<div class="details">
+<span id="author" class="author">Dan Allen</span><br>
+<span id="author2" class="author">Sarah White</span><br>
+</div>
+<nav id="toc" class="toc" role="doc-toc">
+<h2 id="toc-title">Table of Contents</h2>
+<ol class="toc-list level-1">
+<li>
+<a href="#_specification_goals">Specification Goals</a>
+</li>
+<li>
+<a href="#_asciidoc_language_introduction_and_purpose">AsciiDoc Language introduction and purpose</a>
+</li>
+<li>
+<a href="#_fundamentals">Part I: Fundamentals</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_lexicon_concepts_and_common_patterns">Lexicon, concepts, and common patterns</a>
+</li>
+<li>
+<a href="#_characters">Characters</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_unicode_support">Unicode support</a>
+</li>
+<li>
+<a href="#_reserved_characters">Reserved characters</a>
+</li>
+<li>
+<a href="#_space_characters">Space characters</a>
+</li>
+<li>
+<a href="#_wordy_characters">Wordy characters</a>
+</li>
+<li>
+<a href="#_character_references">Character references</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_lines">Lines</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_indentation">Indentation</a>
+</li>
+<li>
+<a href="#_empty_and_interrupting_lines">Empty and interrupting lines</a>
+</li>
+<li>
+<a href="#_block_and_document_metadata_block_delimiter_and_skipped_lines">Block and document metadata, block delimiter, and skipped lines</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_macros">Macros</a>
+</li>
+<li>
+<a href="#_escaping_mechanism">Escaping mechanism</a>
+</li>
+<li>
+<a href="#_document_structure">Document structure</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_elements">Elements</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_block_elements">Block elements</a>
+</li>
+<li>
+<a href="#_inline_elements">Inline elements</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_uninterpreted_text">Uninterpreted text</a>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_documents_document_metadata_and_document_attributes">Part II: Documents, Document Metadata, and Document Attributes</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_document">Document</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_document_types">Document types</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_document_header">Document header</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_document_header_structure">Document header structure</a>
+</li>
+<li>
+<a href="#_document_title_aka_doctitle">Document title (aka doctitle)</a>
+</li>
+<li>
+<a href="#_implicit_metadata_lines">Implicit metadata lines</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_document_attributes">Document attributes</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_attribute_entries">Attribute entries</a>
+</li>
+<li>
+<a href="#_attribute_overrides_and_precedence">Attribute overrides and precedence</a>
+</li>
+<li>
+<a href="#_built_in_attributes">Built-in attributes</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_naming_conventions">Naming conventions</a>
+</li>
+<li>
+<a href="#_global_block_attributes_and_options">Global block attributes and options</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_user_defined_attributes">User-defined attributes</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_naming_conventions">Naming conventions</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_attribute_usage">Attribute usage</a>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_blocks">Part III: Blocks</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_document_body">Document body</a>
+</li>
+<li>
+<a href="#_block_structure_and_variations">Block structure and variations</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_block_name">Block name</a>
+</li>
+<li>
+<a href="#_block_metadata">Block metadata</a>
+</li>
+<li>
+<a href="#_block_attributes">Block attributes</a>
+</li>
+<li>
+<a href="#_block_title">Block title</a>
+</li>
+<li>
+<a href="#_implicit_blocks">Implicit Blocks</a>
+</li>
+<li>
+<a href="#_delimited_blocks_structural_containers">Delimited blocks / Structural containers</a>
+</li>
+<li>
+<a href="#_interrupting_lines">Interrupting lines</a>
+</li>
+<li>
+<a href="#_block_macros">Block macros</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_sections">Sections</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_section_ids">Section IDs</a>
+</li>
+<li>
+<a href="#_section_numbering">Section numbering</a>
+</li>
+<li>
+<a href="#_special_sections">Special sections</a>
+</li>
+<li>
+<a href="#_intrinsic_table_of_contents">Intrinsic Table of Contents</a>
+</li>
+<li>
+<a href="#_preamble">Preamble</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_paragraphs">Paragraphs</a>
+</li>
+<li>
+<a href="#_styled_paragraphs">Styled paragraphs</a>
+</li>
+<li>
+<a href="#_literal_paragraphs">Literal paragraphs</a>
+</li>
+<li>
+<a href="#_discrete_headings">Discrete headings</a>
+</li>
+<li>
+<a href="#_lists">Lists</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_list_anatomy">List anatomy</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_list_markers_and_depth">List markers and depth</a>
+</li>
+<li>
+<a href="#_principal_text">Principal text</a>
+</li>
+<li>
+<a href="#_combining_lists">Combining lists</a>
+</li>
+<li>
+<a href="#_list_continuation">List continuation</a>
+</li>
+<li>
+<a href="#_list_affinity_boundaries">List affinity / boundaries</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_unordered_lists">Unordered lists</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_supported_styles">Supported styles</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_checklists">Checklists</a>
+</li>
+<li>
+<a href="#_ordered_lists">Ordered lists</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_automatic_numbering">Automatic numbering</a>
+</li>
+<li>
+<a href="#_supported_styles">Supported styles</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_callout_lists">Callout lists</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_relationship_to_callout_numbers">Relationship to callout numbers</a>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_description_lists">Description lists</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_description_list_anatomy">Description list anatomy</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_terms_delimiters_and_depth">Terms, delimiters, and depth</a>
+</li>
+<li>
+<a href="#_principal_text">Principal text</a>
+</li>
+<li>
+<a href="#_description">Description</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_orientation">Orientation</a>
+</li>
+<li>
+<a href="#_with_marker">With marker</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_q_a">Q &amp; A</a>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_tables">Tables</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_formats_psv_dsv_csv">Formats (psv, dsv, csv)</a>
+</li>
+<li>
+<a href="#_cell_based_structure">Cell-based structure</a>
+</li>
+<li>
+<a href="#_columns_and_colspecs">Columns and colspecs</a>
+</li>
+<li>
+<a href="#_cells">Cells</a>
+<ol class="toc-list level-3">
+<li>
+<a href="#_content_model">Content model</a>
+</li>
+<li>
+<a href="#_styles">Styles</a>
+</li>
+<li>
+<a href="#_cellspec">cellspec</a>
+</li>
+<li>
+<a href="#_metadata_attributes_proposed">Metadata / attributes (proposed)</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_table_width_and_column_ratios">Table width and column ratios</a>
+</li>
+<li>
+<a href="#_decoration_frame_grid_stripes">Decoration (frame, grid, stripes)</a>
+</li>
+<li>
+<a href="#_orientation">Orientation</a>
+</li>
+<li>
+<a href="#_nested_tables">Nested tables</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_admonitions">Admonitions</a>
+</li>
+<li>
+<a href="#_examples">Examples</a>
+</li>
+<li>
+<a href="#_sidebars">Sidebars</a>
+</li>
+<li>
+<a href="#_quotes_and_verses">Quotes and verses</a>
+</li>
+<li>
+<a href="#_code_listing_source_literal">Code (Listing, Source, Literal)</a>
+</li>
+<li>
+<a href="#_stem">STEM</a>
+</li>
+<li>
+<a href="#_open">Open</a>
+</li>
+<li>
+<a href="#_collapsible">Collapsible</a>
+</li>
+<li>
+<a href="#_image_macro_block">Image macro (block)</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_optional_attributes">Optional attributes</a>
+</li>
+<li>
+<a href="#_optional_title_and_caption_label">Optional title and caption label</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_video_macro">Video macro</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_optional_attributes">Optional attributes</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_audio_macro">Audio macro</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_optional_attributes">Optional attributes</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_table_of_contents_macro">Table of Contents macro</a>
+</li>
+<li>
+<a href="#_page_break_macro">Page break macro</a>
+</li>
+<li>
+<a href="#_thematic_break_macro">Thematic break macro</a>
+</li>
+<li>
+<a href="#_passthroughs">Passthroughs</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_inlines">Part IV: Inlines</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_inline_structure">Inline structure</a>
+</li>
+<li>
+<a href="#_inline_names">Inline names</a>
+</li>
+<li>
+<a href="#_from_substitutions_to_inline_parsing">From substitutions to inline parsing</a>
+</li>
+<li>
+<a href="#_inline_parsing_phases">Inline parsing phases</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_phase_1_inline_preprocessor_parsing">Phase 1: Inline preprocessor parsing</a>
+</li>
+<li>
+<a href="#_phase_2_inline_parsing">Phase 2: Inline parsing</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#inline-attribute-references">Attribute references</a>
+</li>
+<li>
+<a href="#_passthroughs">Passthroughs</a>
+</li>
+<li>
+<a href="#_marked_text">Marked text</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_constrained_vs_unconstrained">Constrained vs unconstrained</a>
+</li>
+<li>
+<a href="#_code_monospace">Code (Monospace)</a>
+</li>
+<li>
+<a href="#_emphasis_italic">Emphasis (Italic)</a>
+</li>
+<li>
+<a href="#_strong_bold">Strong (Bold)</a>
+</li>
+<li>
+<a href="#_subscript">Subscript</a>
+</li>
+<li>
+<a href="#_superscript">Superscript</a>
+</li>
+<li>
+<a href="#_mark_open">Mark / Open</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_inline_macros">Inline macros</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_image_macro_inline">Image macro (inline)</a>
+</li>
+<li>
+<a href="#_icon_macro">Icon macro</a>
+</li>
+<li>
+<a href="#_button_macro">Button macro</a>
+</li>
+<li>
+<a href="#_keyboard_macro">Keyboard macro</a>
+</li>
+<li>
+<a href="#_menu_macro">Menu macro</a>
+</li>
+<li>
+<a href="#_autolinks_urls_and_email_addresses">Autolinks (URLs and email addresses)</a>
+</li>
+<li>
+<a href="#_link_and_url_macros">Link and URL macros</a>
+</li>
+<li>
+<a href="#_cross_reference_macros">Cross reference macros</a>
+</li>
+<li>
+<a href="#_stem_macro">STEM macro</a>
+</li>
+<li>
+<a href="#_footnote_macro">Footnote macro</a>
+</li>
+<li>
+<a href="#_index_term_macros">Index term macros</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_typographic_replacements">Typographic replacements</a>
+</li>
+<li>
+<a href="#_character_references">Character references</a>
+</li>
+<li>
+<a href="#_raw_inline_literal">Raw inline literal</a>
+</li>
+<li>
+<a href="#_hard_line_breaks">Hard line breaks</a>
+</li>
+<li>
+<a href="#_backslash_escaping_and_passthroughs">Backslash escaping and passthroughs</a>
+</li>
+<li>
+<a href="#_special_character_replacement">Special character replacement</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_referencing_system">Part V: Referencing System</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_resources_and_references">Resources and references</a>
+</li>
+<li>
+<a href="#_ids_reference_names">IDs / Reference names</a>
+</li>
+<li>
+<a href="#_cross_references_xrefs">Cross references (xrefs)</a>
+</li>
+<li>
+<a href="#_resource_references">Resource references</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_preprocessor">Part VI: Preprocessor</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_line_normalization">Line normalization</a>
+</li>
+<li>
+<a href="#_preprocessor_directives">Preprocessor directives</a>
+</li>
+<li>
+<a href="#_relationship_to_document_attributes">Relationship to document attributes</a>
+</li>
+<li>
+<a href="#_conditional_directives">Conditional directives</a>
+</li>
+<li>
+<a href="#_include_directive">Include directive</a>
+</li>
+<li>
+<a href="#_comments">Comments</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_extension_points">Part VII: Extension Points</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_lifecycle_extensions">Lifecycle extensions</a>
+</li>
+<li>
+<a href="#_syntax_extensions">Syntax extensions</a>
+<ol class="toc-list level-2">
+<li>
+<a href="#_custom_block">Custom block</a>
+</li>
+<li>
+<a href="#_custom_block_macro">Custom block macro</a>
+</li>
+<li>
+<a href="#_custom_inline_macro">Custom inline macro</a>
+</li>
+<li>
+<a href="#_resource_resolver">Resource resolver</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#id-generator">ID generator</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_compliance_tck">Part VIII: Compliance / TCK</a>
+<ol class="toc-list level-1">
+<li>
+<a href="#_tck_introduction">TCK introduction</a>
+</li>
+<li>
+<a href="#_asg_node_model">ASG / Node model</a>
+</li>
+<li>
+<a href="#_self_certification_process">Self-certification process</a>
+</li>
+</ol>
+</li>
+<li>
+<a href="#_conversion_and_expected_behaviors">Appendix A: Conversion and Expected Behaviors</a>
+</li>
+<li>
+<a href="#_removed_syntax">Appendix B: Removed syntax</a>
+</li>
+<li>
+<a href="#_deprecation_process">Appendix C: Deprecation process</a>
+</li>
+</ol>
+</nav>
+</header>
+<main id="content">
+<section class="doc-section level-1">
+<h2 id="_specification_goals">Specification Goals</h2>
+<p>The goal of the AsciiDoc Language Specification is to describe a definitive, comprehensive, and parsable grammar for the AsciiDoc syntax.
+The focus at this stage is on being able to identify the structure of an AsciiDoc document and to parse its contents into a node model.
+The grammar will be documented in technical sections using a grammar expression that best suits the language (e.g., PEG).
+The specification will be clear about what parts of the syntax are handled by the preprocessor(s), which parts are handled by the core structure parser, and what information from the document must be captured and recorded in the Abstract Semantic Graph (ASG).
+Additionally, the specification must state expectations for converters given the information provided in the node model.</p>
+<p>From a purely technical perspective, the specification may not define a single grammar that can be used with a parser generator (as it may not even be possible to do so).
+However, effectively, the specification will define grammars that, when working together, will describe how to parse an AsciiDoc document.
+How the grammars are defined will be resolved as the first version of the specification is developed.</p>
+<p>Specify the AsciiDoc language with an eye towards readability, writer-friendliness, consistency, and efficiency.
+With AsciiDoc, we aim to strike a balance between minimal markup and maximum semantics.
+Since an AsciiDoc language processor will be used to process large amounts of content, the language must be specified in such a way that it can be parsed efficiently.
+The language is designed to degrade gracefully, when possible.
+If a grammar rule can&#8217;t be matched, and it&#8217;s safe to do so, the processor should fall back to treating the line or run of text as uninterpreted.
+It&#8217;s also vital to be able to extract information from an AsciiDoc document, so it should be possible to model the document&#8217;s entire structure.
+When there are conflicts in the interpretation of the syntax, the most intuitive behavior should be chosen.</p>
+<aside class="sidebar">
+<h6 class="block-title">Outline purpose and notations</h6>
+<p>This outline serves two purposes:</p>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+It provides the overall structure and organization of the topics that will be addressed in the specification document.</li>
+<li>
+It contextualizes questions, clarifications, and issues that need to be discussed and resolved during the development of the specification.</li>
+</ol>
+</div>
+<p>The following abbreviations are entered next to select items in this outline to ensure that we attend to them during development:</p>
+<div class="dlist">
+<dl>
+<dt>
+FI</dt>
+<dd>
+<strong>FI</strong> is the notation for <strong>Future Issue</strong>.
+A proposal, decision, or clarification marked with <strong>FI</strong> needs to be addressed by an issue that will be filed in the future when the appropriate domain or topic has risen to imminent discussion and development in the specification or TCK.</dd>
+<dt>
+#&lt;issue-number&gt;</dt>
+<dd>
+The number of an active issue (linked to itself in the issue tracker) that addresses a proposal, decision, or clarification stated in the outline.
+The issue number replaces the <strong>FI</strong> notation on an item.</dd>
+<dt>
+SDR</dt>
+<dd>
+<strong>SDR</strong> is the notation for <strong>Specification Document Requirement</strong>.
+Items marked with this notation are usually terms that we need to define within the context of the specification document and then use consistently within the document hence forth.
+Such items may need an issue to resolve their name or definition, but most are likely to be confirmed during a related technical discussion.</dd>
+</dl>
+</div>
+</aside>
+</section>
+<section class="doc-section level-1">
+<h2 id="_asciidoc_language_introduction_and_purpose">AsciiDoc Language introduction and purpose</h2>
+<p>AsciiDoc is a lightweight markup language for writing.
+Specifically, AsciiDoc is a lightweight markup language that is predominantly line-oriented and start margin-aligned (i.e., left-aligned in ltr).
+That means AsciiDoc is a Unicode-compliant textual (not binary) language with conventions and special/reserved markup that must be interpreted by a processor.
+All reserved markup characters are selected from the ASCII character set (hence its name).</p>
+<p>The purpose of the language is to focus on encoding explanatory or literary information in a clear and concise way, thus keeping content separate from presentation (with the exception of sensible presentation hints in the form of roles and options).
+The conventions and markup give the document an inherent structure.
+A processor is responsible for identifying and extracting that structure from the document.
+In a lightweight markup language, all sequences of characters are valid unless they explicitly create unbalanced boundaries / invalid combinations or references.
+Some sequences of characters have special meaning.
+It&#8217;s up to the processor to identify these.</p>
+</section>
+<h1 id="_fundamentals" class="sect0">Part I: Fundamentals</h1>
+<section class="doc-section level-1">
+<h2 id="_lexicon_concepts_and_common_patterns">Lexicon, concepts, and common patterns</h2>
+<section class="ulist">
+<h6 class="block-title">Lexicon and concepts</h6>
+<ul>
+<li>
+markup character / character sequence</li>
+<li>
+document</li>
+<li>
+block vs inline (vertical vs horizontal markup)<div class="ulist">
+<ul>
+<li>
+blocks are always defined from top to bottom (vertical), whereas inline markup can be thought of as horizontal (considering wrapped lines as part of the same logical line). We&#8217;re just painting a picture here, but be careful not to overgeneralize the concept.</li>
+</ul>
+</div>
+</li>
+<li>
+element</li>
+<li>
+text</li>
+<li>
+attribute / metadata</li>
+<li>
+processor (parser / converter)</li>
+<li>
+input</li>
+<li>
+output / output format</li>
+<li>
+context (the parent/place/environment where something is used)</li>
+</ul>
+</section>
+<section class="ulist">
+<h6 class="block-title">Patterns</h6>
+<ul>
+<li>
+markers</li>
+<li>
+headings</li>
+<li>
+attrlist / boxed attrlist</li>
+<li>
+(preprocessor) directives</li>
+<li>
+macros</li>
+<li>
+delimiter lines</li>
+<li>
+marked text (text enclosed in a pair of marks, usually congruent)</li>
+</ul>
+</section>
+<section class="ulist">
+<h6 class="block-title">Characteristics</h6>
+<ul>
+<li>
+Document encoding is assumed to be Unicode; all Unicode characters are permitted</li>
+<li>
+Reserved markup is selected from the ASCII character set</li>
+<li>
+Syntax is oriented around lines that are aligned to the start margin (left-aligned in ltr)</li>
+<li>
+Block syntax does not backtrace; if a delimited block is opened, it must be closed</li>
+<li>
+Block boundaries in the syntax are a mix of explicit and implicit</li>
+<li>
+Blocks can be nested in blocks if delimiters aren&#8217;t ambiguous; you can&#8217;t nest like in like, but can nest like as a grandchild of like</li>
+<li>
+For block syntax, a line which doesn&#8217;t fully match a recognized pattern is treated the same as paragraph text</li>
+<li>
+Inline syntax is assumed to be (uninterpreted) text interspersed with interpreted markup</li>
+<li>
+For inline syntax, the left-hand side of a markup pattern is assumed to be valid until it isn&#8217;t; if it isn&#8217;t, it reverts to the next alternative or uninterpreted text</li>
+<li>
+Space characters, particularly empty lines, are often significant, but not always</li>
+</ul>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_characters">Characters</h2>
+<div class="ulist">
+<ul>
+<li>
+An AsciiDoc document is a continuous, uncompressed sequence of characters (text), aka character data</li>
+<li>
+A character is a single codepoint of text</li>
+<li>
+Any text or code editor can read and display an AsciiDoc file</li>
+<li>
+Some characters have a visible glyph, others do not</li>
+<li>
+Any sequence of characters is valid; certain uses of characters have special meaning; when one of those designated uses/sequences is found, it may activate additional rules, such as a matching block delimiter line.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_unicode_support">Unicode support</h3>
+<div class="ulist">
+<ul>
+<li>
+A character in AsciiDoc can be any character defined by Unicode.<div class="ulist">
+<ul>
+<li>
+Control characters and other characters which don&#8217;t occupy space should be avoided.</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> Will AsciiDoc recognize Unicode escape sequences (such as <code>\u2318</code>) as an alternative to character references?</li>
+<li>
+An AsciiDoc document is assumed to have UTF-8 encoding.<div class="ulist">
+<ul>
+<li>
+Processors may support other encodings, but the input must be re-encoded to UTF-8 before parsing.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_reserved_characters">Reserved characters</h3>
+<div class="ulist">
+<ul>
+<li>
+A reserved character is a character selected from the ASCII character set used for markup in the AsciiDoc syntax</li>
+<li>
+Reserved characters are almost always a punctuation character or symbol (macro names being one exception).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_space_characters">Space characters</h3>
+<div class="ulist">
+<ul>
+<li>
+An AsciiDoc document may use tabs or spaces as space characters, though the inline syntax primarily only considers spaces.</li>
+<li>
+A space character is a space, tab, or line ending (e.g., newline).<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Precisely, what space characters are permitted (e.g., space, tab, newline) or restricted? (For example, <code>\s</code> includes no-break space (<code>\u00a0</code>) in JavaScript, but not in Ruby.)</li>
+</ul>
+</div>
+</li>
+<li>
+Other space characters are permitted in the document, but will not be interpreted as such.</li>
+<li>
+Newlines create separate lines, which are often treated specially in AsciiDoc.</li>
+<li>
+Empty lines are often treated as significant when analyzing the block structure of an AsciiDoc document</li>
+<li>
+Two consecutive line endings create an empty line; consecutive empty lines in non-verbatim content are semantically equivalent to a single empty line</li>
+<li>
+Except in verbatim or raw content or block metadata, an empty line is interpreted as a block boundary.</li>
+<li>
+Leading space characters make an indented line.</li>
+<li>
+Trailing space characters are insignificant and may be dropped by the processor.<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> How are trailing space characters in the source going to be handled?</li>
+</ul>
+</div>
+</li>
+<li>
+The one exception is a non-AsciiDoc include file with lines that include trailing space characters; these characters must be preserved.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_wordy_characters">Wordy characters</h3>
+<div class="ulist">
+<ul>
+<li>
+AsciiDoc often uses words and word boundaries to determine what markup is valid.</li>
+<li>
+However, the term &ldquo;word&rdquo; in this context is not well-defined.</li>
+<li>
+Furthermore, the term &ldquo;word&rdquo; traditionally includes the underscore character, which is a reserved character in the AsciiDoc markup.<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> The underscore character should no longer be treated as a word character; should be treated as a syntax token only.</li>
+</ul>
+</div>
+</li>
+<li>
+Thus, AsciiDoc defines the term &ldquo;alpha\d&rdquo; to identify a letter or number character.</li>
+<li>
+alpha\d is an alphabetic character (as defined by Unicode) or an Arabic numeral (0-9).
+It can be represented by the regular expression <code>[\p{Alpha}\d]</code>.
+For details, see <a href="https://www.unicode.org/reports/tr44/#Alphabetic" class="bare">https://www.unicode.org/reports/tr44/#Alphabetic</a>.<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Should the alphabetic property be restricted to \p{L} or \p{LC}? (LC does not match letters that are ideographs)</li>
+</ul>
+</div>
+</li>
+<li>
+An example where the alpha\d character has meaning in the AsciiDoc syntax is that constrained markup must not be bounded on either side by an alpha\d character.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_character_references">Character references</h3>
+<div class="ulist">
+<ul>
+<li>
+A character reference is a special escape sequence that identifies a character by its name, decimal, or hexadecimal representation.</li>
+<li>
+A named character reference is sometimes referred to as an entity.</li>
+<li>
+Although AsciiDoc is not bound to HTML or XML, it adopts the character reference syntax from XML.</li>
+<li>
+These character references will be identified by the parser and the processor will have a chance to replace them during conversion to the output format.</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_lines">Lines</h2>
+<div class="ulist">
+<ul>
+<li>
+AsciiDoc is a line-oriented language.</li>
+<li>
+Therefore, lines can be significant in the AsciiDoc language.</li>
+<li>
+An AsciiDoc document may use universal/Unix (<code>\n</code>) or Windows (<code>\r\n</code>) line endings, though the line feed (<code>\n</code>) is preferred.</li>
+<li>
+Line breaks are not significant between adjacent lines in a paragraph.<div class="ulist">
+<ul>
+<li>
+A converter may choose to replace these line endings with the space character; however, they must be preserved in the parse tree.</li>
+<li>
+Preserving line endings in the parse tree makes it easier to express scenarios in the TCK.</li>
+<li>
+<strong>FI</strong> Should we declare line normalization; trailing space is insignificant, but not mandatory to remove it? (TCK would be ambiguous)</li>
+</ul>
+</div>
+</li>
+<li>
+Block boundaries and block metadata are always defined on their own line and occupy the whole line.</li>
+<li>
+When lines are not contiguous (separated by an empty line), that may signal a transition from one block to another.</li>
+<li>
+A line ending must be preserved during parse; may not always need to be preserved when converted.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_indentation">Indentation</h3>
+<div class="ulist">
+<ul>
+<li>
+AsciiDoc is a start margin-aligned (i.e., left-aligned in ltr) language.</li>
+<li>
+Using the start margin as an anchor point in the syntax makes moving content around easier, avoids the problem of excessive/compound indentation, encourages the author to be more explicit about nesting, and makes the language easier to parse.</li>
+<li>
+That means, with certain exceptions, space characters at the start of a line (an indented line) are significant.</li>
+<li>
+The key exception are list markers, which may be indented without meaning.</li>
+<li>
+A line with leading space characters at a block boundary makes a literal paragraph.</li>
+<li>
+Spaces are recommended for indentation, but tabs may also be used.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_empty_and_interrupting_lines">Empty and interrupting lines</h3>
+<div class="ulist">
+<ul>
+<li>
+Empty lines may have significance.</li>
+<li>
+In verbatim content, empty lines are preserved.</li>
+<li>
+In general, empty lines are used to separate blocks.</li>
+<li>
+The absence of an empty line between paragraphs will cause the lines to be fused together as a single paragraph.</li>
+<li>
+Except in the case where empty lines are preserved (such as in verbatim content), multiple successive empty lines are equivalent to a single empty line.</li>
+<li>
+Empty lines at the start and end of a verbatim block are dropped. &#8656; need to clarify this behavior</li>
+<li>
+Empty lines between and after block metadata lines are insignificant.</li>
+<li>
+Empty lines between two basic list items are ignored. &#8656; we may say that two empty lines break the list</li>
+<li>
+Empty lines in all other places serve as the boundary between two blocks.</li>
+<li>
+For block elements that do not have explicit boundaries (e.g., a delimited block), the block will end when an interrupting line is encountered</li>
+<li>
+An empty line is often an interrupting line, but not the only one.</li>
+<li>
+A block attribute line (a line that contains a boxed attrlist) is also an interrupting line.<div class="ulist">
+<ul>
+<li>
+A block attribute line is a boxed attrlist defined on its own line.
+A boxed attrlist is also the syntax that follows the target of a block macro.
+So, when we are talking about something equivalent to a block attribute line for a block macro, it&#8217;s a boxed attrlist.
+If we say attrlist, then we are comparing apples to oranges.</li>
+</ul>
+</div>
+</li>
+<li>
+The closing block delimiter (if used in a place that it can match the opening block delimiter) is an interrupting line.</li>
+<li>
+A list continuation line ends an attached block (but does not end the list; rather, it attaches the ensuing block to the list item)</li>
+<li>
+Inside a list, a list item is an interrupting line; either starts a new list item or nested list, depending on the marker<div class="ulist">
+<ul>
+<li>
+A block attribute line above a list is not interrupting if directly adjacent to the content of the previous list item (the lack of an empty line acts as an implicit list continuation)</li>
+</ul>
+</div>
+</li>
+<li>
+Empty lines may be omitted when the language makes the separation between block elements unambiguous (such as when an interrupting line is encounter), though the use empty lines to keep blocks apart is strongly recommended.</li>
+<li>
+The first and last line of the document is implicitly bounded on the outer edge by an empty line.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_block_and_document_metadata_block_delimiter_and_skipped_lines">Block and document metadata, block delimiter, and skipped lines</h3>
+<div class="ulist">
+<ul>
+<li>
+Not all non-empty lines contribute to the document&#8217;s content.</li>
+<li>
+A line may provide metadata for an ensuing element (a block attribute line) or for the document (an attribute entry).</li>
+<li>
+A line may delimit the boundaries of a block (though not all blocks have explicit delimiters).</li>
+<li>
+A line is skipped if it&#8217;s a comment line or within a comment block.</li>
+<li>
+A line may contain a preprocessor directive, which adds or removes lines to the source.</li>
+<li>
+Some, but not all, non-content lines are interrupting lines.</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_macros">Macros</h2>
+<div class="ulist">
+<ul>
+<li>
+Macros are a sort of function call in AsciiDoc; often used to create a block or inline element.</li>
+<li>
+There are block and inline macros.</li>
+<li>
+Most macros are entered using the <strong>named macro form</strong>: <code>&lt;name&gt;::?&lt;target&gt;?[&lt;attrlist&gt;?]</code>.<div class="ulist">
+<ul>
+<li>
+In the named macro form, the macro name is followed by a macro name delimiter followed by a target followed by a boxed attrlist (or boxed content).</li>
+<li>
+In the named macro form, a macro name is always required.</li>
+<li>
+The macro name delimiter is <code>::</code> for block macros and <code>:</code> for inline macros.</li>
+<li>
+A block macro can only be used in a block context; an inline macro can only be used in an inline context.</li>
+<li>
+For some macros, the target is optional or forbidden (e.g., <code>toc::[]</code>).</li>
+<li>
+For some macros, the attrlist is optional or forbidden.</li>
+<li>
+For some macros, the attrlist is only a single attribute value, often written as <code>&lt;text&gt;</code>.</li>
+<li>
+The box of a macro can be contents, attrlist, or contents followed by optional attrlist (but what about kbd?)</li>
+</ul>
+</div>
+</li>
+<li>
+A few macros have a shorthand form/notation in addition to a named form (e.g., <code>&lt;&lt;target&gt;&gt;</code> and <code>xref:target[attrlist]</code> ).</li>
+<li>
+A few macros are entered using a form unique to them (e.g., thematic break macro, autolinks, etc.).</li>
+<li>
+Some syntax, such as inline passthroughs and include or conditional directives, may use the form of a macro but aren&#8217;t actually macros.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_escaping_mechanism">Escaping mechanism</h2>
+<div class="ulist">
+<ul>
+<li>
+to prevent markup from being interpreted, it may be preceded by a backslash (i.e., the beginning of a syntax rule)</li>
+<li>
+the backslash deactivates the markup sequence that directly follows it</li>
+<li>
+using a backslash may cause a different markup sequence to be matched; that sequence then must be escaped separately</li>
+<li>
+there&#8217;s no harm in over-escaping; a backslash in front of a reserved markup character will be removed, regardless of whether the text would have been interpreted or not</li>
+<li>
+to write a backslash character into the output (perhaps only if it preceded a reserved markup character), it must be written as two backslash characters</li>
+<li>
+markup can also be escaped by enclosing it in a passthrough block, inline passthrough span, or inline passthrough macro</li>
+<li>
+a passthrough is also a way to pass through text raw to the converted output</li>
+<li>
+<a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/25">#25</a> Which markup characters to define as reserved?
+Should we say that all symbol/punctuation characters in the ASCII charset can be escaped, or limit it to just the ASCII characters that the AsciiDoc syntax currently uses?
+For reference, CommonMark allows escaping all ASCII punctuation.
+Here are the reserved markup characters identified thus far:<div class="listing-block">
+<pre>\ ` _ * # ~ ^ : [ &lt; ( {</pre>
+</div>
+<p>Note that it shouldn&#8217;t be necessary to have to escape the closing bracket of a markup element, hence why those characters are not listed here as reserved.</p>
+</li>
+<li>
+<a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/25">#25</a> For block-level constructs, are we interpreting the backslash because it&#8217;s at the beginning of the line, or because it is escaping a character?
+I think we should consider it because it&#8217;s used at the beginning of the line.
+(I think this would translate to removing the backslash at the beginning of a paragraph).
+That reduces how much markup we have to designate as reserved.
+It should be considered for the following block-level constructs:<div class="ulist">
+<ul>
+<li>
+preprocessor directive (<code>include::target[]</code>)</li>
+<li>
+block macro (<code>image::target[]</code>)</li>
+<li>
+list item (<code>* is an asterisk</code>)</li>
+<li>
+dlist term (<code>App\:: is a Ruby namespace</code>) (or should it be <code>\App:: is a Ruby namespace</code>?)</li>
+<li>
+heading (<code>\= is an equals sign</code>)</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_document_structure">Document structure</h2>
+<div class="ulist">
+<ul>
+<li>
+An AsciiDoc document is a composition of all the elements it contains.</li>
+<li>
+It&#8217;s inherently a tree structure (DAG) wherein each node is an element representing a segment of the document.</li>
+<li>
+This document model represents a parsed document as a logical tree.</li>
+<li>
+Every node in this tree has a name, which identifies its primary function (e.g., <code>admonition</code>).</li>
+<li>
+Nodes may be grouped by type (e.g., <code>block</code> or <code>inline</code>).</li>
+<li>
+Nodes may have a variant to distinguish between variations on its name (e.g., <code>strong</code> for <code>span</code>).</li>
+<li>
+Nodes may have a form to indicate how they are structured/expressed in the source (e.g., <code>macro</code>, <code>unconstrained</code>, etc).</li>
+<li>
+Five conceptual node types<div class="ulist">
+<ul>
+<li>
+block parent (element)</li>
+<li>
+block terminal (element)</li>
+<li>
+inline parent (element)</li>
+<li>
+inline terminal (element)</li>
+<li>
+inline literal/string (naturally a non-element terminal)</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_elements">Elements</h3>
+<div class="ulist">
+<ul>
+<li>
+An <strong>element</strong> is an identifiable, addressable, and composable chunk of content in a document.</li>
+<li>
+The elements in a document form a predominantly start-margin-aligned, nested hierarchy of elements.</li>
+<li>
+There are two primary element groups: block elements and inline elements.</li>
+</ul>
+</div>
+<section class="doc-section level-3">
+<h4 id="_block_elements">Block elements</h4>
+<div class="ulist">
+<ul>
+<li>
+Block elements form the main structure of the document.</li>
+<li>
+A block element is stacked vertically by line above or below other block elements.</li>
+<li>
+There are two primary node types of block elements: basic/terminal blocks and compound/parent blocks.<div class="ulist">
+<ul>
+<li>
+These node types are further described by their content model; a content model equates to the grammar rule for the contents of the block.</li>
+</ul>
+</div>
+</li>
+<li>
+A <strong>basic block</strong> can only contain inline nodes (elements and uninterpreted text).</li>
+<li>
+A <strong>compound block</strong> can only contain other blocks; those blocks in the compound block may contain inline elements unless they themselves are compound blocks.</li>
+<li>
+Except for block titles, basic blocks are delineated from other block elements by an empty line separator, but they can have interrupters (boundaries).</li>
+<li>
+Many compound blocks are delineated from other block elements by delimiter lines.<div class="ulist">
+<ul>
+<li>
+The document, sections, and lists are not delineated; all other compound blocks are.</li>
+</ul>
+</div>
+</li>
+<li>
+Block elements may be implicit blocks, such as sections, paragraphs, and block macros, and delimited blocks, such as examples, verses, and sidebars.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_inline_elements">Inline elements</h4>
+<div class="ulist">
+<ul>
+<li>
+An <strong>inline element</strong>, a subset of <strong>inlines</strong>, is a span of content within a block.</li>
+<li>
+Inline elements consist of marked text (emphasis, strong, etc.), inline macros, and inline shorthands.<div class="ulist">
+<ul>
+<li>
+What fills in the gap between these elements is uninterpreted text and character references (non-elements).</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_uninterpreted_text">Uninterpreted text</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>Uninterpreted text</strong> (i.e., plain text) is text (character data) for which all inline grammar rules fail to match.</li>
+<li>
+Thus, uninterpreted text is effectively all the text between inline elements (at any level of nesting).</li>
+<li>
+Text may be uninterpreted because it does not make use of reserved markup characters, because it only matches a grammar rule partially (an opening mark without a closing mark), or because it has been escaped or otherwise enclosed in a passthrough region/span.</li>
+</ul>
+</div>
+</section>
+</section>
+<h1 id="_documents_document_metadata_and_document_attributes" class="sect0">Part II: Documents, Document Metadata, and Document Attributes</h1>
+<section class="doc-section level-1">
+<h2 id="_document">Document</h2>
+<div class="ulist">
+<ul>
+<li>
+A <strong>document</strong> is the root compound block element.</li>
+<li>
+A document can have an optional header and zero or more block elements.</li>
+<li>
+An empty document has no block elements and no header.</li>
+<li>
+All elements have a reference to the document object / belong to it.</li>
+<li>
+A document has an intrinsic outline that consists of the section hierarchy.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_document_types">Document types</h3>
+<div class="ulist">
+<ul>
+<li>
+A document type (abbreviated doctype) determines which block elements are permitted and/or required, and the order in which they are allowed to appear.</li>
+<li>
+There are three built-in document types: article, book, manpage</li>
+<li>
+The default doctype is article.</li>
+<li>
+The book doctype covers books with and without parts; a book with parts is called a multi-part book.</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_document_header">Document header</h2>
+<div class="ulist">
+<ul>
+<li>
+A <strong>document header</strong> may contain a document title, author and revision lines, metadata (from block attribute lines), document attribute entries, and comment lines, all of which are optional.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_document_header_structure">Document header structure</h3>
+<div class="ulist">
+<ul>
+<li>
+The document header only accepts some AsciiDoc syntax, such as implicit metadata lines, attribute entries, and comment lines.</li>
+<li>
+The document header may not contain interrupting lines<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Can the document header contain empty lines? If so, what defines the end of the document header?</li>
+</ul>
+</div>
+</li>
+<li>
+The document title line is optional, but required for using implicit author and revision lines (i.e., author info and revision info lines).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_document_title_aka_doctitle">Document title (aka doctitle)</h3>
+<div class="ulist">
+<ul>
+<li>
+A level-0 heading.</li>
+<li>
+Since the document header must be at the start of the document, we can deduce that the doctitle is the first level-0 heading of the document.</li>
+<li>
+May be above, below, or in between any number of attribute entries and comment lines.</li>
+<li>
+Must directly precede the implicit metadata lines.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_implicit_metadata_lines">Implicit metadata lines</h3>
+<div class="ulist">
+<ul>
+<li>
+Author line<div class="ulist">
+<ul>
+<li>
+State guidelines for author names, keeping internationalization in mind</li>
+<li>
+Some name forms may not be recognized using the author line; in such cases the attributes will need to be explicitly set.</li>
+</ul>
+</div>
+</li>
+<li>
+Revision line; must come after author line (thus requires author line to be present).</li>
+<li>
+This metadata can be defined explicitly using attribute entries; the implicit lines are merely a shorthand form.</li>
+<li>
+<strong>FI</strong> Should implicit author info line be stored in attributes map on header?</li>
+<li>
+<strong>Q</strong> Should location be stored for author? Maybe only if stored as attribute?</li>
+<li>
+<strong>Q</strong> What is relationship between implicit author and author defined as attribute?</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_document_attributes">Document attributes</h2>
+<div class="ulist">
+<ul>
+<li>
+<strong>Document attributes</strong> are entities (in the XML lexicon), global options, and document metadata.</li>
+<li>
+They are set and optionally assigned a value or unset in the document header or body using an attribute entry.</li>
+<li>
+They can also be passed in to the processor through its API using the option named <code>attributes</code>.</li>
+<li>
+If an attribute is set on the document, it has a non-null (non-undefined) value.</li>
+<li>
+If an attribute is unset, it is absent.</li>
+<li>
+An attribute cannot be set and have a null/undefined value.</li>
+<li>
+When set in the document header, the attribute is referred to as a document header attribute.</li>
+<li>
+<strong>Q</strong> Are the attribute entries in the header considered a block or are the stored on the "document" block or an ensuing block (this question in posed for attribute entries in the body as well)</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_attribute_entries">Attribute entries</h3>
+<div class="ulist">
+<ul>
+<li>
+An attribute entry takes the form <code>:&lt;key-name&gt;: &lt;value&gt;?</code> or <code>:!&lt;key-name&gt;:</code>.</li>
+<li>
+Each attribute entry must be entered on its own line.</li>
+<li>
+<strong>FI</strong> Should we drop the normalization of attribute names (i.e., allow attribute names to have mixed letter casing)? (This means the name would no longer be translated / automatically converted from "phrase" to name in the attribute definition.)</li>
+<li>
+<strong>FI</strong> Should we disallow spaces in attribute names in an attribute entry? (and remove the automatic translation?)<div class="ulist">
+<ul>
+<li>
+In general, we need to define what a valid attribute name is; is the attribute entry only recognized if the name is valid?</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> Should we permit document attributes to be set inside a delimited block?</li>
+<li>
+<strong>FI</strong> Should we drop <code>{set:...}</code>?</li>
+<li>
+<strong>FI</strong> Should we choose <code>\</code> or <code> +</code> as the character to continue an attribute value?<div class="ulist">
+<ul>
+<li>
+Should we preserve newlines in the value of an attribute entry? Can we say that <code>\</code> consumes/folds the newline, whereas <code>+</code> preserves it; that way, <code> + +</code> would be a quick way to do a hard line break?</li>
+</ul>
+</div>
+</li>
+<li>
+The value of document attributes set in the body must be available when the node they precede is accessed in the parsed document.<div class="ulist">
+<ul>
+<li>
+<strong>Q</strong> Does this mean that attribute entries are block terminal non-elements?
+That is, are they a block, or, if not a block, stored on the ensuing block?
+In general, what is the model?
+Are they stored as a set?
+Only stored as a set if the attribute entries are contiguous?</li>
+</ul>
+</div>
+</li>
+<li>
+Attribute entries cannot be interleaved with block metadata lines</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_attribute_overrides_and_precedence">Attribute overrides and precedence</h3>
+<div class="ulist">
+<ul>
+<li>
+Hard vs soft (un)set.<div class="ulist">
+<ul>
+<li>
+Can only be defined on attributes passed to the processor; not in-document attribute entries</li>
+</ul>
+</div>
+</li>
+<li>
+An attribute entry can be used to redefine a document attribute.<div class="ulist">
+<ul>
+<li>
+A document attribute can not be redefined if it is locked.</li>
+</ul>
+</div>
+</li>
+<li>
+A document attribute is locked by setting or unsetting it from the API (or, by correlation, the CLI).</li>
+<li>
+It&#8217;s possible to set or unset an attribute from the API without locking it (soft set/unset) by appending <code>@</code> to the attribute name (or to the value, those the name is the preferred way)</li>
+<li>
+Attributes set via the API can have the value <code>false</code> or <code>null</code> (or equivalent for the programming language, such as <code>nil</code> or <code>undefined</code>).<div class="ulist">
+<ul>
+<li>
+The value <code>false</code> means to soft unset the attribute on the document.</li>
+<li>
+The value <code>null</code> means to hard unset the attribute on the document.</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> Introduce <code>!name!</code> to clear an attribute so it&#8217;s like it was never declared (this is different from unsetting it).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_built_in_attributes">Built-in attributes</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>Built-in document attributes</strong> add, configure, and control common features in a document (e.g., <code>toc</code>).</li>
+<li>
+Provide a means to populating document metadata (e.g., <code>author</code>).</li>
+<li>
+Many built-in attributes only take effect when defined in the document header (either using an attribute entry or passed in via the API).</li>
+<li>
+Some built-in document attributes are booleans.
+These attributes act as a switch, and their sole function is to turn on or turn off a feature.<div class="ulist">
+<ul>
+<li>
+If a boolean attribute is defined, but not given a value (i.e., set), it&#8217;s in the "on" state.
+When set, a boolean attribute typically has an empty value.</li>
+<li>
+If the boolean attribute is not defined (i.e., not set), it&#8217;s in the "off" state.</li>
+<li>
+<strong>FI</strong> Should we standardize the boolean document attribute typed value <code>true</code> to mean set (as alternative to empty string)?</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> Should we drop the <code>experimental</code> attribute as a built-in attribute or keep it as a flag for experimental features?
+(Note that promoting the UI macros to fully supported is a separate decision).</li>
+</ul>
+</div>
+<section class="doc-section level-3">
+<h4 id="_naming_conventions">Naming conventions</h4>
+<div class="ulist">
+<ul>
+<li>
+Reserved attribute names; may not be repurposed for user-defined contexts (reusable text or by conditionals).</li>
+<li>
+Define naming conventions for built-in attributes.</li>
+<li>
+Identify reserved and recommended prefixes.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_global_block_attributes_and_options">Global block attributes and options</h4>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_user_defined_attributes">User-defined attributes</h3>
+<div class="ulist">
+<ul>
+<li>
+A <strong>user-defined document attribute</strong> is any attribute that the user or an extension sets that isn&#8217;t reserved by the AsciiDoc language or an extension.</li>
+<li>
+These attributes allow the user to define named, reusable content or act as a switch for preprocessor conditionals or extensions.</li>
+</ul>
+</div>
+<section class="doc-section level-3">
+<h4 id="_naming_conventions">Naming conventions</h4>
+<div class="ulist">
+<ul>
+<li>
+User-defined attribute names must be at least one character, must start with a letter, number, or underscore, and may contain any amount of letters, numbers, underscores, or hyphens beyond the first character.</li>
+<li>
+Attribute names should only contain lowercase letters, though uppercase characters are permitted.</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_attribute_usage">Attribute usage</h3>
+<div class="ulist">
+<ul>
+<li>
+Document attributes can be used within the content of document using an attribute reference.</li>
+<li>
+An attribute reference is markup recognized by the inline preprocessor.</li>
+<li>
+See <a href="#inline-attribute-references">Attribute references</a> for details.</li>
+</ul>
+</div>
+</section>
+</section>
+<h1 id="_blocks" class="sect0">Part III: Blocks</h1>
+<section class="doc-section level-1">
+<h2 id="_document_body">Document body</h2>
+<div class="ulist">
+<ul>
+<li>
+The document body consists of all the content in the document except for the document header.</li>
+<li>
+The document body is partitioned into blocks.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_block_structure_and_variations">Block structure and variations</h2>
+<div class="ulist">
+<ul>
+<li>
+A <strong>block element</strong>, referred to as a <strong>block</strong>, is a discrete, line-wise element in the document structure.</li>
+<li>
+A block always starts and ends on a whole line (starts at beginning of a line or effective beginning and ends at the end of the same or different line.</li>
+<li>
+A block may have two to three source characteristics: metadata, a body, and an enclosure.</li>
+<li>
+Block structural forms include: paragraph, indented lines, delimited, macro, heading?, shorthand macro, list?, dlist? (lists and headings might also be referred to as prefixed?)<div class="ulist">
+<ul>
+<li>
+May also need a "generated" form</li>
+</ul>
+</div>
+</li>
+<li>
+The body of a block may have an enclosure that is formed by delimiter lines.</li>
+<li>
+A block&#8217;s content model determines what kind of content the block can have (if any) and how it is parsed.<div class="ulist">
+<ul>
+<li>
+Content models for blocks are: basic, compound, verbatim, compound, empty, raw?, table?, list?, delist?<div class="ulist">
+<ul>
+<li>
+empty may be for headings, all macros, and breaks, but this will need to be confirmed</li>
+<li>
+raw may be for passthrough blocks, but these are handled by the preprocessor</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+The parent of a block is always another block (if nested, the parent block; if not nested, the parent section or document if not in a section).</li>
+<li>
+A block&#8217;s name and optional style modifier determines how it is converted.</li>
+<li>
+Block element parsing takes precedence over inline element parsing.
+For example, an inline passthrough cannot enclose a line that would end the block, such as a block delimiter or list continuation.
+The block boundary is determined first, then the inline parsing happens within those bounds.
+(Q: Does this mean backslash escaping cannot be used in an inline passthrough?)</li>
+<li>
+Syntax should be parsed in the order it appears in the document (this may need to be defined more specifically, or exceptions listed)</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_block_name">Block name</h3>
+<div class="ulist">
+<ul>
+<li>
+Each block has a name (e.g., image, sidebar, etc.).</li>
+<li>
+A name identifies the primary specialization of the element.</li>
+<li>
+Each block name provides semantics not covered by any other block name.</li>
+<li>
+The block name may be implicit or explicit.</li>
+<li>
+If a block name isn&#8217;t derived from a specified block style, it&#8217;s inferred by its structural form (e.g., block delimiter, marker, implicit boundaries).</li>
+<li>
+Name affects how the element is converted</li>
+<li>
+A block&#8217;s name should be validated in the schema?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_block_metadata">Block metadata</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>Block metadata</strong> is a superset of properties of the block that contains block attributes; the metadata includes specialized attributes such as ID, title, and style; also name, etc.</li>
+<li>
+All blocks accommodate zero or more lines of explicit metadata stacked line-wise directly on top of the block content and, if applicable, the opening delimiter line.<div class="ulist">
+<ul>
+<li>
+The optional metadata lines include: zero or more block attribute lines (which populate the block&#8217;s attributes), block attrlist (inside block attribute line), the block attributes, optional block title line (many blocks also support a corresponding caption).</li>
+<li>
+<strong>SDR</strong> Confirm the terms and their definitions for what we should use to refer to the list of attributes in raw versus parsed form. (attrlist, boxed attrlist, attributes)</li>
+</ul>
+</div>
+</li>
+<li>
+The shared (but optional) block attributes include: id, style, set of roles, set of options, title, reftext, and data-attributes.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_block_attributes">Block attributes</h3>
+<div class="ulist">
+<ul>
+<li>
+Used to store the block metadata.</li>
+<li>
+Can be positional or named.</li>
+<li>
+Positional attributes use a 1-based index; index assignment skips over any named attributes (i.e., named attributes don&#8217;t affect position).</li>
+<li>
+Shorthand attributes, such as id, role, and options, may be parsed out of the first positional attribute.</li>
+<li>
+To distinguish from the shorthand form of a named attribute, the named variant is refered to as the longhand form.</li>
+<li>
+An attrlist is unparsed, CSV data<div class="ulist">
+<ul>
+<li>
+See <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-002-block-attrlist-parsing.adoc?ref_type=heads">SDR-2: Define Parsing Rules for attrlist in Block Attribute Line</a>.</li>
+<li>
+See <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-006-positional-attribute-mapping.adoc?ref_type=heads">SDR-6: Define Parsing Rules for Positional Attribute to Named Attribute Mapping</a>.</li>
+</ul>
+</div>
+</li>
+<li>
+Only available directly on the block.</li>
+<li>
+Do not affect document attributes.</li>
+<li>
+The only relationship between block attributes and document attributes is that document attributes are sometimes used as fallbacks for an absent block attribute (this needs to be clarified / tightened).</li>
+<li>
+Block options are block attributes that end in <code>-option</code>; hence, <code>-option</code> is a reserved suffix.</li>
+<li>
+<strong>FI</strong> Propose / Confirm that all block attributes that start with <code>data-</code> should be passed through to the output format; in HTML output, these map 1-to-1 with HTML data attributes on the corresponding tag.
+Also promote to data property.</li>
+<li>
+<strong>FI</strong> Propose syntax to unset a block attribute, including block options (e.g., <code>[!id]</code>, <code>[%!header]</code> or <code>[%noheader]</code>).</li>
+<li>
+<strong>FI</strong> Propose using <code>[[id,reftext]style.role]</code> where <code>[id,reftext]</code> must come first (or last?) as a way to unify the block attribute line and block anchor line.</li>
+<li>
+<strong>FI</strong> Propose that an invalid block anchor should not be treated as paragraph text (still consume as block anchor, just don&#8217;t set ID)?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_block_title">Block title</h3>
+<div class="ulist">
+<ul>
+<li>
+The block title is a satellite of a block.</li>
+<li>
+It shares some commonalities of a block in that it can be defined on its own line and can have inlines; however, it is a subordinate of a block.</li>
+<li>
+The block title is the implicit reftext of a block if reftext is not specified.</li>
+<li>
+The block title may be displayed above or below the primary contents depending on the block name / publishing conventions.</li>
+<li>
+In certain cases, when the block title acts as a caption, it will be prefixed with the value of the corresponding caption attribute (e.g., <code>example-caption</code>) and an auto-generated number.<div class="ulist">
+<ul>
+<li>
+<strong>SDR</strong> Caption is poorly defined in AsciiDoc.
+Fix the terminology by decomposing all parts of the caption and using it in the appropriate context.<div class="ulist">
+<ul>
+<li>
+The <code>&lt;block&gt;-caption</code> doesn&#8217;t map 1-to-1 with a typical caption and therefore it hinders efforts to customize the parts of a caption such as the caption&#8217;s signifier, reference number/letter and separator.</li>
+<li>
+caption = reference signifier + reference numeral/letter + ": " + title, where reference signifier + reference number + ": " is prefix.</li>
+<li>
+We avoid the term label since label is used by other publishing systems to mean the ID of an element.</li>
+</ul>
+</div>
+</li>
+<li>
+<a id="caption-fi"></a> <strong>FI</strong> Propose renaming and remapping <code>-caption</code> attributes to <code>-caption-signifier</code>? (e.g., <code>example-caption-signifier</code>).</li>
+<li>
+<strong>FI</strong> Propose ability to customize the separator between reference numeral/letter and title?</li>
+<li>
+<strong>FI</strong> Propose ability to number resources by chapter?</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_implicit_blocks">Implicit Blocks</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>Implicit blocks</strong> are blocks that do not have explicit boundaries, unlike delimited blocks.
+An implicit block ends when it encounters an interrupting line such as the start of another implicit block, the opening or closing line of a delimited block, or an empty line.</li>
+<li>
+Implicit blocks include sections, discrete headings, paragraphs, literal paragraphs, basic admonitions, basic blockquotes, block macros, lists / list items, and the document itself.</li>
+<li>
+Block metadata lines also have implicit boundaries (a single line), but are not themselves blocks.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_delimited_blocks_structural_containers">Delimited blocks / Structural containers</h3>
+<div class="ulist">
+<ul>
+<li>
+A <strong>delimited block</strong> is a block bounded by explicit boundaries called delimiter lines.</li>
+<li>
+A delimited block only ends when the delimiter line that started the block is found again at the same level (as opposed to creating a nested block).</li>
+<li>
+Delimited blocks must be balanced; if there&#8217;s an opening delimiter line, there must be a corresponding closing delimiter line; otherwise, a warning must be issued by the processor.</li>
+<li>
+A delimited block creates a new parsing context (current block must end before ending ancestor block).</li>
+<li>
+If the child block is a delimited block, it starts a new delimited block parsing context; when the child delimited block ends, the previous delimited block parsing context is restored.<div class="ulist">
+<ul>
+<li>
+State the nesting rules and limits for delimited blocks.</li>
+</ul>
+</div>
+</li>
+<li>
+A delimited block may not contain sections.
+Delimited blocks include: example, listing, literal, source, stem, quote, verse, and table blocks.</li>
+<li>
+<strong>FI</strong> Propose that any headings in a delimited block are implicitly converted to discrete headings.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_interrupting_lines">Interrupting lines</h3>
+<div class="ulist">
+<ul>
+<li>
+For block elements that do not have explicit boundaries (e.g., a delimited block), the block will end when an interrupting line is encountered.</li>
+<li>
+Which lines interrupt a block vary based on context.</li>
+<li>
+An empty line (that remains after any preprocessor directives are evaluated) always ends an implicit block (e.g., paragraph, list, etc.).</li>
+<li>
+A block attribute line always ends an implicit block (except when following adjacent block attribute lines).</li>
+<li>
+A closing block delimiter can interrupt any non-delimited block.</li>
+<li>
+An opening block delimiter line is interrupting.<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Should we say that only a closing block delimiter line is interrupting, in other words, must be inside that block?</li>
+</ul>
+</div>
+</li>
+<li>
+A list continuation line ends an implicit block, but does not end the list; instead, it attaches the ensuing block to the list item.<div class="ulist">
+<ul>
+<li>
+A literal paragraph in a list is preceded by an implicit list continuation line.</li>
+</ul>
+</div>
+</li>
+<li>
+Inside a list, a list item is an interrupting line; either starts a new list item or nested list, depending on the marker.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_block_macros">Block macros</h3>
+<div class="ulist">
+<ul>
+<li>
+A block macro is entered on its own line in the source and displayed on its own line in the output.</li>
+<li>
+It doesn&#8217;t have contents (i.e., inlines), only metadata.</li>
+<li>
+It&#8217;s always parsed.</li>
+<li>
+Most block macros follow the named block macro form, <code>name::&lt;target&gt;?[&lt;attrlist&gt;?]</code>, except for page breaks and thematic breaks.</li>
+<li>
+Most block macros can have block metadata lines.</li>
+<li>
+The block macros include: image, video, audio, toc, page break, and thematic break.</li>
+<li>
+The target of a block macro can&#8217;t start with space to disambiguate it from the start of a dlist item.</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_sections">Sections</h2>
+<div class="ulist">
+<ul>
+<li>
+A <strong>section block</strong>, referred to as a <strong>section</strong>, is a compound block element denoted by an atx-style heading marker (<code>=+ </code>) and no discrete style.</li>
+<li>
+The section includes all content that follows the section heading line until the next sibling or parent section heading or the document boundary.</li>
+<li>
+A section heading line must be proceeded by an empty line optionally followed by block metadata.</li>
+<li>
+The section heading marker designates the hierarchical level of the section (level 0 (<code>=</code>) - level n).<div class="ulist">
+<ul>
+<li>
+Section levels cannot be skipped because in some output formats levels are determined by hierarchy.</li>
+<li>
+<strong>FI</strong> Should we allow section levels to be infinite?
+It would be up to converter to normalize levels it cannot manage.<div class="ulist">
+<ul>
+<li>
+Using aria metadata might solve our HTML issue: <a href="https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/heading_role" class="bare">https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/heading_role</a>.</li>
+<li>
+Might also consider using nested <code>&lt;section&gt;</code> tags with <code>&lt;title&gt;</code> once it goes past h6.</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> Is more than one space permitted after a section heading marker?</li>
+</ul>
+</div>
+</li>
+<li>
+Section markers in adjacent paragraph lines are not recognized (a heading is not an interrupting line).</li>
+<li>
+The section heading is a block title (a single line that contains inlines).</li>
+<li>
+If the first block in document is a level-0 section, it&#8217;s designated as the document title / header.</li>
+<li>
+Only the book doctype permits level-0 sections in the document body.</li>
+<li>
+<strong>FI</strong> Should we use 1-based levels for sections?</li>
+<li>
+Sections are not permitted inside non-section blocks.</li>
+<li>
+<strong>FI</strong> Propose syntax to create an anonymous section (i.e., a section that has no visible title).
+Perhaps use the syntax <code>== &lt;&lt;&lt;</code> or <code>== !</code> or even <code>&gt;&gt;&gt;</code> (though that doesn&#8217;t set level).</li>
+<li>
+<strong>FI</strong> Should we standardize on the <code>%notitle</code> option to hide a section title?</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_section_ids">Section IDs</h3>
+<div class="ulist">
+<ul>
+<li>
+IDs are auto-generated for section titles and discrete headings</li>
+<li>
+The ID is generated from the joined text values of all inline nodes in the parsed title<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> How will inline macros be handled; will alt text of an image be considered, for example?</li>
+<li>
+Invalid characters are then removed</li>
+<li>
+Spaces are replaced with the value of the <code>idseparator</code> attribute, which is <code>_</code> by default</li>
+<li>
+The ID is prefixed with the value of the <code>idprefix</code> attribute, which is <code>_</code> by default</li>
+<li>
+If the generated ID is already in use in the document, a count is appended, offset by the value of the <code>idseparator</code> attribute, until a unique ID is found.</li>
+</ul>
+</div>
+</li>
+<li>
+ID generation on section titles and discrete headings can be turned off by unsetting the built-in <code>sectids</code> attribute</li>
+<li>
+Processors are expected to allow the <a href="#id-generator">ID generation routine</a> to be replaced with user code</li>
+<li>
+<strong>FI</strong> Are inline anchors allowed to set the ID for a section? If so, can it be at the beginning, end, or both? Is it possible to assign multiple/alternative IDs to a section using inline anchors?</li>
+</ul>
+</div>
+<aside class="admonition-block note" role="note">
+<h6 class="block-title label-only"><span class="title-label">Note:</span></h6>
+<p>One of the reasons we got into the habit of modifying the idprefix and idseparator was because GitHub uses its own IDs for headings.
+However, this could be avoided by having the processor rewrite the xrefs target for the output to match the ID that would be generated in the output.
+Another thing to consider is whether the default <code>idprefix</code> and <code>idseparator</code> should be changed, though that would constitute a significant breaking change.</p>
+</aside>
+</section>
+<section class="doc-section level-2">
+<h3 id="_section_numbering">Section numbering</h3>
+<div class="ulist">
+<ul>
+<li>
+Signifier attributes (e.g., <code>part-signifier</code>) control the signifier that precedes the number for certain section types.<div class="ulist">
+<ul>
+<li>
+See <a href="#caption-fi">signifier FI</a>.</li>
+</ul>
+</div>
+</li>
+<li>
+ASG is likely going to need a property to represent the section number in order to validate that it is correct.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_special_sections">Special sections</h3>
+<div class="ulist">
+<ul>
+<li>
+Built-in styles for specialized front matter and back matter sections are referred to as <strong>special sections</strong>.</li>
+<li>
+The document type determines which section styles are available for use.</li>
+<li>
+Note that "part" and "chapter" are implied by the location of the section in the document and are thus not special sections.</li>
+<li>
+<strong>FI</strong> Propose adding author attributes per book part when doctype is book; possibly per chapter?</li>
+<li>
+<strong>FI</strong> There is some complicated section level requirements per each special section + doctype + if parts are present (e.g., why does glossary have to be level 1 when the doctype is article or there aren&#8217;t any book parts, why couldn&#8217;t it be a level 2?)</li>
+</ul>
+</div>
+<section class="ulist">
+<h6 class="block-title">Book</h6>
+<ul>
+<li>
+abstract (becomes a chapter)</li>
+<li>
+colophon</li>
+<li>
+dedication</li>
+<li>
+acknowledgments</li>
+<li>
+preface</li>
+<li>
+partintro (must be first child of part)</li>
+<li>
+appendix</li>
+<li>
+glossary<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Does the <code>glossary</code> block style have to be set on the dlist when the section is marked as a glossary (this doesn&#8217;t mean we want to deprecate the <code>glossary</code> block style, we just want to make things drier)?</li>
+</ul>
+</div>
+</li>
+<li>
+bibliography</li>
+<li>
+index</li>
+</ul>
+</section>
+<section class="ulist">
+<h6 class="block-title">Article</h6>
+<ul>
+<li>
+abstract<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Propose that an abstract title in an article be defined as a special section just like preface?</li>
+</ul>
+</div>
+</li>
+<li>
+appendix</li>
+<li>
+glossary</li>
+<li>
+bibliography</li>
+<li>
+index</li>
+</ul>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_intrinsic_table_of_contents">Intrinsic Table of Contents</h3>
+<div class="ulist">
+<ul>
+<li>
+A table of contents (TOC) is an index of section titles in an AsciiDoc document.</li>
+<li>
+The TOC is a subset of the document outline; includes all sections (parts, chapters, regular sections, and special sections).</li>
+<li>
+When the <code>toc</code> document attribute is enabled, the AsciiDoc processor automatically generates the TOC from the document&#8217;s structure and inserts it into the output document.</li>
+<li>
+The TOC position, levels displayed, title, and CSS class name can be controlled with document attributes.</li>
+</ul>
+</div>
+<aside class="admonition-block note" role="note">
+<h6 class="block-title label-only"><span class="title-label">Note:</span></h6>
+<p>The TOC must be represented in the ASG so that we can validate the processor correctly identified entries, their titles, and filled it in to the specified number of levels.</p>
+</aside>
+</section>
+<section class="doc-section level-2">
+<h3 id="_preamble">Preamble</h3>
+<div class="ulist">
+<ul>
+<li>
+Content between the end of the document header and the first section title in the document body is the preamble.</li>
+<li>
+<strong>FI</strong> Clarify the boundary rules of the preamble and how it is parsed.</li>
+<li>
+<strong>Q</strong> (maybe FI): Clarify whether the preamble is effectively an untitled section or a block style?
+Does it only occur when the doctype is article, when the doctype is book but there are no parts?
+Does it occur if there are parts? (Only after the title of the book, after ever part where there is content between the part title and the next section title if that content isn&#8217;t explicitly assigned <code>partintro</code>?)</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_paragraphs">Paragraphs</h2>
+<p>Initial page content done.
+See <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/paragraph.adoc">Paragraph</a>.</p>
+<div class="ulist">
+<ul>
+<li>
+A <strong>paragraph</strong> is a basic, implicit block consisting of a discrete set of contiguous (non-empty) lines that can contain inline elements and uninterpreted text.</li>
+<li>
+Paragraphs are a foundational structure in AsciiDoc.</li>
+<li>
+Aside from section and block titles, all non-verbatim leaf block elements are paragraphs.</li>
+<li>
+If a line is not recognized as a specific element, it&#8217;s assumed to be a paragraph.</li>
+<li>
+Unrecognized syntax or syntax not allowed inside a paragraph, is treated as regular text (not dropped).</li>
+<li>
+In order to parse the inline markup in a paragraph, all the lines of the paragraph have to first be identified (since inline markup can span multiple lines).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_styled_paragraphs">Styled paragraphs</h2>
+<div class="ulist">
+<ul>
+<li>
+A paragraph may have a block style (e.g., example, quote, etc.).</li>
+<li>
+The style on a paragraph does not influence the block parsing model, meaning how a structural form is matched.
+Instead, block parsing is conducted by testing grammar rules of various structural forms (e.g., paragraph, indented lines, structural container, etc) to find a match.</li>
+<li>
+Then the style impacts how the result of matching a grammar rule (the AST node) is interpreted and transformed into a node in the ASG.<div class="ulist">
+<ul>
+<li>
+Any metadata associated with the block will be promoted to the synthetic enclosure block, perhaps with some exceptions such as the <code>hardbreaks</code> option.<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Are certain options, such as <code>hardbreaks</code> an exception to this rule or does the paragraph steal them or duplicate the roles?</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+For detailed information when writing the specification, see <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/31">#31</a> and the resulting <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-003-block-parsing-and-style.adoc">SDR-3: Reframe Block Style as Parsing Transformation</a>.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_literal_paragraphs">Literal paragraphs</h2>
+<div class="ulist">
+<ul>
+<li>
+A literal paragraph is a block that begins with at least one space character (space, tab) followed by at least one non-space character.</li>
+<li>
+All lines in literal paragraph must be indented by at least one space character; the first line that isn&#8217;t (it&#8217;s left-align or empty) ends the literal paragraph.</li>
+<li>
+A literal paragraph creates a literal block element.</li>
+<li>
+A literal paragraph in a list item starts with an implicit list continuation (though it can still be attached using one).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_discrete_headings">Discrete headings</h2>
+<div class="ulist">
+<ul>
+<li>
+Typically, the block parser identifies a block and its boundaries without considering any of the block metadata.
+The one exception to this rule is the discrete style on a heading.</li>
+<li>
+The discrete style causes the heading to be parsed as a leaf block rather than a parent block.<div class="ulist">
+<ul>
+<li>
+This exception is necessary since sections and discrete headings have the same structural form, yet only sections are permitted to have children.</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> Propose that any headings in a delimited block are implicitly converted to discrete headings.</li>
+<li>
+<strong>FI</strong> Should we allow <code>[heading]</code> as alternative to <code>[discrete]</code> for a non-section heading?</li>
+<li>
+The terms "float" or "floating" should not be used to markup or describe the discrete heading syntax as these terms already have a reserved meaning in the AsciiDoc syntax (they refer to the layout / positioning of an element in certain output formats).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_lists">Lists</h2>
+<div class="ulist">
+<ul>
+<li>
+A <strong>list</strong> is a compound implicit block that contains one or more list items.</li>
+<li>
+The start of a list is defined by the first list item.</li>
+<li>
+Lists can be nested to any depth and can be a mix of list types.</li>
+<li>
+The supported list types include: unordered, checklist (variation of unordered), ordered, and callout.</li>
+<li>
+A <strong>list item</strong> is a compound implicit block initiated by a list marker.</li>
+<li>
+List markers include <code>*</code> (unordered), <code>.</code> (ordered), <code>[1-9][0-9]*.</code> (ordered), <code>-</code> (unordered), and <code>&lt;([1-9][0-9]*|\.)&gt;</code> (callout)<div class="ulist">
+<ul>
+<li>
+The <code>*</code> and <code>.</code> list markers can be repeated infinitely. (What about <code>-</code>?)</li>
+</ul>
+</div>
+</li>
+<li>
+The list mark (bullet) or numeration is controlled using the list style.</li>
+<li>
+List markers may be indented.<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Do we want to enforce that the first level marker must not be indented (i.e., should we require that top-level list be flush to left (start) margin)?</li>
+<li>
+Wrapped lines may be indented, but this indentation is normalized as having the equivalent semantics of a single space.</li>
+</ul>
+</div>
+</li>
+<li>
+A list item takes precedence over a description list item (namely the discovery of a description list term)</li>
+<li>
+A list item can have a boxed attrlist.<div class="ulist">
+<ul>
+<li>
+A boxed attrlist must start after the list marker and not have anything else on the line.</li>
+</ul>
+</div>
+</li>
+<li>
+The end of a list is defined by an interrupter line.</li>
+<li>
+Interruption of the list can be avoided using a list continuation, which attaches the adjacent block to the list item.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_list_anatomy">List anatomy</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Clarify and define anatomy terms for ordered and unordered lists:<div class="ulist">
+<ul>
+<li>
+principal text</li>
+<li>
+source text markers (and spaces after markers)</li>
+<li>
+indentation of list items</li>
+<li>
+metadata/attrlist for list and list item</li>
+<li>
+unordered list "bullets", "marks", "output markers", or something else?</li>
+<li>
+ordered list numerations?/markers?/something else?</li>
+<li>
+list continuation</li>
+<li>
+any list/list/standard list (i.e., terminology for referring to groups if list types)</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<section class="doc-section level-3">
+<h4 id="_list_markers_and_depth">List markers and depth</h4>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Is more than one space permitted after a list marker?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_principal_text">Principal text</h4>
+<p>See <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-008-list-item-as-interrupting-line-for-principal-text.adoc?ref_type=heads">SDR-8: Designate List Item as Interrupting Line only for Principal Text</a>.</p>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> In the principal text of a list item, can we have a block attribute line to assign attributes to a list item?</li>
+<li>
+<strong>FI</strong> Can a list item have multiple contiguous metadata lines or should a list item be restricted to one block attribute line?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_combining_lists">Combining lists</h4>
+</section>
+<section class="doc-section level-3">
+<h4 id="_list_continuation">List continuation</h4>
+<p>See <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-007-list-continuation-as-interrupting-line.adoc?ref_type=heads">SDR-7: Designate List Continuation as Universal Interrupting Line</a>.</p>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Should a styled paragraph (such as <code>[NOTE]</code> or <code>[example]</code> over a paragraph) break a list if it&#8217;s not preceded by a continuation line?
+Asciidoctor and AsciiDoc Python implement this rule differently.</li>
+<li>
+<strong>FI</strong> Should we infer a list item continuation when a delimited block is directly adjacent to the principal text?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_list_affinity_boundaries">List affinity / boundaries</h4>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_unordered_lists">Unordered lists</h3>
+<section class="doc-section level-3">
+<h4 id="_supported_styles">Supported styles</h4>
+<div class="ulist">
+<ul>
+<li>
+<strong>SDR</strong> Clarify the term we&#8217;re using: "bullets", "marks", "output markers", or something else?</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_checklists">Checklists</h3>
+<div class="ulist">
+<ul>
+<li>
+A specialization of an unordered list. (What about ordered lists?)</li>
+<li>
+Implicitly created if at least one item in the unordered list is a checklist item.</li>
+<li>
+A checklist item is recognized if the principal text begins with a ballot box, <code>[ ]</code> (unchecked), <code>[x]</code> (checked), or <code>[*]</code> (checked).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_ordered_lists">Ordered lists</h3>
+<section class="doc-section level-3">
+<h4 id="_automatic_numbering">Automatic numbering</h4>
+</section>
+<section class="doc-section level-3">
+<h4 id="_supported_styles">Supported styles</h4>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_callout_lists">Callout lists</h3>
+<section class="doc-section level-3">
+<h4 id="_relationship_to_callout_numbers">Relationship to callout numbers</h4>
+</section>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description_lists">Description lists</h2>
+<div class="ulist">
+<ul>
+<li>
+A description list (dlist) is akin to a list, but its list items have a fundamentally different structure.</li>
+<li>
+A <strong>description list</strong> is a compound implicit block that contains one or more list items.</li>
+<li>
+A description list can be nested to any depth and mixed with other list types.</li>
+<li>
+The start of a description list is defined by the first list item.</li>
+<li>
+A <strong>description list item</strong> consists of one or more terms and a description.</li>
+<li>
+List continuations work the same for attaching blocks as for lists.</li>
+</ul>
+</div>
+<p>The term "any list" refers to the superset of lists and description lists.
+This comes up because during parsing, lists and description lists share a lot of the same behaviors.
+When we say "list" or "standard list", we are not talking about description lists.</p>
+<section class="doc-section level-2">
+<h3 id="_description_list_anatomy">Description list anatomy</h3>
+<section class="doc-section level-3">
+<h4 id="_terms_delimiters_and_depth">Terms, delimiters, and depth</h4>
+<div class="ulist">
+<ul>
+<li>
+A list item is initiated by at least one term followed by a dlist marker (aka term delimiter).</li>
+<li>
+A term is also called a subject.</li>
+<li>
+An entry can have multiple terms.</li>
+<li>
+Dlist markers include <code>::</code>, <code>:::</code>, <code>::::</code>, and <code>;;</code>.</li>
+<li>
+Terms may be indented.</li>
+<li>
+<strong>FI</strong> Should we drop the semicolon as a marker and make the dlist markers consistent (<code>::</code>, <code>:::</code>, <code>::::</code>, <code>:::::</code>) (not <code>;;</code>)?</li>
+<li>
+<strong>FI</strong> Should we allow dlist item nesting to any depth?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_principal_text">Principal text</h4>
+<div class="ulist">
+<ul>
+<li>
+The text that follows the term, either on the same line or the next adjacent line.</li>
+<li>
+The principal text of a dlist item can start on the next line, unlike for standard lists.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_description">Description</h4>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_orientation">Orientation</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Does the dlist <code>horizontal</code> orientation need to be specified?
+Perhaps it should be an attribute or option, like <code>orientation=horizontal</code> or <code>%horizontal</code>.
+It seems that horizontal being an option (<code>%horizontal</code>) rather than a style may fit the model best; then it can be used like a true style such as <code>glossary</code>.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_with_marker">With marker</h3>
+<section class="doc-section level-3">
+<h4 id="_q_a">Q &amp; A</h4>
+</section>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_tables">Tables</h2>
+<div class="ulist">
+<ul>
+<li>
+A table is a compound delimited block that contains one or more cells.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_formats_psv_dsv_csv">Formats (psv, dsv, csv)</h3>
+<div class="ulist">
+<ul>
+<li>
+"Delimiter-separated values"</li>
+<li>
+<code>psv</code> = pipe-separated values; <code>csv</code> = comma-separated (or tab-separated values); <code>dsv</code> = data-separated values<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Can and/or should we drop the <code>dsv</code> table data format?</li>
+</ul>
+</div>
+</li>
+<li>
+each format has slightly different parsing rules / constraints</li>
+<li>
+<strong>FI</strong> Clarify and refine how tables are parsed (so line comments are processed with respect to enclosing context such as in a verbatim block in an AsciiDoc table cell or inside CSV/DSV data).</li>
+<li>
+The default format is <code>psv</code>.</li>
+<li>
+The format can be specified either using the <code>format</code> attribute or using the dedicated block delimiter (<code>,===</code> and <code>:===</code>).</li>
+<li>
+<code>csv</code> is primarily intended for including data from a CSV file, not for authoring in the AsciiDoc document; loosely based on RFC 4180.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_cell_based_structure">Cell-based structure</h3>
+<div class="ulist">
+<ul>
+<li>
+cell arrangement and delimiters<div class="ulist">
+<ul>
+<li>
+cells are discovered then distributed into a rows based on number of columns</li>
+</ul>
+</div>
+</li>
+<li>
+explain how cells get organized into rows and cols</li>
+<li>
+technically, newlines are not required; only cell delimiters matter as boundaries; but some features require the use of newlines</li>
+<li>
+precedence of delimiter and how to escape it</li>
+<li>
+cell separator can be customized using separator attribute; must be a single character</li>
+<li>
+head(er)/body/foot(er)<div class="ulist">
+<ul>
+<li>
+<strong>SDR</strong> Clarify if it is table <code>head</code> or <code>header; `foot</code> or <code>footer</code>.</li>
+</ul>
+</div>
+</li>
+<li>
+how are columns determined implicitly?</li>
+<li>
+how is header determined implicitly?</li>
+<li>
+describe what happens if number of cells does match number of expected cells</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_columns_and_colspecs">Columns and colspecs</h3>
+<div class="ulist">
+<ul>
+<li>
+columns attribute can specify how many columns</li>
+<li>
+if numeric, uses default colspec</li>
+<li>
+columns attribute can specify colspec for each column; colspecs are separated by comma or semicolon</li>
+<li>
+colspec controls style, alignment, and width ratio of each column</li>
+<li>
+all parts of colspec are optional</li>
+<li>
+width can be specified as auto</li>
+<li>
+colspec can have a repeater (shorthand for specifying multiple times)</li>
+<li>
+<strong>FI</strong> Clarify the relationship between colspan and colspecs on a table; when there is a colspan, how should colspec entries be mapped?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_cells">Cells</h3>
+<section class="doc-section level-3">
+<h4 id="_content_model">Content model</h4>
+<div class="ulist">
+<ul>
+<li>
+content model of a cell is a paragraph (leaf, no block content)</li>
+<li>
+AsciiDoc table cell changes content model of cell to a compound block; only supported in psv format</li>
+<li>
+An AsciiDoc table cell is essentially a separate document (need to clarify this relationship)</li>
+<li>
+Only an AsciiDoc table cell can accommodate a nested table</li>
+<li>
+<strong>FI</strong> Does an AsciiDoc cell style (i.e., <code>a|</code>) need to be marked on the cell itself in order to fully honor the semantics of the preprocessor; in other words, when marked on the colspec, it will be parsed as a normal cell, then promoted to an AsciiDoc table cell; thus, the behavior could be different</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_styles">Styles</h4>
+<div class="ulist">
+<ul>
+<li>
+default (d), strong (s), emphasis (e), monospace (m), literal (l), asciidoc (a)</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_cellspec">cellspec</h4>
+<div class="ulist">
+<ul>
+<li>
+in psv, cellspec is specified directly in front of cell delimiter</li>
+<li>
+by default, cell inherits properties from column</li>
+<li>
+cellspec can be specified on cell to override most inherited properties; only supported in psv</li>
+<li>
+colspec controls style, alignment, span (row and column) (cannot change width)</li>
+<li>
+<strong>FI</strong> Should we drop cell duplication?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-3">
+<h4 id="_metadata_attributes_proposed">Metadata / attributes (proposed)</h4>
+<div class="ulist">
+<ul>
+<li>
+In psv, a cell can have a boxed attrlist (cell metadata)</li>
+<li>
+The boxed attrlist must start directly after cell delimiter and not have anything else on that line of the cell.</li>
+<li>
+<strong>FI</strong> Should a cell be able to have a role?</li>
+<li>
+<strong>FI</strong> Can a cell have multiple contiguous metadata lines?</li>
+<li>
+<strong>FI</strong> Should we allow a row to have a boxed attrlist?</li>
+<li>
+<strong>FI</strong> Should a row be able to have a role?</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-2">
+<h3 id="_table_width_and_column_ratios">Table width and column ratios</h3>
+<div class="ulist">
+<ul>
+<li>
+By default, widths are distributed across the page (100%) according to ratio values on columns</li>
+<li>
+The width of a table can be reduced by specifying the width attribute; value is a percentage (maximum 100%)</li>
+<li>
+Adding the <code>autowidth</code> option to a table allows the content to determine width of table (fit content)</li>
+<li>
+If no ratios are specified, width is distributed evenly</li>
+<li>
+Column widths are only a hint; content can focus widths to be allocated differently (we could suggest using a fixed table layout to enforce)</li>
+<li>
+If column is specified as autowidth, then its width will solely be determined by content (no allocated width)</li>
+<li>
+By setting autowidth option and stretch role, the table will stretch the width of the page but the width of columns will be determined by content</li>
+<li>
+A table whose width is &lt; 100% can be configured to float to the left or right using the float attribute</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_decoration_frame_grid_stripes">Decoration (frame, grid, stripes)</h3>
+<div class="ulist">
+<ul>
+<li>
+The table decorations can be controlled using the <code>frame</code>, <code>grid</code>, and <code>stripes</code> attributes.</li>
+<li>
+By default, a table will have all frame and grid (all borders).</li>
+<li>
+<code>frame</code> values: all, ends, sides, none</li>
+<li>
+<code>grid</code> values: all, rows, cols, none</li>
+<li>
+<code>stripes</code> values: none, even, odd, all, hover (where this interaction can be supported)</li>
+<li>
+These properties can be controlled globally using document attributes prefixed with table- (e.g., <code>table-stripes</code>).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_orientation">Orientation</h3>
+<div class="ulist">
+<ul>
+<li>
+Tables can be rotated (where supported) by adding <code>rotate</code> option</li>
+<li>
+Table orientation can be specified explicitly using <code>orientation</code> attribute (portrait or landscape).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_nested_tables">Nested tables</h3>
+<div class="ulist">
+<ul>
+<li>
+a table can be nested in the cell of a parent table</li>
+<li>
+only one level of nesting is supported</li>
+<li>
+the parent cell must have the <code>a</code> table style (AsciiDoc)</li>
+<li>
+the nested table must use the delimiter line <code>!===</code> and a different cell separator (default <code>!</code>)</li>
+<li>
+all the rules of the AsciiDoc table cell apply here</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_admonitions">Admonitions</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>====</code> block delimiter</li>
+<li>
+required block style selected from the following list: <code>NOTE</code>, <code>TIP</code>, <code>WARNING</code>, <code>CAUTION</code>, <code>IMPORTANT</code><div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Propose only allowing a space, not a tab, after the colon separating the admonition name from the text.</li>
+</ul>
+</div>
+</li>
+<li>
+Content model: compound</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_examples">Examples</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>====</code> block delimiter</li>
+<li>
+no style</li>
+<li>
+content model: compound</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_sidebars">Sidebars</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>****</code> block delimiter</li>
+<li>
+no style</li>
+<li>
+content model: compound</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_quotes_and_verses">Quotes and verses</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>____</code> block delimiter</li>
+<li>
+Quote: no style or <code>quote</code> style</li>
+<li>
+Verse: <code>verse</code> style</li>
+<li>
+Epigraph: <code>epigraph</code> style</li>
+<li>
+Content model: compound for Quote, basic for Verse and Epigraph</li>
+<li>
+<strong>FI</strong> Can / should we use the verse block to create an address element?</li>
+<li>
+<strong>FI</strong> Propose renaming citetitle to citation or just cite?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_code_listing_source_literal">Code (Listing, Source, Literal)</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>----</code> (listing/source) or <code>....</code> (literal) block delimiter</li>
+<li>
+Listing: <code>listing</code> style or no style if <code>source-language</code> document attribute is not set</li>
+<li>
+Source: <code>source</code> style or no style if <code>source-language</code> document attribute is set</li>
+<li>
+Literal: no style</li>
+<li>
+style must be specified if alternate block delimiter is used</li>
+<li>
+literal block is intended to be used for diagram source when a diagram integration is enabled</li>
+<li>
+if block is empty, content should be empty string (not null)</li>
+<li>
+content model: verbatim</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_stem">STEM</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>++++</code> block delimiter</li>
+<li>
+<code>stem</code> style if <code>stem</code> document attribute is set and has a value, otherwise <code>latexmath</code> or <code>asciimath</code></li>
+<li>
+if block is empty, content should be empty string (not null)</li>
+<li>
+content model: pass, with some processing as required by STEM adapter</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_open">Open</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>~~~~</code> or <code>--</code> (legacy) block delimiter.</li>
+<li>
+Cannot masquerade as another built-in block.</li>
+<li>
+Style may be used to create a custom block.</li>
+<li>
+Content model: compound</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_collapsible">Collapsible</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>====</code> block delimiter or <code>&gt;===</code> (proposed) as block delimiter</li>
+<li>
+<code>collapsible</code> or <code>disclosure</code> style (proposed) or <code>%collapsible</code> option (legacy)<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Propose that <code>collapsible</code> be a style for example blocks.</li>
+</ul>
+</div>
+</li>
+<li>
+Content model: compound</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_image_macro_block">Image macro (block)</h2>
+<div class="ulist">
+<ul>
+<li>
+The block image macro inserts images and figures into a document.</li>
+<li>
+Constructed using the named block macro form <code>image::&lt;target&gt;[&lt;attrlist&gt;?]</code>.<div class="ulist">
+<ul>
+<li>
+Required macro name is <code>image</code>.</li>
+<li>
+A target is required.<div class="ulist">
+<ul>
+<li>
+The target may be a relative path, absolute path or URL (when using default resource resolver)</li>
+<li>
+The target may contain space characters; these characters are URL encoded (<code>%20</code>) in HTML output.</li>
+<li>
+The target is interpreted depending on the processor settings and/or output format.</li>
+<li>
+If the converter generates output that references the image, the path must be relative to the published document.</li>
+<li>
+If the converter embeds the image in the output document (e.g., <code>data-uri</code> is set, converting to PDF directly), the target must be resolvable at convert time; in this case, a URL will only be resolved if the security settings on the processor allows it (e.g., <code>allow-uri-read</code>).</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+The boxed attrlist can be empty or specify a comma-separated list of optional attributes.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_optional_attributes">Optional attributes</h3>
+<div class="ulist">
+<ul>
+<li>
+<code>alt</code> (first position)</li>
+<li>
+<code>width</code> (second position)</li>
+<li>
+<code>height</code> (third position)</li>
+<li>
+<code>link</code></li>
+<li>
+<code>fallback</code>; values: path relative to <code>imagesdir</code>, absolute path or URL<div class="ulist">
+<ul>
+<li>
+target must be SVG and <code>opts=interactive</code></li>
+</ul>
+</div>
+</li>
+<li>
+<code>format</code><div class="ulist">
+<ul>
+<li>
+Only necessary when target doesn&#8217;t end in file extension or can&#8217;t otherwise be detected.</li>
+</ul>
+</div>
+</li>
+<li>
+<code>caption</code></li>
+<li>
+<code>window</code>; values: <code>_blank</code></li>
+<li>
+<code>scale</code> (DocBook only)</li>
+<li>
+<code>scaledwidth</code> (DocBook and PDF only)</li>
+<li>
+<code>pdfwidth</code> (PDF only)</li>
+<li>
+<code>align</code>; values: left, center, right</li>
+<li>
+<code>float</code>; values: left, right</li>
+<li>
+built-in <code>role</code> values: left, right, th, thumb, related, rel</li>
+<li>
+built-in <code>opts</code> values: none, nofollow, noopener, inline (SVG only), interactive (SVG only)</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_optional_title_and_caption_label">Optional title and caption label</h3>
+<div class="ulist">
+<ul>
+<li>
+The optional block title is prefixed by the caption signifier <strong>Figure</strong> and numbered automatically.</li>
+<li>
+The label is controlled by the <code>figure-caption</code> document attribute or <code>caption</code> at the individual block level.<div class="ulist">
+<ul>
+<li>
+See <a href="#caption-fi">signifier FI</a>.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_video_macro">Video macro</h2>
+<div class="ulist">
+<ul>
+<li>
+Constructed using the named block macro form <code>video::&lt;target&gt;[&lt;attrlist&gt;?]</code>.<div class="ulist">
+<ul>
+<li>
+Required macro name is <code>video</code>.</li>
+<li>
+A target is required.</li>
+<li>
+The target can be an ID for a video service.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_optional_attributes">Optional attributes</h3>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_audio_macro">Audio macro</h2>
+<div class="ulist">
+<ul>
+<li>
+Constructed using the named block macro form <code>audio::&lt;target&gt;[&lt;attrlist&gt;?]</code>.<div class="ulist">
+<ul>
+<li>
+Required macro name is <code>audio</code>.</li>
+<li>
+A target is required.</li>
+<li>
+The target can be an ID for an audio service.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_optional_attributes">Optional attributes</h3>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_table_of_contents_macro">Table of Contents macro</h2>
+<div class="ulist">
+<ul>
+<li>
+Inserts the intrinsic table of contents at the location of the macro.</li>
+<li>
+Constructed using the formal block macro form <code>toc::[]</code>.<div class="ulist">
+<ul>
+<li>
+Required macro name is <code>toc</code>.</li>
+<li>
+A target and attributes are forbidden.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_page_break_macro">Page break macro</h2>
+<div class="ulist">
+<ul>
+<li>
+The page break macro isn&#8217;t specified using the formal block macro form, instead, it&#8217;s specified as three less-than characters (<code>&lt;&lt;&lt;</code>).</li>
+<li>
+The macro must be offset from the preceding and following blocks by at least one empty line.</li>
+<li>
+It inserts a page break for page-oriented / printable output formats such as DocBook, PDF, and HTML in print mode.</li>
+<li>
+The macro is ignored if falls at top of empty page; this behavior can be overridden by setting the <code>always</code> option on the macro in a block attribute line.</li>
+<li>
+Some converters support additional options on the page break macro.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_thematic_break_macro">Thematic break macro</h2>
+<div class="ulist">
+<ul>
+<li>
+The thematic break macro isn&#8217;t specified using the formal block macro form, instead, it&#8217;s specified as three single quotation marks (<code>'''</code>).</li>
+<li>
+The macro must be offset from the preceding and following blocks by at least one empty line.</li>
+<li>
+It inserts a thematic break (horizontal rule) in the output.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_passthroughs">Passthroughs</h2>
+<div class="ulist">
+<ul>
+<li>
+<code>++++</code> block delimiter</li>
+<li>
+content model: pass</li>
+<li>
+Demarcates raw content that should be passed through to the output as is (or interpreted by the converter as raw codes)</li>
+<li>
+A passthrough block is an escape hatch for leaving the AsciiDoc syntax and embedding content which is not otherwise interpreted.</li>
+<li>
+May be used by a block extension to parser or otherwise interpret the content in a different way (such as embedded Markdown or LaTeX).</li>
+<li>
+Passthroughs should be used sparingly as they can compromise the portability of an AsciiDoc document.</li>
+<li>
+Similar to foreignObject in SVG.</li>
+</ul>
+</div>
+</section>
+<h1 id="_inlines" class="sect0">Part IV: Inlines</h1>
+<section class="doc-section level-1">
+<h2 id="_inline_structure">Inline structure</h2>
+<div class="ulist">
+<ul>
+<li>
+Regular text (such as a paragraph) may contain markup that is interpreted.</li>
+<li>
+Markup is additional characters added to the content either to add semantics or to specify formatting; these characters are processor hints.</li>
+<li>
+Markup is in the form of marked text, macros, or lookup references.</li>
+<li>
+When regular text is interpreted, it produces a collection of nodes (i.e., <code>node*</code>) referred to as "inline nodes" or simply "inlines".<div class="ulist">
+<ul>
+<li>
+This can be a nested structure (some inlines are elements that may contain other inlines).</li>
+</ul>
+</div>
+</li>
+<li>
+Inline parsing can be broken down into four general categories: text, spans (strong, emphasis, etc.), macros (extrapolated content), and replacements (attribute refs, typographic replacements, special characters, hard line breaks).</li>
+<li>
+The parser will attempt to match designated inline syntax, such as a pair of span/formatting marks.</li>
+<li>
+If syntax fails to match (such as when the parser encounters an unbalanced mark), the parser moves on to the next rule.</li>
+<li>
+If no grammar rules can be matched in a run of characters, that text is treated as plain, uninterpreted text; no warning is issued by the processor.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_inline_names">Inline names</h2>
+<div class="ulist">
+<ul>
+<li>
+There are two types of inline nodes: inline and string</li>
+<li>
+There are several inline names: text, charref, raw, span, ref, image, etc.</li>
+<li>
+The variant further specializes the name: strong for span, xref for ref, etc.</li>
+<li>
+The inline may also have a form to indicate how it is structured/expressed in the source (e.g., macro, unconstrained, etc.)</li>
+<li>
+A non-element represents plain text, such as text, charref, raw, hard line break.</li>
+<li>
+An inline element is an inline node with properties.</li>
+<li>
+An inline element can be a leaf (e.g., image) or a non-leaf (e.g., span).<div class="ulist">
+<ul>
+<li>
+A non-leaf inline element contain inlines.</li>
+</ul>
+</div>
+</li>
+<li>
+Span is a "run of markup"; specifically, it&#8217;s enclosed/bounded text (we&#8217;re migrating away from the term "quoted text").<div class="ulist">
+<ul>
+<li>
+In the grammar, we may refer to this as marked text; in node model, it&#8217;s a span</li>
+</ul>
+</div>
+</li>
+<li>
+Span and macro are elements, which means they can have attributes and, in many cases, inlines (children).</li>
+<li>
+Properties of text: type=string, name=text, value=string?</li>
+<li>
+Common properties of span: type=inline, name, variant, (source) form, attributes (includes id and roles)</li>
+<li>
+Common properties of macro: type=inline, name, (source) form, attributes (includes ID and roles).<div class="ulist">
+<ul>
+<li>
+Refer to macros expressed using non-named syntax as a shorthand macro (or shorthand notation); still a macro, just not expressed that way</li>
+</ul>
+</div>
+</li>
+<li>
+All formatted text is a span; but not all spans are formatted text</li>
+<li>
+Not mandating a typing system, but the processor/converter has to be able to distinguish the context of different inlines.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_from_substitutions_to_inline_parsing">From substitutions to inline parsing</h2>
+<div class="ulist">
+<ul>
+<li>
+One of the most problematic aspects of the AsciiDoc language is that it relies on search and replace for processing inlines.</li>
+<li>
+This original processing method for inlines doesn&#8217;t produce a tree and the interpretation is often coupled to and intertwined with the output format and the substitution order.</li>
+<li>
+Not only does it cause many unexpected behaviors, it cannot be accurately described; it also makes it impossible to extract a structure, and the information it stores, from the document.</li>
+<li>
+The spec is graduating from the use of substitutions to an inline parsing grammar.</li>
+<li>
+In doing so, we will aim to match the behavior of the substitution model as closely as possible so existing content can be interpreted in the same way or, when that is not possible, interpreted in such a way that information is not lost.</li>
+<li>
+The accepted inline parsing approach is described in  <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc">SDR-5: Describe Inline Syntax using Formal Grammar</a>.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_inline_parsing_phases">Inline parsing phases</h2>
+<div class="ulist">
+<ul>
+<li>
+In order to achieve compatibility with the original substitution model, inline parsing will need to be done in two phases; see  <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc">SDR-5: Describe Inline Syntax using Formal Grammar</a>.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_phase_1_inline_preprocessor_parsing">Phase 1: Inline preprocessor parsing</h3>
+<div class="ulist">
+<ul>
+<li>
+In the first phase, passthrough content is identified and/or extracted and attribute references are expanded.<div class="ulist">
+<ul>
+<li>
+The simplest way to handle passthroughs are to extract them and leave a placeholder behind (guard or token); passthrough text must be restored to the location of the placeholder during second parsing phase.</li>
+</ul>
+</div>
+</li>
+<li>
+An inline preprocessor is the only way to allow attribute references to introduce inline syntax in the way they can today.</li>
+<li>
+The inline preprocessor must track the original positions of all characters so that inlines can be traced back to their source.</li>
+<li>
+All characters introduced by an attribute reference should be attributed to the left-most position of the attribute reference (in other words, they don&#8217;t occupy space).</li>
+<li>
+Once the first phase is complete, the conversion from input text to a parse tree may begin.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_phase_2_inline_parsing">Phase 2: Inline parsing</h3>
+<div class="ulist">
+<ul>
+<li>
+In the second phase, the expanded input is parsed into a tree of inlines (the root of that tree is the parent of the top-level inlines).</li>
+<li>
+The parser should track the location (start line and column, end line and column) of every inline node.<div class="ulist">
+<ul>
+<li>
+The parser must use the information provided by the inline preprocessor to map the node back to the location in the original source, not the expanded source.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="inline-attribute-references">Attribute references</h2>
+<div class="ulist">
+<ul>
+<li>
+The value of a document attribute is referenced using an attribute reference; the reference is to a document attribute.</li>
+<li>
+An attribute reference has the form <code>{name}</code>, where <code>name</code> is the name of the attribute name.</li>
+<li>
+The attribute reference is replaced by the value of the specified attribute by the inline parser (specifically the inline preprocessor).<div class="ulist">
+<ul>
+<li>
+No processing is done on the value when inserted; it is inserted as is.</li>
+</ul>
+</div>
+</li>
+<li>
+An attribute reference is permitted anywhere that inline markup is interpreted.</li>
+<li>
+If the document attribute is not set, the <code>attribute-missing</code> document attribute determines what to do.<div class="ulist">
+<ul>
+<li>
+Under normal operation, if the referenced attribute is missing (not set), the reference is dropped and a warning is issued.</li>
+</ul>
+</div>
+</li>
+<li>
+Attribute references are processed by the inline preprocessor, only the input from an reference is visible</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_passthroughs">Passthroughs</h2>
+<div class="ulist">
+<ul>
+<li>
+Inline passthroughs have a similar purpose as block passthroughs, but for an inline context.</li>
+<li>
+Inline passthroughs are processed by the inline preprocessor; thus they are not seen by the inline parser.<div class="ulist">
+<ul>
+<li>
+A protected guard or token indicates where a passthrough was post-inline preprocessing</li>
+</ul>
+</div>
+</li>
+<li>
+Passthroughs are directives, even though their stuctural forms look similar to an inline macro and marked text.</li>
+<li>
+Passthroughs are specified using the single plus, double plus, triple plus, and pass macro.</li>
+<li>
+Passthroughs prevent text from being interpreted (including attribute references).</li>
+<li>
+The triple plus and pass directive forms pass through text raw (no special character replacement in converter).</li>
+<li>
+The single (constrained) and double (unconstrained) plus forms (marked pass) pass through text uninterpreted, but not raw (converter will apply special character replacement).</li>
+<li>
+Nested passthroughs are forbidden / not recognized.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_marked_text">Marked text</h2>
+<div class="ulist">
+<ul>
+<li>
+A span of text enclosed in a pair of semantic marks.</li>
+<li>
+In the past, this has been referred to as "text formatting" or "formatted text" (though formatted text are not limited to this group of syntax).</li>
+<li>
+The marks used determine the variant (e.g., strong, emphasis).</li>
+<li>
+All marked spans support a preceding boxed attrlist; only shorthand attributes (id and role) are recognized.</li>
+</ul>
+</div>
+<section class="doc-section level-2">
+<h3 id="_constrained_vs_unconstrained">Constrained vs unconstrained</h3>
+<div class="ulist">
+<ul>
+<li>
+constrained markup can only be used if certain conditions are met<div class="ulist">
+<ul>
+<li>
+must not be bounded on either side by an alpha\d character and contents must not start or end with space</li>
+</ul>
+</div>
+</li>
+<li>
+constrained markup is intended to prevent unwanted matches of formatting marks; though it can still sometimes form an unexpected match</li>
+<li>
+Whether constrained markup is matched depends on which characters are adjacent to the formatting marks.
+The constrained rule must meet the following criteria:<div class="ulist">
+<ul>
+<li>
+(assert) not alpha\d</li>
+<li>
+formatting mark (i.e., asterisk)</li>
+<li>
+(assert) not space</li>
+<li>
+one or more inline elements or uninterpretted characters</li>
+<li>
+(assert) not space</li>
+<li>
+formatting mark (i.e., asterisk)</li>
+<li>
+(assert) not alpha\d</li>
+</ul>
+</div>
+</li>
+<li>
+Unconstrained markup is matched without taking into account the surrounding characters.
+The first match wins.</li>
+<li>
+unconstrained markup can be used anywhere; less concise</li>
+<li>
+unconstrained takes precedence over constrained if both would match</li>
+<li>
+constrained inside unconstrained of the same variant cannot start with unconstrained (the unconstrained mark wins out and closes the span)</li>
+<li>
+<strong>FI</strong> Should we forbid nested span of same variant? (unconstrained strong inside constrained strong and vice versa?)</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_code_monospace">Code (Monospace)</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Propose renaming the monospace variant to code (as in "code span").</li>
+<li>
+Designate <code>code</code> as a built-in role</li>
+<li>
+type: inline element</li>
+<li>
+structural form: constrained and unconstrained</li>
+<li>
+content model: verbatim</li>
+<li>
+name: span</li>
+<li>
+variant: code (proposed)</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_emphasis_italic">Emphasis (Italic)</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: constrained and unconstrained</li>
+<li>
+content model: basic</li>
+<li>
+name: span</li>
+<li>
+variant: emphasis</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_strong_bold">Strong (Bold)</h3>
+<p>Initial page content done.
+See <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/strong-span.adoc">Strong span</a>.</p>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: constrained and unconstrained</li>
+<li>
+content model: basic</li>
+<li>
+name: span</li>
+<li>
+variant: strong</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_subscript">Subscript</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: only unconstrained?</li>
+<li>
+content model: basic</li>
+<li>
+name: span</li>
+<li>
+variant: subscript</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_superscript">Superscript</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: only unconstrained?</li>
+<li>
+content model: basic</li>
+<li>
+name: span</li>
+<li>
+variant: superscript</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_mark_open">Mark / Open</h3>
+<div class="ulist">
+<ul>
+<li>
+Highlighted / marked if no role</li>
+<li>
+If custom role then it&#8217;s a generic span with that role</li>
+<li>
+Designate <code>mark</code> as a built-in role</li>
+<li>
+type: inline element</li>
+<li>
+structural form: constrained and unconstrained</li>
+<li>
+content model: basic</li>
+<li>
+name: span</li>
+<li>
+variant: mark or open (proposed)</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_inline_macros">Inline macros</h2>
+<div class="ulist">
+<ul>
+<li>
+Can be entered in the flow of text and other inline elements; is displayed in the flow of content if that is where it was entered.</li>
+<li>
+Usually follows the named inline macro form, <code>name:&lt;target&gt;?[&lt;attrlist&gt;?]</code>, except for some link and cross reference macros.</li>
+<li>
+The <code>&lt;attrlist&gt;</code> is not interpreted the same way for all macros; it may be treated as inline content only; it may be a hybrid of inline content and an attribute list; it may have a complete custom interpretation</li>
+<li>
+The pass macro is not a macro; it&#8217;s an inline passthrough that uses the macro form.</li>
+<li>
+Aside from preprocessor directives, text in the target of a macro is not interpreted.</li>
+</ul>
+</div>
+<section class="ulist">
+<h6 class="block-title">Supported inline macros</h6>
+<ul>
+<li>
+image</li>
+<li>
+icon</li>
+<li>
+kbd (keyboard)</li>
+<li>
+menu</li>
+<li>
+btn (button)</li>
+<li>
+stem (pre-spec: behaves as a specialized inline passthrough with macro syntax; in spec: becomes a true inline macro)</li>
+<li>
+autolinks (don&#8217;t follow the named macro structure)<div class="ulist">
+<ul>
+<li>
+URLs may be identified as an inline literal with the name url, as they are passed through as they are and whether they&#8217;re changed into a link (made clickable) may be a task for the converter.</li>
+</ul>
+</div>
+</li>
+<li>
+links (URL macro, link macro, mailto macro)</li>
+<li>
+cross references (xref macro, xref shorthand notation)</li>
+<li>
+footnote</li>
+<li>
+index terms (indexterm, index term shorthand notations)</li>
+</ul>
+</section>
+<section class="doc-section level-2">
+<h3 id="_image_macro_inline">Image macro (inline)</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: empty</li>
+<li>
+name: image</li>
+<li>
+variant: NA</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_icon_macro">Icon macro</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: empty</li>
+<li>
+name: icon</li>
+<li>
+variant: NA</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_button_macro">Button macro</h3>
+<div class="ulist">
+<ul>
+<li>
+Uses named inline macro form, <code>btn:[&lt;attrlist&gt;]</code>.</li>
+<li>
+Required name is <code>btn</code>.</li>
+<li>
+Target is forbidden.</li>
+<li>
+attrlist only accepts user-defined text.</li>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: empty</li>
+<li>
+name: btn (or ui if we decide to group the UI macros?)</li>
+<li>
+target model: forbidden</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_keyboard_macro">Keyboard macro</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Fully support the UI macros, therefore, <code>experimental</code> will no longer be needed to activate them.</li>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: empty</li>
+<li>
+name: kbd (or ui if we decide to group the UI macros?)</li>
+<li>
+target model: forbidden</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_menu_macro">Menu macro</h3>
+<div class="ulist">
+<ul>
+<li>
+Uses named inline macro form, <code>menu:&lt;target&gt;[&lt;attrlist&gt;]</code>.</li>
+<li>
+Required macro name is <code>menu</code>.<div class="ulist">
+<ul>
+<li>
+Target only accepts user-defined text of one menu item.</li>
+<li>
+Optional attrlist only accepts user-defined text.<div class="ulist">
+<ul>
+<li>
+Each item in attrlist is separated by a greater-than character <code>&gt;</code> with a space on each side, <code>menu:Code[Folding &gt; Expand to Level &gt; 3]</code>.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+<li>
+Text of an item may contain space.</li>
+<li>
+<strong>FI</strong> Propose removing the shorthand structure, e.g., <code>"Code &gt; Folding &gt; Expand to Level &gt; 3"</code>.</li>
+<li>
+<strong>FI</strong> Make target forbidden in macro form to align menu with other UI macros.</li>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: empty</li>
+<li>
+name: menu (or ui if we decide to group the UI macros?)</li>
+<li>
+target model: forbidden</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_autolinks_urls_and_email_addresses">Autolinks (URLs and email addresses)</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Is it possible to turn off implicit autolinks?</li>
+<li>
+<strong>FI</strong> Should we continue support for angle bracket enclosure for explicit autolink?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_link_and_url_macros">Link and URL macros</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: basic</li>
+<li>
+name: ref</li>
+<li>
+variant: link</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_cross_reference_macros">Cross reference macros</h3>
+<div class="ulist">
+<ul>
+<li>
+type: inline element</li>
+<li>
+structural form: macro, shorthand macro</li>
+<li>
+content model: basic</li>
+<li>
+name: ref</li>
+<li>
+variant: xref</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_stem_macro">STEM macro</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Should we repurpose <code>$$</code> as shorthand for the stem macro?</li>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: verbatim</li>
+<li>
+name: stem</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_footnote_macro">Footnote macro</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Should we always remove the leading space before a footnote by default?
+This may need a special syntax to create a left-hand boundary for a macro, like an extra colon, empty <code>{}</code>, etc. (e.g., <code>:footnote:[note]</code>).</li>
+<li>
+<strong>FI</strong> Scope footnotes that are immediately below table to the current table?</li>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: basic</li>
+<li>
+name: footnote</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-2">
+<h3 id="_index_term_macros">Index term macros</h3>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Propose that we merge <code>indexterm2</code> into <code>indexterm</code> and add <code>visible</code> or <code>show</code> (maybe as target?) to reproduce <code>indexterm2</code> behavior?</li>
+<li>
+type: inline element</li>
+<li>
+structural form: macro</li>
+<li>
+content model: basic</li>
+<li>
+name: indexterm</li>
+<li>
+target model:</li>
+<li>
+attrlist model:</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="_typographic_replacements">Typographic replacements</h2>
+<div class="ulist">
+<ul>
+<li>
+For convenience, AsciiDoc supports numerous typographic replacements.</li>
+<li>
+The author writes the shorthand equivalent and the processor replaces these sequences with typographic marks.</li>
+<li>
+A typical example is that three dots are replaced with an ellipsis.</li>
+<li>
+Pre-spec, this conversion is applied using search and replace to the text nodes in the inlines during conversion.</li>
+<li>
+<strong>FI</strong> Should we include these replacement spans in the parse tree?</li>
+<li>
+In the spec, should typographic replacements evolve to be character patterns in the source text that, depending on the converter, may be replaced with smart text in the output?
+If a converter doesn&#8217;t replace the character or character pattern with smart text, the characters are passed through as they were entered in the source text.</li>
+</ul>
+</div>
+<p>Examples of typographic replacements include (this is not an all inclusive list):</p>
+<div class="ulist">
+<ul>
+<li>
+Double-quoted (Smart double-quoted) e.g., "`word`" which may be replaced with smart double quote marks &ldquo;word&rdquo;</li>
+<li>
+Single-quoted (Smart single-quoted)</li>
+<li>
+(TM) which may be replaced with &#8482;</li>
+<li>
+and more</li>
+<li>
+Typographic replacements are inline literals.</li>
+<li>
+Proposed ASG names include <code>replacement</code> or <code>typographic</code>, but further discussion and prototyping is required.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_character_references">Character references</h2>
+<div class="ulist">
+<ul>
+<li>
+Character references are inline literals.</li>
+<li>
+They&#8217;re named <code>charref</code> in the ASG.</li>
+<li>
+They&#8217;re replaced by the glyph the reference points to.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_raw_inline_literal">Raw inline literal</h2>
+<div class="ulist">
+<ul>
+<li>
+A raw inline literal is low level machine code, such as <code>&lt;wbr&gt;</code>.</li>
+<li>
+They&#8217;re named <code>raw</code> in the ASG.</li>
+<li>
+They&#8217;re passed through to a converter exactly as they were entered in the source text.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_hard_line_breaks">Hard line breaks</h2>
+<div class="ulist">
+<ul>
+<li>
+May be considered a replacement or their own unique thing.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_backslash_escaping_and_passthroughs">Backslash escaping and passthroughs</h2>
+<div class="ulist">
+<ul>
+<li>
+markup characters can be neutralized using a preceding backlash</li>
+<li>
+passthroughs are a way to brute force / blanket / bulk escape markup without having to individually escape characters (perhaps the text needs to be kept together without being modified)</li>
+<li>
+<a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/25">#25</a> How to escape unconstrained marked text?
+Currently, AsciiDoc requires that the opening unconstrained mark be double escaped (<code>\\**stars**</code>).
+However, this is both context-dependent and ambiguous (as escaping a backslash should make a literal backslash).
+Therefore, we may have to change this rule to be (<code>\*\*stars**</code>).
+This will introduce a slight incompatibility, but one that is reasonable to explain and to justify with the goal of making backslash escaping stable.</li>
+<li>
+The following question should be tested in the TCK to guide the escaping rules. Q: Does backslash escape a grammar rule match or does it just deactivate the immediate character?</li>
+</ul>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>from *\*foo**, do we get &lt;strong&gt;*foo*&lt;/strong&gt; or &lt;strong&gt;*foo&lt;/strong&gt;* ?</pre>
+</div>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_special_character_replacement">Special character replacement</h2>
+<div class="ulist">
+<ul>
+<li>
+Some output formats require that certain characters be escaped in order to be presented literally.</li>
+<li>
+For example, HTML requires at least &lt; and &amp; be escaped as character references (and customarily &gt; as well).</li>
+<li>
+For man pages, many more characters must be escaped using the groff escaping system.</li>
+<li>
+Not all output formats understand character references, so those must be converted to the equivalent Unicode characters.</li>
+<li>
+It&#8217;s the responsibility of the converter to escape these special characters, and which characters to escape is dictated by the output.</li>
+<li>
+The converter should not escape characters in a raw text node, as the intention is to pass that content through as is.</li>
+</ul>
+</div>
+</section>
+<h1 id="_referencing_system" class="sect0">Part V: Referencing System</h1>
+<section class="doc-section level-1">
+<h2 id="_resources_and_references">Resources and references</h2>
+<div class="ulist">
+<ul>
+<li>
+The AsciiDoc language provides an addressing / referencing system.</li>
+<li>
+The referencing system consists of referenceable locations (references identified by ID), a catalog of references, internal references to another location in the same document (xrefs), and external references to other resources.</li>
+<li>
+References are referenceable locations within a document.</li>
+<li>
+Resources are assets to which an AsciiDoc document refers (e.g., an image or another document).</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_ids_reference_names">IDs / Reference names</h2>
+<div class="ulist">
+<ul>
+<li>
+any element node in the document can define an ID (aka a reference name), which can be used to refer to that node</li>
+<li>
+the ID also acts as an anchor to the location of that node in the rendered output (just like in HTML)</li>
+<li>
+anchor and ID are synonymous; ID is technically the name of the anchor and anchor is the location of that ID (the node, the node&#8217;s position, etc)</li>
+<li>
+it&#8217;s also possible to define arbitrary/contentless/floating anchors using an inline</li>
+<li>
+by default, the processor automatically generates and assigns an ID to all headings (can be toggled using <code>sectids</code> document attribute)</li>
+<li>
+a processor must provide automatic ID generation for headings; this routine should be pluggable (aka an extension point)</li>
+<li>
+ID names are stored in the references catalog using the ID value as the key and the node (the reference node or ref) as the value</li>
+<li>
+IDs must be unique within a document</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_cross_references_xrefs">Cross references (xrefs)</h2>
+<div class="ulist">
+<ul>
+<li>
+AsciiDoc content can make forward and backward references to these IDs (this is called an xref)</li>
+<li>
+if the output format supports it, the anchor points should also be public so they can be referred to from the outside using a fragment identifier (such as the fragment in a URL)<div class="ulist">
+<ul>
+<li>
+such a fragment can be added to the end of a resource reference to refer to an ID from another document; this is called a deep interdocument xref</li>
+</ul>
+</div>
+</li>
+<li>
+if link text is not specified at the point of an xref, the xreftext from the node should be used</li>
+<li>
+by default, the node&#8217;s title is used as the xreftext (the link text that replaces the xref)<div class="ulist">
+<ul>
+<li>
+this title may be enhanced to match publishing standards</li>
+<li>
+refsig attributes (e.g., <code>chapter-refsig</code>) control the signifiers used in the xreftext</li>
+<li>
+<strong>FI</strong> We have to think about how this impacts inlines; are they cloned into this spot?</li>
+</ul>
+</div>
+</li>
+<li>
+if the <code>reftext</code> attribute is set on the node, that value is used instead of the title</li>
+<li>
+if an xref points to an ID which is not found, that should be considered an unresolved (i.e., broken) reference and a warning/error should be issued by the processor</li>
+<li>
+<a id="xref-macro-fi"></a> <strong>FI</strong> Propose / Confirm that the xref macro is a general purpose macro for referencing other AsciiDoc documents; should the shorthand form be restricted to in-page anchors?</li>
+<li>
+xrefs should not be checked/validated until the entire document is parsed, though a processor may choose to eagerly validate references it already knows about as an optimization</li>
+<li>
+bibliographic entries are also stored in the same reference catalog; however, how they are defined differs</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_resource_references">Resource references</h2>
+<div class="ulist">
+<ul>
+<li>
+any reference to a location outside the current document is a resource reference</li>
+<li>
+often times, a resource reference looks like a path; however, the processor must not assume this</li>
+<li>
+rather, any resource reference must pass through a resource resolver</li>
+<li>
+some relative resource references have a predefined prefix; for example, image references that are relative start from the value of the <code>imagesdir</code> attribute</li>
+<li>
+however, if no resource resolver is specified, the processor should assume the reference is a path; in this case,<div class="ulist">
+<ul>
+<li>
+an absolute path should be taken as is</li>
+<li>
+a relative path should be resolved from the <code>docdir</code> (directory of the outermost document), not from the directory of the current include file</li>
+<li>
+the exception is include targets, which are resolved relative to the current include file</li>
+<li>
+access to paths outside of the jail (typically the <code>docdir</code>) may be restricted depending on the safe mode</li>
+</ul>
+</div>
+</li>
+<li>
+xref distinguishes between internal and external reference based on leading <code>#</code> (always internal) or existence of file extension in target<div class="ulist">
+<ul>
+<li>
+See <a href="#xref-macro-fi">FI for clarification</a>.</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+<h1 id="_preprocessor" class="sect0">Part VI: Preprocessor</h1>
+<aside class="admonition-block note" role="note">
+<h6 class="block-title label-only"><span class="title-label">Note:</span></h6>
+<p>We are considering different models for how to define the preprocessor such that it makes AsciiDoc more parsable.
+Possible solutions include: pure, priority (nesting restrictions), hybrid (header=priority, body=pure).</p>
+</aside>
+<div class="ulist">
+<ul>
+<li>
+AsciiDoc provides directives that can add or remove lines from the source text before the text is parsed</li>
+<li>
+Technically, AsciiDoc&#8217;s preprocessor is not a true preprocessor, but rather a contextual, priority processor</li>
+<li>
+The preprocessor has access to the document attributes defined at each line, but is not aware of the document&#8217;s block structure</li>
+<li>
+The preprocessor handles the following (make sections for these):<div class="ulist">
+<ul>
+<li>
+line normalization</li>
+<li>
+attribute entries (does not consume them)</li>
+<li>
+conditional directives</li>
+<li>
+include directive</li>
+<li>
+comments &#8656; to what degree?</li>
+</ul>
+</div>
+</li>
+<li>
+directives share the same syntax as a block macro (but are not themselves block macros)<div class="ulist">
+<ul>
+<li>
+there are conditional directives and the include directive</li>
+<li>
+directives are aware of any document attributes defined up to that point</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+<section class="doc-section level-1">
+<h2 id="_line_normalization">Line normalization</h2>
+<div class="ulist">
+<ul>
+<li>
+Force the encoding to UTF-8 (An AsciiDoc processor always assumes the content is UTF-8 encoded)</li>
+<li>
+Strip trailing spaces from each line (including any end of line character); or ignore them in grammar rules<div class="ulist">
+<ul>
+<li>
+We may decide removing trailing space characters is not necessary, or that it can be handled by the preprocessor</li>
+</ul>
+</div>
+</li>
+<li>
+Change Windows line ending to universal/Unix line ending (or match Windows line endings in the same way as universal line endings)</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_preprocessor_directives">Preprocessor directives</h2>
+<div class="ulist">
+<ul>
+<li>
+Special lines that are processed by the preprocessor that are not impacted by the current context of the document</li>
+<li>
+Preprocessor directives can appear anywhere in the document</li>
+<li>
+A preprocessor directive must be escaped with a backslash in order for it not to be interpreted, even in a verbatim block</li>
+<li>
+A preprocessor directive shares the syntax of a block macro, but is not itself a macro</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_relationship_to_document_attributes">Relationship to document attributes</h2>
+<div class="ulist">
+<ul>
+<li>
+Preprocessor directives must be able to see any document attributes that are defined up to the point of the directive line</li>
+<li>
+The preprocessor can see the effect of an attribute entry, but does not itself consume the attribute entry</li>
+<li>
+Preprocessor directives can use attribute references</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_conditional_directives">Conditional directives</h2>
+<div class="ulist">
+<ul>
+<li>
+shared closing directive: endif</li>
+<li>
+ifdef / ifndef</li>
+<li>
+ifeval</li>
+<li>
+<strong>FI</strong> Should we allow <code>else</code> for ifdef/ifndef/ifeval? (see <a href="https://github.com/asciidoctor/asciidoctor/issues/514" class="bare">https://github.com/asciidoctor/asciidoctor/issues/514</a>)</li>
+</ul>
+</div>
+<p>Q: If an unmatched <code>endif::[]</code> is found, should it be treated as regular text? or should the processor warn? This may be a job for a linter.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_include_directive">Include directive</h2>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Should we add indir/infile for include, if possible; or some way for targets to be resolved from current include?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_comments">Comments</h2>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Are comments block and inline nodes or preprocessor directives?
+If they are preprocessor directives, do they need to be captured by the preprocessor or simply ignored / dropped?</li>
+<li>
+line<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Propose that lines that do not have a reserved designation (a delimiter line or a block attribute line) may have a trailing line comment; we are considering whether this can be loosened to all non-verbatim lines; related to #26</li>
+</ul>
+</div>
+</li>
+<li>
+block</li>
+</ul>
+</div>
+</section>
+<h1 id="_extension_points" class="sect0">Part VII: Extension Points</h1>
+<div class="ulist">
+<ul>
+<li>
+The AsciiDoc language affords the author the ability to extend the syntax and interpretation of the syntax within a set of boundaries.</li>
+<li>
+Since the AsciiDoc language may be processed by any language, this extension system can only be defined in pseudo-code.</li>
+<li>
+A processor is expected to provide these extension points by providing TCK adapters to demonstrate that they are honored.</li>
+<li>
+<strong>FI</strong> How will syntax extensions be described in the grammar?
+We may have to rethink the relationship between parsing and extensions; it may not work on the same model as the one used in Asciidoctor.</li>
+</ul>
+</div>
+<section class="doc-section level-1">
+<h2 id="_lifecycle_extensions">Lifecycle extensions</h2>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Can we continue to support lifecycle extensions? If so, how will they be integrated with parsing and which ones can we support?
+It&#8217;s not clear if we can match what we&#8217;ve done in the past.</li>
+<li>
+Ones that we can likely support: tree processor, postprocessor, and docinfo processor.</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_syntax_extensions">Syntax extensions</h2>
+<section class="doc-section level-2">
+<h3 id="_custom_block">Custom block</h3>
+<p>Q: should a custom block or block macro be able to start a new section?</p>
+</section>
+<section class="doc-section level-2">
+<h3 id="_custom_block_macro">Custom block macro</h3>
+</section>
+<section class="doc-section level-2">
+<h3 id="_custom_inline_macro">Custom inline macro</h3>
+</section>
+<section class="doc-section level-2">
+<h3 id="_resource_resolver">Resource resolver</h3>
+<div class="ulist">
+<ul>
+<li>
+the return value of the resource resolver is the address of the resource to be used by the converter (e.g., the href)<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Or should it be an object that contains a) the referenceable location, b) the concrete location, c) a resource reader</li>
+</ul>
+</div>
+</li>
+<li>
+as of right now, there&#8217;s no required syntax for interpreting and resolving a resource reference</li>
+<li>
+the resource resolver must have access to the name of resource being resolved (e.g., include, image, xref, video, etc.)</li>
+<li>
+the resource resolver can filter the resources it chooses to resolve; it can override the behavior for certain names and allow the default behavior to be used for others (a filter)</li>
+<li>
+the resource resolver must be provided the context from which to resolve the resource; this may be information the resource resolver has stored on the document for its own use</li>
+</ul>
+</div>
+</section>
+</section>
+<section class="doc-section level-1">
+<h2 id="id-generator">ID generator</h2>
+<div class="ulist">
+<ul>
+<li>
+generates the IDs for headings (section titles and discrete headings)</li>
+<li>
+called if the <code>sectids</code> attribute is set on the document and the element does not have an explicit ID</li>
+</ul>
+</div>
+</section>
+<h1 id="_compliance_tck" class="sect0">Part VIII: Compliance / TCK</h1>
+<section class="doc-section level-1">
+<h2 id="_tck_introduction">TCK introduction</h2>
+<div class="ulist">
+<ul>
+<li>
+Validates that an implementation is compliant</li>
+<li>
+Agnostic to implementation language / platform (doctest-oriented)</li>
+<li>
+Currently focuses on language parsing / interpretation</li>
+</ul>
+</div>
+<div class="literal-block">
+<pre>        input         input
+|engine| &lt;-&gt; |adapter| &lt;-&gt; |impl|
+      actual ASG        actual ASG
+= expected ASG</pre>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_asg_node_model">ASG / Node model</h2>
+<div class="ulist">
+<ul>
+<li>
+the TCK works by verifying that an implementation can produce an expected ASG</li>
+<li>
+ASG is abstract semantic graph (or AsciiDoc semantic graph), which is essentially a semantic parse tree</li>
+<li>
+an ASG only contains concrete nodes; it does not contain non-semantic empty lines; those are implied</li>
+<li>
+in order to verify the ASG, implementations are expected to produce a node model</li>
+<li>
+the node model is a JSON-representation of the ASG</li>
+<li>
+the TCK will compare its node model against the node model produced by the implementation</li>
+<li>
+the ASG will mandate at least enough source location (sourcemap) implementation to verify that document was correctly parsed; won&#8217;t go overboard<div class="ulist">
+<ul>
+<li>
+location end for block is last column of last line; not first column of next line</li>
+</ul>
+</div>
+</li>
+<li>
+<strong>FI</strong> How will we define the APIs (including the DOM) in a language-independent way (e.g., IDL from XML DOM Core, UML, etc; see <a href="https://en.wikipedia.org/wiki/Language-independent_specification" class="bare">https://en.wikipedia.org/wiki/Language-independent_specification</a>)?</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_self_certification_process">Self-certification process</h2>
+<div class="ulist">
+<ul>
+<li>
+describe the self-certification process here</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_conversion_and_expected_behaviors">Appendix A: Conversion and Expected Behaviors</h2>
+<p>When writing in AsciiDoc, it&#8217;s understood that the content will be converted to a publishable format.
+Writing in AsciiDoc has the benefit of writing in a presentation-agnostic input format and being able to publish to multiple formats (e.g., HTML, PDF, manpage, etc).
+The purpose of a processor is to both parse/interpret the AsciiDoc content into a document model, then convert that document model to an output format.
+The converter is not yet part of this specification (likely a companion specification).
+However, this specification does identify expectations of the published document that are controlled by the AsciiDoc source (e.g., the table of contents).
+This section explains the conversion process at a high level and catalogs those expectations.
+Not all output formats can satisfy all expectations, but they should cover as many as is feasible.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_removed_syntax">Appendix B: Removed syntax</h2>
+<p>Some syntax that was supported in the initial contribution to the AsciiDoc Language is not being carried forward in the standardized definition of the language.
+That list is as follows:</p>
+<div class="ulist">
+<ul>
+<li>
+Setext-style headings (section titles and discrete headings)</li>
+<li>
+Trailing markers on Atx-style headings</li>
+<li>
+Roman numeral list markers (can still be enabled in output using list style)</li>
+<li>
+Markdown compatibility syntax with the exception of email-style quote blocks and thematic break variants</li>
+<li>
+;; as dlist marker (infinite depth of colons is permitted instead)</li>
+<li>
+Half open callout list marker (e.g., <code>1&gt;</code>)</li>
+<li>
+$$ for inline passtrhough (will likely be repurposed as an inline stem shorthand instead)</li>
+<li>
+boxed attrlist on inline passthrough spans</li>
+<li>
+indexterm2 inline macro (functionality will be folded into indexterm macro)</li>
+<li>
+dsv table format</li>
+<li>
+target on endif preprocessor directive</li>
+<li>
+float style on discrete headings (renamed to discrete, possibly with support for heading as alternative)</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_deprecation_process">Appendix C: Deprecation process</h2>
+<div class="ulist">
+<ul>
+<li>
+<strong>FI</strong> Define the deprecation process for syntax, capabilities, etc. that was defined in the first version of the specification.</li>
+<li>
+<strong>FI</strong> List any syntax, behavior, etc. that existed in Asciidoctor that was not defined in the first version of the specification and is therefore deprecated.
+We may decide in that issue to also list the syntax in an Appendix of the specification document or simply maintain it as an issue or in some other form.</li>
+</ul>
+</div>
+</section>
+</main>
+<footer id="footer">
+<div id="footer-text">
+</div>
+</footer>
+</body>
+</html>

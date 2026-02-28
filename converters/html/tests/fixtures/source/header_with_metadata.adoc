@@ -1,1 +1,0 @@
-../../../../../acdc-parser/fixtures/tests/header_with_metadata.adoc

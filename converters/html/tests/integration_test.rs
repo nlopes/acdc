@@ -55,10 +55,25 @@ fn run_fixture_test(
 
 #[rstest::rstest]
 #[tracing_test::traced_test]
-fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
+fn test_with_fixtures(
+    #[files("tests/fixtures/source/html/embedded/*.adoc")] path: PathBuf,
+) -> Result<(), Error> {
     run_fixture_test(
         &path,
-        Path::new("tests/fixtures/expected"),
+        Path::new("tests/fixtures/expected/html/embedded"),
+        HtmlVariant::Standard,
+        true,
+    )
+}
+
+#[rstest::rstest]
+#[tracing_test::traced_test]
+fn test_standalone_with_fixtures(
+    #[files("tests/fixtures/source/html/standalone/*.adoc")] path: PathBuf,
+) -> Result<(), Error> {
+    run_fixture_test(
+        &path,
+        Path::new("tests/fixtures/expected/html/standalone"),
         HtmlVariant::Standard,
         false,
     )
@@ -67,13 +82,26 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
 #[rstest::rstest]
 #[tracing_test::traced_test]
 fn test_html5s_with_fixtures(
-    #[files("tests/fixtures/source/html5s/*.adoc")] path: PathBuf,
+    #[files("tests/fixtures/source/html5s/embedded/*.adoc")] path: PathBuf,
 ) -> Result<(), Error> {
     run_fixture_test(
         &path,
-        Path::new("tests/fixtures/expected/html5s"),
+        Path::new("tests/fixtures/expected/html5s/embedded"),
         HtmlVariant::Semantic,
         true,
+    )
+}
+
+#[rstest::rstest]
+#[tracing_test::traced_test]
+fn test_html5s_standalone_with_fixtures(
+    #[files("tests/fixtures/source/html5s/standalone/*.adoc")] path: PathBuf,
+) -> Result<(), Error> {
+    run_fixture_test(
+        &path,
+        Path::new("tests/fixtures/expected/html5s/standalone"),
+        HtmlVariant::Semantic,
+        false,
     )
 }
 

@@ -1,1 +1,0 @@
-../../../../../acdc-parser/fixtures/tests/escaped_superscript_subscript.adoc

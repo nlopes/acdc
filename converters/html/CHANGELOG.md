@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **html5s fixture coverage** — added 18 new html5s fixture tests covering tables, TOC,
+  footnotes, description lists, verse blocks, callout lists, index catalog, and book parts.
+- **fixture directory restructure** — fixtures now use an `embedded/`/`standalone/` layout
+  under each variant (`html/`, `html5s/`). Embedded fixtures produce content-only HTML,
+  standalone fixtures produce full-page HTML. This eliminates ~2 MB of redundant boilerplate.
 - **`latexmath:[]` and `asciimath:[]` inline macros** — HTML rendering support for explicit
   notation overrides.
 - **html5s semantic CSS gaps** — added missing rules for `.verse-block`, `.literal-block`,
