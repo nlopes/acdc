@@ -240,6 +240,19 @@ html, body {
 .adoc-macro-attrs { color: #c2185b; }
 .adoc-table-delimiter { color: #9d4edd; }
 .adoc-table-cell { color: #9d4edd; font-weight: bold; }
+.adoc-anchor { color: #7209b7; }
+.adoc-superscript { color: #0077b6; vertical-align: super; font-size: 0.85em; }
+.adoc-subscript { color: #0077b6; vertical-align: sub; font-size: 0.85em; }
+.adoc-thematic-break { color: #6c757d; }
+.adoc-page-break { color: #6c757d; }
+.adoc-checklist { color: #e85d04; font-weight: bold; }
+.adoc-description-marker { color: #e85d04; font-weight: bold; }
+.adoc-passthrough-content { color: #6c757d; font-style: italic; }
+.adoc-literal-content { color: #495057; }
+.adoc-inline-macro { color: #2e8b57; }
+.adoc-index-term { color: #7209b7; font-style: italic; }
+.adoc-passthrough-inline { color: #6c757d; font-style: italic; }
+.adoc-macro { color: #2e8b57; font-weight: bold; }
 
 /* Preview styling - html5s (semantic HTML) variant */
 #preview {
@@ -1242,6 +1255,16 @@ html, body {
     .adoc-code-content { color: #adb5bd; }
     .adoc-macro-target { color: #56d47e; }
     .adoc-macro-attrs { color: #f06292; }
+    .adoc-anchor { color: #bc8cff; }
+    .adoc-superscript { color: #58a6ff; vertical-align: super; font-size: 0.85em; }
+    .adoc-subscript { color: #58a6ff; vertical-align: sub; font-size: 0.85em; }
+    .adoc-thematic-break, .adoc-page-break { color: #8b929a; }
+    .adoc-checklist, .adoc-description-marker { color: #f0923e; font-weight: bold; }
+    .adoc-passthrough-content, .adoc-passthrough-inline { color: #8b929a; font-style: italic; }
+    .adoc-literal-content { color: #adb5bd; }
+    .adoc-inline-macro { color: #56d47e; }
+    .adoc-index-term { color: #bc8cff; font-style: italic; }
+    .adoc-macro { color: #56d47e; font-weight: bold; }
 
     /* Preview base */
     #preview { color: rgba(255, 255, 255, .85); }
