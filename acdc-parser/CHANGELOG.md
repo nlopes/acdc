@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Public `InlineNode::location()` method** — provides direct access to the source location of
+  any inline node without requiring the `Locateable` trait.
 - **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
   direct access to location information without pattern matching on variants.
 - **Rich inline markup in document titles and subtitles** — document titles now support bold,

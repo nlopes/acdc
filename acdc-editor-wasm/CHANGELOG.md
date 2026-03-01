@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Generate `adoc-block-title` CSS class for block title lines (`.Title text`), giving them
+  visual distinction in the editor.
 - Dark mode support that automatically follows the system `prefers-color-scheme` setting.
 - CSS rules for semantic `video-block` and `audio-block` classes in html5s mode.
 - CSS highlight rules for 13 previously unstyled `adoc-*` classes: anchor, superscript,

@@ -42,6 +42,14 @@ pub enum InlineNode {
     CalloutRef(CalloutRef),
 }
 
+impl InlineNode {
+    /// Returns the source location of this inline node.
+    #[must_use]
+    pub fn location(&self) -> &Location {
+        <Self as Locateable>::location(self)
+    }
+}
+
 impl Locateable for InlineNode {
     fn location(&self) -> &Location {
         match self {

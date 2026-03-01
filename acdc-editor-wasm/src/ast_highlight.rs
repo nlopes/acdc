@@ -133,11 +133,11 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
         }
         Block::ThematicBreak(tb) => {
             push_block_span(spans, &tb.location, "adoc-thematic-break");
-            collect_inline_spans(input, &tb.title, spans);
+            collect_block_title_spans(input, &tb.title, spans);
         }
         Block::PageBreak(pb) => {
             push_block_span(spans, &pb.location, "adoc-page-break");
-            collect_inline_spans(input, &pb.title, spans);
+            collect_block_title_spans(input, &pb.title, spans);
         }
         Block::Admonition(adm) => {
             collect_block_metadata_spans(&adm.metadata, spans);
@@ -159,7 +159,7 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
             }
 
             // Highlight title if present
-            collect_inline_spans(input, &adm.title, spans);
+            collect_block_title_spans(input, &adm.title, spans);
 
             for child in &adm.blocks {
                 collect_block_spans(input, child, spans);
@@ -167,21 +167,21 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
         }
         Block::UnorderedList(list) => {
             // Highlight list title
-            collect_inline_spans(input, &list.title, spans);
+            collect_block_title_spans(input, &list.title, spans);
             for item in &list.items {
                 collect_list_item_spans(input, item, spans);
             }
         }
         Block::OrderedList(list) => {
             // Highlight list title
-            collect_inline_spans(input, &list.title, spans);
+            collect_block_title_spans(input, &list.title, spans);
             for item in &list.items {
                 collect_list_item_spans(input, item, spans);
             }
         }
         Block::CalloutList(list) => {
             // Highlight list title
-            collect_inline_spans(input, &list.title, spans);
+            collect_block_title_spans(input, &list.title, spans);
             for item in &list.items {
                 push_inline_span(spans, &item.callout.location, "adoc-callout");
                 collect_inline_spans(input, &item.principal, spans);
@@ -192,18 +192,18 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
         }
         Block::DescriptionList(list) => {
             // Highlight list title
-            collect_inline_spans(input, &list.title, spans);
+            collect_block_title_spans(input, &list.title, spans);
             collect_description_list_spans(input, list, spans);
         }
         Block::DelimitedBlock(db) => {
             collect_delimited_block_spans(input, db, spans);
             // Highlight title if present
-            collect_inline_spans(input, &db.title, spans);
+            collect_block_title_spans(input, &db.title, spans);
         }
         Block::Paragraph(para) => {
             collect_block_metadata_spans(&para.metadata, spans);
             // Highlight title if present
-            collect_inline_spans(input, &para.title, spans);
+            collect_block_title_spans(input, &para.title, spans);
             collect_inline_spans(input, &para.content, spans);
         }
         Block::Image(img) => {
@@ -659,6 +659,27 @@ fn collect_inline_spans(input: &str, nodes: &[InlineNode], spans: &mut Vec<Span>
     }
 }
 
+/// Highlight a block title line (`.Title text`) with `adoc-block-title`, then
+/// recurse into its inline content.
+fn collect_block_title_spans(input: &str, title: &[InlineNode], spans: &mut Vec<Span>) {
+    if title.is_empty() {
+        return;
+    }
+    let first_start = title.first().unwrap().location().absolute_start;
+    let last_end = title.last().unwrap().location().absolute_end + 1; // inclusive → exclusive
+    // Walk back 1 byte to cover the `.` prefix
+    let dot_start = first_start.saturating_sub(1);
+    if input.as_bytes().get(dot_start) == Some(&b'.') {
+        spans.push(Span {
+            start: dot_start,
+            end: last_end,
+            class: "adoc-block-title",
+            priority: 1,
+        });
+    }
+    collect_inline_spans(input, title, spans);
+}
+
 #[allow(clippy::too_many_lines)]
 fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Span>) {
     match node {
@@ -1089,6 +1110,12 @@ mod tests {
         // Standalone `:attr:` is parsed as a document attribute when under a header
         let result = highlight("= Doc\n:date: 2025-01-01");
         assert!(result.contains("adoc-attribute"), "result: {result}");
+    }
+
+    #[test]
+    fn test_block_title_highlight() {
+        let result = highlight(".Block title\nSome paragraph text");
+        assert!(result.contains("adoc-block-title"), "result: {result}");
     }
 
     #[test]
