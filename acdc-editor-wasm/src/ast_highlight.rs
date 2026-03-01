@@ -665,17 +665,20 @@ fn collect_block_title_spans(input: &str, title: &[InlineNode], spans: &mut Vec<
     if title.is_empty() {
         return;
     }
-    let first_start = title.first().unwrap().location().absolute_start;
-    let last_end = title.last().unwrap().location().absolute_end + 1; // inclusive → exclusive
-    // Walk back 1 byte to cover the `.` prefix
-    let dot_start = first_start.saturating_sub(1);
-    if input.as_bytes().get(dot_start) == Some(&b'.') {
-        spans.push(Span {
-            start: dot_start,
-            end: last_end,
-            class: "adoc-block-title",
-            priority: 1,
-        });
+    if let Some(first) = title.first()
+        && let Some(last) = title.last()
+    {
+        let start = first.location().absolute_start;
+        let end = last.location().absolute_end + 1; // inclusive → exclusive
+        let dot_start = start.saturating_sub(1);
+        if input.as_bytes().get(dot_start) == Some(&b'.') {
+            spans.push(Span {
+                start: dot_start,
+                end,
+                class: "adoc-block-title",
+                priority: 1,
+            });
+        }
     }
     collect_inline_spans(input, title, spans);
 }
