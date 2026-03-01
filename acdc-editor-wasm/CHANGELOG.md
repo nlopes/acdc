@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Resizable editor/preview panes with a draggable handle between them. Pane sizes
+  persist across page reloads via localStorage. Double-click the handle to reset to 50/50.
 - Generate `adoc-block-title` CSS class for block title lines (`.Title text`), giving them
   visual distinction in the editor.
 - Dark mode support that automatically follows the system `prefers-color-scheme` setting.

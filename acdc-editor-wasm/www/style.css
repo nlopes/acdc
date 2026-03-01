@@ -51,17 +51,57 @@ html, body {
 }
 
 .editor-pane {
-    flex: 1;
+    flex: 0 0 50%;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid #ccc;
     background: #f8f9fa;
     position: relative;
     min-width: 300px;
 }
 
+.resize-handle {
+    flex-shrink: 0;
+    width: 5px;
+    cursor: col-resize;
+    background: #dee2e6;
+    z-index: 1;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resize-handle::after {
+    content: '···';
+    writing-mode: vertical-lr;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #868e96;
+    pointer-events: none;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+    background: #adb5bd;
+}
+
+.resize-handle:hover::after,
+.resize-handle:active::after {
+    color: #495057;
+}
+
+body.resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+body.resizing .editor-pane,
+body.resizing .preview-pane {
+    pointer-events: none;
+}
+
 .preview-pane {
-    flex: 1;
+    flex: 1 1 0%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -258,7 +298,7 @@ html, body {
 #preview {
     flex: 1;
     overflow-y: auto;
-    padding: 2rem;
+    padding: 0.5rem 0.625rem;
     max-width: 800px;
     margin: 0 0;
     font-family: "Open Sans", "DejaVu Sans", sans-serif;
@@ -272,6 +312,12 @@ html, body {
     line-height: 1.6;
     margin-bottom: 1.25em;
     text-rendering: optimizeLegibility;
+}
+
+#preview > :first-child,
+#preview > :first-child > :first-child,
+#preview > :first-child > :first-child > :first-child {
+    margin-top: 0;
 }
 
 #preview h1, #preview h2, #preview h3, #preview h4, #preview h5, #preview h6 {
@@ -1228,7 +1274,11 @@ html, body {
     .site-footer { background: #1e1e1e; border-top-color: #3a3a3a; color: #8b929a; }
     .site-footer a { color: #adb5bd; }
     .site-footer a:hover { color: #e9ecef; }
-    .editor-pane { background: #1e1e1e; border-right-color: #3a3a3a; }
+    .editor-pane { background: #1e1e1e; }
+    .resize-handle { background: #3a3a3a; }
+    .resize-handle::after { color: #666; }
+    .resize-handle:hover, .resize-handle:active { background: #555; }
+    .resize-handle:hover::after, .resize-handle:active::after { color: #adb5bd; }
     .preview-pane { background: #1a1a1a; }
     .pane-label { color: #8b929a; border-bottom-color: #3a3a3a; }
     .editor-pane .pane-label,
