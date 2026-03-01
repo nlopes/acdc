@@ -1,0 +1,31 @@
+= Word wrap in blocks
+
+== Sidebar with long text
+
+****
+This is a sidebar paragraph that contains enough text to exceed a typical terminal width so that word wrapping is exercised properly inside the box-drawn borders.
+****
+
+== Example with long text
+
+====
+This example block has a paragraph with quite a lot of words that should definitely be wrapped when rendered inside the terminal box drawing characters to avoid breaking the visual layout.
+====
+
+== Admonition with long text
+
+NOTE: This is a note admonition with a paragraph that contains enough words to require wrapping when displayed inside the bordered admonition block in the terminal converter output.
+
+== Quote with long text
+
+[quote]
+____
+This is a quote block paragraph that is intentionally long enough to require word wrapping so that the left border character is not disrupted by the terminal wrapping the raw text.
+____
+
+== Listing should not wrap
+
+[source,rust]
+----
+fn this_is_a_very_long_function_name_that_should_not_be_wrapped_because_listing_blocks_are_preformatted() -> bool { true }
+----

@@ -7,17 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- `extract_plain_text` now preserves text content from formatted inline nodes (bold, italic, monospace, etc.) in literal paragraphs
-
-### Changed
-
-- **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
-  string attributes. ([#357])
-
 ### Added
 
+- Word wrapping for content inside box-drawn blocks (sidebars, examples, admonitions, quote blocks)
+- Unicode-aware character width measurement for correct CJK and emoji wrapping
 - `Processor::with_terminal_width()` for deterministic width control in tests and fixture generation.
 - Section numbering support (`sectnums`, `partnums`, appendix tracking).
 - Index term collection and alphabetized index catalog rendering (`[index]` sections).
@@ -32,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `extract_plain_text` now preserves text content from formatted inline nodes (bold, italic, monospace, etc.) in literal paragraphs
+- ANSI SGR state tracking now prunes cancelled codes (e.g. bold-off removes bold) instead of accumulating indefinitely
 - `extract_title_text` now preserves inline content from `VerbatimText`, `RawText`,
   `StandaloneCurvedApostrophe`, `LineBreak`, `CalloutRef`, and all `Macro` variants
   in section titles. Previously these were silently dropped.
@@ -39,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed
+- Deduplicated ANSI escape skipping logic into shared `skip_ansi_escape` helper
+- **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
+  string attributes. ([#357])
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 - `Error` type is now public (was `pub(crate)`), enabling external code to handle
   terminal converter errors explicitly.

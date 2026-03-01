@@ -94,9 +94,13 @@ pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
             .map_err(std::io::IntoInnerError::into_error)?;
 
         let content = String::from_utf8_lossy(&buffer);
-        let w = visitor.writer_mut();
 
-        for line in content.lines() {
+        // Word-wrap content to fit within the "│ " prefix
+        let available = processor.terminal_width.saturating_sub(2);
+        let wrapped = crate::wrap::wrap_ansi_text(&content, available);
+
+        let w = visitor.writer_mut();
+        for line in wrapped.lines() {
             write!(w, "{} ", border.with(color))?;
             writeln!(w, "{line}")?;
         }

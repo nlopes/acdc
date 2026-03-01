@@ -279,6 +279,7 @@ mod table;
 mod terminal_visitor;
 mod toc;
 mod video;
+mod wrap;
 
 pub use appearance::Capabilities;
 pub use error::Error;

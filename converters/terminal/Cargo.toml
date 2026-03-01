@@ -17,6 +17,7 @@ comfy-table = { version = "7.2", features = ["custom_styling"] }
 crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+unicode-width.workspace = true
 # syntax highlighting (optional - saves ~7s compile time when disabled)
 syntect = { version = "5.3", optional = true }
 # images on the terminal (optional - saves ~16s compile time when disabled)

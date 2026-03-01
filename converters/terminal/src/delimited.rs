@@ -10,55 +10,8 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
+use crate::wrap::{pad_to_width, wrap_ansi_text};
 use crate::{Error, Processor};
-
-/// Calculate visible width of a string, skipping ANSI escape sequences.
-fn visible_len(s: &str) -> usize {
-    let mut len = 0;
-    let mut chars = s.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if ch == '\x1b' {
-            // Skip ANSI escape sequence
-            if let Some(&next) = chars.peek() {
-                if next == '[' {
-                    // CSI sequence: \x1b[...letter
-                    chars.next();
-                    for c in chars.by_ref() {
-                        if c.is_ascii_alphabetic() {
-                            break;
-                        }
-                    }
-                } else if next == ']' {
-                    // OSC sequence: \x1b]...ST
-                    chars.next();
-                    while let Some(c) = chars.next() {
-                        if c == '\x1b' {
-                            if chars.peek() == Some(&'\\') {
-                                chars.next();
-                            }
-                            break;
-                        } else if c == '\x07' {
-                            break;
-                        }
-                    }
-                }
-            }
-        } else {
-            len += 1;
-        }
-    }
-    len
-}
-
-/// Pad a string to target visible width with spaces.
-fn pad_to_width(s: &str, target: usize) -> String {
-    let visible = visible_len(s);
-    if visible >= target {
-        s.to_string()
-    } else {
-        format!("{s}{}", " ".repeat(target - visible))
-    }
-}
 
 struct BoxChars {
     tl: &'static str,
@@ -113,8 +66,9 @@ fn render_boxed_content<V: WritableVisitor<Error = Error>>(
     ))?;
     writeln!(w)?;
 
-    // Content lines
-    for line in content.lines() {
+    // Word-wrap content to fit inside the box, then render each line
+    let wrapped = wrap_ansi_text(content, inner_width);
+    for line in wrapped.lines() {
         let padded = pad_to_width(line, inner_width);
         w.queue(PrintStyledContent(format!("{} ", chars.vert).with(color)))?;
         write!(w, "{padded}")?;
@@ -374,9 +328,13 @@ fn render_quote_block<V: WritableVisitor<Error = Error>>(
     let content = String::from_utf8_lossy(&buffer);
     let color = processor.appearance.colors.admon_tip; // Green for quotes
 
+    // Word-wrap content to fit within the "│ " prefix
+    let available = processor.terminal_width.saturating_sub(2);
+    let wrapped = wrap_ansi_text(&content, available);
+
     // Left border with `│` on each line, content in italic
     let w = visitor.writer_mut();
-    for line in content.lines() {
+    for line in wrapped.lines() {
         w.queue(PrintStyledContent("│ ".with(color)))?;
         let styled_line = line.italic();
         QueueableCommand::queue(w, PrintStyledContent(styled_line))?;
