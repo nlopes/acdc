@@ -9,20 +9,20 @@
         {
           "name": "xref",
           "type": "inline",
-          "target": "conclusion",
+          "target": "docs/intro#getting-started",
           "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "click here",
+              "value": "Getting Started",
               "location": [
                 {
                   "line": 1,
-                  "col": 17
+                  "col": 33
                 },
                 {
                   "line": 1,
-                  "col": 26
+                  "col": 47
                 }
               ]
             }
@@ -34,7 +34,7 @@
             },
             {
               "line": 1,
-              "col": 27
+              "col": 48
             }
           ]
         }
@@ -46,7 +46,7 @@
         },
         {
           "line": 1,
-          "col": 27
+          "col": 48
         }
       ]
     }
@@ -58,7 +58,7 @@
     },
     {
       "line": 1,
-      "col": 27
+      "col": 48
     }
   ]
 }

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
+  and `link:page.html#section[text]` now parse correctly. The `#fragment` is optional and only
+  applies to `xref:` and `link:` macros (not `image::`, `video::`, etc.).
 - **Public `InlineNode::location()` method** — provides direct access to the source location of
   any inline node without requiring the `Locateable` trait.
 - **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
@@ -16,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rich inline markup in document titles and subtitles** — document titles now support bold,
   italic, monospace, links, macros, and other inline markup, matching section title behavior.
   Previously, titles were always rendered as plain text.
+
+### Fixed
+
+- **Incorrect locations for inline text inside `xref:`, `url:`, and `mailto:` macros** — text
+  nodes inside these macros (e.g., "Section Title" in `xref:file#id[Section Title]`) had wrong
+  line and column numbers. The line was always reported as 1 regardless of actual position, and
+  the column was relative to the start of the macro instead of the text content. Both issues are
+  now fixed: grammar rules capture the correct content start position, and the location mapper
+  remaps nested text nodes to document-absolute coordinates.
 
 ## [0.7.0] - 2026-02-25
 

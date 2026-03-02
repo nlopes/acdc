@@ -9,20 +9,20 @@
         {
           "name": "xref",
           "type": "inline",
-          "target": "conclusion",
+          "target": "chapter.adoc#my-section",
           "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "click here",
+              "value": "Section Title",
               "location": [
                 {
                   "line": 1,
-                  "col": 17
+                  "col": 30
                 },
                 {
                   "line": 1,
-                  "col": 26
+                  "col": 42
                 }
               ]
             }
@@ -34,7 +34,7 @@
             },
             {
               "line": 1,
-              "col": 27
+              "col": 43
             }
           ]
         }
@@ -46,7 +46,7 @@
         },
         {
           "line": 1,
-          "col": 27
+          "col": 43
         }
       ]
     }
@@ -58,7 +58,7 @@
     },
     {
       "line": 1,
-      "col": 27
+      "col": 43
     }
   ]
 }

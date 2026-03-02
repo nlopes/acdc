@@ -7,26 +7,13 @@
       "type": "block",
       "inlines": [
         {
-          "name": "xref",
+          "name": "ref",
           "type": "inline",
-          "target": "conclusion",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "click here",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 17
-                },
-                {
-                  "line": 1,
-                  "col": 26
-                }
-              ]
-            }
-          ],
+          "variant": "link",
+          "target": {
+            "type": "path",
+            "value": "page.html#section"
+          },
           "location": [
             {
               "line": 1,
@@ -34,9 +21,10 @@
             },
             {
               "line": 1,
-              "col": 27
+              "col": 31
             }
-          ]
+          ],
+          "attributes": {}
         }
       ],
       "location": [
@@ -46,7 +34,7 @@
         },
         {
           "line": 1,
-          "col": 27
+          "col": 31
         }
       ]
     }
@@ -58,7 +46,7 @@
     },
     {
       "line": 1,
-      "col": 27
+      "col": 31
     }
   ]
 }

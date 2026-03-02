@@ -84,12 +84,12 @@
                   "value": "final section",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 9
+                      "line": 5,
+                      "col": 22
                     },
                     {
-                      "line": 1,
-                      "col": 21
+                      "line": 5,
+                      "col": 34
                     }
                   ]
                 }

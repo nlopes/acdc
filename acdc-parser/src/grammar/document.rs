@@ -4153,6 +4153,7 @@ peg::parser! {
         = start:position()
         target:url()
         "["
+        content_start:position()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -4173,7 +4174,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, &text)
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, &text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process URL macro text");
                         "could not process URL macro text"
@@ -4201,6 +4202,7 @@ peg::parser! {
         &"mailto:"
         target:url()
         "["
+        content_start:position()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -4221,7 +4223,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, &text)
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, &text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process mailto macro text");
                         "could not process mailto macro text"
@@ -4444,7 +4446,7 @@ peg::parser! {
         /// regressions in other parts of the parser while correctly handling edge cases
         /// like quotes, special characters, and mixed content.
         rule link_macro(offset: usize) -> InlineNode
-        = start:position!() "link:" target:source() "[" content:(
+        = start:position!() "link:" target:source() fragment:path_fragment()? "[" content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
@@ -4461,6 +4463,10 @@ peg::parser! {
                     metadata.attributes.insert(k, AttributeValue::String(v));
                 }
             }
+            let target = match fragment {
+                Some(f) => Source::from_str(&format!("{target}{f}")).unwrap_or(target),
+                None => target,
+            };
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
                 text,
                 target,
@@ -4475,12 +4481,16 @@ peg::parser! {
         {?
             let (target, raw_text) = shorthand;
             let target_str = target.trim().to_string();
-            let text = if let Some(t) = raw_text {
+            let text = if let Some((content_start, t)) = raw_text {
                 let trimmed = t.trim();
                 if trimmed.is_empty() {
                     vec![]
                 } else {
-                    process_inlines_no_autolinks(state, block_metadata, &start, end, offset, trimmed)
+                    let content_pos = PositionWithOffset {
+                        offset: content_start,
+                        position: state.line_map.offset_to_position(content_start, &state.input),
+                    };
+                    process_inlines_no_autolinks(state, block_metadata, &content_pos, end, offset, trimmed)
                         .map_err(|e| {
                             tracing::error!(?e, xref_text = trimmed, "could not process xref text");
                             "could not process xref text"
@@ -4498,21 +4508,24 @@ peg::parser! {
         }
 
         /// Pattern for cross-reference shorthand: <<id>> or <<id,custom text>>
-        rule cross_reference_shorthand_pattern() -> (String, Option<String>)
-        = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," text:$((!">>" [_])+) { text })? ">>"
+        rule cross_reference_shorthand_pattern() -> (String, Option<(usize, String)>)
+        = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," content_start:position!() text:$((!">>" [_])+) { (content_start, text.to_string()) })? ">>"
         {
-            (target.to_string(), content.map(std::string::ToString::to_string))
+            (target.to_string(), content)
         }
 
-        /// Parse cross-reference macro syntax: xref:id[text]
+        /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position() "xref:" target:source() "[" raw_text:$((!"]" [_])*) "]" end:position!()
+        = start:position() "xref:" target:source() fragment:path_fragment()? "[" content_start:position() raw_text:$((!"]" [_])*) "]" end:position!()
         {?
-            let target_str = target.to_string();
+            let target_str = match fragment {
+                Some(f) => format!("{target}{f}"),
+                None => target.to_string(),
+            };
             let text = if raw_text.is_empty() {
                 vec![]
             } else {
-                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, raw_text)
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, raw_text)
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
@@ -4530,9 +4543,9 @@ peg::parser! {
         rule cross_reference_shorthand_match() -> ()
         = "<<" ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']* ("," (!">>" [_])+)? ">>"
 
-        /// Match cross-reference macro syntax without consuming: xref:id[text]
+        /// Match cross-reference macro syntax without consuming: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro_match()
-        = "xref:" source() "[" (!"]" [_])* "]"
+        = "xref:" source() path_fragment()? "[" (!"]" [_])* "]"
 
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = attrs:inline_attributes()? start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
@@ -5890,6 +5903,14 @@ peg::parser! {
         /// Excludes `)` so that trailing chars before `)` aren't greedily consumed
         /// (e.g., `http://example.com.)` keeps both `.` and `)` outside).
         rule bare_url_char() = bare_url_safe_char() / bare_url_trailing_char() / "("
+
+        /// Fragment identifier for URLs and cross-references (e.g., `#section-id`)
+        /// Only used by `xref:` and `link:` macros — other macros (`image::`, `video::`, etc.) do not support fragments
+        rule path_fragment() -> String
+            = "#" fragment:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
+        {
+            format!("#{fragment}")
+        }
 
         /// Filesystem path - conservative character set for cross-platform compatibility
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution

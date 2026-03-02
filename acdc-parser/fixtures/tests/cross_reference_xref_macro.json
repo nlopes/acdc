@@ -84,12 +84,12 @@
                   "value": "click here",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 29
+                      "line": 5,
+                      "col": 45
                     },
                     {
-                      "line": 1,
-                      "col": 38
+                      "line": 5,
+                      "col": 54
                     }
                   ]
                 }
