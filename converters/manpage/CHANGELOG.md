@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Changed
+
+- **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
+  string attributes. ([#357])
+
 ### Added
 
 - Quote and verse block attribution rendering (`[quote, author, citation]`)

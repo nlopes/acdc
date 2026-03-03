@@ -6,41 +6,29 @@
       "name": "quote",
       "type": "block",
       "form": "delimited",
-      "delimiter": "____",
+      "delimiter": "\"",
       "metadata": {
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
-            "type": "string",
-            "value": "Albert Einstein",
+            "name": "ref",
+            "type": "inline",
+            "variant": "link",
+            "target": {
+              "type": "url",
+              "value": "https://example.com/"
+            },
             "location": [
               {
-                "line": 1,
-                "col": 9
+                "line": 2,
+                "col": 4
               },
               {
-                "line": 1,
-                "col": 24
+                "line": 2,
+                "col": 32
               }
-            ]
-          }
-        ],
-        "citetitle": [
-          {
-            "name": "text",
-            "type": "string",
-            "value": "Letter to Max Born",
-            "location": [
-              {
-                "line": 1,
-                "col": 26
-              },
-              {
-                "line": 1,
-                "col": 44
-              }
-            ]
+            ],
+            "attributes": {}
           }
         ]
       },
@@ -52,27 +40,27 @@
             {
               "name": "text",
               "type": "string",
-              "value": "God does not play dice with the universe.",
+              "value": "This is the text of the quote.",
               "location": [
                 {
-                  "line": 3,
+                  "line": 1,
                   "col": 1
                 },
                 {
-                  "line": 3,
-                  "col": 41
+                  "line": 1,
+                  "col": 30
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 3,
+              "line": 1,
               "col": 1
             },
             {
-              "line": 3,
-              "col": 41
+              "line": 1,
+              "col": 30
             }
           ]
         }
@@ -83,8 +71,8 @@
           "col": 1
         },
         {
-          "line": 4,
-          "col": 4
+          "line": 2,
+          "col": 32
         }
       ]
     }
@@ -95,8 +83,8 @@
       "col": 1
     },
     {
-      "line": 4,
-      "col": 4
+      "line": 2,
+      "col": 32
     }
   ]
 }

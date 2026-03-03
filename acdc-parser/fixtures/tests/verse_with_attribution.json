@@ -8,11 +8,41 @@
       "form": "delimited",
       "delimiter": "____",
       "metadata": {
-        "attributes": {
-          "attribution": "Carl Sandburg",
-          "citation": "Fog"
-        },
-        "style": "verse"
+        "style": "verse",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Carl Sandburg",
+            "location": [
+              {
+                "line": 1,
+                "col": 9
+              },
+              {
+                "line": 1,
+                "col": 22
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Fog",
+            "location": [
+              {
+                "line": 1,
+                "col": 24
+              },
+              {
+                "line": 1,
+                "col": 27
+              }
+            ]
+          }
+        ]
       },
       "inlines": [
         {

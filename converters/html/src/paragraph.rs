@@ -87,7 +87,9 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
             w = visitor.writer_mut();
             writeln!(w)?;
             writeln!(w, "</blockquote>")?;
-            write_attribution(&mut w, &para.metadata)?;
+            let _ = w;
+            write_attribution(visitor, &para.metadata)?;
+            let w = visitor.writer_mut();
             writeln!(w, "</div>")?;
             return Ok(());
         }
@@ -103,9 +105,9 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
             write!(w, "<pre class=\"content\">")?;
             let _ = w;
             visitor.visit_inline_nodes(&para.content)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</pre>")?;
-            write_attribution(&mut w, &para.metadata)?;
+            let _ = visitor.writer_mut();
+            write_attribution(visitor, &para.metadata)?;
+            let w = visitor.writer_mut();
             writeln!(w, "</div>")?;
             return Ok(());
         }

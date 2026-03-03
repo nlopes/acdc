@@ -12,36 +12,7 @@ use web_sys::{Document, Element, Event, HtmlElement, HtmlTextAreaElement, Keyboa
 
 const DEBOUNCE_MS: i32 = 25;
 
-const DEFAULT_CONTENT: &str = r#"= My document
-:date: 2025-01-15T10:00:00+00:00
-:description: A quick preview
-:toc: macro
-:icons: font
-
-toc::[]
-
-icon:arrow-right[]
-This is a *live preview* editor for https://asciidoc.org[AsciiDoc].
-
-== Getting started
-
-Type in the left pane and see the rendered output on the right.
-The preview uses the _exact same_ parser and converter as the deployed site.
-
-* Unordered list item
-* Another item
-
-=== Code blocks footnote:code-blocks[I love code blocks]
-
-[source,rust]
-----
-fn main() {
-    println!("Hello from the editor!");
-}
-----
-
-TIP: Try adding sections, lists, and inline formatting.
-"#;
+const DEFAULT_CONTENT: &str = include_str!("../assets/default-content.adoc");
 
 /// Cached references to the DOM elements the editor interacts with.
 struct EditorState {

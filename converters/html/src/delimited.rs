@@ -251,9 +251,10 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
                 for nested_block in blocks {
                     visitor.visit_block(nested_block)?;
                 }
-                writer = visitor.writer_mut();
+                let _ = visitor.writer_mut();
                 // Attribution goes inside blockquote as <footer>
-                write_semantic_attribution(&mut writer, &block.metadata)?;
+                write_semantic_attribution(visitor, &block.metadata)?;
+                let writer = visitor.writer_mut();
                 writeln!(writer, "</blockquote>")?;
                 if has_title {
                     writeln!(writer, "</section>")?;
@@ -273,9 +274,11 @@ pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
                 for nested_block in blocks {
                     visitor.visit_block(nested_block)?;
                 }
-                writer = visitor.writer_mut();
+                let writer = visitor.writer_mut();
                 writeln!(writer, "</blockquote>")?;
-                write_attribution(&mut writer, &block.metadata)?;
+                let _ = writer;
+                write_attribution(visitor, &block.metadata)?;
+                let writer = visitor.writer_mut();
                 writeln!(writer, "</div>")?;
             }
         }
@@ -725,7 +728,9 @@ fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
             visitor.visit_inline_nodes(inlines)?;
             w = visitor.writer_mut();
             writeln!(w, "</pre>")?;
-            write_attribution(&mut w, metadata)?;
+            let _ = w;
+            write_attribution(visitor, metadata)?;
+            w = visitor.writer_mut();
             writeln!(w, "</div>")?;
         }
         DelimitedBlockType::DelimitedQuote(_)
@@ -882,8 +887,8 @@ fn render_verse_block_semantic<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
 ) -> Result<(), Error> {
     let has_title = !title.is_empty();
-    let has_attribution = metadata.attributes.get_string("attribution").is_some()
-        || metadata.attributes.get_string("citation").is_some();
+    let has_attribution = metadata.attribution.as_ref().is_some_and(|a| !a.is_empty())
+        || metadata.citetitle.as_ref().is_some_and(|c| !c.is_empty());
 
     let mut w = visitor.writer_mut();
     if has_title {
@@ -902,7 +907,9 @@ fn render_verse_block_semantic<V: WritableVisitor<Error = Error>>(
         visitor.visit_inline_nodes(inlines)?;
         w = visitor.writer_mut();
         writeln!(w, "</pre>")?;
-        write_semantic_attribution(&mut w, metadata)?;
+        let _ = w;
+        write_semantic_attribution(visitor, metadata)?;
+        w = visitor.writer_mut();
         writeln!(w, "</blockquote>")?;
     } else {
         write!(w, "<pre class=\"verse\">")?;

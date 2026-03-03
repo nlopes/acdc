@@ -1,0 +1,34 @@
+= My document
+:date: 2025-01-15T10:00:00+00:00
+:description: A quick preview
+:toc: macro
+:icons: font
+
+toc::[]
+
+icon:arrow-right[]
+This is a *live preview* editor for https://asciidoc.org[AsciiDoc].
+
+== Getting started
+
+Type in the left pane and see the rendered output on the right.
+
+This is using https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the https://github.com/nlopes/acdc[`acdc`] repository.
+
+* Unordered list item
+* Another item
+
+=== Code blocks footnote:code-blocks[I love code blocks]
+
+."Hello World" example
+[%collapsible%open]
+====
+[source,rust]
+----
+fn main() {
+    println!("Hello from the editor!");
+}
+----
+====
+
+TIP: Try adding sections, lists, and inline formatting.

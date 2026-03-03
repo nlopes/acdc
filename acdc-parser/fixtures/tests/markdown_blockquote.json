@@ -146,11 +146,41 @@
           "form": "delimited",
           "delimiter": ">",
           "metadata": {
-            "attributes": {
-              "attribution": "Thomas Jefferson",
-              "citation": "Papers of Thomas Jefferson"
-            },
-            "style": "quote"
+            "style": "quote",
+            "attribution": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Thomas Jefferson",
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 6
+                  },
+                  {
+                    "line": 11,
+                    "col": 21
+                  }
+                ]
+              }
+            ],
+            "citetitle": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Papers of Thomas Jefferson",
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 24
+                  },
+                  {
+                    "line": 11,
+                    "col": 49
+                  }
+                ]
+              }
+            ]
           },
           "blocks": [
             {
@@ -236,10 +266,24 @@
           "form": "delimited",
           "delimiter": ">",
           "metadata": {
-            "attributes": {
-              "attribution": "William Shakespeare"
-            },
-            "style": "quote"
+            "style": "quote",
+            "attribution": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "William Shakespeare",
+                "location": [
+                  {
+                    "line": 16,
+                    "col": 6
+                  },
+                  {
+                    "line": 16,
+                    "col": 24
+                  }
+                ]
+              }
+            ]
           },
           "blocks": [
             {

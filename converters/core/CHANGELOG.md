@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Output file creation now creates parent directories if they don't exist, so
+  `-o path/to/nonexistent/dir/file.html` works without pre-creating the directory
+  tree. ([#358])
+
 ### Added
 
 - **Section numbering utilities** — new `section` module with `SectionNumberTracker`,
@@ -47,3 +53,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#275]: https://github.com/nlopes/acdc/issues/275
 [#313]: https://github.com/nlopes/acdc/pull/313
+[#358]: https://github.com/nlopes/acdc/issues/358

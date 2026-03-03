@@ -555,6 +555,9 @@ pub trait Converter: Sized {
             self.backend()
         );
 
+        if let Some(parent) = output_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let file = std::fs::File::create(output_path)?;
         self.write_to(doc, std::io::BufWriter::new(file), source_file)?;
 

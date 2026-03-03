@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{DelimitedBlock, DelimitedBlockType};
+use acdc_parser::{DelimitedBlock, DelimitedBlockType, inlines_to_string};
 
 use crate::{
     Error, ManpageVisitor,
@@ -91,8 +91,16 @@ pub(crate) fn visit_delimited_block<W: Write>(
             writeln!(w, ".RE")?;
 
             // Render attribution if present (from [quote, author, citation] style)
-            let attribution = block.metadata.attributes.get_string("attribution");
-            let citation = block.metadata.attributes.get_string("citation");
+            let attribution = block
+                .metadata
+                .attribution
+                .as_ref()
+                .map(|a| inlines_to_string(a));
+            let citation = block
+                .metadata
+                .citetitle
+                .as_ref()
+                .map(|c| inlines_to_string(c));
             if attribution.is_some() || citation.is_some() {
                 let w = visitor.writer_mut();
                 writeln!(w, ".RS 5")?;
@@ -132,8 +140,16 @@ pub(crate) fn visit_delimited_block<W: Write>(
             writeln!(w, ".fi")?;
 
             // Render verse attribution if present
-            let attribution = block.metadata.attributes.get_string("attribution");
-            let citation = block.metadata.attributes.get_string("citation");
+            let attribution = block
+                .metadata
+                .attribution
+                .as_ref()
+                .map(|a| inlines_to_string(a));
+            let citation = block
+                .metadata
+                .citetitle
+                .as_ref()
+                .map(|c| inlines_to_string(c));
             if attribution.is_some() || citation.is_some() {
                 let w = visitor.writer_mut();
                 writeln!(w, ".br")?;
