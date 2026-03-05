@@ -292,6 +292,7 @@ struct TableParseParams<'a> {
     close_delim: &'a str,
     content: &'a str,
     default_separator: &'a str,
+    close_start: usize,
 }
 
 /// Parse a table block from pre-extracted positions and content.
@@ -309,12 +310,13 @@ fn parse_table_block_impl(
         offset,
         table_start,
         content_start,
-        content_end,
+        content_end: _content_end,
         end,
         open_delim,
         close_delim,
         content,
         default_separator,
+        close_start,
     } = params;
 
     check_delimiters(
@@ -328,7 +330,11 @@ fn parse_table_block_impl(
     metadata.move_positional_attributes_to_attributes();
     let location = state.create_block_location(start, end, offset);
     let table_location = state.create_block_location(table_start, end, offset);
-    let _content_location = state.create_block_location(content_start, content_end, offset);
+    let open_delimiter_location = state.create_location(
+        table_start + offset,
+        table_start + offset + open_delim.len().saturating_sub(1),
+    );
+    let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
     let separator = if let Some(AttributeValue::String(sep)) =
         block_metadata.metadata.attributes.get("separator")
@@ -648,6 +654,8 @@ fn parse_table_block_impl(
         inner: DelimitedBlockType::DelimitedTable(table),
         title: block_metadata.title.clone(),
         location,
+        open_delimiter_location: Some(open_delimiter_location),
+        close_delimiter_location: Some(close_delimiter_location),
     }))
 }
 
@@ -956,35 +964,47 @@ peg::parser! {
 
         /// ATX-style document title: `= Title` or `# Title`
         rule document_title_atx() -> (Title, Option<Subtitle>)
-        = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
-        {
-            // Substitute attribute references in the title before processing
-            let substituted_title = substitute(title, HEADER, &state.document_attributes);
-            tracing::debug!(?title, ?substituted_title, "Substituting document title");
+        = document_title_token() whitespace() start:position() title:$([^'\n']*) end:position!()
+        {?
+            tracing::debug!(?title, "Processing ATX document title");
+            let block_metadata = BlockParsingMetadata::default();
 
-            let (title_content, title_end_pos, subtitle) = if let Some(subtitle_start) = substituted_title.rfind(':') {
-                let title_part = substituted_title[..subtitle_start].trim().to_string();
-                let subtitle_part = substituted_title[subtitle_start + 1..].trim().to_string();
-                let title_end = start + subtitle_start;
-                let subtitle = Subtitle::new(vec![InlineNode::PlainText(Plain {
-                    content: subtitle_part,
-                    location: state.create_location(
-                        title_end + 1,
-                        end.saturating_sub(1),
-                    ),
-                    escaped: false,
-                })]);
-                (title_part, title_end.saturating_sub(1), Some(subtitle))
+            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(':') {
+                let subtitle_raw = &title[colon_pos + 1..];
+                let subtitle_text = subtitle_raw.trim();
+                if subtitle_text.is_empty() {
+                    // Empty subtitle after colon, treat whole text as title
+                    let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                        .map_err(|_| "could not process document title")?;
+                    (inlines, None)
+                } else {
+                    // Title: trim trailing whitespace before colon
+                    let title_raw = &title[..colon_pos];
+                    let title_text = title_raw.trim_end();
+                    let title_end = start.offset + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, &start, title_end, 0, title_text)
+                        .map_err(|_| "could not process document title")?;
+
+                    // Subtitle: trim leading whitespace after colon
+                    let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
+                    let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
+                    let subtitle_start = PositionWithOffset {
+                        offset: sub_start_offset,
+                        position: state.line_map.offset_to_position(sub_start_offset, &state.input),
+                    };
+                    let sub_end = sub_start_offset + subtitle_text.len();
+                    let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
+                        .map_err(|_| "could not process document subtitle")?;
+
+                    (inlines, Some(Subtitle::new(subtitle_inlines)))
+                }
             } else {
-                (substituted_title.trim().to_string(), end.saturating_sub(1), None)
+                let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                    .map_err(|_| "could not process document title")?;
+                (inlines, None)
             };
 
-            let title_location = state.create_location(start, title_end_pos);
-            (Title::new(vec![InlineNode::PlainText(Plain {
-                content: title_content,
-                location: title_location,
-                escaped: false,
-            })]), subtitle)
+            Ok((Title::new(title_inlines), subtitle))
         }
 
         /// Setext-style document title: Title underlined with `=` characters
@@ -998,7 +1018,7 @@ peg::parser! {
         /// Only enabled when the setext feature is compiled in AND the runtime
         /// option is enabled.
         rule document_title_setext() -> (Title, Option<Subtitle>)
-        = start:position!() title:$([^'\n']+) end:position!() eol()
+        = start:position() title:$([^'\n']+) end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
             // Check if setext mode is enabled
@@ -1020,37 +1040,44 @@ peg::parser! {
                 return Err("document title must use = underline");
             }
 
-            // Substitute attribute references in the title before processing
-            let substituted_title = substitute(title_text, HEADER, &state.document_attributes);
-            tracing::debug!(?title_text, ?substituted_title, "Substituting setext document title");
+            tracing::debug!(?title_text, "Processing setext document title");
+            let block_metadata = BlockParsingMetadata::default();
 
-            // Parse subtitle (text after last colon) from substituted content
-            let mut subtitle = None;
-            let mut title_content = substituted_title.clone();
-            if let Some(subtitle_start) = substituted_title.rfind(':') &&
-            let Some(subtitle_text) = substituted_title.get(subtitle_start + 1..) {
-                let subtitle_text = subtitle_text.trim();
-                if !subtitle_text.is_empty() {
-                    if let Some(text) = substituted_title.get(..subtitle_start) {
-                        title_content = text.trim().to_string();
-                    }
-                    subtitle = Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
-                        content: subtitle_text.to_string(),
-                        location: state.create_location(
-                            start + subtitle_start + 1,
-                            end.saturating_sub(1),
-                        ),
-                        escaped: false,
-                    })]));
+            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(':') {
+                let subtitle_raw = &title[colon_pos + 1..];
+                let subtitle_text = subtitle_raw.trim();
+                if subtitle_text.is_empty() {
+                    let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                        .map_err(|_| "could not process setext document title")?;
+                    (inlines, None)
+                } else {
+                    // Title: trim trailing whitespace before colon
+                    let title_raw = &title[..colon_pos];
+                    let title_text = title_raw.trim_end();
+                    let title_end = start.offset + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, &start, title_end, 0, title_text)
+                        .map_err(|_| "could not process setext document title")?;
+
+                    // Subtitle: trim leading whitespace after colon
+                    let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
+                    let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
+                    let subtitle_start = PositionWithOffset {
+                        offset: sub_start_offset,
+                        position: state.line_map.offset_to_position(sub_start_offset, &state.input),
+                    };
+                    let sub_end = sub_start_offset + subtitle_text.len();
+                    let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
+                        .map_err(|_| "could not process setext document subtitle")?;
+
+                    (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
-            }
+            } else {
+                let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                    .map_err(|_| "could not process setext document title")?;
+                (inlines, None)
+            };
 
-            let title_location = state.create_location(start, end.saturating_sub(1));
-            Ok((Title::new(vec![InlineNode::PlainText(Plain {
-                content: title_content,
-                location: title_location,
-                escaped: false,
-            })]), subtitle))
+            Ok((Title::new(title_inlines), subtitle))
         }
 
         rule document_title_token() = "=" / "#"
@@ -1536,12 +1563,12 @@ peg::parser! {
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata, Error>
-        = lines:(
+        = meta_start:position!() lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
             / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.key, doc_attr.value)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
-        )*
+        )* meta_end:position!()
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
@@ -1585,6 +1612,9 @@ peg::parser! {
                         title = inner;
                     }
                 }
+            }
+            if meta_start != meta_end {
+                metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
             Ok(BlockParsingMetadata {
                 metadata,
@@ -1837,9 +1867,9 @@ peg::parser! {
         = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+) { lang }
 
         rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = open_delim:example_delimiter() eol()
+        = open_start:position!() open_delim:example_delimiter() eol()
         content_start:position!() content:until_example_delimiter(open_delim) content_end:position!()
-        eol() close_delim:example_delimiter() end:position!()
+        eol() close_start:position!() close_delim:example_delimiter() end:position!()
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
@@ -1847,6 +1877,11 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -1872,13 +1907,15 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedExample(blocks),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
         rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:comment_delimiter() eol()
+            = open_start:position!() open_delim:comment_delimiter() eol()
             content_start:position!() content:until_comment_delimiter(open_delim) content_end:position!()
-            eol() close_delim:comment_delimiter() end:position!()
+            eol() close_start:position!() close_delim:comment_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "comment", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
@@ -1886,6 +1923,11 @@ peg::parser! {
 
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
@@ -1897,6 +1939,8 @@ peg::parser! {
                 })]),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
@@ -1905,15 +1949,20 @@ peg::parser! {
             / markdown_listing_block(start, offset, block_metadata)
 
         rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:listing_delimiter() eol()
+            = open_start:position!() open_delim:listing_delimiter() eol()
             content_start:position!() content:until_listing_delimiter(open_delim) content_end:position!()
-            eol() close_delim:listing_delimiter() end:position!()
+            eol() close_start:position!() close_delim:listing_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let (inlines, callouts) = resolve_verbatim_callouts(content, content_location);
             state.last_block_was_verbatim = true;
@@ -1925,13 +1974,15 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedListing(inlines),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
         rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
+            = open_start:position!() open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
             content_start:position!() content:until_markdown_code_delimiter(open_delim) content_end:position!()
-            eol() close_delim:markdown_code_delimiter() end:position!()
+            eol() close_start:position!() close_delim:markdown_code_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
@@ -1947,6 +1998,11 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let (inlines, callouts) = resolve_verbatim_callouts(content, content_location);
             state.last_block_was_verbatim = true;
@@ -1958,15 +2014,19 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedListing(inlines),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
         pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
         =
+        open_start:position!()
         open_delim:literal_delimiter()
         eol()
         content_start:position!() content:until_literal_delimiter(open_delim) content_end:position!()
         eol()
+        close_start:position!()
         close_delim:literal_delimiter()
         end:position!()
         {
@@ -1975,6 +2035,11 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let (inlines, callouts) = resolve_verbatim_callouts(content, content_location);
             state.last_block_was_verbatim = true;
@@ -1986,18 +2051,25 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedLiteral(inlines),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
         rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:open_delimiter() eol()
+            = open_start:position!() open_delim:open_delimiter() eol()
             content_start:position!() content:until_open_delimiter(open_delim) content_end:position!()
-            eol() close_delim:open_delimiter() end:position!()
+            eol() close_start:position!() close_delim:open_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "open", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -2014,13 +2086,15 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedOpen(blocks),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
         rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:sidebar_delimiter() eol()
+            = open_start:position!() open_delim:sidebar_delimiter() eol()
             content_start:position!() content:until_sidebar_delimiter(open_delim) content_end:position!()
-            eol() close_delim:sidebar_delimiter() end:position!()
+            eol() close_start:position!() close_delim:sidebar_delimiter() end:position!()
         {
             tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
@@ -2028,6 +2102,11 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -2044,6 +2123,8 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedSidebar(blocks),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
@@ -2059,12 +2140,13 @@ peg::parser! {
         rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() eol()
               content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
-              eol() close_delim:pipe_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:pipe_table_delimiter() end:position!()
         {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
                     open_delim, close_delim, content, default_separator: "|",
+                    close_start,
                 },
                 state,
                 block_metadata,
@@ -2074,12 +2156,13 @@ peg::parser! {
         rule excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = table_start:position!() open_delim:excl_table_delimiter() eol()
               content_start:position!() content:until_excl_table_delimiter() content_end:position!()
-              eol() close_delim:excl_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:excl_table_delimiter() end:position!()
         {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
                     open_delim, close_delim, content, default_separator: "!",
+                    close_start,
                 },
                 state,
                 block_metadata,
@@ -2089,12 +2172,13 @@ peg::parser! {
         rule comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = table_start:position!() open_delim:comma_table_delimiter() eol()
               content_start:position!() content:until_comma_table_delimiter() content_end:position!()
-              eol() close_delim:comma_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:comma_table_delimiter() end:position!()
         {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
                     open_delim, close_delim, content, default_separator: ",",
+                    close_start,
                 },
                 state,
                 block_metadata,
@@ -2104,12 +2188,13 @@ peg::parser! {
         rule colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
             = table_start:position!() open_delim:colon_table_delimiter() eol()
               content_start:position!() content:until_colon_table_delimiter() content_end:position!()
-              eol() close_delim:colon_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:colon_table_delimiter() end:position!()
         {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
                     open_delim, close_delim, content, default_separator: ":",
+                    close_start,
                 },
                 state,
                 block_metadata,
@@ -2117,15 +2202,20 @@ peg::parser! {
         }
 
         rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:pass_delimiter() eol()
+            = open_start:position!() open_delim:pass_delimiter() eol()
             content_start:position!() content:until_pass_delimiter(open_delim) content_end:position!()
-            eol() close_delim:pass_delimiter() end:position!()
+            eol() close_start:position!() close_delim:pass_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "pass", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             // Check if this is a stem block
             let inner = if let Some(ref style) = metadata.style {
@@ -2166,19 +2256,26 @@ peg::parser! {
                 inner,
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
         rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-            = open_delim:quote_delimiter() eol()
+            = open_start:position!() open_delim:quote_delimiter() eol()
             content_start:position!() content:until_quote_delimiter(open_delim) content_end:position!()
-            eol() close_delim:quote_delimiter() end:position!()
+            eol() close_start:position!() close_delim:quote_delimiter() end:position!()
         {
             check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
             let location = state.create_block_location(start, end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
+            let open_delimiter_location = state.create_location(
+                open_start + offset,
+                open_start + offset + open_delim.len().saturating_sub(1),
+            );
+            let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             let inner = if let Some(ref style) = metadata.style {
                 if style == "verse" {
@@ -2212,6 +2309,8 @@ peg::parser! {
                 inner,
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: Some(open_delimiter_location),
+                close_delimiter_location: Some(close_delimiter_location),
             }))
         }
 
@@ -3406,7 +3505,7 @@ peg::parser! {
         rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
         = start:position!()
         term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
-        delimiter:description_list_marker()
+        delim_start:position!() delimiter:description_list_marker() delim_end:position!()
         whitespace()?
         principal_start:position()
         principal_content:$(
@@ -3485,10 +3584,12 @@ peg::parser! {
                 },
             );
 
+            let delimiter_location = state.create_block_location(delim_start, delim_end, offset);
             Ok(DescriptionListItem {
                 anchors: vec![],
                 term,
                 delimiter: delimiter.to_string(),
+                delimiter_location: Some(delimiter_location),
                 principal_text,
                 description,
                 location: state.create_location(start+offset, actual_end+offset),
@@ -3834,6 +3935,22 @@ peg::parser! {
         = nested_brackets:("[" inner:balanced_bracket_content() "]" { format!("[{inner}]") })
         / regular_text:$([^('[' | ']')]+) { regular_text.to_string() }
 
+        /// Parse content within brackets using escape handling (no bracket balancing).
+        /// Used for stem macros where `\]` and `\[` are common (math notation).
+        /// - `\\` → literal `\`
+        /// - `\[` or `\]` → literal bracket (backslash stripped)
+        /// - `\` before other chars → preserved
+        /// - `[` → regular text (no nesting)
+        /// - `]` → ends content (consumed by caller)
+        rule escaped_bracket_content() -> String
+        = parts:escaped_bracket_content_part()* { parts.join("") }
+
+        rule escaped_bracket_content_part() -> &'input str
+        = "\\\\" { "\\" }
+        / "\\" c:$(['[' | ']']) { c }
+        / s:$([^(']' | '\\')]+) { s }
+        / "\\" { "\\" }
+
         /// Parse link/URL title content that may contain balanced brackets
         ///
         /// This is similar to balanced_bracket_content but stops at comma and attribute
@@ -4036,6 +4153,7 @@ peg::parser! {
         = start:position()
         target:url()
         "["
+        content_start:position()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -4056,7 +4174,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, &text)
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, &text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process URL macro text");
                         "could not process URL macro text"
@@ -4084,6 +4202,7 @@ peg::parser! {
         &"mailto:"
         target:url()
         "["
+        content_start:position()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -4104,7 +4223,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, &text)
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, &text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process mailto macro text");
                         "could not process mailto macro text"
@@ -4222,14 +4341,18 @@ peg::parser! {
         }
 
         rule inline_stem(offset: usize) -> InlineNode
-        = start:position!() "stem:[" content:balanced_bracket_content() "]" end:position!()
+        = start:position!() prefix:$("latexmath" / "asciimath" / "stem") ":[" content:escaped_bracket_content() "]" end:position!()
         {
-            // Get notation from :stem: document attribute
-            let notation = match state.document_attributes.get_string("stem") {
-                Some(s) => {
-                    StemNotation::from_str(&s).unwrap_or(StemNotation::Asciimath)
+            let notation = match prefix {
+                "latexmath" => StemNotation::Latexmath,
+                "asciimath" => StemNotation::Asciimath,
+                _ => {
+                    // stem:[] — resolve from :stem: document attribute
+                    match state.document_attributes.get_string("stem") {
+                        Some(s) => StemNotation::from_str(&s).unwrap_or(StemNotation::Asciimath),
+                        _ => StemNotation::Asciimath,
+                    }
                 }
-                _ => StemNotation::Asciimath,
             };
 
             InlineNode::Macro(InlineMacro::Stem(Stem {
@@ -4323,7 +4446,7 @@ peg::parser! {
         /// regressions in other parts of the parser while correctly handling edge cases
         /// like quotes, special characters, and mixed content.
         rule link_macro(offset: usize) -> InlineNode
-        = start:position!() "link:" target:source() "[" content:(
+        = start:position!() "link:" target:source() fragment:path_fragment()? "[" content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
@@ -4340,6 +4463,10 @@ peg::parser! {
                     metadata.attributes.insert(k, AttributeValue::String(v));
                 }
             }
+            let target = match fragment {
+                Some(f) => Source::from_str(&format!("{target}{f}")).unwrap_or(target),
+                None => target,
+            };
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
                 text,
                 target,
@@ -4354,12 +4481,16 @@ peg::parser! {
         {?
             let (target, raw_text) = shorthand;
             let target_str = target.trim().to_string();
-            let text = if let Some(t) = raw_text {
+            let text = if let Some((content_start, t)) = raw_text {
                 let trimmed = t.trim();
                 if trimmed.is_empty() {
                     vec![]
                 } else {
-                    process_inlines_no_autolinks(state, block_metadata, &start, end, offset, trimmed)
+                    let content_pos = PositionWithOffset {
+                        offset: content_start,
+                        position: state.line_map.offset_to_position(content_start, &state.input),
+                    };
+                    process_inlines_no_autolinks(state, block_metadata, &content_pos, end, offset, trimmed)
                         .map_err(|e| {
                             tracing::error!(?e, xref_text = trimmed, "could not process xref text");
                             "could not process xref text"
@@ -4377,21 +4508,24 @@ peg::parser! {
         }
 
         /// Pattern for cross-reference shorthand: <<id>> or <<id,custom text>>
-        rule cross_reference_shorthand_pattern() -> (String, Option<String>)
-        = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," text:$((!">>" [_])+) { text })? ">>"
+        rule cross_reference_shorthand_pattern() -> (String, Option<(usize, String)>)
+        = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," content_start:position!() text:$((!">>" [_])+) { (content_start, text.to_string()) })? ">>"
         {
-            (target.to_string(), content.map(std::string::ToString::to_string))
+            (target.to_string(), content)
         }
 
-        /// Parse cross-reference macro syntax: xref:id[text]
+        /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
-        = start:position() "xref:" target:source() "[" raw_text:$((!"]" [_])*) "]" end:position!()
+        = start:position() "xref:" target:source() fragment:path_fragment()? "[" content_start:position() raw_text:$((!"]" [_])*) "]" end:position!()
         {?
-            let target_str = target.to_string();
+            let target_str = match fragment {
+                Some(f) => format!("{target}{f}"),
+                None => target.to_string(),
+            };
             let text = if raw_text.is_empty() {
                 vec![]
             } else {
-                process_inlines_no_autolinks(state, block_metadata, &start, end, offset, raw_text)
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, raw_text)
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
@@ -4409,9 +4543,9 @@ peg::parser! {
         rule cross_reference_shorthand_match() -> ()
         = "<<" ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']* ("," (!">>" [_])+)? ">>"
 
-        /// Match cross-reference macro syntax without consuming: xref:id[text]
+        /// Match cross-reference macro syntax without consuming: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro_match()
-        = "xref:" source() "[" (!"]" [_])* "]"
+        = "xref:" source() path_fragment()? "[" (!"]" [_])* "]"
 
         rule bold_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
             = attrs:inline_attributes()? start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
@@ -5016,6 +5150,8 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
                 title: block_metadata.title.clone(),
                 location: state.create_block_location(start, end, offset),
+                open_delimiter_location: None,
+                close_delimiter_location: None,
             }))
         }
 
@@ -5096,6 +5232,8 @@ peg::parser! {
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
                 title: block_metadata.title.clone(),
                 location,
+                open_delimiter_location: None,
+                close_delimiter_location: None,
             }))
         }
 
@@ -5766,6 +5904,14 @@ peg::parser! {
         /// (e.g., `http://example.com.)` keeps both `.` and `)` outside).
         rule bare_url_char() = bare_url_safe_char() / bare_url_trailing_char() / "("
 
+        /// Fragment identifier for URLs and cross-references (e.g., `#section-id`)
+        /// Only used by `xref:` and `link:` macros — other macros (`image::`, `video::`, etc.) do not support fragments
+        rule path_fragment() -> String
+            = "#" fragment:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
+        {
+            format!("#{fragment}")
+        }
+
         /// Filesystem path - conservative character set for cross-platform compatibility
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution
         pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
@@ -6257,11 +6403,11 @@ v2.9, 01-09-2024: Fall incarnation
                 Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
                     content: "And a subtitle".to_string(),
                     location: Location {
-                        absolute_start: 17,
+                        absolute_start: 18,
                         absolute_end: 31,
                         start: crate::Position {
                             line: 1,
-                            column: 18,
+                            column: 19,
                         },
                         end: crate::Position {
                             line: 1,

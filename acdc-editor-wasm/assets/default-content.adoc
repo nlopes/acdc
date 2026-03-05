@@ -3,6 +3,7 @@
 :description: A quick preview
 :toc: macro
 :icons: font
+:stem: asciimath
 
 toc::[]
 
@@ -13,10 +14,26 @@ This is a *live preview* editor for https://asciidoc.org[AsciiDoc].
 
 Type in the left pane and see the rendered output on the right.
 
-This is using https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the https://github.com/nlopes/acdc[`acdc`] repository.
+This is using icon:github[set=brands] https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the icon:github[set=brands] https://github.com/nlopes/acdc[`acdc`] repository.
 
 * Unordered list item
 * Another item
+
+=== Media
+
+.A random video
+video::RvRhUHTV_8k[youtube,list=PLDitloyBcHOm49bxNhvGgg0f9NRZ5lSaP]
+
+=== Stem
+
+A matrix can be written as stem:[[[a,b\],[c,d\]\]((n),(k))].
+
+And another inline formula: latexmath:[C = \alpha + \beta Y^{\gamma} + \epsilon].
+
+[stem]
+++++
+sqrt(4) = 2
+++++
 
 === Code blocks footnote:code-blocks[I love code blocks]
 
@@ -30,5 +47,14 @@ fn main() {
 }
 ----
 ====
+
+=== Tables
+.List of night agents
+[%header,cols="30%,"]
+|===
+|Name|Email
+|Peter Sutherland|peter.sutherland@example.com
+|Adam Corrigan|adam.corrigan@example.com
+|===
 
 TIP: Try adding sections, lists, and inline formatting.

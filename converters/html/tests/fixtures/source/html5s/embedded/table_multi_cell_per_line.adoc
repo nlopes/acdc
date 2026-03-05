@@ -1,0 +1,1 @@
+../../html/embedded/table_multi_cell_per_line.adoc

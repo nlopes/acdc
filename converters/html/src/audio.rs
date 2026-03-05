@@ -3,12 +3,17 @@ use std::fmt::Write as _;
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{AttributeValue, Audio};
 
-use crate::Error;
+use crate::{Error, HtmlVariant, Processor};
 
 pub(crate) fn visit_audio<V: WritableVisitor<Error = Error>>(
     audio: &Audio,
     visitor: &mut V,
+    processor: &Processor,
 ) -> Result<(), Error> {
+    if processor.variant() == HtmlVariant::Semantic {
+        return visit_audio_semantic(audio, visitor);
+    }
+
     let mut w = visitor.writer_mut();
     write!(w, "<div")?;
     if let Some(id) = &audio.metadata.id {
@@ -64,5 +69,70 @@ pub(crate) fn visit_audio<V: WritableVisitor<Error = Error>>(
     writeln!(w, "</div>")?;
     writeln!(w, "</div>")?;
 
+    Ok(())
+}
+
+fn render_audio_element(audio: &Audio, w: &mut dyn std::io::Write) -> Result<(), Error> {
+    let mut src = audio.source.to_string();
+    let start = audio.metadata.attributes.get("start");
+    let end = audio.metadata.attributes.get("end");
+
+    match (start, end) {
+        (Some(AttributeValue::String(s)), Some(AttributeValue::String(e))) => {
+            write!(src, "#t={s},{e}")?;
+        }
+        (Some(AttributeValue::String(s)), None) => {
+            write!(src, "#t={s}")?;
+        }
+        _ => {}
+    }
+
+    write!(w, "<audio src=\"{src}\"")?;
+
+    if audio.metadata.options.contains(&"autoplay".to_string()) {
+        write!(w, " autoplay")?;
+    }
+
+    if audio.metadata.options.contains(&"loop".to_string()) {
+        write!(w, " loop")?;
+    }
+
+    if !audio.metadata.options.contains(&"nocontrols".to_string()) {
+        write!(w, " controls")?;
+    }
+
+    writeln!(w, ">")?;
+    writeln!(w, "Your browser does not support the audio tag.")?;
+    writeln!(w, "</audio>")?;
+
+    Ok(())
+}
+
+fn visit_audio_semantic<V: WritableVisitor<Error = Error>>(
+    audio: &Audio,
+    visitor: &mut V,
+) -> Result<(), Error> {
+    let has_title = !audio.title.is_empty();
+    let mut w = visitor.writer_mut();
+
+    let tag = if has_title { "figure" } else { "div" };
+    write!(w, "<{tag} class=\"audio-block\"")?;
+    if let Some(id) = &audio.metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    }
+    writeln!(w, ">")?;
+
+    render_audio_element(audio, w)?;
+
+    if has_title {
+        w = visitor.writer_mut();
+        write!(w, "<figcaption>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(&audio.title)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</figcaption>")?;
+    }
+
+    writeln!(w, "</{tag}>")?;
     Ok(())
 }

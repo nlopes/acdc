@@ -7,8 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`<title>` uses plain text for document titles** — the `<title>` element now strips inline
+  markup (bold, italic, etc.) to plain text using `inlines_to_string()`, while the `<h1>`
+  retains full HTML formatting.
+
+### Added
+
+- **html5s semantic video and audio blocks** — video and audio blocks now render with semantic
+  HTML in html5s mode: `<figure class="video-block">` / `<figure class="audio-block">` with
+  `<figcaption>` for titled blocks, `<div>` wrapper for untitled blocks. No inner
+  `<div class="content">` wrapper — media sits directly inside the container.
+- **html5s fixture coverage** — added 18 new html5s fixture tests covering tables, TOC,
+  footnotes, description lists, verse blocks, callout lists, index catalog, and book parts.
+- **fixture directory restructure** — fixtures now use an `embedded/`/`standalone/` layout
+  under each variant (`html/`, `html5s/`). Embedded fixtures produce content-only HTML,
+  standalone fixtures produce full-page HTML. This eliminates ~2 MB of redundant boilerplate.
+- **`latexmath:[]` and `asciimath:[]` inline macros** — HTML rendering support for explicit
+  notation overrides.
+- **html5s semantic CSS gaps** — added missing rules for `.verse-block`, `.literal-block`,
+  `.open-block`, `.stem-block`, `dl.horizontal`, `dl.qanda`, `div.image-block`,
+  `figure.listing-block` figcaption, and `.dlist` wrappers to both light and dark mode
+  stylesheets.
+- **Font Awesome icon pack/set support** — icon macros now support `set=` and `pack=`
+  attributes to select FA families (e.g., `icon:github[set=fab]` for brands,
+  `icon:heart[set=far]` for regular). A document-level default can be set via
+  `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
+  `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
+  `sharp-solid`) values. Defaults to `fa-solid` when no set is specified. ([#360])
+
+### Changed
+
+- html5s semantic admonitions now render Font Awesome icons when `:icons: font` is
+  set, matching the standard variant's behaviour.
+- html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
+  link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
+
 ### Fixed
 
+- **MathJax v4 inline/display math delimiters** — added explicit `inlineMath` and
+  `displayMath` delimiter configuration to the MathJax v4 config, which unlike v2 does not
+  process `\(` `\)` / `\[` `\]` delimiters by default.
 - **Blockquote citation links** — URL macros in blockquote attributions (e.g.,
   `-- https://example.com/[Example]`) are now rendered as clickable links. Citation titles
   use the `<cite>` element. ([#357])
@@ -201,6 +241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are now re-exported from `acdc-converters-core::section` instead of being defined locally.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
+[#360]: https://github.com/nlopes/acdc/issues/360
 [#357]: https://github.com/nlopes/acdc/issues/357
 [#359]: https://github.com/nlopes/acdc/issues/359
 [#280]: https://github.com/nlopes/acdc/issues/280

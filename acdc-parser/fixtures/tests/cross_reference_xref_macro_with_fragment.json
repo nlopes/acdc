@@ -1,0 +1,64 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "chapter.adoc#my-section",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Section Title",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 30
+                },
+                {
+                  "line": 1,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 43
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 43
+    }
+  ]
+}

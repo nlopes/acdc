@@ -127,7 +127,9 @@ fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
 MathJax = {{
       loader: {{load: ['input/asciimath']}},
       tex: {{
-        processEscapes: false
+        processEscapes: false,
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
       }},
       asciimath: {{
         delimiters: {{'[+]': [['\\$','\\$']]}},
@@ -388,8 +390,7 @@ impl<W: Write> HtmlVisitor<W> {
         {
             writeln!(
                 self.writer,
-                r#"<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/v4-shims.min.css">"#
+                r#"<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">"#
             )?;
         }
 
@@ -886,11 +887,13 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        crate::video::visit_video(video, self)
+        let processor = self.processor.clone();
+        crate::video::visit_video(video, self, &processor)
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        crate::audio::visit_audio(audio, self)
+        let processor = self.processor.clone();
+        crate::audio::visit_audio(audio, self, &processor)
     }
 
     fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {

@@ -177,31 +177,70 @@ fn render_attribution<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-/// Extract plain text content from inline nodes.
 fn extract_plain_text(inlines: &[InlineNode]) -> String {
-    let mut result = String::new();
-    for node in inlines {
-        match node {
-            InlineNode::PlainText(p) => result.push_str(&p.content),
-            InlineNode::VerbatimText(v) => result.push_str(&v.content),
-            InlineNode::RawText(r) => result.push_str(&r.content),
-            InlineNode::LineBreak(_) => result.push('\n'),
-            // These nodes don't contribute plain text for literal blocks
-            // InlineNode is #[non_exhaustive], so wildcard arm handles future variants
-            #[allow(clippy::match_same_arms, clippy::wildcard_enum_match_arm)]
-            InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | _ => {}
-        }
+    crate::extract_inline_text(inlines, "\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acdc_parser::{Bold, Form, Italic, LineBreak, Location, Plain};
+
+    fn plain(s: &str) -> InlineNode {
+        InlineNode::PlainText(Plain {
+            content: s.to_string(),
+            location: Location::default(),
+            escaped: false,
+        })
     }
-    result
+
+    fn bold(nodes: Vec<InlineNode>) -> InlineNode {
+        InlineNode::BoldText(Bold {
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            content: nodes,
+            location: Location::default(),
+        })
+    }
+
+    fn italic(nodes: Vec<InlineNode>) -> InlineNode {
+        InlineNode::ItalicText(Italic {
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            content: nodes,
+            location: Location::default(),
+        })
+    }
+
+    #[test]
+    fn extract_bold_text_from_literal() {
+        let inlines = [bold(vec![plain("important")])];
+        assert_eq!(extract_plain_text(&inlines), "important");
+    }
+
+    #[test]
+    fn extract_nested_formatting() {
+        let inlines = [bold(vec![italic(vec![plain("nested")])])];
+        assert_eq!(extract_plain_text(&inlines), "nested");
+    }
+
+    #[test]
+    fn extract_mixed_plain_and_formatted() {
+        let inlines = [plain("before "), bold(vec![plain("bold")]), plain(" after")];
+        assert_eq!(extract_plain_text(&inlines), "before bold after");
+    }
+
+    #[test]
+    fn extract_line_break_as_newline() {
+        let inlines = [
+            plain("first"),
+            InlineNode::LineBreak(LineBreak {
+                location: Location::default(),
+            }),
+            plain("second"),
+        ];
+        assert_eq!(extract_plain_text(&inlines), "first\nsecond");
+    }
 }

@@ -1,1 +1,0 @@
-../../../../../../acdc-parser/fixtures/tests/description_list_followed_by_table_with_attributes.adoc

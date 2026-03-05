@@ -1,0 +1,1 @@
+../../../../../../../acdc-parser/fixtures/tests/image_block_attributes.adoc

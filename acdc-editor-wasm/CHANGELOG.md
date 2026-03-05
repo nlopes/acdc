@@ -7,12 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Resizable editor/preview panes with a draggable handle between them. Pane sizes
+  persist across page reloads via localStorage. Double-click the handle to reset to 50/50.
+- Generate `adoc-block-title` CSS class for block title lines (`.Title text`), giving them
+  visual distinction in the editor.
+- Dark mode support that automatically follows the system `prefers-color-scheme` setting.
+- CSS rules for semantic `video-block` and `audio-block` classes in html5s mode.
+- CSS highlight rules for 13 previously unstyled `adoc-*` classes: anchor, superscript,
+  subscript, thematic-break, page-break, checklist, description-marker, passthrough-content,
+  literal-content, inline-macro, index-term, passthrough-inline, and macro.
+
+## [0.4.0] - 2026-02-25
+
+### Changed
+
+- Switch preview from standard (div-soup) HTML to html5s semantic HTML variant,
+  outputting `<section>`, `<aside>`, `<figure>`, ARIA roles, and semantic class
+  names instead of `<div class="sect1">`, `<div class="admonitionblock">`, etc.
+- Overhaul preview CSS to target html5s elements and classes (`section.doc-section`,
+  `aside.admonition-block`, `figure.example-block`, `aside.sidebar`,
+  `section.quote-block`, `.listing-block`, `figure.image-block`, `ol.toc-list`,
+  `section.footnotes`, `ol.callout-list`, semantic list wrappers, etc.).
+- **Highlighter simplified to use AST locations** — replaced ~315 lines of raw text
+  scanning with direct use of parser location data. Inline delimiter highlighting,
+  block metadata spans, delimited block delimiters, macro spans, and description list
+  markers now use precise AST locations instead of heuristic text scanning.
+
 ### Fixed
 
 - Autolink highlighting now covers the entire URL (last character was excluded).
 
 ### Added
 
+- MathJax 4 integration for rendering `asciimath` and `latexmath` expressions in
+  the preview pane. Both stem blocks (`[stem]`) and inline stem macros (`stem:[]`)
+  are now rendered as typeset math instead of raw delimiters. MathJax is
+  lazy-loaded from CDN only when the document sets `:stem:`.
+- Preview styling for semantic HTML5 elements: literal blocks
+  (`section/div.literal-block`), verse blocks (`section/div.verse-block`), STEM/math
+  blocks (`figure/div.stem-block`), open blocks (`section/div.open-block`), description
+  list wrappers (`section/div.dlist`), horizontal description lists (`dl.horizontal`),
+  Q&A lists (`dl.qanda`), untitled image blocks (`div.image-block`), and titled listing
+  block figcaptions (`figure.listing-block`).
 - Comprehensive preview styling for all AsciiDoc constructs: admonitions,
   example blocks, sidebars, quote blocks, verse blocks, listing/literal blocks,
   tables (frames, grids, striping, alignment), lists (ordered, unordered,
@@ -24,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Granular syntax highlighting for all macros (image, video, audio, footnote,
   link, icon, kbd, btn, menu, stem, pass, xref): target in green, bracket
   content in dark pink.
+- **Line numbers** - the editor now has line numbers!
 
 ## [0.3.0] - 2026-02-14
 
@@ -75,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions release workflow (`release-editor-wasm.yml`) for building
   with wasm-pack and publishing as GitHub Release assets
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.3.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.4.0...HEAD
+[0.4.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.3.0...acdc-editor-wasm-v0.4.0
 [0.3.0]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.2...acdc-editor-wasm-v0.3.0
 [0.2.2]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.1...acdc-editor-wasm-v0.2.2
 [0.2.1]: https://github.com/nlopes/acdc/compare/acdc-editor-wasm-v0.2.0...acdc-editor-wasm-v0.2.1

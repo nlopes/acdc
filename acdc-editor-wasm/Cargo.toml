@@ -1,6 +1,6 @@
 [package]
 name = "acdc-editor-wasm"
-version = "0.3.0"
+version = "0.4.0"
 edition.workspace = true
 description = "WASM-based AsciiDoc live editor with syntax highlighting and preview"
 repository = "https://github.com/nlopes/acdc"
@@ -17,6 +17,7 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
     "Clipboard",
+    "CssStyleDeclaration",
     "Document",
     "DomTokenList",
     "Element",
@@ -26,7 +27,9 @@ web-sys = { version = "0.3", features = [
     "HtmlTextAreaElement",
     "InputEvent",
     "KeyboardEvent",
+    "MouseEvent",
     "Navigator",
+    "Storage",
     "Window",
 ] }
 js-sys = "0.3"
@@ -41,5 +44,15 @@ demangle-name-section = true
 dwarf-debug-info = false
 omit-default-module-path = false
 
-[lints]
-workspace = true
+[lints.clippy]
+# Defensive programming
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+fallible_impl_from = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+pedantic = "deny"
+unreachable = "deny"
+todo = "deny"
+unimplemented = "deny"

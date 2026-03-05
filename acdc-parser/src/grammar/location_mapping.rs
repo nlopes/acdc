@@ -580,15 +580,24 @@ fn map_inline_macro(
             footnote.location = map_loc(&footnote.location)?;
             footnote.content = map_inline_locations(state, processed, &footnote.content, location)?;
         }
-        InlineMacro::Url(url) => url.location = map_loc(&url.location)?,
-        InlineMacro::Mailto(mailto) => mailto.location = map_loc(&mailto.location)?,
+        InlineMacro::Url(url) => {
+            url.location = map_loc(&url.location)?;
+            url.text = map_inline_locations(state, processed, &url.text, location)?;
+        }
+        InlineMacro::Mailto(mailto) => {
+            mailto.location = map_loc(&mailto.location)?;
+            mailto.text = map_inline_locations(state, processed, &mailto.text, location)?;
+        }
         InlineMacro::Link(link) => link.location = map_loc(&link.location)?,
         InlineMacro::Icon(icon) => icon.location = map_loc(&icon.location)?,
         InlineMacro::Button(button) => button.location = map_loc(&button.location)?,
         InlineMacro::Image(image) => image.location = map_loc(&image.location)?,
         InlineMacro::Menu(menu) => menu.location = map_loc(&menu.location)?,
         InlineMacro::Keyboard(keyboard) => keyboard.location = map_loc(&keyboard.location)?,
-        InlineMacro::CrossReference(xref) => xref.location = map_loc(&xref.location)?,
+        InlineMacro::CrossReference(xref) => {
+            xref.location = map_loc(&xref.location)?;
+            xref.text = map_inline_locations(state, processed, &xref.text, location)?;
+        }
         InlineMacro::Autolink(autolink) => autolink.location = map_loc(&autolink.location)?,
         InlineMacro::Stem(stem) => stem.location = map_loc(&stem.location)?,
         InlineMacro::Pass(pass) => pass.location = map_loc(&pass.location)?,

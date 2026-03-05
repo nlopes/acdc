@@ -1,0 +1,6 @@
+:icons: font
+:icon-pack: brands
+
+icon:github[]
+
+icon:heart[set=far]

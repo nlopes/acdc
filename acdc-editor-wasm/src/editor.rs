@@ -8,11 +8,26 @@ use std::rc::Rc;
 
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
-use web_sys::{Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, Window};
+use web_sys::{
+    Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, MouseEvent, Window,
+};
+
+#[wasm_bindgen]
+extern "C" {
+    /// Re-typeset math in the preview pane via MathJax.
+    ///
+    /// Defined in `index.html`; silently no-ops if MathJax has not loaded yet.
+    #[wasm_bindgen(js_name = typesetMathPreview)]
+    fn typeset_math_preview();
+}
 
 const DEBOUNCE_MS: i32 = 25;
 
 const DEFAULT_CONTENT: &str = include_str!("../assets/default-content.adoc");
+
+const PANE_RATIO_KEY: &str = "acdc-pane-ratio";
+const DEFAULT_PANE_RATIO: f64 = 50.0;
+const MIN_PANE_WIDTH: f64 = 300.0;
 
 /// Cached references to the DOM elements the editor interacts with.
 struct EditorState {
@@ -22,6 +37,13 @@ struct EditorState {
     backdrop: Element,
     preview: Element,
     parse_status: HtmlElement,
+    line_numbers_pre: Element,
+    line_numbers_container: Element,
+    editor_container: HtmlElement,
+    body: HtmlElement,
+    editor_pane: HtmlElement,
+    resize_handle: HtmlElement,
+    main_container: HtmlElement,
     /// Timer handle for the debounced parse. 0 means no pending timer.
     debounce_handle: Cell<i32>,
 }
@@ -44,6 +66,30 @@ impl EditorState {
             .get_element_by_id("parse-status")
             .ok_or("missing #parse-status")?
             .dyn_into()?;
+        let line_numbers_container = doc
+            .get_element_by_id("line-numbers")
+            .ok_or("missing #line-numbers")?;
+        let line_numbers_pre = line_numbers_container
+            .query_selector("pre")
+            .map_err(|_| "failed to query #line-numbers pre")?
+            .ok_or("missing pre inside #line-numbers")?;
+        let editor_container: HtmlElement = line_numbers_container
+            .parent_element()
+            .ok_or("missing .editor-container")?
+            .dyn_into()?;
+        let resize_handle: HtmlElement = doc
+            .get_element_by_id("resize-handle")
+            .ok_or("missing #resize-handle")?
+            .dyn_into()?;
+        let editor_pane: HtmlElement = editor_container
+            .parent_element()
+            .ok_or("missing .editor-pane")?
+            .dyn_into()?;
+        let main_container: HtmlElement = editor_pane
+            .parent_element()
+            .ok_or("missing .main-container")?
+            .dyn_into()?;
+        let body: HtmlElement = doc.body().ok_or("missing body")?;
 
         Ok(Self {
             window,
@@ -52,6 +98,13 @@ impl EditorState {
             backdrop,
             preview,
             parse_status,
+            line_numbers_pre,
+            line_numbers_container,
+            editor_container,
+            body,
+            editor_pane,
+            resize_handle,
+            main_container,
             debounce_handle: Cell::new(0),
         })
     }
@@ -114,6 +167,42 @@ fn set_parse_status(state: &EditorState, msg: &str, is_error: bool) {
 }
 
 // ---------------------------------------------------------------------------
+// Line number gutter
+// ---------------------------------------------------------------------------
+
+fn update_line_numbers(state: &EditorState) {
+    let value = state.editor.value();
+    let line_count = value.chars().filter(|&c| c == '\n').count() + 1;
+    let numbers: String = (1..=line_count)
+        .map(|n| n.to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    state.line_numbers_pre.set_text_content(Some(&numbers));
+
+    // Resize gutter to fit the widest line number: digits × 1ch + 1rem padding
+    let digits = digit_count(line_count);
+    let width = format!("calc({digits}ch + 1rem)");
+    let _ = state
+        .editor_container
+        .style()
+        .set_property("--gutter-width", &width);
+}
+
+/// Number of decimal digits in `n` (minimum 1).
+const fn digit_count(n: usize) -> u32 {
+    if n == 0 {
+        return 1;
+    }
+    let mut v = n;
+    let mut d: u32 = 0;
+    while v > 0 {
+        v /= 10;
+        d += 1;
+    }
+    d
+}
+
+// ---------------------------------------------------------------------------
 // Unified parse + highlight + preview
 // ---------------------------------------------------------------------------
 
@@ -131,6 +220,9 @@ fn parse_and_update_both(state: &EditorState) {
                 .highlight
                 .set_inner_html(&(result.highlight_html.clone() + "\n"));
             state.preview.set_inner_html(&result.preview_html);
+            if result.has_stem {
+                typeset_math_preview();
+            }
             set_parse_status(state, "OK", false);
         }
         Err(e) => {
@@ -143,11 +235,14 @@ fn parse_and_update_both(state: &EditorState) {
             set_parse_status(state, &msg, true);
         }
     }
+    update_line_numbers(state);
 }
 
 fn sync_scroll(state: &EditorState) {
-    state.backdrop.set_scroll_top(state.editor.scroll_top());
+    let scroll_top = state.editor.scroll_top();
+    state.backdrop.set_scroll_top(scroll_top);
     state.backdrop.set_scroll_left(state.editor.scroll_left());
+    state.line_numbers_container.set_scroll_top(scroll_top);
 }
 
 /// Cancel any pending debounce timer and schedule a new parse + update.
@@ -345,6 +440,116 @@ fn attach_copy_listener(state: &Rc<EditorState>, doc: &Document) -> Result<(), J
 }
 
 // ---------------------------------------------------------------------------
+// Pane resize
+// ---------------------------------------------------------------------------
+
+/// Apply a pane ratio (percentage of total width for the editor pane).
+fn apply_pane_ratio(state: &EditorState, ratio: f64) {
+    let _ = state
+        .editor_pane
+        .style()
+        .set_property("flex-basis", &format!("{ratio}%"));
+}
+
+/// Get the `localStorage` handle, if available.
+fn storage(state: &EditorState) -> Option<web_sys::Storage> {
+    state.window.local_storage().ok().flatten()
+}
+
+/// Read the saved pane ratio from `localStorage`, if any.
+fn load_pane_ratio(state: &EditorState) -> Option<f64> {
+    storage(state)?
+        .get_item(PANE_RATIO_KEY)
+        .ok()
+        .flatten()?
+        .parse::<f64>()
+        .ok()
+}
+
+/// Compute the pane ratio (%) from a mouse X position, clamped to min-width.
+fn ratio_from_client_x(state: &EditorState, client_x: f64) -> f64 {
+    let container_w = f64::from(state.main_container.offset_width());
+    let max_editor = container_w - MIN_PANE_WIDTH - 5.0; // 5px handle
+    let editor_w = client_x.clamp(MIN_PANE_WIDTH, max_editor);
+    (editor_w / container_w) * 100.0
+}
+
+/// Attach mousedown / mousemove / mouseup listeners for the resize handle.
+fn attach_resize_listeners(state: &Rc<EditorState>) -> Result<(), JsValue> {
+    let doc = state
+        .window
+        .document()
+        .ok_or("no document for resize listeners")?;
+
+    let dragging: Rc<Cell<bool>> = Rc::new(Cell::new(false));
+
+    // mousedown on handle — start drag
+    {
+        let s = Rc::clone(state);
+        let drag = Rc::clone(&dragging);
+        let cb: Closure<dyn Fn(MouseEvent)> = Closure::new(move |e: MouseEvent| {
+            e.prevent_default();
+            drag.set(true);
+            let _ = s.body.class_list().add_1("resizing");
+        });
+        state
+            .resize_handle
+            .add_event_listener_with_callback("mousedown", cb.as_ref().unchecked_ref())?;
+        cb.forget();
+    }
+
+    // mousemove on document — resize panes
+    {
+        let s = Rc::clone(state);
+        let drag = Rc::clone(&dragging);
+        let cb: Closure<dyn Fn(MouseEvent)> = Closure::new(move |e: MouseEvent| {
+            if !drag.get() {
+                return;
+            }
+            apply_pane_ratio(&s, ratio_from_client_x(&s, f64::from(e.client_x())));
+        });
+        doc.add_event_listener_with_callback("mousemove", cb.as_ref().unchecked_ref())?;
+        cb.forget();
+    }
+
+    // mouseup on document — stop drag, persist
+    {
+        let s = Rc::clone(state);
+        let drag = Rc::clone(&dragging);
+        let cb: Closure<dyn Fn(MouseEvent)> = Closure::new(move |e: MouseEvent| {
+            if !drag.get() {
+                return;
+            }
+            drag.set(false);
+            let _ = s.body.class_list().remove_1("resizing");
+            let ratio = ratio_from_client_x(&s, f64::from(e.client_x()));
+            if let Some(st) = storage(&s) {
+                let _ = st.set_item(PANE_RATIO_KEY, &format!("{ratio:.2}"));
+            }
+        });
+        doc.add_event_listener_with_callback("mouseup", cb.as_ref().unchecked_ref())?;
+        cb.forget();
+    }
+
+    // dblclick on handle — reset to 50/50
+    {
+        let s = Rc::clone(state);
+        let cb: Closure<dyn Fn(MouseEvent)> = Closure::new(move |_: MouseEvent| {
+            apply_pane_ratio(&s, DEFAULT_PANE_RATIO);
+            if let Some(st) = storage(&s) {
+                let _ = st.remove_item(PANE_RATIO_KEY);
+            }
+        });
+        state
+            .resize_handle
+            .add_event_listener_with_callback("dblclick", cb.as_ref().unchecked_ref())?;
+        cb.forget();
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -367,7 +572,13 @@ pub fn setup() -> Result<(), JsValue> {
         parse_and_update_both(&parse_state);
     });
 
+    // Restore persisted pane ratio, if any
+    if let Some(ratio) = load_pane_ratio(&state) {
+        apply_pane_ratio(&state, ratio);
+    }
+
     attach_editor_listeners(&state, &parse_cb)?;
+    attach_resize_listeners(&state)?;
     attach_copy_listener(&state, &doc)?;
     attach_issue_listener(&state, &doc)?;
 

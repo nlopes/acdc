@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
+  and `link:page.html#section[text]` now parse correctly. The `#fragment` is optional and only
+  applies to `xref:` and `link:` macros (not `image::`, `video::`, etc.).
+- **Public `InlineNode::location()` method** — provides direct access to the source location of
+  any inline node without requiring the `Locateable` trait.
+- **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
+  direct access to location information without pattern matching on variants.
+- **Rich inline markup in document titles and subtitles** — document titles now support bold,
+  italic, monospace, links, macros, and other inline markup, matching section title behavior.
+  Previously, titles were always rendered as plain text.
+
+### Fixed
+
+- **Incorrect locations for inline text inside `xref:`, `url:`, and `mailto:` macros** — text
+  nodes inside these macros (e.g., "Section Title" in `xref:file#id[Section Title]`) had wrong
+  line and column numbers. The line was always reported as 1 regardless of actual position, and
+  the column was relative to the start of the macro instead of the text content. Both issues are
+  now fixed: grammar rules capture the correct content start position, and the location mapper
+  remaps nested text nodes to document-absolute coordinates.
+
+## [0.7.0] - 2026-02-25
+
+### Added
+
+- **`latexmath:[]` and `asciimath:[]` inline macros** — explicit notation overrides that
+  set the stem notation directly instead of resolving from the `:stem:` document attribute.
+- **`BlockMetadata.location`** — metadata blocks now carry an `Option<Location>` tracking
+  their source position (attribute lines, anchors, titles).
+- **`DelimitedBlock.open_delimiter_location` / `close_delimiter_location`** — delimited
+  blocks now carry precise locations for both the opening and closing delimiter lines.
+- **`DescriptionListItem.delimiter_location`** — description list items now carry the
+  source location of their delimiter (`::`, `:::`, etc.).
+
+## [0.6.0] - 2026-02-23
+
+### Added
+
 - **Attribution and CiteTitle types** — blockquote attributions and citation titles are now
   stored as `Attribution` and `CiteTitle` types (containing `Vec<InlineNode>`) on `BlockMetadata`,
   instead of plain strings in the attributes map. This enables inline content (links, formatting)
@@ -19,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`stem:[]` backslash escaping for brackets** — `stem:[\]` and `stem:[\[]` now correctly
+  strip the backslash and preserve the bracket. Previously, `balanced_bracket_content` treated
+  `\]` as a closing bracket, breaking expressions like `stem:[[[a,b\],[c,d\]\]((n),(k))]`.
+  Stem now uses a dedicated `escaped_bracket_content` rule.
 - **Block delimiters in source block content** — lines inside a delimited block containing
   a longer sequence of the same delimiter character (e.g., `--------------------` inside a
   `----` block) are no longer incorrectly treated as closing delimiters. The parser now
@@ -343,7 +384,11 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#335]: https://github.com/nlopes/acdc/issues/335
 [#337]: https://github.com/nlopes/acdc/issues/337
 [#343]: https://github.com/nlopes/acdc/issues/343
+[#349]: https://github.com/nlopes/acdc/issues/349
+[#357]: https://github.com/nlopes/acdc/issues/357
 
+[0.7.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.7.0
+[0.6.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.6.0
 [0.5.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.5.0
 [0.4.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.4.0
 [0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0

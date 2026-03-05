@@ -44,6 +44,7 @@ serde_json = "1"
 tracing = "0.1"
 tracing-test = "0.2"
 thiserror = "2"
+unicode-width = "0.2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

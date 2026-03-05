@@ -1,0 +1,20 @@
+<div class="listingblock">
+<div class="title">./app.js</div>
+<div class="content">
+<pre class="highlight"><code class="language-javascript" data-lang="javascript">const express = require('express'); <b class="conum">(1)</b>
+const app = express();
+
+app.get('/', (req, res) =&gt; { <b class="conum">(2)</b>
+  res.send('Hello World!');
+});
+
+app.listen(3000); <b class="conum">(3)</b></code></pre>
+</div>
+</div>
+<div class="colist arabic">
+<ol>
+<li><p>Import the Express framework</p></li>
+<li><p>Define a route handler</p></li>
+<li><p>Start the server on port 3000</p></li>
+</ol>
+</div>

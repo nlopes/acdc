@@ -131,26 +131,106 @@ pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = crate::Error>>(
     Ok(())
 }
 
-/// Extract plain text from inline nodes for section titles.
-///
-/// This recursively extracts text content from inline nodes, handling
-/// nested formatting like bold, italic, etc.
 fn extract_title_text(title: &[InlineNode]) -> String {
-    title
-        .iter()
-        .map(|node| match node {
-            InlineNode::PlainText(p) => p.content.clone(),
-            InlineNode::BoldText(b) => extract_title_text(&b.content),
-            InlineNode::ItalicText(i) => extract_title_text(&i.content),
-            InlineNode::MonospaceText(m) => extract_title_text(&m.content),
-            InlineNode::HighlightText(h) => extract_title_text(&h.content),
-            InlineNode::SuperscriptText(s) => extract_title_text(&s.content),
-            InlineNode::SubscriptText(s) => extract_title_text(&s.content),
-            InlineNode::CurvedQuotationText(c) => extract_title_text(&c.content),
-            InlineNode::CurvedApostropheText(c) => extract_title_text(&c.content),
-            InlineNode::VerbatimText(_) | InlineNode::RawText(_) | InlineNode::LineBreak(_) | _ => {
-                String::new()
-            }
+    crate::extract_inline_text(title, " ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acdc_parser::{
+        Bold, CalloutRef, CalloutRefKind, Form, InlineMacro, InlineNode, Link, Location, Plain,
+        Source, Verbatim,
+    };
+
+    fn plain(s: &str) -> InlineNode {
+        InlineNode::PlainText(Plain {
+            content: s.to_string(),
+            location: Location::default(),
+            escaped: false,
         })
-        .collect::<String>()
+    }
+
+    fn verbatim(s: &str) -> InlineNode {
+        InlineNode::VerbatimText(Verbatim {
+            content: s.to_string(),
+            location: Location::default(),
+        })
+    }
+
+    fn bold(nodes: Vec<InlineNode>) -> InlineNode {
+        InlineNode::BoldText(Bold {
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            content: nodes,
+            location: Location::default(),
+        })
+    }
+
+    #[test]
+    fn extract_bold_wrapping_plain_text() {
+        let title = [bold(vec![plain("bold title")])];
+        assert_eq!(extract_title_text(&title), "bold title");
+    }
+
+    #[test]
+    fn extract_verbatim_text_in_title() {
+        let title = [plain("Title with "), verbatim("code"), plain(" text")];
+        assert_eq!(extract_title_text(&title), "Title with code text");
+    }
+
+    #[test]
+    fn extract_link_macro_with_text() {
+        let link = InlineNode::Macro(InlineMacro::Link(
+            Link::new(
+                Source::Name("https://example.com".to_string()),
+                Location::default(),
+            )
+            .with_text(Some("Example".to_string())),
+        ));
+        let title = [plain("See "), link];
+        assert_eq!(extract_title_text(&title), "See Example");
+    }
+
+    #[test]
+    fn extract_link_macro_without_text() {
+        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+            Source::Name("https://example.com".to_string()),
+            Location::default(),
+        )));
+        let title = [link];
+        assert_eq!(extract_title_text(&title), "https://example.com");
+    }
+
+    #[test]
+    fn extract_mixed_content() {
+        let title = [bold(vec![plain("bold")]), plain(" and "), verbatim("code")];
+        assert_eq!(extract_title_text(&title), "bold and code");
+    }
+
+    #[test]
+    fn extract_callout_ref() {
+        let title = [
+            plain("Code "),
+            InlineNode::CalloutRef(CalloutRef {
+                kind: CalloutRefKind::Explicit,
+                number: 1,
+                location: Location::default(),
+            }),
+        ];
+        assert_eq!(extract_title_text(&title), "Code <1>");
+    }
+
+    #[test]
+    fn extract_standalone_curved_apostrophe() {
+        let title = [
+            plain("it"),
+            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe {
+                location: Location::default(),
+            }),
+            plain("s"),
+        ];
+        assert_eq!(extract_title_text(&title), "it\u{2019}s");
+    }
 }

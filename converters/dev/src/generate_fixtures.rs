@@ -16,7 +16,7 @@
 //!     })?;
 //! ```
 
-use std::{error::Error, fs, path::PathBuf};
+use std::{error::Error, fs, path::Path, path::PathBuf};
 
 use acdc_parser::{Document, Options};
 use crossterm::style::{PrintStyledContent, Stylize};
@@ -47,8 +47,8 @@ impl FixtureGenerator {
 
     /// Generate fixture outputs using the provided conversion function.
     ///
-    /// The conversion function receives a parsed document and a mutable output buffer.
-    /// It should write the converted output to the buffer.
+    /// Scans `tests/fixtures/source/` for `.adoc` files and generates expected
+    /// outputs in `tests/fixtures/expected/`.
     ///
     /// # Errors
     ///
@@ -65,8 +65,62 @@ impl FixtureGenerator {
             .join(&self.converter_name)
             .join("tests/fixtures/expected");
 
+        self.generate_dir(&input_dir, &output_dir, &convert_fn)
+    }
+
+    /// Generate fixture outputs for each variant subdirectory.
+    ///
+    /// Discovers a two-level structure under `tests/fixtures/source/`:
+    /// `{variant}/{mode}/*.adoc` (e.g., `html/embedded/`, `html5s/standalone/`).
+    /// The variant name (top-level directory) and mode name (nested directory)
+    /// are both passed to the conversion function. Expected outputs are written
+    /// to matching subdirectories under `tests/fixtures/expected/{variant}/{mode}/`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if directory creation or file I/O fails.
+    pub fn generate_variants<F>(&self, convert_fn: F) -> Result<(), Box<dyn Error>>
+    where
+        F: Fn(&str, &str, &Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+    {
+        let base_source = PathBuf::from("converters")
+            .join(&self.converter_name)
+            .join("tests/fixtures/source");
+
+        let base_expected = PathBuf::from("converters")
+            .join(&self.converter_name)
+            .join("tests/fixtures/expected");
+
+        let variants = sorted_subdirs(&base_source)?;
+
+        for variant in &variants {
+            let variant_source = base_source.join(variant);
+            let variant_expected = base_expected.join(variant);
+
+            let modes = sorted_subdirs(&variant_source)?;
+            for mode in &modes {
+                let input_dir = variant_source.join(mode);
+                let output_dir = variant_expected.join(mode);
+                self.generate_dir(&input_dir, &output_dir, &|doc, output| {
+                    convert_fn(variant, mode, doc, output)
+                })?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn generate_dir<F>(
+        &self,
+        input_dir: &Path,
+        output_dir: &Path,
+        convert_fn: &F,
+    ) -> Result<(), Box<dyn Error>>
+    where
+        F: Fn(&Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+    {
         // Ensure output directory exists
-        fs::create_dir_all(&output_dir)?;
+        fs::create_dir_all(output_dir)?;
 
         println!(
             "Generating expected {} outputs...\n",
@@ -152,4 +206,16 @@ impl FixtureGenerator {
 
         Ok(())
     }
+}
+
+/// Return sorted directory names found directly inside `dir`.
+fn sorted_subdirs(dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut names: Vec<_> = dir
+        .read_dir()?
+        .filter_map(Result::ok)
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .collect();
+    names.sort();
+    Ok(names)
 }

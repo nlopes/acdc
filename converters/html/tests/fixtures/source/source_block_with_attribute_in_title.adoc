@@ -1,1 +1,0 @@
-../../../../../acdc-parser/fixtures/tests/source_block_with_attribute_in_title.adoc

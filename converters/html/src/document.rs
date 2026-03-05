@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::{Author, Header};
+use acdc_parser::{Author, Header, inlines_to_string};
 
 use crate::{Error, Processor, RenderOptions};
 
@@ -15,21 +15,17 @@ pub(crate) fn render_header_metadata<V: WritableVisitor<Error = Error>>(
     _processor: &Processor,
     _options: &RenderOptions,
 ) -> Result<(), Error> {
-    let mut w = visitor.writer_mut();
+    let w = visitor.writer_mut();
     for author in &header.authors {
         render_author(author, w)?;
     }
-    write!(w, "<title>")?;
-    let _ = w;
-    visitor.visit_inline_nodes(&header.title)?;
+    let title_text = inlines_to_string(&header.title);
     if let Some(subtitle) = &header.subtitle {
-        w = visitor.writer_mut();
-        write!(w, ": ")?;
-        let _ = w;
-        visitor.visit_inline_nodes(subtitle)?;
+        let subtitle_text = inlines_to_string(subtitle);
+        writeln!(w, "<title>{title_text}: {subtitle_text}</title>")?;
+    } else {
+        writeln!(w, "<title>{title_text}</title>")?;
     }
-    w = visitor.writer_mut();
-    writeln!(w, "</title>")?;
     Ok(())
 }
 

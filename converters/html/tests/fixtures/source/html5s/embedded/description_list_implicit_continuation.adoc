@@ -1,0 +1,1 @@
+../../html/embedded/description_list_implicit_continuation.adoc
