@@ -547,8 +547,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Image(i) => {
-            // Inline images use a span wrapper with the img tag inside
-            write!(w, "<span class=\"image\">")?;
+            let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
+            // Inline images use a span wrapper with the img tag inside (not in semantic mode)
+            if !is_semantic {
+                write!(w, "<span class=\"image\">")?;
+            }
 
             // Get alt text from title field first (first positional attribute),
             // then fall back to alt attribute, then filename
@@ -585,7 +588,9 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             if link.is_some() {
                 write!(w, "</a>")?;
             }
-            write!(w, "</span>")?;
+            if !is_semantic {
+                write!(w, "</span>")?;
+            }
         }
         InlineMacro::Pass(p) => {
             if let Some(ref text) = p.text {

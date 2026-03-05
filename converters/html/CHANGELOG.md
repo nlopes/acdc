@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **html5s inline images no longer wrapped in `<span class="image">`** — in semantic (html5s) mode,
+  inline images render as bare `<img>` tags (or `<a class="image"><img></a>` with links),
+  matching asciidoctor's html5s behavior.
 - **html5s `[.line-through]#text#` now outputs `<s>` tag** — in semantic (html5s) mode,
   the `line-through` role on highlighted text now renders as `<s>` instead of
   `<span class="line-through">`.
