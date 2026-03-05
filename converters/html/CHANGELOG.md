@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **html5s button macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
+  `btn:[label]` renders as `<kbd class="button"><samp>label</samp></kbd>`,
+  matching asciidoctor's html5s behavior.
 - **html5s inline images no longer wrapped in `<span class="image">`** — in semantic (html5s) mode,
   inline images render as bare `<img>` tags (or `<a class="image"><img></a>` with links),
   matching asciidoctor's html5s behavior.

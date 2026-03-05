@@ -1,0 +1,1 @@
+../../html/embedded/button_macro.adoc

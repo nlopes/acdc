@@ -773,7 +773,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
         }
         InlineMacro::Button(b) => {
             if processor.document_attributes.get("experimental").is_some() {
-                write!(w, "<b class=\"button\">{}</b>", b.label)?;
+                if processor.variant() == crate::HtmlVariant::Semantic {
+                    write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
+                } else {
+                    write!(w, "<b class=\"button\">{}</b>", b.label)?;
+                }
             } else {
                 write!(w, "btn:[{}]", b.label)?;
             }
