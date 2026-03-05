@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **html5s `[.line-through]#text#` now outputs `<s>` tag** — in semantic (html5s) mode,
+  the `line-through` role on highlighted text now renders as `<s>` instead of
+  `<span class="line-through">`.
+
 ### Changed
 
 - **`<title>` uses plain text for document titles** — the `<title>` element now strips inline

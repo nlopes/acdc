@@ -1,0 +1,1 @@
+Before the strike, [.line-through]#this text is struck through#, but this isn't.

@@ -321,15 +321,27 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             // Check if quotes substitution is enabled
             if subs.contains(&Substitution::Quotes) {
                 if !options.inlines_basic {
-                    // asciidoctor behavior: use <span> when role is present, <mark> otherwise
-                    let tag = if h.role.is_some() { "span" } else { "mark" };
-                    write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
+                    if processor.variant() == crate::HtmlVariant::Semantic
+                        && h.role.as_deref() == Some("line-through")
+                    {
+                        write_tag_with_attrs(w, "s", h.id.as_ref(), None)?;
+                    } else {
+                        // asciidoctor behavior: use <span> when role is present, <mark> otherwise
+                        let tag = if h.role.is_some() { "span" } else { "mark" };
+                        write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
+                    }
                 }
                 visitor.visit_inline_nodes(&h.content)?;
                 if !options.inlines_basic {
                     let w = visitor.writer_mut();
-                    let tag = if h.role.is_some() { "span" } else { "mark" };
-                    write!(w, "</{tag}>")?;
+                    if processor.variant() == crate::HtmlVariant::Semantic
+                        && h.role.as_deref() == Some("line-through")
+                    {
+                        write!(w, "</s>")?;
+                    } else {
+                        let tag = if h.role.is_some() { "span" } else { "mark" };
+                        write!(w, "</{tag}>")?;
+                    }
                 }
             } else {
                 // No quotes substitution - output raw markup
