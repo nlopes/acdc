@@ -35,14 +35,20 @@ pub fn position_to_offset(source: &str, position: Position) -> Option<usize> {
 }
 
 /// Check if a byte offset falls within a `Location`.
+///
+/// The parser's `absolute_end` is inclusive (points to the last byte of the
+/// span), so we use `<=` for the upper bound.
 #[must_use]
 pub fn offset_in_location(offset: usize, location: &Location) -> bool {
-    offset >= location.absolute_start && offset < location.absolute_end
+    offset >= location.absolute_start && offset <= location.absolute_end
 }
 
 /// Convert acdc-parser Location to LSP Range
 ///
-/// Note: acdc-parser uses 1-indexed lines/columns, LSP uses 0-indexed
+/// Note: acdc-parser uses 1-indexed lines/columns with inclusive end,
+/// while LSP uses 0-indexed lines/characters with exclusive end.
+/// We convert start by subtracting 1, and end by keeping the column as-is
+/// (subtract 1 for 1-indexed→0-indexed, then add 1 for inclusive→exclusive).
 #[must_use]
 pub fn location_to_range(loc: &Location) -> Range {
     Range {
@@ -52,7 +58,7 @@ pub fn location_to_range(loc: &Location) -> Range {
         },
         end: Position {
             line: to_lsp_u32(loc.end.line.saturating_sub(1)),
-            character: to_lsp_u32(loc.end.column.saturating_sub(1)),
+            character: to_lsp_u32(loc.end.column),
         },
     }
 }
@@ -123,6 +129,7 @@ mod tests {
         assert!(!offset_in_location(9, &location));
         assert!(offset_in_location(10, &location));
         assert!(offset_in_location(15, &location));
-        assert!(!offset_in_location(20, &location)); // end is exclusive
+        assert!(offset_in_location(20, &location)); // end is inclusive
+        assert!(!offset_in_location(21, &location));
     }
 }

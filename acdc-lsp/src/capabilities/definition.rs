@@ -7,8 +7,9 @@ use acdc_parser::{
 };
 use tower_lsp::lsp_types::Position;
 
-use crate::convert::location_to_range;
-use crate::state::DocumentState;
+use tower_lsp::lsp_types::Url;
+
+use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Collect all anchor definitions from document AST
 #[must_use]
@@ -84,11 +85,27 @@ fn collect_block_anchors(block: &Block, anchors: &mut HashMap<String, Location>)
     }
 }
 
+/// Build a location covering just the section heading line (from section start
+/// to the end of the title text), rather than the full section span.
+fn heading_line_location(section: &Section) -> Location {
+    let mut loc = section.location.clone();
+    if let Some(last_inline) = section.title.last() {
+        let title_loc = last_inline.location();
+        loc.absolute_end = title_loc.absolute_end;
+        loc.end = title_loc.end.clone();
+    }
+    loc
+}
+
 fn collect_section_anchors(section: &Section, anchors: &mut HashMap<String, Location>) {
     // Get the section ID (explicit or generated)
     // Title implements Deref<Target = [InlineNode]>
     let safe_id = Section::generate_id(&section.metadata, &section.title);
-    anchors.insert(safe_id.to_string(), section.location.clone());
+    // Use heading-line location (section start to title end), not the full
+    // section span. The full span covers all content blocks, which would make
+    // the anchor match on hover anywhere inside the section body.
+    let heading_loc = heading_line_location(section);
+    anchors.insert(safe_id.to_string(), heading_loc);
 
     // Also collect any explicit anchors from metadata
     for anchor in &section.metadata.anchors {
@@ -295,41 +312,131 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
     }
 }
 
-/// Find definition at cursor position
+/// Find definition at cursor position, with cross-file resolution
 #[must_use]
 pub fn find_definition_at_position(
     doc_state: &DocumentState,
+    doc_uri: &Url,
+    workspace: &Workspace,
     position: Position,
-) -> Option<Location> {
-    // Find if cursor is on an xref
-    for (target, xref_loc) in &doc_state.xrefs {
-        if position_in_range(position, xref_loc) {
-            // Found an xref at cursor, look up its target
-            return doc_state.anchors.get(target).cloned();
-        }
+) -> Option<(Url, Location)> {
+    let offset = crate::convert::position_to_offset(&doc_state.text, position)?;
+    let ast = doc_state.ast.as_ref()?;
+    tracing::info!(
+        ?position,
+        offset,
+        text_len = doc_state.text.len(),
+        "find_definition_at_position"
+    );
+
+    // Check if cursor is on an xref
+    if let Some((target, _)) = crate::capabilities::hover::find_xref_at_offset(ast, offset) {
+        tracing::info!(target, "found xref at offset");
+        return resolve_xref_target(&target, doc_state, doc_uri, workspace);
     }
+
+    // Check if cursor is on a link macro
+    if let Some((target, _)) = crate::capabilities::hover::find_link_at_offset(ast, offset) {
+        return resolve_link_target(&target, doc_uri, workspace);
+    }
+
+    tracing::info!("no xref or link found at offset");
     None
 }
 
-/// Check if a position is within a location's range
-fn position_in_range(pos: Position, loc: &Location) -> bool {
-    let range = location_to_range(loc);
+/// Resolve an xref target to a definition location
+fn resolve_xref_target(
+    target: &str,
+    doc_state: &DocumentState,
+    doc_uri: &Url,
+    workspace: &Workspace,
+) -> Option<(Url, Location)> {
+    let parsed = XrefTarget::parse(target);
+    tracing::info!(
+        ?target,
+        file = ?parsed.file,
+        anchor = ?parsed.anchor,
+        "resolve_xref_target"
+    );
 
-    if pos.line < range.start.line || pos.line > range.end.line {
-        return false;
+    if let Some(file_path) = &parsed.file {
+        // Try direct file + anchor resolution first
+        if let Some(target_uri) = workspace.resolve_xref_file(doc_uri, file_path) {
+            tracing::info!(%target_uri, "resolved xref file URI");
+            if let Some(anchor_id) = &parsed.anchor {
+                if let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id) {
+                    return Some((target_uri, loc));
+                }
+                tracing::info!(
+                    anchor_id,
+                    "anchor not found in document, falling through to global"
+                );
+                // File resolved but anchor not found — fall through to global search
+            } else {
+                // Cross-file without anchor — jump to file start
+                let mut loc = Location::default();
+                loc.start.line = 1;
+                loc.start.column = 1;
+                return Some((target_uri, loc));
+            }
+        } else {
+            tracing::info!(%doc_uri, file_path, "resolve_xref_file returned None");
+        }
+
+        // Fallback: try global anchor index (handles URI mismatches, file not yet indexed)
+        if let Some(anchor_id) = &parsed.anchor {
+            let global = workspace.find_anchor_globally(anchor_id);
+            tracing::info!(anchor_id, count = global.len(), "global anchor search");
+            if let Some((uri, loc)) = global.into_iter().next() {
+                return Some((uri, loc));
+            }
+        }
+
+        return None;
     }
-    if pos.line == range.start.line && pos.character < range.start.character {
-        return false;
+
+    // Local target
+    if let Some(anchor_id) = &parsed.anchor {
+        if let Some(loc) = doc_state.anchors.get(anchor_id) {
+            return Some((doc_uri.clone(), loc.clone()));
+        }
+        let global = workspace.find_anchor_globally(anchor_id);
+        if let Some((uri, loc)) = global.into_iter().next() {
+            return Some((uri, loc));
+        }
     }
-    if pos.line == range.end.line && pos.character > range.end.character {
-        return false;
+
+    None
+}
+
+/// Resolve a link target to a definition location (file paths only)
+fn resolve_link_target(
+    target: &str,
+    doc_uri: &Url,
+    workspace: &Workspace,
+) -> Option<(Url, Location)> {
+    // Only resolve file paths, not full URLs
+    if target.contains("://") {
+        return None;
     }
-    true
+
+    // Strip fragment if present
+    let file_path = target.split('#').next()?;
+    if file_path.is_empty() {
+        return None;
+    }
+
+    let target_uri = workspace.resolve_xref_file(doc_uri, file_path)?;
+    let mut loc = Location::default();
+    loc.start.line = 1;
+    loc.start.column = 1;
+    Some((target_uri, loc))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::Workspace;
     use acdc_parser::Options;
 
     #[test]
@@ -374,6 +481,56 @@ Content.
         let xref = xrefs.first();
         assert!(xref.is_some(), "expected at least one xref");
         assert_eq!(xref.map(|(t, _)| t.as_str()), Some("section-two"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_cross_file_xref_definition() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let a_uri = Url::parse("file:///project/a.adoc")?;
+        let file_uri = Url::parse("file:///project/file.adoc")?;
+
+        // Use same content as real files
+        let file_content = "= another doc\n\n== yay\n\nA thing\n";
+        workspace.update_document(file_uri.clone(), file_content.to_string(), 1);
+
+        let a_content =
+            "= A document\n\n== Capitulo 1\n\nA coisa do xref:file.adoc#_yay[text] e parva.\n";
+        workspace.update_document(a_uri.clone(), a_content.to_string(), 1);
+
+        // Verify file.adoc has the _yay anchor
+        let file_doc = workspace
+            .get_document(&file_uri)
+            .ok_or("file.adoc should be indexed")?;
+        assert!(
+            file_doc.anchors.contains_key("_yay"),
+            "file.adoc should have _yay anchor, found: {:?}",
+            file_doc.anchors.keys().collect::<Vec<_>>()
+        );
+        drop(file_doc);
+
+        // Verify xrefs were collected in a.adoc
+        let a_doc = workspace
+            .get_document(&a_uri)
+            .ok_or("a.adoc should be indexed")?;
+        assert!(!a_doc.xrefs.is_empty(), "a.adoc should have xrefs");
+
+        // Verify the AST has the xref findable at offset
+        let ast = a_doc.ast.as_ref().ok_or("a.adoc should have AST")?;
+        let xref_offset = a_content
+            .find("xref:")
+            .ok_or("xref: not found in content")?;
+        let found = crate::capabilities::hover::find_xref_at_offset(ast, xref_offset + 10);
+        assert!(found.is_some(), "xref should be findable at offset");
+
+        // Use position_to_offset round-trip like the real code path
+        let position = tower_lsp::lsp_types::Position {
+            line: 4,       // 0-indexed: line 5 of the document
+            character: 20, // middle of the xref
+        };
+        let result = find_definition_at_position(&a_doc, &a_uri, &workspace, position);
+        let (uri, _loc) = result.ok_or("expected cross-file xref to resolve")?;
+        assert_eq!(uri, file_uri);
         Ok(())
     }
 }

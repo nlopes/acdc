@@ -1,9 +1,10 @@
-//! Document Links: make URLs and file references clickable
+//! Document Links: make URLs, file references, and includes clickable
 
-use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location};
-use tower_lsp::lsp_types::DocumentLink;
+use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
+use tower_lsp::lsp_types::{DocumentLink, Url};
 
 use crate::convert::location_to_range;
+use crate::state::DocumentState;
 
 /// Collected link information
 struct LinkInfo {
@@ -12,15 +13,19 @@ struct LinkInfo {
     tooltip: Option<String>,
 }
 
-/// Collect all document links (clickable URLs and file references)
+/// Collect all document links (clickable URLs, file references, and includes)
 #[must_use]
-pub fn collect_document_links(doc: &Document) -> Vec<DocumentLink> {
+pub fn collect_document_links(doc: &DocumentState, doc_uri: &Url) -> Vec<DocumentLink> {
     let mut links = Vec::new();
-    collect_links_from_blocks(&doc.blocks, &mut links);
-    links
+
+    // Collect links from AST (URLs, link macros, images)
+    if let Some(ast) = &doc.ast {
+        collect_links_from_blocks(&ast.blocks, &mut links);
+    }
+
+    let mut result: Vec<DocumentLink> = links
         .into_iter()
         .filter_map(|info| {
-            // Only include links with valid URL schemes or relative paths
             let target = if info.target.starts_with("http://")
                 || info.target.starts_with("https://")
                 || info.target.starts_with("mailto:")
@@ -29,8 +34,8 @@ pub fn collect_document_links(doc: &Document) -> Vec<DocumentLink> {
             {
                 info.target.parse().ok()
             } else {
-                // For relative paths, we'd need the document URI - skip for now
-                None
+                // Resolve relative paths against the document's directory
+                resolve_relative_uri(doc_uri, &info.target)
             };
 
             target.map(|uri| DocumentLink {
@@ -40,7 +45,36 @@ pub fn collect_document_links(doc: &Document) -> Vec<DocumentLink> {
                 data: None,
             })
         })
-        .collect()
+        .collect();
+
+    // Add include directives as clickable links
+    for (include_target, include_loc) in &doc.includes {
+        if let Some(target_uri) = resolve_relative_uri(doc_uri, include_target) {
+            result.push(DocumentLink {
+                range: location_to_range(include_loc),
+                target: Some(target_uri),
+                tooltip: Some(format!("Open included file: {include_target}")),
+                data: None,
+            });
+        }
+    }
+
+    result
+}
+
+/// Resolve a relative path against a document URI's directory
+fn resolve_relative_uri(doc_uri: &Url, relative_path: &str) -> Option<Url> {
+    let mut base = doc_uri.clone();
+    // Remove the file name to get the directory
+    base.path_segments_mut().ok()?.pop();
+    // Ensure trailing slash for proper join behavior
+    let base_str = base.as_str();
+    let base = if base_str.ends_with('/') {
+        base
+    } else {
+        Url::parse(&format!("{base_str}/")).ok()?
+    };
+    base.join(relative_path).ok()
 }
 
 fn collect_links_from_blocks(blocks: &[Block], links: &mut Vec<LinkInfo>) {
@@ -186,34 +220,38 @@ fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::Options;
+    use crate::state::Workspace;
 
     #[test]
-    fn test_collect_urls() -> Result<(), acdc_parser::Error> {
+    fn test_collect_urls() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"= Document
 
 Visit https://example.com for more info.
 
 Also see link:https://rust-lang.org[Rust].
 ";
-        let options = Options::default();
-        let doc = acdc_parser::parse(content, &options)?;
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
-        let links = collect_document_links(&doc);
+        let links = collect_document_links(&doc, &uri);
         assert_eq!(links.len(), 2);
         Ok(())
     }
 
     #[test]
-    fn test_collect_mailto() -> Result<(), acdc_parser::Error> {
+    fn test_collect_mailto() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"= Document
 
 Contact mailto:test@example.com[us] for help.
 ";
-        let options = Options::default();
-        let doc = acdc_parser::parse(content, &options)?;
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
-        let links = collect_document_links(&doc);
+        let links = collect_document_links(&doc, &uri);
         assert_eq!(links.len(), 1);
 
         let link = links.first();
@@ -223,6 +261,49 @@ Contact mailto:test@example.com[us] for help.
                 .as_ref()
                 .is_some_and(|u| u.as_str().starts_with("mailto:"))
         }));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_directives_as_links() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "= Document\n\ninclude::chapter1.adoc[]\n\nSome text.\n";
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///docs/main.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let links = collect_document_links(&doc, &uri);
+
+        // Should have the include directive as a clickable link
+        let include_links: Vec<_> = links
+            .iter()
+            .filter(|l| {
+                l.tooltip
+                    .as_deref()
+                    .is_some_and(|t| t.contains("included file"))
+            })
+            .collect();
+        assert_eq!(include_links.len(), 1, "Expected 1 include link");
+
+        let include_link = include_links.first().ok_or("expected include link")?;
+        assert!(
+            include_link
+                .target
+                .as_ref()
+                .is_some_and(|u| u.as_str().ends_with("chapter1.adoc"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_relative_uri() -> Result<(), Box<dyn std::error::Error>> {
+        let doc_uri = Url::parse("file:///docs/main.adoc")?;
+        let resolved = resolve_relative_uri(&doc_uri, "chapter.adoc");
+        assert!(resolved.is_some());
+        assert_eq!(
+            resolved.map(|u| u.to_string()),
+            Some("file:///docs/chapter.adoc".to_string())
+        );
         Ok(())
     }
 }
