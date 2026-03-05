@@ -1,0 +1,5 @@
+:experimental:
+
+Press kbd:[Ctrl+C] to copy.
+
+Press kbd:[Enter] to confirm.

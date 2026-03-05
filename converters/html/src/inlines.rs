@@ -321,15 +321,27 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             // Check if quotes substitution is enabled
             if subs.contains(&Substitution::Quotes) {
                 if !options.inlines_basic {
-                    // asciidoctor behavior: use <span> when role is present, <mark> otherwise
-                    let tag = if h.role.is_some() { "span" } else { "mark" };
-                    write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
+                    if processor.variant() == crate::HtmlVariant::Semantic
+                        && h.role.as_deref() == Some("line-through")
+                    {
+                        write_tag_with_attrs(w, "s", h.id.as_ref(), None)?;
+                    } else {
+                        // asciidoctor behavior: use <span> when role is present, <mark> otherwise
+                        let tag = if h.role.is_some() { "span" } else { "mark" };
+                        write_tag_with_attrs(w, tag, h.id.as_ref(), h.role.as_ref())?;
+                    }
                 }
                 visitor.visit_inline_nodes(&h.content)?;
                 if !options.inlines_basic {
                     let w = visitor.writer_mut();
-                    let tag = if h.role.is_some() { "span" } else { "mark" };
-                    write!(w, "</{tag}>")?;
+                    if processor.variant() == crate::HtmlVariant::Semantic
+                        && h.role.as_deref() == Some("line-through")
+                    {
+                        write!(w, "</s>")?;
+                    } else {
+                        let tag = if h.role.is_some() { "span" } else { "mark" };
+                        write!(w, "</{tag}>")?;
+                    }
                 }
             } else {
                 // No quotes substitution - output raw markup
@@ -535,8 +547,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Image(i) => {
-            // Inline images use a span wrapper with the img tag inside
-            write!(w, "<span class=\"image\">")?;
+            let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
+            // Inline images use a span wrapper with the img tag inside (not in semantic mode)
+            if !is_semantic {
+                write!(w, "<span class=\"image\">")?;
+            }
 
             // Get alt text from title field first (first positional attribute),
             // then fall back to alt attribute, then filename
@@ -573,7 +588,9 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             if link.is_some() {
                 write!(w, "</a>")?;
             }
-            write!(w, "</span>")?;
+            if !is_semantic {
+                write!(w, "</span>")?;
+            }
         }
         InlineMacro::Pass(p) => {
             if let Some(ref text) = p.text {
@@ -756,7 +773,11 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
         }
         InlineMacro::Button(b) => {
             if processor.document_attributes.get("experimental").is_some() {
-                write!(w, "<b class=\"button\">{}</b>", b.label)?;
+                if processor.variant() == crate::HtmlVariant::Semantic {
+                    write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
+                } else {
+                    write!(w, "<b class=\"button\">{}</b>", b.label)?;
+                }
             } else {
                 write!(w, "btn:[{}]", b.label)?;
             }
@@ -822,19 +843,29 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             write_icon(w, processor, i)?;
         }
         InlineMacro::Keyboard(k) => {
+            let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
+            let key_class = if is_semantic { " class=\"key\"" } else { "" };
             if k.keys.len() == 1
                 && let Some(key) = k.keys.first()
             {
-                write!(w, "<kbd>{key}</kbd>")?;
+                write!(w, "<kbd{key_class}>{key}</kbd>")?;
             } else {
-                write!(w, "<span class=\"keyseq\">")?;
+                if is_semantic {
+                    write!(w, "<kbd class=\"keyseq\">")?;
+                } else {
+                    write!(w, "<span class=\"keyseq\">")?;
+                }
                 for (i, key) in k.keys.iter().enumerate() {
                     if i > 0 {
                         write!(w, "+")?;
                     }
-                    write!(w, "<kbd>{key}</kbd>")?;
+                    write!(w, "<kbd{key_class}>{key}</kbd>")?;
                 }
-                write!(w, "</span>")?;
+                if is_semantic {
+                    write!(w, "</kbd>")?;
+                } else {
+                    write!(w, "</span>")?;
+                }
             }
         }
         InlineMacro::Menu(menu) => {

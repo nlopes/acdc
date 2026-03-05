@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **html5s button macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
+  `btn:[label]` renders as `<kbd class="button"><samp>label</samp></kbd>`,
+  matching asciidoctor's html5s behavior.
+- **html5s inline images no longer wrapped in `<span class="image">`** — in semantic (html5s) mode,
+  inline images render as bare `<img>` tags (or `<a class="image"><img></a>` with links),
+  matching asciidoctor's html5s behavior.
+- **html5s `[.line-through]#text#` now outputs `<s>` tag** — in semantic (html5s) mode,
+  the `line-through` role on highlighted text now renders as `<s>` instead of
+  `<span class="line-through">`.
+- **html5s keyboard shortcuts now use semantic `<kbd>` markup** — in semantic (html5s) mode,
+  key sequences use `<kbd class="keyseq">` wrapper and `<kbd class="key">` for individual keys,
+  matching asciidoctor's html5s behavior.
+
 ### Changed
 
 - **`<title>` uses plain text for document titles** — the `<title>` element now strips inline
