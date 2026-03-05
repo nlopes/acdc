@@ -869,8 +869,21 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             }
         }
         InlineMacro::Menu(menu) => {
+            let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
             if menu.items.is_empty() {
-                write!(w, "<b class=\"menuref\">{}</b>", menu.target)?;
+                if is_semantic {
+                    write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
+                } else {
+                    write!(w, "<b class=\"menuref\">{}</b>", menu.target)?;
+                }
+            } else if is_semantic {
+                write!(w, "<kbd class=\"menuseq\">")?;
+                write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
+                for item in &menu.items {
+                    write!(w, "&#160;<span class=\"caret\">&#8250;</span>&#32;")?;
+                    write!(w, "<kbd class=\"menu\"><samp>{item}</samp></kbd>")?;
+                }
+                write!(w, "</kbd>")?;
             } else {
                 write!(w, "<span class=\"menuseq\">")?;
                 write!(w, "<b class=\"menu\">{}</b>", menu.target)?;

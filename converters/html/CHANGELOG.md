@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **html5s menu macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
+  `menu:File[Save As]` renders with `<kbd class="menuseq">` wrapper, `<kbd class="menu"><samp>…</samp></kbd>`
+  items, and text caret separators (`&#8250;`), matching asciidoctor's html5s behavior.
 - **html5s button macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
   `btn:[label]` renders as `<kbd class="button"><samp>label</samp></kbd>`,
   matching asciidoctor's html5s behavior.
