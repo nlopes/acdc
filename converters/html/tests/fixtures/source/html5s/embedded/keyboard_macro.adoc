@@ -1,0 +1,1 @@
+../../html/embedded/keyboard_macro.adoc

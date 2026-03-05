@@ -839,19 +839,29 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
             write_icon(w, processor, i)?;
         }
         InlineMacro::Keyboard(k) => {
+            let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
+            let key_class = if is_semantic { " class=\"key\"" } else { "" };
             if k.keys.len() == 1
                 && let Some(key) = k.keys.first()
             {
-                write!(w, "<kbd>{key}</kbd>")?;
+                write!(w, "<kbd{key_class}>{key}</kbd>")?;
             } else {
-                write!(w, "<span class=\"keyseq\">")?;
+                if is_semantic {
+                    write!(w, "<kbd class=\"keyseq\">")?;
+                } else {
+                    write!(w, "<span class=\"keyseq\">")?;
+                }
                 for (i, key) in k.keys.iter().enumerate() {
                     if i > 0 {
                         write!(w, "+")?;
                     }
-                    write!(w, "<kbd>{key}</kbd>")?;
+                    write!(w, "<kbd{key_class}>{key}</kbd>")?;
                 }
-                write!(w, "</span>")?;
+                if is_semantic {
+                    write!(w, "</kbd>")?;
+                } else {
+                    write!(w, "</span>")?;
+                }
             }
         }
         InlineMacro::Menu(menu) => {

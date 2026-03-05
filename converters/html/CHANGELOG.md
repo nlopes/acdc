@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **html5s `[.line-through]#text#` now outputs `<s>` tag** — in semantic (html5s) mode,
   the `line-through` role on highlighted text now renders as `<s>` instead of
   `<span class="line-through">`.
+- **html5s keyboard shortcuts now use semantic `<kbd>` markup** — in semantic (html5s) mode,
+  key sequences use `<kbd class="keyseq">` wrapper and `<kbd class="key">` for individual keys,
+  matching asciidoctor's html5s behavior.
 
 ### Changed
 
