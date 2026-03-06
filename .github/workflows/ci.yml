@@ -1,8 +1,8 @@
-name: Test
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
     branches: '*'
 
@@ -10,52 +10,146 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  changes:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-
+    outputs:
+      parser: ${{ steps.filter.outputs.parser }}
+      converters: ${{ steps.filter.outputs.converters }}
+      cli: ${{ steps.filter.outputs.cli }}
+      lsp: ${{ steps.filter.outputs.lsp }}
+      wasm: ${{ steps.filter.outputs.wasm }}
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            parser:
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            converters:
+              - 'converters/**'
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            cli:
+              - 'acdc-cli/**'
+              - 'acdc-parser/**'
+              - 'converters/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            lsp:
+              - 'acdc-lsp/**'
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            wasm:
+              - 'acdc-editor-wasm/**'
+              - 'acdc-parser/**'
+              - 'converters/core/**'
+              - 'converters/html/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
 
-    - name: Install toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-          components: clippy, rustfmt
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
 
-    - name: Setup Cache
-      uses: Swatinem/rust-cache@v2
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Run clippy (WASM editor)
+        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
 
-    - name: Run cargo fmt
-      run: cargo fmt --all -- --check
+  test-parser:
+    needs: changes
+    if: needs.changes.outputs.parser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run parser tests
+        run: cargo nextest run -p acdc-parser --all-features --verbose
+      - name: Check parser fixtures
+        run: |
+          cargo run -p acdc-parser --example generate_parser_fixtures --all-features
+          if ! git diff --exit-code acdc-parser/fixtures/tests; then
+            echo "::warning::Fixtures are out of sync with current parser output"
+            echo "Run: cargo run -p acdc-parser --example generate_parser_fixtures --all-features"
+          fi
+        continue-on-error: true
 
-    - name: Install nextest
-      uses: taiki-e/install-action@nextest
+  test-converters:
+    needs: changes
+    if: needs.changes.outputs.converters == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run converter tests
+        run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
 
-    - name: Run tests
-      run: cargo nextest run --all-features --all-targets --verbose
+  test-cli:
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run CLI tests
+        run: cargo nextest run -p acdc-cli --all-features --verbose
 
-    - name: Run doc tests
-      run: cargo test --doc --verbose
+  test-lsp:
+    needs: changes
+    if: needs.changes.outputs.lsp == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run LSP tests
+        run: cargo nextest run -p acdc-lsp --all-features --verbose
 
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+  test-wasm:
+    needs: changes
+    if: needs.changes.outputs.wasm == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Run clippy (WASM editor)
+        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
 
-    - name: Run clippy
-      run: cargo clippy --all-targets --all-features --tests -- --deny clippy::pedantic
-
-    - name: Install wasm32 target
-      run: rustup target add wasm32-unknown-unknown
-
-    - name: Run clippy (WASM editor)
-      run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
-
-    - name: Check parser fixtures
-      run: |
-        cargo run -p acdc-parser --example generate_parser_fixtures --all-features
-        if ! git diff --exit-code acdc-parser/fixtures/tests; then
-          echo "::warning::Fixtures are out of sync with current parser output"
-          echo "Run: cargo run -p acdc-parser --example generate_parser_fixtures --all-features"
-        fi
-      continue-on-error: true
+  doctest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run doc tests
+        run: cargo test --doc --verbose
