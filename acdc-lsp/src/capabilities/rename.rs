@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use tower_lsp::lsp_types::{Position, PrepareRenameResponse, TextEdit, Url, WorkspaceEdit};
 
 use crate::convert::{location_to_range, position_to_offset};
-use crate::state::DocumentState;
+use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Prepare for rename operation - validate the position is on an anchor or xref.
 ///
@@ -36,11 +36,13 @@ pub fn prepare_rename(doc: &DocumentState, position: Position) -> Option<Prepare
 
 /// Compute the workspace edit for renaming an anchor/xref.
 ///
-/// Returns edits for the anchor definition and all xrefs pointing to it.
+/// Returns edits for the anchor definition and all xrefs pointing to it,
+/// across all open documents.
 #[must_use]
 pub fn compute_rename(
     doc: &DocumentState,
     uri: &Url,
+    workspace: &Workspace,
     position: Position,
     new_name: &str,
 ) -> Option<WorkspaceEdit> {
@@ -49,34 +51,70 @@ pub fn compute_rename(
 
     // Find the target ID (from either xref or anchor)
     let target_id = if let Some((id, _)) = super::hover::find_xref_at_offset(ast, offset) {
-        Some(id)
+        // If it's a cross-file xref, extract just the anchor part
+        let parsed = XrefTarget::parse(&id);
+        parsed.anchor.unwrap_or(id)
     } else {
-        super::hover::find_anchor_at_offset(ast, offset, doc).map(|(id, _)| id)
-    }?;
+        super::hover::find_anchor_at_offset(ast, offset, doc).map(|(id, _)| id)?
+    };
 
-    let mut edits = Vec::new();
+    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
 
-    // Add edit for the anchor definition
-    if let Some(anchor_loc) = doc.anchors.get(&target_id) {
-        edits.push(TextEdit {
-            range: location_to_range(anchor_loc),
+    // Add edits for anchor declarations across all documents
+    for (anchor_uri, anchor_loc) in workspace.find_anchor_globally(&target_id) {
+        changes.entry(anchor_uri).or_default().push(TextEdit {
+            range: location_to_range(&anchor_loc),
             new_text: new_name.to_string(),
         });
     }
 
-    // Add edits for all xrefs pointing to this target
-    for (xref_target, xref_loc) in &doc.xrefs {
-        if xref_target == &target_id {
+    // Add edits for all xrefs pointing to this target across all documents
+    workspace.for_each_document(|doc_uri, doc_state| {
+        for (xref_target, xref_loc) in &doc_state.xrefs {
+            let parsed = XrefTarget::parse(xref_target);
+            let anchor = parsed.anchor.as_deref().unwrap_or(xref_target.as_str());
+            if anchor == target_id {
+                changes.entry(doc_uri.clone()).or_default().push(TextEdit {
+                    range: location_to_range(xref_loc),
+                    new_text: if parsed.is_cross_file() {
+                        // Preserve the file path, only rename the anchor part
+                        if let Some(file) = &parsed.file {
+                            format!("{file}#{new_name}")
+                        } else {
+                            new_name.to_string()
+                        }
+                    } else {
+                        new_name.to_string()
+                    },
+                });
+            }
+        }
+    });
+
+    // If no edits were found via workspace, fall back to current document only
+    if changes.is_empty() {
+        let mut edits = Vec::new();
+
+        if let Some(anchor_loc) = doc.anchors.get(&target_id) {
             edits.push(TextEdit {
-                range: location_to_range(xref_loc),
+                range: location_to_range(anchor_loc),
                 new_text: new_name.to_string(),
             });
         }
-    }
 
-    // Return workspace edit
-    let mut changes = HashMap::new();
-    changes.insert(uri.clone(), edits);
+        for (xref_target, xref_loc) in &doc.xrefs {
+            if xref_target == &target_id {
+                edits.push(TextEdit {
+                    range: location_to_range(xref_loc),
+                    new_text: new_name.to_string(),
+                });
+            }
+        }
+
+        if !edits.is_empty() {
+            changes.insert(uri.clone(), edits);
+        }
+    }
 
     Some(WorkspaceEdit {
         changes: Some(changes),
@@ -88,32 +126,19 @@ pub fn compute_rename(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::capabilities::definition::{collect_anchors, collect_xrefs};
-    use crate::state::DocumentState;
-    use acdc_parser::Options;
-
-    fn create_test_doc_state(content: &str) -> DocumentState {
-        let options = Options::default();
-        let result = acdc_parser::parse(content, &options);
-
-        match result {
-            Ok(doc) => {
-                let anchors = collect_anchors(&doc);
-                let xrefs = collect_xrefs(&doc);
-                DocumentState::new_success(content.to_string(), 1, doc, anchors, xrefs)
-            }
-            Err(_) => DocumentState::new_failure(content.to_string(), 1, vec![]),
-        }
-    }
+    use crate::state::Workspace;
 
     #[test]
-    fn test_prepare_rename_on_anchor() {
+    fn test_prepare_rename_on_anchor() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"[[my-anchor]]
 == Section Title
 
 Reference <<my-anchor>> here.
 ";
-        let doc = create_test_doc_state(content);
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
         // Position on the anchor (line 0, character 5 is inside [[my-anchor]])
         let position = Position {
@@ -133,16 +158,20 @@ Reference <<my-anchor>> here.
             ),
             "Expected RangeWithPlaceholder with 'my-anchor'"
         );
+        Ok(())
     }
 
     #[test]
-    fn test_prepare_rename_on_xref() {
+    fn test_prepare_rename_on_xref() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"[[target]]
 == Target Section
 
 See <<target>> for details.
 ";
-        let doc = create_test_doc_state(content);
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
         // Position on the xref (line 3, character 6 is inside <<target>>)
         let position = Position {
@@ -162,6 +191,7 @@ See <<target>> for details.
             ),
             "Expected RangeWithPlaceholder with 'target'"
         );
+        Ok(())
     }
 
     #[test]
@@ -173,8 +203,10 @@ First ref: <<old-name>>.
 
 Second ref: <<old-name>>.
 ";
-        let doc = create_test_doc_state(content);
+        let workspace = Workspace::new();
         let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("expected doc")?;
 
         // Position on the anchor
         let position = Position {
@@ -182,7 +214,7 @@ Second ref: <<old-name>>.
             character: 5,
         };
 
-        let result = compute_rename(&doc, &uri, position, "new-name");
+        let result = compute_rename(&doc, &uri, &workspace, position, "new-name");
         assert!(result.is_some(), "expected edit result");
         let edit = result.ok_or("expected edit")?;
         assert!(edit.changes.is_some(), "expected changes");
@@ -202,12 +234,15 @@ Second ref: <<old-name>>.
     }
 
     #[test]
-    fn test_prepare_rename_invalid_position() {
+    fn test_prepare_rename_invalid_position() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"= Document
 
 Just some text here.
 ";
-        let doc = create_test_doc_state(content);
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
         // Position on regular text (not anchor or xref)
         let position = Position {
@@ -217,5 +252,6 @@ Just some text here.
 
         let result = prepare_rename(&doc, position);
         assert!(result.is_none());
+        Ok(())
     }
 }

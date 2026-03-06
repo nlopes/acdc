@@ -993,23 +993,8 @@ fn inline_node_range(node: &InlineNode) -> (usize, usize) {
 }
 
 fn macro_range(mac: &InlineMacro) -> (usize, usize) {
-    match mac {
-        InlineMacro::Footnote(f) => (f.location.absolute_start, f.location.absolute_end),
-        InlineMacro::Icon(i) => (i.location.absolute_start, i.location.absolute_end),
-        InlineMacro::Image(img) => (img.location.absolute_start, img.location.absolute_end),
-        InlineMacro::Keyboard(k) => (k.location.absolute_start, k.location.absolute_end),
-        InlineMacro::Button(b) => (b.location.absolute_start, b.location.absolute_end),
-        InlineMacro::Menu(m) => (m.location.absolute_start, m.location.absolute_end),
-        InlineMacro::Url(u) => (u.location.absolute_start, u.location.absolute_end),
-        InlineMacro::Link(l) => (l.location.absolute_start, l.location.absolute_end),
-        InlineMacro::Mailto(m) => (m.location.absolute_start, m.location.absolute_end),
-        InlineMacro::Autolink(a) => (a.location.absolute_start, a.location.absolute_end),
-        InlineMacro::CrossReference(x) => (x.location.absolute_start, x.location.absolute_end),
-        InlineMacro::Pass(p) => (p.location.absolute_start, p.location.absolute_end),
-        InlineMacro::Stem(s) => (s.location.absolute_start, s.location.absolute_end),
-        InlineMacro::IndexTerm(i) => (i.location.absolute_start, i.location.absolute_end),
-        _ => (0, 0),
-    }
+    let loc = mac.location();
+    (loc.absolute_start, loc.absolute_end)
 }
 
 /// Find the end of the line containing `pos` (offset of the newline, or EOF).

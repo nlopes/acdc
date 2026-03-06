@@ -1,0 +1,7 @@
+:experimental:
+
+Select menu:File[Save As].
+
+Select menu:View[Zoom > Reset].
+
+Select menu:File[].

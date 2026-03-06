@@ -52,8 +52,21 @@ impl Backend {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
-    async fn initialize(&self, _params: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("Initializing acdc-lsp");
+
+        // Capture workspace roots for cross-file resolution
+        let mut roots = Vec::new();
+        if let Some(folders) = params.workspace_folders {
+            for folder in folders {
+                roots.push(folder.uri);
+            }
+        } else if let Some(root_uri) = params.root_uri {
+            roots.push(root_uri);
+        }
+        if !roots.is_empty() {
+            self.workspace.set_workspace_roots(roots);
+        }
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
@@ -174,15 +187,20 @@ impl LanguageServer for Backend {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
 
-        // Get document and find definition while the guard is held
+        tracing::info!(%uri, ?position, "goto_definition request");
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            definition::find_definition_at_position(&doc, position).map(|loc| {
+            let result =
+                definition::find_definition_at_position(&doc, &uri, &self.workspace, position);
+            tracing::info!(found = result.is_some(), "goto_definition result");
+            result.map(|(target_uri, loc)| {
+                tracing::info!(%target_uri, ?loc, "goto_definition resolved to");
                 GotoDefinitionResponse::Scalar(tower_lsp::lsp_types::Location {
-                    uri: uri.clone(),
+                    uri: target_uri,
                     range: crate::convert::location_to_range(&loc),
                 })
             })
         } else {
+            tracing::warn!(%uri, "document not found in workspace");
             None
         };
 
@@ -194,7 +212,7 @@ impl LanguageServer for Backend {
         let position = params.text_document_position_params.position;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            hover::compute_hover(&doc, position)
+            hover::compute_hover(&doc, &uri, &self.workspace, position)
         } else {
             None
         };
@@ -211,15 +229,7 @@ impl LanguageServer for Backend {
         let include_declaration = params.context.include_declaration;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            references::find_references(&doc, position, include_declaration).map(|ranges| {
-                ranges
-                    .into_iter()
-                    .map(|range| tower_lsp::lsp_types::Location {
-                        uri: uri.clone(),
-                        range,
-                    })
-                    .collect()
-            })
+            references::find_references(&doc, &uri, &self.workspace, position, include_declaration)
         } else {
             None
         };
@@ -232,7 +242,8 @@ impl LanguageServer for Backend {
         let position = params.text_document_position.position;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            completion::compute_completions(&doc, position).map(CompletionResponse::Array)
+            completion::compute_completions(&doc, &uri, &self.workspace, position)
+                .map(CompletionResponse::Array)
         } else {
             None
         };
@@ -243,11 +254,10 @@ impl LanguageServer for Backend {
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let uri = params.text_document.uri;
 
-        let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            doc.ast.as_ref().map(document_links::collect_document_links)
-        } else {
-            None
-        };
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| document_links::collect_document_links(&doc, &uri));
 
         Ok(response)
     }
@@ -286,7 +296,7 @@ impl LanguageServer for Backend {
         let new_name = params.new_name;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            rename::compute_rename(&doc, &uri, position, &new_name)
+            rename::compute_rename(&doc, &uri, &self.workspace, position, &new_name)
         } else {
             None
         };

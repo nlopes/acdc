@@ -3,30 +3,26 @@
 use acdc_parser::{
     Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, inlines_to_string,
 };
-use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
+use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Url};
 
 use crate::convert::{location_to_range, offset_in_location, position_to_offset};
-use crate::state::DocumentState;
+use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Compute hover information for a position
 #[must_use]
-pub fn compute_hover(doc: &DocumentState, position: Position) -> Option<Hover> {
+pub fn compute_hover(
+    doc: &DocumentState,
+    doc_uri: &Url,
+    workspace: &Workspace,
+    position: Position,
+) -> Option<Hover> {
     let offset = position_to_offset(&doc.text, position)?;
     let ast = doc.ast.as_ref()?;
 
     // Check for xref at this position
     if let Some((target, xref_loc)) = find_xref_at_offset(ast, offset) {
-        // Look up the target anchor to get section title
-        let content = if let Some(anchor_loc) = doc.anchors.get(&target) {
-            // Try to find the section title for this anchor
-            if let Some(title) = find_section_title_at_location(ast, anchor_loc) {
-                format!("**Cross-reference**\n\nTarget: `{target}`\n\nSection: {title}")
-            } else {
-                format!("**Cross-reference**\n\nTarget: `{target}`")
-            }
-        } else {
-            format!("**Cross-reference** (unresolved)\n\nTarget: `{target}`")
-        };
+        let parsed = XrefTarget::parse(&target);
+        let content = build_xref_hover_content(&target, &parsed, doc, doc_uri, workspace, ast);
 
         return Some(Hover {
             contents: HoverContents::Markup(MarkupContent {
@@ -39,9 +35,24 @@ pub fn compute_hover(doc: &DocumentState, position: Position) -> Option<Hover> {
 
     // Check for anchor at this position
     if let Some((id, anchor_loc)) = find_anchor_at_offset(ast, offset, doc) {
-        // Count references to this anchor
-        let ref_count = doc.xrefs.iter().filter(|(t, _)| t == &id).count();
-        let refs_text = match ref_count {
+        // Count references to this anchor (local + cross-file)
+        let local_refs = doc.xrefs.iter().filter(|(t, _)| t == &id).count();
+        let mut cross_file_refs = 0usize;
+        workspace.for_each_document(|uri, other_doc| {
+            if uri != doc_uri {
+                cross_file_refs += other_doc
+                    .xrefs
+                    .iter()
+                    .filter(|(t, _)| {
+                        let parsed = XrefTarget::parse(t);
+                        parsed.anchor.as_deref() == Some(id.as_str())
+                    })
+                    .count();
+            }
+        });
+
+        let total_refs = local_refs + cross_file_refs;
+        let refs_text = match total_refs {
             0 => "No references".to_string(),
             1 => "1 reference".to_string(),
             n => format!("{n} references"),
@@ -72,6 +83,61 @@ pub fn compute_hover(doc: &DocumentState, position: Position) -> Option<Hover> {
     }
 
     None
+}
+
+/// Build hover content for an xref, with cross-file awareness
+fn build_xref_hover_content(
+    raw_target: &str,
+    parsed: &XrefTarget,
+    doc: &DocumentState,
+    doc_uri: &Url,
+    workspace: &Workspace,
+    ast: &Document,
+) -> String {
+    if let Some(file_path) = &parsed.file {
+        // Cross-file xref
+        let file_info = format!("File: `{file_path}`");
+        if let Some(anchor_id) = &parsed.anchor {
+            if let Some(target_uri) = workspace.resolve_xref_file(doc_uri, file_path) {
+                // find_anchor_in_document checks open docs then falls back to disk
+                if workspace
+                    .find_anchor_in_document(&target_uri, anchor_id)
+                    .is_some()
+                {
+                    format!("**Cross-reference**\n\n{file_info}\n\nTarget: `{anchor_id}`")
+                } else {
+                    format!(
+                        "**Cross-reference** (anchor not found)\n\n{file_info}\n\nTarget: `{anchor_id}`"
+                    )
+                }
+            } else {
+                format!(
+                    "**Cross-reference** (cannot resolve file)\n\n{file_info}\n\nTarget: `{anchor_id}`"
+                )
+            }
+        } else {
+            format!("**Cross-reference**\n\n{file_info}")
+        }
+    } else if let Some(anchor_id) = &parsed.anchor {
+        // Local xref
+        if let Some(anchor_loc) = doc.anchors.get(anchor_id) {
+            if let Some(title) = find_section_title_at_location(ast, anchor_loc) {
+                format!("**Cross-reference**\n\nTarget: `{anchor_id}`\n\nSection: {title}")
+            } else {
+                format!("**Cross-reference**\n\nTarget: `{anchor_id}`")
+            }
+        } else {
+            // Try workspace-wide
+            let global = workspace.find_anchor_globally(anchor_id);
+            if let Some((uri, _)) = global.first() {
+                format!("**Cross-reference**\n\nTarget: `{anchor_id}`\n\nDefined in: `{uri}`")
+            } else {
+                format!("**Cross-reference** (unresolved)\n\nTarget: `{raw_target}`")
+            }
+        }
+    } else {
+        format!("**Cross-reference** (unresolved)\n\nTarget: `{raw_target}`")
+    }
 }
 
 /// Find xref at a byte offset
@@ -390,7 +456,7 @@ fn find_inline_anchor_in_inline(inline: &InlineNode, offset: usize) -> Option<(S
 }
 
 /// Find link/URL at a byte offset
-fn find_link_at_offset(doc: &Document, offset: usize) -> Option<(String, Location)> {
+pub(crate) fn find_link_at_offset(doc: &Document, offset: usize) -> Option<(String, Location)> {
     for block in &doc.blocks {
         if let Some(result) = find_link_in_block(block, offset) {
             return Some(result);
@@ -597,30 +663,18 @@ fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::Options;
-
-    fn create_test_doc_state(content: &str) -> DocumentState {
-        let options = Options::default();
-        let result = acdc_parser::parse(content, &options);
-
-        match result {
-            Ok(doc) => {
-                let anchors = crate::capabilities::definition::collect_anchors(&doc);
-                let xrefs = crate::capabilities::definition::collect_xrefs(&doc);
-                DocumentState::new_success(content.to_string(), 1, doc, anchors, xrefs)
-            }
-            Err(_) => DocumentState::new_failure(content.to_string(), 1, vec![]),
-        }
-    }
 
     #[test]
-    fn test_hover_on_xref() {
+    fn test_hover_on_xref() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"[[my-section]]
 == My Section
 
 See <<my-section>> for details.
 ";
-        let doc = create_test_doc_state(content);
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
         // Position on the xref (line 3, somewhere in <<my-section>>)
         let position = Position {
@@ -628,7 +682,7 @@ See <<my-section>> for details.
             character: 8,
         };
 
-        let result = compute_hover(&doc, position);
+        let result = compute_hover(&doc, &uri, &workspace, position);
         assert!(result.is_some(), "Expected hover result for xref position");
         let hover = result;
         assert!(
@@ -641,5 +695,6 @@ See <<my-section>> for details.
             assert!(markup.value.contains("Cross-reference"));
             assert!(markup.value.contains("my-section"));
         }
+        Ok(())
     }
 }

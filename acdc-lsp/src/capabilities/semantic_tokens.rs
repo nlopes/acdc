@@ -272,12 +272,22 @@ fn add_token_for_location(
     token_modifiers: u32,
     tokens: &mut Vec<RawToken>,
 ) {
-    // Calculate length from location
+    // Calculate length from location.
+    // Parser locations have inclusive end positions, so add 1 for the length.
     let length = if loc.start.line == loc.end.line {
-        to_lsp_u32(loc.end.column.saturating_sub(loc.start.column))
+        to_lsp_u32(
+            loc.end
+                .column
+                .saturating_sub(loc.start.column)
+                .saturating_add(1),
+        )
     } else {
         // For multi-line, just use first line length (simplified)
-        to_lsp_u32(loc.absolute_end.saturating_sub(loc.absolute_start))
+        to_lsp_u32(
+            loc.absolute_end
+                .saturating_sub(loc.absolute_start)
+                .saturating_add(1),
+        )
     };
 
     if length > 0 {

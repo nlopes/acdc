@@ -67,26 +67,40 @@ impl Locateable for InlineNode {
             InlineNode::StandaloneCurvedApostrophe(t) => &t.location,
             InlineNode::LineBreak(l) => &l.location,
             InlineNode::InlineAnchor(a) => &a.location,
-            InlineNode::Macro(m) => match m {
-                crate::InlineMacro::Footnote(f) => &f.location,
-                crate::InlineMacro::Icon(i) => &i.location,
-                crate::InlineMacro::Image(img) => &img.location,
-                crate::InlineMacro::Keyboard(k) => &k.location,
-                crate::InlineMacro::Button(b) => &b.location,
-                crate::InlineMacro::Menu(m) => &m.location,
-                crate::InlineMacro::Url(u) => &u.location,
-                crate::InlineMacro::Mailto(m) => &m.location,
-                crate::InlineMacro::Link(l) => &l.location,
-                crate::InlineMacro::Autolink(a) => &a.location,
-                crate::InlineMacro::CrossReference(x) => &x.location,
-                crate::InlineMacro::Pass(p) => &p.location,
-                crate::InlineMacro::Stem(s) => &s.location,
-                crate::InlineMacro::IndexTerm(i) => &i.location,
-            },
+            InlineNode::Macro(m) => m.location(),
             InlineNode::CalloutRef(c) => &c.location,
         }
     }
 }
+impl InlineMacro {
+    /// Returns the source location of this inline macro.
+    #[must_use]
+    pub fn location(&self) -> &Location {
+        <Self as Locateable>::location(self)
+    }
+}
+
+impl Locateable for InlineMacro {
+    fn location(&self) -> &Location {
+        match self {
+            Self::Footnote(f) => &f.location,
+            Self::Icon(i) => &i.location,
+            Self::Image(img) => &img.location,
+            Self::Keyboard(k) => &k.location,
+            Self::Button(b) => &b.location,
+            Self::Menu(m) => &m.location,
+            Self::Url(u) => &u.location,
+            Self::Mailto(m) => &m.location,
+            Self::Link(l) => &l.location,
+            Self::Autolink(a) => &a.location,
+            Self::CrossReference(x) => &x.location,
+            Self::Pass(p) => &p.location,
+            Self::Stem(s) => &s.location,
+            Self::IndexTerm(i) => &i.location,
+        }
+    }
+}
+
 /// An inline macro - a functional element that produces inline content.
 ///
 /// Unlike a struct with `name`/`target`/`attributes` fields, `InlineMacro` is an **enum**

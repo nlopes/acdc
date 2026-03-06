@@ -1,0 +1,90 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "ref",
+            "type": "inline",
+            "variant": "link",
+            "target": {
+              "type": "url",
+              "value": "https://example.com/docs"
+            },
+            "location": [
+              {
+                "line": 1,
+                "col": 9
+              },
+              {
+                "line": 1,
+                "col": 46
+              }
+            ],
+            "attributes": {}
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This is a quote with a URL citation.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 4
+    }
+  ]
+}

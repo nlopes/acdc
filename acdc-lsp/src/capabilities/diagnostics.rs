@@ -11,6 +11,7 @@ use acdc_parser::{Error, Location, Positioning};
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Range};
 
 use crate::convert::{location_to_range, parser_position_to_lsp};
+use crate::state::XrefTarget;
 
 /// Convert acdc-parser Error to LSP Diagnostic
 #[must_use]
@@ -52,23 +53,48 @@ fn positioning_to_range(pos: &Positioning) -> Range {
 /// Returns warnings for:
 /// - Unresolved xref targets (target ID doesn't exist as an anchor)
 /// - Duplicate anchor IDs
+///
+/// When `cross_file_resolver` is provided, cross-file xrefs are validated
+/// using the resolver (which may check open documents, on-disk files, etc.).
+/// Without it, cross-file xrefs get an info-level diagnostic.
 #[must_use]
-pub fn compute_warnings<S: BuildHasher>(
+pub fn compute_warnings<S: BuildHasher, F>(
     anchors: &HashMap<String, Location, S>,
     xrefs: &[(String, Location)],
-) -> Vec<Diagnostic> {
+    cross_file_resolver: Option<&F>,
+) -> Vec<Diagnostic>
+where
+    F: Fn(&XrefTarget) -> bool,
+{
     let mut diagnostics = Vec::new();
 
     // Check for unresolved xrefs
     for (target, location) in xrefs {
         if !anchors.contains_key(target) {
-            diagnostics.push(Diagnostic {
-                range: location_to_range(location),
-                severity: Some(DiagnosticSeverity::WARNING),
-                source: Some("acdc".to_string()),
-                message: format!("Unresolved cross-reference: target '{target}' not found"),
-                ..Default::default()
-            });
+            let parsed = XrefTarget::parse(target);
+            if parsed.is_cross_file() {
+                // Check with resolver if available
+                let resolved = cross_file_resolver.is_some_and(|resolver| resolver(&parsed));
+                if !resolved {
+                    diagnostics.push(Diagnostic {
+                        range: location_to_range(location),
+                        severity: Some(DiagnosticSeverity::INFORMATION),
+                        source: Some("acdc".to_string()),
+                        message: format!(
+                            "Cross-file reference: '{target}' (cannot verify — target file may not be open)"
+                        ),
+                        ..Default::default()
+                    });
+                }
+            } else {
+                diagnostics.push(Diagnostic {
+                    range: location_to_range(location),
+                    severity: Some(DiagnosticSeverity::WARNING),
+                    source: Some("acdc".to_string()),
+                    message: format!("Unresolved cross-reference: target '{target}' not found"),
+                    ..Default::default()
+                });
+            }
         }
     }
 
@@ -123,7 +149,7 @@ mod tests {
         loc.end.column = 20;
         let xrefs = vec![("missing-target".to_string(), loc)];
 
-        let warnings = compute_warnings(&anchors, &xrefs);
+        let warnings = compute_warnings::<_, fn(&XrefTarget) -> bool>(&anchors, &xrefs, None);
         assert_eq!(warnings.len(), 1);
         let warning = warnings.first();
         assert!(warning.is_some(), "expected at least one warning");
@@ -146,7 +172,7 @@ mod tests {
         anchors.insert("existing-target".to_string(), loc.clone());
         let xrefs = vec![("existing-target".to_string(), loc)];
 
-        let warnings = compute_warnings(&anchors, &xrefs);
+        let warnings = compute_warnings::<_, fn(&XrefTarget) -> bool>(&anchors, &xrefs, None);
         assert!(warnings.is_empty());
     }
 

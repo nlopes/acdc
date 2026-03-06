@@ -1,10 +1,10 @@
 //! Completion: suggest xref targets, attributes, and include paths
 
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Position,
+    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Position, Url,
 };
 
-use crate::state::DocumentState;
+use crate::state::{DocumentState, Workspace};
 
 /// Built-in `AsciiDoc` attributes that are commonly used
 const BUILTIN_ATTRIBUTES: &[(&str, &str)] = &[
@@ -59,12 +59,17 @@ pub enum CompletionContext {
 
 /// Compute completion items for a position
 #[must_use]
-pub fn compute_completions(doc: &DocumentState, position: Position) -> Option<Vec<CompletionItem>> {
+pub fn compute_completions(
+    doc: &DocumentState,
+    doc_uri: &Url,
+    workspace: &Workspace,
+    position: Position,
+) -> Option<Vec<CompletionItem>> {
     let context = detect_context(&doc.text, position)?;
 
     match context {
         CompletionContext::CrossReference { prefix } => {
-            Some(complete_cross_references(doc, &prefix))
+            Some(complete_cross_references(doc, doc_uri, workspace, &prefix))
         }
         CompletionContext::AttributeReference { prefix } => {
             Some(complete_attribute_references(doc, &prefix))
@@ -147,9 +152,15 @@ fn detect_context(text: &str, position: Position) -> Option<CompletionContext> {
     Some(CompletionContext::None)
 }
 
-/// Complete cross-reference targets from document anchors
-fn complete_cross_references(doc: &DocumentState, prefix: &str) -> Vec<CompletionItem> {
-    doc.anchors
+/// Complete cross-reference targets from document anchors (local + cross-file)
+fn complete_cross_references(
+    doc: &DocumentState,
+    doc_uri: &Url,
+    workspace: &Workspace,
+    prefix: &str,
+) -> Vec<CompletionItem> {
+    let mut items: Vec<CompletionItem> = doc
+        .anchors
         .keys()
         .filter(|id| id.starts_with(prefix))
         .map(|id| CompletionItem {
@@ -161,7 +172,36 @@ fn complete_cross_references(doc: &DocumentState, prefix: &str) -> Vec<Completio
             }),
             ..Default::default()
         })
-        .collect()
+        .collect();
+
+    // Add anchors from other open documents
+    let mut seen: std::collections::HashSet<String> = doc.anchors.keys().cloned().collect();
+
+    for (anchor_id, uri) in workspace.all_anchors() {
+        if uri == *doc_uri || !anchor_id.starts_with(prefix) || seen.contains(&anchor_id) {
+            continue;
+        }
+        seen.insert(anchor_id.clone());
+
+        // Extract filename from URI for display
+        let file_name = uri
+            .path_segments()
+            .and_then(std::iter::Iterator::last)
+            .unwrap_or("unknown");
+
+        items.push(CompletionItem {
+            label: anchor_id.clone(),
+            kind: Some(CompletionItemKind::REFERENCE),
+            label_details: Some(CompletionItemLabelDetails {
+                detail: Some(format!(" {file_name}")),
+                description: None,
+            }),
+            insert_text: Some(format!("{file_name}#{anchor_id}")),
+            ..Default::default()
+        });
+    }
+
+    items
 }
 
 /// Complete attribute references from document and built-in attributes
@@ -330,31 +370,27 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_anchors() -> Result<(), acdc_parser::Error> {
-        use crate::capabilities::definition::{collect_anchors, collect_xrefs};
-        use acdc_parser::Options;
-
+    fn test_complete_anchors() -> Result<(), Box<dyn std::error::Error>> {
         let content = r"[[first-section]]
 == First Section
 
 [[second-section]]
 == Second Section
 ";
-        let options = Options::default();
-        let ast = acdc_parser::parse(content, &options)?;
-        let anchors = collect_anchors(&ast);
-        let xrefs = collect_xrefs(&ast);
-        let doc = DocumentState::new_success(content.to_string(), 1, ast, anchors, xrefs);
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
-        let items = complete_cross_references(&doc, "first");
+        let items = complete_cross_references(&doc, &uri, &workspace, "first");
         assert_eq!(items.len(), 1);
         let item = items.first();
         assert!(item.is_some(), "expected at least one item");
         assert_eq!(item.map(|i| &i.label), Some(&"first-section".to_string()));
 
-        // Test with empty prefix gets all anchors
-        let items = complete_cross_references(&doc, "");
-        assert_eq!(items.len(), 2);
+        // Test with empty prefix gets all anchors (at least local ones)
+        let items = complete_cross_references(&doc, &uri, &workspace, "");
+        assert!(items.len() >= 2);
         Ok(())
     }
 }
