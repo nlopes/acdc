@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content
+  to the specified level, matching asciidoctor behavior. Strips existing leading whitespace and
+  prepends the specified number of spaces. `indent=0` removes all leading whitespace.
 - **`strip_quotes` utility function** — centralised helper to strip matching single or double
   quotes from attribute values, replacing scattered `trim_matches('"')` calls throughout the
   codebase.
