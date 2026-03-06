@@ -2,9 +2,21 @@ name: AsciiDoc TCK
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - 'acdc-parser/**'
+      - 'acdc-cli/**'
+      - 'converters/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
   pull_request:
     branches: '*'
+    paths:
+      - 'acdc-parser/**'
+      - 'acdc-cli/**'
+      - 'converters/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,7 +31,7 @@ jobs:
         path: acdc
 
     - name: Clone asciidoc-tck
-      run: git clone https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git asciidoc-tck
+      run: git clone --depth 1 https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git asciidoc-tck
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
