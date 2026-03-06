@@ -118,7 +118,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
       - name: Run CLI tests
-        run: cargo nextest run -p acdc-cli --all-features --verbose
+        run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn
 
   test-lsp:
     needs: changes
