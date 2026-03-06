@@ -1,0 +1,72 @@
+= Block Monotonic Coverage
+
+NOTE: This is a paragraph admonition.
+
+====
+This is an example block.
+====
+
+----
+This is a listing block.
+----
+
+....
+This is a literal block.
+....
+
+****
+This is a sidebar block.
+****
+
+--
+This is an open block.
+--
+
+[quote, Author]
+____
+This is a quote block.
+____
+
+[verse, Poet]
+____
+This is a verse block.
+____
+
+++++
+This is a passthrough block.
+++++
+
+////
+This is a comment block.
+////
+
+* Item one
+* Item two
+** Nested item
+
+. First
+. Second
+.. Nested ordered
+
+Term:: Description
+Another term:: Another description
+
+[discrete]
+== Discrete Header
+
+|===
+| Cell 1 | Cell 2
+| Cell 3 | Cell 4
+|===
+
+image::image.png[]
+
+audio::audio.mp3[]
+
+video::video.mp4[]
+
+'''
+
+<<<
+
+:author: Test

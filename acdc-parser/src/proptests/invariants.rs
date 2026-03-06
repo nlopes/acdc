@@ -9,7 +9,8 @@
 use proptest::prelude::*;
 
 use crate::{
-    Block, Document, InlineNode, Location, Options, model::Locateable, parse, parse_inline,
+    Block, DelimitedBlockType, Document, InlineNode, Location, Options, model::Locateable, parse,
+    parse_inline,
 };
 
 use super::generators::*;
@@ -609,39 +610,93 @@ fn verify_monotonic_positions(prefix: &str, blocks: &[Block]) {
     }
 }
 
+fn verify_inline_monotonic(context: &str, inlines: &[InlineNode]) {
+    let mut last_end = 0;
+    for inline in inlines {
+        let location = inline.location();
+        let start = location.absolute_start;
+        assert!(
+            start >= last_end,
+            "{context} inline starts at {start} but previous ended at {last_end}"
+        );
+        last_end = location.absolute_end;
+    }
+}
+
 fn verify_block_monotonic(block: &Block) {
     match block {
         Block::Section(section) => {
             verify_monotonic_positions("Section child", &section.content);
         }
         Block::Paragraph(para) => {
-            let mut last_end = 0;
-            for inline in &para.content {
-                let location = inline.location();
-                let start = location.absolute_start;
-                assert!(
-                    start >= last_end,
-                    "Inline starts at {start} but previous ended at {last_end}"
-                );
-                last_end = location.absolute_end;
+            verify_inline_monotonic("Paragraph", &para.content);
+        }
+        Block::Admonition(admonition) => {
+            verify_monotonic_positions("Admonition child", &admonition.blocks);
+        }
+        Block::DelimitedBlock(delimited) => match &delimited.inner {
+            DelimitedBlockType::DelimitedExample(blocks)
+            | DelimitedBlockType::DelimitedOpen(blocks)
+            | DelimitedBlockType::DelimitedSidebar(blocks)
+            | DelimitedBlockType::DelimitedQuote(blocks) => {
+                verify_monotonic_positions("DelimitedBlock child", blocks);
+            }
+            DelimitedBlockType::DelimitedComment(inlines)
+            | DelimitedBlockType::DelimitedListing(inlines)
+            | DelimitedBlockType::DelimitedLiteral(inlines)
+            | DelimitedBlockType::DelimitedPass(inlines)
+            | DelimitedBlockType::DelimitedVerse(inlines) => {
+                verify_inline_monotonic("DelimitedBlock", inlines);
+            }
+            DelimitedBlockType::DelimitedStem(_) => {}
+            DelimitedBlockType::DelimitedTable(table) => {
+                let all_rows = table
+                    .header
+                    .iter()
+                    .chain(&table.rows)
+                    .chain(table.footer.iter());
+                for row in all_rows {
+                    for col in &row.columns {
+                        verify_monotonic_positions("Table cell", &col.content);
+                    }
+                }
+            }
+        },
+        Block::UnorderedList(list) => {
+            for item in &list.items {
+                verify_inline_monotonic("UnorderedList item principal", &item.principal);
+                verify_monotonic_positions("UnorderedList item child", &item.blocks);
             }
         }
-        Block::Admonition(_)
-        | Block::DelimitedBlock(_)
-        | Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
+        Block::OrderedList(list) => {
+            for item in &list.items {
+                verify_inline_monotonic("OrderedList item principal", &item.principal);
+                verify_monotonic_positions("OrderedList item child", &item.blocks);
+            }
+        }
+        Block::DescriptionList(list) => {
+            for item in &list.items {
+                verify_inline_monotonic("DescriptionList term", &item.term);
+                verify_inline_monotonic("DescriptionList principal", &item.principal_text);
+                verify_monotonic_positions("DescriptionList description", &item.description);
+            }
+        }
+        Block::CalloutList(list) => {
+            for item in &list.items {
+                verify_inline_monotonic("CalloutList item principal", &item.principal);
+                verify_monotonic_positions("CalloutList item child", &item.blocks);
+            }
+        }
+        Block::DiscreteHeader(header) => {
+            verify_inline_monotonic("DiscreteHeader title", &header.title);
+        }
+        Block::TableOfContents(_)
         | Block::DocumentAttribute(_)
         | Block::ThematicBreak(_)
         | Block::PageBreak(_)
         | Block::Image(_)
         | Block::Audio(_)
         | Block::Video(_)
-        | Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::DescriptionList(_)
-        | Block::CalloutList(_)
-        | Block::Comment(_) => {
-            // Add other block types as needed
-        }
+        | Block::Comment(_) => {}
     }
 }
