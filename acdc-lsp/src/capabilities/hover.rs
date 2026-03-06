@@ -663,21 +663,6 @@ fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::Options;
-
-    fn create_test_doc_state(content: &str) -> DocumentState {
-        let options = Options::default();
-        let result = acdc_parser::parse(content, &options);
-
-        match result {
-            Ok(doc) => {
-                let anchors = crate::capabilities::definition::collect_anchors(&doc);
-                let xrefs = crate::capabilities::definition::collect_xrefs(&doc);
-                DocumentState::new_success(content.to_string(), 1, doc, anchors, xrefs)
-            }
-            Err(_) => DocumentState::new_failure(content.to_string(), 1, vec![]),
-        }
-    }
 
     #[test]
     fn test_hover_on_xref() -> Result<(), Box<dyn std::error::Error>> {

@@ -69,13 +69,12 @@ fn collect_cross_file_references(
             if let Some(parsed) = xref_target
                 && let Some(file_path) = &parsed.file
                 && let Some(target_uri) = workspace.resolve_xref_file(current_uri, file_path)
+                && let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id)
             {
-                if let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id) {
-                    locations.push(tower_lsp::lsp_types::Location {
-                        uri: target_uri,
-                        range: location_to_range(&loc),
-                    });
-                }
+                locations.push(tower_lsp::lsp_types::Location {
+                    uri: target_uri,
+                    range: location_to_range(&loc),
+                });
             }
         } else {
             for (uri, loc) in global {
