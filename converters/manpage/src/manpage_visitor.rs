@@ -346,6 +346,35 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
                 continue;
             }
 
+            // Check if this is an explicit mailto macro - collect trailing non-whitespace
+            if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
+                let (trailing, skip_count, partial_bytes) =
+                    self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
+
+                crate::inlines::write_mailto_with_trailing(self, mailto, &trailing)?;
+                i += 1 + skip_count;
+
+                // If a PlainText node was partially consumed, render only the remainder
+                if partial_bytes > 0
+                    && let Some(InlineNode::PlainText(text)) = nodes.get(i)
+                {
+                    let remaining = &text.content[partial_bytes..];
+                    let content = if self.strip_next_leading_space {
+                        self.strip_next_leading_space = false;
+                        remaining.trim_start()
+                    } else {
+                        remaining
+                    };
+                    if !content.is_empty() {
+                        let escaped =
+                            crate::escape::manify(content, crate::escape::EscapeMode::Normalize);
+                        write!(self.writer_mut(), "{escaped}")?;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+
             self.visit_inline_node(node)?;
             i += 1;
         }

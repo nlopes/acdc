@@ -70,3 +70,15 @@ text
 Space then text: \c
 .MTO "user\(atexample.com" "" ""
 more text here
+.sp
+Explicit mailto: \c
+.MTO "user\(atexample.com" "User" "."
+
+.sp
+Explicit with trailing paren: (\c
+.MTO "user\(atexample.com" "User" ")"
+
+.sp
+Explicit no trailing: \c
+.MTO "user\(atexample.com" "User" ""
+

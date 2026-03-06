@@ -27,3 +27,9 @@ Exclamation: user@example.com!
 Punct then bold: user@example.com.*bold* text
 
 Space then text: user@example.com more text here
+
+Explicit mailto: mailto:user@example.com[User].
+
+Explicit with trailing paren: (mailto:user@example.com[User])
+
+Explicit no trailing: mailto:user@example.com[User]

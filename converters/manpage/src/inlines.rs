@@ -155,20 +155,28 @@ fn write_link<W: Write>(visitor: &mut ManpageVisitor<W>, link: &Link) -> Result<
 }
 
 fn write_mailto<W: Write>(visitor: &mut ManpageVisitor<W>, mailto: &Mailto) -> Result<(), Error> {
-    // Use .MTO macro for email links (matches asciidoctor output)
-    // Format: .MTO "email\(atdomain" "display text" "trailing"
-    // TODO: Handle trailing punctuation (3rd arg) - requires lookahead to next sibling node
+    write_mailto_with_trailing(visitor, mailto, "")
+}
+
+/// Write a mailto macro with explicit trailing punctuation.
+///
+/// This is called from the manpage visitor's `visit_inline_nodes` when it detects
+/// an explicit mailto macro followed by non-whitespace punctuation. The trailing
+/// punctuation is passed to the `.MTO` macro's third argument.
+pub(crate) fn write_mailto_with_trailing<W: Write>(
+    visitor: &mut ManpageVisitor<W>,
+    mailto: &Mailto,
+    trailing: &str,
+) -> Result<(), Error> {
     let target_str = mailto.target.to_string();
     let email = target_str
         .strip_prefix("mailto:")
         .unwrap_or(&target_str)
         .replace('@', "\\(at");
 
-    // Render display text if present
     let display_text = if mailto.text.is_empty() {
         String::new()
     } else {
-        // Render inline nodes to a string buffer
         let mut buf = Vec::new();
         let processor = visitor.processor.clone();
         let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
@@ -177,9 +185,7 @@ fn write_mailto<W: Write>(visitor: &mut ManpageVisitor<W>, mailto: &Mailto) -> R
     };
 
     let w = visitor.writer_mut();
-    // Use \c to continue on same line, then .MTO on next line
-    // The macro must end with newline; continuation text goes on the next line
-    writeln!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"\"")?;
+    writeln!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"{trailing}\"")?;
     visitor.strip_next_leading_space = true;
     Ok(())
 }

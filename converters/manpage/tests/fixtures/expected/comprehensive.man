@@ -51,8 +51,7 @@ See \c
 .URL "https://example.com" "Example Site" ""
 for details.
 Also see \c
-.MTO "admin\(atexample.com" "the admin" ""
-\&.
+.MTO "admin\(atexample.com" "the admin" "."
 Cross\-reference to other-section\&.
 Man page style reference: git(1).
 .SS "Footnotes"

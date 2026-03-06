@@ -14,6 +14,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
   string attributes. ([#357])
 
+### Fixed
+
+- Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third argument (matching autolink behaviour)
+
 ### Added
 
 - Quote and verse block attribution rendering (`[quote, author, citation]`)
