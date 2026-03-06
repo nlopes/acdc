@@ -2266,6 +2266,16 @@ peg::parser! {
             content_start:position!() content:until_quote_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:quote_delimiter() end:position!()
         {
+            // Parse attribution/citetitle through the inline pipeline so that URLs,
+            // macros, and other inline markup are properly resolved (#373).
+            // Only re-parse if the content contains characters that suggest
+            // inline markup is present (URLs, macros, formatting, etc.).
+            fn needs_inline_processing(content: &str) -> bool {
+                content.contains("://") || content.contains('[') || content.contains('{')
+                    || content.contains('*') || content.contains('_') || content.contains('`')
+                    || content.contains("<<") || content.contains("link:") || content.contains("mailto:")
+            }
+
             check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
@@ -2276,6 +2286,33 @@ peg::parser! {
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
+
+            if let Some(ref attr) = metadata.attribution
+            && let Some(InlineNode::PlainText(plain)) = attr.first()
+            && needs_inline_processing(&plain.content)
+            {
+                let attr_pos = PositionWithOffset {
+                    offset: plain.location.absolute_start.saturating_sub(offset),
+                    position: plain.location.start.clone(),
+                };
+                let attr_end = plain.location.absolute_end.saturating_sub(offset);
+                if let Ok(inlines) = process_inlines(state, block_metadata, &attr_pos, attr_end, offset, &plain.content) && !inlines.is_empty() {
+                    metadata.attribution = Some(Attribution::new(inlines));
+                }
+            }
+            if let Some(ref cite) = metadata.citetitle
+            && let Some(InlineNode::PlainText(plain)) = cite.first()
+            && needs_inline_processing(&plain.content)
+            {
+                let cite_pos = PositionWithOffset {
+                    offset: plain.location.absolute_start.saturating_sub(offset),
+                    position: plain.location.start.clone(),
+                };
+                let cite_end = plain.location.absolute_end.saturating_sub(offset);
+                if let Ok(inlines) = process_inlines(state, block_metadata, &cite_pos, cite_end, offset, &plain.content) && !inlines.is_empty() {
+                    metadata.citetitle = Some(CiteTitle::new(inlines));
+                }
+            }
 
             let inner = if let Some(ref style) = metadata.style {
                 if style == "verse" {
@@ -5754,14 +5791,15 @@ peg::parser! {
             ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-']
 
         rule named_attribute_value() -> String
-        = &"\"" inner:inner_attribute_value()
+        = &("\"" / "'") inner:inner_attribute_value()
         {
             // Strip surrounding quotes from quoted values
-            let trimmed = inner.trim_matches('"');
+            let trimmed = inner.trim_start_matches(['"', '\''])
+                                .trim_end_matches(['"', '\'']);
             tracing::debug!(%inner, %trimmed, "Found named attribute value (inner)");
             trimmed.to_string()
         }
-        / s:$([^(',' | '"' | ']')]+)
+        / s:$([^(',' | '"' | '\'' | ']')]+)
         {
             tracing::debug!(%s, "Found named attribute value");
             s.to_string()
@@ -5769,8 +5807,9 @@ peg::parser! {
 
         rule positional_attribute_value() -> String
         = quoted:inner_attribute_value() {
-            let trimmed = quoted.trim_matches('"');
-            tracing::debug!(quoted, trimmed, "Found quoted positional attribute value");
+            let trimmed = quoted.trim_start_matches(['"', '\''])
+                                .trim_end_matches(['"', '\'']);
+            tracing::debug!(%quoted, %trimmed, "Found quoted positional attribute value");
             trimmed.to_string()
         }
         / s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
@@ -5781,7 +5820,8 @@ peg::parser! {
         }
 
         rule inner_attribute_value() -> String
-        = s:$("\"" [^('"' | ']')]* "\"") { s.to_string() }
+        = s:$("\"" [^'"']* "\"") { s.to_string() }
+        / s:$("'" [^'\'']* "'") { s.to_string() }
 
         /// URL rule matches both web URLs (proto://) and mailto: URLs
         pub rule url() -> String =
