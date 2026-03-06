@@ -1,0 +1,71 @@
+= Single-Quoted Attribute Values
+
+Test that single-quoted attribute values are parsed identically to double-quoted ones.
+
+== Block Macros
+
+image::sunset.jpg['A beautiful sunset']
+
+image::sunset.jpg['Sunset view',300,200]
+
+audio::podcast.mp3['Episode 1']
+
+video::tutorial.mp4['How to test']
+
+== Inline Macros
+
+Inline image: image:icon.png['Settings icon']
+
+Image with comma: image:chart.png['Sales data, Q1 2024']
+
+Image with dimensions: image:mountain.png['Mountain view',500,300]
+
+Icon with quoted title: icon:heart['Favorite']
+
+== Quote Block
+
+[quote,'Mark Twain','Adventures of Huckleberry Finn']
+____
+You don't know about me.
+____
+
+== Verse Block
+
+[verse,'Carl Sandburg','Fog']
+____
+The fog comes
+on little cat feet.
+____
+
+== Named Attributes
+
+[source,'ruby']
+----
+puts "hello"
+----
+
+[role='custom-role']
+Paragraph with single-quoted role.
+
+[role='first-role second-role']
+Paragraph with single-quoted space-separated roles.
+
+== Link Title
+
+See link:https://example.com['Example Site',window='_blank'] for details.
+
+== Table Attributes
+
+[cols='1,2',width='80%',options='header']
+|===
+| Col 1 | Col 2
+
+| a | b
+|===
+
+== Mixed Quote Styles
+
+[source,'javascript',role="primary"]
+----
+console.log("hello");
+----

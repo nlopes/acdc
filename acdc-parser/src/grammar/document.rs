@@ -29,6 +29,7 @@ use crate::{
     },
     model::{
         LeveloffsetRange, ListLevel, Locateable, SectionLevel, UNNUMBERED_SECTION_STYLES,
+        strip_quotes,
         substitution::{HEADER, parse_subs_attribute},
     },
 };
@@ -368,7 +369,7 @@ fn parse_table_block_impl(
         let mut specs = Vec::new();
 
         for part in cols.split(',') {
-            let s = part.trim().trim_matches('"');
+            let s = strip_quotes(part.trim());
 
             // Check for "N*" notation (e.g., "3*" means 3 columns with same spec)
             let (multiplier, spec_str) = if let Some(pos) = s.find('*') {
@@ -684,20 +685,20 @@ impl AttributeProcessingMode {
     };
 }
 
-/// Parse a potentially quoted, comma-separated list of values.
+/// Parse a comma-separated list of values.
 ///
 /// Used for `role=` and `options=` attributes which can be either:
 /// - A single value: `role=thumbnail`
-/// - A quoted comma-separated list: `role="thumbnail, responsive"`
+/// - A comma-separated list: `role="thumbnail, responsive"` or `role='thumbnail, responsive'`
+///
+/// Quotes are already stripped by `named_attribute_value()` / `strip_quotes()` upstream,
+/// so this function only needs to split on commas.
 fn parse_comma_separated_values(value: &str) -> Vec<String> {
-    if value.starts_with('"') && value.ends_with('"') && value.len() >= 2 {
-        value[1..value.len() - 1]
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .collect()
-    } else {
-        vec![value.to_string()]
-    }
+    value
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 /// Process a list of parsed attributes into `BlockMetadata`.
@@ -727,14 +728,20 @@ fn process_attribute_list(
                     location: state.create_location(id_start, id_end),
                 });
             }
-            k if k == RESERVED_NAMED_ATTRIBUTE_ROLE || k == RESERVED_NAMED_ATTRIBUTE_OPTIONS => {
+            k if k == RESERVED_NAMED_ATTRIBUTE_ROLE => {
                 if let AttributeValue::String(ref s) = value {
-                    let values = parse_comma_separated_values(s);
-                    if k == RESERVED_NAMED_ATTRIBUTE_ROLE {
-                        metadata.roles.extend(values);
-                    } else {
-                        metadata.options.extend(values);
+                    // Roles are space-separated (not comma-separated) per asciidoctor behavior.
+                    // `role='a b'` → two roles; `role='a,b'` → one role containing a comma.
+                    for role in s.split_whitespace() {
+                        if !role.is_empty() {
+                            metadata.roles.push(role.to_string());
+                        }
                     }
+                }
+            }
+            k if k == RESERVED_NAMED_ATTRIBUTE_OPTIONS => {
+                if let AttributeValue::String(ref s) = value {
+                    metadata.options.extend(parse_comma_separated_values(s));
                 }
             }
             // Skip subs= attribute - it's handled separately by the caller
@@ -4009,6 +4016,7 @@ peg::parser! {
         /// - `name=` patterns (attribute definitions)
         rule link_title() -> String
         = "\"" title:$((!"\"" [_])*) "\"" { title.to_string() }
+        / "'" title:$((!("'" whitespace()* ("," / "]")) [_])*) "'" { title.to_string() }
         / parts:$(balanced_link_title_part()+) { parts.to_string() }
 
         /// Parse parts of link title content
@@ -4347,7 +4355,7 @@ peg::parser! {
             // For image mode, the first positional (style) can be alt text.
             if let Some(ref style) = metadata.style {
                 // Strip surrounding quotes if present (quoted positional attributes)
-                let style_value = style.trim_matches('"');
+                let style_value = strip_quotes(style);
                 if ICON_SIZES.contains(&style_value) {
                     // Named size= attribute takes precedence over positional size so we
                     // insert rather than set (set overrides).
@@ -5638,7 +5646,7 @@ peg::parser! {
         /// This is the key difference from block attributes.
         rule macro_positional_value() -> Option<String>
             = quoted:inner_attribute_value() {
-                let trimmed = quoted.trim_matches('"');
+                let trimmed = strip_quotes(&quoted);
                 if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
             }
             / s:$([^('"' | ',' | ']' | '=')]+) {
@@ -5717,10 +5725,10 @@ peg::parser! {
         rule named_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = "id" "=" start:position!() id:id() end:position!()
                 { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id), Some((start, end)))) }
-              / ("role" / "roles") "=" role:role()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(role.to_string()), None)) }
-              / ("options" / "opts") "=" option:option()
-                { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(option.to_string()), None)) }
+              / ("role" / "roles") "=" value:named_attribute_value()
+                { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(value), None)) }
+              / ("options" / "opts") "=" value:named_attribute_value()
+                { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(value), None)) }
               / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
                 {
                     let substituted_value = substitute(&value, &[Substitution::Attributes], &state.document_attributes);
@@ -5794,8 +5802,7 @@ peg::parser! {
         = &("\"" / "'") inner:inner_attribute_value()
         {
             // Strip surrounding quotes from quoted values
-            let trimmed = inner.trim_start_matches(['"', '\''])
-                                .trim_end_matches(['"', '\'']);
+            let trimmed = strip_quotes(&inner);
             tracing::debug!(%inner, %trimmed, "Found named attribute value (inner)");
             trimmed.to_string()
         }
@@ -5807,8 +5814,7 @@ peg::parser! {
 
         rule positional_attribute_value() -> String
         = quoted:inner_attribute_value() {
-            let trimmed = quoted.trim_start_matches(['"', '\''])
-                                .trim_end_matches(['"', '\'']);
+            let trimmed = strip_quotes(&quoted);
             tracing::debug!(%quoted, %trimmed, "Found quoted positional attribute value");
             trimmed.to_string()
         }

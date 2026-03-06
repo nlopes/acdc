@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`
+  calls with the parser's `strip_quotes` function, ensuring consistent handling of both
+  single and double-quoted attribute values in link window attributes, URL roles, and captions.
+
 ### Fixed
 
 - **html5s menu macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,

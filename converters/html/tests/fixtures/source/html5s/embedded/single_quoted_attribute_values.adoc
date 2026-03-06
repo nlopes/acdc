@@ -1,0 +1,1 @@
+../../html/embedded/single_quoted_attribute_values.adoc

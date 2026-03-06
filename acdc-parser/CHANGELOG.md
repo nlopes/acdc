@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`strip_quotes` utility function** — centralised helper to strip matching single or double
+  quotes from attribute values, replacing scattered `trim_matches('"')` calls throughout the
+  codebase.
+- **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
+  interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
+  block attributes, macro positional/named values, link titles, and table column specs.
+
+### Changed
+
+- **Roles are now space-separated** — `role='a b'` produces two roles (`a`, `b`) instead of
+  one, matching asciidoctor's space-separated role semantics.
+- **`parse_comma_separated_values` simplified** — no longer handles quote stripping internally
+  since quotes are now stripped upstream by `strip_quotes`.
+
+### Fixed
+
+- **Roles with spaces were not split** — `image::foo.jpg[role="thumb bordered"]` now correctly
+  produces two separate roles (`thumb`, `bordered`) instead of one combined string.
+
+### Added
+
 - **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
   and `link:page.html#section[text]` now parse correctly. The `#fragment` is optional and only
   applies to `xref:` and `link:` macros (not `image::`, `video::`, etc.).

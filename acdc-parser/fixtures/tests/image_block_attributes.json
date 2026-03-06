@@ -310,7 +310,8 @@
               "width": "300"
             },
             "roles": [
-              "thumb bordered"
+              "thumb",
+              "bordered"
             ]
           },
           "source": {
