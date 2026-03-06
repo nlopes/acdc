@@ -46,6 +46,23 @@ Or with groff directly:
 groff -man -Tascii mycommand.1 | less
 ....
 
+=== macOS and tables
+
+macOS ships with `mandoc` which has limited support for the `tbl` preprocessor.
+Manpages that contain tables will show a warning:
+
+....
+This manpage is not compatible with mandoc(1) and might display incorrectly.
+....
+
+To render tables correctly, install GNU groff and use the `-t` flag to enable `tbl` processing:
+
+[source,console]
+....
+brew install groff
+groff -t -man mycommand.1 -T utf8 | less
+....
+
 == Technical Details
 
 The manpage converter:

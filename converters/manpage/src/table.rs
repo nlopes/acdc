@@ -133,6 +133,8 @@ fn format_cell_with_inlines(cell: &TableColumn, processor: &Processor) -> Result
     for block in &cell.content {
         if let acdc_parser::Block::Paragraph(para) = block {
             cell_visitor.visit_inline_nodes(&para.content)?;
+        } else {
+            cell_visitor.visit_block(block)?;
         }
     }
 

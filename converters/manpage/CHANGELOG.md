@@ -16,6 +16,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Non-paragraph content in table cells (lists, code blocks, admonitions) is no longer silently dropped
 - Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third argument (matching autolink behaviour)
 
 ### Added
