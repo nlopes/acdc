@@ -141,6 +141,11 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 
     fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
+        // In embedded mode, skip NOTES and AUTHOR(S) sections (matches asciidoctor --embedded)
+        if self.processor.options.embedded() {
+            return Ok(());
+        }
+
         // Render footnotes as NOTES section (matching asciidoctor)
         if !doc.footnotes.is_empty() {
             let w = self.writer_mut();

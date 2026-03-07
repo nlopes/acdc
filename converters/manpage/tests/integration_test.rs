@@ -7,32 +7,26 @@ use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
-/// Parses the input `.adoc` file, converts to manpage output, and compares with expected output.
-#[rstest::rstest]
-#[tracing_test::traced_test]
-fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
+fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Result<(), Error> {
     let file_name = path
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
-    let expected_path = Path::new("tests")
-        .join("fixtures")
-        .join("expected")
-        .join(file_name)
-        .with_extension("man");
+    let expected_path = expected_dir.join(file_name).with_extension("man");
 
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
-    let doc = acdc_parser::parse_file(&path, &parser_options)?;
+    let doc = acdc_parser::parse_file(path, &parser_options)?;
 
     // Convert to manpage output
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+        .embedded(embedded)
         .build();
     let processor = Processor::new(converter_options, doc.attributes.clone());
-    processor.write_to(&doc, &mut output, Some(path.as_path()))?;
+    processor.write_to(&doc, &mut output, Some(path))?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -49,4 +43,20 @@ fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) ->
     );
 
     Ok(())
+}
+
+/// Parses the input `.adoc` file, converts to manpage output, and compares with expected output.
+#[rstest::rstest]
+#[tracing_test::traced_test]
+fn test_with_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
+    run_manpage_fixture(&path, Path::new("tests/fixtures/expected"), false)
+}
+
+/// Parses the input `.adoc` file, converts to embedded manpage output, and compares with expected.
+#[rstest::rstest]
+#[tracing_test::traced_test]
+fn test_embedded_with_fixtures(
+    #[files("tests/fixtures/source/embedded/*.adoc")] path: PathBuf,
+) -> Result<(), Error> {
+    run_manpage_fixture(&path, Path::new("tests/fixtures/expected/embedded"), true)
 }

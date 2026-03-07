@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Added
+
+- Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
+
 ### Changed
 
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
