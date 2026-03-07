@@ -654,8 +654,16 @@ mod tests {
 
         assert!(para.content.len() >= 2, "Expected at least 2 inline nodes");
 
-        let first = para.content.first().ok_or("missing first inline")?.location();
-        let second = para.content.get(1).ok_or("missing second inline")?.location();
+        let first = para
+            .content
+            .first()
+            .ok_or("missing first inline")?
+            .location();
+        let second = para
+            .content
+            .get(1)
+            .ok_or("missing second inline")?
+            .location();
         assert!(
             second.absolute_start >= first.absolute_end,
             "Non-monotonic: first ends at {}, second starts at {}",
