@@ -39,7 +39,7 @@ lt s lt lt
 ^ ^ lt lt
 lt lt lt lt.
 A:B:C:D
-Big cell::E:F
+Big cell:E:F
 \^:\^:G:H
 I:J:K:L
 .TE

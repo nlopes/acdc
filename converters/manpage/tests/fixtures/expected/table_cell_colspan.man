@@ -38,6 +38,6 @@ ltB ltB ltB
 lt s lt
 lt lt lt.
 A:B:C
-Spans two columns::D
+Spans two columns:D
 E:F:G
 .TE

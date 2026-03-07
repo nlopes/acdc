@@ -6,8 +6,9 @@
 
 use std::io::Write;
 
+use acdc_converters_core::table::{CellKind, GridRow, build_grid, determine_column_count};
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{DelimitedBlock, HorizontalAlignment, Table, TableColumn, TableRow};
+use acdc_parser::{DelimitedBlock, HorizontalAlignment, Table, TableColumn};
 
 use crate::{Error, ManpageVisitor, Processor};
 
@@ -18,111 +19,6 @@ fn alignment_prefix(halign: HorizontalAlignment) -> &'static str {
         HorizontalAlignment::Center => "c",
         HorizontalAlignment::Right => "r",
     }
-}
-
-/// What occupies a logical cell position in the tbl grid.
-enum CellKind {
-    /// A real cell with content. `cell_index` indexes into the AST row's `columns` vec.
-    Content { cell_index: usize },
-    /// Horizontal span from the left (`s` in tbl format, empty data).
-    HSpan,
-    /// Vertical span from above (`^` in tbl format, `\^` in data).
-    VSpan,
-}
-
-/// Metadata for each logical row in the grid.
-struct GridRow<'a> {
-    cells: Vec<CellKind>,
-    ast_row: &'a TableRow,
-    is_header: bool,
-}
-
-/// Determine the true logical column count, accounting for spans.
-fn determine_column_count(table: &Table) -> usize {
-    if !table.columns.is_empty() {
-        return table.columns.len();
-    }
-
-    let all_rows = table
-        .header
-        .iter()
-        .chain(table.rows.iter())
-        .chain(table.footer.iter());
-
-    all_rows
-        .map(|row| row.columns.iter().map(|c| c.colspan.max(1)).sum::<usize>())
-        .max()
-        .unwrap_or(1)
-}
-
-/// Build the logical grid from all table rows.
-fn build_grid(table: &Table, num_cols: usize) -> Vec<GridRow<'_>> {
-    let all_rows: Vec<(&TableRow, bool)> = table
-        .header
-        .iter()
-        .map(|r| (r, true))
-        .chain(table.rows.iter().map(|r| (r, false)))
-        .chain(table.footer.iter().map(|r| (r, false)))
-        .collect();
-
-    let mut grid = Vec::with_capacity(all_rows.len());
-    let mut rowspan_remaining = vec![0usize; num_cols];
-
-    for (ast_row, is_header) in &all_rows {
-        let mut row_cells = Vec::with_capacity(num_cols);
-        let mut cell_cursor = 0;
-        let mut col = 0;
-
-        while col < num_cols {
-            if let Some(remaining) = rowspan_remaining.get_mut(col)
-                && *remaining > 0
-            {
-                row_cells.push(CellKind::VSpan);
-                *remaining -= 1;
-                col += 1;
-                continue;
-            }
-
-            let Some(cell) = ast_row.columns.get(cell_cursor) else {
-                // Shouldn't happen in well-formed input; fill remaining
-                row_cells.push(CellKind::HSpan);
-                col += 1;
-                continue;
-            };
-
-            let colspan = cell.colspan.max(1);
-            let rowspan = cell.rowspan.max(1);
-
-            row_cells.push(CellKind::Content {
-                cell_index: cell_cursor,
-            });
-
-            // Fill horizontal span markers for extra colspan columns
-            for _ in 1..colspan {
-                if row_cells.len() < num_cols {
-                    row_cells.push(CellKind::HSpan);
-                }
-            }
-
-            // Set rowspan tracking for all columns this cell covers
-            for i in 0..colspan {
-                if let Some(remaining) = rowspan_remaining.get_mut(col + i) {
-                    *remaining = rowspan - 1;
-                }
-            }
-
-            col += colspan;
-            cell_cursor += 1;
-        }
-
-        grid.push(GridRow {
-            cells: row_cells,
-            ast_row,
-            is_header: *is_header,
-        });
-    }
-
-    grid
 }
 
 /// Generate a tbl format entry for a single cell position.
@@ -165,7 +61,8 @@ fn render_grid_row(grid_row: &GridRow<'_>, processor: &Processor) -> Result<Stri
                 }
             }
             CellKind::HSpan => {
-                data_cells.push(String::new());
+                // No data entry — tbl's `s` format automatically extends the
+                // left cell's data into this column position.
             }
             CellKind::VSpan => {
                 data_cells.push("\\^".to_string());

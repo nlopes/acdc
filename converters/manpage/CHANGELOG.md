@@ -13,6 +13,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 - **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
   using per-row tbl format lines with `s` (horizontal span) and `^` (vertical span) markers.
+
+### Changed
+
+- Refactored grid-building logic to use shared utilities from `acdc-converters-core`.
 - Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
 
 ### Changed
