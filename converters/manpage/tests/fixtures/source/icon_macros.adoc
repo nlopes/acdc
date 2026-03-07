@@ -1,0 +1,20 @@
+= icon-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:icons: font
+:revdate: 2025-06-01
+
+== Name
+
+icon-test - test icon macro rendering
+
+== Synopsis
+
+*icon-test*
+
+== Description
+
+Here is a star icon:star[] in text.
+
+And a github icon:github[set=fab] reference.

@@ -13,6 +13,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 - **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
   using per-row tbl format lines with `s` (horizontal span) and `^` (vertical span) markers.
+- **Test fixtures** for video/audio blocks, index terms, inline/block images, icon macros,
+  STEM blocks, volume number variations, custom `man-linkstyle`, and embedded mode with media.
 
 ### Changed
 

@@ -1,0 +1,23 @@
+= stem-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:stem: latexmath
+:revdate: 2025-06-01
+
+== Name
+
+stem-test - test stem/math rendering
+
+== Synopsis
+
+*stem-test*
+
+== Description
+
+An inline formula: stem:[x^2 + y^2 = z^2].
+
+[stem]
+++++
+x = (-b +- sqrt(b^2 - 4ac)) / (2a)
+++++

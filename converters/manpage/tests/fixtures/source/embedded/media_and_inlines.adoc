@@ -1,0 +1,27 @@
+= embedded-media-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:stem: latexmath
+:icons: font
+:revdate: 2025-06-01
+
+== Name
+
+embedded-media-test - test embedded mode with media
+
+== Synopsis
+
+*embedded-media-test*
+
+== Description
+
+An inline image: image:logo.png[Logo].
+
+icon:star[] rating.
+
+video::demo.mp4[]
+
+audio::clip.mp3[]
+
+Inline math: stem:[e = mc^2].
