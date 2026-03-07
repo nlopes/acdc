@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Typography replacements API** — `Replacements` struct, `apply()`, and
+  `replace_apostrophes()` for shared AsciiDoc `Replacements` substitution across
+  converters. Includes `Replacements::unicode()` for terminal/manpage output.
 - Shared table grid utilities (`build_grid`, `CellKind`, `GridRow`, `determine_column_count`,
   `table_has_spans`) for converters that lack native colspan/rowspan support.
 
