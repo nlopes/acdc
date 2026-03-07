@@ -46,6 +46,9 @@ struct EditorState {
     main_container: HtmlElement,
     /// Timer handle for the debounced parse. 0 means no pending timer.
     debounce_handle: Cell<i32>,
+    /// Whether at least one successful render has occurred (so the preview DOM
+    /// holds valid content worth preserving on error).
+    had_successful_render: Cell<bool>,
 }
 
 impl EditorState {
@@ -106,6 +109,7 @@ impl EditorState {
             resize_handle,
             main_container,
             debounce_handle: Cell::new(0),
+            had_successful_render: Cell::new(false),
         })
     }
 }
@@ -218,12 +222,16 @@ fn parse_and_update_both(state: &EditorState) {
             // when the last line is empty.
             state
                 .highlight
-                .set_inner_html(&(result.highlight_html.clone() + "\n"));
+                .set_inner_html(&(result.highlight_html + "\n"));
             state.preview.set_inner_html(&result.preview_html);
             if result.has_stem {
                 typeset_math_preview();
             }
             set_parse_status(state, "OK", false);
+            if let Some(pane) = state.preview.parent_element() {
+                let _ = pane.class_list().remove_1("preview-stale");
+            }
+            state.had_successful_render.set(true);
         }
         Err(e) => {
             // Show plain escaped text so the input stays visible (the textarea
@@ -231,6 +239,19 @@ fn parse_and_update_both(state: &EditorState) {
             // text disappears).
             let escaped = crate::ast_highlight::escape_html(&input);
             state.highlight.set_inner_html(&(escaped + "\n"));
+
+            if state.had_successful_render.get() {
+                // Preview DOM still holds the last good render — mark it stale.
+                if let Some(pane) = state.preview.parent_element() {
+                    let _ = pane.class_list().add_1("preview-stale");
+                }
+            } else {
+                // No prior render exists — show a helpful placeholder.
+                state.preview.set_inner_html(
+                    r#"<p class="preview-placeholder">Start typing valid AsciiDoc to see a preview here.</p>"#,
+                );
+            }
+
             let msg = format!("Parse error: {e}");
             set_parse_status(state, &msg, true);
         }
