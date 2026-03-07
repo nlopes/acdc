@@ -280,6 +280,10 @@ pub struct RenderOptions {
     /// would be invalid HTML. This mode renders link-producing macros as text only
     /// and skips decorative elements like images and icons.
     pub toc_mode: bool,
+    /// When true, we are inside an inline formatting span (bold, italic, monospace, etc.).
+    /// Em-dash boundary replacement at string start/end is suppressed inside spans,
+    /// matching asciidoctor's behavior where quotes runs before replacements.
+    pub in_inline_span: bool,
     /// Directory of the source document, used to resolve relative `stylesdir` paths.
     pub source_dir: Option<PathBuf>,
     /// Stem of the source document filename (e.g., `"mydoc"` for `mydoc.adoc`),

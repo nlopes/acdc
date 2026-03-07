@@ -5,38 +5,6 @@ All notable changes to `acdc-converters-html` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Changed
-
-- **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`
-  calls with the parser's `strip_quotes` function, ensuring consistent handling of both
-  single and double-quoted attribute values in link window attributes, URL roles, and captions.
-
-### Fixed
-
-- **html5s menu macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
-  `menu:File[Save As]` renders with `<kbd class="menuseq">` wrapper, `<kbd class="menu"><samp>…</samp></kbd>`
-  items, and text caret separators (`&#8250;`), matching asciidoctor's html5s behavior.
-- **html5s button macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
-  `btn:[label]` renders as `<kbd class="button"><samp>label</samp></kbd>`,
-  matching asciidoctor's html5s behavior.
-- **html5s inline images no longer wrapped in `<span class="image">`** — in semantic (html5s) mode,
-  inline images render as bare `<img>` tags (or `<a class="image"><img></a>` with links),
-  matching asciidoctor's html5s behavior.
-- **html5s `[.line-through]#text#` now outputs `<s>` tag** — in semantic (html5s) mode,
-  the `line-through` role on highlighted text now renders as `<s>` instead of
-  `<span class="line-through">`.
-- **html5s keyboard shortcuts now use semantic `<kbd>` markup** — in semantic (html5s) mode,
-  key sequences use `<kbd class="keyseq">` wrapper and `<kbd class="key">` for individual keys,
-  matching asciidoctor's html5s behavior.
-
-### Changed
-
-- **`<title>` uses plain text for document titles** — the `<title>` element now strips inline
-  markup (bold, italic, etc.) to plain text using `inlines_to_string()`, while the `<h1>`
-  retains full HTML formatting.
-
 ### Added
 
 - **html5s semantic video and audio blocks** — video and audio blocks now render with semantic
@@ -60,42 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
   `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
   `sharp-solid`) values. Defaults to `fa-solid` when no set is specified. ([#360])
-
-### Changed
-
-- html5s semantic admonitions now render Font Awesome icons when `:icons: font` is
-  set, matching the standard variant's behaviour.
-- html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
-  link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
-
-### Fixed
-
-- **MathJax v4 inline/display math delimiters** — added explicit `inlineMath` and
-  `displayMath` delimiter configuration to the MathJax v4 config, which unlike v2 does not
-  process `\(` `\)` / `\[` `\]` delimiters by default.
-- **Blockquote citation links** — URL macros in blockquote attributions (e.g.,
-  `-- https://example.com/[Example]`) are now rendered as clickable links. Citation titles
-  use the `<cite>` element. ([#357])
-
-### Added
-
 - **`:hide-uri-scheme:` support** — when the document attribute `:hide-uri-scheme:` is set, the URI
   scheme (e.g., `https://`, `http://`, `ftp://`) is stripped from displayed link text for autolinks,
   URL macros, and link macros without custom text. The `href` attribute retains the full URL. ([#359])
-
 - **Collapsible blocks in standard mode** — example blocks with `[%collapsible]` and paragraphs
   with `[example%collapsible]` now render as `<details>/<summary>` elements in the standard HTML
   backend. Supports `%open` for initially expanded blocks and defaults to "Details" as the
   summary text when no title is provided.
-
-### Fixed
-
-- **Admonition font icons** — use native Font Awesome 7 class names (`fa-solid fa-circle-info`,
-  `fa-lightbulb`, etc.) instead of custom `icon-*` classes that only work with asciidoctor's
-  embedded CSS. Icons now render correctly with the FA 7.2.0 CDN.
-
-### Added
-
 - **Docinfo file support** — inject custom HTML snippets into `<head>`, after `<body>`, or
   before `</body>` via the `:docinfo:` attribute. Supports `shared`, `private`, and granular
   values (`shared-head`, `private-footer`, etc.), `:docinfodir:` for alternate directories,
@@ -194,6 +133,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Em-dash patterns now match asciidoctor** — spaced pattern emits `&thinsp;&mdash;&thinsp;`,
+  word-bounded (`word--word`) emits `&#8212;&#8203;`.
+- **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
+  superscript, subscript, and curved quotes is no longer converted to an em-dash at string
+  boundaries. For example, `` `--` `` now correctly renders as `<code>--</code>` instead of
+  `<code>&thinsp;&mdash;&thinsp;</code>`, matching asciidoctor.
+- **HTML escape ordering** — `<` and `>` are now escaped after restoring escaped patterns,
+  so `\=>` correctly produces literal `=>` instead of `=&gt;`.
+- **html5s menu macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
+  `menu:File[Save As]` renders with `<kbd class="menuseq">` wrapper, `<kbd class="menu"><samp>…</samp></kbd>`
+  items, and text caret separators (`&#8250;`), matching asciidoctor's html5s behavior.
+- **html5s button macro now uses semantic `<kbd><samp>` markup** — in semantic (html5s) mode,
+  `btn:[label]` renders as `<kbd class="button"><samp>label</samp></kbd>`,
+  matching asciidoctor's html5s behavior.
+- **html5s inline images no longer wrapped in `<span class="image">`** — in semantic (html5s) mode,
+  inline images render as bare `<img>` tags (or `<a class="image"><img></a>` with links),
+  matching asciidoctor's html5s behavior.
+- **html5s `[.line-through]#text#` now outputs `<s>` tag** — in semantic (html5s) mode,
+  the `line-through` role on highlighted text now renders as `<s>` instead of
+  `<span class="line-through">`.
+- **html5s keyboard shortcuts now use semantic `<kbd>` markup** — in semantic (html5s) mode,
+  key sequences use `<kbd class="keyseq">` wrapper and `<kbd class="key">` for individual keys,
+  matching asciidoctor's html5s behavior.
+- **MathJax v4 inline/display math delimiters** — added explicit `inlineMath` and
+  `displayMath` delimiter configuration to the MathJax v4 config, which unlike v2 does not
+  process `\(` `\)` / `\[` `\]` delimiters by default.
+- **Blockquote citation links** — URL macros in blockquote attributions (e.g.,
+  `-- https://example.com/[Example]`) are now rendered as clickable links. Citation titles
+  use the `<cite>` element. ([#357])
+- **Admonition font icons** — use native Font Awesome 7 class names (`fa-solid fa-circle-info`,
+  `fa-lightbulb`, etc.) instead of custom `icon-*` classes that only work with asciidoctor's
+  embedded CSS. Icons now render correctly with the FA 7.2.0 CDN.
 - **Duplicate footnote IDs in TOC entries** — footnote `<sup>` elements in TOC entries
   no longer emit `id="_footnote_{id}"`, avoiding duplicate IDs that caused broken DOM
   rendering in browsers (particularly visible in the WASM editor preview).
@@ -260,6 +231,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Use shared `replace_apostrophes` from converters-core** — smart apostrophe logic moved to
+  converters-core for reuse across converters.
+- **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`
+  calls with the parser's `strip_quotes` function, ensuring consistent handling of both
+  single and double-quoted attribute values in link window attributes, URL roles, and captions.
+- **`<title>` uses plain text for document titles** — the `<title>` element now strips inline
+  markup (bold, italic, etc.) to plain text using `inlines_to_string()`, while the `<h1>`
+  retains full HTML formatting.
+- html5s semantic admonitions now render Font Awesome icons when `:icons: font` is
+  set, matching the standard variant's behaviour.
+- html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
+  link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
 - **Section numbering types moved to `acdc-converters-core`** — `SectionNumberTracker`,
   `PartNumberTracker`, `AppendixTracker`, `to_upper_roman`, and `DEFAULT_SECTION_LEVEL`
   are now re-exported from `acdc-converters-core::section` instead of being defined locally.

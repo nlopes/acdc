@@ -411,6 +411,23 @@ pub trait Visitor {
     }
 }
 
+/// Returns true if the inline node is a formatting span whose children
+/// should suppress em-dash boundary replacement at string start/end.
+#[must_use]
+pub fn is_formatting_span(node: &InlineNode) -> bool {
+    matches!(
+        node,
+        InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+    )
+}
+
 /// A writable visitor that outputs to a writer.
 ///
 /// This is a common pattern for converters that generate text output (HTML, terminal, etc.)
