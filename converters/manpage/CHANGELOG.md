@@ -11,6 +11,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
+  symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as proper roff escapes
+  via the shared `apply_replacements()` pipeline feeding into `manify()`.
 - **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
   using per-row tbl format lines with `s` (horizontal span) and `^` (vertical span) markers.
 - **Test fixtures** for video/audio blocks, index terms, inline/block images, icon macros,

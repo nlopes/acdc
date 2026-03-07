@@ -989,7 +989,7 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
             .replace("(R)", "&#174;")
             .replace("(TM)", "&#8482;")
             .replace("...", "&#8230;&#8203;");
-        replace_apostrophes(&text)
+        acdc_converters_core::substitutions::replace_apostrophes(&text, "&#8217;")
     } else {
         text
     };
@@ -1007,92 +1007,42 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
     encode_html_entities(&text)
 }
 
-/// Replace apostrophes between word characters with curly apostrophe entities.
-///
-/// Matches asciidoctor's replacement regex: `(\p{Alnum})\\?'(?=\p{Alpha})`
-/// - Before: alphanumeric character (letters + digits)
-/// - After: alphabetic character (letters only, NOT digits)
-/// - Optional `\` before `'` acts as escape (strips `\`, keeps literal `'`)
-///
-/// Examples:
-/// - `it's` → `it&#8217;s` (contraction)
-/// - `3'4"` → `3'4"` (measurement — 4 is not alphabetic)
-/// - `'word'` → `'word'` (quotes — space is not alphanumeric)
-/// - `Olaf\'s` → `Olaf's` (escaped — backslash stripped, stays straight)
-fn replace_apostrophes(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let mut result = String::with_capacity(text.len());
-    let mut i = 0;
-
-    while i < chars.len() {
-        let Some(&c) = chars.get(i) else {
-            break;
-        };
-
-        if c == '\\' && chars.get(i + 1) == Some(&'\'') {
-            // Possible escaped apostrophe: alnum\'+alpha
-            let prev_is_alnum = i > 0 && chars.get(i - 1).is_some_and(|ch| ch.is_alphanumeric());
-            let next_is_alpha = chars.get(i + 2).is_some_and(|ch| ch.is_alphabetic());
-            if prev_is_alnum && next_is_alpha {
-                // Escaped apostrophe: strip \, output literal '
-                result.push('\'');
-                i += 2;
-                continue;
-            }
-            result.push(c);
-        } else if c == '\'' {
-            let prev_is_alnum = i > 0 && chars.get(i - 1).is_some_and(|ch| ch.is_alphanumeric());
-            let next_is_alpha = chars.get(i + 1).is_some_and(|ch| ch.is_alphabetic());
-            if prev_is_alnum && next_is_alpha {
-                result.push_str("&#8217;");
-            } else {
-                result.push(c);
-            }
-        } else {
-            result.push(c);
-        }
-        i += 1;
-    }
-
-    result
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use acdc_converters_core::substitutions::replace_apostrophes;
 
     #[test]
     fn apostrophe_in_contraction() {
-        assert_eq!(replace_apostrophes("it's"), "it&#8217;s");
+        assert_eq!(replace_apostrophes("it's", "&#8217;"), "it&#8217;s");
     }
 
     #[test]
     fn apostrophe_digit_after_not_converted() {
-        assert_eq!(replace_apostrophes("3'4\""), "3'4\"");
+        assert_eq!(replace_apostrophes("3'4\"", "&#8217;"), "3'4\"");
     }
 
     #[test]
     fn apostrophe_quotes_around_word() {
-        assert_eq!(replace_apostrophes("'word'"), "'word'");
+        assert_eq!(replace_apostrophes("'word'", "&#8217;"), "'word'");
     }
 
     #[test]
     fn apostrophe_escaped_stripped() {
-        assert_eq!(replace_apostrophes("Olaf\\'s"), "Olaf's");
+        assert_eq!(replace_apostrophes("Olaf\\'s", "&#8217;"), "Olaf's");
     }
 
     #[test]
     fn apostrophe_escaped_contraction() {
-        assert_eq!(replace_apostrophes("don\\'t"), "don't");
+        assert_eq!(replace_apostrophes("don\\'t", "&#8217;"), "don't");
     }
 
     #[test]
     fn apostrophe_escape_outside_word_context_preserved() {
-        assert_eq!(replace_apostrophes("test \\'s"), "test \\'s");
+        assert_eq!(replace_apostrophes("test \\'s", "&#8217;"), "test \\'s");
     }
 
     #[test]
     fn apostrophe_decade() {
-        assert_eq!(replace_apostrophes("1990's"), "1990&#8217;s");
+        assert_eq!(replace_apostrophes("1990's", "&#8217;"), "1990&#8217;s");
     }
 }

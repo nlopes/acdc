@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Use shared `replace_apostrophes` from converters-core** — smart apostrophe logic moved to
+  converters-core for reuse across converters.
 - **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`
   calls with the parser's `strip_quotes` function, ensuring consistent handling of both
   single and double-quoted attribute values in link window attributes, URL roles, and captions.

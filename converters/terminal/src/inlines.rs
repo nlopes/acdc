@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    substitutions::{restore_escaped_patterns, strip_backslash_escapes},
+    substitutions::{Replacements, restore_escaped_patterns, strip_backslash_escapes},
     visitor::WritableVisitor,
 };
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
@@ -149,9 +149,9 @@ fn render_inline_node_to_writer<W: Write>(
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
-            // Strip backslash escapes (e.g., \^ -> ^) for plain text
-            // Also restore escaped patterns (e.g., \... -> ...)
-            let text = restore_escaped_patterns(&strip_backslash_escapes(&p.content));
+            let text = strip_backslash_escapes(&p.content);
+            let text = Replacements::unicode().apply(&text);
+            let text = restore_escaped_patterns(&text);
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
@@ -244,9 +244,9 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
 ) -> Result<(), crate::Error> {
     match node {
         InlineNode::PlainText(p) => {
-            // Strip backslash escapes (e.g., \^ -> ^) for plain text
-            // Also restore escaped patterns (e.g., \... -> ...)
-            let text = restore_escaped_patterns(&strip_backslash_escapes(&p.content));
+            let text = strip_backslash_escapes(&p.content);
+            let text = Replacements::unicode().apply(&text);
+            let text = restore_escaped_patterns(&text);
             let w = visitor.writer_mut();
             write!(w, "{text}")?;
         }
