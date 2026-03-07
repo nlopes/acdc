@@ -1,0 +1,9 @@
+= Combined span table
+
+|===
+| A | B | C | D
+
+2.2+| Big cell | E | F
+| G | H
+| I | J | K | L
+|===

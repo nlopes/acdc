@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
+  using the shared grid utilities. Content appears in the primary cell; spanned positions show
+  as empty cells.
 - Word wrapping for content inside box-drawn blocks (sidebars, examples, admonitions, quote blocks)
 - Unicode-aware character width measurement for correct CJK and emoji wrapping
 - `Processor::with_terminal_width()` for deterministic width control in tests and fixture generation.
