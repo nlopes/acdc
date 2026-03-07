@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed non-monotonic inline positions for subscript/superscript text preceded by short plain text
+
 ### Added
 
 - **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content

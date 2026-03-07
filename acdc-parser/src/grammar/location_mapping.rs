@@ -10,16 +10,6 @@ use super::{
     utf8_utils::{self, RoundDirection, snap_to_boundary},
 };
 
-/// Maximum base length for constrained formatting heuristic.
-///
-/// When no `Form` parameter is provided, we use the base location's length to guess
-/// whether formatting is constrained (single-char delimiters like `*bold*`) or
-/// unconstrained (double-char delimiters like `**bold**`).
-///
-/// Constrained examples: `*s*` (3), `_it_` (4), `*abc*` (5)
-/// The heuristic assumes short spans are constrained formatting.
-const MAX_CONSTRAINED_BASE_LENGTH: usize = 5;
-
 /// Offset to skip the opening delimiter in constrained formatting.
 /// For `*s*`, position 1 is where 's' starts.
 const CONSTRAINED_CONTENT_START_OFFSET: usize = 1;
@@ -209,9 +199,8 @@ pub(crate) fn create_location_mapper<'a>(
                 let is_constrained_single_char = if let Some(form) = form {
                     matches!(form, Form::Constrained)
                 } else {
-                    // Fallback heuristic when form is unavailable (e.g., plain text nodes)
-                    let base_length = base_location.absolute_end - base_location.absolute_start;
-                    base_length <= MAX_CONSTRAINED_BASE_LENGTH
+                    // No enclosing formatting context: constrained heuristic never applies
+                    false
                 };
 
                 if is_constrained_single_char {
@@ -267,9 +256,8 @@ pub(crate) fn create_location_mapper<'a>(
             let is_constrained_single_char = if let Some(form) = form {
                 matches!(form, Form::Constrained)
             } else {
-                // Fallback heuristic when form is unavailable
-                let base_length = base_location.absolute_end - base_location.absolute_start;
-                base_length <= MAX_CONSTRAINED_BASE_LENGTH
+                // No enclosing formatting context: constrained heuristic never applies
+                false
             };
 
             if is_constrained_single_char {
@@ -650,5 +638,60 @@ fn map_plain_text_inline_locations<'a>(
             location: mapped_location,
             escaped: plain.escaped,
         })])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Block, Options, parse};
+
+    fn check_monotonic(input: &str) -> Result<(), String> {
+        let doc = parse(input, &Options::default()).map_err(|e| format!("parse failed: {e}"))?;
+        let first_block = doc.blocks.first().ok_or("expected at least one block")?;
+        let Block::Paragraph(para) = first_block else {
+            return Err(format!("Expected paragraph, got {first_block:?}"));
+        };
+
+        assert!(para.content.len() >= 2, "Expected at least 2 inline nodes");
+
+        let first = para.content.first().ok_or("missing first inline")?.location();
+        let second = para.content.get(1).ok_or("missing second inline")?.location();
+        assert!(
+            second.absolute_start >= first.absolute_end,
+            "Non-monotonic: first ends at {}, second starts at {}",
+            first.absolute_end,
+            second.absolute_start,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn subscript_after_single_char_has_monotonic_positions() -> Result<(), String> {
+        check_monotonic("?~sub~")
+    }
+
+    #[test]
+    fn superscript_after_single_char_has_monotonic_positions() -> Result<(), String> {
+        check_monotonic("?^sup^")
+    }
+
+    #[test]
+    fn short_text_before_subscript_no_constrained_heuristic() -> Result<(), String> {
+        check_monotonic("a~sub~")
+    }
+
+    #[test]
+    fn longer_text_before_subscript_unaffected() -> Result<(), String> {
+        check_monotonic("ab~sub~")
+    }
+
+    #[test]
+    fn subscript_before_single_char_has_monotonic_positions() -> Result<(), String> {
+        check_monotonic("~sub~?")
+    }
+
+    #[test]
+    fn superscript_before_single_char_has_monotonic_positions() -> Result<(), String> {
+        check_monotonic("^sup^?")
     }
 }
