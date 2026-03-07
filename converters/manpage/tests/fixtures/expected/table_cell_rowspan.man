@@ -1,5 +1,5 @@
 '\" t
-.\"     Title: table-complex
+.\"     Title: table-cell-rowspan
 .\"    Author: [see the "AUTHOR(S)" section]
 .\" Generator: acdc 0.1.0
 .\"      Date: 2025-01-20
@@ -7,7 +7,7 @@
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "TABLE\-COMPLEX" "1" "2025-01-20" "\ \&" "\ \&"
+.TH "TABLE\-CELL\-ROWSPAN" "1" "2025-01-20" "\ \&" "\ \&"
 .ie \n(.g .ds Aq \(aq
 .el       .ds Aq '
 .ss \n[.ss] 0
@@ -28,37 +28,18 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-table\-complex \- test complex table cells
+table\-cell\-rowspan \- test table cell rowspan
 .SH "DESCRIPTION"
 .sp
-A table with non\-paragraph content in cells.
+A table with rowspan cells.
 .TS
 allbox tab(:);
-ltB ltB
-lt lt
-lt lt.
-Header 1:Header 2
-Simple paragraph:T{
-.RS 0
-.IP \(bu 2
-Item one
-.IP \(bu 2
-Item two
-.RE
-
-T}
-T{
-.EX
-code block
-.EE
-
-T}:T{
-.sp
-\fBNOTE:\fP
-.RS 4
-.sp
-This is an admonition
-.RE
-
-T}
+ltB ltB ltB
+lt lt lt
+^ lt lt
+lt lt lt.
+A:B:C
+Spans rows:D:E
+\^:F:G
+H:I:J
 .TE

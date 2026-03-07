@@ -239,6 +239,7 @@ This is important.
 .TS
 allbox tab(:);
 ltB ltB ltB
+lt lt lt
 lt lt lt.
 Name:Description:Status
 Alpha:T{

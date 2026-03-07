@@ -11,6 +11,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
+  using per-row tbl format lines with `s` (horizontal span) and `^` (vertical span) markers.
 - Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
 
 ### Changed
