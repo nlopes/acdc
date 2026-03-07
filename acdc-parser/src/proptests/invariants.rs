@@ -9,8 +9,8 @@
 use proptest::prelude::*;
 
 use crate::{
-    Block, DelimitedBlockType, Document, InlineNode, Location, Options, model::Locateable, parse,
-    parse_inline,
+    Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location, Options,
+    model::Locateable, parse, parse_inline,
 };
 
 use super::generators::*;
@@ -194,9 +194,11 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
                 walk_inline_locations(inline, visitor);
             }
         }
+        Block::DelimitedBlock(delimited) => {
+            walk_delimited_block_locations(delimited, visitor);
+        }
         // Leaf blocks: no children to recurse into
-        Block::DelimitedBlock(_)
-        | Block::TableOfContents(_)
+        Block::TableOfContents(_)
         | Block::DocumentAttribute(_)
         | Block::ThematicBreak(_)
         | Block::PageBreak(_)
@@ -204,6 +206,57 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
         | Block::Audio(_)
         | Block::Video(_)
         | Block::Comment(_) => {}
+    }
+}
+
+/// Walk all locations in a delimited block, calling `visitor` for each one.
+fn walk_delimited_block_locations(
+    delimited: &DelimitedBlock,
+    visitor: &mut impl FnMut(&Location, &str),
+) {
+    if let Some(loc) = &delimited.open_delimiter_location {
+        visitor(loc, "delimited block open delimiter");
+    }
+    if let Some(loc) = &delimited.close_delimiter_location {
+        visitor(loc, "delimited block close delimiter");
+    }
+    for inline in &delimited.title {
+        walk_inline_locations(inline, visitor);
+    }
+    match &delimited.inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks) => {
+            for block in blocks {
+                walk_block_locations(block, visitor);
+            }
+        }
+        DelimitedBlockType::DelimitedComment(inlines)
+        | DelimitedBlockType::DelimitedListing(inlines)
+        | DelimitedBlockType::DelimitedLiteral(inlines)
+        | DelimitedBlockType::DelimitedPass(inlines)
+        | DelimitedBlockType::DelimitedVerse(inlines) => {
+            for inline in inlines {
+                walk_inline_locations(inline, visitor);
+            }
+        }
+        DelimitedBlockType::DelimitedTable(table) => {
+            visitor(&table.location, "table");
+            let all_rows = table
+                .header
+                .iter()
+                .chain(&table.rows)
+                .chain(table.footer.iter());
+            for row in all_rows {
+                for col in &row.columns {
+                    for block in &col.content {
+                        walk_block_locations(block, visitor);
+                    }
+                }
+            }
+        }
+        DelimitedBlockType::DelimitedStem(_) => {}
     }
 }
 
