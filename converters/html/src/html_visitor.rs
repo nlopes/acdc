@@ -931,10 +931,18 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
+        let saved = self.render_options.in_inline_span;
+        if acdc_converters_core::visitor::is_formatting_span(node) {
+            self.render_options.in_inline_span = true;
+        }
+
         let processor = self.processor.clone();
         let options = self.render_options.clone();
         let subs = self.current_subs.clone();
-        crate::inlines::visit_inline_node(node, self, &processor, &options, &subs)
+        let result = crate::inlines::visit_inline_node(node, self, &processor, &options, &subs);
+
+        self.render_options.in_inline_span = saved;
+        result
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {

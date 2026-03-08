@@ -141,6 +141,280 @@ pub fn restore_escaped_patterns(text: &str) -> String {
         .replace(ESCAPED_REGISTERED, "(R)")
 }
 
+/// Typography replacements for `AsciiDoc` content.
+///
+/// Each converter provides format-specific output strings for the same set of
+/// typographic patterns. Use [`Self::apply`] to transform text.
+#[non_exhaustive]
+pub struct Replacements<'a> {
+    /// Replaces `word -- word` (em-dash with surrounding spaces) with thin-space + em-dash + thin-space.
+    pub em_dash_spaced: &'a str,
+    /// Replaces `word--word` (em-dash between word characters) with em-dash + zero-width-space.
+    pub em_dash_word_bounded: &'a str,
+    /// Replaces `=>` (rightwards double arrow).
+    pub double_arrow_right: &'a str,
+    /// Replaces `<=` (leftwards double arrow).
+    pub double_arrow_left: &'a str,
+    /// Replaces `->` (rightwards arrow).
+    pub arrow_right: &'a str,
+    /// Replaces `<-` (leftwards arrow).
+    pub arrow_left: &'a str,
+    /// Replaces `(C)` (copyright symbol).
+    pub copyright: &'a str,
+    /// Replaces `(R)` (registered symbol).
+    pub registered: &'a str,
+    /// Replaces `(TM)` (trademark symbol).
+    pub trademark: &'a str,
+    /// Replaces `...` (ellipsis).
+    pub ellipsis: &'a str,
+    /// Replaces smart apostrophes in contractions.
+    pub apostrophe: &'a str,
+}
+
+impl Replacements<'static> {
+    /// Unicode replacements for terminal, manpage, and other non-HTML converters.
+    #[must_use]
+    pub const fn unicode() -> Self {
+        Self {
+            em_dash_spaced: "\u{2009}\u{2014}\u{2009}",
+            em_dash_word_bounded: "\u{2014}\u{200B}",
+            double_arrow_right: "\u{21D2}",
+            double_arrow_left: "\u{21D0}",
+            arrow_right: "\u{2192}",
+            arrow_left: "\u{2190}",
+            copyright: "\u{00A9}",
+            registered: "\u{00AE}",
+            trademark: "\u{2122}",
+            ellipsis: "\u{2026}",
+            apostrophe: "\u{2019}",
+        }
+    }
+
+    /// HTML entity replacements for the HTML converter.
+    #[must_use]
+    pub const fn html() -> Self {
+        Self {
+            em_dash_spaced: "&thinsp;&mdash;&thinsp;",
+            em_dash_word_bounded: "&#8212;&#8203;",
+            double_arrow_right: "&#8658;",
+            double_arrow_left: "&#8656;",
+            arrow_right: "&#8594;",
+            arrow_left: "&#8592;",
+            copyright: "&#169;",
+            registered: "&#174;",
+            trademark: "&#8482;",
+            ellipsis: "&#8230;&#8203;",
+            apostrophe: "&#8217;",
+        }
+    }
+}
+
+impl Replacements<'_> {
+    /// Full typography pipeline: strip escapes, apply replacements, restore escaped patterns.
+    #[must_use]
+    pub fn transform(&self, text: &str, string_boundaries_are_space: bool) -> String {
+        let text = strip_backslash_escapes(text);
+        let text = self.apply(&text, string_boundaries_are_space);
+        restore_escaped_patterns(&text)
+    }
+
+    /// Apply typography replacements to text.
+    ///
+    /// Applies all `AsciiDoc` `Replacements` substitutions in the correct order:
+    /// 1. Em-dashes (spaced and word-bounded patterns)
+    /// 2. Double arrows before single arrows
+    /// 3. Symbols: `(C)`, `(R)`, `(TM)`
+    /// 4. Ellipsis: `...`
+    /// 5. Smart apostrophes (context-aware)
+    ///
+    /// Call this on text that has already been through [`strip_backslash_escapes`],
+    /// then call [`restore_escaped_patterns`] on the result.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_converters_core::substitutions::{
+    ///     strip_backslash_escapes, restore_escaped_patterns, Replacements,
+    /// };
+    ///
+    /// let text = strip_backslash_escapes("Hello -- world");
+    /// let text = Replacements::unicode().apply(&text, true);
+    /// let text = restore_escaped_patterns(&text);
+    /// assert_eq!(text, "Hello\u{2009}\u{2014}\u{2009}world");
+    /// ```
+    #[must_use]
+    pub fn apply(&self, text: &str, string_boundaries_are_space: bool) -> String {
+        // 1. Em-dashes
+        let text = replace_em_dashes(
+            text,
+            self.em_dash_spaced,
+            self.em_dash_word_bounded,
+            string_boundaries_are_space,
+        );
+
+        // 2. Arrows (double arrows before single to avoid partial matches)
+        let text = text
+            .replace("=>", self.double_arrow_right)
+            .replace("<=", self.double_arrow_left)
+            .replace("->", self.arrow_right)
+            .replace("<-", self.arrow_left);
+
+        // 3. Symbols
+        let text = text
+            .replace("(C)", self.copyright)
+            .replace("(R)", self.registered)
+            .replace("(TM)", self.trademark);
+
+        // 4. Ellipsis
+        let text = text.replace("...", self.ellipsis);
+
+        // 5. Smart apostrophes
+        replace_apostrophes(&text, self.apostrophe)
+    }
+}
+
+/// Replace em-dash patterns in text.
+///
+/// Matches asciidoctor's two em-dash patterns:
+/// - **Spaced**: `\s--\s` (or at start/end of string) → `spaced` replacement
+/// - **Word-bounded**: `\w--\w` → `word_bounded` replacement
+///
+/// Does NOT match: `word --word`, `word-- word`, `test--`, `--test`, `---`
+///
+/// # Examples
+///
+/// ```
+/// use acdc_converters_core::substitutions::replace_em_dashes;
+///
+/// // With string_boundaries_are_space=true (paragraph-level text):
+/// assert_eq!(replace_em_dashes("a -- b", "S", "W", true), "aSb");
+/// assert_eq!(replace_em_dashes("a--b", "S", "W", true), "aWb");
+/// assert_eq!(replace_em_dashes("a --b", "S", "W", true), "a --b");
+/// // With string_boundaries_are_space=false (inside inline spans):
+/// assert_eq!(replace_em_dashes("--", "S", "W", false), "--");
+/// assert_eq!(replace_em_dashes("-- word", "S", "W", false), "-- word");
+/// ```
+#[must_use]
+pub fn replace_em_dashes(
+    text: &str,
+    spaced: &str,
+    word_bounded: &str,
+    string_boundaries_are_space: bool,
+) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(text.len());
+    let mut i = 0;
+
+    while i < len {
+        let Some(&ch) = chars.get(i) else { break };
+
+        // Check for exactly two dashes (not three or more)
+        if ch == '-'
+            && chars.get(i + 1) == Some(&'-')
+            && chars.get(i + 2) != Some(&'-')
+            && (i == 0 || chars.get(i - 1) != Some(&'-'))
+        {
+            let prev = if i > 0 {
+                chars.get(i - 1).copied()
+            } else {
+                None
+            };
+            let next = chars.get(i + 2).copied();
+
+            let prev_is_space = (string_boundaries_are_space && prev.is_none())
+                || prev.is_some_and(char::is_whitespace);
+            let next_is_space = (string_boundaries_are_space && next.is_none())
+                || next.is_some_and(char::is_whitespace);
+
+            if prev_is_space && next_is_space {
+                // Spaced em-dash: consume surrounding whitespace
+                let trimmed_len = result.trim_end_matches(char::is_whitespace).len();
+                result.truncate(trimmed_len);
+                result.push_str(spaced);
+                // Skip the two dashes
+                i += 2;
+                // Skip following whitespace
+                while chars.get(i).is_some_and(|c| c.is_whitespace()) {
+                    i += 1;
+                }
+                continue;
+            }
+
+            let prev_is_word = prev.is_some_and(|c| c.is_alphanumeric() || c == '_');
+            let next_is_word = next.is_some_and(|c| c.is_alphanumeric() || c == '_');
+
+            if prev_is_word && next_is_word {
+                // Word-bounded em-dash
+                result.push_str(word_bounded);
+                i += 2;
+                continue;
+            }
+        }
+
+        result.push(ch);
+        i += 1;
+    }
+
+    result
+}
+
+/// Replace apostrophes between word characters with curly apostrophes.
+///
+/// Matches asciidoctor's replacement regex: `(\p{Alnum})\\?'(?=\p{Alpha})`
+/// - Before: alphanumeric character (letters + digits)
+/// - After: alphabetic character (letters only, NOT digits)
+/// - Optional `\` before `'` acts as escape (strips `\`, keeps literal `'`)
+///
+/// # Examples
+///
+/// ```
+/// use acdc_converters_core::substitutions::replace_apostrophes;
+///
+/// assert_eq!(replace_apostrophes("it's", "\u{2019}"), "it\u{2019}s");
+/// assert_eq!(replace_apostrophes("3'4\"", "\u{2019}"), "3'4\"");
+/// assert_eq!(replace_apostrophes("'word'", "\u{2019}"), "'word'");
+/// assert_eq!(replace_apostrophes("Olaf\\'s", "\u{2019}"), "Olaf's");
+/// ```
+#[must_use]
+pub fn replace_apostrophes(text: &str, curly_apostrophe: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut result = String::with_capacity(text.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        let Some(&c) = chars.get(i) else {
+            break;
+        };
+
+        if c == '\\' && chars.get(i + 1) == Some(&'\'') {
+            // Possible escaped apostrophe: alnum\'+alpha
+            let prev_is_alnum = i > 0 && chars.get(i - 1).is_some_and(|ch| ch.is_alphanumeric());
+            let next_is_alpha = chars.get(i + 2).is_some_and(|ch| ch.is_alphabetic());
+            if prev_is_alnum && next_is_alpha {
+                // Escaped apostrophe: strip \, output literal '
+                result.push('\'');
+                i += 2;
+                continue;
+            }
+            result.push(c);
+        } else if c == '\'' {
+            let prev_is_alnum = i > 0 && chars.get(i - 1).is_some_and(|ch| ch.is_alphanumeric());
+            let next_is_alpha = chars.get(i + 1).is_some_and(|ch| ch.is_alphabetic());
+            if prev_is_alnum && next_is_alpha {
+                result.push_str(curly_apostrophe);
+            } else {
+                result.push(c);
+            }
+        } else {
+            result.push(c);
+        }
+        i += 1;
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,6 +511,201 @@ mod tests {
         assert_eq!(
             restore_escaped_patterns(&strip_backslash_escapes(r"\<- back")),
             "<- back"
+        );
+    }
+
+    // --- apply_replacements tests ---
+
+    const UNICODE: Replacements<'static> = Replacements::unicode();
+
+    #[test]
+    fn test_em_dash_spaced() {
+        assert_eq!(UNICODE.apply("a -- b", true), "a\u{2009}\u{2014}\u{2009}b");
+    }
+
+    #[test]
+    fn test_em_dash_at_start() {
+        assert_eq!(UNICODE.apply("-- b", true), "\u{2009}\u{2014}\u{2009}b");
+    }
+
+    #[test]
+    fn test_em_dash_at_end() {
+        assert_eq!(UNICODE.apply("a --", true), "a\u{2009}\u{2014}\u{2009}");
+    }
+
+    #[test]
+    fn test_em_dash_word_bounded() {
+        assert_eq!(
+            UNICODE.apply("word--word", true),
+            "word\u{2014}\u{200B}word"
+        );
+    }
+
+    #[test]
+    fn test_em_dash_digit_bounded() {
+        assert_eq!(UNICODE.apply("1--2", true), "1\u{2014}\u{200B}2");
+    }
+
+    #[test]
+    fn test_em_dash_no_match_left_space() {
+        // space before, word after: no match
+        assert_eq!(UNICODE.apply("word --word", true), "word --word");
+    }
+
+    #[test]
+    fn test_em_dash_no_match_right_space() {
+        // word before, space after: no match
+        assert_eq!(UNICODE.apply("word-- word", true), "word-- word");
+    }
+
+    #[test]
+    fn test_em_dash_no_match_trailing() {
+        // word before, end of string: no match
+        assert_eq!(UNICODE.apply("test--", true), "test--");
+    }
+
+    #[test]
+    fn test_em_dash_no_match_leading() {
+        // start of string, word after: no match
+        assert_eq!(UNICODE.apply("--test", true), "--test");
+    }
+
+    #[test]
+    fn test_em_dash_triple_dash_no_match() {
+        assert_eq!(UNICODE.apply("---", true), "---");
+    }
+
+    #[test]
+    fn test_double_arrow_right() {
+        assert_eq!(UNICODE.apply("a => b", true), "a \u{21D2} b");
+    }
+
+    #[test]
+    fn test_double_arrow_left() {
+        assert_eq!(UNICODE.apply("a <= b", true), "a \u{21D0} b");
+    }
+
+    #[test]
+    fn test_arrow_right() {
+        assert_eq!(UNICODE.apply("a -> b", true), "a \u{2192} b");
+    }
+
+    #[test]
+    fn test_arrow_left() {
+        assert_eq!(UNICODE.apply("a <- b", true), "a \u{2190} b");
+    }
+
+    #[test]
+    fn test_double_arrow_before_single() {
+        // => must be matched before -> to avoid partial match
+        assert_eq!(
+            UNICODE.apply("a => b -> c", true),
+            "a \u{21D2} b \u{2192} c"
+        );
+    }
+
+    #[test]
+    fn test_copyright() {
+        assert_eq!(UNICODE.apply("(C) 2024", true), "\u{00A9} 2024");
+    }
+
+    #[test]
+    fn test_registered() {
+        assert_eq!(UNICODE.apply("Foo(R)", true), "Foo\u{00AE}");
+    }
+
+    #[test]
+    fn test_trademark() {
+        assert_eq!(UNICODE.apply("Foo(TM)", true), "Foo\u{2122}");
+    }
+
+    #[test]
+    fn test_ellipsis() {
+        assert_eq!(UNICODE.apply("wait...", true), "wait\u{2026}");
+    }
+
+    #[test]
+    fn test_apostrophe_contraction() {
+        assert_eq!(UNICODE.apply("it's great", true), "it\u{2019}s great");
+    }
+
+    #[test]
+    fn test_apostrophe_digit_after_not_converted() {
+        assert_eq!(UNICODE.apply("3'4\"", true), "3'4\"");
+    }
+
+    #[test]
+    fn test_apostrophe_quotes_not_converted() {
+        assert_eq!(UNICODE.apply("'word'", true), "'word'");
+    }
+
+    #[test]
+    fn test_apostrophe_escaped() {
+        assert_eq!(UNICODE.apply("Olaf\\'s", true), "Olaf's");
+    }
+
+    #[test]
+    fn test_apostrophe_decade() {
+        assert_eq!(UNICODE.apply("1990's", true), "1990\u{2019}s");
+    }
+
+    #[test]
+    fn test_all_replacements_combined() {
+        assert_eq!(
+            UNICODE.apply("(C) 2024 -- it's cool...", true),
+            "\u{00A9} 2024\u{2009}\u{2014}\u{2009}it\u{2019}s cool\u{2026}"
+        );
+    }
+
+    #[test]
+    fn test_no_replacements() {
+        assert_eq!(UNICODE.apply("plain text", true), "plain text");
+    }
+
+    #[test]
+    fn test_full_pipeline_with_escapes() {
+        let input = r"Hello \-- world -- done";
+        let text = strip_backslash_escapes(input);
+        let text = UNICODE.apply(&text, true);
+        let text = restore_escaped_patterns(&text);
+        assert_eq!(text, "Hello -- world\u{2009}\u{2014}\u{2009}done");
+    }
+
+    // --- string_boundaries_are_space=false tests (inline span context) ---
+
+    #[test]
+    fn test_em_dash_inline_span_standalone() {
+        // Inside inline spans, bare "--" should NOT become em-dash
+        assert_eq!(UNICODE.apply("--", false), "--");
+    }
+
+    #[test]
+    fn test_em_dash_inline_span_leading() {
+        // "-- word" at start of inline span: no em-dash
+        assert_eq!(UNICODE.apply("-- word", false), "-- word");
+    }
+
+    #[test]
+    fn test_em_dash_inline_span_trailing() {
+        // "word --" at end of inline span: no em-dash
+        assert_eq!(UNICODE.apply("word --", false), "word --");
+    }
+
+    #[test]
+    fn test_em_dash_inline_span_spaced_middle() {
+        // "word -- word" still works (actual space chars on both sides)
+        assert_eq!(
+            UNICODE.apply("word -- word", false),
+            "word\u{2009}\u{2014}\u{2009}word"
+        );
+    }
+
+    #[test]
+    fn test_em_dash_inline_span_word_bounded() {
+        // "word--word" still works (unaffected by boundary flag)
+        assert_eq!(
+            UNICODE.apply("word--word", false),
+            "word\u{2014}\u{200B}word"
         );
     }
 }

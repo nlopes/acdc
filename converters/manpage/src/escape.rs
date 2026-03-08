@@ -144,6 +144,8 @@ fn needs_escaping(text: &str, mode: EscapeMode) -> bool {
         || text.contains('\u{2190}')
         || text.contains('\u{21D2}')
         || text.contains('\u{21D0}')
+        || text.contains('\u{2009}')
+        || text.contains('\u{200B}')
     {
         return true;
     }
@@ -234,6 +236,9 @@ fn replace_special_chars(text: &str) -> String {
         .replace('\u{2190}', "\\(<-") // Left arrow
         .replace('\u{21D2}', "\\(rA") // Double right arrow
         .replace('\u{21D0}', "\\(lA") // Double left arrow
+        // Spacing
+        .replace('\u{2009}', "\\|") // Thin space
+        .replace('\u{200B}', "\\&") // Zero-width space
 }
 
 /// Escape text for use in double-quoted strings.

@@ -24,6 +24,9 @@ pub struct ManpageVisitor<W: Write> {
     /// Whether the next text node should have leading whitespace stripped.
     /// Set after `.URL`/`.MTO` macros which end with a newline.
     pub(crate) strip_next_leading_space: bool,
+    /// Whether we are inside an inline formatting span (bold, italic, etc.).
+    /// When true, em-dash boundary replacement at string start/end is suppressed.
+    pub(crate) in_inline_span: bool,
     /// Title of the first level-1 section (for NAME validation).
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
@@ -39,6 +42,7 @@ impl<W: Write> ManpageVisitor<W> {
             list_depth: 0,
             in_name_section: false,
             strip_next_leading_space: false,
+            in_inline_span: false,
             first_section_title: None,
             second_section_title: None,
         }
@@ -387,7 +391,15 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
-        crate::inlines::visit_inline_node(node, self)
+        let saved = self.in_inline_span;
+        if acdc_converters_core::visitor::is_formatting_span(node) {
+            self.in_inline_span = true;
+        }
+
+        let result = crate::inlines::visit_inline_node(node, self);
+
+        self.in_inline_span = saved;
+        result
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {

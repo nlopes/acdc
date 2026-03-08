@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
+  symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as Unicode characters.
 - **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
   using the shared grid utilities. Content appears in the primary cell; spanned positions show
   as empty cells.
@@ -28,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
+  superscript, subscript, and curved quotes is no longer converted to an em-dash at string
+  boundaries, matching asciidoctor behavior.
 - `extract_plain_text` now preserves text content from formatted inline nodes (bold, italic, monospace, etc.) in literal paragraphs
 - ANSI SGR state tracking now prunes cancelled codes (e.g. bold-off removes bold) instead of accumulating indefinitely
 - `extract_title_text` now preserves inline content from `VerbatimText`, `RawText`,
