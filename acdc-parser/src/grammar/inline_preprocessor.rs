@@ -39,6 +39,9 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Whether macro substitutions are enabled for this block.
     /// When `false`, `pass:[]` macros are not extracted by the preprocessor.
     pub(crate) macros_enabled: bool,
+    /// Whether attribute substitutions are enabled for this block.
+    /// When `false`, `{attribute}` references are not expanded by the preprocessor.
+    pub(crate) attributes_enabled: bool,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
@@ -53,6 +56,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         line_map: LineMap,
         full_input: &'a str,
         macros_enabled: bool,
+        attributes_enabled: bool,
     ) -> Self {
         Self {
             pass_found_count: Cell::new(0),
@@ -66,6 +70,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
             macros_enabled,
+            attributes_enabled,
         }
     }
 
@@ -302,6 +307,12 @@ parser!(
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
+                if !state.attributes_enabled {
+                    let text = format!("{{{attribute_name}}}");
+                    state.advance(&text);
+                    return text;
+                }
+
                 let location = state.calculate_location(start, attribute_name, 2);
 
                 // Special handling for character reference attributes that need passthrough behavior.
@@ -642,6 +653,7 @@ mod tests {
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
             macros_enabled: true,
+            attributes_enabled: true,
         }
     }
 

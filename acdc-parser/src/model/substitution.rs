@@ -214,6 +214,19 @@ impl SubstitutionSpec {
         }
     }
 
+    /// Check if attribute substitution is disabled by this spec.
+    /// - Explicit list without Attributes → disabled
+    /// - Modifiers with Remove(Attributes) → disabled
+    #[must_use]
+    pub fn attributes_disabled(&self) -> bool {
+        match self {
+            Self::Explicit(subs) => !subs.contains(&Substitution::Attributes),
+            Self::Modifiers(ops) => ops
+                .iter()
+                .any(|op| matches!(op, SubstitutionOp::Remove(Substitution::Attributes))),
+        }
+    }
+
     /// Resolve the substitution spec to a concrete list of substitutions.
     ///
     /// - For `Explicit`, returns the list directly
@@ -947,5 +960,41 @@ mod tests {
     fn test_macros_disabled_explicit_none() {
         let spec = parse_subs_attribute("none");
         assert!(spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_without_attributes() {
+        let spec = parse_subs_attribute("specialchars");
+        assert!(spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_with_attributes() {
+        let spec = parse_subs_attribute("attributes");
+        assert!(!spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_normal_includes_attributes() {
+        let spec = parse_subs_attribute("normal");
+        assert!(!spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_modifier_remove() {
+        let spec = parse_subs_attribute("-attributes");
+        assert!(spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_modifier_add() {
+        let spec = parse_subs_attribute("+attributes");
+        assert!(!spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_none() {
+        let spec = parse_subs_attribute("none");
+        assert!(spec.attributes_disabled());
     }
 }

@@ -92,6 +92,7 @@ pub(crate) fn preprocess_inline_content(
     offset: usize,
     content: &str,
     macros_enabled: bool,
+    attributes_enabled: bool,
 ) -> Result<(Location, ProcessedContent), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
     let mut adjusted_end = end + offset;
@@ -107,6 +108,7 @@ pub(crate) fn preprocess_inline_content(
         state.line_map.clone(),
         &state.input,
         macros_enabled,
+        attributes_enabled,
     );
 
     // We adjust the start and end positions to account for the content start offset
@@ -229,6 +231,7 @@ pub(crate) fn process_inlines(
         offset,
         content,
         block_metadata.macros_enabled,
+        block_metadata.attributes_enabled,
     )?;
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
@@ -259,6 +262,7 @@ pub(crate) fn process_inlines_no_autolinks(
         offset,
         content,
         block_metadata.macros_enabled,
+        block_metadata.attributes_enabled,
     )?;
     if processed.text.trim().is_empty() {
         return Ok(Vec::new());
