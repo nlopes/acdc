@@ -51,6 +51,8 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `input` - The substring to parse
     /// * `line_map` - Pre-computed line map for the full document
     /// * `full_input` - The full document input (for position lookups)
+    /// * `macros_enabled` - Whether macro substitutions are active
+    /// * `attributes_enabled` - Whether attribute substitutions are active
     pub(crate) fn new(
         input: &'a str,
         line_map: LineMap,
@@ -72,6 +74,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
             macros_enabled,
             attributes_enabled,
         }
+    }
+
+    /// Create a new state with all substitutions enabled (macros + attributes).
+    pub(crate) fn new_all_enabled(input: &'a str, line_map: LineMap, full_input: &'a str) -> Self {
+        Self::new(input, line_map, full_input, true, true)
     }
 
     /// Set the initial position for parsing a substring within the document.
@@ -114,6 +121,23 @@ impl<'a> InlinePreprocessorParserState<'a> {
         self.warnings.borrow_mut().drain(..).collect()
     }
 
+    /// Extract the subs-spec string, content, and parsed substitutions from
+    /// a matched `pass:SUBS[CONTENT]` string.
+    fn parse_pass_macro_parts(full: &str) -> (&str, &str, Vec<Substitution>) {
+        let subs_end = full[5..].find('[').unwrap_or(0);
+        let subs_str = &full[5..5 + subs_end];
+        let content = &full[5 + subs_end + 1..full.len() - 1];
+        let substitutions = if subs_str.is_empty() {
+            Vec::new()
+        } else {
+            subs_str
+                .split(',')
+                .filter_map(|s| parse_substitution(s.trim()))
+                .collect()
+        };
+        (subs_str, content, substitutions)
+    }
+
     /// When macros are disabled, a `pass:SUBS[CONTENT]` macro is treated as literal text.
     /// However, if its sub-spec includes attributes (`a` or `n`), we still expand
     /// attribute references in the content — matching asciidoctor behavior.
@@ -122,18 +146,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
         full: &str,
         document_attributes: &DocumentAttributes,
     ) -> String {
-        let subs_end = full[5..].find('[').unwrap_or(0);
-        let subs_str = &full[5..5 + subs_end];
-        let content = &full[5 + subs_end + 1..full.len() - 1];
+        let (subs_str, content, substitutions) = Self::parse_pass_macro_parts(full);
 
-        let has_attr_subs = if subs_str.is_empty() {
-            false
-        } else {
-            subs_str
-                .split(',')
-                .filter_map(|s| parse_substitution(s.trim()))
-                .any(|s| matches!(s, Substitution::Attributes | Substitution::Normal))
-        };
+        let has_attr_subs = substitutions
+            .iter()
+            .any(|s| matches!(s, Substitution::Attributes | Substitution::Normal));
 
         if !has_attr_subs {
             self.advance(full);
@@ -150,7 +167,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         let absolute_start = self.get_offset();
         self.advance(full);
-        if reconstructed.len() != full.len() {
+        if reconstructed.chars().count() != full.chars().count() {
             self.source_map.borrow_mut().add_replacement(
                 absolute_start,
                 absolute_start + full.len(),
@@ -533,8 +550,9 @@ parser!(
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
                 if !state.macros_enabled {
-                    state.advance(&format!("+++{content}+++"));
-                    return format!("+++{content}+++");
+                    let text = format!("+++{content}+++");
+                    state.advance(&text);
+                    return text;
                 }
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
@@ -561,17 +579,8 @@ parser!(
                 return state.expand_disabled_pass_macro(full, document_attributes);
             }
 
-            // Re-parse the components from the matched text
-            let subs_end = full[5..].find('[').unwrap_or(0);
-            let subs_str = &full[5..5 + subs_end];
-            let content = &full[5 + subs_end + 1..full.len() - 1];
-            let substitutions: Vec<Substitution> = if subs_str.is_empty() {
-                Vec::new()
-            } else {
-                subs_str.split(',')
-                    .filter_map(|s| parse_substitution(s.trim()))
-                    .collect()
-            };
+            let (subs_str, content, substitutions) =
+                InlinePreprocessorParserState::parse_pass_macro_parts(full);
 
             // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
             let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
