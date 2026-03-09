@@ -1,0 +1,17 @@
+= myconfig(5)
+:doctype: manpage
+:manmanual: File Formats Manual
+:mansource: MyApp 1.0
+:revdate: 2025-06-01
+
+== Name
+
+myconfig - configuration file format
+
+== Synopsis
+
+*/etc/myconfig.conf*
+
+== Description
+
+This tests volume number 5 (file formats).

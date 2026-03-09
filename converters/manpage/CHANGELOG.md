@@ -9,10 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Added
+
+- **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
+  using per-row tbl format lines with `s` (horizontal span) and `^` (vertical span) markers.
+- **Test fixtures** for video/audio blocks, index terms, inline/block images, icon macros,
+  STEM blocks, volume number variations, custom `man-linkstyle`, and embedded mode with media.
+
+### Changed
+
+- Refactored grid-building logic to use shared utilities from `acdc-converters-core`.
+- Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
+
 ### Changed
 
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
   string attributes. ([#357])
+
+### Fixed
+
+- Non-paragraph content in table cells (lists, code blocks, admonitions) is no longer silently dropped
+- Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third argument (matching autolink behaviour)
 
 ### Added
 

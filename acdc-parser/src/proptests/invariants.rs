@@ -9,8 +9,8 @@
 use proptest::prelude::*;
 
 use crate::{
-    Block, DelimitedBlockType, Document, InlineNode, Location, Options, model::Locateable, parse,
-    parse_inline,
+    Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location, Options,
+    model::Locateable, parse, parse_inline,
 };
 
 use super::generators::*;
@@ -117,6 +117,101 @@ proptest! {
         }
     }
 
+    // ====================================================================
+    // P0: TARGETED INVARIANTS - Complex construct specific
+    // ====================================================================
+
+    /// Table locations must be within input bounds.
+    /// Tables have the most complex grammar rules with recursive cell parsing.
+    #[test]
+    fn table_locations_in_bounds(input in table_document()) {
+        let options = Options::default();
+        if let Ok(doc) = parse(&input, &options) {
+            let input_len = input.len();
+            walk_document_locations(&doc, &mut |loc, ctx| {
+                assert!(
+                    loc.absolute_start <= input_len,
+                    "{ctx} location start {} exceeds input length {input_len}",
+                    loc.absolute_start
+                );
+                assert!(
+                    loc.absolute_end <= input_len,
+                    "{ctx} location end {} exceeds input length {input_len}",
+                    loc.absolute_end
+                );
+                assert!(
+                    loc.absolute_start <= loc.absolute_end,
+                    "{ctx} location has start {} > end {}",
+                    loc.absolute_start,
+                    loc.absolute_end
+                );
+            });
+        }
+    }
+
+    /// Inline macros and formatting must never cause panics.
+    /// Exercises the two-pass inline processing system.
+    #[test]
+    fn inline_macros_never_panic(input in inline_formatted_text()) {
+        let options = Options::default();
+        let _ = parse(&input, &options);
+    }
+
+    // ====================================================================
+    // P1: TARGETED STRUCTURAL INVARIANTS
+    // ====================================================================
+
+    /// Description list positions must be monotonically increasing.
+    #[test]
+    fn description_list_positions_monotonic(input in description_list_document()) {
+        let options = Options::default();
+        if let Ok(doc) = parse(&input, &options) {
+            verify_monotonic_positions("DescriptionList", &doc.blocks);
+        }
+    }
+
+    /// Rich document positions must be monotonically increasing.
+    /// Tests cross-construct interaction with sections, lists, and blocks.
+    #[test]
+    fn rich_document_positions_monotonic(input in rich_document()) {
+        let options = Options::default();
+        if let Ok(doc) = parse(&input, &options) {
+            verify_monotonic_positions("RichDocument", &doc.blocks);
+        }
+    }
+
+    /// Nested list locations must be within input bounds.
+    /// List nesting is inherently difficult with PEG parsers.
+    #[test]
+    fn nested_list_locations_in_bounds(input in nested_list_document()) {
+        let options = Options::default();
+        if let Ok(doc) = parse(&input, &options) {
+            let input_len = input.len();
+            walk_document_locations(&doc, &mut |loc, ctx| {
+                assert!(
+                    loc.absolute_start <= input_len,
+                    "{ctx} location start {} exceeds input length {input_len}",
+                    loc.absolute_start
+                );
+                assert!(
+                    loc.absolute_end <= input_len,
+                    "{ctx} location end {} exceeds input length {input_len}",
+                    loc.absolute_end
+                );
+            });
+        }
+    }
+
+    /// Delimited block positions must be monotonically increasing.
+    /// Tests delimiter matching and content recursion.
+    #[test]
+    fn delimited_block_positions_monotonic(input in delimited_block_document()) {
+        let options = Options::default();
+        if let Ok(doc) = parse(&input, &options) {
+            verify_monotonic_positions("DelimitedBlock", &doc.blocks);
+        }
+    }
+
 }
 
 // ====================================================================
@@ -194,9 +289,11 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
                 walk_inline_locations(inline, visitor);
             }
         }
+        Block::DelimitedBlock(delimited) => {
+            walk_delimited_block_locations(delimited, visitor);
+        }
         // Leaf blocks: no children to recurse into
-        Block::DelimitedBlock(_)
-        | Block::TableOfContents(_)
+        Block::TableOfContents(_)
         | Block::DocumentAttribute(_)
         | Block::ThematicBreak(_)
         | Block::PageBreak(_)
@@ -204,6 +301,57 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
         | Block::Audio(_)
         | Block::Video(_)
         | Block::Comment(_) => {}
+    }
+}
+
+/// Walk all locations in a delimited block, calling `visitor` for each one.
+fn walk_delimited_block_locations(
+    delimited: &DelimitedBlock,
+    visitor: &mut impl FnMut(&Location, &str),
+) {
+    if let Some(loc) = &delimited.open_delimiter_location {
+        visitor(loc, "delimited block open delimiter");
+    }
+    if let Some(loc) = &delimited.close_delimiter_location {
+        visitor(loc, "delimited block close delimiter");
+    }
+    for inline in &delimited.title {
+        walk_inline_locations(inline, visitor);
+    }
+    match &delimited.inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks) => {
+            for block in blocks {
+                walk_block_locations(block, visitor);
+            }
+        }
+        DelimitedBlockType::DelimitedComment(inlines)
+        | DelimitedBlockType::DelimitedListing(inlines)
+        | DelimitedBlockType::DelimitedLiteral(inlines)
+        | DelimitedBlockType::DelimitedPass(inlines)
+        | DelimitedBlockType::DelimitedVerse(inlines) => {
+            for inline in inlines {
+                walk_inline_locations(inline, visitor);
+            }
+        }
+        DelimitedBlockType::DelimitedTable(table) => {
+            visitor(&table.location, "table");
+            let all_rows = table
+                .header
+                .iter()
+                .chain(&table.rows)
+                .chain(table.footer.iter());
+            for row in all_rows {
+                for col in &row.columns {
+                    for block in &col.content {
+                        walk_block_locations(block, visitor);
+                    }
+                }
+            }
+        }
+        DelimitedBlockType::DelimitedStem(_) => {}
     }
 }
 

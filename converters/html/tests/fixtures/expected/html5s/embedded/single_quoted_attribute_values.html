@@ -1,0 +1,87 @@
+<section id="preamble" aria-label="Preamble">
+<p>Test that single-quoted attribute values are parsed identically to double-quoted ones.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_block_macros">Block Macros</h2>
+<div class="image-block">
+<img src="sunset.jpg" alt="A beautiful sunset"></div>
+<div class="image-block">
+<img src="sunset.jpg" alt="Sunset view" width="300" height="200"></div>
+<div class="audio-block">
+<audio src="podcast.mp3" controls>
+Your browser does not support the audio tag.
+</audio>
+</div>
+<div class="video-block">
+<video src="tutorial.mp4" poster="How to test" controls>
+Your browser does not support the video tag.
+</video>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_inline_macros">Inline Macros</h2>
+<p>Inline image: <img src="icon.png" alt="Settings icon"></p>
+<p>Image with comma: <img src="chart.png" alt="Sales data, Q1 2024"></p>
+<p>Image with dimensions: <img src="mountain.png" alt="Mountain view" width="500" height="300"></p>
+<p>Icon with quoted title: <span class="icon">[heart]</span></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_quote_block">Quote Block</h2>
+<div class="quote-block">
+<blockquote>
+<p>You don&#8217;t know about me.</p>
+<footer>&#8212; <cite>Mark Twain, Adventures of Huckleberry Finn</cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_verse_block">Verse Block</h2>
+<div class="verse-block">
+<blockquote class="verse">
+<pre class="verse">The fog comes
+on little cat feet.</pre>
+<footer>&#8212; <cite>Carl Sandburg, Fog</cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_named_attributes">Named Attributes</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">puts "hello"</code></pre>
+</div>
+<p class="custom-role">Paragraph with single-quoted role.</p>
+<p class="first-role second-role">Paragraph with single-quoted space-separated roles.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_link_title">Link Title</h2>
+<p>See <a href="https://example.com" target="_blank" rel="noopener">Example Site</a> for details.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_table_attributes">Table Attributes</h2>
+<div class="table-block">
+<table class="frame-all grid-all stretch" style="width: 80%;">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="halign-left valign-top">Col 1</th>
+<th class="halign-left valign-top">Col 2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="halign-left valign-top">a</td>
+<td class="halign-left valign-top">b</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_mixed_quote_styles">Mixed Quote Styles</h2>
+<div class="listing-block primary">
+<pre class="highlight"><code class="language-javascript" data-lang="javascript">console.log("hello");</code></pre>
+</div>
+</section>

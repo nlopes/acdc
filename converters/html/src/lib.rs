@@ -6,7 +6,9 @@ use std::{
 };
 
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
-use acdc_parser::{AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry};
+use acdc_parser::{
+    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry, strip_quotes,
+};
 
 mod admonition;
 mod audio;
@@ -167,7 +169,7 @@ impl Processor {
             Some(AttributeValue::String(s)) => {
                 let count = counter.get() + 1;
                 counter.set(count);
-                let caption = s.trim_matches('"');
+                let caption = strip_quotes(s);
                 format!("{caption} {count}. ")
             }
             _ => {

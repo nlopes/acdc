@@ -1,0 +1,28 @@
+= table-complex(1)
+:doctype: manpage
+:revdate: 2025-01-20
+
+== Name
+
+table-complex - test complex table cells
+
+== Description
+
+A table with non-paragraph content in cells.
+
+[cols="1,1"]
+|===
+|Header 1 |Header 2
+
+|Simple paragraph
+a|
+* Item one
+* Item two
+
+a|
+----
+code block
+----
+a|
+NOTE: This is an admonition
+|===

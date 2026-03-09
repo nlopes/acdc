@@ -1,0 +1,19 @@
+= table-cell-colspan(1)
+:doctype: manpage
+:revdate: 2025-01-20
+
+== Name
+
+table-cell-colspan - test table cell colspan
+
+== Description
+
+A table with colspan cells.
+
+[cols="3*"]
+|===
+| A | B | C
+
+2+| Spans two columns | D
+| E | F | G
+|===

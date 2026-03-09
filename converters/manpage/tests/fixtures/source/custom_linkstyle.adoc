@@ -1,0 +1,18 @@
+= linkstyle-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:man-linkstyle: bold B []
+:revdate: 2025-06-01
+
+== Name
+
+linkstyle-test - test custom link style
+
+== Synopsis
+
+*linkstyle-test*
+
+== Description
+
+Visit https://example.com for details.

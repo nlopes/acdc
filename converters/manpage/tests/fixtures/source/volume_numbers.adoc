@@ -1,0 +1,17 @@
+= mylib(3)
+:doctype: manpage
+:manmanual: Library Manual
+:mansource: MyLib 2.0
+:revdate: 2025-06-01
+
+== Name
+
+mylib - a library function reference
+
+== Synopsis
+
+*#include <mylib.h>*
+
+== Description
+
+This tests volume number 3 (library calls).

@@ -1,0 +1,3 @@
+= Indent with Tag Test
+
+include::tagged_content.adoc[tag=intro,indent=2]

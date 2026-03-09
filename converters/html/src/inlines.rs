@@ -50,7 +50,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Form, InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string,
-    parse_text_for_quotes, substitute,
+    parse_text_for_quotes, strip_quotes, substitute,
 };
 
 use crate::{
@@ -83,7 +83,7 @@ fn window_attrs(attributes: &acdc_parser::ElementAttributes) -> String {
     let get_str = |key: &str| {
         attributes.get(key).and_then(|v| match v {
             acdc_parser::AttributeValue::String(s) => {
-                let s = s.trim_matches('"');
+                let s = strip_quotes(s);
                 if s.is_empty() {
                     None
                 } else {
@@ -630,7 +630,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 // Build class attribute: "bare" when no display text, plus any role
                 let role = u.attributes.get("role").and_then(|v| match v {
                     acdc_parser::AttributeValue::String(s) => {
-                        let role = s.trim_matches('"');
+                        let role = strip_quotes(s);
                         if role.is_empty() {
                             None
                         } else {
@@ -692,7 +692,7 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                     .get("role")
                     .and_then(|v| match v {
                         acdc_parser::AttributeValue::String(s) => {
-                            let role = s.trim_matches('"');
+                            let role = strip_quotes(s);
                             if role.is_empty() {
                                 None
                             } else {

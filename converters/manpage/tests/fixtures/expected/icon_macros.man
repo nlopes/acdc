@@ -1,0 +1,39 @@
+'\" t
+.\"     Title: icon-test
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2025-06-01
+.\"    Manual: Test Manual
+.\"    Source: Test 1.0
+.\"  Language: English
+.\"
+.TH "ICON\-TEST" "1" "2025-06-01" "Test 1.0" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+icon\-test \- test icon macro rendering
+.SH "SYNOPSIS"
+.sp
+\fBicon\-test\fP
+.SH "DESCRIPTION"
+.sp
+Here is a star [star] in text.
+.sp
+And a github [github] reference.

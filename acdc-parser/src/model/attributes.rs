@@ -7,6 +7,16 @@ use serde::{
 pub const MAX_TOC_LEVELS: u8 = 5;
 pub const MAX_SECTION_LEVELS: u8 = 5;
 
+/// Strip surrounding single or double quotes from a string.
+///
+/// Attribute values in `AsciiDoc` can be quoted with either single or double quotes.
+/// This function strips the outermost matching quotes from both ends.
+#[must_use]
+pub fn strip_quotes(s: &str) -> &str {
+    s.trim_start_matches(['"', '\''])
+        .trim_end_matches(['"', '\''])
+}
+
 /// Internal shared implementation for both document and element attributes.
 ///
 /// This type is not exported directly. Use `DocumentAttributes` for document-level
@@ -211,11 +221,7 @@ impl DocumentAttributes {
     #[must_use]
     pub fn get_string(&self, name: &str) -> Option<String> {
         self.get(name).and_then(|v| match v {
-            AttributeValue::String(s) => {
-                // Strip surrounding quotes if present (parser includes them for quoted values)
-                let trimmed = s.trim_matches('"');
-                Some(trimmed.to_string())
-            }
+            AttributeValue::String(s) => Some(strip_quotes(s).to_string()),
             AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }
@@ -296,11 +302,7 @@ impl ElementAttributes {
     #[must_use]
     pub fn get_string(&self, name: &str) -> Option<String> {
         self.get(name).and_then(|v| match v {
-            AttributeValue::String(s) => {
-                // Strip surrounding quotes if present (parser includes them for quoted values)
-                let trimmed = s.trim_matches('"');
-                Some(trimmed.to_string())
-            }
+            AttributeValue::String(s) => Some(strip_quotes(s).to_string()),
             AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }

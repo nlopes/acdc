@@ -64,7 +64,7 @@ pub use model::{
     StemNotation, Subscript, Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript,
     Table, TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
     UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
-    inlines_to_string, substitute,
+    inlines_to_string, strip_quotes, substitute,
 };
 pub use options::{Options, OptionsBuilder, SafeMode};
 

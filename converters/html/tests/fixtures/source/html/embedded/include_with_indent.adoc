@@ -1,0 +1,6 @@
+= Include Indent Test
+
+[source,ruby]
+----
+include::include_indent_source.rb[indent=4]
+----

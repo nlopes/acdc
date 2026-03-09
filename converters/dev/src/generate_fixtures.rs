@@ -8,12 +8,24 @@
 //! ```ignore
 //! use acdc_converters_dev::generate_fixtures::FixtureGenerator;
 //!
+//! // Simple: process top-level files and auto-discover subdirectories
 //! FixtureGenerator::new("manpage", "man")
-//!     .generate(|doc, output| {
-//!         let processor = Processor::new(Options::default(), doc.attributes.clone());
+//!     .generate(|subdir, doc, output| {
+//!         let embedded = subdir == Some("embedded");
+//!         let options = Options::builder().embedded(embedded).build();
+//!         let processor = Processor::new(options, doc.attributes.clone());
 //!         processor.convert_to_writer(doc, output)?;
 //!         Ok(())
 //!     })?;
+//!
+//! // Variants: scope to each top-level subdirectory
+//! let gen = FixtureGenerator::new("html", "html");
+//! for variant in gen.subdirs()? {
+//!     gen.in_subdir(&variant).generate(|mode, doc, output| {
+//!         // variant = "html" or "html5s", mode = Some("embedded") or Some("standalone")
+//!         Ok(())
+//!     })?;
+//! }
 //! ```
 
 use std::{error::Error, fs, path::Path, path::PathBuf};
@@ -28,6 +40,7 @@ use crossterm::style::{PrintStyledContent, Stylize};
 pub struct FixtureGenerator {
     converter_name: String,
     output_extension: String,
+    subdir: Option<String>,
 }
 
 impl FixtureGenerator {
@@ -42,69 +55,85 @@ impl FixtureGenerator {
         Self {
             converter_name: converter_name.to_string(),
             output_extension: output_extension.to_string(),
+            subdir: None,
         }
+    }
+
+    /// Return a new generator scoped to a subdirectory.
+    ///
+    /// The returned generator operates on `tests/fixtures/source/{subdir}/`
+    /// and `tests/fixtures/expected/{subdir}/` instead of the root fixture
+    /// directories.
+    #[must_use]
+    pub fn in_subdir(&self, subdir: &str) -> Self {
+        Self {
+            converter_name: self.converter_name.clone(),
+            output_extension: self.output_extension.clone(),
+            subdir: Some(subdir.to_string()),
+        }
+    }
+
+    /// Discover subdirectory names under the source fixture directory.
+    ///
+    /// Returns sorted directory names found directly inside the source
+    /// directory (e.g., `["embedded"]` or `["html", "html5s"]`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the source directory cannot be read.
+    pub fn subdirs(&self) -> Result<Vec<String>, Box<dyn Error>> {
+        sorted_subdirs(&self.source_dir())
+    }
+
+    fn source_dir(&self) -> PathBuf {
+        let mut path = PathBuf::from("converters")
+            .join(&self.converter_name)
+            .join("tests/fixtures/source");
+        if let Some(ref subdir) = self.subdir {
+            path = path.join(subdir);
+        }
+        path
+    }
+
+    fn expected_dir(&self) -> PathBuf {
+        let mut path = PathBuf::from("converters")
+            .join(&self.converter_name)
+            .join("tests/fixtures/expected");
+        if let Some(ref subdir) = self.subdir {
+            path = path.join(subdir);
+        }
+        path
     }
 
     /// Generate fixture outputs using the provided conversion function.
     ///
-    /// Scans `tests/fixtures/source/` for `.adoc` files and generates expected
-    /// outputs in `tests/fixtures/expected/`.
+    /// Scans the source directory for `.adoc` files and generates expected
+    /// outputs in the corresponding expected directory. Also discovers and
+    /// processes any subdirectories, passing the subdirectory name to the
+    /// conversion function (`None` for top-level files).
     ///
     /// # Errors
     ///
     /// Returns an error if directory creation or file I/O fails.
     pub fn generate<F>(&self, convert_fn: F) -> Result<(), Box<dyn Error>>
     where
-        F: Fn(&Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+        F: Fn(Option<&str>, &Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
     {
-        let input_dir = PathBuf::from("converters")
-            .join(&self.converter_name)
-            .join("tests/fixtures/source");
+        let base_source = self.source_dir();
+        let base_expected = self.expected_dir();
 
-        let output_dir = PathBuf::from("converters")
-            .join(&self.converter_name)
-            .join("tests/fixtures/expected");
+        // Process top-level files
+        self.generate_dir(&base_source, &base_expected, &|doc, output| {
+            convert_fn(None, doc, output)
+        })?;
 
-        self.generate_dir(&input_dir, &output_dir, &convert_fn)
-    }
-
-    /// Generate fixture outputs for each variant subdirectory.
-    ///
-    /// Discovers a two-level structure under `tests/fixtures/source/`:
-    /// `{variant}/{mode}/*.adoc` (e.g., `html/embedded/`, `html5s/standalone/`).
-    /// The variant name (top-level directory) and mode name (nested directory)
-    /// are both passed to the conversion function. Expected outputs are written
-    /// to matching subdirectories under `tests/fixtures/expected/{variant}/{mode}/`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if directory creation or file I/O fails.
-    pub fn generate_variants<F>(&self, convert_fn: F) -> Result<(), Box<dyn Error>>
-    where
-        F: Fn(&str, &str, &Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
-    {
-        let base_source = PathBuf::from("converters")
-            .join(&self.converter_name)
-            .join("tests/fixtures/source");
-
-        let base_expected = PathBuf::from("converters")
-            .join(&self.converter_name)
-            .join("tests/fixtures/expected");
-
-        let variants = sorted_subdirs(&base_source)?;
-
-        for variant in &variants {
-            let variant_source = base_source.join(variant);
-            let variant_expected = base_expected.join(variant);
-
-            let modes = sorted_subdirs(&variant_source)?;
-            for mode in &modes {
-                let input_dir = variant_source.join(mode);
-                let output_dir = variant_expected.join(mode);
-                self.generate_dir(&input_dir, &output_dir, &|doc, output| {
-                    convert_fn(variant, mode, doc, output)
-                })?;
-            }
+        // Process subdirectories
+        for subdir in sorted_subdirs(&base_source)? {
+            let input_dir = base_source.join(&subdir);
+            let output_dir = base_expected.join(&subdir);
+            self.generate_dir(&input_dir, &output_dir, &|doc, output| {
+                convert_fn(Some(&subdir), doc, output)
+            })?;
         }
 
         Ok(())

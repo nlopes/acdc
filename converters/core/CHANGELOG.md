@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Shared table grid utilities (`build_grid`, `CellKind`, `GridRow`, `determine_column_count`,
+  `table_has_spans`) for converters that lack native colspan/rowspan support.
+
 ### Fixed
 
 - Output file creation now creates parent directories if they don't exist, so

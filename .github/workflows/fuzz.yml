@@ -3,7 +3,15 @@ name: Fuzz
 on:
   push:
     branches: [main]
+    paths:
+      - 'acdc-parser/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
   pull_request:
+    paths:
+      - 'acdc-parser/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 env:
   CARGO_TERM_COLOR: always
@@ -23,7 +31,7 @@ jobs:
       uses: Swatinem/rust-cache@v2
 
     - name: Install cargo-fuzz
-      run: cargo install cargo-fuzz --locked
+      uses: taiki-e/install-action@cargo-fuzz
 
     - name: Run fuzz targets
       working-directory: acdc-parser

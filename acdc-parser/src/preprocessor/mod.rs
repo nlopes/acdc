@@ -683,8 +683,6 @@ endif::another[]";
         Ok(())
     }
 
-    // === Tag Filtering Integration Tests ===
-
     #[test]
     fn test_include_with_single_tag() -> Result<(), Error> {
         let preprocessor = Preprocessor;
@@ -808,6 +806,53 @@ endif::another[]";
         assert!(result.text.contains("This is the introduction."));
         // Line 5 is not in lines=4, so it should NOT be included
         assert!(!result.text.contains("It has multiple lines."));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_indent() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_with_indent.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // min indent is 0, so indent=4 adds 4 spaces preserving relative indentation
+        assert!(result.text.contains("    def hello"));
+        assert!(result.text.contains("      puts \"Hello\""));
+        assert!(result.text.contains("    end"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_indent_zero() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_with_indent_zero.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // min indent is 0, so indent=0 leaves content unchanged
+        assert!(result.text.contains("def hello"));
+        assert!(result.text.contains("  puts \"Hello\""));
+        assert!(result.text.contains("end"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_include_with_indent_and_tag() -> Result<(), Error> {
+        let preprocessor = Preprocessor;
+        let path = Path::new("fixtures/preprocessor/include_with_indent_and_tag.adoc");
+        let options = Options::default();
+
+        let result = preprocessor.process_file(path, &options)?;
+
+        // Should contain intro tag content, indented by 2 spaces
+        assert!(result.text.contains("  This is the introduction."));
+        assert!(result.text.contains("  It has multiple lines."));
+        // Should NOT contain other content
+        assert!(!result.text.contains("main content"));
+        assert!(!result.text.contains("Debug information"));
         Ok(())
     }
 

@@ -24,7 +24,7 @@ pub use admonition::{Admonition, AdmonitionVariant};
 pub use anchor::{Anchor, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS,
-    MAX_TOC_LEVELS,
+    MAX_TOC_LEVELS, strip_quotes,
 };
 pub use attribution::{Attribution, CiteTitle};
 pub use inlines::*;

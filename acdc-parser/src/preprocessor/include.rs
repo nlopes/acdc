@@ -440,6 +440,32 @@ impl Include {
         lines
     }
 
+    fn apply_indent(lines: &[String], indent: usize) -> Vec<String> {
+        let min_indent = lines
+            .iter()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.len() - line.trim_start().len())
+            .min()
+            .unwrap_or(0);
+
+        let prefix = " ".repeat(indent);
+        lines
+            .iter()
+            .map(|line| {
+                if line.trim().is_empty() {
+                    String::new()
+                } else {
+                    let stripped = if min_indent > 0 {
+                        &line[min_indent..]
+                    } else {
+                        line.as_str()
+                    };
+                    format!("{prefix}{stripped}")
+                }
+            })
+            .collect()
+    }
+
     /// Read and process content from a file, returning the text and any nested ranges.
     ///
     /// For `AsciiDoc` files, this recursively processes includes and returns leveloffset
@@ -514,12 +540,13 @@ impl Include {
             self.read_content_from_file(&path)?;
         let effective_leveloffset = self.calculate_effective_leveloffset();
 
-        if let Some(indent) = self.indent {
-            tracing::warn!(indent, "indent is not supported yet");
-        }
-
         let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
         let lines = self.apply_content_filters(&content_lines);
+        let lines = if let Some(indent) = self.indent {
+            Self::apply_indent(&lines, indent)
+        } else {
+            lines
+        };
 
         Ok(IncludeResult {
             lines,
@@ -703,8 +730,6 @@ mod tests {
         Ok(())
     }
 
-    // === Include Attribute Parsing Tests ===
-
     #[test]
     fn test_parse_include_with_tags_attribute() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
@@ -746,5 +771,72 @@ mod tests {
 
         assert_eq!(include.tags, vec![TagName::from("**")]);
         Ok(())
+    }
+
+    #[test]
+    fn test_parse_include_with_indent() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let line = "include::target.adoc[indent=4]";
+        let options = Options::default();
+        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+
+        assert_eq!(include.indent, Some(4));
+        Ok(())
+    }
+
+    #[test]
+    fn test_apply_indent_basic() {
+        // min indent is 0 (def hello, end), so indent=4 adds 4 spaces to all
+        let lines = vec![
+            "def hello".to_string(),
+            "  puts \"Hello\"".to_string(),
+            "end".to_string(),
+        ];
+        let result = Include::apply_indent(&lines, 4);
+        assert_eq!(
+            result,
+            vec!["    def hello", "      puts \"Hello\"", "    end",]
+        );
+    }
+
+    #[test]
+    fn test_apply_indent_zero() {
+        // min indent is 2, so indent=0 strips 2 spaces from all lines
+        let lines = vec![
+            "  def hello".to_string(),
+            "    puts \"Hello\"".to_string(),
+            "  end".to_string(),
+        ];
+        let result = Include::apply_indent(&lines, 0);
+        assert_eq!(result, vec!["def hello", "  puts \"Hello\"", "end",]);
+    }
+
+    #[test]
+    fn test_apply_indent_empty_lines() {
+        // min indent is 0 (def hello, end), empty/whitespace-only lines become empty
+        let lines = vec![
+            "def hello".to_string(),
+            String::new(),
+            "  puts \"Hello\"".to_string(),
+            "   ".to_string(),
+            "end".to_string(),
+        ];
+        let result = Include::apply_indent(&lines, 2);
+        assert_eq!(
+            result,
+            vec!["  def hello", "", "    puts \"Hello\"", "", "  end",]
+        );
+    }
+
+    #[test]
+    fn test_apply_indent_mixed_whitespace() {
+        // min indent is 1 (tab counts as 1 char), strips 1 char from all
+        let lines = vec![
+            "\tdef hello".to_string(),
+            "\t\tputs \"Hello\"".to_string(),
+            "\tend".to_string(),
+        ];
+        let result = Include::apply_indent(&lines, 2);
+        assert_eq!(result, vec!["  def hello", "  \tputs \"Hello\"", "  end",]);
     }
 }

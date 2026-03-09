@@ -1,0 +1,6 @@
+.SH "SYNOPSIS"
+.sp
+\fBsample\-command\fP [\fIOPTIONS\fP]
+.SH "DESCRIPTION"
+.sp
+This is a sample command.[1]

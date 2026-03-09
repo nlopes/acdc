@@ -1,0 +1,21 @@
+= index-terms-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:revdate: 2025-06-01
+
+== Name
+
+index-terms-test - test index term rendering
+
+== Synopsis
+
+*index-terms-test*
+
+== Description
+
+A ((cat)) is a domestic animal.
+
+We also mention a indexterm2:[dog] in the text.
+
+Concealed terms: (((Animals, Mammals, Cats)))visible text after concealed.

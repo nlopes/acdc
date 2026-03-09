@@ -1,0 +1,14 @@
+.SH "SYNOPSIS"
+.sp
+\fBembedded\-media\-test\fP
+.SH "DESCRIPTION"
+.sp
+An inline image: [Logo]\&.
+.sp
+[star] rating.
+.sp
+[VIDEO: demo.mp4]
+.sp
+[AUDIO: clip.mp3]
+.sp
+Inline math: e = mc^2\&.

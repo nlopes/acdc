@@ -1,6 +1,12 @@
 //! Table utilities shared between converters.
+//!
+//! The grid utilities ([`build_grid`], [`CellKind`], [`GridRow`]) are for output
+//! formats that lack native colspan/rowspan support and need to reconstruct cell
+//! positions themselves (e.g. manpage tbl, terminal). Formats with native span
+//! support (like HTML, which uses `<td colspan="N">`) iterate the AST cells
+//! directly — the grid would add unnecessary indirection.
 
-use acdc_parser::{ColumnFormat, ColumnWidth};
+use acdc_parser::{ColumnFormat, ColumnWidth, Table, TableRow};
 
 /// Calculate column widths as percentages from column format specifications.
 ///
@@ -64,6 +70,148 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
     }
 
     widths
+}
+
+/// What occupies a logical cell position in a table grid.
+///
+/// Used by converters that lack native colspan/rowspan support to build a
+/// normalized grid where every row has the same number of columns.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CellKind {
+    /// A real cell with content. `cell_index` indexes into the AST row's `columns` vec.
+    Content {
+        /// Index into the AST row's `columns` vector.
+        cell_index: usize,
+    },
+    /// Horizontal span placeholder (the primary cell is to the left).
+    HSpan,
+    /// Vertical span placeholder (the primary cell is above).
+    VSpan,
+}
+
+/// A logical row in the grid, with metadata about its role.
+#[derive(Debug)]
+pub struct GridRow<'a> {
+    /// The cell kinds for each logical column position.
+    pub cells: Vec<CellKind>,
+    /// Reference to the original AST row.
+    pub ast_row: &'a TableRow,
+    /// Whether this row is a header row.
+    pub is_header: bool,
+    /// Whether this row is a footer row.
+    pub is_footer: bool,
+}
+
+/// Determine the true logical column count, accounting for colspan.
+///
+/// If the table has explicit column definitions, returns that count.
+/// Otherwise, scans all rows and returns the maximum colspan-adjusted width.
+#[must_use]
+pub fn determine_column_count(table: &Table) -> usize {
+    if !table.columns.is_empty() {
+        return table.columns.len();
+    }
+
+    let all_rows = table
+        .header
+        .iter()
+        .chain(table.rows.iter())
+        .chain(table.footer.iter());
+
+    all_rows
+        .map(|row| row.columns.iter().map(|c| c.colspan.max(1)).sum::<usize>())
+        .max()
+        .unwrap_or(1)
+}
+
+/// Build a logical grid from all table rows, normalizing spans into a
+/// rectangular grid where every row has exactly `num_cols` entries.
+///
+/// Each cell position is either a real content cell, a horizontal span
+/// placeholder, or a vertical span placeholder.
+#[must_use]
+pub fn build_grid(table: &Table, num_cols: usize) -> Vec<GridRow<'_>> {
+    let all_rows: Vec<(&TableRow, bool, bool)> = table
+        .header
+        .iter()
+        .map(|r| (r, true, false))
+        .chain(table.rows.iter().map(|r| (r, false, false)))
+        .chain(table.footer.iter().map(|r| (r, false, true)))
+        .collect();
+
+    let mut grid = Vec::with_capacity(all_rows.len());
+    let mut rowspan_remaining = vec![0usize; num_cols];
+
+    for (ast_row, is_header, is_footer) in &all_rows {
+        let mut row_cells = Vec::with_capacity(num_cols);
+        let mut cell_cursor = 0;
+        let mut col = 0;
+
+        while col < num_cols {
+            if let Some(remaining) = rowspan_remaining.get_mut(col)
+                && *remaining > 0
+            {
+                row_cells.push(CellKind::VSpan);
+                *remaining -= 1;
+                col += 1;
+                continue;
+            }
+
+            let Some(cell) = ast_row.columns.get(cell_cursor) else {
+                // Shouldn't happen in well-formed input; fill remaining
+                row_cells.push(CellKind::HSpan);
+                col += 1;
+                continue;
+            };
+
+            let colspan = cell.colspan.max(1);
+            let rowspan = cell.rowspan.max(1);
+
+            row_cells.push(CellKind::Content {
+                cell_index: cell_cursor,
+            });
+
+            // Fill horizontal span markers for extra colspan columns
+            for _ in 1..colspan {
+                if row_cells.len() < num_cols {
+                    row_cells.push(CellKind::HSpan);
+                }
+            }
+
+            // Set rowspan tracking for all columns this cell covers
+            for i in 0..colspan {
+                if let Some(remaining) = rowspan_remaining.get_mut(col + i) {
+                    *remaining = rowspan - 1;
+                }
+            }
+
+            col += colspan;
+            cell_cursor += 1;
+        }
+
+        grid.push(GridRow {
+            cells: row_cells,
+            ast_row,
+            is_header: *is_header,
+            is_footer: *is_footer,
+        });
+    }
+
+    grid
+}
+
+/// Check whether any cell in the table has colspan or rowspan greater than 1.
+#[must_use]
+pub fn table_has_spans(table: &Table) -> bool {
+    let all_rows = table
+        .header
+        .iter()
+        .chain(table.rows.iter())
+        .chain(table.footer.iter());
+
+    all_rows
+        .flat_map(|row| &row.columns)
+        .any(|cell| cell.colspan > 1 || cell.rowspan > 1)
 }
 
 #[cfg(test)]
@@ -214,6 +362,189 @@ mod tests {
         // 1/6 = 16.67%
         for w in &widths[1..] {
             assert!((*w - 16.667).abs() < 0.01);
+        }
+    }
+
+    mod grid {
+        use super::*;
+        use acdc_parser::{Block, DelimitedBlockType};
+
+        /// Parse an `AsciiDoc` string and extract the first table.
+        #[allow(clippy::expect_used)]
+        fn parse_table(adoc: &str) -> Table {
+            let options = acdc_parser::Options::default();
+            let doc = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
+            doc.blocks
+                .into_iter()
+                .find_map(|block| {
+                    if let Block::DelimitedBlock(db) = block
+                        && let DelimitedBlockType::DelimitedTable(table) = db.inner
+                    {
+                        return Some(table);
+                    }
+                    None
+                })
+                .expect("No table found in document")
+        }
+
+        #[test]
+        fn test_colspan() {
+            let table = parse_table(
+                r#"[cols="3*"]
+|===
+| A | B | C
+
+2+| Spans two columns | D
+| E | F | G
+|==="#,
+            );
+
+            assert_eq!(determine_column_count(&table), 3);
+            assert!(table_has_spans(&table));
+
+            let grid = build_grid(&table, 3);
+            // Header + 2 body rows = 3
+            assert_eq!(grid.len(), 3);
+
+            // Header row: 3 content cells
+            assert_eq!(grid[0].cells.len(), 3);
+            assert!(grid[0].is_header);
+            assert!(!grid[0].is_footer);
+
+            // Row with colspan: Content, HSpan, Content
+            assert_eq!(
+                grid[1].cells,
+                vec![
+                    CellKind::Content { cell_index: 0 },
+                    CellKind::HSpan,
+                    CellKind::Content { cell_index: 1 },
+                ]
+            );
+
+            // Normal row: 3 content cells
+            assert_eq!(
+                grid[2].cells,
+                vec![
+                    CellKind::Content { cell_index: 0 },
+                    CellKind::Content { cell_index: 1 },
+                    CellKind::Content { cell_index: 2 },
+                ]
+            );
+        }
+
+        #[test]
+        fn test_rowspan() {
+            let table = parse_table(
+                r"|===
+| A | B | C
+
+.2+| Spans rows | D | E
+| F | G
+| H | I | J
+|===",
+            );
+
+            assert_eq!(determine_column_count(&table), 3);
+            assert!(table_has_spans(&table));
+
+            let grid = build_grid(&table, 3);
+            assert_eq!(grid.len(), 4);
+
+            // Row with rowspan: Content(0), Content(1), Content(2)
+            assert_eq!(
+                grid[1].cells,
+                vec![
+                    CellKind::Content { cell_index: 0 },
+                    CellKind::Content { cell_index: 1 },
+                    CellKind::Content { cell_index: 2 },
+                ]
+            );
+
+            // Next row: VSpan, Content(0), Content(1)
+            assert_eq!(
+                grid[2].cells,
+                vec![
+                    CellKind::VSpan,
+                    CellKind::Content { cell_index: 0 },
+                    CellKind::Content { cell_index: 1 },
+                ]
+            );
+        }
+
+        #[test]
+        fn test_combined_span() {
+            let table = parse_table(
+                r"|===
+| A | B | C | D
+
+2.2+| Big cell | E | F
+| G | H
+| I | J | K | L
+|===",
+            );
+
+            assert_eq!(determine_column_count(&table), 4);
+            assert!(table_has_spans(&table));
+
+            let grid = build_grid(&table, 4);
+            assert_eq!(grid.len(), 4);
+
+            // Row with 2.2+ span: Content(0), HSpan, Content(1), Content(2)
+            assert_eq!(
+                grid[1].cells,
+                vec![
+                    CellKind::Content { cell_index: 0 },
+                    CellKind::HSpan,
+                    CellKind::Content { cell_index: 1 },
+                    CellKind::Content { cell_index: 2 },
+                ]
+            );
+
+            // Next row: VSpan, VSpan, Content(0), Content(1)
+            assert_eq!(
+                grid[2].cells,
+                vec![
+                    CellKind::VSpan,
+                    CellKind::VSpan,
+                    CellKind::Content { cell_index: 0 },
+                    CellKind::Content { cell_index: 1 },
+                ]
+            );
+        }
+
+        #[test]
+        fn test_no_spans() {
+            let table = parse_table(
+                r"|===
+| A | B
+| C | D
+|===",
+            );
+
+            assert!(!table_has_spans(&table));
+        }
+
+        #[test]
+        fn test_footer_flag() {
+            let table = parse_table(
+                r"[%header%footer]
+|===
+| H1 | H2
+
+| B1 | B2
+
+| F1 | F2
+|===",
+            );
+
+            let grid = build_grid(&table, 2);
+            assert_eq!(grid.len(), 3);
+            assert!(grid[0].is_header);
+            assert!(!grid[0].is_footer);
+            assert!(!grid[1].is_header);
+            assert!(!grid[1].is_footer);
+            assert!(!grid[2].is_header);
+            assert!(grid[2].is_footer);
         }
     }
 }

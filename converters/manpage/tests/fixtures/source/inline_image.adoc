@@ -1,0 +1,24 @@
+= inline-image-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:revdate: 2025-06-01
+
+== Name
+
+inline-image-test - test image placeholders
+
+== Synopsis
+
+*inline-image-test*
+
+== Description
+
+An inline image: image:logo.png[Company Logo].
+
+An inline image without alt text: image:icon.png[].
+
+.A block image
+image::sunset.jpg[Sunset photo]
+
+image::untitled.png[]

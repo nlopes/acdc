@@ -8,9 +8,11 @@ use acdc_converters_dev::generate_fixtures::FixtureGenerator;
 use acdc_converters_manpage::Processor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    FixtureGenerator::new("manpage", "man").generate(|doc, output| {
+    FixtureGenerator::new("manpage", "man").generate(|subdir, doc, output| {
+        let embedded = subdir == Some("embedded");
         let options = Options::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+            .embedded(embedded)
             .build();
         let processor = Processor::new(options, doc.attributes.clone());
         processor.write_to(doc, output, None)?;

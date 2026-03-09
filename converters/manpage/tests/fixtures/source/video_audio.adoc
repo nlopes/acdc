@@ -1,0 +1,27 @@
+= video-audio-test(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: Test 1.0
+:revdate: 2025-06-01
+
+== Name
+
+video-audio-test - test video and audio placeholders
+
+== Synopsis
+
+*video-audio-test*
+
+== Description
+
+=== Video
+
+.A tutorial video
+video::video.mp4[]
+
+video::[]
+
+=== Audio
+
+.A podcast episode
+audio::podcast.mp3[]
