@@ -114,6 +114,53 @@ impl<'a> InlinePreprocessorParserState<'a> {
         self.warnings.borrow_mut().drain(..).collect()
     }
 
+    /// When macros are disabled, a `pass:SUBS[CONTENT]` macro is treated as literal text.
+    /// However, if its sub-spec includes attributes (`a` or `n`), we still expand
+    /// attribute references in the content — matching asciidoctor behavior.
+    fn expand_disabled_pass_macro(
+        &self,
+        full: &str,
+        document_attributes: &DocumentAttributes,
+    ) -> String {
+        let subs_end = full[5..].find('[').unwrap_or(0);
+        let subs_str = &full[5..5 + subs_end];
+        let content = &full[5 + subs_end + 1..full.len() - 1];
+
+        let has_attr_subs = if subs_str.is_empty() {
+            false
+        } else {
+            subs_str
+                .split(',')
+                .filter_map(|s| parse_substitution(s.trim()))
+                .any(|s| matches!(s, Substitution::Attributes | Substitution::Normal))
+        };
+
+        if !has_attr_subs {
+            self.advance(full);
+            return full.to_string();
+        }
+
+        let expanded = inline_preprocessing::attribute_reference_substitutions(
+            content,
+            document_attributes,
+            self,
+        )
+        .unwrap_or_else(|_| content.to_string());
+        let reconstructed = format!("pass:{subs_str}[{expanded}]");
+
+        let absolute_start = self.get_offset();
+        self.advance(full);
+        if reconstructed.len() != full.len() {
+            self.source_map.borrow_mut().add_replacement(
+                absolute_start,
+                absolute_start + full.len(),
+                reconstructed.chars().count(),
+                ProcessedKind::Attribute,
+            );
+        }
+        reconstructed
+    }
+
     /// Calculate location for a matched construct.
     ///
     /// Advances the offset by `content.len() + padding` and returns a Location
@@ -511,9 +558,7 @@ parser!(
         rule pass_macro() -> String
         = start:position() full:$("pass:" substitutions() "[" [^']']* "]") {
             if !state.macros_enabled {
-                // When macros are disabled, return the raw text as-is
-                state.advance(full);
-                return full.to_string();
+                return state.expand_disabled_pass_macro(full, document_attributes);
             }
 
             // Re-parse the components from the matched text
@@ -1300,6 +1345,67 @@ mod tests {
             2,
             "different counter warnings should both be collected"
         );
+        Ok(())
+    }
+
+    fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'_> {
+        InlinePreprocessorParserState {
+            pass_found_count: Cell::new(0),
+            passthroughs: RefCell::new(Vec::new()),
+            attributes: RefCell::new(HashMap::new()),
+            current_offset: Cell::new(0),
+            line_map: LineMap::new(content),
+            full_input: content,
+            source_map: RefCell::new(SourceMap::default()),
+            input: RefCell::new(content),
+            substring_start_offset: Cell::new(0),
+            warnings: RefCell::new(Vec::new()),
+            macros_enabled: false,
+            attributes_enabled: true,
+        }
+    }
+
+    #[test]
+    fn test_pass_macro_a_with_macros_disabled_expands_attributes() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:a[{version}]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:a[1.0]");
+        assert!(state.passthroughs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_pass_macro_no_subs_with_macros_disabled_preserves_attributes() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:[{version}]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:[{version}]");
+        assert!(state.passthroughs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_pass_macro_q_with_macros_disabled_preserves_content() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:q[text]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:q[text]");
+        assert!(state.passthroughs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_pass_macro_a_q_with_macros_disabled_expands_attributes() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:a,q[{version}]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:a,q[1.0]");
+        assert!(state.passthroughs.borrow().is_empty());
         Ok(())
     }
 }
