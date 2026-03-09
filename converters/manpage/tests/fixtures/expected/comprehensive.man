@@ -31,14 +31,14 @@
 comprehensive\-test \- exercise all manpage converter features
 .SH "SYNOPSIS"
 .sp
-\fBcomprehensive\-test\fP [\fB\-v\fP|\fB\-\-verbose\fP] [\fB\-o\fP \fIFILE\fP] \fIINPUT\fP\&...
+\fBcomprehensive\-test\fP [\fB\-v\fP|\fB\-\-verbose\fP] [\fB\-o\fP \fIFILE\fP] \fIINPUT\fP.\|.\|.
 .SH "DESCRIPTION"
 .sp
 This is the main description paragraph.
 .SS "Basic Formatting"
 .sp
 This tests \fBbold\fP, \fIitalic\fP, \f(CRmonospace\fP, \fBhighlight\fP, ^(superscript), _(subscript),
-and \fBunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe's\fP text.
+and \fBunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe\(cqs\fP text.
 .SS "Links and Cross References"
 .sp
 Visit \c

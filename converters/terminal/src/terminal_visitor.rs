@@ -19,11 +19,18 @@ use crate::Processor;
 pub struct TerminalVisitor<W: Write> {
     writer: W,
     pub(crate) processor: Processor,
+    /// Whether we are inside an inline formatting span (bold, italic, etc.).
+    /// When true, em-dash boundary replacement at string start/end is suppressed.
+    pub(crate) in_inline_span: bool,
 }
 
 impl<W: Write> TerminalVisitor<W> {
     pub fn new(writer: W, processor: Processor) -> Self {
-        Self { writer, processor }
+        Self {
+            writer,
+            processor,
+            in_inline_span: false,
+        }
     }
 
     /// Consume the visitor and return the writer
@@ -188,8 +195,17 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
+        let saved = self.in_inline_span;
+        if acdc_converters_core::visitor::is_formatting_span(node) {
+            self.in_inline_span = true;
+        }
+
         let processor = self.processor.clone();
-        crate::inlines::visit_inline_node(node, self, &processor)
+        let in_span = self.in_inline_span;
+        let result = crate::inlines::visit_inline_node(node, self, &processor, in_span);
+
+        self.in_inline_span = saved;
+        result
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {

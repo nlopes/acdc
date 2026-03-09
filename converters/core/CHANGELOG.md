@@ -9,17 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Shared table grid utilities (`build_grid`, `CellKind`, `GridRow`, `determine_column_count`,
-  `table_has_spans`) for converters that lack native colspan/rowspan support.
-
-### Fixed
-
-- Output file creation now creates parent directories if they don't exist, so
-  `-o path/to/nonexistent/dir/file.html` works without pre-creating the directory
-  tree. ([#358])
-
-### Added
-
+- **Typography replacements API** — `Replacements` struct, `apply()`, and
+  `replace_apostrophes()` for shared AsciiDoc `Replacements` substitution across
+  converters. Includes `Replacements::unicode()` for terminal/manpage output.
+- `replace_em_dashes()` — standalone function for em-dash pattern matching, shared
+  by converters that need format-specific em-dash output (e.g. HTML entities).
 - **Section numbering utilities** — new `section` module with `SectionNumberTracker`,
   `PartNumberTracker`, `AppendixTracker`, and `to_upper_roman` moved from `acdc-converters-html`
   so they can be shared across converters.
@@ -34,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Em-dash patterns now match asciidoctor** — spaced (`word -- word`) emits
+  thin-space + em-dash + thin-space; word-bounded (`word--word`) emits em-dash +
+  zero-width-space. Patterns like `word --word`, `word-- word`, `test--`, `--test`,
+  and `---` are correctly left unchanged.
+- **Em-dash boundary replacement inside inline spans** — `replace_em_dashes` and
+  `Replacements::apply` now accept a `string_boundaries_are_space` parameter. When
+  `false`, string start/end are not treated as whitespace, preventing `--` inside
+  inline formatting (bold, italic, monospace, etc.) from being incorrectly converted
+  to an em-dash.
+- Shared table grid utilities (`build_grid`, `CellKind`, `GridRow`, `determine_column_count`,
+  `table_has_spans`) for converters that lack native colspan/rowspan support.
+- Output file creation now creates parent directories if they don't exist, so
+  `-o path/to/nonexistent/dir/file.html` works without pre-creating the directory
+  tree. ([#358])
 - Preamble wrapper now only renders when all conditions are met: document has a title,
   contains at least one section, and has content before that section. Previously,
   documents without sections incorrectly rendered preamble wrappers. ([#275])

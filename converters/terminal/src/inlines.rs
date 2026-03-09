@@ -1,9 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_core::{
-    substitutions::{restore_escaped_patterns, strip_backslash_escapes},
-    visitor::WritableVisitor,
-};
+use acdc_converters_core::{substitutions::Replacements, visitor::WritableVisitor};
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
@@ -141,7 +138,8 @@ fn render_inline_nodes_to_string(
     Ok(String::from_utf8(buffer.into_inner()?)?.trim().to_string())
 }
 
-/// Helper to render a single inline node directly to a writer
+/// Helper to render a single inline node directly to a writer.
+/// Always called from within inline spans, so `string_boundaries_are_space` is false.
 fn render_inline_node_to_writer<W: Write>(
     node: &InlineNode,
     w: &mut W,
@@ -149,9 +147,7 @@ fn render_inline_node_to_writer<W: Write>(
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
-            // Strip backslash escapes (e.g., \^ -> ^) for plain text
-            // Also restore escaped patterns (e.g., \... -> ...)
-            let text = restore_escaped_patterns(&strip_backslash_escapes(&p.content));
+            let text = Replacements::unicode().transform(&p.content, false);
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
@@ -241,12 +237,11 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
     node: &InlineNode,
     visitor: &mut V,
     processor: &Processor,
+    in_inline_span: bool,
 ) -> Result<(), crate::Error> {
     match node {
         InlineNode::PlainText(p) => {
-            // Strip backslash escapes (e.g., \^ -> ^) for plain text
-            // Also restore escaped patterns (e.g., \... -> ...)
-            let text = restore_escaped_patterns(&strip_backslash_escapes(&p.content));
+            let text = Replacements::unicode().transform(&p.content, !in_inline_span);
             let w = visitor.writer_mut();
             write!(w, "{text}")?;
         }

@@ -4,7 +4,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    substitutions::Replacements,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{Autolink, InlineMacro, InlineNode, Link, Mailto};
 
 use crate::{
@@ -25,7 +28,8 @@ pub(crate) fn visit_inline_node<W: Write>(
             } else {
                 &text.content
             };
-            let escaped = manify(content, EscapeMode::Normalize);
+            let content = Replacements::unicode().transform(content, !visitor.in_inline_span);
+            let escaped = manify(&content, EscapeMode::Normalize);
             let w = visitor.writer_mut();
             write!(w, "{escaped}")?;
         }
