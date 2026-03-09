@@ -36,6 +36,9 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Warnings collected during PEG parsing for post-parse emission.
     /// Uses `RefCell` for interior mutability in PEG action blocks.
     pub(crate) warnings: RefCell<Vec<String>>,
+    /// Whether macro substitutions are enabled for this block.
+    /// When `false`, `pass:[]` macros are not extracted by the preprocessor.
+    pub(crate) macros_enabled: bool,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
@@ -45,7 +48,12 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `input` - The substring to parse
     /// * `line_map` - Pre-computed line map for the full document
     /// * `full_input` - The full document input (for position lookups)
-    pub(crate) fn new(input: &'a str, line_map: LineMap, full_input: &'a str) -> Self {
+    pub(crate) fn new(
+        input: &'a str,
+        line_map: LineMap,
+        full_input: &'a str,
+        macros_enabled: bool,
+    ) -> Self {
         Self {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
@@ -57,6 +65,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             input: RefCell::new(input),
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
+            macros_enabled,
         }
     }
 
@@ -358,6 +367,12 @@ parser!(
         content:$(![(' '|'\t'|'\n'|'\r')] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])*)
         "+"
         {
+            if !state.macros_enabled {
+                let text = format!("+{content}+");
+                state.advance(&text);
+                return text;
+            }
+
             // Check if we're at start OR preceded by word boundary character
             // Convert absolute offset to relative offset within the substring
             let substring_start = state.substring_start_offset.get();
@@ -432,6 +447,10 @@ parser!(
 
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
+                if !state.macros_enabled {
+                    state.advance(&format!("++{content}++"));
+                    return format!("++{content}++");
+                }
                 let location = state.calculate_location(start, content, 4);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
@@ -455,6 +474,10 @@ parser!(
 
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
+                if !state.macros_enabled {
+                    state.advance(&format!("+++{content}+++"));
+                    return format!("+++{content}+++");
+                }
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
@@ -475,16 +498,27 @@ parser!(
             }
 
         rule pass_macro() -> String
-        = start:position() "pass:" substitutions:substitutions() "[" content:$([^']']*) "]" {
-            // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
-            // Calculate approximate substitutions length
-            let subs_len = if substitutions.is_empty() {
-                0
+        = start:position() full:$("pass:" substitutions() "[" [^']']* "]") {
+            if !state.macros_enabled {
+                // When macros are disabled, return the raw text as-is
+                state.advance(full);
+                return full.to_string();
+            }
+
+            // Re-parse the components from the matched text
+            let subs_end = full[5..].find('[').unwrap_or(0);
+            let subs_str = &full[5..5 + subs_end];
+            let content = &full[5 + subs_end + 1..full.len() - 1];
+            let substitutions: Vec<Substitution> = if subs_str.is_empty() {
+                Vec::new()
             } else {
-                // Each substitution is 1 char + commas between them
-                substitutions.len() + (substitutions.len().saturating_sub(1))
+                subs_str.split(',')
+                    .filter_map(|s| parse_substitution(s.trim()))
+                    .collect()
             };
-            let padding = 5 + subs_len + 1 + 1; // "pass:" + subs + "[" + "]"
+
+            // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
+            let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
             let location = state.calculate_location(start, content, padding);
             // Normal substitution group includes Attributes, so check for both
             let content = if substitutions.contains(&Substitution::Attributes)
@@ -607,6 +641,7 @@ mod tests {
             input: RefCell::new(content),
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
+            macros_enabled: true,
         }
     }
 

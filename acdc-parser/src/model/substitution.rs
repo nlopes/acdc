@@ -27,7 +27,10 @@
 //! - **Callouts** - Already parsed into [`crate::CalloutRef`] nodes by the grammar.
 //!   Converters render the callout markers.
 //!
-//! - **Macros** / **`PostReplacements`** - Not yet implemented.
+//! - **Macros** - Handled at the grammar level: when macros are disabled via `subs`,
+//!   macro grammar rules are gated by a predicate and macro-like text becomes plain text.
+//!
+//! - **`PostReplacements`** - Not yet implemented.
 //!
 //! ## Why this split?
 //!
@@ -196,6 +199,19 @@ impl SubstitutionSpec {
             }
         }
         result
+    }
+
+    /// Check if macros are disabled by this spec.
+    /// - Explicit list without Macros → disabled
+    /// - Modifiers with Remove(Macros) → disabled
+    #[must_use]
+    pub fn macros_disabled(&self) -> bool {
+        match self {
+            Self::Explicit(subs) => !subs.contains(&Substitution::Macros),
+            Self::Modifiers(ops) => ops
+                .iter()
+                .any(|op| matches!(op, SubstitutionOp::Remove(Substitution::Macros))),
+        }
     }
 
     /// Resolve the substitution spec to a concrete list of substitutions.
@@ -895,5 +911,41 @@ mod tests {
             let resolved = substitute(value, HEADER, &attributes);
             assert_eq!(resolved, value);
         }
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_without_macros() {
+        let spec = parse_subs_attribute("specialchars");
+        assert!(spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_with_macros() {
+        let spec = parse_subs_attribute("macros");
+        assert!(!spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_normal_includes_macros() {
+        let spec = parse_subs_attribute("normal");
+        assert!(!spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_modifier_remove() {
+        let spec = parse_subs_attribute("-macros");
+        assert!(spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_modifier_add() {
+        let spec = parse_subs_attribute("+macros");
+        assert!(!spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_none() {
+        let spec = parse_subs_attribute("none");
+        assert!(spec.macros_disabled());
     }
 }

@@ -9,10 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed passthrough preprocessor bypassing `subs=-macros` gating — `pass:[]` macros and
+  inline passthrough syntax (`+...+`, `++...++`, `+++...+++`) are now treated as literal
+  text when macros are disabled, matching asciidoctor behavior
 - Fixed non-monotonic inline positions for subscript/superscript text preceded by short plain text
 
 ### Added
 
+- **`subs=macros` substitution type** — `[subs=-macros]` and explicit lists without `macros`
+  now gate macro grammar rules at parse time. When macros are disabled, inline macros
+  (links, xrefs, images, footnotes, index terms, etc.) are treated as plain text.
+  Requires the `pre-spec-subs` feature flag.
 - **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content
   to the specified level, matching asciidoctor behavior. Strips existing leading whitespace and
   prepends the specified number of spaces. `indent=0` removes all leading whitespace.

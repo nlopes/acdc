@@ -1,0 +1,2 @@
+[subs=-macros]
+This has link:https://example.com[a link] and xref:section[cross ref] and image:photo.png[alt] and footnote:[a note] and [[myanchor]]anchor and [[[bibref]]]biblio as plain text.
