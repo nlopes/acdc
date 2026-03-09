@@ -1637,15 +1637,13 @@ peg::parser! {
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
-            let macros_enabled = if cfg!(feature = "pre-spec-subs") {
-                metadata.substitutions.as_ref().is_none_or(|spec| !spec.macros_disabled())
+            let (macros_enabled, attributes_enabled) = if cfg!(feature = "pre-spec-subs") {
+                (
+                    metadata.substitutions.as_ref().is_none_or(|spec| !spec.macros_disabled()),
+                    metadata.substitutions.as_ref().is_none_or(|spec| !spec.attributes_disabled()),
+                )
             } else {
-                true
-            };
-            let attributes_enabled = if cfg!(feature = "pre-spec-subs") {
-                metadata.substitutions.as_ref().is_none_or(|spec| !spec.attributes_disabled())
-            } else {
-                true
+                (true, true)
             };
             Ok(BlockParsingMetadata {
                 metadata,
@@ -5912,12 +5910,10 @@ peg::parser! {
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
         rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
         {?
-            let inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
                 state.line_map.clone(),
                 &state.input,
-                true,
-                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
@@ -5951,12 +5947,10 @@ peg::parser! {
             )*
         )
         {?
-            let inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
                 state.line_map.clone(),
                 &state.input,
-                true,
-                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
                 .map_err(|e| {
@@ -6003,12 +5997,10 @@ peg::parser! {
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution
         pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
         {?
-            let inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
                 state.line_map.clone(),
                 &state.input,
-                true,
-                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
