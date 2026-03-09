@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Expand attributes inside `pass:a[]` content when macros disabled via `subs=-macros`,
+  matching asciidoctor behavior
 - Fixed passthrough preprocessor bypassing `subs=-macros` gating — `pass:[]` macros and
   inline passthrough syntax (`+...+`, `++...++`, `+++...+++`) are now treated as literal
   text when macros are disabled, matching asciidoctor behavior
