@@ -1,0 +1,4 @@
+:version: 1.0.0
+
+[subs=specialchars]
+The version is {version} here.

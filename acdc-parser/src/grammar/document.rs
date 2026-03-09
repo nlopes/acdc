@@ -67,6 +67,7 @@ pub(crate) struct BlockParsingMetadata {
     title: Title,
     parent_section_level: Option<SectionLevel>,
     pub(crate) macros_enabled: bool,
+    pub(crate) attributes_enabled: bool,
 }
 
 impl Default for BlockParsingMetadata {
@@ -76,6 +77,7 @@ impl Default for BlockParsingMetadata {
             title: Title::default(),
             parent_section_level: None,
             macros_enabled: true,
+            attributes_enabled: true,
         }
     }
 }
@@ -1640,11 +1642,17 @@ peg::parser! {
             } else {
                 true
             };
+            let attributes_enabled = if cfg!(feature = "pre-spec-subs") {
+                metadata.substitutions.as_ref().is_none_or(|spec| !spec.attributes_disabled())
+            } else {
+                true
+            };
             Ok(BlockParsingMetadata {
                 metadata,
                 title,
                 parent_section_level,
                 macros_enabled,
+                attributes_enabled,
             })
         }
 
@@ -5172,6 +5180,7 @@ peg::parser! {
                 offset,
                 &attr_str,
                 block_metadata.macros_enabled,
+                true,
             )?;
             let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
             let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
@@ -5191,6 +5200,7 @@ peg::parser! {
                     offset,
                     cite,
                     block_metadata.macros_enabled,
+                    true,
                 )?;
                 let inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
                 Some(map_inline_locations(state, &cite_processed, &inlines, &cite_location)?)
@@ -5259,6 +5269,7 @@ peg::parser! {
                     offset,
                     &author,
                     block_metadata.macros_enabled,
+                    true,
                 )?;
                 let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
                 let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
@@ -5277,6 +5288,7 @@ peg::parser! {
                         offset,
                         &cite,
                         block_metadata.macros_enabled,
+                        true,
                     )?;
                     let cite_inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
                     let cite_inlines = map_inline_locations(state, &cite_processed, &cite_inlines, &cite_location)?;
@@ -5363,7 +5375,7 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
             }
 
-            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content, block_metadata.macros_enabled)?;
+            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content, block_metadata.macros_enabled, block_metadata.attributes_enabled)?;
             let content = parse_inlines(&processed, state, block_metadata, &location)?;
             let content = map_inline_locations(state, &processed, &content, &location)?;
 
@@ -5905,6 +5917,7 @@ peg::parser! {
                 state.line_map.clone(),
                 &state.input,
                 true,
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
@@ -5942,6 +5955,7 @@ peg::parser! {
                 path,
                 state.line_map.clone(),
                 &state.input,
+                true,
                 true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -5993,6 +6007,7 @@ peg::parser! {
                 path,
                 state.line_map.clone(),
                 &state.input,
+                true,
                 true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
