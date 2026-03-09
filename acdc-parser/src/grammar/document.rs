@@ -60,12 +60,24 @@ enum HeaderMetadataLine {
     Attributes((bool, Box<BlockMetadata>)),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 // Used purely in the grammar to represent the parsed block details
 pub(crate) struct BlockParsingMetadata {
     pub(crate) metadata: BlockMetadata,
     title: Title,
     parent_section_level: Option<SectionLevel>,
+    pub(crate) macros_enabled: bool,
+}
+
+impl Default for BlockParsingMetadata {
+    fn default() -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            title: Title::default(),
+            parent_section_level: None,
+            macros_enabled: true,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1623,10 +1635,16 @@ peg::parser! {
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
+            let macros_enabled = if cfg!(feature = "pre-spec-subs") {
+                metadata.substitutions.as_ref().is_none_or(|spec| !spec.macros_disabled())
+            } else {
+                true
+            };
             Ok(BlockParsingMetadata {
                 metadata,
                 title,
                 parent_section_level,
+                macros_enabled,
             })
         }
 
@@ -3765,30 +3783,30 @@ peg::parser! {
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / escaped_syntax:escaped_syntax(offset) { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
-            / index_term:index_term_concealed(offset) { index_term }
-            / index_term:index_term_flow(offset) { index_term }
-            / indexterm:indexterm_macro(offset) { indexterm }
-            / indexterm2:indexterm2_macro(offset) { indexterm2 }
+            / check_macros(block_metadata) index_term:index_term_concealed(offset) { index_term }
+            / check_macros(block_metadata) index_term:index_term_flow(offset) { index_term }
+            / check_macros(block_metadata) indexterm:indexterm_macro(offset) { indexterm }
+            / check_macros(block_metadata) indexterm2:indexterm2_macro(offset) { indexterm2 }
             // Bibliography anchor (triple brackets) must come before inline anchor (double brackets)
-            / bibliography_anchor:bibliography_anchor(offset) { bibliography_anchor }
-            / inline_anchor:inline_anchor(offset) { inline_anchor }
-            / cross_reference_shorthand:cross_reference_shorthand(offset, block_metadata) { cross_reference_shorthand }
-            / cross_reference_macro:cross_reference_macro(offset, block_metadata) { cross_reference_macro }
+            / check_macros(block_metadata) bibliography_anchor:bibliography_anchor(offset) { bibliography_anchor }
+            / check_macros(block_metadata) inline_anchor:inline_anchor(offset) { inline_anchor }
+            / check_macros(block_metadata) cross_reference_shorthand:cross_reference_shorthand(offset, block_metadata) { cross_reference_shorthand }
+            / check_macros(block_metadata) cross_reference_macro:cross_reference_macro(offset, block_metadata) { cross_reference_macro }
             / hard_wrap:hard_wrap(offset) { hard_wrap }
-            / &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
-            / stem:inline_stem(offset) { stem }
-            / image:inline_image(offset, block_metadata) { image }
-            / icon:inline_icon(offset, block_metadata) { icon }
-            / keyboard:inline_keyboard(offset) { keyboard }
-            / button:inline_button(offset) { button }
-            / menu:inline_menu(offset) { menu }
+            / check_macros(block_metadata) &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
+            / check_macros(block_metadata) stem:inline_stem(offset) { stem }
+            / check_macros(block_metadata) image:inline_image(offset, block_metadata) { image }
+            / check_macros(block_metadata) icon:inline_icon(offset, block_metadata) { icon }
+            / check_macros(block_metadata) keyboard:inline_keyboard(offset) { keyboard }
+            / check_macros(block_metadata) button:inline_button(offset) { button }
+            / check_macros(block_metadata) menu:inline_menu(offset) { menu }
             // mailto has to come before the url_macro because url_macro calls url() which
             // also matches against mailto:
-            / mailto_macro:mailto_macro(offset, block_metadata) { mailto_macro }
-            / url_macro:url_macro(offset, block_metadata) { url_macro }
-            / pass:inline_pass(offset) { pass }
-            / link_macro:link_macro(offset) { link_macro }
-            / check_autolinks(allow_autolinks) inline_autolink:inline_autolink(offset) { inline_autolink }
+            / check_macros(block_metadata) mailto_macro:mailto_macro(offset, block_metadata) { mailto_macro }
+            / check_macros(block_metadata) url_macro:url_macro(offset, block_metadata) { url_macro }
+            / check_macros(block_metadata) pass:inline_pass(offset) { pass }
+            / check_macros(block_metadata) link_macro:link_macro(offset) { link_macro }
+            / check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink:inline_autolink(offset) { inline_autolink }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
             / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
             / bold_text_constrained:bold_text_constrained(offset, block_metadata) { bold_text_constrained }
@@ -4287,6 +4305,9 @@ peg::parser! {
 
         rule check_autolinks(allow: bool) -> ()
         = {? if allow { Ok(()) } else { Err("autolinks suppressed") } }
+
+        rule check_macros(block_metadata: &BlockParsingMetadata) -> ()
+        = {? if block_metadata.macros_enabled { Ok(()) } else { Err("macros disabled") } }
 
         rule inline_autolink(offset: usize) -> InlineNode
         =
@@ -5106,7 +5127,7 @@ peg::parser! {
             // a complete pattern (those are handled by escaped_superscript_subscript rule)
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / index_term_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / (check_autolinks(allow_autolinks) inline_autolink(start_pos)) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / hard_wrap(offset) / (check_macros(block_metadata) (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos))) / (check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink(start_pos)) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
         )+)
         end:position!()
         {
@@ -5150,6 +5171,7 @@ peg::parser! {
                 attr_end_offset,
                 offset,
                 &attr_str,
+                block_metadata.macros_enabled,
             )?;
             let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
             let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
@@ -5168,6 +5190,7 @@ peg::parser! {
                     cite_raw_start + cite.len(),
                     offset,
                     cite,
+                    block_metadata.macros_enabled,
                 )?;
                 let inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
                 Some(map_inline_locations(state, &cite_processed, &inlines, &cite_location)?)
@@ -5235,6 +5258,7 @@ peg::parser! {
                     attr_end_offset,
                     offset,
                     &author,
+                    block_metadata.macros_enabled,
                 )?;
                 let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
                 let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
@@ -5252,6 +5276,7 @@ peg::parser! {
                         cite_start + cite.len(),
                         offset,
                         &cite,
+                        block_metadata.macros_enabled,
                     )?;
                     let cite_inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
                     let cite_inlines = map_inline_locations(state, &cite_processed, &cite_inlines, &cite_location)?;
@@ -5338,7 +5363,7 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
             }
 
-            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content)?;
+            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content, block_metadata.macros_enabled)?;
             let content = parse_inlines(&processed, state, block_metadata, &location)?;
             let content = map_inline_locations(state, &processed, &content, &location)?;
 
@@ -5879,6 +5904,7 @@ peg::parser! {
                 path,
                 state.line_map.clone(),
                 &state.input,
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
@@ -5916,6 +5942,7 @@ peg::parser! {
                 path,
                 state.line_map.clone(),
                 &state.input,
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
                 .map_err(|e| {
@@ -5966,6 +5993,7 @@ peg::parser! {
                 path,
                 state.line_map.clone(),
                 &state.input,
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {

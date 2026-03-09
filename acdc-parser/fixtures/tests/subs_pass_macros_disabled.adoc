@@ -1,0 +1,2 @@
+[subs=-macros]
+Use pass:[<b>bold</b>] for raw HTML.
