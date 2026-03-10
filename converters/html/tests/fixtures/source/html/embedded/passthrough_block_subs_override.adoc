@@ -1,0 +1,30 @@
+:my-attr: hello world
+
+[subs=normal]
+++++
+This has *bold* and _italic_ and <html> and {my-attr}.
+++++
+
+[subs=none]
+++++
+This has *bold* and <html> and {my-attr}.
+++++
+
+[subs=specialchars]
+++++
+This has *bold* and <html> and {my-attr}.
+++++
+
+[subs=quotes]
+++++
+This has *bold* and <html> and {my-attr}.
+++++
+
+[subs="attributes,specialchars"]
+++++
+This has *bold* and <html> and {my-attr}.
+++++
+
+++++
+Default passthrough: *bold* and <html> and {my-attr}.
+++++

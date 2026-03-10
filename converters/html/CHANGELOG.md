@@ -133,6 +133,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`subs=` overrides on passthrough blocks** — passthrough blocks (`++++`) with a `subs=`
+  attribute now apply the specified substitutions instead of emitting raw content. Supports
+  all substitution types including `normal`, `specialchars`, `quotes`, `attributes`, and
+  explicit combinations.
 - **Em-dash patterns now match asciidoctor** — spaced pattern emits `&thinsp;&mdash;&thinsp;`,
   word-bounded (`word--word`) emits `&#8212;&#8203;`.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
