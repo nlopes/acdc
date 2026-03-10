@@ -5,8 +5,8 @@ use acdc_converters_core::{
     visitor::{WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
-    StemContent, StemNotation,
+    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Location,
+    Plain, StemContent, StemNotation, Substitution, SubstitutionSpec, substitute,
 };
 
 use crate::{
@@ -665,17 +665,74 @@ fn render_listing_block_semantic<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+/// Render a passthrough block with `subs=` override applied.
+///
+/// Passthrough blocks default to no substitutions, emitting raw content.
+/// When `subs=` is specified, the raw content is processed through the
+/// substitution pipeline (attributes, quotes, specialchars, replacements).
+fn render_pass_block_with_subs<V: WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    spec: &SubstitutionSpec,
+    visitor: &mut V,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), Error> {
+    // Passthrough blocks default to no subs, so the baseline is empty.
+    let effective = spec.resolve(&[]);
+
+    let mut content = String::new();
+    for node in inlines {
+        if let InlineNode::RawText(r) = node {
+            content.push_str(&r.content);
+        }
+    }
+
+    // Apply attribute substitution if enabled (not done by parser for
+    // passthrough blocks)
+    if effective.contains(&Substitution::Attributes) {
+        content = substitute(
+            &content,
+            &[Substitution::Attributes],
+            processor.document_attributes(),
+        );
+    }
+
+    // If quotes substitution is enabled, parse the content for inline
+    // formatting (bold, italic, etc.) and render each node with the full
+    // effective subs. This mirrors VerbatimText rendering which passes full
+    // subs to avoid PlainText's no_quotes_subs optimization that would
+    // prevent Bold/Italic nodes from rendering as HTML.
+    if effective.contains(&Substitution::Quotes) {
+        let parsed_nodes = acdc_parser::parse_text_for_quotes(&content);
+        for node in &parsed_nodes {
+            crate::inlines::visit_inline_node(node, visitor, processor, options, &effective)?;
+        }
+    } else {
+        let plain = InlineNode::PlainText(Plain {
+            content,
+            location: Location::default(),
+            escaped: false,
+        });
+        crate::inlines::visit_inline_node(&plain, visitor, processor, options, &effective)?;
+    }
+    Ok(())
+}
+
 fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
     inner: &DelimitedBlockType,
     title: &[InlineNode],
     metadata: &BlockMetadata,
     visitor: &mut V,
     processor: &Processor,
-    _options: &RenderOptions,
+    options: &RenderOptions,
 ) -> Result<(), Error> {
     match inner {
         DelimitedBlockType::DelimitedPass(inlines) => {
-            visitor.visit_inline_nodes(inlines)?;
+            if let Some(spec) = &metadata.substitutions {
+                render_pass_block_with_subs(inlines, spec, visitor, processor, options)?;
+            } else {
+                visitor.visit_inline_nodes(inlines)?;
+            }
         }
         DelimitedBlockType::DelimitedListing(inlines) => {
             render_listing_block(inlines, title, metadata, visitor, processor)?;
