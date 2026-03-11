@@ -1,0 +1,30 @@
+= Character Replacement Plus
+
+Plus at end of line: text {plus}
+next line
+
+Asterisk around text: {asterisk}text{asterisk}
+
+Backtick around text: {backtick}code{backtick}
+
+C++ keyword: {cpp}
+
+Vertical bar: {vbar}
+
+Double plus: {pp}
+
+Caret: {caret}
+
+Tilde: {tilde}
+
+Brackets: {startsb}content{endsb}
+
+Backslash: {backslash}
+
+Two colons: {two-colons}
+
+Two semicolons: {two-semicolons}
+
+Apos: {apos}
+
+Quot: {quot}

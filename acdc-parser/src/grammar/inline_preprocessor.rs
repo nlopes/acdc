@@ -379,22 +379,34 @@ parser!(
 
                 let location = state.calculate_location(start, attribute_name, 2);
 
-                // Special handling for character reference attributes that need passthrough behavior.
-                // Per AsciiDoc spec, these are "passthrough replacements for characters that get
-                // encoded by the converter (e.g., <, >, and &)."
+                // Special handling for character replacement attributes that need passthrough behavior.
+                // In asciidoctor, expanded attribute values don't get re-parsed for inline syntax.
+                // In acdc, the inline preprocessor expands attributes into a string that the main
+                // PEG grammar fully re-parses. This means ALL character replacement attributes with
+                // syntactically significant ASCII values need passthrough protection to prevent the
+                // expanded values from being misinterpreted as AsciiDoc syntax (e.g., {plus} → "+"
+                // being matched as a line break, {asterisk} → "*" triggering bold formatting).
                 // See: https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
-                let is_char_ref = matches!(attribute_name, "lt" | "gt" | "amp");
+                let is_char_ref = matches!(
+                    attribute_name,
+                    "lt" | "gt" | "amp"
+                        | "plus" | "pp" | "cpp" | "cxx"
+                        | "asterisk" | "backtick" | "caret" | "tilde"
+                        | "vbar" | "startsb" | "endsb" | "backslash"
+                        | "two-colons" | "two-semicolons"
+                        | "apos" | "quot"
+                );
 
                 match document_attributes.get(attribute_name) {
                     Some(AttributeValue::String(value)) => {
                         if is_char_ref {
-                            // Treat {lt}, {gt}, {amp} as passthroughs (like +++<+++)
-                            // Empty substitutions = RawText = bypasses HTML escaping
+                            // Treat character replacement attributes as passthroughs (like +++<+++)
+                            // Empty substitutions = RawText = bypasses further inline parsing
                             state.passthroughs.borrow_mut().push(Pass {
                                 text: Some(value.clone()),
                                 substitutions: Vec::new(),
                                 location: location.clone(),
-                                kind: PassthroughKind::Triple,
+                                kind: PassthroughKind::AttributeRef,
                             });
                             let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
                             state.source_map.borrow_mut().add_replacement(
@@ -1203,45 +1215,60 @@ mod tests {
         let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
-        // Build expected output by concatenating all expected values
-        // Note: {amp}, {lt}, {gt} produce passthrough placeholders (indices 0, 1, 2)
-        let expected = concat!(
-            // Whitespace: empty, blank, space, nbsp, zwsp, wj
-            "",
-            "",
-            " ",
-            "\u{00A0}",
-            "\u{200B}",
-            "\u{2060}",
-            // Quotes: apos, quot, lsquo, rsquo, ldquo, rdquo
-            "'",
-            "\"",
-            "\u{2018}",
-            "\u{2019}",
-            "\u{201C}",
-            "\u{201D}",
-            // Symbols: deg, plus, brvbar, vbar, then amp/lt/gt as placeholders
-            "\u{00B0}",
-            "+",
-            "\u{00A6}",
-            "|",
-            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}", // {amp}
-            "\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}", // {lt}
-            "\u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}", // {gt}
-            // Escaping: startsb, endsb, caret, asterisk, tilde, backslash, backtick
-            "[",
-            "]",
-            "^",
-            "*",
-            "~",
-            "\\",
-            "`",
-            // Sequences: two-colons, two-semicolons, cpp, cxx, pp
-            "::",
-            ";;",
-            "C++",
-            "C++",
-            "++"
+        // Build expected output by concatenating all expected values.
+        // All ASCII character replacement attributes now produce passthrough placeholders
+        // to prevent the PEG grammar from misinterpreting their values as AsciiDoc syntax.
+        // Passthrough indices are assigned in order of appearance.
+        let p = |i: usize| format!("\u{FFFD}\u{FFFD}\u{FFFD}{i}\u{FFFD}\u{FFFD}\u{FFFD}");
+        let expected = format!(
+            concat!(
+                // Whitespace: empty, blank, space, nbsp, zwsp, wj (not passthroughs)
+                "", "", " ", "\u{00A0}", "\u{200B}", "\u{2060}",
+                // Quotes: apos(p0), quot(p1), lsquo, rsquo, ldquo, rdquo
+                "{}", // apos
+                "{}", // quot
+                "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}",
+                // Symbols: deg, plus(p2), brvbar, vbar(p3), amp(p4), lt(p5), gt(p6)
+                "\u{00B0}", "{}", // plus
+                "\u{00A6}", "{}", // vbar
+                "{}", // amp
+                "{}", // lt
+                "{}", // gt
+                // Escaping: startsb(p7), endsb(p8), caret(p9), asterisk(p10),
+                //           tilde(p11), backslash(p12), backtick(p13)
+                "{}", // startsb
+                "{}", // endsb
+                "{}", // caret
+                "{}", // asterisk
+                "{}", // tilde
+                "{}", // backslash
+                "{}", // backtick
+                // Sequences: two-colons(p14), two-semicolons(p15), cpp(p16), cxx(p17), pp(p18)
+                "{}", // two-colons
+                "{}", // two-semicolons
+                "{}", // cpp
+                "{}", // cxx
+                "{}", // pp
+            ),
+            p(0),
+            p(1),
+            p(2),
+            p(3),
+            p(4),
+            p(5),
+            p(6),
+            p(7),
+            p(8),
+            p(9),
+            p(10),
+            p(11),
+            p(12),
+            p(13),
+            p(14),
+            p(15),
+            p(16),
+            p(17),
+            p(18),
         );
 
         assert_eq!(
@@ -1249,18 +1276,17 @@ mod tests {
             "Character replacement attributes did not produce expected values"
         );
 
-        // Verify the passthroughs were created for {amp}, {lt}, {gt}
+        // Verify passthroughs were created for all ASCII character replacement attributes
         assert_eq!(
             result.passthroughs.len(),
-            3,
-            "Should have 3 passthroughs for amp, lt, gt"
+            19,
+            "Should have 19 passthroughs for all ASCII char replacement attributes"
         );
-        let [amp, lt, gt] = result.passthroughs.as_slice() else {
-            panic!("Expected exactly 3 passthroughs");
-        };
-        assert_eq!(amp.text.as_deref(), Some("&"));
-        assert_eq!(lt.text.as_deref(), Some("<"));
-        assert_eq!(gt.text.as_deref(), Some(">"));
+        // Spot-check a few key passthroughs
+        assert_eq!(result.passthroughs[0].text.as_deref(), Some("'")); // apos
+        assert_eq!(result.passthroughs[2].text.as_deref(), Some("+")); // plus
+        assert_eq!(result.passthroughs[4].text.as_deref(), Some("&")); // amp
+        assert_eq!(result.passthroughs[16].text.as_deref(), Some("C++")); // cpp
 
         Ok(())
     }
@@ -1276,13 +1302,19 @@ mod tests {
         let result1 = inline_preprocessing::run(input1, &attributes, &state1)?;
         assert_eq!(result1.text, "The temperature is 100\u{00B0}F");
 
-        // Test 2: Multiple attributes
+        // Test 2: Multiple attributes (now produce passthrough placeholders)
         let input2 = "Use {startsb}option{endsb} syntax";
         let state2 = setup_state(input2);
         let result2 = inline_preprocessing::run(input2, &attributes, &state2)?;
-        assert_eq!(result2.text, "Use [option] syntax");
+        assert_eq!(
+            result2.text,
+            "Use \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}option\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} syntax"
+        );
+        assert_eq!(result2.passthroughs.len(), 2);
+        assert_eq!(result2.passthroughs[0].text.as_deref(), Some("["));
+        assert_eq!(result2.passthroughs[1].text.as_deref(), Some("]"));
 
-        // Test 3: Adjacent attributes
+        // Test 3: Adjacent attributes (Unicode chars, not passthroughs)
         let input3 = "{ldquo}Hello{rdquo}";
         let state3 = setup_state(input3);
         let result3 = inline_preprocessing::run(input3, &attributes, &state3)?;
@@ -1299,11 +1331,17 @@ mod tests {
         let result5 = inline_preprocessing::run(input5, &attributes, &state5)?;
         assert_eq!(result5.text, "beforeafter");
 
-        // Test 5: C++ variations
+        // Test 5: C++ variations (now produce passthrough placeholders)
         let input6 = "{cpp} is same as {cxx}";
         let state6 = setup_state(input6);
         let result6 = inline_preprocessing::run(input6, &attributes, &state6)?;
-        assert_eq!(result6.text, "C++ is same as C++");
+        assert_eq!(
+            result6.text,
+            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} is same as \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}"
+        );
+        assert_eq!(result6.passthroughs.len(), 2);
+        assert_eq!(result6.passthroughs[0].text.as_deref(), Some("C++"));
+        assert_eq!(result6.passthroughs[1].text.as_deref(), Some("C++"));
 
         Ok(())
     }
