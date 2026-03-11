@@ -1,0 +1,17 @@
+Escaped ellipsis: \...
+
+Escaped em dash: \--
+
+Escaped right arrow: \->
+
+Escaped left arrow: \<-
+
+Escaped double right arrow: \=>
+
+Escaped double left arrow: \<=
+
+Escaped copyright: \(C)
+
+Escaped registered: \(R)
+
+Escaped trademark: \(TM)
