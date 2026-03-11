@@ -133,6 +133,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **HTML entity double-escaping in specialchars** — valid HTML entities (`&euro;`, `&#167;`,
+  `&#x00A7;`, `&amp;`) in source text are no longer double-escaped to `&amp;euro;` etc.
+  Only bare `&` characters are escaped to `&amp;`.
 - **`subs=` overrides on passthrough blocks** — passthrough blocks (`++++`) with a `subs=`
   attribute now apply the specified substitutions instead of emitting raw content. Supports
   all substitution types including `normal`, `specialchars`, `quotes`, `attributes`, and
