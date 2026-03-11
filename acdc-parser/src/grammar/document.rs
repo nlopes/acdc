@@ -3904,21 +3904,20 @@ peg::parser! {
         / "__" inner:$((!("__" !['_']) [_])*) "__" { format!("__{inner}__") }
         / "``" inner:$((!"``" [_])*) "``" { format!("``{inner}``") }
         / "##" inner:$((!"##" [_])*) "##" { format!("##{inner}##") }
-        // Typography patterns
-        / pattern:$("..."
-            / "->"
-            / "<-"
-            / "=>"
-            / "<="
-            / "--"
-        ) { pattern.to_string() }
+        // Typography patterns are NOT handled here — they are handled by the
+        // converter's strip_backslash_escapes() pipeline. If the parser stripped the
+        // backslash, the converter would never see it and would apply the replacement.
+        //
         // Superscript: ^content^ where content has no whitespace (must check complete pattern)
         / "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { format!("^{inner}^") }
         // Subscript: ~content~ where content has no whitespace (must check complete pattern)
         / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { format!("~{inner}~") }
         // Constrained formatting markers and other single escapable chars
         // Note: ^ and ~ are NOT included here - they require complete patterns above
-        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '(' | '&']) { c.to_string() }
+        // Note: ( is separated with a negative lookahead to avoid consuming \(C), \(R), \(TM)
+        // which are character replacement escapes handled by the converter
+        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '&']) { c.to_string() }
+        / "(" !(("C" / "R" / "TM") ")") { "(".to_string() }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
         ///
@@ -3938,18 +3937,13 @@ peg::parser! {
         / "__" (!("__" !['_']) [_])* "__"
         / "``" (!"``" [_])* "``"
         / "##" (!"##" [_])* "##"
-        // Typography patterns
-        / "..."
-        / "->"
-        / "<-"
-        / "=>"
-        / "<="
-        / "--"
+        // Typography patterns handled by converter, not here (see escapable_pattern)
         // Superscript/subscript: require complete pattern
         / "^" [^'^' | ' ' | '\t' | '\n']+ "^"
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
-        / ['*' | '_' | '#' | '`' | '[' | ']' | '(' | '&'] {}
+        / ['*' | '_' | '#' | '`' | '[' | ']' | '&'] {}
+        / "(" !(("C" / "R" / "TM") ")")
 
         rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = footnote_match:footnote_match(offset, block_metadata)
