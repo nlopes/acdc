@@ -5,6 +5,14 @@ All notable changes to `acdc-converters-html` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`[%hardbreaks]` paragraph option** — paragraphs with the `[%hardbreaks]` option or
+  the document-level `hardbreaks` attribute now convert newlines to `<br>`, matching
+  asciidoctor behavior.
+
 ### Added
 
 - **html5s semantic video and audio blocks** — video and audio blocks now render with semantic

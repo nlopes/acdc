@@ -812,11 +812,23 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             effective_subs(para.metadata.substitutions.as_ref(), is_verbatim),
         );
 
+        // Set hardbreaks if the paragraph option or document attribute is present
+        let original_hardbreaks = self.render_options.hardbreaks;
+        if para.metadata.options.contains(&"hardbreaks".to_string())
+            || self
+                .processor
+                .document_attributes()
+                .contains_key("hardbreaks")
+        {
+            self.render_options.hardbreaks = true;
+        }
+
         let processor = self.processor.clone();
         let result = crate::paragraph::visit_paragraph(para, self, &processor);
 
         // Restore state
         self.current_subs = original_subs;
+        self.render_options.hardbreaks = original_hardbreaks;
 
         result
     }

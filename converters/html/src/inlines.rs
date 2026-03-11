@@ -217,7 +217,11 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             } else {
                 // No quotes substitution - output with escaping and typography only
                 let text = substitution_text(content, effective_subs, options);
-                write!(w, "{text}")?;
+                if options.hardbreaks {
+                    write!(w, "{}", text.replace('\n', "<br>"))?;
+                } else {
+                    write!(w, "{text}")?;
+                }
             }
         }
         InlineNode::RawText(r) => {

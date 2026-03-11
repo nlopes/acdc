@@ -289,6 +289,9 @@ pub struct RenderOptions {
     /// Stem of the source document filename (e.g., `"mydoc"` for `mydoc.adoc`),
     /// used to locate private docinfo files like `mydoc-docinfo.html`.
     pub docname: Option<String>,
+    /// When true, newlines in paragraph text are converted to `<br>` (hard line breaks).
+    /// Set by `[%hardbreaks]` option on a paragraph or the document-level `hardbreaks` attribute.
+    pub hardbreaks: bool,
 }
 
 pub(crate) const COPYCSS_DEFAULT: &str = "";
