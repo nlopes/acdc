@@ -22,11 +22,7 @@ fn write_block_div_open<W: Write>(
     base_class: &str,
 ) -> Result<(), Error> {
     write!(w, "<div")?;
-    if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", anchor.id)?;
-    }
+    crate::write_id(w, metadata)?;
     let class = build_class(base_class, &metadata.roles);
     writeln!(w, " class=\"{class}\">")?;
     Ok(())
@@ -42,11 +38,7 @@ fn write_semantic_tag_open<W: Write>(
     write!(w, "<{tag}")?;
     let class = build_class(base_class, &metadata.roles);
     write!(w, " class=\"{class}\"")?;
-    if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", anchor.id)?;
-    }
+    crate::write_id(w, metadata)?;
     writeln!(w, ">")?;
     Ok(())
 }
@@ -521,76 +513,10 @@ fn render_listing_code<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let language = detect_language(metadata);
-
-    #[cfg(feature = "highlighting")]
-    let highlighting_enabled = processor
-        .document_attributes
-        .get("source-highlighter")
-        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
-
     let comment_prefix = default_line_comment(language);
     let processed_inlines = process_callout_guards(inlines, comment_prefix);
 
-    let mut w = visitor.writer_mut();
-
-    #[cfg(feature = "highlighting")]
-    if let Some(lang) = language {
-        if highlighting_enabled {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            let (theme_name, mode) = crate::resolve_highlight_settings(processor);
-            crate::syntax::highlight_code(
-                visitor.writer_mut(),
-                &processed_inlines,
-                lang,
-                &theme_name,
-                mode,
-            )?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        } else {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        }
-    } else {
-        write!(w, "<pre>")?;
-        let _ = w;
-        visitor.visit_inline_nodes(&processed_inlines)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</pre>")?;
-    }
-
-    #[cfg(not(feature = "highlighting"))]
-    {
-        let _ = processor;
-        if let Some(lang) = language {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        } else {
-            write!(w, "<pre>")?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</pre>")?;
-        }
-    }
-
-    Ok(())
+    crate::render_pre_code(&processed_inlines, language, visitor, processor)
 }
 
 fn render_listing_block<V: WritableVisitor<Error = Error>>(

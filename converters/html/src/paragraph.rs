@@ -1,7 +1,8 @@
+use acdc_converters_core::code::detect_language;
 use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
-use acdc_parser::Paragraph;
+use acdc_parser::{AttributeValue, Paragraph};
 
-use crate::{Error, HtmlVariant, Processor, build_class, write_attribution};
+use crate::{Error, HtmlVariant, Processor, build_class, write_attribution, write_id};
 
 /// Visit a paragraph using the visitor pattern
 ///
@@ -40,11 +41,7 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         let is_open = para.metadata.options.contains(&"open".to_string());
         let w = visitor.writer_mut();
         write!(w, "<details")?;
-        if let Some(id) = &para.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = para.metadata.anchors.first() {
-            write!(w, " id=\"{}\"", anchor.id)?;
-        }
+        write_id(w, &para.metadata)?;
         if is_open {
             writeln!(w, " open>")?;
         } else {
@@ -111,6 +108,11 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
             writeln!(w, "</div>")?;
             return Ok(());
         }
+
+        // Check if this paragraph should be rendered as a listing/source block
+        if matches!(style.as_str(), "listing" | "source") {
+            return render_listing_paragraph(para, visitor, processor);
+        }
     }
 
     // Regular paragraph rendering
@@ -124,11 +126,7 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
             let mut w = visitor.writer_mut();
             let class = build_class("paragraph", &para.metadata.roles);
             write!(w, "<section")?;
-            if let Some(id) = &para.metadata.id {
-                write!(w, " id=\"{}\"", id.id)?;
-            } else if let Some(anchor) = para.metadata.anchors.first() {
-                write!(w, " id=\"{}\"", anchor.id)?;
-            }
+            write_id(w, &para.metadata)?;
             writeln!(w, " class=\"{class}\">")?;
             let _ = w;
             visitor.render_title_with_wrapper(
@@ -150,11 +148,7 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
             if has_roles {
                 write!(w, " class=\"{}\"", para.metadata.roles.join(" "))?;
             }
-            if let Some(id) = &para.metadata.id {
-                write!(w, " id=\"{}\"", id.id)?;
-            } else if let Some(anchor) = para.metadata.anchors.first() {
-                write!(w, " id=\"{}\"", anchor.id)?;
-            }
+            write_id(w, &para.metadata)?;
             write!(w, ">")?;
             let _ = w;
             visitor.visit_inline_nodes(&para.content)?;
@@ -183,5 +177,76 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         writeln!(w, "</p>")?;
         writeln!(w, "</div>")?;
     }
+    Ok(())
+}
+
+/// Render a listing/source-styled paragraph as a listing block.
+fn render_listing_paragraph<V: WritableVisitor<Error = Error>>(
+    para: &Paragraph,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    let language = detect_language(&para.metadata);
+
+    if processor.variant() == HtmlVariant::Semantic {
+        let w = visitor.writer_mut();
+        if para.title.is_empty() {
+            write!(w, "<div")?;
+            write_id(w, &para.metadata)?;
+            let class = build_class("listing-block", &para.metadata.roles);
+            writeln!(w, " class=\"{class}\">")?;
+            let _ = w;
+            crate::render_pre_code(&para.content, language, visitor, processor)?;
+            let w = visitor.writer_mut();
+            writeln!(w, "</div>")?;
+        } else {
+            write!(w, "<figure")?;
+            write_id(w, &para.metadata)?;
+            let class = build_class("listing-block", &para.metadata.roles);
+            writeln!(w, " class=\"{class}\">")?;
+            let _ = w;
+            visitor.render_title_with_wrapper(&para.title, "<figcaption>", "</figcaption>\n")?;
+            crate::render_pre_code(&para.content, language, visitor, processor)?;
+            let w = visitor.writer_mut();
+            writeln!(w, "</figure>")?;
+        }
+    } else {
+        let w = visitor.writer_mut();
+        write!(w, "<div")?;
+        write_id(w, &para.metadata)?;
+        let class = build_class("listingblock", &para.metadata.roles);
+        writeln!(w, " class=\"{class}\">")?;
+        let _ = w;
+
+        // Title with optional listing-caption numbering
+        if !para.title.is_empty() {
+            if let Some(AttributeValue::String(caption)) =
+                processor.document_attributes.get("listing-caption")
+            {
+                let count = processor.listing_counter.get() + 1;
+                processor.listing_counter.set(count);
+                visitor.render_title_with_wrapper(
+                    &para.title,
+                    &format!("<div class=\"title\">{caption} {count}. "),
+                    "</div>\n",
+                )?;
+            } else {
+                visitor.render_title_with_wrapper(
+                    &para.title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
+            }
+        }
+
+        let mut w = visitor.writer_mut();
+        writeln!(w, "<div class=\"content\">")?;
+        let _ = w;
+        crate::render_pre_code(&para.content, language, visitor, processor)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</div>")?;
+        writeln!(w, "</div>")?;
+    }
+
     Ok(())
 }

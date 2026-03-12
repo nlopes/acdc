@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
+  `[source,lang]` style now render as listing blocks (`<div class="listingblock">`)
+  instead of regular paragraphs, matching asciidoctor behavior.
+
 - **`[%hardbreaks]` paragraph option** — paragraphs with the `[%hardbreaks]` option or
   the document-level `hardbreaks` attribute now convert newlines to `<br>`, matching
   asciidoctor behavior.

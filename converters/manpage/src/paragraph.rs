@@ -23,7 +23,7 @@ pub(crate) fn visit_paragraph<W: Write>(
         match style.as_str() {
             "quote" => return render_quote_paragraph(para, visitor),
             "verse" => return render_verse_paragraph(para, visitor),
-            "literal" => return render_literal_paragraph(para, visitor),
+            "literal" | "listing" | "source" => return render_literal_paragraph(para, visitor),
             _ => {}
         }
     }
@@ -91,7 +91,7 @@ fn render_quote_paragraph<W: Write>(
     writeln!(w, ".ll")?;
 
     // Render attribution if present
-    render_attribution(visitor, para)?;
+    render_attribution(visitor, para, &[".RS 5", ".ll -.10i"], &[".RE", ".ll"])?;
 
     Ok(())
 }
@@ -132,7 +132,12 @@ fn render_verse_paragraph<W: Write>(
     writeln!(w, ".fi")?;
 
     // Render attribution if present
-    render_verse_attribution(visitor, para)?;
+    render_attribution(
+        visitor,
+        para,
+        &[".br", ".in +.5i", ".ll -.5i"],
+        &[".in", ".ll"],
+    )?;
 
     Ok(())
 }
@@ -175,12 +180,14 @@ fn render_literal_paragraph<W: Write>(
     Ok(())
 }
 
-/// Render attribution for quote paragraphs (asciidoctor format).
+/// Render attribution with configurable roff preamble/postamble.
 ///
-/// Format: `.RS 5` block with `\(em Author` or `Citation \(em Author`
+/// Format: preamble lines, then `Citation \(em Author`, then postamble lines.
 fn render_attribution<W: Write>(
     visitor: &mut ManpageVisitor<W>,
     para: &Paragraph,
+    preamble: &[&str],
+    postamble: &[&str],
 ) -> Result<(), Error> {
     let attribution = para
         .metadata
@@ -196,8 +203,9 @@ fn render_attribution<W: Write>(
     if attribution.is_some() || citation.is_some() {
         let w = visitor.writer_mut();
 
-        writeln!(w, ".RS 5")?;
-        writeln!(w, ".ll -.10i")?;
+        for line in preamble {
+            writeln!(w, "{line}")?;
+        }
 
         // Format: "Citation \(em Author" or just "\(em Author" or just "Citation"
         if let Some(cite) = citation {
@@ -214,55 +222,9 @@ fn render_attribution<W: Write>(
         }
 
         writeln!(w)?;
-        writeln!(w, ".RE")?;
-        writeln!(w, ".ll")?;
-    }
-
-    Ok(())
-}
-
-/// Render attribution for verse paragraphs (asciidoctor format).
-///
-/// Format: `.in +.5i` block with `Citation \(em Author`
-fn render_verse_attribution<W: Write>(
-    visitor: &mut ManpageVisitor<W>,
-    para: &Paragraph,
-) -> Result<(), Error> {
-    let attribution = para
-        .metadata
-        .attribution
-        .as_ref()
-        .map(|a| inlines_to_string(a));
-    let citation = para
-        .metadata
-        .citetitle
-        .as_ref()
-        .map(|c| inlines_to_string(c));
-
-    if attribution.is_some() || citation.is_some() {
-        let w = visitor.writer_mut();
-
-        writeln!(w, ".br")?;
-        writeln!(w, ".in +.5i")?;
-        writeln!(w, ".ll -.5i")?;
-
-        // Format: "Citation \(em Author" or just "\(em Author" or just "Citation"
-        if let Some(cite) = citation {
-            let escaped = manify(&cite, EscapeMode::Normalize);
-            write!(w, "{escaped}")?;
-            if attribution.is_some() {
-                write!(w, " ")?;
-            }
+        for line in postamble {
+            writeln!(w, "{line}")?;
         }
-
-        if let Some(author) = attribution {
-            let escaped = manify(&author, EscapeMode::Normalize);
-            write!(w, "\\(em {escaped}")?;
-        }
-
-        writeln!(w)?;
-        writeln!(w, ".in")?;
-        writeln!(w, ".ll")?;
     }
 
     Ok(())

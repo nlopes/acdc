@@ -11,6 +11,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
+  `[source,lang]` style now render as preformatted text (same as `[literal]`).
+
 - **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
   symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as proper roff escapes
   via the shared `apply_replacements()` pipeline feeding into `manify()`.

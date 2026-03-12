@@ -7,7 +7,8 @@ use std::{
 
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{
-    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry, strip_quotes,
+    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, InlineNode, TocEntry,
+    strip_quotes,
 };
 
 mod admonition;
@@ -683,6 +684,19 @@ impl Processor {
     fn handle_copy_syntax_css(&self, _doc: &Document, _html_path: &Path) {}
 }
 
+/// Write the `id` attribute from metadata (explicit id or first anchor).
+pub(crate) fn write_id<W: std::io::Write + ?Sized>(
+    w: &mut W,
+    metadata: &acdc_parser::BlockMetadata,
+) -> Result<(), std::io::Error> {
+    if let Some(id) = &metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = metadata.anchors.first() {
+        write!(w, " id=\"{}\"", anchor.id)?;
+    }
+    Ok(())
+}
+
 /// Build a class string from a base class and optional roles
 pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
     if roles.is_empty() {
@@ -690,6 +704,79 @@ pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
     } else {
         format!("{base} {}", roles.join(" "))
     }
+}
+
+/// Render a `<pre>` (and optional `<code>`) element for listing/source content.
+///
+/// When the `highlighting` feature is enabled and a source-highlighter is set,
+/// syntax highlighting is applied for the given language. Otherwise the inlines
+/// are visited directly.
+pub(crate) fn render_pre_code<V: acdc_converters_core::visitor::WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    language: Option<&str>,
+    visitor: &mut V,
+    processor: &Processor,
+) -> Result<(), Error> {
+    #[cfg(feature = "highlighting")]
+    let highlighting_enabled = processor
+        .document_attributes
+        .get("source-highlighter")
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+
+    let mut w = visitor.writer_mut();
+
+    #[cfg(feature = "highlighting")]
+    if let Some(lang) = language {
+        if highlighting_enabled {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            let (theme_name, mode) = resolve_highlight_settings(processor);
+            syntax::highlight_code(visitor.writer_mut(), inlines, lang, &theme_name, mode)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        }
+    } else {
+        write!(w, "<pre>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(inlines)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
+    }
+
+    #[cfg(not(feature = "highlighting"))]
+    {
+        let _ = processor;
+        if let Some(lang) = language {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(w, "<pre>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</pre>")?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Write attribution div for quote/verse blocks if author or citation present

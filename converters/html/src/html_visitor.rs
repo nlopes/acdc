@@ -803,8 +803,12 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        // Paragraphs with [literal] style are verbatim
-        let is_verbatim = para.metadata.style.as_ref().is_some_and(|s| s == "literal");
+        // Paragraphs with [literal], [listing], or [source] style are verbatim
+        let is_verbatim = para
+            .metadata
+            .style
+            .as_deref()
+            .is_some_and(|s| matches!(s, "literal" | "listing" | "source"));
 
         // Compute effective substitutions for this paragraph
         let original_subs = std::mem::replace(
