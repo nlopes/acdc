@@ -430,8 +430,18 @@ parser!(
                             value.clone()
                         }
                     },
+                    Some(AttributeValue::Bool(true)) => {
+                        let mut attributes = state.attributes.borrow_mut();
+                        state.source_map.borrow_mut().add_replacement(
+                            location.absolute_start,
+                            location.absolute_end,
+                            0,
+                            ProcessedKind::Attribute,
+                        );
+                        attributes.insert(state.source_map.borrow().replacements.len(), location);
+                        String::new()
+                    },
                     _ => {
-                        // TODO(nlopes): do we need to handle other types?
                         // For non-string attributes, keep original text
                         format!("{{{attribute_name}}}")
                     }

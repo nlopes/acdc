@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Boolean/valueless attributes (e.g., `:set-attr:`) now expand to an empty string when
+  referenced as `{set-attr}`, matching asciidoctor behavior
 - Constrained formatting (bold, monospace, highlight) no longer incorrectly expands
   inside constrained italic `_..._` delimiters, matching asciidoctor behavior. The
   underscore is a word character, so it prevents nested constrained marks at the boundary.
