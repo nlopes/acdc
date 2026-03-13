@@ -30,13 +30,13 @@ impl Theme {
         Self::Dark
     }
 
-    /// Get the appropriate syntax highlighting theme name
+    /// Get the appropriate syntax highlighting theme name (giallo theme)
     #[cfg(feature = "highlighting")]
     #[must_use]
-    pub const fn syntect_theme(self) -> &'static str {
+    pub const fn highlight_theme(self) -> &'static str {
         match self {
-            Self::Dark => "Solarized (dark)",
-            Self::Light => "Solarized (light)",
+            Self::Dark => "solarized-dark",
+            Self::Light => "solarized-light",
         }
     }
 }
@@ -170,9 +170,9 @@ mod tests {
 
     #[cfg(feature = "highlighting")]
     #[test]
-    fn test_syntect_theme_names() {
-        assert_eq!(Theme::Dark.syntect_theme(), "Solarized (dark)");
-        assert_eq!(Theme::Light.syntect_theme(), "Solarized (light)");
+    fn test_highlight_theme_names() {
+        assert_eq!(Theme::Dark.highlight_theme(), "solarized-dark");
+        assert_eq!(Theme::Light.highlight_theme(), "solarized-light");
     }
 
     #[test]

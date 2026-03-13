@@ -4,10 +4,30 @@ use acdc_parser::InlineNode;
 
 use crate::{Error, Processor};
 
+/// Get or initialize the shared giallo `Registry`.
+///
+/// The registry is loaded once from the builtin dump on first use and
+/// then reused for all subsequent calls.  This is thread-safe via
+/// `OnceLock`.
+#[cfg(feature = "highlighting")]
+fn get_registry() -> &'static giallo::Registry {
+    use std::sync::OnceLock;
+
+    static REGISTRY: OnceLock<giallo::Registry> = OnceLock::new();
+    REGISTRY.get_or_init(|| {
+        let mut registry = giallo::Registry::builtin().unwrap_or_else(|e| {
+            tracing::error!("failed to load builtin giallo registry: {e}");
+            giallo::Registry::default()
+        });
+        registry.link_grammars();
+        registry
+    })
+}
+
 /// Highlight code and render to terminal.
 ///
-/// When the `highlighting` feature is enabled, this uses syntect for syntax
-/// highlighting. Otherwise, it outputs plain text.
+/// When the `highlighting` feature is enabled, this uses giallo for syntax
+/// highlighting with ANSI escape codes. Otherwise, it outputs plain text.
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
@@ -15,52 +35,28 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     language: &str,
     processor: &Processor,
 ) -> Result<(), Error> {
-    use crossterm::{QueueableCommand, style::PrintStyledContent};
-    use syntect::{
-        easy::HighlightLines, highlighting::ThemeSet, parsing::SyntaxSet, util::LinesWithEndings,
+    let code = extract_text_from_inlines(inlines);
+    let registry = get_registry();
+
+    let theme_name = processor.appearance.theme.highlight_theme();
+    let theme_variant = giallo::ThemeVariant::Single(theme_name);
+    let options = giallo::HighlightOptions::new(language, theme_variant).fallback_to_plain(true);
+
+    let highlighted = match registry.highlight(&code, &options) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::warn!("giallo highlighting failed for language '{language}': {e}");
+            write!(writer, "{code}")?;
+            return Ok(());
+        }
     };
 
-    let code = extract_text_from_inlines(inlines);
-    let syntax_set = SyntaxSet::load_defaults_newlines();
-    let theme_set = ThemeSet::load_defaults();
-
-    let theme_name = processor.appearance.theme.syntect_theme();
-    let theme = &theme_set
-        .themes
-        .get(theme_name)
-        .ok_or(Error::InvalidTheme(theme_name.to_string()))?;
-    let syntax = syntax_set
-        .find_syntax_by_token(language)
-        .or_else(|| syntax_set.find_syntax_by_extension(language))
-        .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
-    let mut highlighter = HighlightLines::new(syntax, theme);
-    for line in LinesWithEndings::from(&code) {
-        let ranges = highlighter
-            .highlight_line(line, &syntax_set)
-            .map_err(|e| Error::Io(std::io::Error::other(e)))?;
-        for (style, text) in ranges {
-            let styled_text = apply_syntect_style(text, style);
-            QueueableCommand::queue(writer, PrintStyledContent(styled_text))?;
-        }
-    }
+    let renderer = giallo::TerminalRenderer::default();
+    let render_options = giallo::RenderOptions::default();
+    let ansi = renderer.render(&highlighted, &render_options);
+    write!(writer, "{ansi}")?;
 
     Ok(())
-}
-
-/// Convert syntect's Style to crossterm styled content.
-#[cfg(feature = "highlighting")]
-fn apply_syntect_style(
-    text: &str,
-    style: syntect::highlighting::Style,
-) -> crossterm::style::StyledContent<&str> {
-    use crossterm::style::Stylize;
-
-    let fg = style.foreground;
-    text.with(crossterm::style::Color::Rgb {
-        r: fg.r,
-        g: fg.g,
-        b: fg.b,
-    })
 }
 
 /// Fallback implementation when syntax highlighting is disabled.
