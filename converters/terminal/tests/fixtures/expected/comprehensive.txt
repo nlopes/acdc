@@ -44,7 +44,7 @@ This paragraph has [1mbold text[22m and [3mitalic text[23m mixed together.
 Here is some [38;5;14mmonospace code[0m in a paragraph.
 Text with [38;5;0m[48;5;11mhighlighted content[0m for emphasis.
 Superscript: E = mc² and subscript: H₂O.
-Nested: [1mbold with [3mitalic inside[23m[22m and [3mitalic with [1mbold inside[22m[23m.
+Nested: [1mbold with [3mitalic inside[23m[22m and [3mitalic with *bold inside*[23m.
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1m2. Inline macros[0m

@@ -96,6 +96,10 @@ const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
 const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
 
+fn is_word_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
 pub(crate) fn match_constrained_boundary(b: u8) -> bool {
     matches!(
         b,
@@ -123,6 +127,38 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'^'
             | b'~'
     )
+}
+
+/// Check whether the character before `pos` is a valid constrained opening boundary.
+///
+/// At position 0, falls back to `outer_delimiter` (the byte preceding the current
+/// inline span in the parent context). A word-character outer delimiter means the
+/// boundary is invalid.
+fn check_constrained_opening_boundary(
+    pos: usize,
+    input: &[u8],
+    outer_delimiter: Option<u8>,
+) -> bool {
+    if pos == 0 {
+        outer_delimiter.is_none_or(|d| !is_word_char(d))
+    } else {
+        input
+            .get(pos - 1)
+            .is_none_or(|&b| match_constrained_boundary(b))
+    }
+}
+
+/// Check whether a constrained closing delimiter at `end` is valid.
+///
+/// If `end` is at the end of the input, the outer delimiter must not be a word
+/// character (otherwise the markup would be adjacent to a word character in the
+/// parent context).
+fn check_constrained_closing_at_end(
+    end: usize,
+    input_len: usize,
+    outer_delimiter: Option<u8>,
+) -> bool {
+    end < input_len || outer_delimiter.is_none_or(|d| !is_word_char(d))
 }
 
 /// Helper to check delimiter matching and return error if mismatched
@@ -4659,16 +4695,14 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained bold");
                 return Err("invalid word boundary for constrained bold");
+            }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained bold");
             }
 
             tracing::info!(?offset, ?content, ?role, "Found constrained bold text inline");
@@ -4676,10 +4710,14 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'*');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained bold text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
 
             Ok(InlineNode::BoldText(Bold {
                 content,
@@ -4710,15 +4748,13 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 return Err("invalid word boundary for constrained italic");
+            }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained italic");
             }
 
             tracing::info!(?offset, ?content, ?role, "Found constrained italic text inline");
@@ -4726,10 +4762,14 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'_');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained italic text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role,
@@ -4747,17 +4787,13 @@ peg::parser! {
         [^'*']*
         ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'*']*)*
         "*"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no asterisk)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+            if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
         }
 
         rule italic_text_constrained_match() -> ()
@@ -4768,17 +4804,13 @@ peg::parser! {
         [^'_']*
         ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'_']*)*
         "_"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no underscore)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+            if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
         }
 
         rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
@@ -4854,24 +4886,28 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 return Err("monospace must be at word boundary");
             }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained monospace");
+            }
+
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained monospace text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'`');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained monospace text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role,
@@ -4889,20 +4925,13 @@ peg::parser! {
         [^'`']*
         ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'`']*)*
         "`"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no backtick)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if !valid_boundary {
-                return Err("monospace must be at word boundary");
-            }
-            Ok(())
+            if valid_opening && valid_closing { Ok(()) } else { Err("monospace must be at word boundary") }
         }
 
         rule highlight_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
@@ -4952,26 +4981,29 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained highlight");
                 return Err("invalid word boundary for constrained highlight");
             }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained highlight");
+            }
+
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained highlight text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'#');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained highlight text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role,
@@ -4989,17 +5021,13 @@ peg::parser! {
         [^'#']*
         ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'#']*)*
         "#"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no hash)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+            if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
         }
 
         /// Parse superscript text (^text^)

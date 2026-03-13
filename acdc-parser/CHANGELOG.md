@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Constrained formatting (bold, monospace, highlight) no longer incorrectly expands
+  inside constrained italic `_..._` delimiters, matching asciidoctor behavior. The
+  underscore is a word character, so it prevents nested constrained marks at the boundary.
 - Backslash escaping of character replacements (`\--`, `\...`, `\->`, `\<-`, `\=>`, `\<=`,
   `\(C)`, `\(R)`, `\(TM)`) now correctly suppresses typography substitutions, matching
   asciidoctor behavior

@@ -150,6 +150,7 @@ pub(crate) fn parse_inlines(
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
     inline_peg_state.quotes_only = state.quotes_only;
+    inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
     let inlines = if inline_peg_state.quotes_only {
         document_parser::quotes_only_inlines(
@@ -188,6 +189,7 @@ pub(crate) fn parse_inlines_no_autolinks(
     let mut inline_peg_state = ParserState::new(&processed.text);
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
+    inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
     let inlines = match document_parser::inlines_no_autolinks(
         &processed.text,

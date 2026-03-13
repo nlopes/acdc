@@ -1,0 +1,11 @@
+_`italic mono`_
+
+*_`bold italic mono`_*
+
+*`bold mono`*
+
+_*bold inside italic*_
+
+`_italic inside mono_`
+
+`*bold inside mono*`
