@@ -96,7 +96,7 @@ pub(crate) fn parse_substitution(value: &str) -> Option<Substitution> {
         "verbatim" | "v" => Some(Substitution::Verbatim),
         "quotes" | "q" => Some(Substitution::Quotes),
         "callouts" => Some(Substitution::Callouts),
-        "specialchars" | "c" => Some(Substitution::SpecialChars),
+        "specialchars" | "specialcharacters" | "c" => Some(Substitution::SpecialChars),
         unknown => {
             tracing::error!(
                 substitution = %unknown,
@@ -530,6 +530,12 @@ mod tests {
     #[test]
     fn test_parse_subs_specialchars_shorthand() {
         let result = parse_subs_attribute("c");
+        assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
+    }
+
+    #[test]
+    fn test_parse_subs_specialcharacters_alias() {
+        let result = parse_subs_attribute("specialcharacters");
         assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
     }
 

@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`specialcharacters` not recognized as a substitution name** — `[subs="specialcharacters"]`
+  now works as an alias for `specialchars`, matching asciidoctor behavior.
 - **Stacked block attributes overwrite previous values** — when block attributes are spread
   across multiple lines (e.g., `[source,ruby]` followed by `[subs="+attributes"]`), the second
   line no longer overwrites the style, positional attributes, id, substitutions, attribution,
