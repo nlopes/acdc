@@ -11,8 +11,8 @@ use tower_lsp::lsp_types::{
     GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
     InitializeResult, InitializedParams, OneOf, PrepareRenameResponse, ReferenceParams,
     RenameOptions, RenameParams, SemanticTokensParams, SemanticTokensResult, ServerCapabilities,
-    ServerInfo, TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
-    WorkDoneProgressOptions, WorkspaceEdit,
+    ServerInfo, SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, Url, WorkDoneProgressOptions, WorkspaceEdit, WorkspaceSymbolParams,
 };
 use tower_lsp::{Client, LanguageServer};
 
@@ -100,6 +100,8 @@ impl LanguageServer for Backend {
                         semantic_tokens::create_options(),
                     ),
                 ),
+                // Enable workspace symbol search
+                workspace_symbol_provider: Some(OneOf::Left(true)),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -120,6 +122,11 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _params: InitializedParams) {
         tracing::info!("acdc-lsp initialized");
+        self.workspace.scan_workspace_files();
+        tracing::info!(
+            indexed_files = self.workspace.symbol_index_len(),
+            "workspace file scan complete"
+        );
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -178,6 +185,36 @@ impl LanguageServer for Backend {
         };
 
         Ok(response)
+    }
+
+    async fn symbol(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> Result<Option<Vec<SymbolInformation>>> {
+        let query = &params.query;
+        let results = self.workspace.query_workspace_symbols(query);
+
+        #[allow(deprecated)] // deprecated field but required by the type
+        let symbols: Vec<SymbolInformation> = results
+            .into_iter()
+            .map(|(uri, symbol)| SymbolInformation {
+                name: symbol.name,
+                kind: symbol.kind,
+                location: tower_lsp::lsp_types::Location {
+                    uri,
+                    range: crate::convert::location_to_range(&symbol.location),
+                },
+                tags: None,
+                deprecated: None,
+                container_name: symbol.detail,
+            })
+            .collect();
+
+        if symbols.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(symbols))
+        }
     }
 
     async fn goto_definition(

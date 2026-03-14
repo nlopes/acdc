@@ -181,7 +181,7 @@ impl Workspace {
         result
     }
 
-    /// Scan workspace roots for AsciiDoc files and populate the symbol index.
+    /// Scan workspace roots for `AsciiDoc` files and populate the symbol index.
     pub fn scan_workspace_files(&self) {
         let roots: Vec<Url> = self
             .roots
@@ -191,19 +191,18 @@ impl Workspace {
         let files = discover_adoc_files(&roots);
 
         for path in files {
-            let uri = match Url::from_file_path(&path) {
-                Ok(u) => u,
-                Err(()) => continue,
+            let Ok(uri) = Url::from_file_path(&path) else {
+                continue;
             };
             // Skip files that are already open in the editor
             if self.documents.contains_key(&uri) {
                 continue;
             }
-            if let Ok(text) = std::fs::read_to_string(&path) {
-                if let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default()) {
-                    let symbols = extract_workspace_symbols(&doc);
-                    self.symbol_index.insert(uri, symbols);
-                }
+            if let Ok(text) = std::fs::read_to_string(&path)
+                && let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+            {
+                let symbols = extract_workspace_symbols(&doc);
+                self.symbol_index.insert(uri, symbols);
             }
         }
     }
@@ -250,7 +249,7 @@ impl Workspace {
         // Symbols from indexed (non-open) files
         for entry in &self.symbol_index {
             let uri = entry.key();
-            for symbol in entry.value().iter() {
+            for symbol in entry.value() {
                 if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
                     results.push((uri.clone(), symbol.clone()));
                 }
@@ -261,13 +260,12 @@ impl Workspace {
     }
 
     fn reindex_file_from_disk(&self, uri: &Url) {
-        if let Ok(path) = uri.to_file_path() {
-            if let Ok(text) = std::fs::read_to_string(&path) {
-                if let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default()) {
-                    let symbols = extract_workspace_symbols(&doc);
-                    self.symbol_index.insert(uri.clone(), symbols);
-                }
-            }
+        if let Ok(path) = uri.to_file_path()
+            && let Ok(text) = std::fs::read_to_string(&path)
+            && let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+        {
+            let symbols = extract_workspace_symbols(&doc);
+            self.symbol_index.insert(uri.clone(), symbols);
         }
     }
 
@@ -323,10 +321,10 @@ impl Workspace {
 /// Directories to skip during file discovery
 const SKIP_DIRS: &[&str] = &[".git", ".svn", ".hg", "target", "node_modules", ".build"];
 
-/// File extensions recognized as AsciiDoc
+/// File extensions recognized as `AsciiDoc`
 const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "asc"];
 
-/// Discover all AsciiDoc files under the given workspace roots.
+/// Discover all `AsciiDoc` files under the given workspace roots.
 ///
 /// Walks directories recursively using `std::fs`, skipping hidden directories
 /// and common build/dependency directories.
@@ -341,9 +339,8 @@ pub fn discover_adoc_files(roots: &[Url]) -> Vec<std::path::PathBuf> {
 }
 
 fn walk_directory(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(_) => return,
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
     };
 
     for entry in entries.flatten() {
@@ -355,10 +352,10 @@ fn walk_directory(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
                 continue;
             }
             walk_directory(&path, files);
-        } else if let Some(ext) = path.extension() {
-            if ADOC_EXTENSIONS.contains(&ext.to_string_lossy().as_ref()) {
-                files.push(path);
-            }
+        } else if let Some(ext) = path.extension()
+            && ADOC_EXTENSIONS.contains(&ext.to_string_lossy().as_ref())
+        {
+            files.push(path);
         }
     }
 }

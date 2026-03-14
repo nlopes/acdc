@@ -59,7 +59,7 @@ fn extract_block_symbols(block: &Block, symbols: &mut Vec<IndexedSymbol>) {
         }
         Block::DocumentAttribute(attr) => {
             symbols.push(IndexedSymbol {
-                name: attr.name.to_string(),
+                name: attr.name.clone(),
                 kind: SymbolKind::CONSTANT,
                 location: attr.location.clone(),
                 detail: Some(attr.value.to_string()),
@@ -223,7 +223,7 @@ fn extract_delimited_symbols(inner: &DelimitedBlockType, symbols: &mut Vec<Index
     }
 }
 
-/// Map section levels to symbol kinds (same mapping as document_symbols)
+/// Map section levels to symbol kinds (same mapping as `document_symbols`)
 const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
     match level {
         0 => SymbolKind::NAMESPACE,
