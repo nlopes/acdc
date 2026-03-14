@@ -4,7 +4,7 @@
 
 use std::{borrow::Cow, io::Write};
 
-use acdc_converters_core::visitor::WritableVisitor;
+use acdc_converters_core::{decode_numeric_char_refs, visitor::WritableVisitor};
 use acdc_parser::{AttributeValue, Author, Document, InlineNode};
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};
@@ -74,7 +74,7 @@ pub(crate) fn extract_plain_text(nodes: &[InlineNode]) -> String {
     for node in nodes {
         match node {
             InlineNode::PlainText(text) => result.push_str(&text.content),
-            InlineNode::RawText(text) => result.push_str(&text.content),
+            InlineNode::RawText(text) => result.push_str(&decode_numeric_char_refs(&text.content)),
             InlineNode::VerbatimText(text) => result.push_str(&text.content),
             InlineNode::BoldText(bold) => result.push_str(&extract_plain_text(&bold.content)),
             InlineNode::ItalicText(italic) => result.push_str(&extract_plain_text(&italic.content)),

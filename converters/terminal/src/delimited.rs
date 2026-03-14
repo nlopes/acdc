@@ -1,5 +1,6 @@
 use acdc_converters_core::{
     code::detect_language,
+    decode_numeric_char_refs,
     visitor::{Visitor, WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{
@@ -199,7 +200,7 @@ fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
                     write!(code_buffer, "{}", v.content)?;
                 }
                 InlineNode::RawText(r) => {
-                    write!(code_buffer, "{}", r.content)?;
+                    write!(code_buffer, "{}", decode_numeric_char_refs(&r.content))?;
                 }
                 InlineNode::PlainText(p) => {
                     write!(code_buffer, "{}", p.content)?;

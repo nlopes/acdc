@@ -729,7 +729,7 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "'",
+          "value": "&#39;",
           "location": [
             {
               "line": 33,
@@ -775,7 +775,7 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "\"",
+          "value": "&#34;",
           "location": [
             {
               "line": 35,

@@ -1293,7 +1293,7 @@ mod tests {
             "Should have 19 passthroughs for all ASCII char replacement attributes"
         );
         // Spot-check a few key passthroughs
-        assert_eq!(result.passthroughs[0].text.as_deref(), Some("'")); // apos
+        assert_eq!(result.passthroughs[0].text.as_deref(), Some("&#39;")); // apos
         assert_eq!(result.passthroughs[2].text.as_deref(), Some("+")); // plus
         assert_eq!(result.passthroughs[4].text.as_deref(), Some("&")); // amp
         assert_eq!(result.passthroughs[16].text.as_deref(), Some("C++")); // cpp

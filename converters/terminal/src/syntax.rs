@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use acdc_converters_core::decode_numeric_char_refs;
 use acdc_parser::InlineNode;
 
 use crate::{Error, Processor};
@@ -89,7 +90,7 @@ fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
                 result.push_str(&verbatim.content);
             }
             InlineNode::RawText(raw) => {
-                result.push_str(&raw.content);
+                result.push_str(&decode_numeric_char_refs(&raw.content));
             }
             InlineNode::PlainText(plain) => {
                 result.push_str(&plain.content);
