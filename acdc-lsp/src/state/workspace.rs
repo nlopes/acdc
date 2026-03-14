@@ -219,6 +219,49 @@ impl Workspace {
     }
 }
 
+/// Directories to skip during file discovery
+const SKIP_DIRS: &[&str] = &[".git", ".svn", ".hg", "target", "node_modules", ".build"];
+
+/// File extensions recognized as AsciiDoc
+const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "asc"];
+
+/// Discover all AsciiDoc files under the given workspace roots.
+///
+/// Walks directories recursively using `std::fs`, skipping hidden directories
+/// and common build/dependency directories.
+pub fn discover_adoc_files(roots: &[Url]) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    for root in roots {
+        if let Ok(path) = root.to_file_path() {
+            walk_directory(&path, &mut files);
+        }
+    }
+    files
+}
+
+fn walk_directory(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with('.') || SKIP_DIRS.contains(&name_str.as_ref()) {
+                continue;
+            }
+            walk_directory(&path, files);
+        } else if let Some(ext) = path.extension() {
+            if ADOC_EXTENSIONS.contains(&ext.to_string_lossy().as_ref()) {
+                files.push(path);
+            }
+        }
+    }
+}
+
 impl Default for Workspace {
     fn default() -> Self {
         Self::new()
@@ -311,6 +354,39 @@ mod tests {
         let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
         assert!(ids.contains(&"anchor1"));
         assert!(ids.contains(&"anchor2"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_discover_adoc_files() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs;
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_discover");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("subdir"))?;
+        fs::create_dir_all(tmp.join(".git"))?;
+        fs::create_dir_all(tmp.join("target"))?;
+
+        fs::write(tmp.join("doc.adoc"), "= Doc\n")?;
+        fs::write(tmp.join("subdir/nested.asciidoc"), "= Nested\n")?;
+        fs::write(tmp.join("readme.txt"), "not an adoc file")?;
+        fs::write(tmp.join(".git/config"), "git stuff")?;
+        fs::write(tmp.join("target/output.adoc"), "build artifact")?;
+
+        let root_url = Url::from_file_path(&tmp).map_err(|()| "bad path")?;
+        let files = discover_adoc_files(&[root_url]);
+
+        let filenames: Vec<String> = files
+            .iter()
+            .filter_map(|p| p.file_name().map(|f| f.to_string_lossy().to_string()))
+            .collect();
+
+        assert!(filenames.contains(&"doc.adoc".to_string()));
+        assert!(filenames.contains(&"nested.asciidoc".to_string()));
+        assert!(!filenames.contains(&"readme.txt".to_string()));
+        assert!(!filenames.contains(&"config".to_string()));
+        assert!(!filenames.contains(&"output.adoc".to_string()));
+
+        let _ = fs::remove_dir_all(&tmp);
         Ok(())
     }
 
