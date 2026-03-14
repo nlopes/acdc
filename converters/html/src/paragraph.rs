@@ -187,6 +187,8 @@ fn render_listing_paragraph<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let language = detect_language(&para.metadata);
+    let subs =
+        crate::html_visitor::effective_subs(para.metadata.substitutions.as_ref(), true);
 
     if processor.variant() == HtmlVariant::Semantic {
         let w = visitor.writer_mut();
@@ -196,7 +198,7 @@ fn render_listing_paragraph<V: WritableVisitor<Error = Error>>(
             let class = build_class("listing-block", &para.metadata.roles);
             writeln!(w, " class=\"{class}\">")?;
             let _ = w;
-            crate::render_pre_code(&para.content, language, visitor, processor)?;
+            crate::render_pre_code(&para.content, language, visitor, processor, &subs)?;
             let w = visitor.writer_mut();
             writeln!(w, "</div>")?;
         } else {
@@ -206,7 +208,7 @@ fn render_listing_paragraph<V: WritableVisitor<Error = Error>>(
             writeln!(w, " class=\"{class}\">")?;
             let _ = w;
             visitor.render_title_with_wrapper(&para.title, "<figcaption>", "</figcaption>\n")?;
-            crate::render_pre_code(&para.content, language, visitor, processor)?;
+            crate::render_pre_code(&para.content, language, visitor, processor, &subs)?;
             let w = visitor.writer_mut();
             writeln!(w, "</figure>")?;
         }
@@ -242,7 +244,7 @@ fn render_listing_paragraph<V: WritableVisitor<Error = Error>>(
         let mut w = visitor.writer_mut();
         writeln!(w, "<div class=\"content\">")?;
         let _ = w;
-        crate::render_pre_code(&para.content, language, visitor, processor)?;
+        crate::render_pre_code(&para.content, language, visitor, processor, &subs)?;
         w = visitor.writer_mut();
         writeln!(w, "</div>")?;
         writeln!(w, "</div>")?;

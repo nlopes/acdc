@@ -7,8 +7,8 @@ use std::{
 
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{
-    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, InlineNode, TocEntry,
-    strip_quotes,
+    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, InlineNode, Substitution,
+    TocEntry, strip_quotes, substitute,
 };
 
 mod admonition;
@@ -706,6 +706,38 @@ pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
     }
 }
 
+/// Apply attribute substitution to inline nodes if `Attributes` is in the active subs.
+///
+/// Returns `Some(new_inlines)` when substitution was performed, `None` otherwise
+/// (allowing the caller to use the original slice without cloning).
+fn apply_attribute_subs(
+    inlines: &[InlineNode],
+    subs: &[Substitution],
+    processor: &Processor,
+) -> Option<Vec<InlineNode>> {
+    if !subs.contains(&Substitution::Attributes) {
+        return None;
+    }
+    let attrs = processor.document_attributes();
+    Some(
+        inlines
+            .iter()
+            .map(|node| {
+                if let InlineNode::VerbatimText(v) = node {
+                    let content =
+                        substitute(&v.content, &[Substitution::Attributes], attrs);
+                    InlineNode::VerbatimText(acdc_parser::Verbatim {
+                        content,
+                        location: v.location.clone(),
+                    })
+                } else {
+                    node.clone()
+                }
+            })
+            .collect(),
+    )
+}
+
 /// Render a `<pre>` (and optional `<code>`) element for listing/source content.
 ///
 /// When the `highlighting` feature is enabled and a source-highlighter is set,
@@ -716,6 +748,7 @@ pub(crate) fn render_pre_code<V: acdc_converters_core::visitor::WritableVisitor<
     language: Option<&str>,
     visitor: &mut V,
     processor: &Processor,
+    subs: &[Substitution],
 ) -> Result<(), Error> {
     #[cfg(feature = "highlighting")]
     let highlighting_enabled = processor
@@ -734,7 +767,15 @@ pub(crate) fn render_pre_code<V: acdc_converters_core::visitor::WritableVisitor<
             )?;
             let _ = w;
             let (theme_name, mode) = resolve_highlight_settings(processor);
-            syntax::highlight_code(visitor.writer_mut(), inlines, lang, &theme_name, mode)?;
+            let effective_inlines = apply_attribute_subs(inlines, subs, processor);
+            let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
+            syntax::highlight_code(
+                visitor.writer_mut(),
+                highlight_inlines,
+                lang,
+                &theme_name,
+                mode,
+            )?;
             w = visitor.writer_mut();
             writeln!(w, "</code></pre>")?;
         } else {
@@ -757,7 +798,7 @@ pub(crate) fn render_pre_code<V: acdc_converters_core::visitor::WritableVisitor<
 
     #[cfg(not(feature = "highlighting"))]
     {
-        let _ = processor;
+        let _ = (processor, subs);
         if let Some(lang) = language {
             write!(
                 w,

@@ -515,8 +515,9 @@ fn render_listing_code<V: WritableVisitor<Error = Error>>(
     let language = detect_language(metadata);
     let comment_prefix = default_line_comment(language);
     let processed_inlines = process_callout_guards(inlines, comment_prefix);
+    let subs = crate::html_visitor::effective_subs(metadata.substitutions.as_ref(), true);
 
-    crate::render_pre_code(&processed_inlines, language, visitor, processor)
+    crate::render_pre_code(&processed_inlines, language, visitor, processor, &subs)
 }
 
 fn render_listing_block<V: WritableVisitor<Error = Error>>(
