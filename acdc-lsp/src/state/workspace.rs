@@ -183,11 +183,7 @@ impl Workspace {
 
     /// Scan workspace roots for `AsciiDoc` files and populate the symbol index.
     pub fn scan_workspace_files(&self) {
-        let roots: Vec<Url> = self
-            .roots
-            .read()
-            .map(|r| r.clone())
-            .unwrap_or_default();
+        let roots: Vec<Url> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
         let files = discover_adoc_files(&roots);
 
         for path in files {

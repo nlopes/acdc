@@ -1,8 +1,6 @@
 //! Workspace symbols: extract navigable symbols from documents for cross-file search
 
-use acdc_parser::{
-    Block, DelimitedBlockType, Document, Section, inlines_to_string,
-};
+use acdc_parser::{Block, DelimitedBlockType, Document, Section, inlines_to_string};
 use tower_lsp::lsp_types::SymbolKind;
 
 use acdc_parser::Location;
@@ -242,7 +240,8 @@ mod tests {
 
     #[test]
     fn test_extract_symbols_sections() -> Result<(), acdc_parser::Error> {
-        let content = "= Document Title\n\n== Section One\n\nContent.\n\n== Section Two\n\n=== Subsection\n";
+        let content =
+            "= Document Title\n\n== Section One\n\nContent.\n\n== Section Two\n\n=== Subsection\n";
         let doc = acdc_parser::parse(content, &Options::default())?;
         let symbols = extract_workspace_symbols(&doc);
 
@@ -264,9 +263,11 @@ mod tests {
         let doc = acdc_parser::parse(content, &Options::default())?;
         let symbols = extract_workspace_symbols(&doc);
 
-        assert!(symbols
-            .iter()
-            .any(|s| s.name == "my-anchor" && s.kind == SymbolKind::KEY));
+        assert!(
+            symbols
+                .iter()
+                .any(|s| s.name == "my-anchor" && s.kind == SymbolKind::KEY)
+        );
         Ok(())
     }
 
@@ -276,9 +277,12 @@ mod tests {
         let doc = acdc_parser::parse(content, &Options::default())?;
         let symbols = extract_workspace_symbols(&doc);
 
-        assert!(symbols
-            .iter()
-            .any(|s| s.name == "Discrete Title" && s.detail.as_deref() == Some("Discrete header")));
+        assert!(
+            symbols
+                .iter()
+                .any(|s| s.name == "Discrete Title"
+                    && s.detail.as_deref() == Some("Discrete header"))
+        );
         Ok(())
     }
 
