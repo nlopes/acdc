@@ -187,8 +187,7 @@ fn render_listing_paragraph<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let language = detect_language(&para.metadata);
-    let subs =
-        crate::html_visitor::effective_subs(para.metadata.substitutions.as_ref(), true);
+    let subs = crate::html_visitor::effective_subs(para.metadata.substitutions.as_ref(), true);
 
     if processor.variant() == HtmlVariant::Semantic {
         let w = visitor.writer_mut();

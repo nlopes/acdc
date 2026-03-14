@@ -6,12 +6,12 @@ use std::{
 };
 
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
+#[cfg(feature = "highlighting")]
+use acdc_parser::substitute;
 use acdc_parser::{
     AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, InlineNode, Substitution,
     TocEntry, strip_quotes,
 };
-#[cfg(feature = "highlighting")]
-use acdc_parser::substitute;
 
 mod admonition;
 mod audio;
@@ -729,8 +729,7 @@ fn apply_attribute_subs(
             .iter()
             .map(|node| {
                 if let InlineNode::VerbatimText(v) = node {
-                    let content =
-                        substitute(&v.content, &[Substitution::Attributes], attrs);
+                    let content = substitute(&v.content, &[Substitution::Attributes], attrs);
                     InlineNode::VerbatimText(acdc_parser::Verbatim {
                         content,
                         location: v.location.clone(),

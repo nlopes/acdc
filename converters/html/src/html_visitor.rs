@@ -20,7 +20,10 @@ use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
 /// - Non-verbatim blocks (paragraph, etc.): Use `NORMAL` baseline
 #[cfg(feature = "pre-spec-subs")]
 #[must_use]
-pub(crate) fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
+pub(crate) fn effective_subs(
+    spec: Option<&SubstitutionSpec>,
+    is_verbatim: bool,
+) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
 
     let result = match spec {
@@ -39,7 +42,10 @@ pub(crate) fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool)
 /// Compute effective substitutions for a block (no pre-spec-subs feature).
 #[cfg(not(feature = "pre-spec-subs"))]
 #[must_use]
-pub(crate) fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
+pub(crate) fn effective_subs(
+    spec: Option<&SubstitutionSpec>,
+    is_verbatim: bool,
+) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
 
     match spec {
