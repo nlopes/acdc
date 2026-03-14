@@ -7,7 +7,10 @@ use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
 use tower_lsp::lsp_types::Url;
 
-use crate::capabilities::{definition, diagnostics};
+use crate::capabilities::{
+    definition, diagnostics,
+    workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
+};
 use crate::state::DocumentState;
 
 /// Workspace-level state management
@@ -18,6 +21,8 @@ pub struct Workspace {
     anchor_index: DashMap<String, Vec<(Url, Location)>>,
     /// Workspace root directories
     roots: RwLock<Vec<Url>>,
+    /// Cached symbols for non-open files (populated by workspace scan)
+    symbol_index: DashMap<Url, Vec<IndexedSymbol>>,
 }
 
 impl Workspace {
@@ -28,6 +33,7 @@ impl Workspace {
             documents: DashMap::new(),
             anchor_index: DashMap::new(),
             roots: RwLock::new(Vec::new()),
+            symbol_index: DashMap::new(),
         }
     }
 
@@ -40,6 +46,9 @@ impl Workspace {
 
     /// Update document on open/change
     pub fn update_document(&self, uri: Url, text: String, version: i32) {
+        // Remove from symbol_index — live AST takes over
+        self.symbol_index.remove(&uri);
+
         // Remove old anchors for this URI from the global index
         self.remove_anchors_for_uri(&uri);
 
@@ -89,6 +98,8 @@ impl Workspace {
     pub fn remove_document(&self, uri: &Url) {
         self.remove_anchors_for_uri(uri);
         self.documents.remove(uri);
+        // Re-index from disk for workspace symbols
+        self.reindex_file_from_disk(uri);
     }
 
     /// Resolve a relative file path from a referring document's URI
@@ -168,6 +179,61 @@ impl Workspace {
             }
         }
         result
+    }
+
+    /// Scan workspace roots for AsciiDoc files and populate the symbol index.
+    pub fn scan_workspace_files(&self) {
+        let roots: Vec<Url> = self
+            .roots
+            .read()
+            .map(|r| r.clone())
+            .unwrap_or_default();
+        let files = discover_adoc_files(&roots);
+
+        for path in files {
+            let uri = match Url::from_file_path(&path) {
+                Ok(u) => u,
+                Err(()) => continue,
+            };
+            // Skip files that are already open in the editor
+            if self.documents.contains_key(&uri) {
+                continue;
+            }
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                if let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default()) {
+                    let symbols = extract_workspace_symbols(&doc);
+                    self.symbol_index.insert(uri, symbols);
+                }
+            }
+        }
+    }
+
+    /// Check if a URI has cached symbols in the index
+    #[must_use]
+    pub fn has_indexed_symbols(&self, uri: &Url) -> bool {
+        self.symbol_index.contains_key(uri)
+    }
+
+    /// Number of files in the symbol index
+    #[must_use]
+    pub fn symbol_index_len(&self) -> usize {
+        self.symbol_index.len()
+    }
+
+    /// Insert symbols for a URI into the index (for testing and manual insertion)
+    pub fn insert_indexed_symbols(&self, uri: Url, symbols: Vec<IndexedSymbol>) {
+        self.symbol_index.insert(uri, symbols);
+    }
+
+    fn reindex_file_from_disk(&self, uri: &Url) {
+        if let Ok(path) = uri.to_file_path() {
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                if let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default()) {
+                    let symbols = extract_workspace_symbols(&doc);
+                    self.symbol_index.insert(uri.clone(), symbols);
+                }
+            }
+        }
     }
 
     /// Iterate over all open documents
@@ -354,6 +420,51 @@ mod tests {
         let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
         assert!(ids.contains(&"anchor1"));
         assert!(ids.contains(&"anchor2"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_symbol_index_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs;
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_symbol_idx");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp)?;
+        fs::write(
+            tmp.join("doc.adoc"),
+            "= My Document\n\n== First Section\n\nContent.\n",
+        )?;
+
+        let workspace = Workspace::new();
+        let root_url = Url::from_file_path(&tmp).map_err(|()| "bad path")?;
+        workspace.set_workspace_roots(vec![root_url]);
+
+        // Scan workspace — should populate symbol_index
+        workspace.scan_workspace_files();
+        assert!(
+            workspace.symbol_index_len() > 0,
+            "symbol index should have entries after scan"
+        );
+
+        // Open the document — should remove from symbol_index
+        let doc_url = Url::from_file_path(tmp.join("doc.adoc")).map_err(|()| "bad path")?;
+        workspace.update_document(
+            doc_url.clone(),
+            "= My Document\n\n== First Section\n\nContent.\n".to_string(),
+            1,
+        );
+        assert!(
+            !workspace.has_indexed_symbols(&doc_url),
+            "opened doc should be removed from symbol_index"
+        );
+
+        // Close the document — should re-add to symbol_index
+        workspace.remove_document(&doc_url);
+        assert!(
+            workspace.has_indexed_symbols(&doc_url),
+            "closed doc should be re-added to symbol_index"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
         Ok(())
     }
 
