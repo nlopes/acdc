@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Document formatting** (`textDocument/formatting`, `textDocument/rangeFormatting`) — normalize
+  whitespace for clean diffs: trim trailing whitespace, collapse multiple blank lines to one,
+  ensure final newline, insert blank lines between adjacent top-level blocks. Verbatim blocks
+  (listing, literal, passthrough, comment, verse, stem) are protected from formatting changes.
+  Falls back to text-based delimiter detection when the AST is unavailable (parse errors).
 - **Code actions** (`textDocument/codeAction`) — quick-fixes, refactorings, and source actions:
   - Quick-fix: create missing anchor for unresolved cross-references.
   - Wrap in block: wrap selected text in sidebar, example, listing, literal, open, comment,

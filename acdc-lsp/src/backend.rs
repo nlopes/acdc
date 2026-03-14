@@ -6,20 +6,21 @@ use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentLink, DocumentLinkOptions,
-    DocumentLinkParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
-    FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
-    InitializeResult, InitializedParams, OneOf, PrepareRenameResponse, ReferenceParams,
-    RenameOptions, RenameParams, SemanticTokensParams, SemanticTokensResult, ServerCapabilities,
-    ServerInfo, SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, Url, WorkDoneProgressOptions, WorkspaceEdit, WorkspaceSymbolParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
+    DocumentLinkOptions, DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
+    InitializeParams, InitializeResult, InitializedParams, OneOf, PrepareRenameResponse,
+    ReferenceParams, RenameOptions, RenameParams, SemanticTokensParams, SemanticTokensResult,
+    ServerCapabilities, ServerInfo, SymbolInformation, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
+    WorkspaceEdit, WorkspaceSymbolParams,
 };
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
-    code_actions, completion, definition, document_links, folding, hover, references, rename,
-    semantic_tokens, symbols,
+    code_actions, completion, definition, document_links, folding, formatting, hover, references,
+    rename, semantic_tokens, symbols,
 };
 use crate::state::Workspace;
 
@@ -115,6 +116,10 @@ impl LanguageServer for Backend {
                         resolve_provider: Some(false),
                     },
                 )),
+                // Enable document formatting
+                document_formatting_provider: Some(OneOf::Left(true)),
+                // Enable range formatting
+                document_range_formatting_provider: Some(OneOf::Left(true)),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -378,5 +383,30 @@ impl LanguageServer for Backend {
         };
 
         Ok(response)
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| formatting::format_document(&doc, &params.options));
+
+        Ok(response.filter(|edits| !edits.is_empty()))
+    }
+
+    async fn range_formatting(
+        &self,
+        params: DocumentRangeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| formatting::format_range(&doc, &params.range, &params.options));
+
+        Ok(response.filter(|edits| !edits.is_empty()))
     }
 }
