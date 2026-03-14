@@ -8,8 +8,10 @@ use std::{
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
 use acdc_parser::{
     AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, InlineNode, Substitution,
-    TocEntry, strip_quotes, substitute,
+    TocEntry, strip_quotes,
 };
+#[cfg(feature = "highlighting")]
+use acdc_parser::substitute;
 
 mod admonition;
 mod audio;
@@ -300,6 +302,7 @@ pub(crate) const STYLESDIR_DEFAULT: &str = ".";
 pub(crate) const STYLESHEET_DEFAULT: &str = "";
 /// Default filename for the syntect syntax highlighting stylesheet (class-based mode).
 /// Analogous to asciidoctor's `asciidoctor-coderay.css` / `asciidoctor-pygments.css`.
+#[cfg(feature = "highlighting")]
 pub(crate) const SYNTECT_STYLESHEET: &str = "acdc-syntect.css";
 // NOTE: If you change the values below, you need to also change them in `load_css`
 pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
@@ -321,6 +324,7 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 ///
 /// - `:syntect-style:` overrides the theme (falls back to light/dark default).
 /// - `:syntect-css: class` switches to CSS-class mode (default is inline).
+#[cfg(feature = "highlighting")]
 pub(crate) fn resolve_highlight_settings(processor: &Processor) -> (String, syntax::HighlightMode) {
     let dark_mode = processor
         .document_attributes
@@ -710,6 +714,7 @@ pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
 ///
 /// Returns `Some(new_inlines)` when substitution was performed, `None` otherwise
 /// (allowing the caller to use the original slice without cloning).
+#[cfg(feature = "highlighting")]
 fn apply_attribute_subs(
     inlines: &[InlineNode],
     subs: &[Substitution],
