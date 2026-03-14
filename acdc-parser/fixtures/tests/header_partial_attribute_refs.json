@@ -39,6 +39,10 @@
     ]
   },
   "attributes": {
+    "author": "John Doe",
+    "authorcount": "1",
+    "authorinitials": "JD",
+    "authors": "John Doe",
     "email": "john@example.com",
     "firstname": "John",
     "lastname": "Doe",

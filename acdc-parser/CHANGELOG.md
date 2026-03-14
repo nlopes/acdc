@@ -7,8 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
+  and `link:page.html#section[text]` now parse correctly. The `#fragment` is optional and only
+  applies to `xref:` and `link:` macros (not `image::`, `video::`, etc.).
+- **Public `InlineNode::location()` method** — provides direct access to the source location of
+  any inline node without requiring the `Locateable` trait.
+- **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
+  direct access to location information without pattern matching on variants.
+- **Rich inline markup in document titles and subtitles** — document titles now support bold,
+  italic, monospace, links, macros, and other inline markup, matching section title behavior.
+  Previously, titles were always rendered as plain text.
+- **`subs=macros` substitution type** — `[subs=-macros]` and explicit lists without `macros`
+  now gate macro grammar rules at parse time. When macros are disabled, inline macros
+  (links, xrefs, images, footnotes, index terms, etc.) are treated as plain text.
+  Requires the `pre-spec-subs` feature flag.
+- **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content
+  to the specified level, matching asciidoctor behavior. Strips existing leading whitespace and
+  prepends the specified number of spaces. `indent=0` removes all leading whitespace.
+- **`strip_quotes` utility function** — centralised helper to strip matching single or double
+  quotes from attribute values, replacing scattered `trim_matches('"')` calls throughout the
+  codebase.
+- **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
+  interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
+  block attributes, macro positional/named values, link titles, and table column specs.
+- Bidirectional sync between `Header.authors` and document attributes: the `:author:`
+  document attribute now populates `Header.authors`, and parsed author lines now set
+  `author`, `authors`, `firstname`, `lastname`, `middlename`, `authorinitials`, `email`,
+  and `authorcount` document attributes
+
+### Changed
+
+- **Roles are now space-separated** — `role='a b'` produces two roles (`a`, `b`) instead of
+  one, matching asciidoctor's space-separated role semantics.
+- **`parse_comma_separated_values` simplified** — no longer handles quote stripping internally
+  since quotes are now stripped upstream by `strip_quotes`.
+
 ### Fixed
 
+- **Incorrect locations for inline text inside `xref:`, `url:`, and `mailto:` macros** — text
+  nodes inside these macros (e.g., "Section Title" in `xref:file#id[Section Title]`) had wrong
+  line and column numbers. The line was always reported as 1 regardless of actual position, and
+  the column was relative to the start of the macro instead of the text content. Both issues are
+  now fixed: grammar rules capture the correct content start position, and the location mapper
+  remaps nested text nodes to document-absolute coordinates.
+- **Roles with spaces were not split** — `image::foo.jpg[role="thumb bordered"]` now correctly
+  produces two separate roles (`thumb`, `bordered`) instead of one combined string.
 - Boolean/valueless attributes (e.g., `:set-attr:`) now expand to an empty string when
   referenced as `{set-attr}`, matching asciidoctor behavior
 - Constrained formatting (bold, monospace, highlight) no longer incorrectly expands
@@ -23,56 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inline passthrough syntax (`+...+`, `++...++`, `+++...+++`) are now treated as literal
   text when macros are disabled, matching asciidoctor behavior
 - Fixed non-monotonic inline positions for subscript/superscript text preceded by short plain text
-
-### Added
-
-- **`subs=macros` substitution type** — `[subs=-macros]` and explicit lists without `macros`
-  now gate macro grammar rules at parse time. When macros are disabled, inline macros
-  (links, xrefs, images, footnotes, index terms, etc.) are treated as plain text.
-  Requires the `pre-spec-subs` feature flag.
-- **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content
-  to the specified level, matching asciidoctor behavior. Strips existing leading whitespace and
-  prepends the specified number of spaces. `indent=0` removes all leading whitespace.
-- **`strip_quotes` utility function** — centralised helper to strip matching single or double
-  quotes from attribute values, replacing scattered `trim_matches('"')` calls throughout the
-  codebase.
-- **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
-  interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
-  block attributes, macro positional/named values, link titles, and table column specs.
-
-### Changed
-
-- **Roles are now space-separated** — `role='a b'` produces two roles (`a`, `b`) instead of
-  one, matching asciidoctor's space-separated role semantics.
-- **`parse_comma_separated_values` simplified** — no longer handles quote stripping internally
-  since quotes are now stripped upstream by `strip_quotes`.
-
-### Fixed
-
-- **Roles with spaces were not split** — `image::foo.jpg[role="thumb bordered"]` now correctly
-  produces two separate roles (`thumb`, `bordered`) instead of one combined string.
-
-### Added
-
-- **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
-  and `link:page.html#section[text]` now parse correctly. The `#fragment` is optional and only
-  applies to `xref:` and `link:` macros (not `image::`, `video::`, etc.).
-- **Public `InlineNode::location()` method** — provides direct access to the source location of
-  any inline node without requiring the `Locateable` trait.
-- **`Locateable` trait for `InlineNode`** — `InlineNode` now implements `Locateable`, providing
-  direct access to location information without pattern matching on variants.
-- **Rich inline markup in document titles and subtitles** — document titles now support bold,
-  italic, monospace, links, macros, and other inline markup, matching section title behavior.
-  Previously, titles were always rendered as plain text.
-
-### Fixed
-
-- **Incorrect locations for inline text inside `xref:`, `url:`, and `mailto:` macros** — text
-  nodes inside these macros (e.g., "Section Title" in `xref:file#id[Section Title]`) had wrong
-  line and column numbers. The line was always reported as 1 regardless of actual position, and
-  the column was relative to the start of the macro instead of the text content. Both issues are
-  now fixed: grammar rules capture the correct content start position, and the location mapper
-  remaps nested text nodes to document-absolute coordinates.
 
 ## [0.7.0] - 2026-02-25
 

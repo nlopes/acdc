@@ -15,6 +15,7 @@ use crate::{
     grammar::{
         ParserState,
         attributes::AttributeEntry,
+        author::derive_author_attrs,
         doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -942,13 +943,16 @@ peg::parser! {
                 // Decrement end by one character (for byte offset, use safe UTF-8 decrement)
                 location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(&state.input, location.absolute_end);
                 location.end.column = location.end.column.saturating_sub(1);
-                let header = Header {
+                let mut header = Header {
                     metadata,
                     title,
                     subtitle,
                     authors,
                     location,
                 };
+
+                // Derive author attributes bidirectionally
+                derive_author_attrs(&mut header, &mut state.document_attributes);
 
                 // Derive manpage attributes from header if doctype=manpage
                 // This must happen during parsing so {mantitle} etc. work in body

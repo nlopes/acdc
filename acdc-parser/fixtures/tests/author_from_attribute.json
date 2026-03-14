@@ -6,7 +6,7 @@
       {
         "name": "text",
         "type": "string",
-        "value": "The Intrepid Chronicles",
+        "value": "Document Title",
         "location": [
           {
             "line": 1,
@@ -14,17 +14,16 @@
           },
           {
             "line": 1,
-            "col": 25
+            "col": 16
           }
         ]
       }
     ],
     "authors": [
       {
-        "firstname": "Kismet",
-        "lastname": "Lee",
-        "initials": "KL",
-        "address": "kismet@asciidoctor.org"
+        "firstname": "Test",
+        "lastname": "Author",
+        "initials": "TA"
       }
     ],
     "location": [
@@ -33,20 +32,18 @@
         "col": 1
       },
       {
-        "line": 3,
-        "col": 166
+        "line": 2,
+        "col": 20
       }
     ]
   },
   "attributes": {
-    "author": "Kismet Lee",
+    "author": "Test Author",
     "authorcount": "1",
-    "authorinitials": "KL",
-    "authors": "Kismet Lee",
-    "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power.",
-    "email": "kismet@asciidoctor.org",
-    "firstname": "Kismet",
-    "lastname": "Lee"
+    "authorinitials": "TA",
+    "authors": "Test Author",
+    "firstname": "Test",
+    "lastname": "Author"
   },
   "blocks": [
     {
@@ -56,27 +53,27 @@
         {
           "name": "text",
           "type": "string",
-          "value": "This journey begins on a bleary Monday morning.",
+          "value": "Some content.",
           "location": [
             {
-              "line": 5,
+              "line": 4,
               "col": 1
             },
             {
-              "line": 5,
-              "col": 47
+              "line": 4,
+              "col": 13
             }
           ]
         }
       ],
       "location": [
         {
-          "line": 5,
+          "line": 4,
           "col": 1
         },
         {
-          "line": 5,
-          "col": 47
+          "line": 4,
+          "col": 13
         }
       ]
     }
@@ -87,8 +84,8 @@
       "col": 1
     },
     {
-      "line": 5,
-      "col": 47
+      "line": 4,
+      "col": 13
     }
   ]
 }
