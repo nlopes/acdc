@@ -225,6 +225,41 @@ impl Workspace {
         self.symbol_index.insert(uri, symbols);
     }
 
+    /// Query workspace symbols across all documents (open + indexed).
+    ///
+    /// Returns `(Url, IndexedSymbol)` pairs matching the query. Empty query
+    /// returns all symbols. Matching is case-insensitive substring.
+    #[must_use]
+    pub fn query_workspace_symbols(&self, query: &str) -> Vec<(Url, IndexedSymbol)> {
+        let query_lower = query.to_lowercase();
+        let mut results = Vec::new();
+
+        // Symbols from open documents (live AST)
+        for entry in &self.documents {
+            let uri = entry.key();
+            if let Some(ast) = &entry.value().ast {
+                let symbols = extract_workspace_symbols(ast);
+                for symbol in symbols {
+                    if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
+                        results.push((uri.clone(), symbol));
+                    }
+                }
+            }
+        }
+
+        // Symbols from indexed (non-open) files
+        for entry in &self.symbol_index {
+            let uri = entry.key();
+            for symbol in entry.value().iter() {
+                if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
+                    results.push((uri.clone(), symbol.clone()));
+                }
+            }
+        }
+
+        results
+    }
+
     fn reindex_file_from_disk(&self, uri: &Url) {
         if let Ok(path) = uri.to_file_path() {
             if let Ok(text) = std::fs::read_to_string(&path) {
@@ -420,6 +455,42 @@ mod tests {
         let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
         assert!(ids.contains(&"anchor1"));
         assert!(ids.contains(&"anchor2"));
+        Ok(())
+    }
+
+    #[test]
+    fn test_workspace_symbol_query() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri1 = Url::parse("file:///doc1.adoc")?;
+        let uri2 = Url::parse("file:///doc2.adoc")?;
+
+        // Open doc1 (live AST)
+        workspace.update_document(
+            uri1.clone(),
+            "= Doc One\n\n== Introduction\n\nContent.\n".to_string(),
+            1,
+        );
+
+        // Manually add doc2 to symbol_index (simulates scanned file)
+        let doc2 = acdc_parser::parse(
+            "= Doc Two\n\n== TLS Configuration\n\nStuff.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let symbols = extract_workspace_symbols(&doc2);
+        workspace.insert_indexed_symbols(uri2.clone(), symbols);
+
+        // Query for "tls" (case-insensitive)
+        let results = workspace.query_workspace_symbols("tls");
+        assert!(results.iter().any(|(_, s)| s.name == "TLS Configuration"));
+
+        // Query for "introduction"
+        let results = workspace.query_workspace_symbols("introduction");
+        assert!(results.iter().any(|(_, s)| s.name == "Introduction"));
+
+        // Empty query returns all
+        let results = workspace.query_workspace_symbols("");
+        assert!(results.len() >= 4); // at least: 2 doc titles + 2 sections
+
         Ok(())
     }
 
