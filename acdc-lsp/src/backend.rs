@@ -4,6 +4,7 @@
 
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
+    CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentLink, DocumentLinkOptions,
     DocumentLinkParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
@@ -17,8 +18,8 @@ use tower_lsp::lsp_types::{
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
-    completion, definition, document_links, folding, hover, references, rename, semantic_tokens,
-    symbols,
+    code_actions, completion, definition, document_links, folding, hover, references, rename,
+    semantic_tokens, symbols,
 };
 use crate::state::Workspace;
 
@@ -102,6 +103,18 @@ impl LanguageServer for Backend {
                 ),
                 // Enable workspace symbol search
                 workspace_symbol_provider: Some(OneOf::Left(true)),
+                // Enable code actions (quick-fixes, refactorings, source actions)
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![
+                            tower_lsp::lsp_types::CodeActionKind::QUICKFIX,
+                            tower_lsp::lsp_types::CodeActionKind::REFACTOR_EXTRACT,
+                            tower_lsp::lsp_types::CodeActionKind::SOURCE,
+                        ]),
+                        work_done_progress_options: WorkDoneProgressOptions::default(),
+                        resolve_provider: Some(false),
+                    },
+                )),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -193,7 +206,6 @@ impl LanguageServer for Backend {
     ) -> Result<Option<Vec<SymbolInformation>>> {
         let query = &params.query;
         let results = self.workspace.query_workspace_symbols(query);
-
 
         let symbols: Vec<SymbolInformation> = results
             .into_iter()
@@ -339,6 +351,16 @@ impl LanguageServer for Backend {
         };
 
         Ok(response)
+    }
+
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+
+        let response = self.workspace.get_document(&uri).map(|doc| {
+            code_actions::compute_code_actions(&doc, &uri, params.range, &params.context)
+        });
+
+        Ok(response.filter(|actions| !actions.is_empty()))
     }
 
     async fn semantic_tokens_full(

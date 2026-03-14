@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Code actions** (`textDocument/codeAction`) — quick-fixes, refactorings, and source actions:
+  - Quick-fix: create missing anchor for unresolved cross-references.
+  - Wrap in block: wrap selected text in sidebar, example, listing, literal, open, comment,
+    passthrough, or quote block delimiters.
+  - Generate TOC: insert `:toc:` attribute in document header.
 - **Workspace symbols** (`workspace/symbol`) — search sections, anchors, discrete headers, block
   titles, and document attributes across all project files. Scans workspace roots for `.adoc`,
   `.asciidoc`, and `.asc` files on initialization; open documents use live ASTs while closed files

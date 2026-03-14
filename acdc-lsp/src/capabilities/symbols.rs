@@ -14,7 +14,7 @@ pub fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
     if let Some(header) = &doc.header {
         // Title implements Deref<Target = [InlineNode]>
         let title_text = inlines_to_string(&header.title);
-    
+
         symbols.push(DocumentSymbol {
             name: title_text,
             kind: SymbolKind::FILE,
@@ -68,7 +68,6 @@ fn section_to_symbol(section: &Section) -> DocumentSymbol {
     // Recursively process child blocks for nested sections
     let children: Vec<DocumentSymbol> =
         section.content.iter().filter_map(block_to_symbol).collect();
-
 
     DocumentSymbol {
         name: title_text,
