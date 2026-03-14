@@ -649,7 +649,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             return Ok(());
         }
         if self.processor.variant() == HtmlVariant::Semantic {
-            writeln!(self.writer, "<header id=\"header\">")?;
+            writeln!(self.writer, "<header>")?;
         } else {
             writeln!(self.writer, "<div id=\"header\">")?;
         }

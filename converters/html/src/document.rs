@@ -36,9 +36,6 @@ fn render_author<W: Write + ?Sized>(author: &Author, w: &mut W) -> Result<(), Er
         write!(w, "{middle_name} ")?;
     }
     write!(w, "{}", author.last_name)?;
-    if let Some(email) = &author.email {
-        write!(w, " <{email}>")?;
-    }
     writeln!(w, "\">")?;
     Ok(())
 }
