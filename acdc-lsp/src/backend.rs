@@ -194,7 +194,7 @@ impl LanguageServer for Backend {
         let query = &params.query;
         let results = self.workspace.query_workspace_symbols(query);
 
-        #[allow(deprecated)] // deprecated field but required by the type
+
         let symbols: Vec<SymbolInformation> = results
             .into_iter()
             .map(|(uri, symbol)| SymbolInformation {

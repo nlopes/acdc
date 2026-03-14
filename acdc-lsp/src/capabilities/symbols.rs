@@ -14,7 +14,7 @@ pub fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
     if let Some(header) = &doc.header {
         // Title implements Deref<Target = [InlineNode]>
         let title_text = inlines_to_string(&header.title);
-        #[allow(deprecated)] // deprecated field but required by the type
+    
         symbols.push(DocumentSymbol {
             name: title_text,
             kind: SymbolKind::FILE,
@@ -69,7 +69,7 @@ fn section_to_symbol(section: &Section) -> DocumentSymbol {
     let children: Vec<DocumentSymbol> =
         section.content.iter().filter_map(block_to_symbol).collect();
 
-    #[allow(deprecated)] // deprecated field but required by the type
+
     DocumentSymbol {
         name: title_text,
         kind: section_level_to_symbol_kind(section.level),
