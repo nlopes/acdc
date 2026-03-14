@@ -21,7 +21,7 @@
     ],
     "authors": [
       {
-        "firstname": "Lorn_Kismet",
+        "firstname": "Lorn Kismet",
         "middlename": "R.",
         "lastname": "Lee",
         "initials": "LRL",
@@ -47,16 +47,16 @@
     ]
   },
   "attributes": {
-    "author": "Lorn_Kismet R. Lee",
+    "author": "Lorn Kismet R. Lee",
     "author_2": "Norberto M. Lopes",
     "authorcount": "2",
     "authorinitials": "LRL",
     "authorinitials_2": "NML",
-    "authors": "Lorn_Kismet R. Lee, Norberto M. Lopes",
+    "authors": "Lorn Kismet R. Lee, Norberto M. Lopes",
     "description": "The document's description.",
     "email": "kismet@asciidoctor.org",
     "email_2": "nlopesml@gmail.com",
-    "firstname": "Lorn_Kismet",
+    "firstname": "Lorn Kismet",
     "firstname_2": "Norberto",
     "lastname": "Lee",
     "lastname_2": "Lopes",

@@ -1198,7 +1198,7 @@ peg::parser! {
             = whitespace()* "<" email:$([^'>']*) ">" { email }
 
         rule name_part() -> &'input str
-            = name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+ ("_" ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+)*) {
+            = name:$([c if c.is_alphanumeric() || c == '.' || c == '-' || c == '\'']+ ("_" [c if c.is_alphanumeric() || c == '.' || c == '-' || c == '\'']+)*) {
                 name
             }
 
@@ -6318,7 +6318,7 @@ v2.9, 01-09-2024: Fall incarnation
             })
         );
         assert_eq!(header.authors.len(), 2);
-        assert_eq!(header.authors[0].first_name, "Lorn_Kismet");
+        assert_eq!(header.authors[0].first_name, "Lorn Kismet");
         assert_eq!(header.authors[0].middle_name, Some("R.".to_string()));
         assert_eq!(header.authors[0].last_name, "Lee");
         assert_eq!(header.authors[0].initials, "LRL");
@@ -6372,7 +6372,7 @@ v2.9, 01-09-2024: Fall incarnation
         let result = document_parser::authors(input, &mut state)?;
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0].first_name, "Lorn_Kismet");
+        assert_eq!(result[0].first_name, "Lorn Kismet");
         assert_eq!(result[0].middle_name, Some("R.".to_string()));
         assert_eq!(result[0].last_name, "Lee");
         assert_eq!(result[0].initials, "LRL");
@@ -6396,6 +6396,73 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(result.last_name, "Lopes supa dough");
         assert_eq!(result.initials, "NML");
         assert_eq!(result.email, Some("nlopesml@gmail.com".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_compound_first_name() -> Result<(), Error> {
+        let input = "Ann_Marie Jenson";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "Ann Marie");
+        assert_eq!(result.middle_name, None);
+        assert_eq!(result.last_name, "Jenson");
+        assert_eq!(result.initials, "AJ");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_compound_last_name() -> Result<(), Error> {
+        let input = "Tomás López_del_Toro";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "Tomás");
+        assert_eq!(result.middle_name, None);
+        assert_eq!(result.last_name, "López del Toro");
+        assert_eq!(result.initials, "TL");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_compound_middle_name() -> Result<(), Error> {
+        let input = "First Middle_Name Last";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "First");
+        assert_eq!(result.middle_name, Some("Middle Name".to_string()));
+        assert_eq!(result.last_name, "Last");
+        assert_eq!(result.initials, "FML");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_multiple_compound_authors() -> Result<(), Error> {
+        let input = "Ann_Marie Jenson; Tomás López_del_Toro";
+        let mut state = ParserState::new(input);
+        let result = document_parser::authors(input, &mut state)?;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].first_name, "Ann Marie");
+        assert_eq!(result[0].last_name, "Jenson");
+        assert_eq!(result[0].initials, "AJ");
+        assert_eq!(result[1].first_name, "Tomás");
+        assert_eq!(result[1].last_name, "López del Toro");
+        assert_eq!(result[1].initials, "TL");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_unicode_author_name() -> Result<(), Error> {
+        let input = "Tomás Müller";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "Tomás");
+        assert_eq!(result.last_name, "Müller");
+        assert_eq!(result.initials, "TM");
         Ok(())
     }
 
@@ -6566,7 +6633,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             })
         );
         assert_eq!(result.authors.len(), 2);
-        assert_eq!(result.authors[0].first_name, "Lorn_Kismet");
+        assert_eq!(result.authors[0].first_name, "Lorn Kismet");
         assert_eq!(result.authors[0].middle_name, Some("R.".to_string()));
         assert_eq!(result.authors[0].last_name, "Lee");
         assert_eq!(result.authors[0].initials, "LRL");
