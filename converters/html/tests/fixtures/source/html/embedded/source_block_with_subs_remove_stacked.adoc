@@ -1,0 +1,8 @@
+= Source Block with Stacked Subs Removing
+:version: 1.0
+
+[source,ruby]
+[subs="-specialchars"]
+----
+puts "<hello>"
+----

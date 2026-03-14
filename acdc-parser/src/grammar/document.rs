@@ -1646,15 +1646,27 @@ peg::parser! {
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
                         let attr_metadata = *attr_metadata;
                         discrete = attr_discrete;
-                        metadata.id = attr_metadata.id;
-                        metadata.style = attr_metadata.style;
+                        if attr_metadata.id.is_some() {
+                            metadata.id = attr_metadata.id;
+                        }
+                        if attr_metadata.style.is_some() {
+                            metadata.style = attr_metadata.style;
+                        }
                         metadata.roles.extend(attr_metadata.roles);
                         metadata.options.extend(attr_metadata.options);
-                        metadata.attributes = attr_metadata.attributes;
-                        metadata.positional_attributes = attr_metadata.positional_attributes;
-                        metadata.substitutions = attr_metadata.substitutions;
-                        metadata.attribution = attr_metadata.attribution;
-                        metadata.citetitle = attr_metadata.citetitle;
+                        for (k, v) in attr_metadata.attributes.iter() {
+                            metadata.attributes.insert(k.clone(), v.clone());
+                        }
+                        metadata.positional_attributes.extend(attr_metadata.positional_attributes);
+                        if attr_metadata.substitutions.is_some() {
+                            metadata.substitutions = attr_metadata.substitutions;
+                        }
+                        if attr_metadata.attribution.is_some() {
+                            metadata.attribution = attr_metadata.attribution;
+                        }
+                        if attr_metadata.citetitle.is_some() {
+                            metadata.citetitle = attr_metadata.citetitle;
+                        }
                     },
                     BlockMetadataLine::DocumentAttribute(key, value) => {
                         // Set the document attribute immediately so it's available for

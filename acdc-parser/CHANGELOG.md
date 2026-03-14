@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Stacked block attributes overwrite previous values** — when block attributes are spread
+  across multiple lines (e.g., `[source,ruby]` followed by `[subs="+attributes"]`), the second
+  line no longer overwrites the style, positional attributes, id, substitutions, attribution,
+  or citetitle from the first line. Only explicitly provided values are merged.
 - **Incorrect locations for inline text inside `xref:`, `url:`, and `mailto:` macros** — text
   nodes inside these macros (e.g., "Section Title" in `xref:file#id[Section Title]`) had wrong
   line and column numbers. The line was always reported as 1 regardless of actual position, and
