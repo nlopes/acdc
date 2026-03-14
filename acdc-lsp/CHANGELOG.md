@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   titles, and document attributes across all project files. Scans workspace roots for `.adoc`,
   `.asciidoc`, and `.asc` files on initialization; open documents use live ASTs while closed files
   use cached symbols.
+
+  ![Workspace symbols in Emacs](images/workspace-symbols-emacs.png)
 - **Cross-file reference support** — workspace-wide anchor indexing across all open documents.
   - Go-to-definition navigates between files via `xref:file.adoc#anchor[text]`.
   - Hover shows cross-file target information (file name, anchor status).
