@@ -85,6 +85,27 @@ impl Workspace {
         state.diagnostics =
             diagnostics::compute_warnings(&state.anchors, &state.xrefs, Some(&cross_file_resolver));
 
+        // Compute link diagnostics (missing images, audio, video, includes)
+        if let Ok(doc_path) = uri.to_file_path() {
+            if let Some(doc_dir) = doc_path.parent() {
+                let imagesdir =
+                    state
+                        .ast
+                        .as_ref()
+                        .and_then(|ast| match ast.attributes.get("imagesdir") {
+                            Some(acdc_parser::AttributeValue::String(s)) => Some(s.as_str()),
+                            _ => None,
+                        });
+                let link_diags = diagnostics::compute_link_diagnostics(
+                    &state.media_sources,
+                    &state.includes,
+                    doc_dir,
+                    imagesdir,
+                );
+                state.diagnostics.extend(link_diags);
+            }
+        }
+
         self.documents.insert(uri, state);
     }
 
@@ -302,9 +323,10 @@ impl Workspace {
             Ok(doc) => {
                 let anchors = definition::collect_anchors(&doc);
                 let xrefs = definition::collect_xrefs(&doc);
+                let media_sources = definition::collect_media_sources(&doc);
 
                 // Warnings are computed later in update_document with workspace context
-                DocumentState::new_success(text, version, doc, anchors, xrefs)
+                DocumentState::new_success(text, version, doc, anchors, xrefs, media_sources)
             }
             Err(error) => {
                 let diags = vec![diagnostics::error_to_diagnostic(&error)];
@@ -586,6 +608,60 @@ mod tests {
                 .find_anchor_in_document(&uri, "nonexistent")
                 .is_none()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_image_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_img_diag");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp)?;
+
+        let workspace = Workspace::new();
+        let uri = Url::from_file_path(tmp.join("doc.adoc")).map_err(|()| "bad path")?;
+        let content = "= Document\n\nimage::nonexistent.png[]\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("nonexistent.png")),
+            "expected diagnostic about missing image, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| &d.message)
+                .collect::<Vec<_>>()
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_include_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_inc_diag");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp)?;
+
+        let workspace = Workspace::new();
+        let uri = Url::from_file_path(tmp.join("doc.adoc")).map_err(|()| "bad path")?;
+        let content = "= Document\n\ninclude::missing.adoc[]\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("missing.adoc")),
+            "expected diagnostic about missing include, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| &d.message)
+                .collect::<Vec<_>>()
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
     }
 }
