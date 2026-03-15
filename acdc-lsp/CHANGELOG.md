@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Selection range** — smart expand/shrink selection based on AST structure
+  (`textDocument/selectionRange`). Progressively selects larger syntactic units:
+  word → inline markup → block → section → document.
+
 ### Fixed
 
 - **Cross-file xref go-to-definition** — fallback to global anchor index when direct file+anchor

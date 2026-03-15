@@ -12,7 +12,8 @@ use tower_lsp::lsp_types::{
     DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
     GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
     InitializeParams, InitializeResult, InitializedParams, OneOf, PrepareRenameResponse,
-    ReferenceParams, RenameOptions, RenameParams, SemanticTokensParams, SemanticTokensResult,
+    ReferenceParams, RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
     ServerCapabilities, ServerInfo, SymbolInformation, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
     WorkspaceEdit, WorkspaceSymbolParams,
@@ -21,7 +22,7 @@ use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
     code_actions, code_lens, completion, definition, document_links, folding, formatting, hover,
-    references, rename, semantic_tokens, symbols,
+    references, rename, selection_range, semantic_tokens, symbols,
 };
 use crate::state::Workspace;
 
@@ -125,6 +126,8 @@ impl LanguageServer for Backend {
                 code_lens_provider: Some(CodeLensOptions {
                     resolve_provider: Some(false),
                 }),
+                // Enable smart selection expansion
+                selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -424,5 +427,19 @@ impl LanguageServer for Backend {
             .map(|doc| formatting::format_range(&doc, &params.range, &params.options));
 
         Ok(response.filter(|edits| !edits.is_empty()))
+    }
+
+    async fn selection_range(
+        &self,
+        params: SelectionRangeParams,
+    ) -> Result<Option<Vec<SelectionRange>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| selection_range::compute_selection_ranges(&doc, &params.positions));
+
+        Ok(response)
     }
 }
