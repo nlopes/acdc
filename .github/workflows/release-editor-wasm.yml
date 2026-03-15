@@ -76,4 +76,4 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         VERSION: ${{ steps.version.outputs.version }}
         RELEASE_NOTES: ${{ steps.notes.outputs.body }}
-      run: gh release create "$GITHUB_REF_NAME" "acdc-editor-wasm-${VERSION}.tar.gz" --notes-file - <<< "$RELEASE_NOTES"
+      run: gh release create "$GITHUB_REF_NAME" "acdc-editor-wasm-${VERSION}.tar.gz" --title "acdc-editor-wasm ${VERSION}" --notes-file - <<< "$RELEASE_NOTES"
