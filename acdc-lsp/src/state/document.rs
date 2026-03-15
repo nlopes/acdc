@@ -2,8 +2,36 @@
 
 use std::collections::HashMap;
 
-use acdc_parser::{Document, Location, Source};
+use acdc_parser::{Document, DocumentAttributes, Location, Source};
 use tower_lsp::lsp_types::Diagnostic;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionalDirectiveKind {
+    Ifdef,
+    Ifndef,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionalOperation {
+    And,
+    Or,
+}
+
+/// A conditional directive block extracted from raw source text.
+///
+/// The preprocessor flattens these before the AST is built, so we scan raw text
+/// to recover them for editor features (graying out inactive branches).
+#[derive(Debug, Clone)]
+pub struct ConditionalBlock {
+    pub kind: ConditionalDirectiveKind,
+    pub attributes: Vec<String>,
+    pub operation: Option<ConditionalOperation>,
+    pub is_active: bool,
+    /// 0-indexed line of the opening directive
+    pub start_line: usize,
+    /// 0-indexed line of the closing endif (None for single-line form)
+    pub end_line: Option<usize>,
+}
 
 /// Represents a parsed document's state
 #[derive(Debug)]
@@ -28,6 +56,8 @@ pub struct DocumentState {
     pub attribute_defs: Vec<(String, Location)>,
     /// Media sources: (source, location) for images, audio, and video
     pub media_sources: Vec<(Source, Location)>,
+    /// Conditional directive blocks (ifdef/ifndef) extracted from source text
+    pub conditionals: Vec<ConditionalBlock>,
 }
 
 impl DocumentState {
@@ -43,6 +73,7 @@ impl DocumentState {
     ) -> Self {
         let includes = extract_includes(&text);
         let attribute_refs = extract_attribute_refs(&text);
+        let conditionals = extract_conditionals(&text, &ast.attributes);
         Self {
             attribute_defs: extract_attribute_defs(&text),
             text,
@@ -54,6 +85,7 @@ impl DocumentState {
             includes,
             attribute_refs,
             media_sources,
+            conditionals,
         }
     }
 
@@ -62,6 +94,7 @@ impl DocumentState {
     pub fn new_failure(text: String, version: i32, diagnostics: Vec<Diagnostic>) -> Self {
         let includes = extract_includes(&text);
         let attribute_refs = extract_attribute_refs(&text);
+        let conditionals = extract_conditionals(&text, &DocumentAttributes::default());
         // Note: We don't preserve the previous AST since Document doesn't implement Clone.
         // Navigation features will be unavailable until the document parses successfully.
         Self {
@@ -75,6 +108,7 @@ impl DocumentState {
             includes,
             attribute_refs,
             media_sources: vec![],
+            conditionals,
         }
     }
 }
@@ -207,6 +241,136 @@ fn extract_refs_from_line(
 
         search_start = close + 1;
     }
+}
+
+/// Pending conditional for matching with endif.
+struct PendingConditional {
+    kind: ConditionalDirectiveKind,
+    attributes: Vec<String>,
+    operation: Option<ConditionalOperation>,
+    is_active: bool,
+    start_line: usize,
+}
+
+/// Parse attribute names and operation from a conditional directive's attribute part.
+///
+/// Examples: `"attr"` → (`["attr"]`, None), `"a,b"` → (`["a","b"]`, Some(Or)), `"a+b"` → (`["a","b"]`, Some(And))
+fn parse_conditional_attributes(attr_part: &str) -> (Vec<String>, Option<ConditionalOperation>) {
+    if let Some((first, rest)) = attr_part.split_once(',') {
+        let mut attrs = vec![first.to_string()];
+        attrs.extend(rest.split(',').map(String::from));
+        (attrs, Some(ConditionalOperation::Or))
+    } else if let Some((first, rest)) = attr_part.split_once('+') {
+        let mut attrs = vec![first.to_string()];
+        attrs.extend(rest.split('+').map(String::from));
+        (attrs, Some(ConditionalOperation::And))
+    } else {
+        (vec![attr_part.to_string()], None)
+    }
+}
+
+/// Evaluate an ifdef/ifndef condition against document attributes.
+fn evaluate_condition(
+    attributes: &[String],
+    operation: Option<&ConditionalOperation>,
+    is_ifndef: bool,
+    doc_attrs: &DocumentAttributes,
+) -> bool {
+    let result = match operation {
+        Some(ConditionalOperation::Or) => attributes.iter().any(|a| doc_attrs.contains_key(a)),
+        _ => attributes.iter().all(|a| doc_attrs.contains_key(a)),
+    };
+    if is_ifndef { !result } else { result }
+}
+
+/// Extract conditional directive blocks (ifdef/ifndef/endif) from raw text.
+///
+/// The preprocessor flattens these before the AST is built. We scan raw text
+/// to recover them for graying out inactive branches in the editor.
+fn extract_conditionals(text: &str, attrs: &DocumentAttributes) -> Vec<ConditionalBlock> {
+    let mut blocks = Vec::new();
+    let mut pending: Vec<PendingConditional> = Vec::new();
+
+    for (line_idx, line) in text.lines().enumerate() {
+        let trimmed = line.trim();
+
+        // Skip escaped directives
+        if trimmed.starts_with("\\ifdef")
+            || trimmed.starts_with("\\ifndef")
+            || trimmed.starts_with("\\ifeval")
+        {
+            continue;
+        }
+
+        // Skip ifeval (deferred — requires expression evaluation)
+        if trimmed.starts_with("ifeval::") {
+            continue;
+        }
+
+        // Check for ifdef:: or ifndef::
+        let (rest, is_ifndef) = if let Some(rest) = trimmed.strip_prefix("ifdef::") {
+            (rest, false)
+        } else if let Some(rest) = trimmed.strip_prefix("ifndef::") {
+            (rest, true)
+        } else if trimmed.starts_with("endif::") {
+            // Close the most recent pending conditional
+            if let Some(pending_cond) = pending.pop() {
+                blocks.push(ConditionalBlock {
+                    kind: pending_cond.kind,
+                    attributes: pending_cond.attributes,
+                    operation: pending_cond.operation,
+                    is_active: pending_cond.is_active,
+                    start_line: pending_cond.start_line,
+                    end_line: Some(line_idx),
+                });
+            }
+            continue;
+        } else {
+            continue;
+        };
+
+        // Parse: attributes[optional content]
+        let Some(bracket_start) = rest.find('[') else {
+            continue;
+        };
+        let attr_part = &rest[..bracket_start];
+        if attr_part.is_empty() {
+            continue;
+        }
+
+        let (attributes, operation) = parse_conditional_attributes(attr_part);
+        let kind = if is_ifndef {
+            ConditionalDirectiveKind::Ifndef
+        } else {
+            ConditionalDirectiveKind::Ifdef
+        };
+        let is_active = evaluate_condition(&attributes, operation.as_ref(), is_ifndef, attrs);
+
+        // Check for single-line form: ifdef::attr[content]
+        let bracket_content = rest.get(bracket_start + 1..rest.len().saturating_sub(1));
+        if bracket_content.is_some_and(|c| !c.is_empty()) {
+            // Single-line form
+            blocks.push(ConditionalBlock {
+                kind,
+                attributes,
+                operation,
+                is_active,
+                start_line: line_idx,
+                end_line: None,
+            });
+        } else {
+            // Block form — push to pending stack
+            pending.push(PendingConditional {
+                kind,
+                attributes,
+                operation,
+                is_active,
+                start_line: line_idx,
+            });
+        }
+    }
+
+    blocks
 }
 
 /// Extract include directives from raw text via line-by-line scan.
@@ -376,5 +540,133 @@ mod tests {
         let refs = extract_attribute_refs(text);
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("valid-name"));
+    }
+
+    fn attr_set(name: &str) -> (String, acdc_parser::AttributeValue) {
+        (
+            name.to_string(),
+            acdc_parser::AttributeValue::String(String::new()),
+        )
+    }
+
+    #[test]
+    fn test_extract_conditionals_ifdef_active() {
+        let mut attrs = DocumentAttributes::default();
+        let (k, v) = attr_set("backend-html");
+        attrs.insert(k, v);
+        let text = ":backend-html:\n\nifdef::backend-html[]\nHTML content\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        assert_eq!(
+            conds.first().map(|c| &c.kind),
+            Some(&ConditionalDirectiveKind::Ifdef)
+        );
+        assert_eq!(
+            conds.first().map(|c| c.attributes.as_slice()),
+            Some(["backend-html".to_string()].as_slice())
+        );
+        assert_eq!(conds.first().map(|c| c.is_active), Some(true));
+        assert_eq!(conds.first().map(|c| c.start_line), Some(2));
+        assert_eq!(conds.first().map(|c| c.end_line), Some(Some(4)));
+    }
+
+    #[test]
+    fn test_extract_conditionals_ifdef_inactive() {
+        let attrs = DocumentAttributes::default();
+        let text = "ifdef::backend-html[]\nHTML content\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        assert_eq!(conds.first().map(|c| c.is_active), Some(false));
+        assert_eq!(conds.first().map(|c| c.start_line), Some(0));
+        assert_eq!(conds.first().map(|c| c.end_line), Some(Some(2)));
+    }
+
+    #[test]
+    fn test_extract_conditionals_ifndef() {
+        let attrs = DocumentAttributes::default();
+        let text = "ifndef::draft[]\nPublished content\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        assert_eq!(
+            conds.first().map(|c| &c.kind),
+            Some(&ConditionalDirectiveKind::Ifndef)
+        );
+        // draft is NOT defined, so ifndef is active
+        assert_eq!(conds.first().map(|c| c.is_active), Some(true));
+    }
+
+    #[test]
+    fn test_extract_conditionals_ifndef_inactive() {
+        let mut attrs = DocumentAttributes::default();
+        let (k, v) = attr_set("draft");
+        attrs.insert(k, v);
+        let text = "ifndef::draft[]\nDraft content\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        // draft IS defined, so ifndef is inactive
+        assert_eq!(conds.first().map(|c| c.is_active), Some(false));
+    }
+
+    #[test]
+    fn test_extract_conditionals_or_operation() {
+        let mut attrs = DocumentAttributes::default();
+        let (k, v) = attr_set("b");
+        attrs.insert(k, v);
+        let text = "ifdef::a,b[]\ncontent\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        assert_eq!(
+            conds.first().map(|c| &c.operation),
+            Some(&Some(ConditionalOperation::Or))
+        );
+        // Only b is defined, but OR means any → active
+        assert_eq!(conds.first().map(|c| c.is_active), Some(true));
+    }
+
+    #[test]
+    fn test_extract_conditionals_and_operation() {
+        let mut attrs = DocumentAttributes::default();
+        let (k, v) = attr_set("a");
+        attrs.insert(k, v);
+        let text = "ifdef::a+b[]\ncontent\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        assert_eq!(
+            conds.first().map(|c| &c.operation),
+            Some(&Some(ConditionalOperation::And))
+        );
+        // Only a is defined, AND requires both → inactive
+        assert_eq!(conds.first().map(|c| c.is_active), Some(false));
+    }
+
+    #[test]
+    fn test_extract_conditionals_single_line() {
+        let attrs = DocumentAttributes::default();
+        let text = "ifdef::attr[inline content]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 1);
+        assert_eq!(conds.first().map(|c| c.is_active), Some(false));
+        assert_eq!(conds.first().map(|c| c.start_line), Some(0));
+        assert_eq!(conds.first().map(|c| c.end_line), Some(None));
+    }
+
+    #[test]
+    fn test_extract_conditionals_escaped() {
+        let attrs = DocumentAttributes::default();
+        let text = "\\ifdef::attr[]\ncontent\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert!(conds.is_empty());
+    }
+
+    #[test]
+    fn test_extract_conditionals_multiple() {
+        let mut attrs = DocumentAttributes::default();
+        let (k, v) = attr_set("html");
+        attrs.insert(k, v);
+        let text = "ifdef::html[]\nHTML\nendif::[]\nifdef::pdf[]\nPDF\nendif::[]";
+        let conds = extract_conditionals(text, &attrs);
+        assert_eq!(conds.len(), 2);
+        assert_eq!(conds.first().map(|c| c.is_active), Some(true)); // html defined
+        assert_eq!(conds.get(1).map(|c| c.is_active), Some(false)); // pdf not defined
     }
 }

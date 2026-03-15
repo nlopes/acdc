@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Conditional directive awareness** — `ifdef`/`ifndef` blocks are now detected
+  and inactive branches are grayed out based on defined document attributes.
+  Uses semantic tokens with a custom "disabled" modifier and `DiagnosticTag::Unnecessary`
+  for universal editor support. Conditional directive lines are highlighted as keywords.
 - **Include path completion** — filesystem traversal completion for `include::`
   directives. Suggests files and directories as the user types the path, with
   AsciiDoc files prioritized. Selecting a directory re-triggers completion for

@@ -106,6 +106,10 @@ impl Workspace {
             state.diagnostics.extend(link_diags);
         }
 
+        // Compute conditional diagnostics (inactive ifdef/ifndef graying)
+        let conditional_diags = diagnostics::compute_conditional_diagnostics(&state.conditionals);
+        state.diagnostics.extend(conditional_diags);
+
         self.documents.insert(uri, state);
     }
 

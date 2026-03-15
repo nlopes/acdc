@@ -417,7 +417,11 @@ impl LanguageServer for Backend {
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast.as_ref().map(|ast| {
-                SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(ast))
+                SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(
+                    ast,
+                    &doc.conditionals,
+                    &doc.text,
+                ))
             })
         } else {
             None

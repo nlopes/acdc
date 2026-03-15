@@ -766,6 +766,7 @@ mod tests {
             attribute_refs: vec![],
             attribute_defs: vec![],
             media_sources: vec![],
+            conditionals: vec![],
         };
 
         let options = make_options();

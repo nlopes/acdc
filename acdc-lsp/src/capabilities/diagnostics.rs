@@ -10,7 +10,9 @@ use std::hash::BuildHasher;
 use std::path::Path;
 
 use acdc_parser::{Error, Location, Positioning, Source};
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, Range};
+use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
+
+use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
 
 use crate::convert::{location_to_range, parser_position_to_lsp};
 use crate::state::XrefTarget;
@@ -175,6 +177,59 @@ pub fn compute_link_diagnostics(
                 ..Default::default()
             });
         }
+    }
+
+    diagnostics
+}
+
+/// Compute diagnostics for inactive conditional blocks.
+///
+/// Emits HINT-level diagnostics with `DiagnosticTag::UNNECESSARY` for content
+/// inside inactive ifdef/ifndef blocks. This causes editors to render the
+/// content with reduced opacity (grayed out).
+#[must_use]
+pub fn compute_conditional_diagnostics(conditionals: &[ConditionalBlock]) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+
+    for cond in conditionals {
+        if cond.is_active {
+            continue;
+        }
+
+        let Some(end_line) = cond.end_line else {
+            continue;
+        };
+
+        let directive = match cond.kind {
+            ConditionalDirectiveKind::Ifdef => "ifdef",
+            ConditionalDirectiveKind::Ifndef => "ifndef",
+        };
+        let separator = match cond.operation {
+            Some(ConditionalOperation::Or) => ",",
+            _ => "+",
+        };
+        let attrs = cond.attributes.join(separator);
+
+        let start_line: u32 = cond.start_line.try_into().unwrap_or(u32::MAX);
+        let end_line_u32: u32 = end_line.try_into().unwrap_or(u32::MAX);
+
+        diagnostics.push(Diagnostic {
+            range: Range {
+                start: tower_lsp::lsp_types::Position {
+                    line: start_line,
+                    character: 0,
+                },
+                end: tower_lsp::lsp_types::Position {
+                    line: end_line_u32,
+                    character: u32::MAX,
+                },
+            },
+            severity: Some(DiagnosticSeverity::HINT),
+            source: Some("acdc".to_string()),
+            message: format!("Inactive conditional block ({directive}::{attrs})"),
+            tags: Some(vec![DiagnosticTag::UNNECESSARY]),
+            ..Default::default()
+        });
     }
 
     diagnostics
@@ -391,6 +446,43 @@ mod tests {
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&[], &includes, &tmp, None);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn test_conditional_inactive_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let conditionals = vec![ConditionalBlock {
+            kind: ConditionalDirectiveKind::Ifdef,
+            attributes: vec!["missing-attr".to_string()],
+            operation: None,
+            is_active: false,
+            start_line: 2,
+            end_line: Some(4),
+        }];
+
+        let diags = compute_conditional_diagnostics(&conditionals);
+        assert_eq!(diags.len(), 1);
+        let d = diags.first().ok_or("expected one diagnostic")?;
+        assert_eq!(d.severity, Some(DiagnosticSeverity::HINT));
+        assert!(d.message.contains("ifdef::missing-attr"));
+        assert_eq!(d.tags, Some(vec![DiagnosticTag::UNNECESSARY]));
+        assert_eq!(d.range.start.line, 2);
+        assert_eq!(d.range.end.line, 4);
+        Ok(())
+    }
+
+    #[test]
+    fn test_conditional_active_no_diagnostic() {
+        let conditionals = vec![ConditionalBlock {
+            kind: ConditionalDirectiveKind::Ifdef,
+            attributes: vec!["present".to_string()],
+            operation: None,
+            is_active: true,
+            start_line: 0,
+            end_line: Some(2),
+        }];
+
+        let diags = compute_conditional_diagnostics(&conditionals);
         assert!(diags.is_empty());
     }
 }
