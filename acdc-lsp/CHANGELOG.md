@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Call hierarchy for includes** — implements `textDocument/prepareCallHierarchy`,
+  `callHierarchy/incomingCalls`, and `callHierarchy/outgoingCalls` to navigate
+  include-tree relationships. "Outgoing calls" shows what a document includes;
+  "Incoming calls" shows which documents include a given file. Works across
+  open documents and non-open workspace files.
 - **Macro completion snippets** — typing a macro name prefix (e.g., `ima`, `kbd`,
   `menu`) triggers snippet completions that expand to the full macro syntax with
   tab stops for arguments. Supports all inline macros (`image:`, `link:`, `kbd:`,

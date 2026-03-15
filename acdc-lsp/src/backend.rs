@@ -4,11 +4,13 @@
 
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
-    CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
-    CodeLens, CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
-    CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkOptions,
-    DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
+    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
+    CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
+    CallHierarchyServerCapability, CodeActionOptions, CodeActionParams,
+    CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions, CodeLensParams,
+    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
+    DocumentLinkOptions, DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
     DocumentSymbolResponse, FileOperationFilter, FileOperationPattern, FileOperationPatternKind,
     FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
     FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
@@ -24,8 +26,9 @@ use tower_lsp::lsp_types::{
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
-    code_actions, code_lens, completion, definition, document_links, file_rename, folding,
-    formatting, hover, inlay_hints, references, rename, selection_range, semantic_tokens, symbols,
+    call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
+    folding, formatting, hover, inlay_hints, references, rename, selection_range, semantic_tokens,
+    symbols,
 };
 use crate::state::Workspace;
 
@@ -131,6 +134,8 @@ impl LanguageServer for Backend {
                 }),
                 // Enable smart selection expansion
                 selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+                // Enable call hierarchy for include-tree navigation
+                call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                 // Enable inlay hints for resolved attributes and xref titles
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 // Enable completion for xrefs, attributes, and includes
@@ -491,5 +496,41 @@ impl LanguageServer for Backend {
     async fn did_rename_files(&self, params: RenameFilesParams) {
         tracing::info!(count = params.files.len(), "workspace/didRenameFiles");
         file_rename::update_workspace_after_rename(&self.workspace, &params.files);
+    }
+
+    async fn prepare_call_hierarchy(
+        &self,
+        params: CallHierarchyPrepareParams,
+    ) -> Result<Option<Vec<CallHierarchyItem>>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            call_hierarchy::prepare_call_hierarchy(&doc, &uri, position)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn incoming_calls(
+        &self,
+        params: CallHierarchyIncomingCallsParams,
+    ) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
+        Ok(call_hierarchy::incoming_calls(
+            &params.item,
+            &self.workspace,
+        ))
+    }
+
+    async fn outgoing_calls(
+        &self,
+        params: CallHierarchyOutgoingCallsParams,
+    ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
+        Ok(call_hierarchy::outgoing_calls(
+            &params.item,
+            &self.workspace,
+        ))
     }
 }

@@ -376,8 +376,9 @@ fn extract_conditionals(text: &str, attrs: &DocumentAttributes) -> Vec<Condition
 /// Extract include directives from raw text via line-by-line scan.
 ///
 /// The preprocessor consumes `include::` directives so they don't appear in the AST.
-/// We scan the raw text to find them for document link support.
-fn extract_includes(text: &str) -> Vec<(String, Location)> {
+/// We scan the raw text to find them for document link support, call hierarchy, and
+/// file rename operations.
+pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
     let mut includes = Vec::new();
 
     for (line_idx, line) in text.lines().enumerate() {

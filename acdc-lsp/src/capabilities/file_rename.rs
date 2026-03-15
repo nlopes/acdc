@@ -5,7 +5,7 @@ use std::path::{Component, Path};
 
 use tower_lsp::lsp_types::{FileRename, TextEdit, Url, WorkspaceEdit};
 
-use crate::convert::location_to_range;
+use crate::convert::{location_to_range, resolve_relative_uri};
 use crate::state::{Workspace, XrefTarget};
 
 /// Compute workspace edits to update references when files are renamed.
@@ -185,7 +185,7 @@ fn scan_workspace_files_for_renames(
         }
 
         // Scan includes from raw text
-        let includes = extract_includes_for_scan(&text);
+        let includes = crate::state::extract_includes(&text);
         for (target, location) in &includes {
             let Some(resolved) = resolve_relative_uri(&file_uri, target) else {
                 continue;
@@ -203,52 +203,6 @@ fn scan_workspace_files_for_renames(
             });
         }
     }
-}
-
-/// Extract include directives from raw text (mirrors `DocumentState::extract_includes`).
-fn extract_includes_for_scan(text: &str) -> Vec<(String, acdc_parser::Location)> {
-    let mut includes = Vec::new();
-
-    for (line_idx, line) in text.lines().enumerate() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("include::")
-            && let Some(bracket_pos) = rest.find('[')
-        {
-            let target = &rest[..bracket_pos];
-            if !target.is_empty() {
-                let col_offset = line.find("include::").unwrap_or(0);
-                let target_start = col_offset + "include::".len();
-                let target_end = target_start + target.len();
-
-                let mut location = acdc_parser::Location::default();
-                location.start.line = line_idx + 1;
-                location.start.column = target_start + 1;
-                location.end.line = line_idx + 1;
-                location.end.column = target_end;
-
-                let line_start: usize = text.lines().take(line_idx).map(|l| l.len() + 1).sum();
-                location.absolute_start = line_start + target_start;
-                location.absolute_end = line_start + target_end;
-
-                includes.push((target.to_string(), location));
-            }
-        }
-    }
-
-    includes
-}
-
-/// Resolve a relative path against a document URI's directory.
-fn resolve_relative_uri(doc_uri: &Url, relative_path: &str) -> Option<Url> {
-    let mut base = doc_uri.clone();
-    base.path_segments_mut().ok()?.pop();
-    let base_str = base.as_str();
-    let base = if base_str.ends_with('/') {
-        base
-    } else {
-        Url::parse(&format!("{base_str}/")).ok()?
-    };
-    base.join(relative_path).ok()
 }
 
 /// Compute the relative path from a directory to a target file.
