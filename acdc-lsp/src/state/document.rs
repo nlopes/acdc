@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use acdc_parser::{Document, Location};
+use acdc_parser::{Document, Location, Source};
 use tower_lsp::lsp_types::Diagnostic;
 
 /// Represents a parsed document's state
@@ -26,6 +26,8 @@ pub struct DocumentState {
     pub attribute_refs: Vec<(String, Location)>,
     /// Attribute definitions: (`attr_name`, location) extracted from source text
     pub attribute_defs: Vec<(String, Location)>,
+    /// Media sources: (source, location) for images, audio, and video
+    pub media_sources: Vec<(Source, Location)>,
 }
 
 impl DocumentState {
@@ -37,6 +39,7 @@ impl DocumentState {
         ast: Document,
         anchors: HashMap<String, Location>,
         xrefs: Vec<(String, Location)>,
+        media_sources: Vec<(Source, Location)>,
     ) -> Self {
         let includes = extract_includes(&text);
         let attribute_refs = extract_attribute_refs(&text);
@@ -50,6 +53,7 @@ impl DocumentState {
             xrefs,
             includes,
             attribute_refs,
+            media_sources,
         }
     }
 
@@ -70,6 +74,7 @@ impl DocumentState {
             xrefs: vec![],
             includes,
             attribute_refs,
+            media_sources: vec![],
         }
     }
 }

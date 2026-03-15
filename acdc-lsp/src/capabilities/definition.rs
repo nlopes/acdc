@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
+    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section, Source,
 };
 use tower_lsp::lsp_types::Position;
 
@@ -312,6 +312,139 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
     }
 }
 
+/// Collect all media sources (images, audio, video) from document AST
+#[must_use]
+pub fn collect_media_sources(doc: &Document) -> Vec<(Source, Location)> {
+    let mut sources = vec![];
+
+    for block in &doc.blocks {
+        collect_block_media(block, &mut sources);
+    }
+
+    sources
+}
+
+fn collect_block_media(block: &Block, sources: &mut Vec<(Source, Location)>) {
+    match block {
+        Block::Section(section) => {
+            for child in &section.content {
+                collect_block_media(child, sources);
+            }
+        }
+        Block::Paragraph(para) => {
+            collect_inline_media(&para.content, sources);
+        }
+        Block::DelimitedBlock(delimited) => {
+            collect_delimited_block_media(&delimited.inner, sources);
+        }
+        Block::UnorderedList(list) => {
+            for item in &list.items {
+                collect_inline_media(&item.principal, sources);
+                for b in &item.blocks {
+                    collect_block_media(b, sources);
+                }
+            }
+        }
+        Block::OrderedList(list) => {
+            for item in &list.items {
+                collect_inline_media(&item.principal, sources);
+                for b in &item.blocks {
+                    collect_block_media(b, sources);
+                }
+            }
+        }
+        Block::DescriptionList(list) => {
+            for item in &list.items {
+                collect_inline_media(&item.principal_text, sources);
+                for b in &item.description {
+                    collect_block_media(b, sources);
+                }
+            }
+        }
+        Block::Admonition(adm) => {
+            for b in &adm.blocks {
+                collect_block_media(b, sources);
+            }
+        }
+        Block::Image(img) => {
+            sources.push((img.source.clone(), img.location.clone()));
+        }
+        Block::Audio(audio) => {
+            sources.push((audio.source.clone(), audio.location.clone()));
+        }
+        Block::Video(video) => {
+            for source in &video.sources {
+                sources.push((source.clone(), video.location.clone()));
+            }
+        }
+        Block::TableOfContents(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::CalloutList(_)
+        | Block::Comment(_)
+        // non_exhaustive
+        | _ => {}
+    }
+}
+
+fn collect_delimited_block_media(
+    inner: &DelimitedBlockType,
+    sources: &mut Vec<(Source, Location)>,
+) {
+    match inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks) => {
+            for block in blocks {
+                collect_block_media(block, sources);
+            }
+        }
+        DelimitedBlockType::DelimitedListing(inlines)
+        | DelimitedBlockType::DelimitedLiteral(inlines)
+        | DelimitedBlockType::DelimitedPass(inlines)
+        | DelimitedBlockType::DelimitedVerse(inlines)
+        | DelimitedBlockType::DelimitedComment(inlines) => {
+            collect_inline_media(inlines, sources);
+        }
+        DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        // non_exhaustive
+        | _ => {}
+    }
+}
+
+fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(Source, Location)>) {
+    for inline in inlines {
+        match inline {
+            InlineNode::Macro(InlineMacro::Image(img)) => {
+                sources.push((img.source.clone(), img.location.clone()));
+            }
+            // Recurse into formatted text to find nested images
+            InlineNode::BoldText(b) => collect_inline_media(&b.content, sources),
+            InlineNode::ItalicText(i) => collect_inline_media(&i.content, sources),
+            InlineNode::MonospaceText(m) => collect_inline_media(&m.content, sources),
+            InlineNode::HighlightText(h) => collect_inline_media(&h.content, sources),
+            InlineNode::SubscriptText(s) => collect_inline_media(&s.content, sources),
+            InlineNode::SuperscriptText(s) => collect_inline_media(&s.content, sources),
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            // non_exhaustive
+            | _ => {}
+        }
+    }
+}
+
 /// Find definition at cursor position, with cross-file resolution
 #[must_use]
 pub fn find_definition_at_position(
@@ -531,6 +664,42 @@ Content.
         let result = find_definition_at_position(&a_doc, &a_uri, &workspace, position);
         let (uri, _loc) = result.ok_or("expected cross-file xref to resolve")?;
         assert_eq!(uri, file_uri);
+        Ok(())
+    }
+
+    #[test]
+    fn test_collect_media_sources_block_image() -> Result<(), acdc_parser::Error> {
+        let content = "= Document\n\nimage::photo.png[Alt text]\n";
+        let doc = acdc_parser::parse(content, &Options::default())?;
+        let sources = collect_media_sources(&doc);
+
+        assert_eq!(sources.len(), 1);
+        assert!(sources.first().is_some_and(|(s, _)| {
+            matches!(s, Source::Path(p) if p.display().to_string() == "photo.png")
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn test_collect_media_sources_inline_image() -> Result<(), acdc_parser::Error> {
+        let content = "= Document\n\n== Section\n\nSee image:icon.png[] here.\n";
+        let doc = acdc_parser::parse(content, &Options::default())?;
+        let sources = collect_media_sources(&doc);
+
+        assert_eq!(sources.len(), 1);
+        assert!(sources.first().is_some_and(|(s, _)| {
+            matches!(s, Source::Path(p) if p.display().to_string() == "icon.png")
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn test_collect_media_sources_multiple() -> Result<(), acdc_parser::Error> {
+        let content = "= Document\n\nimage::a.png[]\n\n== Section\n\nimage::b.jpg[]\n\nText with image:c.svg[] inline.\n";
+        let doc = acdc_parser::parse(content, &Options::default())?;
+        let sources = collect_media_sources(&doc);
+
+        assert_eq!(sources.len(), 3);
         Ok(())
     }
 }

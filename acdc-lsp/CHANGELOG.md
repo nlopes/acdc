@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Link validation diagnostics** — flag missing images, audio, video, and
+  include files with warning-level diagnostics. Resolves image paths through
+  the `imagesdir` attribute when set. URLs and icon names are skipped.
 - **Inlay hints** — show resolved attribute values and cross-reference titles as
   ghost text inline (`textDocument/inlayHint`). Attribute references like
   `{product-name}` display their resolved value; xrefs like `<<setup>>` show the
