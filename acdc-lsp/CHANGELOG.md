@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **On-type formatting** — pressing Enter after a list item auto-inserts the
+  list marker on the next line (supports `*`, `-`, `.`, `N.`, `<N>` markers
+  with nesting and numbering). Pressing Enter on an empty list item removes
+  it. Opening a delimited block (`----`, `====`, `....`, etc.) and pressing
+  Enter auto-inserts the matching closing delimiter.
 - **Signature help for macros** — when editing inside the attribute list `[...]`
   of a macro like `image::`, `include::`, `link:`, etc., the editor shows a
   tooltip with expected positional and named parameters. The current parameter

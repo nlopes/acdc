@@ -10,7 +10,8 @@ use tower_lsp::lsp_types::{
     CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions, CodeLensParams,
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
-    DocumentLinkOptions, DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
+    DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
+    DocumentOnTypeFormattingParams, DocumentRangeFormattingParams, DocumentSymbolParams,
     DocumentSymbolResponse, FileOperationFilter, FileOperationPattern, FileOperationPatternKind,
     FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
     FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
@@ -27,8 +28,8 @@ use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
     call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
-    folding, formatting, hover, inlay_hints, references, rename, selection_range, semantic_tokens,
-    signature_help, symbols,
+    folding, formatting, hover, inlay_hints, on_type_formatting, references, rename,
+    selection_range, semantic_tokens, signature_help, symbols,
 };
 use crate::state::Workspace;
 
@@ -128,6 +129,11 @@ impl LanguageServer for Backend {
                 document_formatting_provider: Some(OneOf::Left(true)),
                 // Enable range formatting
                 document_range_formatting_provider: Some(OneOf::Left(true)),
+                // Enable on-type formatting for list continuation and block auto-close
+                document_on_type_formatting_provider: Some(DocumentOnTypeFormattingOptions {
+                    first_trigger_character: "\n".to_string(),
+                    more_trigger_character: None,
+                }),
                 // Enable code lens for reference counts
                 code_lens_provider: Some(CodeLensOptions {
                     resolve_provider: Some(false),
@@ -477,6 +483,21 @@ impl LanguageServer for Backend {
             .map(|doc| formatting::format_range(&doc, &params.range, &params.options));
 
         Ok(response.filter(|edits| !edits.is_empty()))
+    }
+
+    async fn on_type_formatting(
+        &self,
+        params: DocumentOnTypeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .and_then(|doc| on_type_formatting::format_on_type(&doc, position, &params.ch));
+
+        Ok(response)
     }
 
     async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {

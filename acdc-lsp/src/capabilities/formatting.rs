@@ -15,7 +15,7 @@ use crate::state::DocumentState;
 /// A line range where formatting must not be applied (e.g., inside listing blocks).
 /// Lines are 0-indexed.
 #[derive(Debug, Clone)]
-struct ProtectedRange {
+pub(crate) struct ProtectedRange {
     start_line: usize,
     end_line: usize,
 }
@@ -91,7 +91,7 @@ pub fn format_range(
 }
 
 /// Collect protected line ranges from the AST by finding verbatim delimited blocks.
-fn collect_protected_ranges(ast: &Document) -> Vec<ProtectedRange> {
+pub(crate) fn collect_protected_ranges(ast: &Document) -> Vec<ProtectedRange> {
     let mut ranges = Vec::new();
     collect_protected_ranges_from_blocks(&ast.blocks, &mut ranges);
     ranges
@@ -169,7 +169,7 @@ fn is_verbatim_block_type(inner: &DelimitedBlockType) -> bool {
 }
 
 /// Fallback: detect verbatim block ranges from raw text when AST is unavailable.
-fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
+pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
     let mut ranges = Vec::new();
     let delimiter_chars = ['-', '.', '+', '/'];
 
@@ -200,7 +200,7 @@ fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
 }
 
 /// Check if a line falls within any protected range.
-fn is_protected(line: usize, ranges: &[ProtectedRange]) -> bool {
+pub(crate) fn is_protected(line: usize, ranges: &[ProtectedRange]) -> bool {
     ranges
         .iter()
         .any(|r| line >= r.start_line && line <= r.end_line)

@@ -12,6 +12,7 @@ pub mod folding;
 pub mod formatting;
 pub mod hover;
 pub mod inlay_hints;
+pub mod on_type_formatting;
 pub mod references;
 pub mod rename;
 pub mod selection_range;
