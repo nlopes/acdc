@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Include path completion** — filesystem traversal completion for `include::`
+  directives. Suggests files and directories as the user types the path, with
+  AsciiDoc files prioritized. Selecting a directory re-triggers completion for
+  continued path navigation.
 - **Automatic link updates on file rename** — when an AsciiDoc file is renamed
   or moved in the editor, all cross-file references (xrefs, includes) across the
   workspace are automatically updated (`workspace/willRenameFiles`). Also scans

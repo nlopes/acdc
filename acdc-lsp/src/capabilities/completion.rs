@@ -1,7 +1,10 @@
 //! Completion: suggest xref targets, attributes, and include paths
 
+use std::path::Path;
+
 use tower_lsp::lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Position, Url,
+    Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionTextEdit,
+    Position, Range, TextEdit, Url,
 };
 
 use crate::state::{DocumentState, Workspace};
@@ -77,9 +80,8 @@ pub fn compute_completions(
         CompletionContext::AttributeDefinition { prefix } => {
             Some(complete_attribute_definitions(&prefix))
         }
-        CompletionContext::IncludePath { prefix: _ } => {
-            // Include path completion requires filesystem access - skip for MVP
-            Some(vec![])
+        CompletionContext::IncludePath { prefix } => {
+            Some(complete_include_paths(doc_uri, &prefix, position))
         }
         CompletionContext::None => None,
     }
@@ -258,6 +260,124 @@ fn complete_attribute_definitions(prefix: &str) -> Vec<CompletionItem> {
         .collect()
 }
 
+// TODO(nlopes): add support for skipping anything in .gitignore files, which would be
+// more robust than a hardcoded list of skip dirs
+/// Directories to skip during include path completion
+const SKIP_DIRS: &[&str] = &[".git", ".svn", ".hg", "target", "node_modules", ".build"];
+
+/// `AsciiDoc` file extensions (prioritized in sort order)
+const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "ad", "asc"];
+
+/// Complete include paths by listing files and directories on the filesystem
+fn complete_include_paths(doc_uri: &Url, prefix: &str, position: Position) -> Vec<CompletionItem> {
+    let Ok(doc_path) = doc_uri.to_file_path() else {
+        return vec![];
+    };
+    let Some(doc_dir) = doc_path.parent() else {
+        return vec![];
+    };
+
+    // Split prefix into directory part and name filter
+    // e.g. "chapters/ch" → dir_part="chapters/", filter="ch"
+    // e.g. "ch" → dir_part="", filter="ch"
+    // e.g. "chapters/" → dir_part="chapters/", filter=""
+    let (dir_part, filter) = match prefix.rfind('/') {
+        Some(pos) => (&prefix[..=pos], &prefix[pos + 1..]),
+        None => ("", prefix),
+    };
+
+    let search_dir = if dir_part.is_empty() {
+        doc_dir.to_path_buf()
+    } else {
+        doc_dir.join(dir_part)
+    };
+
+    let Ok(entries) = std::fs::read_dir(&search_dir) else {
+        return vec![];
+    };
+
+    // The text edit range covers the entire prefix (everything after `include::`)
+    let prefix_len = u32::try_from(prefix.len()).unwrap_or(0);
+    let edit_range = Range {
+        start: Position {
+            line: position.line,
+            character: position.character - prefix_len,
+        },
+        end: position,
+    };
+
+    let filter_lower = filter.to_lowercase();
+    let mut items = Vec::new();
+
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+
+        // Skip hidden entries
+        if name_str.starts_with('.') {
+            continue;
+        }
+
+        let is_dir = entry.file_type().is_ok_and(|ft| ft.is_dir());
+
+        // Skip known non-useful directories
+        if is_dir && SKIP_DIRS.contains(&name_str.as_ref()) {
+            continue;
+        }
+
+        // Apply filter
+        if !name_str.to_lowercase().starts_with(&filter_lower) {
+            continue;
+        }
+
+        if is_dir {
+            let new_text = format!("{dir_part}{name_str}/");
+            items.push(CompletionItem {
+                label: format!("{name_str}/"),
+                kind: Some(CompletionItemKind::FOLDER),
+                text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                    range: edit_range,
+                    new_text,
+                })),
+                sort_text: Some(format!("0{name_str}")),
+                command: Some(Command {
+                    title: "Trigger Suggest".to_string(),
+                    command: "editor.action.triggerSuggest".to_string(),
+                    arguments: None,
+                }),
+                ..Default::default()
+            });
+        } else {
+            let is_adoc = Path::new(&*name_str)
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|ext| ADOC_EXTENSIONS.contains(&ext));
+            let new_text = format!("{dir_part}{name_str}[]");
+            items.push(CompletionItem {
+                label: name_str.to_string(),
+                kind: Some(CompletionItemKind::FILE),
+                text_edit: Some(CompletionTextEdit::Edit(TextEdit {
+                    range: edit_range,
+                    new_text,
+                })),
+                sort_text: Some(format!("{}{name_str}", if is_adoc { "1" } else { "2" })),
+                label_details: if is_adoc {
+                    Some(CompletionItemLabelDetails {
+                        detail: Some(" AsciiDoc".to_string()),
+                        description: None,
+                    })
+                } else {
+                    None
+                },
+                ..Default::default()
+            });
+        }
+    }
+
+    items.sort_by(|a, b| a.sort_text.cmp(&b.sort_text));
+    items
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -391,6 +511,165 @@ mod tests {
         // Test with empty prefix gets all anchors (at least local ones)
         let items = complete_cross_references(&doc, &uri, &workspace, "");
         assert!(items.len() >= 2);
+        Ok(())
+    }
+
+    fn setup_include_test_dir(
+        suffix: &str,
+    ) -> Result<(std::path::PathBuf, Url), Box<dyn std::error::Error>> {
+        let tmp = std::env::temp_dir().join(format!("acdc_lsp_test_include_completion_{suffix}"));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("chapters"))?;
+        std::fs::create_dir_all(tmp.join(".git"))?;
+        std::fs::create_dir_all(tmp.join("target"))?;
+
+        std::fs::write(tmp.join("intro.adoc"), "= Intro\n")?;
+        std::fs::write(tmp.join("appendix.asciidoc"), "= Appendix\n")?;
+        std::fs::write(tmp.join("data.csv"), "a,b,c\n")?;
+        std::fs::write(tmp.join("chapters/chapter-01.adoc"), "= Ch 1\n")?;
+        std::fs::write(tmp.join("chapters/chapter-02.adoc"), "= Ch 2\n")?;
+
+        let doc_uri = Url::from_file_path(tmp.join("main.adoc")).map_err(|()| "bad path")?;
+        Ok((tmp, doc_uri))
+    }
+
+    /// Helper: position simulating cursor right after `include::{prefix}`
+    fn pos_for_prefix(prefix: &str) -> Position {
+        let col = u32::try_from("include::".len() + prefix.len()).unwrap_or(0);
+        Position {
+            line: 0,
+            character: col,
+        }
+    }
+
+    /// Helper: extract `new_text` from a `CompletionItem`'s `text_edit`
+    fn edit_text(item: &CompletionItem) -> Option<&str> {
+        match &item.text_edit {
+            Some(CompletionTextEdit::Edit(te)) => Some(&te.new_text),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn test_complete_include_paths_lists_files_and_dirs() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let (tmp, doc_uri) = setup_include_test_dir("list")?;
+
+        let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
+        let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+
+        assert!(labels.contains(&"intro.adoc"), "missing intro.adoc");
+        assert!(
+            labels.contains(&"appendix.asciidoc"),
+            "missing appendix.asciidoc"
+        );
+        assert!(labels.contains(&"data.csv"), "missing data.csv");
+        assert!(labels.contains(&"chapters/"), "missing chapters/");
+
+        // Hidden dirs and skip dirs should be excluded
+        assert!(!labels.contains(&".git/"), ".git should be hidden");
+        assert!(!labels.contains(&"target/"), "target should be skipped");
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_complete_include_paths_subdirectory() -> Result<(), Box<dyn std::error::Error>> {
+        let (tmp, doc_uri) = setup_include_test_dir("subdir")?;
+
+        let prefix = "chapters/";
+        let items = complete_include_paths(&doc_uri, prefix, pos_for_prefix(prefix));
+        let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+
+        assert!(labels.contains(&"chapter-01.adoc"));
+        assert!(labels.contains(&"chapter-02.adoc"));
+        assert_eq!(items.len(), 2);
+
+        // Verify text_edit replaces the full prefix with the complete path
+        let ch1 = items
+            .iter()
+            .find(|i| i.label == "chapter-01.adoc")
+            .ok_or("chapter-01.adoc not found")?;
+        assert_eq!(edit_text(ch1), Some("chapters/chapter-01.adoc[]"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_complete_include_paths_filter() -> Result<(), Box<dyn std::error::Error>> {
+        let (tmp, doc_uri) = setup_include_test_dir("filter")?;
+
+        let prefix = "int";
+        let items = complete_include_paths(&doc_uri, prefix, pos_for_prefix(prefix));
+        assert_eq!(items.len(), 1);
+        let first = items.first().ok_or("expected at least one item")?;
+        assert_eq!(first.label, "intro.adoc");
+        assert_eq!(edit_text(first), Some("intro.adoc[]"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_complete_include_paths_nonexistent_dir() -> Result<(), Box<dyn std::error::Error>> {
+        let doc_uri = Url::parse("file:///nonexistent/dir/doc.adoc")?;
+        let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
+        assert!(items.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_complete_include_paths_adoc_sorted_first() -> Result<(), Box<dyn std::error::Error>> {
+        let (tmp, doc_uri) = setup_include_test_dir("sort")?;
+
+        let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
+        // Directories (sort "0...") come first, then adoc files ("1..."), then others ("2...")
+        let first_file = items
+            .iter()
+            .find(|i| i.kind == Some(CompletionItemKind::FILE))
+            .ok_or("expected at least one file")?;
+        assert!(
+            first_file
+                .sort_text
+                .as_ref()
+                .is_some_and(|s| s.starts_with('1')),
+            "first file should be an adoc file (sort prefix '1')"
+        );
+
+        // data.csv should have sort prefix '2'
+        let csv = items
+            .iter()
+            .find(|i| i.label == "data.csv")
+            .ok_or("data.csv not found")?;
+        assert!(csv.sort_text.as_ref().is_some_and(|s| s.starts_with('2')));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_complete_include_paths_dir_retriggers() -> Result<(), Box<dyn std::error::Error>> {
+        let (tmp, doc_uri) = setup_include_test_dir("retrigger")?;
+
+        let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
+        let dir_item = items
+            .iter()
+            .find(|i| i.label == "chapters/")
+            .ok_or("chapters/ not found")?;
+        let command = dir_item
+            .command
+            .as_ref()
+            .ok_or("directory items should have a retrigger command")?;
+        assert_eq!(command.command, "editor.action.triggerSuggest");
+        assert_eq!(
+            edit_text(dir_item),
+            Some("chapters/"),
+            "directory edit text should include trailing slash"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
     }
 }
