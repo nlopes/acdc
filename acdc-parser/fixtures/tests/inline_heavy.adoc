@@ -1,0 +1,116 @@
+= Inline-Heavy Benchmark Document
+:author: Test Author
+:toc:
+
+== Introduction
+
+This document exercises *bold*, _italic_, `monospace`, and #highlight# formatting extensively.
+It also uses **unconstrained bold**, __unconstrained italic__, ``unconstrained monospace``, and ##unconstrained highlight##.
+
+Here is some *bold text* followed by _italic text_ and `monospace text` and #highlighted text#.
+Multiple *bold* words _italic_ words `mono` words #mark# words in a single line.
+Nesting works too: *bold _italic_ text* and _italic `monospace` text_ are common patterns.
+
+This is a longer paragraph of plain text without any formatting to exercise the negative lookahead
+path of the parser. Each character must be checked against all possible inline constructs before
+being accepted as plain text. The more plain text there is, the more the lookahead cache helps.
+This paragraph deliberately avoids special characters to maximize the number of cache lookups
+that occur during parsing. We want to stress the plain text accumulation loop here.
+
+== Cross-references and anchors
+
+[[section-one]]
+=== Section one with anchor
+
+See <<section-one>> for details. Also see <<section-two,Section Two>> for more.
+Reference xref:other-doc.adoc[another document] and xref:guide.adoc#tips[specific section].
+
+[[section-two]]
+=== Section two with anchor
+
+Back to <<section-one>> and forward to <<section-three,the third section>>.
+Cross-reference xref:api.adoc[API docs] and xref:tutorial.adoc#step1[step one].
+
+[[section-three]]
+=== Section three
+
+More xrefs: <<section-one>>, <<section-two>>, <<section-three>>.
+
+== Index terms
+
+This section has index terms. (((primary term))) Here is a concealed index.
+And ((visible index term)) appears inline. Also indexterm:[another term] works.
+Multiple indexterm2:[term1, term2] entries indexterm:[entry three] in one paragraph.
+More text with (((term A))) and (((term B))) and (((term C))) scattered throughout.
+Flow terms like ((alpha)) and ((beta)) and ((gamma)) are also present.
+
+== Dense formatting
+
+The *quick* _brown_ `fox` #jumps# over the *lazy* _dog_ `and` #runs# away.
+A *bold statement* with _italic emphasis_ in `monospace code` and #highlighted text# here.
+Then *more bold* and _more italic_ and `more mono` and #more highlight# continues.
+Even *more* _formatting_ `mixed` #together# in *every* _single_ `line` #here#.
+
+*Bold* at start, middle *bold* word, and *bold* at end.
+_Italic_ at start, middle _italic_ word, and _italic_ at end.
+`Mono` at start, middle `mono` word, and `mono` at end.
+#Mark# at start, middle #mark# word, and #mark# at end.
+
+=== Escaped syntax
+
+Use \*not bold* and \_not italic_ and \`not mono` and \#not highlight#.
+Double escape \\*also not bold* and \\_also not italic_.
+The backslash \\ is literal here and here \\ too.
+Escaped cross-ref \<<not-a-ref>> and escaped anchor \[[not-an-anchor]].
+
+== Mixed inline constructs
+
+A paragraph with *bold*, _italic_, `monospace`, #highlight#, ^super^, ~sub~,
+((index)), (((concealed))), <<section-one>>, and xref:doc.adoc[link] all together.
+Followed by more *bold words* and _italic words_ and `monospace words` and #highlight words#.
+
+Another paragraph: the *first* word is bold, the _second_ is italic, the `third` is monospace,
+the #fourth# is highlighted, then *fifth* bold, _sixth_ italic, `seventh` mono, #eighth# mark.
+
+Yet another line with *a* _b_ `c` #d# *e* _f_ `g` #h# *i* _j_ `k` #l# *m* _n_ `o` #p#.
+
+== Long plain text sections
+
+This is a very long section of plain text that contains no special formatting whatsoever.
+The parser must check every single character against all the negative lookahead patterns
+and find that none of them match. This exercises the caching behavior because the same
+position will be checked for bold, italic, monospace, highlight, cross-references, anchors,
+index terms, escaped syntax, and many other patterns before accepting each character.
+
+More plain text follows here without any special characters or patterns. Just regular
+English prose that flows naturally from one sentence to the next. The sentences are
+designed to be long enough to stress the character-by-character lookahead checking
+but not so long that they become difficult to read or maintain as test fixtures.
+
+A third paragraph of plain text continues the theme. Each word here is checked against
+the full set of inline constructs before being accepted as part of the plain text node.
+The parser verifies that the character is not a star, underscore, backtick, hash, caret,
+tilde, open bracket, less-than sign, or any other trigger for inline constructs.
+
+Final plain text paragraph. This rounds out the long plain text section with even more
+content that must be parsed character by character through the negative lookahead loop.
+The goal is to have enough text that the caching optimization becomes measurable in
+benchmarks. Without caching, each position triggers dozens of failed match attempts.
+
+== Repeated patterns
+
+*bold1* text *bold2* text *bold3* text *bold4* text *bold5* text.
+_ital1_ text _ital2_ text _ital3_ text _ital4_ text _ital5_ text.
+`mono1` text `mono2` text `mono3` text `mono4` text `mono5` text.
+#mark1# text #mark2# text #mark3# text #mark4# text #mark5# text.
+
+*b1* _i1_ `m1` #h1# text *b2* _i2_ `m2` #h2# text *b3* _i3_ `m3` #h3# text.
+<<section-one>> text <<section-two>> text <<section-three>> text.
+(((term1))) text (((term2))) text (((term3))) text (((term4))) text.
+((vis1)) text ((vis2)) text ((vis3)) text ((vis4)) text ((vis5)) text.
+
+== Final section
+
+This *final* section _wraps_ up the `inline-heavy` benchmark #document# with a mix
+of all formatting types: *bold*, _italic_, `mono`, #mark#, ^super^, ~sub~,
+<<section-one,cross-ref>>, ((index)), (((concealed index))), and plain text.
