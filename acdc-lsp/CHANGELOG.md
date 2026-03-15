@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Signature help for macros** — when editing inside the attribute list `[...]`
+  of a macro like `image::`, `include::`, `link:`, etc., the editor shows a
+  tooltip with expected positional and named parameters. The current parameter
+  is highlighted based on cursor position. Triggered by `[` and `,`.
 - **Full document outline** — the document symbol tree now includes all block
   types (paragraphs, admonitions, lists, delimited blocks, images, media,
   discrete headers, breaks) with proper nesting, not just sections.

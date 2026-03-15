@@ -18,17 +18,17 @@ use tower_lsp::lsp_types::{
     InlayHint, InlayHintParams, OneOf, PrepareRenameResponse, ReferenceParams, RenameFilesParams,
     RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
     SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
-    ServerCapabilities, ServerInfo, SymbolInformation, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
-    WorkspaceEdit, WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities,
-    WorkspaceSymbolParams,
+    ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
+    SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions, WorkspaceEdit,
+    WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities, WorkspaceSymbolParams,
 };
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
     call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
     folding, formatting, hover, inlay_hints, references, rename, selection_range, semantic_tokens,
-    symbols,
+    signature_help, symbols,
 };
 use crate::state::Workspace;
 
@@ -138,6 +138,12 @@ impl LanguageServer for Backend {
                 call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                 // Enable inlay hints for resolved attributes and xref titles
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                // Enable signature help for macro attribute lists
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec!["[".to_string(), ",".to_string()]),
+                    retrigger_characters: Some(vec![",".to_string()]),
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                }),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -333,6 +339,19 @@ impl LanguageServer for Backend {
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             completion::compute_completions(&doc, &uri, &self.workspace, position)
                 .map(CompletionResponse::Array)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            signature_help::compute_signature_help(&doc, position)
         } else {
             None
         };
