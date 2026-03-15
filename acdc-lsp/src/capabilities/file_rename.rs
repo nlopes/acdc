@@ -552,10 +552,8 @@ mod tests {
         workspace.set_workspace_roots(vec![root_url]);
 
         // Do NOT open any documents — test the disk scan path
-        let old_uri =
-            Url::from_file_path(tmp.join("readme.adoc")).map_err(|()| "bad old path")?;
-        let new_uri =
-            Url::from_file_path(tmp.join("guide.adoc")).map_err(|()| "bad new path")?;
+        let old_uri = Url::from_file_path(tmp.join("readme.adoc")).map_err(|()| "bad old path")?;
+        let new_uri = Url::from_file_path(tmp.join("guide.adoc")).map_err(|()| "bad new path")?;
 
         let renames = vec![FileRename {
             old_uri: old_uri.to_string(),
@@ -570,12 +568,20 @@ mod tests {
 
         let arch_uri =
             Url::from_file_path(tmp.join("architecture.adoc")).map_err(|()| "bad arch path")?;
-        let edits = changes.get(&arch_uri).ok_or("expected edits for architecture.adoc")?;
+        let edits = changes
+            .get(&arch_uri)
+            .ok_or("expected edits for architecture.adoc")?;
         assert_eq!(edits.len(), 2, "expected xref + include edits");
 
         let texts: Vec<&str> = edits.iter().map(|e| e.new_text.as_str()).collect();
-        assert!(texts.contains(&"guide.adoc#intro"), "xref not updated: {texts:?}");
-        assert!(texts.contains(&"guide.adoc"), "include not updated: {texts:?}");
+        assert!(
+            texts.contains(&"guide.adoc#intro"),
+            "xref not updated: {texts:?}"
+        );
+        assert!(
+            texts.contains(&"guide.adoc"),
+            "include not updated: {texts:?}"
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
