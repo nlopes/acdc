@@ -5,9 +5,10 @@
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
     CodeActionOptions, CodeActionParams, CodeActionProviderCapability, CodeActionResponse,
-    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
-    DocumentLinkOptions, DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
+    CodeLens, CodeLensOptions, CodeLensParams, CompletionOptions, CompletionParams,
+    CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkOptions,
+    DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
     DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
     GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
     InitializeParams, InitializeResult, InitializedParams, OneOf, PrepareRenameResponse,
@@ -19,8 +20,8 @@ use tower_lsp::lsp_types::{
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
-    code_actions, completion, definition, document_links, folding, formatting, hover, references,
-    rename, semantic_tokens, symbols,
+    code_actions, code_lens, completion, definition, document_links, folding, formatting, hover,
+    references, rename, semantic_tokens, symbols,
 };
 use crate::state::Workspace;
 
@@ -120,6 +121,10 @@ impl LanguageServer for Backend {
                 document_formatting_provider: Some(OneOf::Left(true)),
                 // Enable range formatting
                 document_range_formatting_provider: Some(OneOf::Left(true)),
+                // Enable code lens for reference counts
+                code_lens_provider: Some(CodeLensOptions {
+                    resolve_provider: Some(false),
+                }),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -366,6 +371,17 @@ impl LanguageServer for Backend {
         });
 
         Ok(response.filter(|actions| !actions.is_empty()))
+    }
+
+    async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| code_lens::compute_code_lenses(&doc, &uri, &self.workspace));
+
+        Ok(response.filter(|lenses| !lenses.is_empty()))
     }
 
     async fn semantic_tokens_full(

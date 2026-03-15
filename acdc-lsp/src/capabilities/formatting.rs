@@ -763,6 +763,8 @@ mod tests {
             anchors: std::collections::HashMap::new(),
             xrefs: vec![],
             includes: vec![],
+            attribute_refs: vec![],
+            attribute_defs: vec![],
         };
 
         let options = make_options();
