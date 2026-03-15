@@ -86,24 +86,24 @@ impl Workspace {
             diagnostics::compute_warnings(&state.anchors, &state.xrefs, Some(&cross_file_resolver));
 
         // Compute link diagnostics (missing images, audio, video, includes)
-        if let Ok(doc_path) = uri.to_file_path() {
-            if let Some(doc_dir) = doc_path.parent() {
-                let imagesdir =
-                    state
-                        .ast
-                        .as_ref()
-                        .and_then(|ast| match ast.attributes.get("imagesdir") {
-                            Some(acdc_parser::AttributeValue::String(s)) => Some(s.as_str()),
-                            _ => None,
-                        });
-                let link_diags = diagnostics::compute_link_diagnostics(
-                    &state.media_sources,
-                    &state.includes,
-                    doc_dir,
-                    imagesdir,
-                );
-                state.diagnostics.extend(link_diags);
-            }
+        if let Ok(doc_path) = uri.to_file_path()
+            && let Some(doc_dir) = doc_path.parent()
+        {
+            let imagesdir =
+                state
+                    .ast
+                    .as_ref()
+                    .and_then(|ast| match ast.attributes.get("imagesdir") {
+                        Some(acdc_parser::AttributeValue::String(s)) => Some(s.as_str()),
+                        _ => None,
+                    });
+            let link_diags = diagnostics::compute_link_diagnostics(
+                &state.media_sources,
+                &state.includes,
+                doc_dir,
+                imagesdir,
+            );
+            state.diagnostics.extend(link_diags);
         }
 
         self.documents.insert(uri, state);
