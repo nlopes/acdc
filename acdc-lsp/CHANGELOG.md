@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Full document outline** — the document symbol tree now includes all block
+  types (paragraphs, admonitions, lists, delimited blocks, images, media,
+  discrete headers, breaks) with proper nesting, not just sections.
 - **Call hierarchy for includes** — implements `textDocument/prepareCallHierarchy`,
   `callHierarchy/incomingCalls`, and `callHierarchy/outgoingCalls` to navigate
   include-tree relationships. "Outgoing calls" shows what a document includes;
