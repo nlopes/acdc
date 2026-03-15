@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Macro completion snippets** — typing a macro name prefix (e.g., `ima`, `kbd`,
+  `menu`) triggers snippet completions that expand to the full macro syntax with
+  tab stops for arguments. Supports all inline macros (`image:`, `link:`, `kbd:`,
+  `btn:`, `menu:`, `footnote:`, `pass:`, `stem:`, `xref:`, etc.) and block macros
+  (`image::`, `audio::`, `video::`, `toc::`, `include::`) when at line start.
 - **Conditional directive awareness** — `ifdef`/`ifndef` blocks are now detected
   and inactive branches are grayed out based on defined document attributes.
   Uses semantic tokens with a custom "disabled" modifier and `DiagnosticTag::Unnecessary`
