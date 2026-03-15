@@ -9,7 +9,7 @@ use std::hash::BuildHasher;
 
 use std::path::Path;
 
-use acdc_parser::{Error, Location, Positioning, Source};
+use acdc_parser::{Block, Document, Error, Location, Positioning, Source};
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
 use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
@@ -24,6 +24,21 @@ pub fn error_to_diagnostic(error: &Error) -> Diagnostic {
         .source_location()
         .map(|source_loc| positioning_to_range(&source_loc.positioning))
         .unwrap_or_default();
+
+    // Section level mismatches are warnings with a user-friendly message
+    if let Error::NestedSectionLevelMismatch(_, found, expected) = error {
+        let expected_markers = "=".repeat(usize::from(*expected));
+        let found_markers = "=".repeat(usize::from(*found));
+        return Diagnostic {
+            range,
+            severity: Some(DiagnosticSeverity::WARNING),
+            source: Some("acdc".to_string()),
+            message: format!(
+                "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
+            ),
+            ..Default::default()
+        };
+    }
 
     let message = error.to_string();
 
@@ -182,6 +197,52 @@ pub fn compute_link_diagnostics(
     diagnostics
 }
 
+/// Collect sections in document order by walking the AST recursively.
+fn collect_sections(blocks: &[Block]) -> Vec<(u8, &Location)> {
+    let mut sections = Vec::new();
+    for block in blocks {
+        if let Block::Section(section) = block {
+            sections.push((section.level, &section.location));
+            sections.extend(collect_sections(&section.content));
+        }
+    }
+    sections
+}
+
+/// Compute diagnostics for skipped section heading levels.
+///
+/// Walks the AST to find sections in document order and checks that
+/// levels don't jump by more than 1 (e.g., `==` followed by `====` skips `===`).
+/// Going back to a higher level is always fine.
+#[must_use]
+pub fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnostic> {
+    let sections = collect_sections(&ast.blocks);
+    let mut diagnostics = Vec::new();
+    let mut last_level: u8 = 0;
+
+    for &(level, location) in &sections {
+        if level > last_level + 1 {
+            let expected = last_level + 2; // display level (internal + 1)
+            let found = level + 1;
+            let expected_markers = "=".repeat(expected as usize);
+            let found_markers = "=".repeat(found as usize);
+
+            diagnostics.push(Diagnostic {
+                range: location_to_range(location),
+                severity: Some(DiagnosticSeverity::WARNING),
+                source: Some("acdc".to_string()),
+                message: format!(
+                    "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
+                ),
+                ..Default::default()
+            });
+        }
+        last_level = level;
+    }
+
+    diagnostics
+}
+
 /// Compute diagnostics for inactive conditional blocks.
 ///
 /// Emits HINT-level diagnostics with `DiagnosticTag::UNNECESSARY` for content
@@ -238,6 +299,116 @@ pub fn compute_conditional_diagnostics(conditionals: &[ConditionalBlock]) -> Vec
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn parse_doc(text: &str) -> Result<acdc_parser::Document, acdc_parser::Error> {
+        acdc_parser::parse(text, &acdc_parser::Options::default())
+    }
+
+    #[test]
+    fn test_section_level_valid_progression_no_warnings() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let doc = parse_doc(
+            "= Title\n\n== Chapter 1\n\n=== Section 1.1\n\n== Chapter 2\n\n=== Section 2.1\n",
+        )?;
+        let diags = compute_section_level_diagnostics(&doc);
+        assert!(
+            diags.is_empty(),
+            "valid progression should produce no warnings, got: {diags:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_level_first_section_skip() -> Result<(), Box<dyn std::error::Error>> {
+        // First section is === (level 2) but should be == (level 1)
+        let doc = parse_doc("= Title\n\n=== Skipped First\n")?;
+        let diags = compute_section_level_diagnostics(&doc);
+        assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
+        let d = diags.first().ok_or("expected a diagnostic")?;
+        assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
+        assert!(
+            d.message.contains("Section level skipped"),
+            "message: {}",
+            d.message
+        );
+        assert!(
+            d.message.contains("`===`"),
+            "should mention === markers, message: {}",
+            d.message
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_level_going_up_no_warning() -> Result<(), Box<dyn std::error::Error>> {
+        let doc = parse_doc("= Title\n\n== Chapter 1\n\n=== Deep\n\n== Chapter 2\n")?;
+        let diags = compute_section_level_diagnostics(&doc);
+        assert!(
+            diags.is_empty(),
+            "going up should produce no warnings, got: {diags:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_level_large_skip() -> Result<(), Box<dyn std::error::Error>> {
+        // First section is ==== (level 3), skipping levels 1 and 2
+        let doc = parse_doc("= Title\n\n==== Big Skip\n")?;
+        let diags = compute_section_level_diagnostics(&doc);
+        assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
+        let d = diags.first().ok_or("expected a diagnostic")?;
+        assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
+        assert!(
+            d.message.contains("`==`"),
+            "should suggest == as expected, message: {}",
+            d.message
+        );
+        assert!(
+            d.message.contains("`====`"),
+            "should show ==== as found, message: {}",
+            d.message
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_level_jump_down_one_ok() -> Result<(), Box<dyn std::error::Error>> {
+        let doc = parse_doc("= Title\n\n== Chapter\n\n=== Section\n")?;
+        let diags = compute_section_level_diagnostics(&doc);
+        assert!(
+            diags.is_empty(),
+            "increment by 1 should be fine, got: {diags:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_section_level_mismatch_becomes_warning() -> Result<(), Box<dyn std::error::Error>>
+    {
+        // Parser returns NestedSectionLevelMismatch for nested skips (== -> ====)
+        let result = parse_doc("= Title\n\n== Section\n\n==== Skipped\n");
+        let error = result
+            .err()
+            .ok_or("parser should error on nested section level skip")?;
+        let diag = error_to_diagnostic(&error);
+        assert_eq!(diag.severity, Some(DiagnosticSeverity::WARNING));
+        assert!(
+            diag.message.contains("Section level skipped"),
+            "message: {}",
+            diag.message
+        );
+        assert!(
+            diag.message.contains("`===`"),
+            "should mention expected markers, message: {}",
+            diag.message
+        );
+        assert!(
+            diag.message.contains("`====`"),
+            "should mention found markers, message: {}",
+            diag.message
+        );
+        Ok(())
+    }
 
     #[test]
     fn test_positioning_converts_to_zero_indexed() {

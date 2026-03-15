@@ -82,8 +82,13 @@ impl Workspace {
             }
             false
         };
-        state.diagnostics =
-            diagnostics::compute_warnings(&state.anchors, &state.xrefs, Some(&cross_file_resolver));
+        let mut new_diagnostics = state.diagnostics;
+        new_diagnostics.extend(diagnostics::compute_warnings(
+            &state.anchors,
+            &state.xrefs,
+            Some(&cross_file_resolver),
+        ));
+        state.diagnostics = new_diagnostics;
 
         // Compute link diagnostics (missing images, audio, video, includes)
         if let Ok(doc_path) = uri.to_file_path()
@@ -109,6 +114,12 @@ impl Workspace {
         // Compute conditional diagnostics (inactive ifdef/ifndef graying)
         let conditional_diags = diagnostics::compute_conditional_diagnostics(&state.conditionals);
         state.diagnostics.extend(conditional_diags);
+
+        // Compute section level diagnostics (skipped heading levels)
+        if let Some(ast) = &state.ast {
+            let section_diags = diagnostics::compute_section_level_diagnostics(ast);
+            state.diagnostics.extend(section_diags);
+        }
 
         self.documents.insert(uri, state);
     }
@@ -703,6 +714,74 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    use tower_lsp::lsp_types::DiagnosticSeverity;
+
+    #[test]
+    fn test_section_level_skip_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+
+        // First section is === (level 2), skipping == (level 1)
+        let content = "= Document Title\n\n=== Skipped Level\n\nSome content.\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("Section level skipped")
+                    && d.severity == Some(DiagnosticSeverity::WARNING)),
+            "expected section level skip warning, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| &d.message)
+                .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_section_level_skip_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+
+        // Nested skip: == followed by ==== (parser error path)
+        let content = "= Document Title\n\n== Section\n\n==== Skipped\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("Section level skipped")
+                    && d.severity == Some(DiagnosticSeverity::WARNING)),
+            "expected section level skip warning from parser error, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| (&d.message, &d.severity))
+                .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_level_valid_no_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+
+        let content = "= Document Title\n\n== Section 1\n\n=== Subsection\n\n== Section 2\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            !doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("Section level skipped")),
+            "should not have section level skip warnings for valid document"
+        );
         Ok(())
     }
 }
