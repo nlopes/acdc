@@ -11,18 +11,18 @@ use tower_lsp::lsp_types::{
     DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
     DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
     GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, InitializedParams, OneOf, PrepareRenameResponse,
-    ReferenceParams, RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
-    SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
-    ServerCapabilities, ServerInfo, SymbolInformation, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
-    WorkspaceEdit, WorkspaceSymbolParams,
+    InitializeParams, InitializeResult, InitializedParams, InlayHint, InlayHintParams, OneOf,
+    PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SelectionRange,
+    SelectionRangeParams, SelectionRangeProviderCapability, SemanticTokensParams,
+    SemanticTokensResult, ServerCapabilities, ServerInfo, SymbolInformation,
+    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url,
+    WorkDoneProgressOptions, WorkspaceEdit, WorkspaceSymbolParams,
 };
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
     code_actions, code_lens, completion, definition, document_links, folding, formatting, hover,
-    references, rename, selection_range, semantic_tokens, symbols,
+    inlay_hints, references, rename, selection_range, semantic_tokens, symbols,
 };
 use crate::state::Workspace;
 
@@ -128,6 +128,8 @@ impl LanguageServer for Backend {
                 }),
                 // Enable smart selection expansion
                 selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+                // Enable inlay hints for resolved attributes and xref titles
+                inlay_hint_provider: Some(OneOf::Left(true)),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -427,6 +429,17 @@ impl LanguageServer for Backend {
             .map(|doc| formatting::format_range(&doc, &params.range, &params.options));
 
         Ok(response.filter(|edits| !edits.is_empty()))
+    }
+
+    async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| inlay_hints::compute_inlay_hints(&doc, &params.range));
+
+        Ok(response.filter(|hints| !hints.is_empty()))
     }
 
     async fn selection_range(

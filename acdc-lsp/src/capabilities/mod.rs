@@ -9,6 +9,7 @@ pub mod document_links;
 pub mod folding;
 pub mod formatting;
 pub mod hover;
+pub mod inlay_hints;
 pub mod references;
 pub mod rename;
 pub mod selection_range;

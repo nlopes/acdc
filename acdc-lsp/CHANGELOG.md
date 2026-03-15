@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Inlay hints** — show resolved attribute values and cross-reference titles as
+  ghost text inline (`textDocument/inlayHint`). Attribute references like
+  `{product-name}` display their resolved value; xrefs like `<<setup>>` show the
+  target section title.
 - **Selection range** — smart expand/shrink selection based on AST structure
   (`textDocument/selectionRange`). Progressively selects larger syntactic units:
   word → inline markup → block → section → document.
