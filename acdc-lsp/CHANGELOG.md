@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Automatic link updates on file rename** — when an AsciiDoc file is renamed
+  or moved in the editor, all cross-file references (xrefs, includes) across the
+  workspace are automatically updated (`workspace/willRenameFiles`). Also scans
+  non-open workspace files on disk for comprehensive coverage.
 - **Link validation diagnostics** — flag missing images, audio, video, and
   include files with warning-level diagnostics. Resolves image paths through
   the `imagesdir` attribute when set. URLs and icon names are skipped.

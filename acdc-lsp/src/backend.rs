@@ -9,20 +9,23 @@ use tower_lsp::lsp_types::{
     CompletionResponse, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink, DocumentLinkOptions,
     DocumentLinkParams, DocumentRangeFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
-    GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability,
-    InitializeParams, InitializeResult, InitializedParams, InlayHint, InlayHintParams, OneOf,
-    PrepareRenameResponse, ReferenceParams, RenameOptions, RenameParams, SelectionRange,
-    SelectionRangeParams, SelectionRangeProviderCapability, SemanticTokensParams,
-    SemanticTokensResult, ServerCapabilities, ServerInfo, SymbolInformation,
-    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url,
-    WorkDoneProgressOptions, WorkspaceEdit, WorkspaceSymbolParams,
+    DocumentSymbolResponse, FileOperationFilter, FileOperationPattern, FileOperationPatternKind,
+    FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
+    FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams,
+    InlayHint, InlayHintParams, OneOf, PrepareRenameResponse, ReferenceParams, RenameFilesParams,
+    RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
+    ServerCapabilities, ServerInfo, SymbolInformation, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions,
+    WorkspaceEdit, WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities,
+    WorkspaceSymbolParams,
 };
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
-    code_actions, code_lens, completion, definition, document_links, folding, formatting, hover,
-    inlay_hints, references, rename, selection_range, semantic_tokens, symbols,
+    code_actions, code_lens, completion, definition, document_links, file_rename, folding,
+    formatting, hover, inlay_hints, references, rename, selection_range, semantic_tokens, symbols,
 };
 use crate::state::Workspace;
 
@@ -137,6 +140,23 @@ impl LanguageServer for Backend {
                         ":".to_string(), // for xref: and attributes
                         "{".to_string(), // for attribute references
                     ]),
+                    ..Default::default()
+                }),
+                // Enable automatic link updates on file rename
+                workspace: Some(WorkspaceServerCapabilities {
+                    file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                        will_rename: Some(FileOperationRegistrationOptions {
+                            filters: vec![FileOperationFilter {
+                                scheme: Some("file".to_string()),
+                                pattern: FileOperationPattern {
+                                    glob: "**/*.{adoc,asciidoc,asc}".to_string(),
+                                    matches: Some(FileOperationPatternKind::File),
+                                    options: None,
+                                },
+                            }],
+                        }),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -454,5 +474,18 @@ impl LanguageServer for Backend {
             .map(|doc| selection_range::compute_selection_ranges(&doc, &params.positions));
 
         Ok(response)
+    }
+
+    async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
+        tracing::info!(count = params.files.len(), "workspace/willRenameFiles");
+        Ok(file_rename::compute_file_rename_edits(
+            &self.workspace,
+            &params.files,
+        ))
+    }
+
+    async fn did_rename_files(&self, params: RenameFilesParams) {
+        tracing::info!(count = params.files.len(), "workspace/didRenameFiles");
+        file_rename::update_workspace_after_rename(&self.workspace, &params.files);
     }
 }

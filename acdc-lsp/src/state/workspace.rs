@@ -276,6 +276,43 @@ impl Workspace {
         results
     }
 
+    /// Check if a document is currently open
+    #[must_use]
+    pub fn has_document(&self, uri: &Url) -> bool {
+        self.documents.contains_key(uri)
+    }
+
+    /// Rename a document's URI in all workspace indexes.
+    ///
+    /// Called after a file rename to keep internal state consistent.
+    pub fn rename_document_uri(&self, old_uri: &Url, new_uri: &Url) {
+        // Move document state
+        if let Some((_, state)) = self.documents.remove(old_uri) {
+            self.documents.insert(new_uri.clone(), state);
+        }
+
+        // Update anchor_index entries
+        for mut entry in self.anchor_index.iter_mut() {
+            for (uri, _) in entry.value_mut() {
+                if uri == old_uri {
+                    *uri = new_uri.clone();
+                }
+            }
+        }
+
+        // Move symbol_index entry
+        if let Some((_, symbols)) = self.symbol_index.remove(old_uri) {
+            self.symbol_index.insert(new_uri.clone(), symbols);
+        }
+    }
+
+    /// Discover all `AsciiDoc` files in the workspace roots.
+    #[must_use]
+    pub fn discover_workspace_files(&self) -> Vec<std::path::PathBuf> {
+        let roots: Vec<Url> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
+        discover_adoc_files(&roots)
+    }
+
     fn reindex_file_from_disk(&self, uri: &Url) {
         if let Ok(path) = uri.to_file_path()
             && let Ok(text) = std::fs::read_to_string(&path)

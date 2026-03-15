@@ -6,6 +6,7 @@ pub mod completion;
 pub mod definition;
 pub mod diagnostics;
 pub mod document_links;
+pub mod file_rename;
 pub mod folding;
 pub mod formatting;
 pub mod hover;
