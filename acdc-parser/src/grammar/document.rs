@@ -3822,7 +3822,20 @@ peg::parser! {
         content:$((
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            // Fast path: characters that can never start any quotes inline construct.
+            // Fewer triggers than plain_text since quotes context has no macros/autolinks.
+            / [^('\n' | '\r' | '\\' | '[' | '*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'')]+
+            / (
+                !(
+                    eol()*<2,>
+                    / ![_]
+                    / &['\\'] escaped_syntax_match()
+                    / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (
+                        bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)
+                    )
+                )
+                [_]
+            )
         )+)
         end:position!()
         {
@@ -5171,7 +5184,27 @@ peg::parser! {
             // a complete pattern (those are handled by escaped_superscript_subscript rule)
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / hard_wrap(offset) / (check_macros(block_metadata) (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos))) / (check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink(start_pos)) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            // Fast path: characters that can never start any inline construct.
+            // Conservative set — excludes all alphanumerics (bare email autolinks can start
+            // with any letter/digit), formatting markers, escape chars, and construct openers.
+            // Safe: tab, common punctuation like , ; . ? ! : - / > ) ] } | @ & = {
+            / ['\t' | ',' | ';' | '.' | '?' | '!' | ':' | '/' | '>' | ')' | ']' | '}' | '|' | '@' | '&' | '=' | '{' | '\u{00A0}'..='\u{10FFFF}']+
+            // Slow path: potential construct trigger character. Use character-class guards to
+            // skip groups of rules whose starting character doesn't match.
+            / (
+                !(
+                    eol()*<2,>
+                    / ![_]
+                    / &['\\'] escaped_syntax_match()
+                    / &[' '] (hard_wrap(offset) / inline_line_break(start_pos))
+                    // Macro guard: [ ( < for delimiters, then first letters of each macro:
+                    // a=asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
+                    // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
+                    / (check_macros(block_metadata) &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos)))
+                    / (check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink(start_pos))
+                    / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata))
+                ) [_]
+            )
         )+)
         end:position!()
         {

@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `author`, `authors`, `firstname`, `lastname`, `middlename`, `authorinitials`, `email`,
   and `authorcount` document attributes
 
+### Performance
+
+- **Inline parsing up to 39% faster** — added character-class pre-filter and lookahead guards
+  to `plain_text` and `quotes_plain_text` rules. Characters that cannot start any inline
+  construct are now consumed in bulk without running 28+ negative lookahead checks per
+  character. Remaining trigger characters use grouped character-class guards to skip
+  irrelevant rule evaluations.
+
 ### Changed
 
 - **Roles are now space-separated** — `role='a b'` produces two roles (`a`, `b`) instead of
