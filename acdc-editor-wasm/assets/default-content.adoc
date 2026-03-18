@@ -1,9 +1,11 @@
 = My document
+Norberto Lopes <nlopes@example.com>
 :date: 2025-01-15T10:00:00+00:00
 :description: A quick preview
 :toc: macro
 :icons: font
 :stem: asciimath
+:sectnums:
 
 toc::[]
 
