@@ -24,7 +24,9 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
         match style.as_str() {
             "quote" => return render_quote_paragraph(para, visitor, processor),
             "verse" => return render_verse_paragraph(para, visitor),
-            "literal" => return render_literal_paragraph(para, visitor, processor),
+            "literal" | "listing" | "source" => {
+                return render_literal_paragraph(para, visitor, processor);
+            }
             _ => {}
         }
     }

@@ -5,6 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    decode_numeric_char_refs,
     substitutions::Replacements,
     visitor::{Visitor, WritableVisitor},
 };
@@ -35,12 +36,13 @@ pub(crate) fn visit_inline_node<W: Write>(
         }
 
         InlineNode::RawText(text) => {
-            // Raw text - pass through with minimal escaping
+            // Raw text - decode numeric char refs for non-HTML output, then escape
+            let decoded = decode_numeric_char_refs(&text.content);
             let content = if visitor.strip_next_leading_space {
                 visitor.strip_next_leading_space = false;
-                text.content.trim_start()
+                decoded.trim_start()
             } else {
-                &text.content
+                &decoded
             };
             let escaped = manify(content, EscapeMode::Normalize);
             let w = visitor.writer_mut();

@@ -20,7 +20,10 @@ use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
 /// - Non-verbatim blocks (paragraph, etc.): Use `NORMAL` baseline
 #[cfg(feature = "pre-spec-subs")]
 #[must_use]
-fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
+pub(crate) fn effective_subs(
+    spec: Option<&SubstitutionSpec>,
+    is_verbatim: bool,
+) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
 
     let result = match spec {
@@ -39,11 +42,15 @@ fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Sub
 /// Compute effective substitutions for a block (no pre-spec-subs feature).
 #[cfg(not(feature = "pre-spec-subs"))]
 #[must_use]
-fn effective_subs(_spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
-    if is_verbatim {
-        VERBATIM.to_vec()
-    } else {
-        NORMAL.to_vec()
+pub(crate) fn effective_subs(
+    spec: Option<&SubstitutionSpec>,
+    is_verbatim: bool,
+) -> Vec<Substitution> {
+    let baseline = if is_verbatim { VERBATIM } else { NORMAL };
+
+    match spec {
+        Some(s) => s.resolve(baseline),
+        None => baseline.to_vec(),
     }
 }
 
@@ -649,7 +656,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             return Ok(());
         }
         if self.processor.variant() == HtmlVariant::Semantic {
-            writeln!(self.writer, "<header id=\"header\">")?;
+            writeln!(self.writer, "<header>")?;
         } else {
             writeln!(self.writer, "<div id=\"header\">")?;
         }
@@ -803,8 +810,12 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        // Paragraphs with [literal] style are verbatim
-        let is_verbatim = para.metadata.style.as_ref().is_some_and(|s| s == "literal");
+        // Paragraphs with [literal], [listing], or [source] style are verbatim
+        let is_verbatim = para
+            .metadata
+            .style
+            .as_deref()
+            .is_some_and(|s| matches!(s, "literal" | "listing" | "source"));
 
         // Compute effective substitutions for this paragraph
         let original_subs = std::mem::replace(
@@ -812,11 +823,23 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             effective_subs(para.metadata.substitutions.as_ref(), is_verbatim),
         );
 
+        // Set hardbreaks if the paragraph option or document attribute is present
+        let original_hardbreaks = self.render_options.hardbreaks;
+        if para.metadata.options.contains(&"hardbreaks".to_string())
+            || self
+                .processor
+                .document_attributes()
+                .contains_key("hardbreaks")
+        {
+            self.render_options.hardbreaks = true;
+        }
+
         let processor = self.processor.clone();
         let result = crate::paragraph::visit_paragraph(para, self, &processor);
 
         // Restore state
         self.current_subs = original_subs;
+        self.render_options.hardbreaks = original_hardbreaks;
 
         result
     }

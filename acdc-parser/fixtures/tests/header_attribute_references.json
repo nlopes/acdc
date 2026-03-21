@@ -45,7 +45,18 @@
     ]
   },
   "attributes": {
+    "author": "John Doe",
+    "author_2": "Jane Smith",
+    "authorcount": "2",
+    "authorinitials": "JD",
+    "authorinitials_2": "JS",
     "authors": "John Doe <john@example.com>; Jane Smith <jane@example.com>",
+    "email": "john@example.com",
+    "email_2": "jane@example.com",
+    "firstname": "John",
+    "firstname_2": "Jane",
+    "lastname": "Doe",
+    "lastname_2": "Smith",
     "revdate": "2024-01-15",
     "revinfo": "v1.0, 2024-01-15: Initial release",
     "revnumber": "v1.0",

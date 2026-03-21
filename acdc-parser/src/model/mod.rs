@@ -129,11 +129,14 @@ impl Author {
     /// Create a new author with the given names and initials.
     #[must_use]
     pub fn new(first_name: &str, middle_name: Option<&str>, last_name: Option<&str>) -> Self {
-        let initials = Self::generate_initials(first_name, middle_name, last_name);
-        let last_name = last_name.unwrap_or_default().to_string();
+        let first_name = first_name.replace('_', " ");
+        let middle_name = middle_name.map(|m| m.replace('_', " "));
+        let last_name = last_name.map(|l| l.replace('_', " ")).unwrap_or_default();
+        let initials =
+            Self::generate_initials(&first_name, middle_name.as_deref(), Some(&last_name));
         Self {
-            first_name: first_name.to_string(),
-            middle_name: middle_name.map(ToString::to_string),
+            first_name,
+            middle_name,
             last_name,
             initials,
             email: None,

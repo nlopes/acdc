@@ -1285,6 +1285,16 @@ body.resizing .preview-pane {
 #preview .white-background { background: #fafafa; }
 #preview .yellow-background { background: #fafa00; }
 
+/* Mobile — hide drag affordance on the resize handle */
+@media (max-width: 768px) {
+    .resize-handle {
+        cursor: default;
+    }
+    .resize-handle::after {
+        display: none;
+    }
+}
+
 /* Dark mode — follows system prefers-color-scheme */
 
 @media (prefers-color-scheme: dark) {

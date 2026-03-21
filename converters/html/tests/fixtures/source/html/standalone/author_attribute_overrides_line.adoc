@@ -1,0 +1,5 @@
+= Document Title
+Real Author
+:author: Ignored Author
+
+Some content.

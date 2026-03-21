@@ -15,6 +15,7 @@ use crate::{
     grammar::{
         ParserState,
         attributes::AttributeEntry,
+        author::derive_author_attrs,
         doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -60,12 +61,26 @@ enum HeaderMetadataLine {
     Attributes((bool, Box<BlockMetadata>)),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 // Used purely in the grammar to represent the parsed block details
 pub(crate) struct BlockParsingMetadata {
     pub(crate) metadata: BlockMetadata,
     title: Title,
     parent_section_level: Option<SectionLevel>,
+    pub(crate) macros_enabled: bool,
+    pub(crate) attributes_enabled: bool,
+}
+
+impl Default for BlockParsingMetadata {
+    fn default() -> Self {
+        Self {
+            metadata: BlockMetadata::default(),
+            title: Title::default(),
+            parent_section_level: None,
+            macros_enabled: true,
+            attributes_enabled: true,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -81,6 +96,10 @@ const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
 const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
 const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
+
+fn is_word_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
 
 pub(crate) fn match_constrained_boundary(b: u8) -> bool {
     matches!(
@@ -109,6 +128,38 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'^'
             | b'~'
     )
+}
+
+/// Check whether the character before `pos` is a valid constrained opening boundary.
+///
+/// At position 0, falls back to `outer_delimiter` (the byte preceding the current
+/// inline span in the parent context). A word-character outer delimiter means the
+/// boundary is invalid.
+fn check_constrained_opening_boundary(
+    pos: usize,
+    input: &[u8],
+    outer_delimiter: Option<u8>,
+) -> bool {
+    if pos == 0 {
+        outer_delimiter.is_none_or(|d| !is_word_char(d))
+    } else {
+        input
+            .get(pos - 1)
+            .is_none_or(|&b| match_constrained_boundary(b))
+    }
+}
+
+/// Check whether a constrained closing delimiter at `end` is valid.
+///
+/// If `end` is at the end of the input, the outer delimiter must not be a word
+/// character (otherwise the markup would be adjacent to a word character in the
+/// parent context).
+fn check_constrained_closing_at_end(
+    end: usize,
+    input_len: usize,
+    outer_delimiter: Option<u8>,
+) -> bool {
+    end < input_len || outer_delimiter.is_none_or(|d| !is_word_char(d))
 }
 
 /// Helper to check delimiter matching and return error if mismatched
@@ -892,13 +943,16 @@ peg::parser! {
                 // Decrement end by one character (for byte offset, use safe UTF-8 decrement)
                 location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(&state.input, location.absolute_end);
                 location.end.column = location.end.column.saturating_sub(1);
-                let header = Header {
+                let mut header = Header {
                     metadata,
                     title,
                     subtitle,
                     authors,
                     location,
                 };
+
+                // Derive author attributes bidirectionally
+                derive_author_attrs(&mut header, &mut state.document_attributes);
 
                 // Derive manpage attributes from header if doctype=manpage
                 // This must happen during parsing so {mantitle} etc. work in body
@@ -1144,7 +1198,7 @@ peg::parser! {
             = whitespace()* "<" email:$([^'>']*) ">" { email }
 
         rule name_part() -> &'input str
-            = name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+ ("_" ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-']+)*) {
+            = name:$([c if c.is_alphanumeric() || c == '.' || c == '-' || c == '\'']+ ("_" [c if c.is_alphanumeric() || c == '.' || c == '-' || c == '\'']+)*) {
                 name
             }
 
@@ -1592,15 +1646,27 @@ peg::parser! {
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
                         let attr_metadata = *attr_metadata;
                         discrete = attr_discrete;
-                        metadata.id = attr_metadata.id;
-                        metadata.style = attr_metadata.style;
+                        if attr_metadata.id.is_some() {
+                            metadata.id = attr_metadata.id;
+                        }
+                        if attr_metadata.style.is_some() {
+                            metadata.style = attr_metadata.style;
+                        }
                         metadata.roles.extend(attr_metadata.roles);
                         metadata.options.extend(attr_metadata.options);
-                        metadata.attributes = attr_metadata.attributes;
-                        metadata.positional_attributes = attr_metadata.positional_attributes;
-                        metadata.substitutions = attr_metadata.substitutions;
-                        metadata.attribution = attr_metadata.attribution;
-                        metadata.citetitle = attr_metadata.citetitle;
+                        for (k, v) in attr_metadata.attributes.iter() {
+                            metadata.attributes.insert(k.clone(), v.clone());
+                        }
+                        metadata.positional_attributes.extend(attr_metadata.positional_attributes);
+                        if attr_metadata.substitutions.is_some() {
+                            metadata.substitutions = attr_metadata.substitutions;
+                        }
+                        if attr_metadata.attribution.is_some() {
+                            metadata.attribution = attr_metadata.attribution;
+                        }
+                        if attr_metadata.citetitle.is_some() {
+                            metadata.citetitle = attr_metadata.citetitle;
+                        }
                     },
                     BlockMetadataLine::DocumentAttribute(key, value) => {
                         // Set the document attribute immediately so it's available for
@@ -1623,10 +1689,20 @@ peg::parser! {
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
+            let (macros_enabled, attributes_enabled) = if cfg!(feature = "pre-spec-subs") {
+                (
+                    metadata.substitutions.as_ref().is_none_or(|spec| !spec.macros_disabled()),
+                    metadata.substitutions.as_ref().is_none_or(|spec| !spec.attributes_disabled()),
+                )
+            } else {
+                (true, true)
+            };
             Ok(BlockParsingMetadata {
                 metadata,
                 title,
                 parent_section_level,
+                macros_enabled,
+                attributes_enabled,
             })
         }
 
@@ -3746,7 +3822,20 @@ peg::parser! {
         content:$((
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            // Fast path: characters that can never start any quotes inline construct.
+            // Fewer triggers than plain_text since quotes context has no macros/autolinks.
+            / [^('\n' | '\r' | '\\' | '[' | '*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'')]+
+            / (
+                !(
+                    eol()*<2,>
+                    / ![_]
+                    / &['\\'] escaped_syntax_match()
+                    / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (
+                        bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)
+                    )
+                )
+                [_]
+            )
         )+)
         end:position!()
         {
@@ -3765,30 +3854,30 @@ peg::parser! {
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / escaped_syntax:escaped_syntax(offset) { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
-            / index_term:index_term_concealed(offset) { index_term }
-            / index_term:index_term_flow(offset) { index_term }
-            / indexterm:indexterm_macro(offset) { indexterm }
-            / indexterm2:indexterm2_macro(offset) { indexterm2 }
+            / check_macros(block_metadata) index_term:index_term_concealed(offset) { index_term }
+            / check_macros(block_metadata) index_term:index_term_flow(offset) { index_term }
+            / check_macros(block_metadata) indexterm:indexterm_macro(offset) { indexterm }
+            / check_macros(block_metadata) indexterm2:indexterm2_macro(offset) { indexterm2 }
             // Bibliography anchor (triple brackets) must come before inline anchor (double brackets)
-            / bibliography_anchor:bibliography_anchor(offset) { bibliography_anchor }
-            / inline_anchor:inline_anchor(offset) { inline_anchor }
-            / cross_reference_shorthand:cross_reference_shorthand(offset, block_metadata) { cross_reference_shorthand }
-            / cross_reference_macro:cross_reference_macro(offset, block_metadata) { cross_reference_macro }
+            / check_macros(block_metadata) bibliography_anchor:bibliography_anchor(offset) { bibliography_anchor }
+            / check_macros(block_metadata) inline_anchor:inline_anchor(offset) { inline_anchor }
+            / check_macros(block_metadata) cross_reference_shorthand:cross_reference_shorthand(offset, block_metadata) { cross_reference_shorthand }
+            / check_macros(block_metadata) cross_reference_macro:cross_reference_macro(offset, block_metadata) { cross_reference_macro }
             / hard_wrap:hard_wrap(offset) { hard_wrap }
-            / &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
-            / stem:inline_stem(offset) { stem }
-            / image:inline_image(offset, block_metadata) { image }
-            / icon:inline_icon(offset, block_metadata) { icon }
-            / keyboard:inline_keyboard(offset) { keyboard }
-            / button:inline_button(offset) { button }
-            / menu:inline_menu(offset) { menu }
+            / check_macros(block_metadata) &"footnote:" footnote:footnote(offset, block_metadata) { footnote }
+            / check_macros(block_metadata) stem:inline_stem(offset) { stem }
+            / check_macros(block_metadata) image:inline_image(offset, block_metadata) { image }
+            / check_macros(block_metadata) icon:inline_icon(offset, block_metadata) { icon }
+            / check_macros(block_metadata) keyboard:inline_keyboard(offset) { keyboard }
+            / check_macros(block_metadata) button:inline_button(offset) { button }
+            / check_macros(block_metadata) menu:inline_menu(offset) { menu }
             // mailto has to come before the url_macro because url_macro calls url() which
             // also matches against mailto:
-            / mailto_macro:mailto_macro(offset, block_metadata) { mailto_macro }
-            / url_macro:url_macro(offset, block_metadata) { url_macro }
-            / pass:inline_pass(offset) { pass }
-            / link_macro:link_macro(offset) { link_macro }
-            / check_autolinks(allow_autolinks) inline_autolink:inline_autolink(offset) { inline_autolink }
+            / check_macros(block_metadata) mailto_macro:mailto_macro(offset, block_metadata) { mailto_macro }
+            / check_macros(block_metadata) url_macro:url_macro(offset, block_metadata) { url_macro }
+            / check_macros(block_metadata) pass:inline_pass(offset) { pass }
+            / check_macros(block_metadata) link_macro:link_macro(offset) { link_macro }
+            / check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink:inline_autolink(offset) { inline_autolink }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
             / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
             / bold_text_constrained:bold_text_constrained(offset, block_metadata) { bold_text_constrained }
@@ -3880,21 +3969,20 @@ peg::parser! {
         / "__" inner:$((!("__" !['_']) [_])*) "__" { format!("__{inner}__") }
         / "``" inner:$((!"``" [_])*) "``" { format!("``{inner}``") }
         / "##" inner:$((!"##" [_])*) "##" { format!("##{inner}##") }
-        // Typography patterns
-        / pattern:$("..."
-            / "->"
-            / "<-"
-            / "=>"
-            / "<="
-            / "--"
-        ) { pattern.to_string() }
+        // Typography patterns are NOT handled here — they are handled by the
+        // converter's strip_backslash_escapes() pipeline. If the parser stripped the
+        // backslash, the converter would never see it and would apply the replacement.
+        //
         // Superscript: ^content^ where content has no whitespace (must check complete pattern)
         / "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { format!("^{inner}^") }
         // Subscript: ~content~ where content has no whitespace (must check complete pattern)
         / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { format!("~{inner}~") }
         // Constrained formatting markers and other single escapable chars
         // Note: ^ and ~ are NOT included here - they require complete patterns above
-        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '(' | '&']) { c.to_string() }
+        // Note: ( is separated with a negative lookahead to avoid consuming \(C), \(R), \(TM)
+        // which are character replacement escapes handled by the converter
+        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '&']) { c.to_string() }
+        / "(" !(("C" / "R" / "TM") ")") { "(".to_string() }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
         ///
@@ -3914,18 +4002,13 @@ peg::parser! {
         / "__" (!("__" !['_']) [_])* "__"
         / "``" (!"``" [_])* "``"
         / "##" (!"##" [_])* "##"
-        // Typography patterns
-        / "..."
-        / "->"
-        / "<-"
-        / "=>"
-        / "<="
-        / "--"
+        // Typography patterns handled by converter, not here (see escapable_pattern)
         // Superscript/subscript: require complete pattern
         / "^" [^'^' | ' ' | '\t' | '\n']+ "^"
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
-        / ['*' | '_' | '#' | '`' | '[' | ']' | '(' | '&'] {}
+        / ['*' | '_' | '#' | '`' | '[' | ']' | '&'] {}
+        / "(" !(("C" / "R" / "TM") ")")
 
         rule footnote(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
         = footnote_match:footnote_match(offset, block_metadata)
@@ -4288,6 +4371,9 @@ peg::parser! {
         rule check_autolinks(allow: bool) -> ()
         = {? if allow { Ok(()) } else { Err("autolinks suppressed") } }
 
+        rule check_macros(block_metadata: &BlockParsingMetadata) -> ()
+        = {? if block_metadata.macros_enabled { Ok(()) } else { Err("macros disabled") } }
+
         rule inline_autolink(offset: usize) -> InlineNode
         =
         start:position!()
@@ -4638,16 +4724,14 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained bold");
                 return Err("invalid word boundary for constrained bold");
+            }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained bold");
             }
 
             tracing::info!(?offset, ?content, ?role, "Found constrained bold text inline");
@@ -4655,10 +4739,14 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'*');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained bold text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
 
             Ok(InlineNode::BoldText(Bold {
                 content,
@@ -4689,15 +4777,13 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 return Err("invalid word boundary for constrained italic");
+            }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained italic");
             }
 
             tracing::info!(?offset, ?content, ?role, "Found constrained italic text inline");
@@ -4705,10 +4791,14 @@ peg::parser! {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'_');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained italic text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role,
@@ -4726,17 +4816,13 @@ peg::parser! {
         [^'*']*
         ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'*']*)*
         "*"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no asterisk)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+            if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
         }
 
         rule italic_text_constrained_match() -> ()
@@ -4747,17 +4833,13 @@ peg::parser! {
         [^'_']*
         ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'_']*)*
         "_"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no underscore)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+            if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
         }
 
         rule italic_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
@@ -4833,24 +4915,28 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 return Err("monospace must be at word boundary");
             }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained monospace");
+            }
+
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained monospace text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'`');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained monospace text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role,
@@ -4868,20 +4954,13 @@ peg::parser! {
         [^'`']*
         ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'`']*)*
         "`"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no backtick)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if !valid_boundary {
-                return Err("monospace must be at word boundary");
-            }
-            Ok(())
+            if valid_opening && valid_closing { Ok(()) } else { Err("monospace must be at word boundary") }
         }
 
         rule highlight_text_unconstrained(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
@@ -4931,26 +5010,29 @@ peg::parser! {
 
             // Check if we're at start of input OR preceded by word boundary character
             let absolute_pos = start + offset;
-            let valid_boundary = absolute_pos == 0 || {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
-
-            if !valid_boundary {
+            if !check_constrained_opening_boundary(absolute_pos, state.input.as_bytes(), state.outer_constrained_delimiter) {
                 tracing::debug!(absolute_pos, prev_byte = ?state.input.as_bytes().get(absolute_pos.saturating_sub(1)), "Invalid word boundary for constrained highlight");
                 return Err("invalid word boundary for constrained highlight");
             }
+
+            // Check closing boundary: if at end of input, validate outer delimiter
+            if !check_constrained_closing_at_end(end, state.input.len(), state.outer_constrained_delimiter) {
+                return Err("invalid closing boundary for constrained highlight");
+            }
+
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found constrained highlight text inline");
             let adjusted_content_start = PositionWithOffset {
                 offset: content_start.offset + 1,
                 position: content_start.position,
             };
-            let content = process_inlines_or_err!(
+            let saved_delimiter = state.outer_constrained_delimiter;
+            state.outer_constrained_delimiter = Some(b'#');
+            let result = process_inlines_or_err!(
                 process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained highlight text content"
-            )?;
+            );
+            state.outer_constrained_delimiter = saved_delimiter;
+            let content = result?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role,
@@ -4968,17 +5050,13 @@ peg::parser! {
         [^'#']*
         ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'#']*)*
         "#"
+        closing_pos:position!()
         ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
         {?
-            // Check if we're at start OR preceded by word boundary (no hash)
-            let valid_boundary = boundary_pos == 0 || {
-                let prev_byte_pos = boundary_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_none_or(|&b| {
-                    match_constrained_boundary(b)
-                })
-            };
+            let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
+            let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
 
-            if valid_boundary { Ok(()) } else { Err("invalid word boundary") }
+            if valid_opening && valid_closing { Ok(()) } else { Err("invalid word boundary") }
         }
 
         /// Parse superscript text (^text^)
@@ -5106,7 +5184,27 @@ peg::parser! {
             // a complete pattern (those are handled by escaped_superscript_subscript rule)
             "\\" "^" !([^'^' | ' ' | '\t' | '\n']+ "^")
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
-            / (!(eol()*<2,> / ![_] / escaped_syntax_match() / index_term_match() / inline_anchor_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / hard_wrap(offset) / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos) / (check_autolinks(allow_autolinks) inline_autolink(start_pos)) / inline_line_break(start_pos) / bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata)) [_])
+            // Fast path: characters that can never start any inline construct.
+            // Conservative set — excludes all alphanumerics (bare email autolinks can start
+            // with any letter/digit), formatting markers, escape chars, and construct openers.
+            // Safe: tab, common punctuation like , ; . ? ! : - / > ) ] } | @ & = {
+            / ['\t' | ',' | ';' | '.' | '?' | '!' | ':' | '/' | '>' | ')' | ']' | '}' | '|' | '@' | '&' | '=' | '{' | '\u{00A0}'..='\u{10FFFF}']+
+            // Slow path: potential construct trigger character. Use character-class guards to
+            // skip groups of rules whose starting character doesn't match.
+            / (
+                !(
+                    eol()*<2,>
+                    / ![_]
+                    / &['\\'] escaped_syntax_match()
+                    / &[' '] (hard_wrap(offset) / inline_line_break(start_pos))
+                    // Macro guard: [ ( < for delimiters, then first letters of each macro:
+                    // a=asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
+                    // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
+                    / (check_macros(block_metadata) &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos)))
+                    / (check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink(start_pos))
+                    / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata))
+                ) [_]
+            )
         )+)
         end:position!()
         {
@@ -5150,6 +5248,8 @@ peg::parser! {
                 attr_end_offset,
                 offset,
                 &attr_str,
+                block_metadata.macros_enabled,
+                true,
             )?;
             let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
             let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
@@ -5168,6 +5268,8 @@ peg::parser! {
                     cite_raw_start + cite.len(),
                     offset,
                     cite,
+                    block_metadata.macros_enabled,
+                    true,
                 )?;
                 let inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
                 Some(map_inline_locations(state, &cite_processed, &inlines, &cite_location)?)
@@ -5235,6 +5337,8 @@ peg::parser! {
                     attr_end_offset,
                     offset,
                     &author,
+                    block_metadata.macros_enabled,
+                    true,
                 )?;
                 let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
                 let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
@@ -5252,6 +5356,8 @@ peg::parser! {
                         cite_start + cite.len(),
                         offset,
                         &cite,
+                        block_metadata.macros_enabled,
+                        true,
                     )?;
                     let cite_inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
                     let cite_inlines = map_inline_locations(state, &cite_processed, &cite_inlines, &cite_location)?;
@@ -5338,7 +5444,7 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
             }
 
-            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content)?;
+            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content, block_metadata.macros_enabled, block_metadata.attributes_enabled)?;
             let content = parse_inlines(&processed, state, block_metadata, &location)?;
             let content = map_inline_locations(state, &processed, &content, &location)?;
 
@@ -5875,7 +5981,7 @@ peg::parser! {
         /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
         rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
         {?
-            let inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
                 state.line_map.clone(),
                 &state.input,
@@ -5912,7 +6018,7 @@ peg::parser! {
             )*
         )
         {?
-            let inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
                 state.line_map.clone(),
                 &state.input,
@@ -5962,7 +6068,7 @@ peg::parser! {
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution
         pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
         {?
-            let inline_state = InlinePreprocessorParserState::new(
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
                 state.line_map.clone(),
                 &state.input,
@@ -6245,7 +6351,7 @@ v2.9, 01-09-2024: Fall incarnation
             })
         );
         assert_eq!(header.authors.len(), 2);
-        assert_eq!(header.authors[0].first_name, "Lorn_Kismet");
+        assert_eq!(header.authors[0].first_name, "Lorn Kismet");
         assert_eq!(header.authors[0].middle_name, Some("R.".to_string()));
         assert_eq!(header.authors[0].last_name, "Lee");
         assert_eq!(header.authors[0].initials, "LRL");
@@ -6299,7 +6405,7 @@ v2.9, 01-09-2024: Fall incarnation
         let result = document_parser::authors(input, &mut state)?;
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0].first_name, "Lorn_Kismet");
+        assert_eq!(result[0].first_name, "Lorn Kismet");
         assert_eq!(result[0].middle_name, Some("R.".to_string()));
         assert_eq!(result[0].last_name, "Lee");
         assert_eq!(result[0].initials, "LRL");
@@ -6323,6 +6429,73 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(result.last_name, "Lopes supa dough");
         assert_eq!(result.initials, "NML");
         assert_eq!(result.email, Some("nlopesml@gmail.com".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_compound_first_name() -> Result<(), Error> {
+        let input = "Ann_Marie Jenson";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "Ann Marie");
+        assert_eq!(result.middle_name, None);
+        assert_eq!(result.last_name, "Jenson");
+        assert_eq!(result.initials, "AJ");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_compound_last_name() -> Result<(), Error> {
+        let input = "Tomás López_del_Toro";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "Tomás");
+        assert_eq!(result.middle_name, None);
+        assert_eq!(result.last_name, "López del Toro");
+        assert_eq!(result.initials, "TL");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_compound_middle_name() -> Result<(), Error> {
+        let input = "First Middle_Name Last";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "First");
+        assert_eq!(result.middle_name, Some("Middle Name".to_string()));
+        assert_eq!(result.last_name, "Last");
+        assert_eq!(result.initials, "FML");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_multiple_compound_authors() -> Result<(), Error> {
+        let input = "Ann_Marie Jenson; Tomás López_del_Toro";
+        let mut state = ParserState::new(input);
+        let result = document_parser::authors(input, &mut state)?;
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].first_name, "Ann Marie");
+        assert_eq!(result[0].last_name, "Jenson");
+        assert_eq!(result[0].initials, "AJ");
+        assert_eq!(result[1].first_name, "Tomás");
+        assert_eq!(result[1].last_name, "López del Toro");
+        assert_eq!(result[1].initials, "TL");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_unicode_author_name() -> Result<(), Error> {
+        let input = "Tomás Müller";
+        let mut state = ParserState::new(input);
+        let result = document_parser::author(input, &mut state)?;
+        assert_eq!(result.first_name, "Tomás");
+        assert_eq!(result.last_name, "Müller");
+        assert_eq!(result.initials, "TM");
         Ok(())
     }
 
@@ -6493,7 +6666,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             })
         );
         assert_eq!(result.authors.len(), 2);
-        assert_eq!(result.authors[0].first_name, "Lorn_Kismet");
+        assert_eq!(result.authors[0].first_name, "Lorn Kismet");
         assert_eq!(result.authors[0].middle_name, Some("R.".to_string()));
         assert_eq!(result.authors[0].last_name, "Lee");
         assert_eq!(result.authors[0].initials, "LRL");

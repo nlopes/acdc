@@ -1,0 +1,55 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "version": "1.0.0"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Use pass:a[1.0.0] here.",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 27
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 27
+    }
+  ]
+}

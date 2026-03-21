@@ -29,7 +29,7 @@
 //! - [`video`] - Video URL generation for `YouTube`, `Vimeo`, etc.
 //! - [`visitor`] - Visitor pattern infrastructure for AST traversal
 
-use std::path::PathBuf;
+use std::{borrow::Cow, path::PathBuf};
 
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 
@@ -47,6 +47,64 @@ pub mod visitor;
 
 pub use backend::Backend;
 pub use doctype::Doctype;
+
+/// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
+///
+/// Non-HTML converters (terminal, manpage) should call this on `RawText` content
+/// so that character replacement attributes like `{apos}` (`&#39;`) render as
+/// literal characters instead of HTML entities.
+///
+/// # Examples
+///
+/// ```
+/// use acdc_converters_core::decode_numeric_char_refs;
+///
+/// assert_eq!(&*decode_numeric_char_refs("&#39;"), "\'");
+/// assert_eq!(&*decode_numeric_char_refs("&#34;"), "\"");
+/// assert_eq!(&*decode_numeric_char_refs("&#169;"), "\u{00A9}");
+/// assert_eq!(&*decode_numeric_char_refs("&#x27;"), "\'");
+/// assert_eq!(&*decode_numeric_char_refs("no refs"), "no refs");
+/// ```
+#[must_use]
+pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
+    if !text.contains("&#") {
+        return Cow::Borrowed(text);
+    }
+
+    let mut result = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(start) = rest.find("&#") {
+        result.push_str(&rest[..start]);
+        let after_amp = &rest[start + 2..];
+
+        if let Some(end) = after_amp.find(';') {
+            let ref_body = &after_amp[..end];
+            let decoded = if let Some(hex) = ref_body
+                .strip_prefix('x')
+                .or_else(|| ref_body.strip_prefix('X'))
+            {
+                u32::from_str_radix(hex, 16).ok().and_then(char::from_u32)
+            } else {
+                ref_body.parse::<u32>().ok().and_then(char::from_u32)
+            };
+
+            if let Some(ch) = decoded {
+                result.push(ch);
+                rest = &after_amp[end + 1..];
+            } else {
+                result.push_str("&#");
+                rest = after_amp;
+            }
+        } else {
+            result.push_str("&#");
+            rest = after_amp;
+        }
+    }
+
+    result.push_str(rest);
+    Cow::Owned(result)
+}
 
 /// Create default document attributes for rendering.
 ///

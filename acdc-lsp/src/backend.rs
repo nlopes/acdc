@@ -4,21 +4,32 @@
 
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::{
+    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
+    CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
+    CallHierarchyServerCapability, CodeActionOptions, CodeActionParams,
+    CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions, CodeLensParams,
     CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentLink, DocumentLinkOptions,
-    DocumentLinkParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
-    FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
-    GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
-    InitializeResult, InitializedParams, OneOf, PrepareRenameResponse, ReferenceParams,
-    RenameOptions, RenameParams, SemanticTokensParams, SemanticTokensResult, ServerCapabilities,
-    ServerInfo, TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind, Url,
-    WorkDoneProgressOptions, WorkspaceEdit,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
+    DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
+    DocumentOnTypeFormattingParams, DocumentRangeFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, FileOperationFilter, FileOperationPattern, FileOperationPatternKind,
+    FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
+    FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
+    HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams,
+    InlayHint, InlayHintParams, OneOf, PrepareRenameResponse, ReferenceParams, RenameFilesParams,
+    RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
+    ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
+    SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions, WorkspaceEdit,
+    WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities, WorkspaceSymbolParams,
 };
 use tower_lsp::{Client, LanguageServer};
 
 use crate::capabilities::{
-    completion, definition, document_links, folding, hover, references, rename, semantic_tokens,
-    symbols,
+    call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
+    folding, formatting, hover, inlay_hints, on_type_formatting, references, rename,
+    selection_range, semantic_tokens, signature_help, symbols,
 };
 use crate::state::Workspace;
 
@@ -100,6 +111,45 @@ impl LanguageServer for Backend {
                         semantic_tokens::create_options(),
                     ),
                 ),
+                // Enable workspace symbol search
+                workspace_symbol_provider: Some(OneOf::Left(true)),
+                // Enable code actions (quick-fixes, refactorings, source actions)
+                code_action_provider: Some(CodeActionProviderCapability::Options(
+                    CodeActionOptions {
+                        code_action_kinds: Some(vec![
+                            tower_lsp::lsp_types::CodeActionKind::QUICKFIX,
+                            tower_lsp::lsp_types::CodeActionKind::REFACTOR_EXTRACT,
+                            tower_lsp::lsp_types::CodeActionKind::SOURCE,
+                        ]),
+                        work_done_progress_options: WorkDoneProgressOptions::default(),
+                        resolve_provider: Some(false),
+                    },
+                )),
+                // Enable document formatting
+                document_formatting_provider: Some(OneOf::Left(true)),
+                // Enable range formatting
+                document_range_formatting_provider: Some(OneOf::Left(true)),
+                // Enable on-type formatting for list continuation and block auto-close
+                document_on_type_formatting_provider: Some(DocumentOnTypeFormattingOptions {
+                    first_trigger_character: "\n".to_string(),
+                    more_trigger_character: None,
+                }),
+                // Enable code lens for reference counts
+                code_lens_provider: Some(CodeLensOptions {
+                    resolve_provider: Some(false),
+                }),
+                // Enable smart selection expansion
+                selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+                // Enable call hierarchy for include-tree navigation
+                call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
+                // Enable inlay hints for resolved attributes and xref titles
+                inlay_hint_provider: Some(OneOf::Left(true)),
+                // Enable signature help for macro attribute lists
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec!["[".to_string(), ",".to_string()]),
+                    retrigger_characters: Some(vec![",".to_string()]),
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                }),
                 // Enable completion for xrefs, attributes, and includes
                 completion_provider: Some(CompletionOptions {
                     trigger_characters: Some(vec![
@@ -107,6 +157,23 @@ impl LanguageServer for Backend {
                         ":".to_string(), // for xref: and attributes
                         "{".to_string(), // for attribute references
                     ]),
+                    ..Default::default()
+                }),
+                // Enable automatic link updates on file rename
+                workspace: Some(WorkspaceServerCapabilities {
+                    file_operations: Some(WorkspaceFileOperationsServerCapabilities {
+                        will_rename: Some(FileOperationRegistrationOptions {
+                            filters: vec![FileOperationFilter {
+                                scheme: Some("file".to_string()),
+                                pattern: FileOperationPattern {
+                                    glob: "**/*.{adoc,asciidoc,asc}".to_string(),
+                                    matches: Some(FileOperationPatternKind::File),
+                                    options: None,
+                                },
+                            }],
+                        }),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -120,6 +187,11 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _params: InitializedParams) {
         tracing::info!("acdc-lsp initialized");
+        self.workspace.scan_workspace_files();
+        tracing::info!(
+            indexed_files = self.workspace.symbol_index_len(),
+            "workspace file scan complete"
+        );
     }
 
     async fn shutdown(&self) -> Result<()> {
@@ -178,6 +250,35 @@ impl LanguageServer for Backend {
         };
 
         Ok(response)
+    }
+
+    async fn symbol(
+        &self,
+        params: WorkspaceSymbolParams,
+    ) -> Result<Option<Vec<SymbolInformation>>> {
+        let query = &params.query;
+        let results = self.workspace.query_workspace_symbols(query);
+
+        let symbols: Vec<SymbolInformation> = results
+            .into_iter()
+            .map(|(uri, symbol)| SymbolInformation {
+                name: symbol.name,
+                kind: symbol.kind,
+                location: tower_lsp::lsp_types::Location {
+                    uri,
+                    range: crate::convert::location_to_range(&symbol.location),
+                },
+                tags: None,
+                deprecated: None,
+                container_name: symbol.detail,
+            })
+            .collect();
+
+        if symbols.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(symbols))
+        }
     }
 
     async fn goto_definition(
@@ -251,6 +352,19 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            signature_help::compute_signature_help(&doc, position)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let uri = params.text_document.uri;
 
@@ -304,6 +418,27 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
+        let uri = params.text_document.uri;
+
+        let response = self.workspace.get_document(&uri).map(|doc| {
+            code_actions::compute_code_actions(&doc, &uri, params.range, &params.context)
+        });
+
+        Ok(response.filter(|actions| !actions.is_empty()))
+    }
+
+    async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| code_lens::compute_code_lenses(&doc, &uri, &self.workspace));
+
+        Ok(response.filter(|lenses| !lenses.is_empty()))
+    }
+
     async fn semantic_tokens_full(
         &self,
         params: SemanticTokensParams,
@@ -312,12 +447,130 @@ impl LanguageServer for Backend {
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast.as_ref().map(|ast| {
-                SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(ast))
+                SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(
+                    ast,
+                    &doc.conditionals,
+                    &doc.text,
+                ))
             })
         } else {
             None
         };
 
         Ok(response)
+    }
+
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| formatting::format_document(&doc, &params.options));
+
+        Ok(response.filter(|edits| !edits.is_empty()))
+    }
+
+    async fn range_formatting(
+        &self,
+        params: DocumentRangeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| formatting::format_range(&doc, &params.range, &params.options));
+
+        Ok(response.filter(|edits| !edits.is_empty()))
+    }
+
+    async fn on_type_formatting(
+        &self,
+        params: DocumentOnTypeFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document_position.text_document.uri;
+        let position = params.text_document_position.position;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .and_then(|doc| on_type_formatting::format_on_type(&doc, position, &params.ch));
+
+        Ok(response)
+    }
+
+    async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| inlay_hints::compute_inlay_hints(&doc, &params.range));
+
+        Ok(response.filter(|hints| !hints.is_empty()))
+    }
+
+    async fn selection_range(
+        &self,
+        params: SelectionRangeParams,
+    ) -> Result<Option<Vec<SelectionRange>>> {
+        let uri = params.text_document.uri;
+
+        let response = self
+            .workspace
+            .get_document(&uri)
+            .map(|doc| selection_range::compute_selection_ranges(&doc, &params.positions));
+
+        Ok(response)
+    }
+
+    async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
+        tracing::info!(count = params.files.len(), "workspace/willRenameFiles");
+        Ok(file_rename::compute_file_rename_edits(
+            &self.workspace,
+            &params.files,
+        ))
+    }
+
+    async fn did_rename_files(&self, params: RenameFilesParams) {
+        tracing::info!(count = params.files.len(), "workspace/didRenameFiles");
+        file_rename::update_workspace_after_rename(&self.workspace, &params.files);
+    }
+
+    async fn prepare_call_hierarchy(
+        &self,
+        params: CallHierarchyPrepareParams,
+    ) -> Result<Option<Vec<CallHierarchyItem>>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let position = params.text_document_position_params.position;
+
+        let response = if let Some(doc) = self.workspace.get_document(&uri) {
+            call_hierarchy::prepare_call_hierarchy(&doc, &uri, position)
+        } else {
+            None
+        };
+
+        Ok(response)
+    }
+
+    async fn incoming_calls(
+        &self,
+        params: CallHierarchyIncomingCallsParams,
+    ) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
+        Ok(call_hierarchy::incoming_calls(
+            &params.item,
+            &self.workspace,
+        ))
+    }
+
+    async fn outgoing_calls(
+        &self,
+        params: CallHierarchyOutgoingCallsParams,
+    ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
+        Ok(call_hierarchy::outgoing_calls(
+            &params.item,
+            &self.workspace,
+        ))
     }
 }

@@ -69,6 +69,23 @@ pub fn compute_hover(
         });
     }
 
+    // Check for attribute reference at this position
+    if let Some((attr_name, attr_ref_loc)) = find_attribute_ref_at_offset(doc, offset) {
+        let content = if let Some(value) = ast.attributes.get(&attr_name) {
+            format!("**Attribute**\n\n`:{attr_name}:` = `{value}`")
+        } else {
+            format!("**Attribute** (undefined)\n\n`{{{attr_name}}}`")
+        };
+
+        return Some(Hover {
+            contents: HoverContents::Markup(MarkupContent {
+                kind: MarkupKind::Markdown,
+                value: content,
+            }),
+            range: Some(location_to_range(&attr_ref_loc)),
+        });
+    }
+
     // Check for URL/link at this position
     if let Some((url, link_loc)) = find_link_at_offset(ast, offset) {
         let content = format!("**Link**\n\nURL: {url}");
@@ -614,6 +631,17 @@ fn find_link_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
     }
 }
 
+/// Find attribute reference at a byte offset using pre-extracted attribute refs.
+fn find_attribute_ref_at_offset(doc: &DocumentState, offset: usize) -> Option<(String, Location)> {
+    doc.attribute_refs.iter().find_map(|(name, loc)| {
+        if offset_in_location(offset, loc) {
+            Some((name.clone(), loc.clone()))
+        } else {
+            None
+        }
+    })
+}
+
 /// Find section title at a given location
 fn find_section_title_at_location(doc: &Document, loc: &Location) -> Option<String> {
     for block in &doc.blocks {
@@ -694,6 +722,77 @@ See <<my-section>> for details.
         {
             assert!(markup.value.contains("Cross-reference"));
             assert!(markup.value.contains("my-section"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_hover_on_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
+        let content = ":imagesdir: ./images\n\n== Section\n\nImage in {imagesdir}/logo.png\n";
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        // Position on {imagesdir} — line 4 (0-indexed), character 10
+        let position = Position {
+            line: 4,
+            character: 10,
+        };
+
+        let result = compute_hover(&doc, &uri, &workspace, position);
+        assert!(result.is_some(), "Expected hover result for attribute ref");
+
+        if let Some(hover) = result
+            && let HoverContents::Markup(markup) = hover.contents
+        {
+            assert!(
+                markup.value.contains("Attribute"),
+                "Expected 'Attribute' in hover, got: {}",
+                markup.value
+            );
+            assert!(
+                markup.value.contains("imagesdir"),
+                "Expected attribute name in hover, got: {}",
+                markup.value
+            );
+            assert!(
+                markup.value.contains("./images"),
+                "Expected attribute value in hover, got: {}",
+                markup.value
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_hover_on_undefined_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "== Section\n\nSee {undefined-attr} here.\n";
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        // Position on {undefined-attr} — line 2, character 6
+        let position = Position {
+            line: 2,
+            character: 6,
+        };
+
+        let result = compute_hover(&doc, &uri, &workspace, position);
+        assert!(
+            result.is_some(),
+            "Expected hover result for undefined attribute ref"
+        );
+
+        if let Some(hover) = result
+            && let HoverContents::Markup(markup) = hover.contents
+        {
+            assert!(
+                markup.value.contains("undefined"),
+                "Expected 'undefined' in hover, got: {}",
+                markup.value
+            );
         }
         Ok(())
     }

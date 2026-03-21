@@ -1,0 +1,7 @@
+= Source Block with Inline Subs
+:version: 1.0
+
+[source,ruby,subs="+attributes"]
+----
+puts "Version: {version}"
+----

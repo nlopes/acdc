@@ -91,6 +91,8 @@ pub(crate) fn preprocess_inline_content(
     end: usize,
     offset: usize,
     content: &str,
+    macros_enabled: bool,
+    attributes_enabled: bool,
 ) -> Result<(Location, ProcessedContent), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
     let mut adjusted_end = end + offset;
@@ -101,8 +103,13 @@ pub(crate) fn preprocess_inline_content(
         }
     }
 
-    let mut inline_state =
-        InlinePreprocessorParserState::new(content, state.line_map.clone(), &state.input);
+    let mut inline_state = InlinePreprocessorParserState::new(
+        content,
+        state.line_map.clone(),
+        &state.input,
+        macros_enabled,
+        attributes_enabled,
+    );
 
     // We adjust the start and end positions to account for the content start offset
     let content_end_offset = if adjusted_end == 0 {
@@ -143,6 +150,7 @@ pub(crate) fn parse_inlines(
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
     inline_peg_state.quotes_only = state.quotes_only;
+    inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
     let inlines = if inline_peg_state.quotes_only {
         document_parser::quotes_only_inlines(
@@ -181,6 +189,7 @@ pub(crate) fn parse_inlines_no_autolinks(
     let mut inline_peg_state = ParserState::new(&processed.text);
     inline_peg_state.document_attributes = state.document_attributes.clone();
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
+    inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
     let inlines = match document_parser::inlines_no_autolinks(
         &processed.text,
@@ -217,8 +226,15 @@ pub(crate) fn process_inlines(
     offset: usize,
     content: &str,
 ) -> Result<Vec<InlineNode>, Error> {
-    let (location, processed) =
-        preprocess_inline_content(state, content_start, end, offset, content)?;
+    let (location, processed) = preprocess_inline_content(
+        state,
+        content_start,
+        end,
+        offset,
+        content,
+        block_metadata.macros_enabled,
+        block_metadata.attributes_enabled,
+    )?;
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
     if processed.text.trim().is_empty() {
@@ -241,8 +257,15 @@ pub(crate) fn process_inlines_no_autolinks(
     offset: usize,
     content: &str,
 ) -> Result<Vec<InlineNode>, Error> {
-    let (location, processed) =
-        preprocess_inline_content(state, content_start, end, offset, content)?;
+    let (location, processed) = preprocess_inline_content(
+        state,
+        content_start,
+        end,
+        offset,
+        content,
+        block_metadata.macros_enabled,
+        block_metadata.attributes_enabled,
+    )?;
     if processed.text.trim().is_empty() {
         return Ok(Vec::new());
     }

@@ -1,0 +1,5 @@
+= Document Title
+:author: Test Author
+:email: test@example.com
+
+Some content.

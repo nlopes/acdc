@@ -24,6 +24,9 @@ pub enum PassthroughKind {
     Double,
     Triple,
     Macro,
+    /// Character replacement attribute expanded as passthrough (e.g., `{plus}` → `+`).
+    /// The location spans the `{attr}` reference, not delimiters.
+    AttributeRef,
 }
 
 /// A `Footnote` represents an inline footnote in a document.

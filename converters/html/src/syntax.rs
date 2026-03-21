@@ -16,15 +16,20 @@
 //! We track callout positions during text extraction and inject the proper
 //! HTML (`<i class="conum" data-value="N"></i><b>(N)</b>`) after highlighting.
 
+#[cfg(feature = "highlighting")]
 use std::{collections::HashMap, io::Write};
 
+#[cfg(feature = "highlighting")]
 use acdc_parser::InlineNode;
 
+#[cfg(feature = "highlighting")]
 use crate::Error;
 
 /// Default light theme (giallo theme name).
+#[cfg(feature = "highlighting")]
 pub(crate) const DEFAULT_THEME_LIGHT: &str = "github-light";
 /// Default dark theme (giallo theme name).
+#[cfg(feature = "highlighting")]
 pub(crate) const DEFAULT_THEME_DARK: &str = "github-dark";
 
 /// CSS class prefix used for class-based syntax highlighting output.
@@ -34,6 +39,7 @@ pub(crate) const DEFAULT_THEME_DARK: &str = "github-dark";
 const SYNTAX_CLASS_PREFIX: &str = "syntax-";
 
 /// How syntax-highlighted spans are styled in the HTML output.
+#[cfg(feature = "highlighting")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum HighlightMode {
     /// Inline `style="color:…"` attributes (default, backward-compatible).
@@ -297,6 +303,7 @@ pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
 }
 
 /// HTML-escape special characters.
+#[cfg(feature = "highlighting")]
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -307,6 +314,7 @@ fn html_escape(s: &str) -> String {
 /// Write HTML-escaped code with callout markers.
 ///
 /// This is the fallback when syntax highlighting is disabled or unavailable.
+#[cfg(feature = "highlighting")]
 fn write_escaped_code_with_callouts<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
@@ -334,22 +342,11 @@ fn write_escaped_code_with_callouts<W: Write + ?Sized>(
     Ok(())
 }
 
-/// Highlight code when the highlighting feature is not enabled.
-#[cfg(not(feature = "highlighting"))]
-pub(crate) fn highlight_code<W: Write + ?Sized>(
-    writer: &mut W,
-    inlines: &[InlineNode],
-    _language: &str,
-    _theme_name: &str,
-    _mode: HighlightMode,
-) -> Result<(), Error> {
-    write_escaped_code_with_callouts(writer, inlines)
-}
-
 /// Extract text content and callout positions from inline nodes for highlighting.
 ///
 /// Returns the code text (without callout markers) and a map of line numbers
 /// to callout numbers.
+#[cfg(feature = "highlighting")]
 fn extract_text_and_callouts(inlines: &[InlineNode]) -> (String, HashMap<usize, usize>) {
     let mut result = String::new();
     let mut callouts: HashMap<usize, usize> = HashMap::new();

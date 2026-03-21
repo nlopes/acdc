@@ -156,44 +156,11 @@
             {
               "name": "text",
               "type": "string",
-              "value": "italic ",
+              "value": "italic *bold*",
               "location": [
                 {
                   "line": 1,
                   "col": 68
-                },
-                {
-                  "line": 1,
-                  "col": 74
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "bold",
-                  "location": [
-                    {
-                      "line": 1,
-                      "col": 76
-                    },
-                    {
-                      "line": 1,
-                      "col": 79
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 1,
-                  "col": 75
                 },
                 {
                   "line": 1,

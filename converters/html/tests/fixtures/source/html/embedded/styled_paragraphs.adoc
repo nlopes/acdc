@@ -19,3 +19,14 @@ on little cat feet.
 [literal]
 This is literal text.
   It preserves   spacing.
+
+== Listing Style
+
+[listing]
+This is listing text.
+  It preserves   spacing.
+
+== Source Style
+
+[source,ruby]
+puts "Hello, World!"

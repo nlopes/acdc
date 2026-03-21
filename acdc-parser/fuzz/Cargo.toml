@@ -11,9 +11,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-
-[dependencies.acdc-parser]
-path = ".."
+acdc-parser = { path = "../" }
 
 [[bin]]
 name = "parser_document"

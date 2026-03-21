@@ -17,6 +17,8 @@ use tower_lsp::lsp_types::{
     WorkDoneProgressOptions,
 };
 
+use crate::state::ConditionalBlock;
+
 /// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
 fn to_lsp_u32(val: usize) -> u32 {
     val.try_into().unwrap_or(u32::MAX)
@@ -37,8 +39,9 @@ pub const TOKEN_TYPES: &[SemanticTokenType] = &[
 
 /// Semantic token modifiers
 pub const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
-    SemanticTokenModifier::DECLARATION, // anchor definitions
-    SemanticTokenModifier::DEFINITION,  // section with ID
+    SemanticTokenModifier::DECLARATION,     // 0 - anchor definitions
+    SemanticTokenModifier::DEFINITION,      // 1 - section with ID
+    SemanticTokenModifier::new("disabled"), // 2 - inactive conditional content
 ];
 
 /// Create the semantic tokens legend for capability registration
@@ -70,12 +73,17 @@ struct RawToken {
     token_modifiers: u32,
 }
 
-/// Compute semantic tokens for a document
+/// Compute semantic tokens for a document, including conditional directive awareness.
 #[must_use]
-pub fn compute_semantic_tokens(doc: &Document) -> SemanticTokens {
+pub fn compute_semantic_tokens(
+    doc: &Document,
+    conditionals: &[ConditionalBlock],
+    text: &str,
+) -> SemanticTokens {
     let mut tokens: Vec<RawToken> = Vec::new();
 
     collect_tokens_from_blocks(&doc.blocks, &mut tokens);
+    collect_conditional_tokens(conditionals, text, &mut tokens);
 
     // Sort by position for delta encoding
     tokens.sort_by(|a, b| a.line.cmp(&b.line).then(a.start_char.cmp(&b.start_char)));
@@ -86,6 +94,63 @@ pub fn compute_semantic_tokens(doc: &Document) -> SemanticTokens {
     SemanticTokens {
         result_id: None,
         data: encoded,
+    }
+}
+
+/// Emit semantic tokens for conditional directives and inactive content.
+fn collect_conditional_tokens(
+    conditionals: &[ConditionalBlock],
+    text: &str,
+    tokens: &mut Vec<RawToken>,
+) {
+    let lines: Vec<&str> = text.lines().collect();
+
+    for cond in conditionals {
+        // Directive line as KEYWORD
+        if let Some(line_text) = lines.get(cond.start_line)
+            && !line_text.is_empty()
+        {
+            tokens.push(RawToken {
+                line: to_lsp_u32(cond.start_line),
+                start_char: 0,
+                length: to_lsp_u32(line_text.len()),
+                token_type: 6, // KEYWORD
+                token_modifiers: 0,
+            });
+        }
+
+        // Endif line as KEYWORD
+        if let Some(endif_line) = cond.end_line
+            && let Some(line_text) = lines.get(endif_line)
+            && !line_text.is_empty()
+        {
+            tokens.push(RawToken {
+                line: to_lsp_u32(endif_line),
+                start_char: 0,
+                length: to_lsp_u32(line_text.len()),
+                token_type: 6, // KEYWORD
+                token_modifiers: 0,
+            });
+        }
+
+        // For inactive blocks, emit COMMENT + disabled modifier for content lines
+        if !cond.is_active
+            && let Some(end_line) = cond.end_line
+        {
+            for line_idx in (cond.start_line + 1)..end_line {
+                if let Some(line_text) = lines.get(line_idx)
+                    && !line_text.is_empty()
+                {
+                    tokens.push(RawToken {
+                        line: to_lsp_u32(line_idx),
+                        start_char: 0,
+                        length: to_lsp_u32(line_text.len()),
+                        token_type: 5,      // COMMENT
+                        token_modifiers: 4, // bit 2 = disabled
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -370,7 +435,7 @@ Some content.
         let options = Options::default();
         let doc = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(&doc);
+        let tokens = compute_semantic_tokens(&doc, &[], content);
         // Should have at least tokens for section titles
         assert!(!tokens.data.is_empty());
         Ok(())
@@ -388,7 +453,7 @@ See <<target>> for more.
         let options = Options::default();
         let doc = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(&doc);
+        let tokens = compute_semantic_tokens(&doc, &[], content);
         // Should have tokens for section, anchor, and xref
         assert!(tokens.data.len() >= 2);
         Ok(())
@@ -400,5 +465,121 @@ See <<target>> for more.
         assert!(legend.token_types.contains(&SemanticTokenType::NAMESPACE));
         assert!(legend.token_types.contains(&SemanticTokenType::FUNCTION));
         assert!(legend.token_types.contains(&SemanticTokenType::COMMENT));
+        assert_eq!(legend.token_modifiers.len(), 3);
+        assert_eq!(
+            legend.token_modifiers.get(2),
+            Some(&SemanticTokenModifier::new("disabled"))
+        );
+    }
+
+    #[test]
+    fn test_conditional_inactive_tokens() -> Result<(), acdc_parser::Error> {
+        use crate::state::{ConditionalBlock, ConditionalDirectiveKind};
+
+        let content = "ifdef::missing[]\ninactive content\nendif::[]";
+        let options = Options::default();
+        let doc = acdc_parser::parse(content, &options)?;
+
+        let conditionals = vec![ConditionalBlock {
+            kind: ConditionalDirectiveKind::Ifdef,
+            attributes: vec!["missing".to_string()],
+            operation: None,
+            is_active: false,
+            start_line: 0,
+            end_line: Some(2),
+        }];
+
+        let tokens = compute_semantic_tokens(&doc, &conditionals, content);
+        // Should have tokens: ifdef line (KEYWORD), inactive content (COMMENT+disabled), endif (KEYWORD)
+        assert!(tokens.data.len() >= 3);
+
+        // Reconstruct absolute positions from delta encoding
+        let mut abs_tokens = Vec::new();
+        let mut prev_line = 0u32;
+        let mut prev_start = 0u32;
+        for t in &tokens.data {
+            let line = prev_line + t.delta_line;
+            let start = if t.delta_line == 0 {
+                prev_start + t.delta_start
+            } else {
+                t.delta_start
+            };
+            abs_tokens.push((
+                line,
+                start,
+                t.length,
+                t.token_type,
+                t.token_modifiers_bitset,
+            ));
+            prev_line = line;
+            prev_start = start;
+        }
+
+        // Line 0: ifdef directive → KEYWORD (type 6)
+        assert!(
+            abs_tokens.iter().any(|t| t.0 == 0 && t.3 == 6),
+            "expected KEYWORD token on line 0"
+        );
+        // Line 1: inactive content → COMMENT (type 5) + disabled (bit 2 = 4)
+        assert!(
+            abs_tokens.iter().any(|t| t.0 == 1 && t.3 == 5 && t.4 == 4),
+            "expected COMMENT+disabled token on line 1"
+        );
+        // Line 2: endif → KEYWORD (type 6)
+        assert!(
+            abs_tokens.iter().any(|t| t.0 == 2 && t.3 == 6),
+            "expected KEYWORD token on line 2"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_conditional_active_no_disabled_tokens() -> Result<(), acdc_parser::Error> {
+        use crate::state::{ConditionalBlock, ConditionalDirectiveKind};
+
+        let content = "ifdef::present[]\nactive content\nendif::[]";
+        let options = Options::default();
+        let doc = acdc_parser::parse(content, &options)?;
+
+        let conditionals = vec![ConditionalBlock {
+            kind: ConditionalDirectiveKind::Ifdef,
+            attributes: vec!["present".to_string()],
+            operation: None,
+            is_active: true,
+            start_line: 0,
+            end_line: Some(2),
+        }];
+
+        let tokens = compute_semantic_tokens(&doc, &conditionals, content);
+        // Active block: should have KEYWORD tokens for directives but NO disabled tokens
+        let mut abs_tokens = Vec::new();
+        let mut prev_line = 0u32;
+        let mut prev_start = 0u32;
+        for t in &tokens.data {
+            let line = prev_line + t.delta_line;
+            let start = if t.delta_line == 0 {
+                prev_start + t.delta_start
+            } else {
+                t.delta_start
+            };
+            abs_tokens.push((
+                line,
+                start,
+                t.length,
+                t.token_type,
+                t.token_modifiers_bitset,
+            ));
+            prev_line = line;
+            prev_start = start;
+        }
+
+        // No tokens should have the disabled modifier (bit 2 = 4)
+        assert!(
+            !abs_tokens.iter().any(|t| t.4 & 4 != 0),
+            "active block should have no disabled tokens"
+        );
+
+        Ok(())
     }
 }

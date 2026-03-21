@@ -5,8 +5,8 @@ use acdc_converters_core::{
     visitor::{WritableVisitor, WritableVisitorExt},
 };
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
-    StemContent, StemNotation,
+    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Location,
+    Plain, StemContent, StemNotation, Substitution, SubstitutionSpec, substitute,
 };
 
 use crate::{
@@ -22,11 +22,7 @@ fn write_block_div_open<W: Write>(
     base_class: &str,
 ) -> Result<(), Error> {
     write!(w, "<div")?;
-    if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", anchor.id)?;
-    }
+    crate::write_id(w, metadata)?;
     let class = build_class(base_class, &metadata.roles);
     writeln!(w, " class=\"{class}\">")?;
     Ok(())
@@ -42,11 +38,7 @@ fn write_semantic_tag_open<W: Write>(
     write!(w, "<{tag}")?;
     let class = build_class(base_class, &metadata.roles);
     write!(w, " class=\"{class}\"")?;
-    if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", anchor.id)?;
-    }
+    crate::write_id(w, metadata)?;
     writeln!(w, ">")?;
     Ok(())
 }
@@ -521,76 +513,11 @@ fn render_listing_code<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
 ) -> Result<(), Error> {
     let language = detect_language(metadata);
-
-    #[cfg(feature = "highlighting")]
-    let highlighting_enabled = processor
-        .document_attributes
-        .get("source-highlighter")
-        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
-
     let comment_prefix = default_line_comment(language);
     let processed_inlines = process_callout_guards(inlines, comment_prefix);
+    let subs = crate::html_visitor::effective_subs(metadata.substitutions.as_ref(), true);
 
-    let mut w = visitor.writer_mut();
-
-    #[cfg(feature = "highlighting")]
-    if let Some(lang) = language {
-        if highlighting_enabled {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            let (theme_name, mode) = crate::resolve_highlight_settings(processor);
-            crate::syntax::highlight_code(
-                visitor.writer_mut(),
-                &processed_inlines,
-                lang,
-                &theme_name,
-                mode,
-            )?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        } else {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        }
-    } else {
-        write!(w, "<pre>")?;
-        let _ = w;
-        visitor.visit_inline_nodes(&processed_inlines)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</pre>")?;
-    }
-
-    #[cfg(not(feature = "highlighting"))]
-    {
-        let _ = processor;
-        if let Some(lang) = language {
-            write!(
-                w,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
-        } else {
-            write!(w, "<pre>")?;
-            let _ = w;
-            visitor.visit_inline_nodes(&processed_inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</pre>")?;
-        }
-    }
-
-    Ok(())
+    crate::render_pre_code(&processed_inlines, language, visitor, processor, &subs)
 }
 
 fn render_listing_block<V: WritableVisitor<Error = Error>>(
@@ -665,17 +592,74 @@ fn render_listing_block_semantic<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
+/// Render a passthrough block with `subs=` override applied.
+///
+/// Passthrough blocks default to no substitutions, emitting raw content.
+/// When `subs=` is specified, the raw content is processed through the
+/// substitution pipeline (attributes, quotes, specialchars, replacements).
+fn render_pass_block_with_subs<V: WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    spec: &SubstitutionSpec,
+    visitor: &mut V,
+    processor: &Processor,
+    options: &RenderOptions,
+) -> Result<(), Error> {
+    // Passthrough blocks default to no subs, so the baseline is empty.
+    let effective = spec.resolve(&[]);
+
+    let mut content = String::new();
+    for node in inlines {
+        if let InlineNode::RawText(r) = node {
+            content.push_str(&r.content);
+        }
+    }
+
+    // Apply attribute substitution if enabled (not done by parser for
+    // passthrough blocks)
+    if effective.contains(&Substitution::Attributes) {
+        content = substitute(
+            &content,
+            &[Substitution::Attributes],
+            processor.document_attributes(),
+        );
+    }
+
+    // If quotes substitution is enabled, parse the content for inline
+    // formatting (bold, italic, etc.) and render each node with the full
+    // effective subs. This mirrors VerbatimText rendering which passes full
+    // subs to avoid PlainText's no_quotes_subs optimization that would
+    // prevent Bold/Italic nodes from rendering as HTML.
+    if effective.contains(&Substitution::Quotes) {
+        let parsed_nodes = acdc_parser::parse_text_for_quotes(&content);
+        for node in &parsed_nodes {
+            crate::inlines::visit_inline_node(node, visitor, processor, options, &effective)?;
+        }
+    } else {
+        let plain = InlineNode::PlainText(Plain {
+            content,
+            location: Location::default(),
+            escaped: false,
+        });
+        crate::inlines::visit_inline_node(&plain, visitor, processor, options, &effective)?;
+    }
+    Ok(())
+}
+
 fn render_delimited_block_inner<V: WritableVisitor<Error = Error>>(
     inner: &DelimitedBlockType,
     title: &[InlineNode],
     metadata: &BlockMetadata,
     visitor: &mut V,
     processor: &Processor,
-    _options: &RenderOptions,
+    options: &RenderOptions,
 ) -> Result<(), Error> {
     match inner {
         DelimitedBlockType::DelimitedPass(inlines) => {
-            visitor.visit_inline_nodes(inlines)?;
+            if let Some(spec) = &metadata.substitutions {
+                render_pass_block_with_subs(inlines, spec, visitor, processor, options)?;
+            } else {
+                visitor.visit_inline_nodes(inlines)?;
+            }
         }
         DelimitedBlockType::DelimitedListing(inlines) => {
             render_listing_block(inlines, title, metadata, visitor, processor)?;

@@ -5,6 +5,23 @@ All notable changes to `acdc-converters-html` will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `<meta name="author">` no longer includes the email address in the content attribute,
+  matching asciidoctor behavior
+
+### Added
+
+- **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
+  `[source,lang]` style now render as listing blocks (`<div class="listingblock">`)
+  instead of regular paragraphs, matching asciidoctor behavior.
+
+- **`[%hardbreaks]` paragraph option** — paragraphs with the `[%hardbreaks]` option or
+  the document-level `hardbreaks` attribute now convert newlines to `<br>`, matching
+  asciidoctor behavior.
+
 ### Added
 
 - **html5s semantic video and audio blocks** — video and audio blocks now render with semantic
@@ -133,6 +150,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **HTML entity double-escaping in specialchars** — valid HTML entities (`&euro;`, `&#167;`,
+  `&#x00A7;`, `&amp;`) in source text are no longer double-escaped to `&amp;euro;` etc.
+  Only bare `&` characters are escaped to `&amp;`.
+- **`subs=` overrides on passthrough blocks** — passthrough blocks (`++++`) with a `subs=`
+  attribute now apply the specified substitutions instead of emitting raw content. Supports
+  all substitution types including `normal`, `specialchars`, `quotes`, `attributes`, and
+  explicit combinations.
 - **Em-dash patterns now match asciidoctor** — spaced pattern emits `&thinsp;&mdash;&thinsp;`,
   word-bounded (`word--word`) emits `&#8212;&#8203;`.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,

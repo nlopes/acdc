@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
+  `[source,lang]` style now render as preformatted text (same as `[literal]`).
+
 - **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
   symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as Unicode characters.
 - **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly

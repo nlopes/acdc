@@ -36,6 +36,12 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Warnings collected during PEG parsing for post-parse emission.
     /// Uses `RefCell` for interior mutability in PEG action blocks.
     pub(crate) warnings: RefCell<Vec<String>>,
+    /// Whether macro substitutions are enabled for this block.
+    /// When `false`, `pass:[]` macros are not extracted by the preprocessor.
+    pub(crate) macros_enabled: bool,
+    /// Whether attribute substitutions are enabled for this block.
+    /// When `false`, `{attribute}` references are not expanded by the preprocessor.
+    pub(crate) attributes_enabled: bool,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
@@ -45,7 +51,15 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `input` - The substring to parse
     /// * `line_map` - Pre-computed line map for the full document
     /// * `full_input` - The full document input (for position lookups)
-    pub(crate) fn new(input: &'a str, line_map: LineMap, full_input: &'a str) -> Self {
+    /// * `macros_enabled` - Whether macro substitutions are active
+    /// * `attributes_enabled` - Whether attribute substitutions are active
+    pub(crate) fn new(
+        input: &'a str,
+        line_map: LineMap,
+        full_input: &'a str,
+        macros_enabled: bool,
+        attributes_enabled: bool,
+    ) -> Self {
         Self {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
@@ -57,7 +71,14 @@ impl<'a> InlinePreprocessorParserState<'a> {
             input: RefCell::new(input),
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
+            macros_enabled,
+            attributes_enabled,
         }
+    }
+
+    /// Create a new state with all substitutions enabled (macros + attributes).
+    pub(crate) fn new_all_enabled(input: &'a str, line_map: LineMap, full_input: &'a str) -> Self {
+        Self::new(input, line_map, full_input, true, true)
     }
 
     /// Set the initial position for parsing a substring within the document.
@@ -98,6 +119,63 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// Drain collected warnings (for transfer to main `ParserState`).
     pub(crate) fn drain_warnings(&self) -> Vec<String> {
         self.warnings.borrow_mut().drain(..).collect()
+    }
+
+    /// Extract the subs-spec string, content, and parsed substitutions from
+    /// a matched `pass:SUBS[CONTENT]` string.
+    fn parse_pass_macro_parts(full: &str) -> (&str, &str, Vec<Substitution>) {
+        let subs_end = full[5..].find('[').unwrap_or(0);
+        let subs_str = &full[5..5 + subs_end];
+        let content = &full[5 + subs_end + 1..full.len() - 1];
+        let substitutions = if subs_str.is_empty() {
+            Vec::new()
+        } else {
+            subs_str
+                .split(',')
+                .filter_map(|s| parse_substitution(s.trim()))
+                .collect()
+        };
+        (subs_str, content, substitutions)
+    }
+
+    /// When macros are disabled, a `pass:SUBS[CONTENT]` macro is treated as literal text.
+    /// However, if its sub-spec includes attributes (`a` or `n`), we still expand
+    /// attribute references in the content — matching asciidoctor behavior.
+    fn expand_disabled_pass_macro(
+        &self,
+        full: &str,
+        document_attributes: &DocumentAttributes,
+    ) -> String {
+        let (subs_str, content, substitutions) = Self::parse_pass_macro_parts(full);
+
+        let has_attr_subs = substitutions
+            .iter()
+            .any(|s| matches!(s, Substitution::Attributes | Substitution::Normal));
+
+        if !has_attr_subs {
+            self.advance(full);
+            return full.to_string();
+        }
+
+        let expanded = inline_preprocessing::attribute_reference_substitutions(
+            content,
+            document_attributes,
+            self,
+        )
+        .unwrap_or_else(|_| content.to_string());
+        let reconstructed = format!("pass:{subs_str}[{expanded}]");
+
+        let absolute_start = self.get_offset();
+        self.advance(full);
+        if reconstructed.chars().count() != full.chars().count() {
+            self.source_map.borrow_mut().add_replacement(
+                absolute_start,
+                absolute_start + full.len(),
+                reconstructed.chars().count(),
+                ProcessedKind::Attribute,
+            );
+        }
+        reconstructed
     }
 
     /// Calculate location for a matched construct.
@@ -293,24 +371,42 @@ parser!(
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
+                if !state.attributes_enabled {
+                    let text = format!("{{{attribute_name}}}");
+                    state.advance(&text);
+                    return text;
+                }
+
                 let location = state.calculate_location(start, attribute_name, 2);
 
-                // Special handling for character reference attributes that need passthrough behavior.
-                // Per AsciiDoc spec, these are "passthrough replacements for characters that get
-                // encoded by the converter (e.g., <, >, and &)."
+                // Special handling for character replacement attributes that need passthrough behavior.
+                // In asciidoctor, expanded attribute values don't get re-parsed for inline syntax.
+                // In acdc, the inline preprocessor expands attributes into a string that the main
+                // PEG grammar fully re-parses. This means ALL character replacement attributes with
+                // syntactically significant ASCII values need passthrough protection to prevent the
+                // expanded values from being misinterpreted as AsciiDoc syntax (e.g., {plus} → "+"
+                // being matched as a line break, {asterisk} → "*" triggering bold formatting).
                 // See: https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
-                let is_char_ref = matches!(attribute_name, "lt" | "gt" | "amp");
+                let is_char_ref = matches!(
+                    attribute_name,
+                    "lt" | "gt" | "amp"
+                        | "plus" | "pp" | "cpp" | "cxx"
+                        | "asterisk" | "backtick" | "caret" | "tilde"
+                        | "vbar" | "startsb" | "endsb" | "backslash"
+                        | "two-colons" | "two-semicolons"
+                        | "apos" | "quot"
+                );
 
                 match document_attributes.get(attribute_name) {
                     Some(AttributeValue::String(value)) => {
                         if is_char_ref {
-                            // Treat {lt}, {gt}, {amp} as passthroughs (like +++<+++)
-                            // Empty substitutions = RawText = bypasses HTML escaping
+                            // Treat character replacement attributes as passthroughs (like +++<+++)
+                            // Empty substitutions = RawText = bypasses further inline parsing
                             state.passthroughs.borrow_mut().push(Pass {
                                 text: Some(value.clone()),
                                 substitutions: Vec::new(),
                                 location: location.clone(),
-                                kind: PassthroughKind::Triple,
+                                kind: PassthroughKind::AttributeRef,
                             });
                             let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
                             state.source_map.borrow_mut().add_replacement(
@@ -334,8 +430,18 @@ parser!(
                             value.clone()
                         }
                     },
+                    Some(AttributeValue::Bool(true)) => {
+                        let mut attributes = state.attributes.borrow_mut();
+                        state.source_map.borrow_mut().add_replacement(
+                            location.absolute_start,
+                            location.absolute_end,
+                            0,
+                            ProcessedKind::Attribute,
+                        );
+                        attributes.insert(state.source_map.borrow().replacements.len(), location);
+                        String::new()
+                    },
                     _ => {
-                        // TODO(nlopes): do we need to handle other types?
                         // For non-string attributes, keep original text
                         format!("{{{attribute_name}}}")
                     }
@@ -358,6 +464,12 @@ parser!(
         content:$(![(' '|'\t'|'\n'|'\r')] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])*)
         "+"
         {
+            if !state.macros_enabled {
+                let text = format!("+{content}+");
+                state.advance(&text);
+                return text;
+            }
+
             // Check if we're at start OR preceded by word boundary character
             // Convert absolute offset to relative offset within the substring
             let substring_start = state.substring_start_offset.get();
@@ -432,6 +544,10 @@ parser!(
 
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
+                if !state.macros_enabled {
+                    state.advance(&format!("++{content}++"));
+                    return format!("++{content}++");
+                }
                 let location = state.calculate_location(start, content, 4);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
@@ -455,6 +571,11 @@ parser!(
 
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
+                if !state.macros_enabled {
+                    let text = format!("+++{content}+++");
+                    state.advance(&text);
+                    return text;
+                }
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
                     text: Some(content.to_string()),
@@ -475,16 +596,16 @@ parser!(
             }
 
         rule pass_macro() -> String
-        = start:position() "pass:" substitutions:substitutions() "[" content:$([^']']*) "]" {
+        = start:position() full:$("pass:" substitutions() "[" [^']']* "]") {
+            if !state.macros_enabled {
+                return state.expand_disabled_pass_macro(full, document_attributes);
+            }
+
+            let (subs_str, content, substitutions) =
+                InlinePreprocessorParserState::parse_pass_macro_parts(full);
+
             // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
-            // Calculate approximate substitutions length
-            let subs_len = if substitutions.is_empty() {
-                0
-            } else {
-                // Each substitution is 1 char + commas between them
-                substitutions.len() + (substitutions.len().saturating_sub(1))
-            };
-            let padding = 5 + subs_len + 1 + 1; // "pass:" + subs + "[" + "]"
+            let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
             let location = state.calculate_location(start, content, padding);
             // Normal substitution group includes Attributes, so check for both
             let content = if substitutions.contains(&Substitution::Attributes)
@@ -607,6 +728,8 @@ mod tests {
             input: RefCell::new(content),
             substring_start_offset: Cell::new(0),
             warnings: RefCell::new(Vec::new()),
+            macros_enabled: true,
+            attributes_enabled: true,
         }
     }
 
@@ -1102,45 +1225,60 @@ mod tests {
         let state = setup_state(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
 
-        // Build expected output by concatenating all expected values
-        // Note: {amp}, {lt}, {gt} produce passthrough placeholders (indices 0, 1, 2)
-        let expected = concat!(
-            // Whitespace: empty, blank, space, nbsp, zwsp, wj
-            "",
-            "",
-            " ",
-            "\u{00A0}",
-            "\u{200B}",
-            "\u{2060}",
-            // Quotes: apos, quot, lsquo, rsquo, ldquo, rdquo
-            "'",
-            "\"",
-            "\u{2018}",
-            "\u{2019}",
-            "\u{201C}",
-            "\u{201D}",
-            // Symbols: deg, plus, brvbar, vbar, then amp/lt/gt as placeholders
-            "\u{00B0}",
-            "+",
-            "\u{00A6}",
-            "|",
-            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}", // {amp}
-            "\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}", // {lt}
-            "\u{FFFD}\u{FFFD}\u{FFFD}2\u{FFFD}\u{FFFD}\u{FFFD}", // {gt}
-            // Escaping: startsb, endsb, caret, asterisk, tilde, backslash, backtick
-            "[",
-            "]",
-            "^",
-            "*",
-            "~",
-            "\\",
-            "`",
-            // Sequences: two-colons, two-semicolons, cpp, cxx, pp
-            "::",
-            ";;",
-            "C++",
-            "C++",
-            "++"
+        // Build expected output by concatenating all expected values.
+        // All ASCII character replacement attributes now produce passthrough placeholders
+        // to prevent the PEG grammar from misinterpreting their values as AsciiDoc syntax.
+        // Passthrough indices are assigned in order of appearance.
+        let p = |i: usize| format!("\u{FFFD}\u{FFFD}\u{FFFD}{i}\u{FFFD}\u{FFFD}\u{FFFD}");
+        let expected = format!(
+            concat!(
+                // Whitespace: empty, blank, space, nbsp, zwsp, wj (not passthroughs)
+                "", "", " ", "\u{00A0}", "\u{200B}", "\u{2060}",
+                // Quotes: apos(p0), quot(p1), lsquo, rsquo, ldquo, rdquo
+                "{}", // apos
+                "{}", // quot
+                "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}",
+                // Symbols: deg, plus(p2), brvbar, vbar(p3), amp(p4), lt(p5), gt(p6)
+                "\u{00B0}", "{}", // plus
+                "\u{00A6}", "{}", // vbar
+                "{}", // amp
+                "{}", // lt
+                "{}", // gt
+                // Escaping: startsb(p7), endsb(p8), caret(p9), asterisk(p10),
+                //           tilde(p11), backslash(p12), backtick(p13)
+                "{}", // startsb
+                "{}", // endsb
+                "{}", // caret
+                "{}", // asterisk
+                "{}", // tilde
+                "{}", // backslash
+                "{}", // backtick
+                // Sequences: two-colons(p14), two-semicolons(p15), cpp(p16), cxx(p17), pp(p18)
+                "{}", // two-colons
+                "{}", // two-semicolons
+                "{}", // cpp
+                "{}", // cxx
+                "{}", // pp
+            ),
+            p(0),
+            p(1),
+            p(2),
+            p(3),
+            p(4),
+            p(5),
+            p(6),
+            p(7),
+            p(8),
+            p(9),
+            p(10),
+            p(11),
+            p(12),
+            p(13),
+            p(14),
+            p(15),
+            p(16),
+            p(17),
+            p(18),
         );
 
         assert_eq!(
@@ -1148,18 +1286,17 @@ mod tests {
             "Character replacement attributes did not produce expected values"
         );
 
-        // Verify the passthroughs were created for {amp}, {lt}, {gt}
+        // Verify passthroughs were created for all ASCII character replacement attributes
         assert_eq!(
             result.passthroughs.len(),
-            3,
-            "Should have 3 passthroughs for amp, lt, gt"
+            19,
+            "Should have 19 passthroughs for all ASCII char replacement attributes"
         );
-        let [amp, lt, gt] = result.passthroughs.as_slice() else {
-            panic!("Expected exactly 3 passthroughs");
-        };
-        assert_eq!(amp.text.as_deref(), Some("&"));
-        assert_eq!(lt.text.as_deref(), Some("<"));
-        assert_eq!(gt.text.as_deref(), Some(">"));
+        // Spot-check a few key passthroughs
+        assert_eq!(result.passthroughs[0].text.as_deref(), Some("&#39;")); // apos
+        assert_eq!(result.passthroughs[2].text.as_deref(), Some("+")); // plus
+        assert_eq!(result.passthroughs[4].text.as_deref(), Some("&")); // amp
+        assert_eq!(result.passthroughs[16].text.as_deref(), Some("C++")); // cpp
 
         Ok(())
     }
@@ -1175,13 +1312,19 @@ mod tests {
         let result1 = inline_preprocessing::run(input1, &attributes, &state1)?;
         assert_eq!(result1.text, "The temperature is 100\u{00B0}F");
 
-        // Test 2: Multiple attributes
+        // Test 2: Multiple attributes (now produce passthrough placeholders)
         let input2 = "Use {startsb}option{endsb} syntax";
         let state2 = setup_state(input2);
         let result2 = inline_preprocessing::run(input2, &attributes, &state2)?;
-        assert_eq!(result2.text, "Use [option] syntax");
+        assert_eq!(
+            result2.text,
+            "Use \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}option\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} syntax"
+        );
+        assert_eq!(result2.passthroughs.len(), 2);
+        assert_eq!(result2.passthroughs[0].text.as_deref(), Some("["));
+        assert_eq!(result2.passthroughs[1].text.as_deref(), Some("]"));
 
-        // Test 3: Adjacent attributes
+        // Test 3: Adjacent attributes (Unicode chars, not passthroughs)
         let input3 = "{ldquo}Hello{rdquo}";
         let state3 = setup_state(input3);
         let result3 = inline_preprocessing::run(input3, &attributes, &state3)?;
@@ -1198,11 +1341,17 @@ mod tests {
         let result5 = inline_preprocessing::run(input5, &attributes, &state5)?;
         assert_eq!(result5.text, "beforeafter");
 
-        // Test 5: C++ variations
+        // Test 5: C++ variations (now produce passthrough placeholders)
         let input6 = "{cpp} is same as {cxx}";
         let state6 = setup_state(input6);
         let result6 = inline_preprocessing::run(input6, &attributes, &state6)?;
-        assert_eq!(result6.text, "C++ is same as C++");
+        assert_eq!(
+            result6.text,
+            "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} is same as \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}"
+        );
+        assert_eq!(result6.passthroughs.len(), 2);
+        assert_eq!(result6.passthroughs[0].text.as_deref(), Some("C++"));
+        assert_eq!(result6.passthroughs[1].text.as_deref(), Some("C++"));
 
         Ok(())
     }
@@ -1253,6 +1402,67 @@ mod tests {
             2,
             "different counter warnings should both be collected"
         );
+        Ok(())
+    }
+
+    fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'_> {
+        InlinePreprocessorParserState {
+            pass_found_count: Cell::new(0),
+            passthroughs: RefCell::new(Vec::new()),
+            attributes: RefCell::new(HashMap::new()),
+            current_offset: Cell::new(0),
+            line_map: LineMap::new(content),
+            full_input: content,
+            source_map: RefCell::new(SourceMap::default()),
+            input: RefCell::new(content),
+            substring_start_offset: Cell::new(0),
+            warnings: RefCell::new(Vec::new()),
+            macros_enabled: false,
+            attributes_enabled: true,
+        }
+    }
+
+    #[test]
+    fn test_pass_macro_a_with_macros_disabled_expands_attributes() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:a[{version}]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:a[1.0]");
+        assert!(state.passthroughs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_pass_macro_no_subs_with_macros_disabled_preserves_attributes() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:[{version}]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:[{version}]");
+        assert!(state.passthroughs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_pass_macro_q_with_macros_disabled_preserves_content() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:q[text]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:q[text]");
+        assert!(state.passthroughs.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_pass_macro_a_q_with_macros_disabled_expands_attributes() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = "pass:a,q[{version}]";
+        let state = setup_state_macros_disabled(input);
+        let result = inline_preprocessing::run(input, &attributes, &state)?;
+        assert_eq!(result.text, "pass:a,q[1.0]");
+        assert!(state.passthroughs.borrow().is_empty());
         Ok(())
     }
 }

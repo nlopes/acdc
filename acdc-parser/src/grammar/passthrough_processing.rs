@@ -26,29 +26,37 @@ pub(crate) fn process_passthrough_with_quotes(
         // Carry the passthrough's own subs (minus Quotes, already handled) so the
         // converter applies exactly those instead of the block's subs.
         // Compute content-only location by stripping the delimiter prefix/suffix
-        // from the full passthrough macro location.
+        // from the full passthrough macro location. For attribute-ref passthroughs,
+        // the location spans the `{attr}` reference with no delimiters to strip.
         let suffix_len = match passthrough.kind {
-            PassthroughKind::Macro | PassthroughKind::Single => 1, // ] or +
-            PassthroughKind::Double => 2,                          // ++
-            PassthroughKind::Triple => 3,                          // +++
+            PassthroughKind::Macro | PassthroughKind::Single => Some(1), // ] or +
+            PassthroughKind::Double => Some(2),                          // ++
+            PassthroughKind::Triple => Some(3),                          // +++
+            PassthroughKind::AttributeRef => None,
         };
-        let total_span = passthrough.location.absolute_end - passthrough.location.absolute_start;
-        let prefix_len = total_span - content.len() - suffix_len;
 
-        let content_abs_start = passthrough.location.absolute_start + prefix_len;
-        let content_col_start = passthrough.location.start.column + prefix_len;
+        let content_location = if let Some(suffix_len) = suffix_len {
+            let total_span =
+                passthrough.location.absolute_end - passthrough.location.absolute_start;
+            let prefix_len = total_span - content.len() - suffix_len;
 
-        let content_location = Location {
-            absolute_start: content_abs_start,
-            absolute_end: content_abs_start + content.len(),
-            start: crate::Position {
-                line: passthrough.location.start.line,
-                column: content_col_start,
-            },
-            end: crate::Position {
-                line: passthrough.location.start.line,
-                column: content_col_start + content.len(),
-            },
+            let content_abs_start = passthrough.location.absolute_start + prefix_len;
+            let content_col_start = passthrough.location.start.column + prefix_len;
+
+            Location {
+                absolute_start: content_abs_start,
+                absolute_end: content_abs_start + content.len(),
+                start: crate::Position {
+                    line: passthrough.location.start.line,
+                    column: content_col_start,
+                },
+                end: crate::Position {
+                    line: passthrough.location.start.line,
+                    column: content_col_start + content.len(),
+                },
+            }
+        } else {
+            passthrough.location.clone()
         };
 
         return vec![InlineNode::RawText(Raw {

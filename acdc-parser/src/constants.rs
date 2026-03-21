@@ -50,11 +50,11 @@ pub fn default_attributes() -> rustc_hash::FxHashMap<AttributeName, AttributeVal
         ),
         (
             AttributeName::from("apos"),
-            AttributeValue::String("'".into()),
+            AttributeValue::String("&#39;".into()),
         ),
         (
             AttributeName::from("quot"),
-            AttributeValue::String("\"".into()),
+            AttributeValue::String("&#34;".into()),
         ),
         (
             AttributeName::from("lsquo"),

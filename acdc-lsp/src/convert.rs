@@ -1,7 +1,7 @@
 //! Type conversions between acdc-parser and LSP types
 
 use acdc_parser::Location;
-use tower_lsp::lsp_types::{Position, Range};
+use tower_lsp::lsp_types::{Position, Range, Url};
 
 /// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
 ///
@@ -72,6 +72,24 @@ pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
         line: to_lsp_u32(pos.line.saturating_sub(1)),
         character: to_lsp_u32(pos.column.saturating_sub(1)),
     }
+}
+
+/// Resolve a relative path against a document URI's directory.
+///
+/// Strips the filename from `doc_uri` to get the directory, then joins
+/// `relative_path` against it. Used for resolving include targets,
+/// image sources, and cross-references.
+#[must_use]
+pub fn resolve_relative_uri(doc_uri: &Url, relative_path: &str) -> Option<Url> {
+    let mut base = doc_uri.clone();
+    base.path_segments_mut().ok()?.pop();
+    let base_str = base.as_str();
+    let base = if base_str.ends_with('/') {
+        base
+    } else {
+        Url::parse(&format!("{base_str}/")).ok()?
+    };
+    base.join(relative_path).ok()
 }
 
 #[cfg(test)]

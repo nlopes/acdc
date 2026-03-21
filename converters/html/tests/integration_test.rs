@@ -279,6 +279,28 @@ fn main() {
         );
         Ok(())
     }
+
+    #[test]
+    fn attribute_substitution_applied_with_highlighting() -> Result<(), Error> {
+        let input = r#":source-highlighter: syntect
+:version: 1.0
+
+[source,ruby,subs="+attributes"]
+----
+puts "Version: {version}"
+----
+"#;
+        let html = convert_string(input, &[])?;
+        assert!(
+            html.contains("Version: 1.0"),
+            "Attribute references should be expanded in highlighted code:\n{html}"
+        );
+        assert!(
+            !html.contains("{version}"),
+            "Unexpanded attribute reference should not appear in output:\n{html}"
+        );
+        Ok(())
+    }
 }
 
 mod stylesheet_modes {

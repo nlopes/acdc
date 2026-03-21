@@ -1,0 +1,13 @@
+= HTML Entity Passthrough
+
+The price is 10 &euro; per unit.
+
+Section sign: &sect; and copyright: &copy;
+
+Decimal NCR: &#167; and &#8212;
+
+Hex NCR: &#x00A7; and &#x2014;
+
+Already escaped: &amp; and &lt; and &gt;
+
+Bare ampersand: fish & chips.

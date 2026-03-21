@@ -7,7 +7,12 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 fn parse_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser");
 
-    let fixture_files_without_ext = vec!["basic_header", "stem_blocks", "video_comprehensive"];
+    let fixture_files_without_ext = vec![
+        "basic_header",
+        "stem_blocks",
+        "video_comprehensive",
+        "inline_heavy",
+    ];
 
     for name in fixture_files_without_ext {
         let content = fs::read_to_string(format!("fixtures/tests/{name}.adoc"))

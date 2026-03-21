@@ -6,8 +6,11 @@ use std::{
 };
 
 use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
+#[cfg(feature = "highlighting")]
+use acdc_parser::substitute;
 use acdc_parser::{
-    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, TocEntry, strip_quotes,
+    AttributeValue, Block, Document, DocumentAttributes, IndexTermKind, InlineNode, Substitution,
+    TocEntry, strip_quotes,
 };
 
 mod admonition;
@@ -289,6 +292,9 @@ pub struct RenderOptions {
     /// Stem of the source document filename (e.g., `"mydoc"` for `mydoc.adoc`),
     /// used to locate private docinfo files like `mydoc-docinfo.html`.
     pub docname: Option<String>,
+    /// When true, newlines in paragraph text are converted to `<br>` (hard line breaks).
+    /// Set by `[%hardbreaks]` option on a paragraph or the document-level `hardbreaks` attribute.
+    pub hardbreaks: bool,
 }
 
 pub(crate) const COPYCSS_DEFAULT: &str = "";
@@ -296,6 +302,7 @@ pub(crate) const STYLESDIR_DEFAULT: &str = ".";
 pub(crate) const STYLESHEET_DEFAULT: &str = "";
 /// Default filename for the syntax highlighting stylesheet (class-based mode).
 /// Analogous to asciidoctor's `asciidoctor-coderay.css` / `asciidoctor-pygments.css`.
+#[cfg(feature = "highlighting")]
 pub(crate) const HIGHLIGHT_STYLESHEET: &str = "acdc-highlight.css";
 // NOTE: If you change the values below, you need to also change them in `load_css`
 pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
@@ -319,6 +326,7 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 ///   (falls back to light/dark default).
 /// - `:highlight-css: class` (or legacy `:syntect-css: class`) switches to
 ///   CSS-class mode (default is inline).
+#[cfg(feature = "highlighting")]
 pub(crate) fn resolve_highlight_settings(processor: &Processor) -> (String, syntax::HighlightMode) {
     let dark_mode = processor
         .document_attributes
@@ -684,6 +692,19 @@ impl Processor {
     fn handle_copy_syntax_css(&self, _doc: &Document, _html_path: &Path) {}
 }
 
+/// Write the `id` attribute from metadata (explicit id or first anchor).
+pub(crate) fn write_id<W: std::io::Write + ?Sized>(
+    w: &mut W,
+    metadata: &acdc_parser::BlockMetadata,
+) -> Result<(), std::io::Error> {
+    if let Some(id) = &metadata.id {
+        write!(w, " id=\"{}\"", id.id)?;
+    } else if let Some(anchor) = metadata.anchors.first() {
+        write!(w, " id=\"{}\"", anchor.id)?;
+    }
+    Ok(())
+}
+
 /// Build a class string from a base class and optional roles
 pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
     if roles.is_empty() {
@@ -691,6 +712,120 @@ pub(crate) fn build_class(base: &str, roles: &[String]) -> String {
     } else {
         format!("{base} {}", roles.join(" "))
     }
+}
+
+/// Apply attribute substitution to inline nodes if `Attributes` is in the active subs.
+///
+/// Returns `Some(new_inlines)` when substitution was performed, `None` otherwise
+/// (allowing the caller to use the original slice without cloning).
+#[cfg(feature = "highlighting")]
+fn apply_attribute_subs(
+    inlines: &[InlineNode],
+    subs: &[Substitution],
+    processor: &Processor,
+) -> Option<Vec<InlineNode>> {
+    if !subs.contains(&Substitution::Attributes) {
+        return None;
+    }
+    let attrs = processor.document_attributes();
+    Some(
+        inlines
+            .iter()
+            .map(|node| {
+                if let InlineNode::VerbatimText(v) = node {
+                    let content = substitute(&v.content, &[Substitution::Attributes], attrs);
+                    InlineNode::VerbatimText(acdc_parser::Verbatim {
+                        content,
+                        location: v.location.clone(),
+                    })
+                } else {
+                    node.clone()
+                }
+            })
+            .collect(),
+    )
+}
+
+/// Render a `<pre>` (and optional `<code>`) element for listing/source content.
+///
+/// When the `highlighting` feature is enabled and a source-highlighter is set,
+/// syntax highlighting is applied for the given language. Otherwise the inlines
+/// are visited directly.
+pub(crate) fn render_pre_code<V: acdc_converters_core::visitor::WritableVisitor<Error = Error>>(
+    inlines: &[InlineNode],
+    language: Option<&str>,
+    visitor: &mut V,
+    processor: &Processor,
+    subs: &[Substitution],
+) -> Result<(), Error> {
+    #[cfg(feature = "highlighting")]
+    let highlighting_enabled = processor
+        .document_attributes
+        .get("source-highlighter")
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+
+    let mut w = visitor.writer_mut();
+
+    #[cfg(feature = "highlighting")]
+    if let Some(lang) = language {
+        if highlighting_enabled {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            let (theme_name, mode) = resolve_highlight_settings(processor);
+            let effective_inlines = apply_attribute_subs(inlines, subs, processor);
+            let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
+            syntax::highlight_code(
+                visitor.writer_mut(),
+                highlight_inlines,
+                lang,
+                &theme_name,
+                mode,
+            )?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        }
+    } else {
+        write!(w, "<pre>")?;
+        let _ = w;
+        visitor.visit_inline_nodes(inlines)?;
+        w = visitor.writer_mut();
+        writeln!(w, "</pre>")?;
+    }
+
+    #[cfg(not(feature = "highlighting"))]
+    {
+        let _ = (processor, subs);
+        if let Some(lang) = language {
+            write!(
+                w,
+                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+            )?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</code></pre>")?;
+        } else {
+            write!(w, "<pre>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(inlines)?;
+            w = visitor.writer_mut();
+            writeln!(w, "</pre>")?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Write attribution div for quote/verse blocks if author or citation present

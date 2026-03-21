@@ -37,6 +37,11 @@ pub(crate) struct ParserState {
     /// subscript, curved quotes) and plain text. Used by `parse_text_for_quotes`
     /// to apply "quotes" substitution without matching macros, xrefs, etc.
     pub(crate) quotes_only: bool,
+    /// When parsing content extracted from a constrained formatting rule, holds
+    /// the delimiter byte of the outer formatting (e.g., `b'_'` for italic).
+    /// Used to correctly fail boundary checks when the outer delimiter is a
+    /// word character (only `_` among the formatting delimiters).
+    pub(crate) outer_constrained_delimiter: Option<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -132,6 +137,7 @@ impl ParserState {
             source_ranges: Vec::new(),
             warnings: Vec::new(),
             quotes_only: false,
+            outer_constrained_delimiter: None,
         }
     }
 

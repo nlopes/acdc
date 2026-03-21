@@ -7,7 +7,10 @@ use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
 use tower_lsp::lsp_types::Url;
 
-use crate::capabilities::{definition, diagnostics};
+use crate::capabilities::{
+    definition, diagnostics,
+    workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
+};
 use crate::state::DocumentState;
 
 /// Workspace-level state management
@@ -18,6 +21,8 @@ pub struct Workspace {
     anchor_index: DashMap<String, Vec<(Url, Location)>>,
     /// Workspace root directories
     roots: RwLock<Vec<Url>>,
+    /// Cached symbols for non-open files (populated by workspace scan)
+    symbol_index: DashMap<Url, Vec<IndexedSymbol>>,
 }
 
 impl Workspace {
@@ -28,6 +33,7 @@ impl Workspace {
             documents: DashMap::new(),
             anchor_index: DashMap::new(),
             roots: RwLock::new(Vec::new()),
+            symbol_index: DashMap::new(),
         }
     }
 
@@ -40,6 +46,9 @@ impl Workspace {
 
     /// Update document on open/change
     pub fn update_document(&self, uri: Url, text: String, version: i32) {
+        // Remove from symbol_index — live AST takes over
+        self.symbol_index.remove(&uri);
+
         // Remove old anchors for this URI from the global index
         self.remove_anchors_for_uri(&uri);
 
@@ -73,8 +82,44 @@ impl Workspace {
             }
             false
         };
-        state.diagnostics =
-            diagnostics::compute_warnings(&state.anchors, &state.xrefs, Some(&cross_file_resolver));
+        let mut new_diagnostics = state.diagnostics;
+        new_diagnostics.extend(diagnostics::compute_warnings(
+            &state.anchors,
+            &state.xrefs,
+            Some(&cross_file_resolver),
+        ));
+        state.diagnostics = new_diagnostics;
+
+        // Compute link diagnostics (missing images, audio, video, includes)
+        if let Ok(doc_path) = uri.to_file_path()
+            && let Some(doc_dir) = doc_path.parent()
+        {
+            let imagesdir =
+                state
+                    .ast
+                    .as_ref()
+                    .and_then(|ast| match ast.attributes.get("imagesdir") {
+                        Some(acdc_parser::AttributeValue::String(s)) => Some(s.as_str()),
+                        _ => None,
+                    });
+            let link_diags = diagnostics::compute_link_diagnostics(
+                &state.media_sources,
+                &state.includes,
+                doc_dir,
+                imagesdir,
+            );
+            state.diagnostics.extend(link_diags);
+        }
+
+        // Compute conditional diagnostics (inactive ifdef/ifndef graying)
+        let conditional_diags = diagnostics::compute_conditional_diagnostics(&state.conditionals);
+        state.diagnostics.extend(conditional_diags);
+
+        // Compute section level diagnostics (skipped heading levels)
+        if let Some(ast) = &state.ast {
+            let section_diags = diagnostics::compute_section_level_diagnostics(ast);
+            state.diagnostics.extend(section_diags);
+        }
 
         self.documents.insert(uri, state);
     }
@@ -89,6 +134,8 @@ impl Workspace {
     pub fn remove_document(&self, uri: &Url) {
         self.remove_anchors_for_uri(uri);
         self.documents.remove(uri);
+        // Re-index from disk for workspace symbols
+        self.reindex_file_from_disk(uri);
     }
 
     /// Resolve a relative file path from a referring document's URI
@@ -170,6 +217,127 @@ impl Workspace {
         result
     }
 
+    /// Scan workspace roots for `AsciiDoc` files and populate the symbol index.
+    pub fn scan_workspace_files(&self) {
+        let roots: Vec<Url> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
+        let files = discover_adoc_files(&roots);
+
+        for path in files {
+            let Ok(uri) = Url::from_file_path(&path) else {
+                continue;
+            };
+            // Skip files that are already open in the editor
+            if self.documents.contains_key(&uri) {
+                continue;
+            }
+            if let Ok(text) = std::fs::read_to_string(&path)
+                && let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+            {
+                let symbols = extract_workspace_symbols(&doc);
+                self.symbol_index.insert(uri, symbols);
+            }
+        }
+    }
+
+    /// Check if a URI has cached symbols in the index
+    #[must_use]
+    pub fn has_indexed_symbols(&self, uri: &Url) -> bool {
+        self.symbol_index.contains_key(uri)
+    }
+
+    /// Number of files in the symbol index
+    #[must_use]
+    pub fn symbol_index_len(&self) -> usize {
+        self.symbol_index.len()
+    }
+
+    /// Insert symbols for a URI into the index (for testing and manual insertion)
+    pub fn insert_indexed_symbols(&self, uri: Url, symbols: Vec<IndexedSymbol>) {
+        self.symbol_index.insert(uri, symbols);
+    }
+
+    /// Query workspace symbols across all documents (open + indexed).
+    ///
+    /// Returns `(Url, IndexedSymbol)` pairs matching the query. Empty query
+    /// returns all symbols. Matching is case-insensitive substring.
+    #[must_use]
+    pub fn query_workspace_symbols(&self, query: &str) -> Vec<(Url, IndexedSymbol)> {
+        let query_lower = query.to_lowercase();
+        let mut results = Vec::new();
+
+        // Symbols from open documents (live AST)
+        for entry in &self.documents {
+            let uri = entry.key();
+            if let Some(ast) = &entry.value().ast {
+                let symbols = extract_workspace_symbols(ast);
+                for symbol in symbols {
+                    if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
+                        results.push((uri.clone(), symbol));
+                    }
+                }
+            }
+        }
+
+        // Symbols from indexed (non-open) files
+        for entry in &self.symbol_index {
+            let uri = entry.key();
+            for symbol in entry.value() {
+                if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
+                    results.push((uri.clone(), symbol.clone()));
+                }
+            }
+        }
+
+        results
+    }
+
+    /// Check if a document is currently open
+    #[must_use]
+    pub fn has_document(&self, uri: &Url) -> bool {
+        self.documents.contains_key(uri)
+    }
+
+    /// Rename a document's URI in all workspace indexes.
+    ///
+    /// Called after a file rename to keep internal state consistent.
+    pub fn rename_document_uri(&self, old_uri: &Url, new_uri: &Url) {
+        // Move document state
+        if let Some((_, state)) = self.documents.remove(old_uri) {
+            self.documents.insert(new_uri.clone(), state);
+        }
+
+        // Update anchor_index entries
+        for mut entry in self.anchor_index.iter_mut() {
+            for (uri, _) in entry.value_mut() {
+                if uri == old_uri {
+                    *uri = new_uri.clone();
+                }
+            }
+        }
+
+        // Move symbol_index entry
+        if let Some((_, symbols)) = self.symbol_index.remove(old_uri) {
+            self.symbol_index.insert(new_uri.clone(), symbols);
+        }
+    }
+
+    /// Discover all `AsciiDoc` files in the workspace roots.
+    #[must_use]
+    pub fn discover_workspace_files(&self) -> Vec<std::path::PathBuf> {
+        let roots: Vec<Url> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
+        discover_adoc_files(&roots)
+    }
+
+    fn reindex_file_from_disk(&self, uri: &Url) {
+        if let Ok(path) = uri.to_file_path()
+            && let Ok(text) = std::fs::read_to_string(&path)
+            && let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+        {
+            let symbols = extract_workspace_symbols(&doc);
+            self.symbol_index.insert(uri.clone(), symbols);
+        }
+    }
+
     /// Iterate over all open documents
     pub fn for_each_document<F>(&self, mut f: F)
     where
@@ -207,14 +375,57 @@ impl Workspace {
             Ok(doc) => {
                 let anchors = definition::collect_anchors(&doc);
                 let xrefs = definition::collect_xrefs(&doc);
+                let media_sources = definition::collect_media_sources(&doc);
 
                 // Warnings are computed later in update_document with workspace context
-                DocumentState::new_success(text, version, doc, anchors, xrefs)
+                DocumentState::new_success(text, version, doc, anchors, xrefs, media_sources)
             }
             Err(error) => {
                 let diags = vec![diagnostics::error_to_diagnostic(&error)];
                 DocumentState::new_failure(text, version, diags)
             }
+        }
+    }
+}
+
+/// Directories to skip during file discovery
+const SKIP_DIRS: &[&str] = &[".git", ".svn", ".hg", "target", "node_modules", ".build"];
+
+/// File extensions recognized as `AsciiDoc`
+const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "asc"];
+
+/// Discover all `AsciiDoc` files under the given workspace roots.
+///
+/// Walks directories recursively using `std::fs`, skipping hidden directories
+/// and common build/dependency directories.
+pub fn discover_adoc_files(roots: &[Url]) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    for root in roots {
+        if let Ok(path) = root.to_file_path() {
+            walk_directory(&path, &mut files);
+        }
+    }
+    files
+}
+
+fn walk_directory(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with('.') || SKIP_DIRS.contains(&name_str.as_ref()) {
+                continue;
+            }
+            walk_directory(&path, files);
+        } else if let Some(ext) = path.extension()
+            && ADOC_EXTENSIONS.contains(&ext.to_string_lossy().as_ref())
+        {
+            files.push(path);
         }
     }
 }
@@ -315,6 +526,120 @@ mod tests {
     }
 
     #[test]
+    fn test_workspace_symbol_query() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri1 = Url::parse("file:///doc1.adoc")?;
+        let uri2 = Url::parse("file:///doc2.adoc")?;
+
+        // Open doc1 (live AST)
+        workspace.update_document(
+            uri1.clone(),
+            "= Doc One\n\n== Introduction\n\nContent.\n".to_string(),
+            1,
+        );
+
+        // Manually add doc2 to symbol_index (simulates scanned file)
+        let doc2 = acdc_parser::parse(
+            "= Doc Two\n\n== TLS Configuration\n\nStuff.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let symbols = extract_workspace_symbols(&doc2);
+        workspace.insert_indexed_symbols(uri2.clone(), symbols);
+
+        // Query for "tls" (case-insensitive)
+        let results = workspace.query_workspace_symbols("tls");
+        assert!(results.iter().any(|(_, s)| s.name == "TLS Configuration"));
+
+        // Query for "introduction"
+        let results = workspace.query_workspace_symbols("introduction");
+        assert!(results.iter().any(|(_, s)| s.name == "Introduction"));
+
+        // Empty query returns all
+        let results = workspace.query_workspace_symbols("");
+        assert!(results.len() >= 4); // at least: 2 doc titles + 2 sections
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_symbol_index_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs;
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_symbol_idx");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(&tmp)?;
+        fs::write(
+            tmp.join("doc.adoc"),
+            "= My Document\n\n== First Section\n\nContent.\n",
+        )?;
+
+        let workspace = Workspace::new();
+        let root_url = Url::from_file_path(&tmp).map_err(|()| "bad path")?;
+        workspace.set_workspace_roots(vec![root_url]);
+
+        // Scan workspace — should populate symbol_index
+        workspace.scan_workspace_files();
+        assert!(
+            workspace.symbol_index_len() > 0,
+            "symbol index should have entries after scan"
+        );
+
+        // Open the document — should remove from symbol_index
+        let doc_url = Url::from_file_path(tmp.join("doc.adoc")).map_err(|()| "bad path")?;
+        workspace.update_document(
+            doc_url.clone(),
+            "= My Document\n\n== First Section\n\nContent.\n".to_string(),
+            1,
+        );
+        assert!(
+            !workspace.has_indexed_symbols(&doc_url),
+            "opened doc should be removed from symbol_index"
+        );
+
+        // Close the document — should re-add to symbol_index
+        workspace.remove_document(&doc_url);
+        assert!(
+            workspace.has_indexed_symbols(&doc_url),
+            "closed doc should be re-added to symbol_index"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_discover_adoc_files() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs;
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_discover");
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("subdir"))?;
+        fs::create_dir_all(tmp.join(".git"))?;
+        fs::create_dir_all(tmp.join("target"))?;
+
+        fs::write(tmp.join("doc.adoc"), "= Doc\n")?;
+        fs::write(tmp.join("subdir/nested.asciidoc"), "= Nested\n")?;
+        fs::write(tmp.join("readme.txt"), "not an adoc file")?;
+        fs::write(tmp.join(".git/config"), "git stuff")?;
+        fs::write(tmp.join("target/output.adoc"), "build artifact")?;
+
+        let root_url = Url::from_file_path(&tmp).map_err(|()| "bad path")?;
+        let files = discover_adoc_files(&[root_url]);
+
+        let filenames: Vec<String> = files
+            .iter()
+            .filter_map(|p| p.file_name().map(|f| f.to_string_lossy().to_string()))
+            .collect();
+
+        assert!(filenames.contains(&"doc.adoc".to_string()));
+        assert!(filenames.contains(&"nested.asciidoc".to_string()));
+        assert!(!filenames.contains(&"readme.txt".to_string()));
+        assert!(!filenames.contains(&"config".to_string()));
+        assert!(!filenames.contains(&"output.adoc".to_string()));
+
+        let _ = fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
     fn test_find_anchor_in_document() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
         let uri = Url::parse("file:///test.adoc")?;
@@ -334,6 +659,128 @@ mod tests {
             workspace
                 .find_anchor_in_document(&uri, "nonexistent")
                 .is_none()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_image_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_img_diag");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp)?;
+
+        let workspace = Workspace::new();
+        let uri = Url::from_file_path(tmp.join("doc.adoc")).map_err(|()| "bad path")?;
+        let content = "= Document\n\nimage::nonexistent.png[]\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("nonexistent.png")),
+            "expected diagnostic about missing image, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| &d.message)
+                .collect::<Vec<_>>()
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    #[test]
+    fn test_missing_include_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let tmp = std::env::temp_dir().join("acdc_lsp_test_inc_diag");
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp)?;
+
+        let workspace = Workspace::new();
+        let uri = Url::from_file_path(tmp.join("doc.adoc")).map_err(|()| "bad path")?;
+        let content = "= Document\n\ninclude::missing.adoc[]\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("missing.adoc")),
+            "expected diagnostic about missing include, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| &d.message)
+                .collect::<Vec<_>>()
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+        Ok(())
+    }
+
+    use tower_lsp::lsp_types::DiagnosticSeverity;
+
+    #[test]
+    fn test_section_level_skip_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+
+        // First section is === (level 2), skipping == (level 1)
+        let content = "= Document Title\n\n=== Skipped Level\n\nSome content.\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("Section level skipped")
+                    && d.severity == Some(DiagnosticSeverity::WARNING)),
+            "expected section level skip warning, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| &d.message)
+                .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_section_level_skip_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+
+        // Nested skip: == followed by ==== (parser error path)
+        let content = "= Document Title\n\n== Section\n\n==== Skipped\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("Section level skipped")
+                    && d.severity == Some(DiagnosticSeverity::WARNING)),
+            "expected section level skip warning from parser error, got: {:?}",
+            doc.diagnostics
+                .iter()
+                .map(|d| (&d.message, &d.severity))
+                .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_section_level_valid_no_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = Url::parse("file:///test.adoc")?;
+
+        let content = "= Document Title\n\n== Section 1\n\n=== Subsection\n\n== Section 2\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+        assert!(
+            !doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("Section level skipped")),
+            "should not have section level skip warnings for valid document"
         );
         Ok(())
     }

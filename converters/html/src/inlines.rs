@@ -55,7 +55,7 @@ use acdc_parser::{
 
 use crate::{
     Error, Processor, RenderOptions,
-    constants::encode_html_entities,
+    constants::{encode_html_entities, escape_ampersands},
     icon::write_icon,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
@@ -217,7 +217,11 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
             } else {
                 // No quotes substitution - output with escaping and typography only
                 let text = substitution_text(content, effective_subs, options);
-                write!(w, "{text}")?;
+                if options.hardbreaks {
+                    write!(w, "{}", text.replace('\n', "<br>"))?;
+                } else {
+                    write!(w, "{text}")?;
+                }
             }
         }
         InlineNode::RawText(r) => {
@@ -962,7 +966,7 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
     };
 
     // Escape & first (before arrow replacements that produce & entities)
-    let text = text.replace('&', "&amp;");
+    let text = escape_ampersands(&text);
 
     // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
     // This must happen after & escaping (replacements produce & entities) and before <> escaping

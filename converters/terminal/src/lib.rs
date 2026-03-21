@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Backend, Converter, Options,
+    Backend, Converter, Options, decode_numeric_char_refs,
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker},
     visitor::Visitor,
 };
@@ -203,7 +203,7 @@ pub(crate) fn extract_inline_text(nodes: &[InlineNode], line_break: &str) -> Str
             InlineNode::CurvedQuotationText(c) => extract_inline_text(&c.content, line_break),
             InlineNode::CurvedApostropheText(c) => extract_inline_text(&c.content, line_break),
             InlineNode::VerbatimText(v) => v.content.clone(),
-            InlineNode::RawText(r) => r.content.clone(),
+            InlineNode::RawText(r) => decode_numeric_char_refs(&r.content).into_owned(),
             InlineNode::StandaloneCurvedApostrophe(_) => "\u{2019}".to_string(),
             InlineNode::LineBreak(_) => line_break.to_string(),
             InlineNode::CalloutRef(c) => format!("<{}>", c.number),

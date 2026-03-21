@@ -7,34 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fixed non-monotonic inline positions for subscript/superscript text preceded by short plain text
-
-### Added
-
-- **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content
-  to the specified level, matching asciidoctor behavior. Strips existing leading whitespace and
-  prepends the specified number of spaces. `indent=0` removes all leading whitespace.
-- **`strip_quotes` utility function** — centralised helper to strip matching single or double
-  quotes from attribute values, replacing scattered `trim_matches('"')` calls throughout the
-  codebase.
-- **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
-  interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
-  block attributes, macro positional/named values, link titles, and table column specs.
-
-### Changed
-
-- **Roles are now space-separated** — `role='a b'` produces two roles (`a`, `b`) instead of
-  one, matching asciidoctor's space-separated role semantics.
-- **`parse_comma_separated_values` simplified** — no longer handles quote stripping internally
-  since quotes are now stripped upstream by `strip_quotes`.
-
-### Fixed
-
-- **Roles with spaces were not split** — `image::foo.jpg[role="thumb bordered"]` now correctly
-  produces two separate roles (`thumb`, `bordered`) instead of one combined string.
-
 ### Added
 
 - **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
@@ -47,15 +19,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rich inline markup in document titles and subtitles** — document titles now support bold,
   italic, monospace, links, macros, and other inline markup, matching section title behavior.
   Previously, titles were always rendered as plain text.
+- **`subs=macros` substitution type** — `[subs=-macros]` and explicit lists without `macros`
+  now gate macro grammar rules at parse time. When macros are disabled, inline macros
+  (links, xrefs, images, footnotes, index terms, etc.) are treated as plain text.
+  Requires the `pre-spec-subs` feature flag.
+- **Include `indent` attribute** — `include::file.rb[indent=2]` now re-indents included content
+  to the specified level, matching asciidoctor behavior. Strips existing leading whitespace and
+  prepends the specified number of spaces. `indent=0` removes all leading whitespace.
+- **`strip_quotes` utility function** — centralised helper to strip matching single or double
+  quotes from attribute values, replacing scattered `trim_matches('"')` calls throughout the
+  codebase.
+- **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
+  interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
+  block attributes, macro positional/named values, link titles, and table column specs.
+- Bidirectional sync between `Header.authors` and document attributes: the `:author:`
+  document attribute now populates `Header.authors`, and parsed author lines now set
+  `author`, `authors`, `firstname`, `lastname`, `middlename`, `authorinitials`, `email`,
+  and `authorcount` document attributes
+
+### Performance
+
+- **Inline parsing up to 39% faster** — added character-class pre-filter and lookahead guards
+  to `plain_text` and `quotes_plain_text` rules. Characters that cannot start any inline
+  construct are now consumed in bulk without running 28+ negative lookahead checks per
+  character. Remaining trigger characters use grouped character-class guards to skip
+  irrelevant rule evaluations.
+
+### Changed
+
+- **Roles are now space-separated** — `role='a b'` produces two roles (`a`, `b`) instead of
+  one, matching asciidoctor's space-separated role semantics.
+- **`parse_comma_separated_values` simplified** — no longer handles quote stripping internally
+  since quotes are now stripped upstream by `strip_quotes`.
 
 ### Fixed
 
+- **`specialcharacters` not recognized as a substitution name** — `[subs="specialcharacters"]`
+  now works as an alias for `specialchars`, matching asciidoctor behavior.
+- **Stacked block attributes overwrite previous values** — when block attributes are spread
+  across multiple lines (e.g., `[source,ruby]` followed by `[subs="+attributes"]`), the second
+  line no longer overwrites the style, positional attributes, id, substitutions, attribution,
+  or citetitle from the first line. Only explicitly provided values are merged.
 - **Incorrect locations for inline text inside `xref:`, `url:`, and `mailto:` macros** — text
   nodes inside these macros (e.g., "Section Title" in `xref:file#id[Section Title]`) had wrong
   line and column numbers. The line was always reported as 1 regardless of actual position, and
   the column was relative to the start of the macro instead of the text content. Both issues are
   now fixed: grammar rules capture the correct content start position, and the location mapper
   remaps nested text nodes to document-absolute coordinates.
+- **Roles with spaces were not split** — `image::foo.jpg[role="thumb bordered"]` now correctly
+  produces two separate roles (`thumb`, `bordered`) instead of one combined string.
+- Boolean/valueless attributes (e.g., `:set-attr:`) now expand to an empty string when
+  referenced as `{set-attr}`, matching asciidoctor behavior
+- Constrained formatting (bold, monospace, highlight) no longer incorrectly expands
+  inside constrained italic `_..._` delimiters, matching asciidoctor behavior. The
+  underscore is a word character, so it prevents nested constrained marks at the boundary.
+- Backslash escaping of character replacements (`\--`, `\...`, `\->`, `\<-`, `\=>`, `\<=`,
+  `\(C)`, `\(R)`, `\(TM)`) now correctly suppresses typography substitutions, matching
+  asciidoctor behavior
+- Expand attributes inside `pass:a[]` content when macros disabled via `subs=-macros`,
+  matching asciidoctor behavior
+- Fixed passthrough preprocessor bypassing `subs=-macros` gating — `pass:[]` macros and
+  inline passthrough syntax (`+...+`, `++...++`, `+++...+++`) are now treated as literal
+  text when macros are disabled, matching asciidoctor behavior
+- Fixed non-monotonic inline positions for subscript/superscript text preceded by short plain text
 
 ## [0.7.0] - 2026-02-25
 

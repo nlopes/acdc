@@ -3,7 +3,7 @@
 use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
 use tower_lsp::lsp_types::{DocumentLink, Url};
 
-use crate::convert::location_to_range;
+use crate::convert::{location_to_range, resolve_relative_uri};
 use crate::state::DocumentState;
 
 /// Collected link information
@@ -60,21 +60,6 @@ pub fn collect_document_links(doc: &DocumentState, doc_uri: &Url) -> Vec<Documen
     }
 
     result
-}
-
-/// Resolve a relative path against a document URI's directory
-fn resolve_relative_uri(doc_uri: &Url, relative_path: &str) -> Option<Url> {
-    let mut base = doc_uri.clone();
-    // Remove the file name to get the directory
-    base.path_segments_mut().ok()?.pop();
-    // Ensure trailing slash for proper join behavior
-    let base_str = base.as_str();
-    let base = if base_str.ends_with('/') {
-        base
-    } else {
-        Url::parse(&format!("{base_str}/")).ok()?
-    };
-    base.join(relative_path).ok()
 }
 
 fn collect_links_from_blocks(blocks: &[Block], links: &mut Vec<LinkInfo>) {

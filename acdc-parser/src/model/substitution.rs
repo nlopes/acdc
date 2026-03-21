@@ -27,7 +27,10 @@
 //! - **Callouts** - Already parsed into [`crate::CalloutRef`] nodes by the grammar.
 //!   Converters render the callout markers.
 //!
-//! - **Macros** / **`PostReplacements`** - Not yet implemented.
+//! - **Macros** - Handled at the grammar level: when macros are disabled via `subs`,
+//!   macro grammar rules are gated by a predicate and macro-like text becomes plain text.
+//!
+//! - **`PostReplacements`** - Not yet implemented.
 //!
 //! ## Why this split?
 //!
@@ -93,7 +96,7 @@ pub(crate) fn parse_substitution(value: &str) -> Option<Substitution> {
         "verbatim" | "v" => Some(Substitution::Verbatim),
         "quotes" | "q" => Some(Substitution::Quotes),
         "callouts" => Some(Substitution::Callouts),
-        "specialchars" | "c" => Some(Substitution::SpecialChars),
+        "specialchars" | "specialcharacters" | "c" => Some(Substitution::SpecialChars),
         unknown => {
             tracing::error!(
                 substitution = %unknown,
@@ -196,6 +199,32 @@ impl SubstitutionSpec {
             }
         }
         result
+    }
+
+    /// Check if macros are disabled by this spec.
+    /// - Explicit list without Macros → disabled
+    /// - Modifiers with Remove(Macros) → disabled
+    #[must_use]
+    pub fn macros_disabled(&self) -> bool {
+        match self {
+            Self::Explicit(subs) => !subs.contains(&Substitution::Macros),
+            Self::Modifiers(ops) => ops
+                .iter()
+                .any(|op| matches!(op, SubstitutionOp::Remove(Substitution::Macros))),
+        }
+    }
+
+    /// Check if attribute substitution is disabled by this spec.
+    /// - Explicit list without Attributes → disabled
+    /// - Modifiers with Remove(Attributes) → disabled
+    #[must_use]
+    pub fn attributes_disabled(&self) -> bool {
+        match self {
+            Self::Explicit(subs) => !subs.contains(&Substitution::Attributes),
+            Self::Modifiers(ops) => ops
+                .iter()
+                .any(|op| matches!(op, SubstitutionOp::Remove(Substitution::Attributes))),
+        }
     }
 
     /// Resolve the substitution spec to a concrete list of substitutions.
@@ -501,6 +530,12 @@ mod tests {
     #[test]
     fn test_parse_subs_specialchars_shorthand() {
         let result = parse_subs_attribute("c");
+        assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
+    }
+
+    #[test]
+    fn test_parse_subs_specialcharacters_alias() {
+        let result = parse_subs_attribute("specialcharacters");
         assert_eq!(explicit(&result), &vec![Substitution::SpecialChars]);
     }
 
@@ -895,5 +930,77 @@ mod tests {
             let resolved = substitute(value, HEADER, &attributes);
             assert_eq!(resolved, value);
         }
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_without_macros() {
+        let spec = parse_subs_attribute("specialchars");
+        assert!(spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_with_macros() {
+        let spec = parse_subs_attribute("macros");
+        assert!(!spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_normal_includes_macros() {
+        let spec = parse_subs_attribute("normal");
+        assert!(!spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_modifier_remove() {
+        let spec = parse_subs_attribute("-macros");
+        assert!(spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_modifier_add() {
+        let spec = parse_subs_attribute("+macros");
+        assert!(!spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_macros_disabled_explicit_none() {
+        let spec = parse_subs_attribute("none");
+        assert!(spec.macros_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_without_attributes() {
+        let spec = parse_subs_attribute("specialchars");
+        assert!(spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_with_attributes() {
+        let spec = parse_subs_attribute("attributes");
+        assert!(!spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_normal_includes_attributes() {
+        let spec = parse_subs_attribute("normal");
+        assert!(!spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_modifier_remove() {
+        let spec = parse_subs_attribute("-attributes");
+        assert!(spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_modifier_add() {
+        let spec = parse_subs_attribute("+attributes");
+        assert!(!spec.attributes_disabled());
+    }
+
+    #[test]
+    fn test_attributes_disabled_explicit_none() {
+        let spec = parse_subs_attribute("none");
+        assert!(spec.attributes_disabled());
     }
 }

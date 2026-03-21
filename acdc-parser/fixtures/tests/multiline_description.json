@@ -39,7 +39,14 @@
     ]
   },
   "attributes": {
-    "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power."
+    "author": "Kismet Lee",
+    "authorcount": "1",
+    "authorinitials": "KL",
+    "authors": "Kismet Lee",
+    "description": "A story chronicling the inexplicable hazards and unique challenges a team must vanquish on their journey to finding an open source project's true power.",
+    "email": "kismet@asciidoctor.org",
+    "firstname": "Kismet",
+    "lastname": "Lee"
   },
   "blocks": [
     {

@@ -1,6 +1,8 @@
 use std::io::Write;
 
-use acdc_converters_core::{substitutions::Replacements, visitor::WritableVisitor};
+use acdc_converters_core::{
+    decode_numeric_char_refs, substitutions::Replacements, visitor::WritableVisitor,
+};
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
@@ -151,7 +153,7 @@ fn render_inline_node_to_writer<W: Write>(
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
-            write!(w, "{}", r.content)?;
+            write!(w, "{}", decode_numeric_char_refs(&r.content))?;
         }
         InlineNode::VerbatimText(v) => {
             // Verbatim text preserves backslashes
@@ -293,7 +295,7 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
         }
         InlineNode::RawText(r) => {
             let w = visitor.writer_mut();
-            write!(w, "{}", r.content)?;
+            write!(w, "{}", decode_numeric_char_refs(&r.content))?;
         }
         InlineNode::VerbatimText(v) => {
             let w = visitor.writer_mut();

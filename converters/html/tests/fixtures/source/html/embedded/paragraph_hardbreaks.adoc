@@ -1,0 +1,12 @@
+[%hardbreaks]
+First line
+Second line
+Third line
+
+Normal paragraph
+without hardbreaks.
+
+[%hardbreaks]
+Line with *bold
+text* across lines
+and _italic_ here
