@@ -4,7 +4,8 @@ use crate::{
 
 use super::{
     ParserState,
-    document::{BlockParsingMetadata, document_parser},
+    helpers::BlockParsingMetadata,
+    inlines::inline_parser,
     location_mapping::{clamp_inline_node_locations, remap_inline_node_location},
 };
 
@@ -109,7 +110,7 @@ pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
     state.quotes_only = true;
     let block_metadata = BlockParsingMetadata::default();
 
-    match document_parser::quotes_only_inlines(content, &mut state, 0, &block_metadata) {
+    match inline_parser::quotes_only_inlines(content, &mut state, 0, &block_metadata) {
         Ok(nodes) => nodes,
         Err(err) => {
             tracing::warn!(
