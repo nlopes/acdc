@@ -17,12 +17,8 @@ use tower_lsp_server::ls_types::{
     WorkDoneProgressOptions,
 };
 
+use crate::convert::to_lsp_u32;
 use crate::state::ConditionalBlock;
-
-/// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
-fn to_lsp_u32(val: usize) -> u32 {
-    val.try_into().unwrap_or(u32::MAX)
-}
 
 /// Semantic token types used by this LSP
 pub const TOKEN_TYPES: &[SemanticTokenType] = &[
