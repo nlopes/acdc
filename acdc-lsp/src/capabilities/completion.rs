@@ -7,6 +7,7 @@ use tower_lsp_server::ls_types::{
     InsertTextFormat, Position, Range, TextEdit, Uri,
 };
 
+use crate::convert::uri_filename;
 use crate::state::{DocumentState, Workspace};
 
 /// Built-in `AsciiDoc` attributes that are commonly used
@@ -401,13 +402,7 @@ fn complete_cross_references(
         }
         seen.insert(anchor_id.clone());
 
-        // Extract filename from URI for display
-        let file_name = uri
-            .as_str()
-            .rsplit('/')
-            .next()
-            .filter(|s| !s.is_empty())
-            .unwrap_or("unknown");
+        let file_name = uri_filename(&uri);
 
         items.push(CompletionItem {
             label: anchor_id.clone(),
