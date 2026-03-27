@@ -12,19 +12,13 @@ use tower_lsp_server::ls_types::{
 };
 
 use crate::convert::{
-    location_to_range, offset_in_location, position_to_offset, resolve_relative_uri,
+    location_to_range, offset_in_location, position_to_offset, resolve_relative_uri, uri_filename,
 };
 use crate::state::{DocumentState, Workspace, extract_includes};
 
 /// Build a `CallHierarchyItem` representing an `AsciiDoc` file.
 fn make_call_hierarchy_item(uri: Uri, line_count: usize) -> CallHierarchyItem {
-    let name = uri
-        .as_str()
-        .rsplit('/')
-        .next()
-        .filter(|s| !s.is_empty())
-        .unwrap_or(uri.as_str())
-        .to_string();
+    let name = uri_filename(&uri).to_string();
 
     let end_line: u32 = line_count.saturating_sub(1).try_into().unwrap_or(u32::MAX);
     let range = Range {

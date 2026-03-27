@@ -77,16 +77,46 @@ pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
 /// Resolve a relative path against a document URI's directory.
 ///
 /// Strips the filename from `doc_uri` to get the directory, then joins
-/// `relative_path` against it. Used for resolving include targets,
-/// image sources, and cross-references.
+/// `relative_path` against it. Normalizes `..` and `.` segments per RFC 3986.
+/// Used for resolving include targets, image sources, and cross-references.
 #[must_use]
 pub fn resolve_relative_uri(doc_uri: &Uri, relative_path: &str) -> Option<Uri> {
     let base_str = doc_uri.as_str();
-    // Strip the last path segment (file name) to get the directory
     let dir_end = base_str.rfind('/')?;
     let base_dir = &base_str[..=dir_end];
-    let resolved = format!("{base_dir}{relative_path}");
-    resolved.parse().ok()
+    let joined = format!("{base_dir}{relative_path}");
+    // Normalize ".." and "." segments in the path portion
+    let scheme_end = joined.find("://").map_or(0, |i| i + 3);
+    let (prefix, path_and_rest) = joined.split_at(scheme_end);
+    let authority_end = path_and_rest.find('/').unwrap_or(path_and_rest.len());
+    let (authority, path) = path_and_rest.split_at(authority_end);
+    let normalized_path = normalize_path(path);
+    format!("{prefix}{authority}{normalized_path}").parse().ok()
+}
+
+/// Normalize `.` and `..` segments in a URI path.
+fn normalize_path(path: &str) -> String {
+    let mut segments: Vec<&str> = Vec::new();
+    for segment in path.split('/') {
+        match segment {
+            "." => {}
+            ".." => {
+                segments.pop();
+            }
+            s => segments.push(s),
+        }
+    }
+    segments.join("/")
+}
+
+/// Extract the filename from a URI string (last path segment).
+#[must_use]
+pub fn uri_filename(uri: &Uri) -> &str {
+    uri.as_str()
+        .rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .unwrap_or(uri.as_str())
 }
 
 #[cfg(test)]
@@ -146,5 +176,45 @@ mod tests {
         assert!(offset_in_location(15, &location));
         assert!(offset_in_location(20, &location)); // end is inclusive
         assert!(!offset_in_location(21, &location));
+    }
+
+    #[test]
+    fn test_resolve_relative_uri_simple() -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/main.adoc".parse()?;
+        let resolved = resolve_relative_uri(&doc, "chapter2.adoc");
+        assert_eq!(
+            resolved.map(|u| u.as_str().to_string()),
+            Some("file:///docs/chapter2.adoc".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_relative_uri_parent_traversal() -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/sub/main.adoc".parse()?;
+        let resolved = resolve_relative_uri(&doc, "../other.adoc");
+        assert_eq!(
+            resolved.map(|u| u.as_str().to_string()),
+            Some("file:///docs/other.adoc".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_relative_uri_dot_segment() -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/main.adoc".parse()?;
+        let resolved = resolve_relative_uri(&doc, "./chapter.adoc");
+        assert_eq!(
+            resolved.map(|u| u.as_str().to_string()),
+            Some("file:///docs/chapter.adoc".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_uri_filename() -> Result<(), Box<dyn std::error::Error>> {
+        let uri: Uri = "file:///docs/main.adoc".parse()?;
+        assert_eq!(uri_filename(&uri), "main.adoc");
+        Ok(())
     }
 }
