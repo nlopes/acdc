@@ -3,7 +3,7 @@
 use acdc_parser::{
     AttributeValue, Block, DelimitedBlockType, Document, InlineMacro, InlineNode, inlines_to_string,
 };
-use tower_lsp::lsp_types::{InlayHint, InlayHintLabel, Position, Range};
+use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
 use crate::convert::location_to_range;
 use crate::state::DocumentState;
@@ -283,7 +283,7 @@ fn truncate_hint_value(value: &str) -> String {
 mod tests {
     use super::*;
     use crate::state::Workspace;
-    use tower_lsp::lsp_types::Url;
+    use tower_lsp_server::ls_types::Uri;
 
     /// Full-document range for tests that don't need range filtering.
     fn full_range() -> Range {
@@ -304,7 +304,7 @@ mod tests {
         let content =
             ":product-name: Acme Cloud Platform\n\n== Section\n\nWelcome to {product-name} docs.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -325,7 +325,7 @@ mod tests {
     fn test_attribute_hint_undefined() -> Result<(), Box<dyn std::error::Error>> {
         let content = "== Section\n\nSee {undefined-attr} here.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -342,7 +342,7 @@ mod tests {
     fn test_attribute_hint_empty_value() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":empty-attr:\n\n== Section\n\nSee {empty-attr} here.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -370,7 +370,7 @@ mod tests {
     fn test_xref_hint_with_title() -> Result<(), Box<dyn std::error::Error>> {
         let content = "[[setup]]\n== Initial Setup\n\nSee <<setup>> for details.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -392,7 +392,7 @@ mod tests {
     fn test_xref_hint_explicit_text_skipped() -> Result<(), Box<dyn std::error::Error>> {
         let content = "[[setup]]\n== Initial Setup\n\nSee <<setup,click here>> for details.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -413,7 +413,7 @@ mod tests {
     fn test_xref_hint_unresolved() -> Result<(), Box<dyn std::error::Error>> {
         let content = "== Section\n\nSee <<nonexistent>> here.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -434,7 +434,7 @@ mod tests {
     fn test_hints_filtered_by_range() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":name: Value\n\n== Section\n\n{name} on line 5.\n\n{name} on line 7.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -459,7 +459,7 @@ mod tests {
     fn test_multiple_hints() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":product: Acme\n:version: 2.0\n\n[[intro]]\n== Introduction\n\n{product} v{version} — see <<intro>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -514,7 +514,7 @@ mod tests {
     fn test_xref_with_xreflabel() -> Result<(), Box<dyn std::error::Error>> {
         let content = "[[setup,Getting Started]]\n== Initial Setup\n\nSee <<setup>> for details.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 

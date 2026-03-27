@@ -2,8 +2,8 @@
 //!
 //! Contains the main `Backend` struct that implements the `LanguageServer` trait.
 
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::{
+use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::ls_types::{
     CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
     CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
     CallHierarchyServerCapability, CodeActionOptions, CodeActionParams,
@@ -21,10 +21,11 @@ use tower_lsp::lsp_types::{
     SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
     ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
     SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions, WorkspaceEdit,
+    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
     WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities, WorkspaceSymbolParams,
+    WorkspaceSymbolResponse,
 };
-use tower_lsp::{Client, LanguageServer};
+use tower_lsp_server::{Client, LanguageServer};
 
 use crate::capabilities::{
     call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
@@ -52,7 +53,7 @@ impl Backend {
     }
 
     /// Publish diagnostics for a document
-    async fn publish_diagnostics(&self, uri: Url) {
+    async fn publish_diagnostics(&self, uri: Uri) {
         if let Some(doc) = self.workspace.get_document(&uri) {
             self.client
                 .publish_diagnostics(uri, doc.diagnostics.clone(), Some(doc.version))
@@ -61,7 +62,6 @@ impl Backend {
     }
 }
 
-#[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("Initializing acdc-lsp");
@@ -107,7 +107,7 @@ impl LanguageServer for Backend {
                 })),
                 // Enable semantic tokens for syntax highlighting
                 semantic_tokens_provider: Some(
-                    tower_lsp::lsp_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
+                    tower_lsp_server::ls_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
                         semantic_tokens::create_options(),
                     ),
                 ),
@@ -117,9 +117,9 @@ impl LanguageServer for Backend {
                 code_action_provider: Some(CodeActionProviderCapability::Options(
                     CodeActionOptions {
                         code_action_kinds: Some(vec![
-                            tower_lsp::lsp_types::CodeActionKind::QUICKFIX,
-                            tower_lsp::lsp_types::CodeActionKind::REFACTOR_EXTRACT,
-                            tower_lsp::lsp_types::CodeActionKind::SOURCE,
+                            tower_lsp_server::ls_types::CodeActionKind::QUICKFIX,
+                            tower_lsp_server::ls_types::CodeActionKind::REFACTOR_EXTRACT,
+                            tower_lsp_server::ls_types::CodeActionKind::SOURCE,
                         ]),
                         work_done_progress_options: WorkDoneProgressOptions::default(),
                         resolve_provider: Some(false),
@@ -182,6 +182,7 @@ impl LanguageServer for Backend {
                 name: "acdc-lsp".to_string(),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
+            offset_encoding: None,
         })
     }
 
@@ -204,7 +205,7 @@ impl LanguageServer for Backend {
         let text = params.text_document.text;
         let version = params.text_document.version;
 
-        tracing::debug!("Document opened: {uri}");
+        tracing::debug!(uri = uri.as_str(), "Document opened");
 
         self.workspace.update_document(uri.clone(), text, version);
         self.publish_diagnostics(uri).await;
@@ -216,7 +217,7 @@ impl LanguageServer for Backend {
 
         // With FULL sync, we get the complete new text
         if let Some(change) = params.content_changes.into_iter().next() {
-            tracing::debug!("Document changed: {uri}");
+            tracing::debug!(uri = uri.as_str(), "Document changed");
 
             self.workspace
                 .update_document(uri.clone(), change.text, version);
@@ -227,7 +228,7 @@ impl LanguageServer for Backend {
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
 
-        tracing::debug!("Document closed: {uri}");
+        tracing::debug!(uri = uri.as_str(), "Document closed");
 
         self.workspace.remove_document(&uri);
         // Clear diagnostics for closed file
@@ -255,7 +256,7 @@ impl LanguageServer for Backend {
     async fn symbol(
         &self,
         params: WorkspaceSymbolParams,
-    ) -> Result<Option<Vec<SymbolInformation>>> {
+    ) -> Result<Option<WorkspaceSymbolResponse>> {
         let query = &params.query;
         let results = self.workspace.query_workspace_symbols(query);
 
@@ -264,7 +265,7 @@ impl LanguageServer for Backend {
             .map(|(uri, symbol)| SymbolInformation {
                 name: symbol.name,
                 kind: symbol.kind,
-                location: tower_lsp::lsp_types::Location {
+                location: tower_lsp_server::ls_types::Location {
                     uri,
                     range: crate::convert::location_to_range(&symbol.location),
                 },
@@ -277,7 +278,7 @@ impl LanguageServer for Backend {
         if symbols.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(symbols))
+            Ok(Some(WorkspaceSymbolResponse::Flat(symbols)))
         }
     }
 
@@ -288,20 +289,24 @@ impl LanguageServer for Backend {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
 
-        tracing::info!(%uri, ?position, "goto_definition request");
+        tracing::info!(uri = uri.as_str(), ?position, "goto_definition request");
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             let result =
                 definition::find_definition_at_position(&doc, &uri, &self.workspace, position);
             tracing::info!(found = result.is_some(), "goto_definition result");
             result.map(|(target_uri, loc)| {
-                tracing::info!(%target_uri, ?loc, "goto_definition resolved to");
-                GotoDefinitionResponse::Scalar(tower_lsp::lsp_types::Location {
+                tracing::info!(
+                    target_uri = target_uri.as_str(),
+                    ?loc,
+                    "goto_definition resolved to"
+                );
+                GotoDefinitionResponse::Scalar(tower_lsp_server::ls_types::Location {
                     uri: target_uri,
                     range: crate::convert::location_to_range(&loc),
                 })
             })
         } else {
-            tracing::warn!(%uri, "document not found in workspace");
+            tracing::warn!(uri = uri.as_str(), "document not found in workspace");
             None
         };
 
@@ -324,7 +329,7 @@ impl LanguageServer for Backend {
     async fn references(
         &self,
         params: ReferenceParams,
-    ) -> Result<Option<Vec<tower_lsp::lsp_types::Location>>> {
+    ) -> Result<Option<Vec<tower_lsp_server::ls_types::Location>>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
         let include_declaration = params.context.include_declaration;

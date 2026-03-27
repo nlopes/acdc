@@ -5,7 +5,7 @@
 //! inline leaf → inline formatting → block → section → document.
 
 use acdc_parser::{Block, DelimitedBlockType, InlineNode};
-use tower_lsp::lsp_types::{Position, Range, SelectionRange};
+use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
 use crate::convert::{location_to_range, offset_in_location, position_to_offset};
 use crate::state::DocumentState;
@@ -284,12 +284,12 @@ fn collect_inline_ranges(inlines: &[InlineNode], offset: usize, ranges: &mut Vec
 mod tests {
     use super::*;
     use crate::state::Workspace;
-    use tower_lsp::lsp_types::Url;
+    use tower_lsp_server::ls_types::Uri;
 
     /// Helper: parse a document and compute selection ranges for a position.
     fn selection_ranges_at(content: &str, line: u32, character: u32) -> Vec<SelectionRange> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
         let positions = vec![Position { line, character }];
@@ -362,7 +362,7 @@ mod tests {
     fn test_multiple_positions() {
         let content = "= Title\n\nFirst paragraph.\n\nSecond paragraph.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
         let positions = vec![

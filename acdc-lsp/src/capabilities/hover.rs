@@ -3,7 +3,7 @@
 use acdc_parser::{
     Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, inlines_to_string,
 };
-use tower_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Url};
+use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Uri};
 
 use crate::convert::{location_to_range, offset_in_location, position_to_offset};
 use crate::state::{DocumentState, Workspace, XrefTarget};
@@ -12,7 +12,7 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 #[must_use]
 pub fn compute_hover(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     position: Position,
 ) -> Option<Hover> {
@@ -107,7 +107,7 @@ fn build_xref_hover_content(
     raw_target: &str,
     parsed: &XrefTarget,
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     ast: &Document,
 ) -> String {
@@ -147,7 +147,10 @@ fn build_xref_hover_content(
             // Try workspace-wide
             let global = workspace.find_anchor_globally(anchor_id);
             if let Some((uri, _)) = global.first() {
-                format!("**Cross-reference**\n\nTarget: `{anchor_id}`\n\nDefined in: `{uri}`")
+                format!(
+                    "**Cross-reference**\n\nTarget: `{anchor_id}`\n\nDefined in: `{}`",
+                    uri.as_str()
+                )
             } else {
                 format!("**Cross-reference** (unresolved)\n\nTarget: `{raw_target}`")
             }
@@ -700,7 +703,7 @@ mod tests {
 See <<my-section>> for details.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -730,7 +733,7 @@ See <<my-section>> for details.
     fn test_hover_on_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":imagesdir: ./images\n\n== Section\n\nImage in {imagesdir}/logo.png\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -769,7 +772,7 @@ See <<my-section>> for details.
     fn test_hover_on_undefined_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
         let content = "== Section\n\nSee {undefined-attr} here.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 

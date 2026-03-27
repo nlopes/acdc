@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use acdc_parser::{Document, DocumentAttributes, Location, Source};
-use tower_lsp::lsp_types::Diagnostic;
+use tower_lsp_server::ls_types::Diagnostic;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConditionalDirectiveKind {

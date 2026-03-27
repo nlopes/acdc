@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Switched from `tower-lsp` to `tower-lsp-server` crate (community-maintained successor)
+
 ### Added
 
 - **On-type formatting** — pressing Enter after a list item auto-inserts the

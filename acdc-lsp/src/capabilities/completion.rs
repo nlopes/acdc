@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, CompletionTextEdit,
-    InsertTextFormat, Position, Range, TextEdit, Url,
+    InsertTextFormat, Position, Range, TextEdit, Uri,
 };
 
 use crate::state::{DocumentState, Workspace};
@@ -184,7 +184,7 @@ pub enum CompletionContext {
 #[must_use]
 pub fn compute_completions(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     position: Position,
 ) -> Option<Vec<CompletionItem>> {
@@ -373,7 +373,7 @@ fn complete_macro_snippets(
 /// Complete cross-reference targets from document anchors (local + cross-file)
 fn complete_cross_references(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     prefix: &str,
 ) -> Vec<CompletionItem> {
@@ -403,8 +403,10 @@ fn complete_cross_references(
 
         // Extract filename from URI for display
         let file_name = uri
-            .path_segments()
-            .and_then(std::iter::Iterator::last)
+            .as_str()
+            .rsplit('/')
+            .next()
+            .filter(|s| !s.is_empty())
             .unwrap_or("unknown");
 
         items.push(CompletionItem {
@@ -485,8 +487,8 @@ const SKIP_DIRS: &[&str] = &[".git", ".svn", ".hg", "target", "node_modules", ".
 const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "ad", "asc"];
 
 /// Complete include paths by listing files and directories on the filesystem
-fn complete_include_paths(doc_uri: &Url, prefix: &str, position: Position) -> Vec<CompletionItem> {
-    let Ok(doc_path) = doc_uri.to_file_path() else {
+fn complete_include_paths(doc_uri: &Uri, prefix: &str, position: Position) -> Vec<CompletionItem> {
+    let Some(doc_path) = doc_uri.to_file_path() else {
         return vec![];
     };
     let Some(doc_dir) = doc_path.parent() else {
@@ -714,7 +716,7 @@ mod tests {
 == Second Section
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -732,7 +734,7 @@ mod tests {
 
     fn setup_include_test_dir(
         suffix: &str,
-    ) -> Result<(std::path::PathBuf, Url), Box<dyn std::error::Error>> {
+    ) -> Result<(std::path::PathBuf, Uri), Box<dyn std::error::Error>> {
         let tmp = std::env::temp_dir().join(format!("acdc_lsp_test_include_completion_{suffix}"));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(tmp.join("chapters"))?;
@@ -745,7 +747,7 @@ mod tests {
         std::fs::write(tmp.join("chapters/chapter-01.adoc"), "= Ch 1\n")?;
         std::fs::write(tmp.join("chapters/chapter-02.adoc"), "= Ch 2\n")?;
 
-        let doc_uri = Url::from_file_path(tmp.join("main.adoc")).map_err(|()| "bad path")?;
+        let doc_uri = Uri::from_file_path(tmp.join("main.adoc")).ok_or("bad path")?;
         Ok((tmp, doc_uri))
     }
 
@@ -830,7 +832,7 @@ mod tests {
 
     #[test]
     fn test_complete_include_paths_nonexistent_dir() -> Result<(), Box<dyn std::error::Error>> {
-        let doc_uri = Url::parse("file:///nonexistent/dir/doc.adoc")?;
+        let doc_uri = "file:///nonexistent/dir/doc.adoc".parse::<Uri>()?;
         let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
         assert!(items.is_empty());
         Ok(())

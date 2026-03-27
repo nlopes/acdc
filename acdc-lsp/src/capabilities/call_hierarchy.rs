@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
     CallHierarchyIncomingCall, CallHierarchyItem, CallHierarchyOutgoingCall, Position, Range,
-    SymbolKind, Url,
+    SymbolKind, Uri,
 };
 
 use crate::convert::{
@@ -17,11 +17,14 @@ use crate::convert::{
 use crate::state::{DocumentState, Workspace, extract_includes};
 
 /// Build a `CallHierarchyItem` representing an `AsciiDoc` file.
-fn make_call_hierarchy_item(uri: Url, line_count: usize) -> CallHierarchyItem {
+fn make_call_hierarchy_item(uri: Uri, line_count: usize) -> CallHierarchyItem {
     let name = uri
-        .path_segments()
-        .and_then(|mut s| s.next_back().map(String::from))
-        .unwrap_or_else(|| uri.to_string());
+        .as_str()
+        .rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .unwrap_or(uri.as_str())
+        .to_string();
 
     let end_line: u32 = line_count.saturating_sub(1).try_into().unwrap_or(u32::MAX);
     let range = Range {
@@ -48,10 +51,9 @@ fn make_call_hierarchy_item(uri: Url, line_count: usize) -> CallHierarchyItem {
 }
 
 /// Count lines in a file on disk, returning 0 if the file can't be read.
-fn line_count_from_disk(uri: &Url) -> usize {
+fn line_count_from_disk(uri: &Uri) -> usize {
     uri.to_file_path()
-        .ok()
-        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|p| std::fs::read_to_string(p.as_ref()).ok())
         .map_or(0, |t| t.lines().count())
 }
 
@@ -62,7 +64,7 @@ fn line_count_from_disk(uri: &Url) -> usize {
 #[must_use]
 pub fn prepare_call_hierarchy(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     position: Position,
 ) -> Option<Vec<CallHierarchyItem>> {
     let offset = position_to_offset(&doc.text, position)?;
@@ -88,7 +90,7 @@ pub fn incoming_calls(
     workspace: &Workspace,
 ) -> Option<Vec<CallHierarchyIncomingCall>> {
     let target_uri = &item.uri;
-    let mut callers: HashMap<Url, Vec<Range>> = HashMap::new();
+    let mut callers: HashMap<Uri, Vec<Range>> = HashMap::new();
 
     // Scan open documents
     workspace.for_each_document(|doc_uri, doc_state| {
@@ -107,7 +109,7 @@ pub fn incoming_calls(
 
     // Scan non-open workspace files
     for path in workspace.discover_workspace_files() {
-        let Ok(file_uri) = Url::from_file_path(&path) else {
+        let Some(file_uri) = Uri::from_file_path(&path) else {
             continue;
         };
         if workspace.has_document(&file_uri) {
@@ -164,8 +166,8 @@ pub fn outgoing_calls(
     let includes = if let Some(doc) = workspace.get_document(item_uri) {
         doc.includes.clone()
     } else {
-        let path = item_uri.to_file_path().ok()?;
-        let text = std::fs::read_to_string(path).ok()?;
+        let path = item_uri.to_file_path()?;
+        let text = std::fs::read_to_string(path.as_ref()).ok()?;
         extract_includes(&text)
     };
 
@@ -200,7 +202,7 @@ mod tests {
     #[test]
     fn test_prepare_on_include_directive() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/main.adoc")?;
+        let uri = "file:///docs/main.adoc".parse::<Uri>()?;
         let content = "= Main\n\ninclude::chapter.adoc[]\n";
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("doc not found")?;
@@ -218,7 +220,7 @@ mod tests {
         assert!(
             item.uri.as_str().ends_with("chapter.adoc"),
             "expected chapter.adoc URI, got: {}",
-            item.uri
+            item.uri.as_str()
         );
         assert_eq!(item.kind, SymbolKind::FILE);
         Ok(())
@@ -227,7 +229,7 @@ mod tests {
     #[test]
     fn test_prepare_fallback_to_current_document() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/main.adoc")?;
+        let uri = "file:///docs/main.adoc".parse::<Uri>()?;
         let content = "= Main\n\nSome regular text.\n";
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("doc not found")?;
@@ -248,7 +250,7 @@ mod tests {
     #[test]
     fn test_outgoing_calls() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/main.adoc")?;
+        let uri = "file:///docs/main.adoc".parse::<Uri>()?;
         let content = "= Main\n\ninclude::a.adoc[]\n\ninclude::b.adoc[]\n";
         workspace.update_document(uri.clone(), content.to_string(), 1);
 
@@ -273,9 +275,9 @@ mod tests {
     #[test]
     fn test_incoming_calls_from_open_documents() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let main_uri = Url::parse("file:///docs/main.adoc")?;
-        let other_uri = Url::parse("file:///docs/other.adoc")?;
-        let shared_uri = Url::parse("file:///docs/shared.adoc")?;
+        let main_uri = "file:///docs/main.adoc".parse::<Uri>()?;
+        let other_uri = "file:///docs/other.adoc".parse::<Uri>()?;
+        let shared_uri = "file:///docs/shared.adoc".parse::<Uri>()?;
 
         workspace.update_document(
             main_uri,
@@ -300,8 +302,8 @@ mod tests {
     #[test]
     fn test_incoming_calls_multiple_ranges() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/main.adoc")?;
-        let shared_uri = Url::parse("file:///docs/shared.adoc")?;
+        let uri = "file:///docs/main.adoc".parse::<Uri>()?;
+        let shared_uri = "file:///docs/shared.adoc".parse::<Uri>()?;
 
         // Same file included twice
         workspace.update_document(
@@ -325,7 +327,7 @@ mod tests {
     #[test]
     fn test_no_outgoing_calls() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/main.adoc")?;
+        let uri = "file:///docs/main.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), "= Main\n\nNo includes here.\n".to_string(), 1);
 
         let item = make_call_hierarchy_item(uri, 3);
@@ -337,7 +339,7 @@ mod tests {
     #[test]
     fn test_no_incoming_calls() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/lonely.adoc")?;
+        let uri = "file:///docs/lonely.adoc".parse::<Uri>()?;
         workspace.update_document(
             uri.clone(),
             "= Lonely\n\nNobody includes me.\n".to_string(),

@@ -7,9 +7,9 @@
 
 use std::collections::HashMap;
 
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
     CodeAction, CodeActionContext, CodeActionKind, CodeActionOrCommand, Position, Range, TextEdit,
-    Url, WorkspaceEdit,
+    Uri, WorkspaceEdit,
 };
 
 use crate::state::DocumentState;
@@ -33,7 +33,7 @@ const BLOCK_WRAPS: &[(&str, &str)] = &[
 #[must_use]
 pub fn compute_code_actions(
     doc: &DocumentState,
-    uri: &Url,
+    uri: &Uri,
     range: Range,
     ctx: &CodeActionContext,
 ) -> Vec<CodeActionOrCommand> {
@@ -66,7 +66,7 @@ pub fn compute_code_actions(
 ///
 /// Currently handles:
 /// - Unresolved xref: create anchor at nearest section heading
-fn quickfix_actions(doc: &DocumentState, uri: &Url, ctx: &CodeActionContext) -> Vec<CodeAction> {
+fn quickfix_actions(doc: &DocumentState, uri: &Uri, ctx: &CodeActionContext) -> Vec<CodeAction> {
     let mut actions = Vec::new();
 
     for diagnostic in &ctx.diagnostics {
@@ -138,7 +138,7 @@ fn find_insertion_line_before(doc: &DocumentState, before_line: u32) -> u32 {
 }
 
 /// Generate wrap-in-block refactoring actions for a non-empty selection.
-fn wrap_in_block_actions(doc: &DocumentState, uri: &Url, range: Range) -> Vec<CodeAction> {
+fn wrap_in_block_actions(doc: &DocumentState, uri: &Uri, range: Range) -> Vec<CodeAction> {
     let Some(selected_text) = extract_text_for_range(&doc.text, &range) else {
         return Vec::new();
     };
@@ -220,7 +220,7 @@ fn char_offset_to_byte(line: &str, char_offset: usize) -> usize {
 /// Generate TOC-related source actions.
 ///
 /// Offers "Generate table of contents" if the document has no `:toc:` attribute.
-fn toc_actions(doc: &DocumentState, uri: &Url) -> Vec<CodeAction> {
+fn toc_actions(doc: &DocumentState, uri: &Uri) -> Vec<CodeAction> {
     let has_toc = doc.text.lines().any(|line| line.starts_with(":toc:"));
 
     if has_toc {
@@ -297,7 +297,7 @@ fn find_header_end(doc: &DocumentState) -> u32 {
 mod tests {
     use super::*;
     use crate::state::Workspace;
-    use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity};
+    use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity};
 
     fn make_diagnostic(message: &str, line: u32, start_char: u32, end_char: u32) -> Diagnostic {
         Diagnostic {
@@ -324,7 +324,7 @@ mod tests {
     fn test_quickfix_for_unresolved_xref() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\n== Section\n\nSee <<missing-anchor>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -362,7 +362,7 @@ mod tests {
     fn test_no_quickfix_when_no_unresolved_xref() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\n== Section\n\nJust text.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -381,7 +381,7 @@ mod tests {
     fn test_quickfix_anchor_id_extraction() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\nSee <<my-id>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -409,7 +409,7 @@ mod tests {
     fn test_quickfix_inserts_at_top_when_no_sections() -> Result<(), Box<dyn std::error::Error>> {
         let src = "Some text.\n\nSee <<missing>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -447,7 +447,7 @@ mod tests {
     fn test_wrap_in_sidebar_block() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\nSome paragraph text.\n\nMore text.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -480,7 +480,7 @@ mod tests {
     fn test_all_block_types_offered() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\nSome text here.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -514,7 +514,7 @@ mod tests {
     fn test_no_wrap_for_empty_selection() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\nSome text.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -555,7 +555,7 @@ mod tests {
     fn test_wrap_multiline_selection() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\nLine one.\nLine two.\nLine three.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -593,7 +593,7 @@ mod tests {
     fn test_toc_generation_offered() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document Title\n:author: Test\n\n== Section One\n\n== Section Two\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -617,7 +617,7 @@ mod tests {
     fn test_no_toc_when_already_present() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n:toc:\n\n== Section\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -630,7 +630,7 @@ mod tests {
     fn test_no_toc_when_no_sections() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\nJust a paragraph.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -643,7 +643,7 @@ mod tests {
     fn test_toc_insertion_at_top_without_title() -> Result<(), Box<dyn std::error::Error>> {
         let src = "== Section One\n\nSome text.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -669,7 +669,7 @@ mod tests {
     fn test_compute_code_actions_combines_all() -> Result<(), Box<dyn std::error::Error>> {
         let src = "= Document\n\n== Section\n\nSee <<missing>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 

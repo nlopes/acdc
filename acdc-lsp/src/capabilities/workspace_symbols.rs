@@ -1,7 +1,7 @@
 //! Workspace symbols: extract navigable symbols from documents for cross-file search
 
 use acdc_parser::{Block, DelimitedBlockType, Document, Section, inlines_to_string};
-use tower_lsp::lsp_types::SymbolKind;
+use tower_lsp_server::ls_types::SymbolKind;
 
 use acdc_parser::Location;
 
