@@ -1,7 +1,7 @@
 //! Folding Ranges: enable collapsible sections and blocks in editors
 
 use acdc_parser::{Block, DelimitedBlockType, Document, Location};
-use tower_lsp::lsp_types::{FoldingRange, FoldingRangeKind};
+use tower_lsp_server::ls_types::{FoldingRange, FoldingRangeKind};
 
 /// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
 fn to_lsp_u32(val: usize) -> u32 {

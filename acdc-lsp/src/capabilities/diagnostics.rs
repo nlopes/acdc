@@ -10,7 +10,7 @@ use std::hash::BuildHasher;
 use std::path::Path;
 
 use acdc_parser::{Block, Document, Error, Location, Positioning, Source};
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
+use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
 use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
 
@@ -276,11 +276,11 @@ pub fn compute_conditional_diagnostics(conditionals: &[ConditionalBlock]) -> Vec
 
         diagnostics.push(Diagnostic {
             range: Range {
-                start: tower_lsp::lsp_types::Position {
+                start: tower_lsp_server::ls_types::Position {
                     line: start_line,
                     character: 0,
                 },
-                end: tower_lsp::lsp_types::Position {
+                end: tower_lsp_server::ls_types::Position {
                     line: end_line_u32,
                     character: u32::MAX,
                 },

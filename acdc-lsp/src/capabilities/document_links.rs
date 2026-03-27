@@ -1,7 +1,7 @@
 //! Document Links: make URLs, file references, and includes clickable
 
 use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
-use tower_lsp::lsp_types::{DocumentLink, Url};
+use tower_lsp_server::ls_types::{DocumentLink, Uri};
 
 use crate::convert::{location_to_range, resolve_relative_uri};
 use crate::state::DocumentState;
@@ -15,7 +15,7 @@ struct LinkInfo {
 
 /// Collect all document links (clickable URLs, file references, and includes)
 #[must_use]
-pub fn collect_document_links(doc: &DocumentState, doc_uri: &Url) -> Vec<DocumentLink> {
+pub fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<DocumentLink> {
     let mut links = Vec::new();
 
     // Collect links from AST (URLs, link macros, images)
@@ -216,7 +216,7 @@ Visit https://example.com for more info.
 Also see link:https://rust-lang.org[Rust].
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -232,7 +232,7 @@ Also see link:https://rust-lang.org[Rust].
 Contact mailto:test@example.com[us] for help.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -253,7 +253,7 @@ Contact mailto:test@example.com[us] for help.
     fn test_include_directives_as_links() -> Result<(), Box<dyn std::error::Error>> {
         let content = "= Document\n\ninclude::chapter1.adoc[]\n\nSome text.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///docs/main.adoc")?;
+        let uri = "file:///docs/main.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -282,7 +282,7 @@ Contact mailto:test@example.com[us] for help.
 
     #[test]
     fn test_resolve_relative_uri() -> Result<(), Box<dyn std::error::Error>> {
-        let doc_uri = Url::parse("file:///docs/main.adoc")?;
+        let doc_uri = "file:///docs/main.adoc".parse::<Uri>()?;
         let resolved = resolve_relative_uri(&doc_uri, "chapter.adoc");
         assert!(resolved.is_some());
         assert_eq!(

@@ -5,7 +5,7 @@
 //! - Document symbols (outline of sections)
 //! - Go-to-definition (jump from xref to anchor)
 
-use tower_lsp::{LspService, Server};
+use tower_lsp_server::{LspService, Server};
 use tracing_subscriber::EnvFilter;
 
 use acdc_lsp::Backend;

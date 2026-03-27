@@ -1,6 +1,6 @@
 //! Signature help: parameter hints for macro attribute lists
 
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
     Documentation, MarkupContent, MarkupKind, ParameterInformation, ParameterLabel, Position,
     SignatureHelp, SignatureInformation,
 };

@@ -6,7 +6,7 @@
 //! a delimited block opening delimiter, the matching closing delimiter
 //! is inserted below.
 
-use tower_lsp::lsp_types::{Position, Range, TextEdit};
+use tower_lsp_server::ls_types::{Position, Range, TextEdit};
 
 use super::formatting::{
     collect_protected_ranges, collect_protected_ranges_from_text, is_protected,

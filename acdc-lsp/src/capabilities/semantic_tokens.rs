@@ -11,7 +11,7 @@
 use acdc_parser::{
     Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
 };
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
     SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     WorkDoneProgressOptions,

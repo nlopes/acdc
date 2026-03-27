@@ -3,7 +3,7 @@
 use acdc_parser::{
     Block, DelimitedBlock, DelimitedBlockType, Document, Section, inlines_to_string,
 };
-use tower_lsp::lsp_types::{DocumentSymbol, SymbolKind};
+use tower_lsp_server::ls_types::{DocumentSymbol, SymbolKind};
 
 use crate::convert::location_to_range;
 
