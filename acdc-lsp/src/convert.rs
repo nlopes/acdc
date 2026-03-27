@@ -8,7 +8,8 @@ use tower_lsp_server::ls_types::{Position, Range, Uri};
 /// LSP uses u32 for line/column numbers while the parser uses usize.
 /// In practice, source files won't have 4 billion+ lines/columns,
 /// so saturation is a safe fallback.
-fn to_lsp_u32(val: usize) -> u32 {
+#[must_use]
+pub fn to_lsp_u32(val: usize) -> u32 {
     val.try_into().unwrap_or(u32::MAX)
 }
 

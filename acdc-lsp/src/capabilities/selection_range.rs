@@ -7,13 +7,8 @@
 use acdc_parser::{Block, DelimitedBlockType, InlineNode};
 use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
-use crate::convert::{location_to_range, offset_in_location, position_to_offset};
+use crate::convert::{location_to_range, offset_in_location, position_to_offset, to_lsp_u32};
 use crate::state::DocumentState;
-
-/// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
-fn to_lsp_u32(val: usize) -> u32 {
-    val.try_into().unwrap_or(u32::MAX)
-}
 
 /// Compute selection ranges for the given positions.
 ///
