@@ -9,7 +9,7 @@ use tower_lsp_server::ls_types::{Position, Range, Uri};
 /// In practice, source files won't have 4 billion+ lines/columns,
 /// so saturation is a safe fallback.
 #[must_use]
-pub fn to_lsp_u32(val: usize) -> u32 {
+pub(crate) fn to_lsp_u32(val: usize) -> u32 {
     val.try_into().unwrap_or(u32::MAX)
 }
 
