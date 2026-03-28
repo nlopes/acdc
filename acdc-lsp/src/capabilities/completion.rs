@@ -166,7 +166,7 @@ const MACRO_SNIPPETS: &[MacroSnippetDef] = &[
 
 /// Detect completion context from cursor position and text
 #[derive(Debug, Clone, PartialEq)]
-pub enum CompletionContext {
+enum CompletionContext {
     /// After `:` at the start of a line (attribute definition)
     AttributeDefinition { prefix: String },
     /// After `{` (attribute reference)
@@ -183,7 +183,7 @@ pub enum CompletionContext {
 
 /// Compute completion items for a position
 #[must_use]
-pub fn compute_completions(
+pub(crate) fn compute_completions(
     doc: &DocumentState,
     doc_uri: &Uri,
     workspace: &Workspace,

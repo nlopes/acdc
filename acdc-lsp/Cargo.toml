@@ -31,6 +31,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [lints.rust]
 unsafe_code = "forbid"
+unreachable_pub = "warn"
 
 [lints.clippy]
 indexing_slicing = "deny"

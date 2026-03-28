@@ -13,7 +13,7 @@ use crate::state::{Workspace, XrefTarget};
 /// Scans all open documents for xrefs, includes, and link macros that reference
 /// any of the renamed files, and returns text edits to rewrite the paths.
 #[must_use]
-pub fn compute_file_rename_edits(
+pub(crate) fn compute_file_rename_edits(
     workspace: &Workspace,
     renames: &[FileRename],
 ) -> Option<WorkspaceEdit> {
@@ -47,7 +47,7 @@ pub fn compute_file_rename_edits(
                 continue;
             };
 
-            let Some(resolved) = workspace.resolve_xref_file(doc_uri, file_part) else {
+            let Some(resolved) = crate::convert::resolve_relative_uri(doc_uri, file_part) else {
                 continue;
             };
 
@@ -109,7 +109,7 @@ pub fn compute_file_rename_edits(
 }
 
 /// Update workspace state after files have been renamed.
-pub fn update_workspace_after_rename(workspace: &Workspace, renames: &[FileRename]) {
+pub(crate) fn update_workspace_after_rename(workspace: &Workspace, renames: &[FileRename]) {
     for rename in renames {
         let Some(old_uri) = rename.old_uri.parse::<Uri>().ok() else {
             continue;
@@ -164,7 +164,7 @@ fn scan_workspace_files_for_renames(
             let Some(file_part) = &parsed.file else {
                 continue;
             };
-            let Some(resolved) = workspace.resolve_xref_file(&file_uri, file_part) else {
+            let Some(resolved) = crate::convert::resolve_relative_uri(&file_uri, file_part) else {
                 continue;
             };
             let Some(new_uri) = rename_map.get(&resolved) else {

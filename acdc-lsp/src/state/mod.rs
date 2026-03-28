@@ -2,11 +2,11 @@
 
 mod document;
 mod workspace;
-pub mod xref_target;
+pub(crate) mod xref_target;
 
 pub(crate) use document::extract_includes;
-pub use document::{
+pub(crate) use document::{
     ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation, DocumentState,
 };
-pub use workspace::Workspace;
-pub use xref_target::XrefTarget;
+pub(crate) use workspace::Workspace;
+pub(crate) use xref_target::XrefTarget;

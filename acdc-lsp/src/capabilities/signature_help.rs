@@ -610,7 +610,10 @@ fn build_signature_label(signature: &MacroSignature, is_block: bool) -> (String,
 
 /// Compute signature help for a cursor position.
 #[must_use]
-pub fn compute_signature_help(doc: &DocumentState, position: Position) -> Option<SignatureHelp> {
+pub(crate) fn compute_signature_help(
+    doc: &DocumentState,
+    position: Position,
+) -> Option<SignatureHelp> {
     let ctx = detect_macro_context(&doc.text, position)?;
 
     let (label, offsets) = build_signature_label(ctx.signature, ctx.is_block);

@@ -16,7 +16,7 @@ use crate::state::DocumentState;
 /// syntactic element, with `parent` links expanding outward through the AST
 /// hierarchy.
 #[must_use]
-pub fn compute_selection_ranges(
+pub(crate) fn compute_selection_ranges(
     doc: &DocumentState,
     positions: &[Position],
 ) -> Vec<SelectionRange> {
