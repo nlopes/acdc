@@ -1,0 +1,10 @@
+[package]
+name = "alloc-bench"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+acdc-parser = { path = "../../acdc-parser" }
