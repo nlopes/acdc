@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Selection range** — smart expand/shrink selection based on AST structure
   (`textDocument/selectionRange`). Progressively selects larger syntactic units:
   word → inline markup → block → section → document.
+- **CodeLens** — word/character counts, section preview, and include resolution
+  status shown inline above blocks via `textDocument/codeLens`.
+- **Section level validation warnings** — warn about skipped heading levels
+  (e.g., jumping from `==` to `====`) via WARNING diagnostics. Converts parser
+  `NestedSectionLevelMismatch` errors and walks the AST for top-level section
+  level skips.
 
 ### Fixed
 

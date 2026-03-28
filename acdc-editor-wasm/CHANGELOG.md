@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subscript, thematic-break, page-break, checklist, description-marker, passthrough-content,
   literal-content, inline-macro, index-term, passthrough-inline, and macro.
 
+### Fixed
+
+- Hide resize handle dots on mobile for a cleaner small-screen experience.
+
 ## [0.4.0] - 2026-02-25
 
 ### Changed

@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
   interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
   block attributes, macro positional/named values, link titles, and table column specs.
+- **Compound author names** — author lines now support multi-word first, middle, and
+  last names (e.g., `Jan de Groot`), matching asciidoctor behavior.
 - Bidirectional sync between `Header.authors` and document attributes: the `:author:`
   document attribute now populates `Header.authors`, and parsed author lines now set
   `author`, `authors`, `firstname`, `lastname`, `middlename`, `authorinitials`, `email`,

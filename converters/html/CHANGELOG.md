@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `<meta name="author">` no longer includes the email address in the content attribute,
   matching asciidoctor behavior
+- **`<header>` no longer carries an `id` attribute** — the `<header>` wrapper in html5s
+  mode no longer gets the document `id`, matching asciidoctor behavior.
+- **Attribute substitution in syntax-highlighted code blocks** — `[subs="+attributes"]`
+  on source blocks with syntax highlighting now correctly expands attribute references
+  like `{version}` before highlighting.
 
 ### Added
 
