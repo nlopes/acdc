@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Narrowed tokio dependency from `full` to only the required features (`macros`, `rt-multi-thread`, `io-std`)
+
 ## [0.2.0] - 2026-03-28
 
 ### Added
