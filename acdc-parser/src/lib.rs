@@ -14,7 +14,6 @@
 //! - `parse_file`: parses the content of a file containing `AsciiDoc` content.
 //!
 //! ```rust
-//!
 //! use acdc_parser::{Document, parse};
 //!
 //! let content = r#"= Document Title
@@ -29,6 +28,18 @@
 //! let document = parse(content, &options).unwrap();
 //!
 //! println!("{:?}", document);
+//! ```
+//!
+//! # Features
+//!
+//! - Full support for `AsciiDoc` syntax, including blocks, inline elements, attributes, and more.
+//! - Configurable options for parsing behaviour, including safe mode and timing. Just
+//!   like `asciidoctor`, you can choose to enable or disable certain features based on your
+//!   needs.
+//! - Detailed error reporting with source location information.
+//! - Support for parsing from strings, files, and readers.
+//!
+
 use std::{
     path::{Path, PathBuf},
     string::ToString,
