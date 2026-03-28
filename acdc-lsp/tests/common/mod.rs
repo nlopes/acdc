@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 /// Errors from the LSP test harness.
 #[derive(Debug)]
-pub enum HarnessError {
+pub(crate) enum HarnessError {
     Spawn(std::io::Error),
     Io(std::io::Error),
     Json(serde_json::Error),
@@ -46,7 +46,7 @@ impl From<serde_json::Error> for HarnessError {
 }
 
 /// An LSP client that communicates with a spawned `acdc-lsp` process.
-pub struct LspTestClient {
+pub(crate) struct LspTestClient {
     child: Child,
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
@@ -60,7 +60,7 @@ impl LspTestClient {
     ///
     /// Returns an error if the binary cannot be spawned or stdio pipes
     /// cannot be acquired.
-    pub fn new() -> Result<Self, HarnessError> {
+    pub(crate) fn new() -> Result<Self, HarnessError> {
         let bin = env!("CARGO_BIN_EXE_acdc-lsp");
         let mut child = Command::new(bin)
             .stdin(Stdio::piped())
@@ -91,7 +91,7 @@ impl LspTestClient {
     /// # Errors
     ///
     /// Returns an error if the initialize handshake fails.
-    pub fn initialize(&mut self) -> Result<Value, HarnessError> {
+    pub(crate) fn initialize(&mut self) -> Result<Value, HarnessError> {
         let result = self.send_request(
             "initialize",
             json!({
@@ -109,7 +109,7 @@ impl LspTestClient {
     /// # Errors
     ///
     /// Returns an error if the notification cannot be sent.
-    pub fn open_document(&mut self, uri: &str, content: &str) -> Result<(), HarnessError> {
+    pub(crate) fn open_document(&mut self, uri: &str, content: &str) -> Result<(), HarnessError> {
         self.send_notification(
             "textDocument/didOpen",
             json!({
@@ -127,7 +127,7 @@ impl LspTestClient {
     }
 
     /// Send a `shutdown` request followed by `exit` notification.
-    pub fn shutdown(&mut self) {
+    pub(crate) fn shutdown(&mut self) {
         let _ = self.send_request("shutdown", Value::Null);
         let _ = self.send_notification("exit", Value::Null);
         // Wait briefly for clean exit, then force kill
@@ -149,7 +149,11 @@ impl LspTestClient {
     ///
     /// Returns an error on I/O failure, JSON parse failure, or if the server
     /// responds with an LSP error.
-    pub fn send_request(&mut self, method: &str, params: Value) -> Result<Value, HarnessError> {
+    pub(crate) fn send_request(
+        &mut self,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, HarnessError> {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -202,7 +206,11 @@ impl LspTestClient {
     /// # Errors
     ///
     /// Returns an error if the message cannot be written.
-    pub fn send_notification(&mut self, method: &str, params: Value) -> Result<(), HarnessError> {
+    pub(crate) fn send_notification(
+        &mut self,
+        method: &str,
+        params: Value,
+    ) -> Result<(), HarnessError> {
         let mut message = json!({
             "jsonrpc": "2.0",
             "method": method,

@@ -13,7 +13,7 @@ use crate::convert::to_lsp_u32;
 /// - Lists (ordered, unordered, description)
 /// - Comment blocks
 #[must_use]
-pub fn compute_folding_ranges(doc: &Document) -> Vec<FoldingRange> {
+pub(crate) fn compute_folding_ranges(doc: &Document) -> Vec<FoldingRange> {
     let mut ranges = Vec::new();
     collect_ranges_from_blocks(&doc.blocks, &mut ranges);
     ranges

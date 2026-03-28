@@ -13,7 +13,7 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 /// - Standalone inline anchors
 /// - Document attribute definitions
 #[must_use]
-pub fn compute_code_lenses(
+pub(crate) fn compute_code_lenses(
     doc: &DocumentState,
     doc_uri: &Uri,
     workspace: &Workspace,

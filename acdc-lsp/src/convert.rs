@@ -17,7 +17,7 @@ pub(crate) fn to_lsp_u32(val: usize) -> u32 {
 ///
 /// Returns `None` if the position is out of bounds.
 #[must_use]
-pub fn position_to_offset(source: &str, position: Position) -> Option<usize> {
+pub(crate) fn position_to_offset(source: &str, position: Position) -> Option<usize> {
     let target_line = position.line as usize;
     let target_char = position.character as usize;
 
@@ -40,7 +40,7 @@ pub fn position_to_offset(source: &str, position: Position) -> Option<usize> {
 /// The parser's `absolute_end` is inclusive (points to the last byte of the
 /// span), so we use `<=` for the upper bound.
 #[must_use]
-pub fn offset_in_location(offset: usize, location: &Location) -> bool {
+pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
     offset >= location.absolute_start && offset <= location.absolute_end
 }
 
@@ -51,7 +51,7 @@ pub fn offset_in_location(offset: usize, location: &Location) -> bool {
 /// We convert start by subtracting 1, and end by keeping the column as-is
 /// (subtract 1 for 1-indexed→0-indexed, then add 1 for inclusive→exclusive).
 #[must_use]
-pub fn location_to_range(loc: &Location) -> Range {
+pub(crate) fn location_to_range(loc: &Location) -> Range {
     Range {
         start: Position {
             line: to_lsp_u32(loc.start.line.saturating_sub(1)),
@@ -68,7 +68,7 @@ pub fn location_to_range(loc: &Location) -> Range {
 ///
 /// Note: acdc-parser uses 1-indexed, LSP uses 0-indexed
 #[must_use]
-pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
+pub(crate) fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
     Position {
         line: to_lsp_u32(pos.line.saturating_sub(1)),
         character: to_lsp_u32(pos.column.saturating_sub(1)),
@@ -81,7 +81,7 @@ pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
 /// `relative_path` against it. Normalizes `..` and `.` segments per RFC 3986.
 /// Used for resolving include targets, image sources, and cross-references.
 #[must_use]
-pub fn resolve_relative_uri(doc_uri: &Uri, relative_path: &str) -> Option<Uri> {
+pub(crate) fn resolve_relative_uri(doc_uri: &Uri, relative_path: &str) -> Option<Uri> {
     let base_str = doc_uri.as_str();
     let dir_end = base_str.rfind('/')?;
     let base_dir = &base_str[..=dir_end];
@@ -112,7 +112,7 @@ fn normalize_path(path: &str) -> String {
 
 /// Extract the filename from a URI string (last path segment).
 #[must_use]
-pub fn uri_filename(uri: &Uri) -> &str {
+pub(crate) fn uri_filename(uri: &Uri) -> &str {
     uri.as_str()
         .rsplit('/')
         .next()

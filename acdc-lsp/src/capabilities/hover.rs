@@ -10,7 +10,7 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Compute hover information for a position
 #[must_use]
-pub fn compute_hover(
+pub(crate) fn compute_hover(
     doc: &DocumentState,
     doc_uri: &Uri,
     workspace: &Workspace,
@@ -115,7 +115,7 @@ fn build_xref_hover_content(
         // Cross-file xref
         let file_info = format!("File: `{file_path}`");
         if let Some(anchor_id) = &parsed.anchor {
-            if let Some(target_uri) = workspace.resolve_xref_file(doc_uri, file_path) {
+            if let Some(target_uri) = crate::convert::resolve_relative_uri(doc_uri, file_path) {
                 // find_anchor_in_document checks open docs then falls back to disk
                 if workspace
                     .find_anchor_in_document(&target_uri, anchor_id)

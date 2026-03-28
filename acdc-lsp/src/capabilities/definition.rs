@@ -13,7 +13,7 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Collect all anchor definitions from document AST
 #[must_use]
-pub fn collect_anchors(doc: &Document) -> HashMap<String, Location> {
+pub(crate) fn collect_anchors(doc: &Document) -> HashMap<String, Location> {
     let mut anchors = HashMap::new();
 
     // Collect from all blocks
@@ -191,7 +191,7 @@ fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, 
 
 /// Collect all xref targets from document
 #[must_use]
-pub fn collect_xrefs(doc: &Document) -> Vec<(String, Location)> {
+pub(crate) fn collect_xrefs(doc: &Document) -> Vec<(String, Location)> {
     let mut xrefs = vec![];
 
     for block in &doc.blocks {
@@ -314,7 +314,7 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
 
 /// Collect all media sources (images, audio, video) from document AST
 #[must_use]
-pub fn collect_media_sources(doc: &Document) -> Vec<(Source, Location)> {
+pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(Source, Location)> {
     let mut sources = vec![];
 
     for block in &doc.blocks {
@@ -447,7 +447,7 @@ fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(Source, Locat
 
 /// Find definition at cursor position, with cross-file resolution
 #[must_use]
-pub fn find_definition_at_position(
+pub(crate) fn find_definition_at_position(
     doc_state: &DocumentState,
     doc_uri: &Uri,
     workspace: &Workspace,
@@ -470,7 +470,7 @@ pub fn find_definition_at_position(
 
     // Check if cursor is on a link macro
     if let Some((target, _)) = crate::capabilities::hover::find_link_at_offset(ast, offset) {
-        return resolve_link_target(&target, doc_uri, workspace);
+        return resolve_link_target(&target, doc_uri);
     }
 
     tracing::info!("no xref or link found at offset");
@@ -494,7 +494,7 @@ fn resolve_xref_target(
 
     if let Some(file_path) = &parsed.file {
         // Try direct file + anchor resolution first
-        if let Some(target_uri) = workspace.resolve_xref_file(doc_uri, file_path) {
+        if let Some(target_uri) = crate::convert::resolve_relative_uri(doc_uri, file_path) {
             tracing::info!(target_uri = target_uri.as_str(), "resolved xref file URI");
             if let Some(anchor_id) = &parsed.anchor {
                 if let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id) {
@@ -516,7 +516,7 @@ fn resolve_xref_target(
             tracing::info!(
                 doc_uri = doc_uri.as_str(),
                 file_path,
-                "resolve_xref_file returned None"
+                "resolve_relative_uri returned None"
             );
         }
 
@@ -547,11 +547,7 @@ fn resolve_xref_target(
 }
 
 /// Resolve a link target to a definition location (file paths only)
-fn resolve_link_target(
-    target: &str,
-    doc_uri: &Uri,
-    workspace: &Workspace,
-) -> Option<(Uri, Location)> {
+fn resolve_link_target(target: &str, doc_uri: &Uri) -> Option<(Uri, Location)> {
     // Only resolve file paths, not full URLs
     if target.contains("://") {
         return None;
@@ -563,7 +559,7 @@ fn resolve_link_target(
         return None;
     }
 
-    let target_uri = workspace.resolve_xref_file(doc_uri, file_path)?;
+    let target_uri = crate::convert::resolve_relative_uri(doc_uri, file_path)?;
     let mut loc = Location::default();
     loc.start.line = 1;
     loc.start.column = 1;

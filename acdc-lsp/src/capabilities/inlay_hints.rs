@@ -13,7 +13,7 @@ const MAX_HINT_VALUE_LEN: usize = 50;
 
 /// Compute inlay hints for a document within the given range.
 #[must_use]
-pub fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<InlayHint> {
+pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<InlayHint> {
     let mut hints = Vec::new();
 
     collect_attribute_hints(doc, range, &mut hints);

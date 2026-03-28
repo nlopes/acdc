@@ -22,7 +22,7 @@ pub(crate) struct ProtectedRange {
 
 /// Format an entire document, returning a list of text edits.
 #[must_use]
-pub fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<TextEdit> {
+pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<TextEdit> {
     let lines: Vec<&str> = doc.text.lines().collect();
     let line_count = lines.len();
 
@@ -50,7 +50,7 @@ pub fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<
 /// Format a range of a document, returning a list of text edits.
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
-pub fn format_range(
+pub(crate) fn format_range(
     doc: &DocumentState,
     range: &Range,
     options: &FormattingOptions,

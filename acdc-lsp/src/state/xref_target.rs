@@ -2,11 +2,11 @@
 
 /// Parsed xref target with optional file and anchor components
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct XrefTarget {
+pub(crate) struct XrefTarget {
     /// File path (None = same document)
-    pub file: Option<String>,
+    pub(crate) file: Option<String>,
     /// Anchor ID (None = link to file root)
-    pub anchor: Option<String>,
+    pub(crate) anchor: Option<String>,
 }
 
 impl XrefTarget {
@@ -19,7 +19,7 @@ impl XrefTarget {
     /// - `"#anchor"` → explicit local anchor
     /// - `"path/to/file.adoc#anchor"` → cross-file with path
     #[must_use]
-    pub fn parse(raw: &str) -> Self {
+    pub(crate) fn parse(raw: &str) -> Self {
         if let Some(hash_pos) = raw.find('#') {
             let file_part = &raw[..hash_pos];
             let anchor_part = &raw[hash_pos + 1..];
@@ -58,7 +58,7 @@ impl XrefTarget {
 
     /// Returns true if this is a cross-file reference
     #[must_use]
-    pub fn is_cross_file(&self) -> bool {
+    pub(crate) fn is_cross_file(&self) -> bool {
         self.file.is_some()
     }
 }

@@ -56,7 +56,7 @@ fn line_count_from_disk(uri: &Uri) -> usize {
 /// If the cursor is on an `include::` directive, returns an item for the
 /// included file. Otherwise returns an item for the current document.
 #[must_use]
-pub fn prepare_call_hierarchy(
+pub(crate) fn prepare_call_hierarchy(
     doc: &DocumentState,
     doc_uri: &Uri,
     position: Position,
@@ -79,7 +79,7 @@ pub fn prepare_call_hierarchy(
 
 /// Find all documents that include the given file (incoming calls).
 #[must_use]
-pub fn incoming_calls(
+pub(crate) fn incoming_calls(
     item: &CallHierarchyItem,
     workspace: &Workspace,
 ) -> Option<Vec<CallHierarchyIncomingCall>> {
@@ -150,7 +150,7 @@ pub fn incoming_calls(
 
 /// Find all documents that the given file includes (outgoing calls).
 #[must_use]
-pub fn outgoing_calls(
+pub(crate) fn outgoing_calls(
     item: &CallHierarchyItem,
     workspace: &Workspace,
 ) -> Option<Vec<CallHierarchyOutgoingCall>> {

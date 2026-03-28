@@ -18,7 +18,11 @@ use crate::state::DocumentState;
 /// Returns `None` if no formatting action applies at the cursor position.
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
-pub fn format_on_type(doc: &DocumentState, position: Position, ch: &str) -> Option<Vec<TextEdit>> {
+pub(crate) fn format_on_type(
+    doc: &DocumentState,
+    position: Position,
+    ch: &str,
+) -> Option<Vec<TextEdit>> {
     if ch != "\n" {
         return None;
     }

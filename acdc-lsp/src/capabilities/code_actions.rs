@@ -31,7 +31,7 @@ const BLOCK_WRAPS: &[(&str, &str)] = &[
 
 /// Compute all available code actions for the given document and context.
 #[must_use]
-pub fn compute_code_actions(
+pub(crate) fn compute_code_actions(
     doc: &DocumentState,
     uri: &Uri,
     range: Range,

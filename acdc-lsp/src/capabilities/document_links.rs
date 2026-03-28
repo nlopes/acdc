@@ -15,7 +15,7 @@ struct LinkInfo {
 
 /// Collect all document links (clickable URLs, file references, and includes)
 #[must_use]
-pub fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<DocumentLink> {
+pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<DocumentLink> {
     let mut links = Vec::new();
 
     // Collect links from AST (URLs, link macros, images)

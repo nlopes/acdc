@@ -14,7 +14,7 @@ use crate::capabilities::{
 use crate::state::DocumentState;
 
 /// Workspace-level state management
-pub struct Workspace {
+pub(crate) struct Workspace {
     /// Open documents: URI -> `DocumentState`
     documents: DashMap<Uri, DocumentState>,
     /// Global anchor index: `anchor_id` -> [(`file_uri`, location)]
@@ -28,7 +28,7 @@ pub struct Workspace {
 impl Workspace {
     /// Create a new workspace
     #[must_use]
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             documents: DashMap::new(),
             anchor_index: DashMap::new(),
@@ -38,14 +38,14 @@ impl Workspace {
     }
 
     /// Set workspace root directories (from initialize params)
-    pub fn set_workspace_roots(&self, roots: Vec<Uri>) {
+    pub(crate) fn set_workspace_roots(&self, roots: Vec<Uri>) {
         if let Ok(mut w) = self.roots.write() {
             *w = roots;
         }
     }
 
     /// Update document on open/change
-    pub fn update_document(&self, uri: Uri, text: String, version: i32) {
+    pub(crate) fn update_document(&self, uri: Uri, text: String, version: i32) {
         // Remove from symbol_index — live AST takes over
         self.symbol_index.remove(&uri);
 
@@ -72,7 +72,7 @@ impl Workspace {
             }
             // Try resolving the file and checking on disk
             if let Some(file_path) = &parsed.file
-                && let Some(target_uri) = self.resolve_xref_file(&uri, file_path)
+                && let Some(target_uri) = crate::convert::resolve_relative_uri(&uri, file_path)
             {
                 if let Some(anchor_id) = &parsed.anchor {
                     return Self::find_anchor_in_file_on_disk(&target_uri, anchor_id).is_some();
@@ -126,27 +126,21 @@ impl Workspace {
 
     /// Get a reference to a document's state
     #[must_use]
-    pub fn get_document(&self, uri: &Uri) -> Option<Ref<'_, Uri, DocumentState>> {
+    pub(crate) fn get_document(&self, uri: &Uri) -> Option<Ref<'_, Uri, DocumentState>> {
         self.documents.get(uri)
     }
 
     /// Remove a document from the workspace
-    pub fn remove_document(&self, uri: &Uri) {
+    pub(crate) fn remove_document(&self, uri: &Uri) {
         self.remove_anchors_for_uri(uri);
         self.documents.remove(uri);
         // Re-index from disk for workspace symbols
         self.reindex_file_from_disk(uri);
     }
 
-    /// Resolve a relative file path from a referring document's URI
-    #[must_use]
-    pub fn resolve_xref_file(&self, from_uri: &Uri, relative_path: &str) -> Option<Uri> {
-        crate::convert::resolve_relative_uri(from_uri, relative_path)
-    }
-
     /// Find an anchor across all open documents
     #[must_use]
-    pub fn find_anchor_globally(&self, anchor_id: &str) -> Vec<(Uri, Location)> {
+    pub(crate) fn find_anchor_globally(&self, anchor_id: &str) -> Vec<(Uri, Location)> {
         self.anchor_index
             .get(anchor_id)
             .map(|entry| entry.value().clone())
@@ -158,7 +152,7 @@ impl Workspace {
     /// First checks open documents. If the document isn't open, attempts to read
     /// and parse the file from disk to resolve the anchor.
     #[must_use]
-    pub fn find_anchor_in_document(&self, uri: &Uri, anchor_id: &str) -> Option<Location> {
+    pub(crate) fn find_anchor_in_document(&self, uri: &Uri, anchor_id: &str) -> Option<Location> {
         // Check open documents first
         if let Some(loc) = self
             .documents
@@ -170,12 +164,6 @@ impl Workspace {
 
         // Try reading from disk if not open
         Self::find_anchor_in_file_on_disk(uri, anchor_id)
-    }
-
-    /// Check if a file on disk contains a given anchor (without full indexing)
-    #[must_use]
-    pub fn file_on_disk_has_anchor(uri: &Uri, anchor_id: &str) -> bool {
-        Self::find_anchor_in_file_on_disk(uri, anchor_id).is_some()
     }
 
     /// Read a file from disk and search for an anchor without indexing it
@@ -198,7 +186,7 @@ impl Workspace {
 
     /// Get all anchors across all open documents (for completion)
     #[must_use]
-    pub fn all_anchors(&self) -> Vec<(String, Uri)> {
+    pub(crate) fn all_anchors(&self) -> Vec<(String, Uri)> {
         let mut result = Vec::new();
         for entry in &self.anchor_index {
             for (uri, _loc) in entry.value() {
@@ -209,7 +197,7 @@ impl Workspace {
     }
 
     /// Scan workspace roots for `AsciiDoc` files and populate the symbol index.
-    pub fn scan_workspace_files(&self) {
+    pub(crate) fn scan_workspace_files(&self) {
         let roots: Vec<Uri> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
         let files = discover_adoc_files(&roots);
 
@@ -230,21 +218,10 @@ impl Workspace {
         }
     }
 
-    /// Check if a URI has cached symbols in the index
-    #[must_use]
-    pub fn has_indexed_symbols(&self, uri: &Uri) -> bool {
-        self.symbol_index.contains_key(uri)
-    }
-
     /// Number of files in the symbol index
     #[must_use]
-    pub fn symbol_index_len(&self) -> usize {
+    pub(crate) fn symbol_index_len(&self) -> usize {
         self.symbol_index.len()
-    }
-
-    /// Insert symbols for a URI into the index (for testing and manual insertion)
-    pub fn insert_indexed_symbols(&self, uri: Uri, symbols: Vec<IndexedSymbol>) {
-        self.symbol_index.insert(uri, symbols);
     }
 
     /// Query workspace symbols across all documents (open + indexed).
@@ -252,7 +229,7 @@ impl Workspace {
     /// Returns `(Uri, IndexedSymbol)` pairs matching the query. Empty query
     /// returns all symbols. Matching is case-insensitive substring.
     #[must_use]
-    pub fn query_workspace_symbols(&self, query: &str) -> Vec<(Uri, IndexedSymbol)> {
+    pub(crate) fn query_workspace_symbols(&self, query: &str) -> Vec<(Uri, IndexedSymbol)> {
         let query_lower = query.to_lowercase();
         let mut results = Vec::new();
 
@@ -284,14 +261,14 @@ impl Workspace {
 
     /// Check if a document is currently open
     #[must_use]
-    pub fn has_document(&self, uri: &Uri) -> bool {
+    pub(crate) fn has_document(&self, uri: &Uri) -> bool {
         self.documents.contains_key(uri)
     }
 
     /// Rename a document's URI in all workspace indexes.
     ///
     /// Called after a file rename to keep internal state consistent.
-    pub fn rename_document_uri(&self, old_uri: &Uri, new_uri: &Uri) {
+    pub(crate) fn rename_document_uri(&self, old_uri: &Uri, new_uri: &Uri) {
         // Move document state
         if let Some((_, state)) = self.documents.remove(old_uri) {
             self.documents.insert(new_uri.clone(), state);
@@ -314,7 +291,7 @@ impl Workspace {
 
     /// Discover all `AsciiDoc` files in the workspace roots.
     #[must_use]
-    pub fn discover_workspace_files(&self) -> Vec<std::path::PathBuf> {
+    pub(crate) fn discover_workspace_files(&self) -> Vec<std::path::PathBuf> {
         let roots: Vec<Uri> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
         discover_adoc_files(&roots)
     }
@@ -330,7 +307,7 @@ impl Workspace {
     }
 
     /// Iterate over all open documents
-    pub fn for_each_document<F>(&self, mut f: F)
+    pub(crate) fn for_each_document<F>(&self, mut f: F)
     where
         F: FnMut(&Uri, &DocumentState),
     {
@@ -389,7 +366,7 @@ const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "asc"];
 ///
 /// Walks directories recursively using `std::fs`, skipping hidden directories
 /// and common build/dependency directories.
-pub fn discover_adoc_files(roots: &[Uri]) -> Vec<std::path::PathBuf> {
+fn discover_adoc_files(roots: &[Uri]) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
     for root in roots {
         if let Some(path) = root.to_file_path() {
@@ -479,20 +456,6 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_xref_file() -> Result<(), Box<dyn std::error::Error>> {
-        let workspace = Workspace::new();
-        let from_uri = "file:///docs/chapter1.adoc".parse::<Uri>()?;
-
-        let resolved = workspace.resolve_xref_file(&from_uri, "chapter2.adoc");
-        assert!(resolved.is_some());
-        assert_eq!(
-            resolved.map(|u| u.as_str().to_string()),
-            Some("file:///docs/chapter2.adoc".to_string())
-        );
-        Ok(())
-    }
-
-    #[test]
     fn test_all_anchors_across_documents() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
         let uri1 = "file:///doc1.adoc".parse::<Uri>()?;
@@ -535,7 +498,7 @@ mod tests {
             &acdc_parser::Options::default(),
         )?;
         let symbols = extract_workspace_symbols(&doc2);
-        workspace.insert_indexed_symbols(uri2.clone(), symbols);
+        workspace.symbol_index.insert(uri2.clone(), symbols);
 
         // Query for "tls" (case-insensitive)
         let results = workspace.query_workspace_symbols("tls");
@@ -582,14 +545,14 @@ mod tests {
             1,
         );
         assert!(
-            !workspace.has_indexed_symbols(&doc_url),
+            !workspace.symbol_index.contains_key(&doc_url),
             "opened doc should be removed from symbol_index"
         );
 
         // Close the document — should re-add to symbol_index
         workspace.remove_document(&doc_url);
         assert!(
-            workspace.has_indexed_symbols(&doc_url),
+            workspace.symbol_index.contains_key(&doc_url),
             "closed doc should be re-added to symbol_index"
         );
 

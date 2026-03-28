@@ -11,7 +11,10 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 ///
 /// Returns the range and current placeholder text if valid.
 #[must_use]
-pub fn prepare_rename(doc: &DocumentState, position: Position) -> Option<PrepareRenameResponse> {
+pub(crate) fn prepare_rename(
+    doc: &DocumentState,
+    position: Position,
+) -> Option<PrepareRenameResponse> {
     let offset = position_to_offset(&doc.text, position)?;
     let ast = doc.ast.as_ref()?;
 
@@ -39,7 +42,7 @@ pub fn prepare_rename(doc: &DocumentState, position: Position) -> Option<Prepare
 /// Returns edits for the anchor definition and all xrefs pointing to it,
 /// across all open documents.
 #[must_use]
-pub fn compute_rename(
+pub(crate) fn compute_rename(
     doc: &DocumentState,
     uri: &Uri,
     workspace: &Workspace,

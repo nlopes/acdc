@@ -11,7 +11,7 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 /// - Cursor on anchor: returns all xrefs pointing to this anchor (local + cross-file)
 /// - Cursor on xref: returns the anchor definition + all xrefs to the same target
 #[must_use]
-pub fn find_references(
+pub(crate) fn find_references(
     doc: &DocumentState,
     doc_uri: &Uri,
     workspace: &Workspace,
@@ -68,7 +68,8 @@ fn collect_cross_file_references(
             // Try on-disk resolution for cross-file xrefs
             if let Some(parsed) = xref_target
                 && let Some(file_path) = &parsed.file
-                && let Some(target_uri) = workspace.resolve_xref_file(current_uri, file_path)
+                && let Some(target_uri) =
+                    crate::convert::resolve_relative_uri(current_uri, file_path)
                 && let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id)
             {
                 locations.push(tower_lsp_server::ls_types::Location {
