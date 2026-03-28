@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Switched from `tower-lsp` to `tower-lsp-server` crate (community-maintained successor)
+## [0.2.0] - 2026-03-28
 
 ### Added
 
@@ -63,20 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g., jumping from `==` to `====`) via WARNING diagnostics. Converts parser
   `NestedSectionLevelMismatch` errors and walks the AST for top-level section
   level skips.
-
-### Fixed
-
-- **Cross-file xref go-to-definition** — fallback to global anchor index when direct file+anchor
-  lookup fails, mirroring the existing pattern for local xrefs.
-- **Cross-file xref to unopened files** — read and parse target files from disk when they aren't
-  open in the editor, so go-to-definition works without opening the target file first.
-- **Cross-file xref find-references** — include anchor definition from on-disk files when the
-  target document isn't open, so find-references shows the definition location.
-- **Cross-file xref diagnostics** — suppress info diagnostic for cross-file xrefs when the target
-  anchor is found in the workspace-wide index.
-
-### Added
-
 - **Document formatting** (`textDocument/formatting`, `textDocument/rangeFormatting`) — normalize
   whitespace for clean diffs: trim trailing whitespace, collapse multiple blank lines to one,
   ensure final newline, insert blank lines between adjacent top-level blocks. Verbatim blocks
@@ -105,6 +89,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Relative path resolution** — relative paths in link macros and images are now resolved
   against the document's directory and appear as clickable links.
 
+### Fixed
+
+- **Cross-file xref go-to-definition** — fallback to global anchor index when direct file+anchor
+  lookup fails, mirroring the existing pattern for local xrefs.
+- **Cross-file xref to unopened files** — read and parse target files from disk when they aren't
+  open in the editor, so go-to-definition works without opening the target file first.
+- **Cross-file xref find-references** — include anchor definition from on-disk files when the
+  target document isn't open, so find-references shows the definition location.
+- **Cross-file xref diagnostics** — suppress info diagnostic for cross-file xrefs when the target
+  anchor is found in the workspace-wide index.
+
+### Changed
+
+- Switched from `tower-lsp` to `tower-lsp-server` crate (community-maintained successor)
+
+
 ## [0.1.0] - 2025-12-28
 
 Initial release of acdc-lsp, a Language Server Protocol implementation for AsciiDoc.
@@ -117,5 +117,6 @@ Initial release of acdc-lsp, a Language Server Protocol implementation for Ascii
 - Diagnostics
 - Semantic tokens
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-lsp-v0.1.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-lsp-v0.2.0...HEAD
+[0.2.0]: https://github.com/nlopes/acdc/compare/acdc-lsp-v0.1.0...acdc-lsp-v0.2.0
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-lsp-v0.1.0

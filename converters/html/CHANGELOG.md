@@ -7,28 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- `<meta name="author">` no longer includes the email address in the content attribute,
-  matching asciidoctor behavior
-- **`<header>` no longer carries an `id` attribute** — the `<header>` wrapper in html5s
-  mode no longer gets the document `id`, matching asciidoctor behavior.
-- **Attribute substitution in syntax-highlighted code blocks** — `[subs="+attributes"]`
-  on source blocks with syntax highlighting now correctly expands attribute references
-  like `{version}` before highlighting.
-
 ### Added
 
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as listing blocks (`<div class="listingblock">`)
   instead of regular paragraphs, matching asciidoctor behavior.
-
 - **`[%hardbreaks]` paragraph option** — paragraphs with the `[%hardbreaks]` option or
   the document-level `hardbreaks` attribute now convert newlines to `<br>`, matching
   asciidoctor behavior.
-
-### Added
-
 - **html5s semantic video and audio blocks** — video and audio blocks now render with semantic
   HTML in html5s mode: `<figure class="video-block">` / `<figure class="audio-block">` with
   `<figcaption>` for titled blocks, `<div>` wrapper for untitled blocks. No inner
@@ -155,6 +141,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `<meta name="author">` no longer includes the email address in the content attribute,
+  matching asciidoctor behavior
+- **`<header>` no longer carries an `id` attribute** — the `<header>` wrapper in html5s
+  mode no longer gets the document `id`, matching asciidoctor behavior.
+- **Attribute substitution in syntax-highlighted code blocks** — `[subs="+attributes"]`
+  on source blocks with syntax highlighting now correctly expands attribute references
+  like `{version}` before highlighting.
 - **HTML entity double-escaping in specialchars** — valid HTML entities (`&euro;`, `&#167;`,
   `&#x00A7;`, `&amp;`) in source text are no longer double-escaped to `&amp;euro;` etc.
   Only bare `&` characters are escaped to `&amp;`.

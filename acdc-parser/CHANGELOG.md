@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-28
+
 ### Added
 
 - **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
@@ -443,14 +445,16 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#349]: https://github.com/nlopes/acdc/issues/349
 [#357]: https://github.com/nlopes/acdc/issues/357
 
-[0.7.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.7.0
-[0.6.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.6.0
-[0.5.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.5.0
-[0.4.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.4.0
-[0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0
-[0.2.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.2.0
-[0.1.4]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.4
-[0.1.3]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.3
-[0.1.2]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.2
-[0.1.1]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.1
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.8.0...HEAD
+[0.8.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.7.0...acdc-parser-v0.8.0
+[0.7.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.6.0...acdc-parser-v0.7.0
+[0.6.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.5.0...acdc-parser-v0.6.0
+[0.5.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.4.0...acdc-parser-v0.5.0
+[0.4.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.3.0...acdc-parser-v0.4.0
+[0.3.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.2.0...acdc-parser-v0.3.0
+[0.2.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.4...acdc-parser-v0.2.0
+[0.1.4]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.3...acdc-parser-v0.1.4
+[0.1.3]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.2...acdc-parser-v0.1.3
+[0.1.2]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.1...acdc-parser-v0.1.2
+[0.1.1]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.0...acdc-parser-v0.1.1
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.0
