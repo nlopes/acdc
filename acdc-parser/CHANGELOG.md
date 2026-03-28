@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,
+  `parse_from_reader`) for phase-level timing visibility.
+
 ## [0.8.0] - 2026-03-28
 
 ### Added

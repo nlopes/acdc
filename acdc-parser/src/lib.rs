@@ -235,7 +235,11 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options,
 ) -> Result<Document, Error> {
-    let result = Preprocessor.process_reader(reader, options)?;
+    let result = {
+        let _span = tracing::info_span!("preprocess").entered();
+        Preprocessor.process_reader(reader, options)?
+    };
+    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
     parse_input(
         &result.text,
         options,
@@ -265,7 +269,11 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
-    let result = Preprocessor.process(input, options)?;
+    let result = {
+        let _span = tracing::info_span!("preprocess").entered();
+        Preprocessor.process(input, options)?
+    };
+    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
     parse_input(
         &result.text,
         options,
@@ -297,7 +305,11 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let path = file_path.as_ref().to_path_buf();
-    let result = Preprocessor.process_file(file_path, options)?;
+    let result = {
+        let _span = tracing::info_span!("preprocess").entered();
+        Preprocessor.process_file(file_path, options)?
+    };
+    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
     parse_input(
         &result.text,
         options,
