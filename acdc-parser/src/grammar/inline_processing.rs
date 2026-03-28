@@ -5,7 +5,8 @@ use crate::{
 
 use super::{
     ParserState,
-    document::{BlockParsingMetadata, PositionWithOffset, document_parser},
+    helpers::{BlockParsingMetadata, PositionWithOffset},
+    inlines::inline_parser,
 };
 
 /// Adjust PEG parser error positions to account for substring parsing
@@ -153,14 +154,14 @@ pub(crate) fn parse_inlines(
     inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
     let inlines = if inline_peg_state.quotes_only {
-        document_parser::quotes_only_inlines(
+        inline_parser::quotes_only_inlines(
             &processed.text,
             &mut inline_peg_state,
             0,
             block_metadata,
         )
     } else {
-        document_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)
+        inline_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)
     };
 
     let inlines = match inlines {
@@ -191,7 +192,7 @@ pub(crate) fn parse_inlines_no_autolinks(
     inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
     inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
-    let inlines = match document_parser::inlines_no_autolinks(
+    let inlines = match inline_parser::inlines_no_autolinks(
         &processed.text,
         &mut inline_peg_state,
         0,

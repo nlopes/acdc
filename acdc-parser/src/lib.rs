@@ -390,7 +390,7 @@ pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, E
     let mut state = grammar::ParserState::new(input);
     state.document_attributes = options.document_attributes.clone();
     state.options = options.clone();
-    let result = match grammar::document_parser::inlines(
+    let result = match grammar::inline_parser::inlines(
         input,
         &mut state,
         0,
