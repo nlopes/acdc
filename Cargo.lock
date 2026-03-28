@@ -126,6 +126,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-parser",
  "dashmap",
+ "fluent-uri",
  "serde",
  "serde_json",
  "thiserror",

@@ -77,37 +77,13 @@ pub(crate) fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
 
 /// Resolve a relative path against a document URI's directory.
 ///
-/// Strips the filename from `doc_uri` to get the directory, then joins
-/// `relative_path` against it. Normalizes `..` and `.` segments per RFC 3986.
-/// Used for resolving include targets, image sources, and cross-references.
+/// Uses RFC 3986 reference resolution via `fluent_uri`, which correctly
+/// handles `..` and `.` segments, percent-encoding, and edge cases.
 #[must_use]
 pub(crate) fn resolve_relative_uri(doc_uri: &Uri, relative_path: &str) -> Option<Uri> {
-    let base_str = doc_uri.as_str();
-    let dir_end = base_str.rfind('/')?;
-    let base_dir = &base_str[..=dir_end];
-    let joined = format!("{base_dir}{relative_path}");
-    // Normalize ".." and "." segments in the path portion
-    let scheme_end = joined.find("://").map_or(0, |i| i + 3);
-    let (prefix, path_and_rest) = joined.split_at(scheme_end);
-    let authority_end = path_and_rest.find('/').unwrap_or(path_and_rest.len());
-    let (authority, path) = path_and_rest.split_at(authority_end);
-    let normalized_path = normalize_path(path);
-    format!("{prefix}{authority}{normalized_path}").parse().ok()
-}
-
-/// Normalize `.` and `..` segments in a URI path.
-fn normalize_path(path: &str) -> String {
-    let mut segments: Vec<&str> = Vec::new();
-    for segment in path.split('/') {
-        match segment {
-            "." => {}
-            ".." => {
-                segments.pop();
-            }
-            s => segments.push(s),
-        }
-    }
-    segments.join("/")
+    let reference = fluent_uri::UriRef::parse(relative_path).ok()?;
+    let resolved = reference.resolve_against(doc_uri).ok()?;
+    resolved.as_str().parse().ok()
 }
 
 /// Extract the filename from a URI string (last path segment).
