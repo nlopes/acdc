@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`, `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.
+
 ### Changed
 
 - Narrowed tokio dependency from `full` to only the required features (`macros`, `rt-multi-thread`, `io-std`)
