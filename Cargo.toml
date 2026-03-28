@@ -8,6 +8,7 @@ members = [
   "converters/dev",
   "converters/html",
   "converters/manpage",
+  "converters/markdown",
   "converters/terminal",
 ]
 default-members = [
