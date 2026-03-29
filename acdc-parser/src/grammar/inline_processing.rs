@@ -148,8 +148,14 @@ pub(crate) fn parse_inlines(
     location: &Location,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
-    inline_peg_state.document_attributes = state.document_attributes.clone();
-    inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
+    std::mem::swap(
+        &mut inline_peg_state.document_attributes,
+        &mut state.document_attributes,
+    );
+    std::mem::swap(
+        &mut inline_peg_state.footnote_tracker,
+        &mut state.footnote_tracker,
+    );
     inline_peg_state.quotes_only = state.quotes_only;
     inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
@@ -164,20 +170,24 @@ pub(crate) fn parse_inlines(
         inline_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)
     };
 
-    let inlines = match inlines {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(
-                &err,
-                &processed.text,
-                location.absolute_start,
-                state,
-            ));
-        }
-    };
+    std::mem::swap(
+        &mut inline_peg_state.document_attributes,
+        &mut state.document_attributes,
+    );
+    std::mem::swap(
+        &mut inline_peg_state.footnote_tracker,
+        &mut state.footnote_tracker,
+    );
 
-    state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
-    Ok(inlines)
+    match inlines {
+        Ok(inlines) => Ok(inlines),
+        Err(err) => Err(adjust_peg_error_position(
+            &err,
+            &processed.text,
+            location.absolute_start,
+            state,
+        )),
+    }
 }
 
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
@@ -188,30 +198,90 @@ pub(crate) fn parse_inlines_no_autolinks(
     location: &Location,
 ) -> Result<Vec<InlineNode>, Error> {
     let mut inline_peg_state = ParserState::new(&processed.text);
-    inline_peg_state.document_attributes = state.document_attributes.clone();
-    inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
+    std::mem::swap(
+        &mut inline_peg_state.document_attributes,
+        &mut state.document_attributes,
+    );
+    std::mem::swap(
+        &mut inline_peg_state.footnote_tracker,
+        &mut state.footnote_tracker,
+    );
     inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
 
-    let inlines = match inline_parser::inlines_no_autolinks(
+    let inlines = inline_parser::inlines_no_autolinks(
         &processed.text,
         &mut inline_peg_state,
         0,
         block_metadata,
-    ) {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(
-                &err,
-                &processed.text,
-                location.absolute_start,
-                state,
-            ));
+    );
+
+    std::mem::swap(
+        &mut inline_peg_state.document_attributes,
+        &mut state.document_attributes,
+    );
+    std::mem::swap(
+        &mut inline_peg_state.footnote_tracker,
+        &mut state.footnote_tracker,
+    );
+
+    match inlines {
+        Ok(inlines) => Ok(inlines),
+        Err(err) => Err(adjust_peg_error_position(
+            &err,
+            &processed.text,
+            location.absolute_start,
+            state,
+        )),
+    }
+}
+
+/// Process inlines from already-preprocessed content.
+///
+/// Skips the inline preprocessor (attribute substitution, passthrough extraction) because
+/// the content is a substring of text that was already preprocessed at the paragraph level.
+/// Falls back to full processing if the content contains passthrough placeholders.
+#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
+pub(crate) fn process_inlines_preprocessed(
+    state: &mut ParserState,
+    block_metadata: &BlockParsingMetadata,
+    content_start: &PositionWithOffset,
+    end: usize,
+    offset: usize,
+    content: &str,
+) -> Result<Vec<InlineNode>, Error> {
+    // Passthrough placeholders require full processing for reconstruction
+    if content.contains('\u{FFFD}') {
+        return process_inlines(state, block_metadata, content_start, end, offset, content);
+    }
+
+    // Content is already preprocessed — skip the preprocessor entirely
+    let mut adjusted_end = end + offset;
+    if adjusted_end > 0 && adjusted_end <= state.input.len() {
+        while adjusted_end < state.input.len() && !state.input.is_char_boundary(adjusted_end) {
+            adjusted_end += 1;
         }
+    }
+    let content_end_offset = if adjusted_end == 0 {
+        0
+    } else {
+        crate::grammar::utf8_utils::safe_decrement_offset(&state.input, adjusted_end)
+    };
+    let location = state.create_location(content_start.offset + offset, content_end_offset);
+
+    let processed = ProcessedContent {
+        text: content.to_string(),
+        passthroughs: Vec::new(),
+        source_map: super::inline_preprocessor::SourceMap::default(),
     };
 
-    state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
-    Ok(inlines)
+    if processed.text.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let result = parse_inlines(&processed, state, block_metadata, &location)?;
+    super::location_mapping::map_inline_locations(state, &processed, &result, &location)
 }
+
 
 /// Process inlines
 ///

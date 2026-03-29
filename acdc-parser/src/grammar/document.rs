@@ -2142,7 +2142,7 @@ peg::parser! {
         {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let mut metadata = block_metadata.metadata.clone();
-            metadata.merge(&metadata_from_attributes);
+            metadata.merge(metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
             state.warn_trailing_macro_content("toc", trailing, end, offset);
             tracing::info!("Found Table of Contents block");
@@ -2160,7 +2160,7 @@ peg::parser! {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            metadata.merge(&metadata_from_attributes);
+            metadata.merge(metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
                 metadata.attributes.insert("alt".into(), AttributeValue::String(style.clone()));
@@ -2189,7 +2189,7 @@ peg::parser! {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            metadata.merge(&metadata_from_attributes);
+            metadata.merge(metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Audio(Audio {
                 title,
@@ -2210,7 +2210,7 @@ peg::parser! {
             let (_discrete, metadata_from_attributes, _title_position) = attributes;
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
-            metadata.merge(&metadata_from_attributes);
+            metadata.merge(metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
@@ -4066,13 +4066,13 @@ peg::parser! {
               }
 
         // Add a simple ID rule
-        rule id() -> String
-            = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
+        rule id() -> &'input str
+            = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
         // TODO(nlopes): this should instead return an enum
         rule named_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = "id" "=" start:position!() id:id() end:position!()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id), Some((start, end)))) }
+                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id.to_string()), Some((start, end)))) }
               / ("role" / "roles") "=" value:named_attribute_value()
                 { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(value), None)) }
               / ("options" / "opts") "=" value:named_attribute_value()
@@ -4193,30 +4193,23 @@ peg::parser! {
         /// - Domain must end with alphanumeric (prevents capturing trailing punctuation
         ///   like `user@example.com.` - the dot stays outside the email for sentence
         ///   endings)
-        rule email_address() -> String
-        = local:$(
-            // Quoted local part: "Jane Doe"@example.com
-            // Quotes allow spaces and special chars in the local part (RFC 5321).
-            "\"" [^'"']+ "\""
-            // Unquoted local part (no spaces allowed)
-            / ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '%' | '+' | '-']+
-        )
-        "@"
-        // Format: alphanumeric+ (separator alphanumeric+)*
-        // This ensures domain ends with alphanumeric (not . or -) and has proper structure.
-        // e.g., `example.com.` -> matches `example.com`, trailing dot stays outside
-        domain:$(
+        rule email_address() -> &'input str
+        = email:$(
+            // Local part: quoted ("Jane Doe"@example.com) or unquoted
+            ("\"" [^'"']+ "\"" / ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '%' | '+' | '-']+)
+            "@"
+            // Domain: alphanumeric+ (separator alphanumeric+)*
+            // Ensures domain ends with alphanumeric (not . or -) and has proper structure.
             ['a'..='z' | 'A'..='Z' | '0'..='9']+
             (['.' | '-'] ['a'..='z' | 'A'..='Z' | '0'..='9']+)*
         )
         {?
-            // Require TLD - domain must contain at least one dot. This prevents `foo@bar`
-            // from becoming a mailto link.
+            // Require TLD - domain must contain at least one dot after @
+            let domain = email.rsplit_once('@').map(|(_, d)| d).ok_or("invalid email")?;
             if !domain.contains('.') {
                 return Err("email domain must have TLD (contain a dot)");
             }
-
-            Ok(format!("{local}@{domain}"))
+            Ok(email)
         }
 
         /// URL path component - supports query params, fragments, encoding, etc.
@@ -4300,11 +4293,8 @@ peg::parser! {
 
         /// Fragment identifier for URLs and cross-references (e.g., `#section-id`)
         /// Only used by `xref:` and `link:` macros — other macros (`image::`, `video::`, etc.) do not support fragments
-        rule path_fragment() -> String
-            = "#" fragment:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
-        {
-            format!("#{fragment}")
-        }
+        rule path_fragment() -> &'input str
+            = $("#" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
 
         /// Filesystem path - conservative character set for cross-platform compatibility
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution

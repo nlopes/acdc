@@ -112,27 +112,27 @@ impl BlockMetadata {
     }
 
     #[tracing::instrument(level = "debug")]
-    pub fn merge(&mut self, other: &BlockMetadata) {
-        self.attributes.merge(other.attributes.clone());
+    pub fn merge(&mut self, other: Self) {
+        self.attributes.merge(other.attributes);
         self.positional_attributes
-            .extend(other.positional_attributes.clone());
-        self.roles.extend(other.roles.clone());
-        self.options.extend(other.options.clone());
+            .extend(other.positional_attributes);
+        self.roles.extend(other.roles);
+        self.options.extend(other.options);
         if self.style.is_none() {
-            self.style.clone_from(&other.style);
+            self.style = other.style;
         }
         if self.id.is_none() {
-            self.id.clone_from(&other.id);
+            self.id = other.id;
         }
-        self.anchors.extend(other.anchors.clone());
+        self.anchors.extend(other.anchors);
         if self.substitutions.is_none() {
-            self.substitutions.clone_from(&other.substitutions);
+            self.substitutions = other.substitutions;
         }
         if self.attribution.is_none() {
-            self.attribution.clone_from(&other.attribution);
+            self.attribution = other.attribution;
         }
         if self.citetitle.is_none() {
-            self.citetitle.clone_from(&other.citetitle);
+            self.citetitle = other.citetitle;
         }
     }
 }

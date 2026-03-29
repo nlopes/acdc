@@ -11,7 +11,9 @@ use crate::{
     grammar::{
         ParserState, inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
-        inline_processing::{process_inlines, process_inlines_no_autolinks},
+        inline_processing::{
+            process_inlines, process_inlines_no_autolinks, process_inlines_preprocessed,
+        },
     },
     model::{strip_quotes, substitution::HEADER},
 };
@@ -234,16 +236,16 @@ peg::parser! {
         rule escaped_superscript_subscript(offset: usize) -> InlineNode
         = start:position!() "\\" content:escaped_super_sub_pattern() end:position!() {
             InlineNode::PlainText(Plain {
-                content,
+                content: content.to_string(),
                 location: state.create_location(start + offset, end + offset),
                 escaped: true,
             })
         }
 
         /// Match escaped superscript (^content^) or subscript (~content~) pattern.
-        rule escaped_super_sub_pattern() -> String
-        = "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { format!("^{inner}^") }
-        / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { format!("~{inner}~") }
+        rule escaped_super_sub_pattern() -> &'input str
+        = $("^" [^'^' | ' ' | '\t' | '\n']+ "^")
+        / $("~" [^'~' | ' ' | '\t' | '\n']+ "~")
 
         /// Generic escaped syntax rule - matches backslash followed by content.
         ///
@@ -252,7 +254,7 @@ peg::parser! {
         rule escaped_syntax(offset: usize) -> InlineNode
         = start:position!() "\\" content:escaped_content() end:position!() {
             InlineNode::PlainText(Plain {
-                content,
+                content: content.to_string(),
                 location: state.create_location(start + offset, end + offset),
                 escaped: false,
             })
@@ -270,7 +272,7 @@ peg::parser! {
         /// NOTE: Unlike before, this does NOT match arbitrary text. If the backslash is not
         /// followed by something escapable, the rule fails and the backslash flows through
         /// as literal text. This ensures `\\hello` produces `\\hello` (matching asciidoctor).
-        rule escaped_content() -> String
+        rule escaped_content() -> &'input str
         =
         // Double backslash followed by escapable pattern: \\<thing> -> <thing>
         "\\" inner:escapable_pattern() { inner }
@@ -278,38 +280,30 @@ peg::parser! {
         / escapable_pattern()
 
         /// Patterns that can be escaped with a backslash.
-        rule escapable_pattern() -> String
+        rule escapable_pattern() -> &'input str
         =
         // Paired angle brackets (cross-refs): <<...>>
-        "<<" inner:$((!">>" [_])*) ">>" { format!("<<{inner}>>") }
+        $("<<" (!">>" [_])* ">>")
         // Double square brackets (anchors): [[...]]
-        / "[[" inner:$((!"]]" [_])*) "]]" { format!("[[{inner}]]") }
+        / $("[[" (!"]]" [_])* "]]")
         // Paired square brackets with prefix (macros): something[...]
-        / prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { format!("{prefix}[{inner}]") }
+        / $([^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]")
         // Curly braces (attributes): {...}
-        / "{" inner:$([^'}']*) "}" { format!("{{{inner}}}") }
+        / $("{" [^'}']* "}")
         // Double parens (index terms): ((...))
-        / "((" inner:$((!"))" [_])*) "))" { format!("(({inner}))") }
+        / $("((" (!"))" [_])* "))")
         // Unconstrained formatting: match entire span including content and closing marker
-        // \**not bold** -> **not bold**
-        / "**" inner:$((!"**" [_])*) "**" { format!("**{inner}**") }
-        / "__" inner:$((!("__" !['_']) [_])*) "__" { format!("__{inner}__") }
-        / "``" inner:$((!"``" [_])*) "``" { format!("``{inner}``") }
-        / "##" inner:$((!"##" [_])*) "##" { format!("##{inner}##") }
-        // Typography patterns are NOT handled here — they are handled by the
-        // converter's strip_backslash_escapes() pipeline. If the parser stripped the
-        // backslash, the converter would never see it and would apply the replacement.
-        //
-        // Superscript: ^content^ where content has no whitespace (must check complete pattern)
-        / "^" inner:$([^'^' | ' ' | '\t' | '\n']+) "^" { format!("^{inner}^") }
-        // Subscript: ~content~ where content has no whitespace (must check complete pattern)
-        / "~" inner:$([^'~' | ' ' | '\t' | '\n']+) "~" { format!("~{inner}~") }
+        / $("**" (!"**" [_])* "**")
+        / $("__" (!("__" !['_']) [_])* "__")
+        / $("``" (!"``" [_])* "``")
+        / $("##" (!"##" [_])* "##")
+        // Superscript: ^content^ where content has no whitespace
+        / $("^" [^'^' | ' ' | '\t' | '\n']+ "^")
+        // Subscript: ~content~ where content has no whitespace
+        / $("~" [^'~' | ' ' | '\t' | '\n']+ "~")
         // Constrained formatting markers and other single escapable chars
-        // Note: ^ and ~ are NOT included here - they require complete patterns above
-        // Note: ( is separated with a negative lookahead to avoid consuming \(C), \(R), \(TM)
-        // which are character replacement escapes handled by the converter
-        / c:$(['*' | '_' | '#' | '`' | '[' | ']' | '&']) { c.to_string() }
-        / "(" !(("C" / "R" / "TM") ")") { "(".to_string() }
+        / $(['*' | '_' | '#' | '`' | '[' | ']' | '&'])
+        / $("(" !(("C" / "R" / "TM") ")"))
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
         ///
@@ -375,7 +369,7 @@ peg::parser! {
         id:id()? "[" content_start:position() content:balanced_bracket_content() "]"
         end:position!()
         {
-            (start, id, content_start, content.clone(), end)
+            (start, id.map(String::from), content_start, content.clone(), end)
 
         }
 
@@ -1019,7 +1013,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained bold text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 2, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 2, offset, content),
                 "could not process unconstrained bold text content"
             )?;
             Ok(InlineNode::BoldText(Bold {
@@ -1069,7 +1063,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'*');
             let result = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained bold text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1138,7 +1132,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'_');
             let result = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained italic text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1183,7 +1177,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained italic text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 2, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 2, offset, content),
                 "could not process unconstrained italic text content"
             )?;
             Ok(InlineNode::ItalicText(Italic {
@@ -1304,7 +1298,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found unconstrained highlight text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 2, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 2, offset, content),
                 "could not process unconstrained highlight text content"
             )?;
             Ok(InlineNode::HighlightText(Highlight {
@@ -1355,7 +1349,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'#');
             let result = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &adjusted_content_start, end - 1, offset, content),
                 "could not process constrained highlight text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1401,7 +1395,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found superscript text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 1, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 1, offset, content),
                 "could not process superscript text content"
             )?;
             Ok(InlineNode::SuperscriptText(Superscript {
@@ -1428,7 +1422,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found subscript text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 1, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 1, offset, content),
                 "could not process subscript text content"
             )?;
             Ok(InlineNode::SubscriptText(Subscript {
@@ -1455,7 +1449,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found curved quotation text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 2, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 2, offset, content),
                 "could not process curved quotation text content"
             )?;
             Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
@@ -1482,7 +1476,7 @@ peg::parser! {
 
             tracing::info!(?start, ?content_start, ?end, ?offset, ?content, ?role, "Found curved apostrophe text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, block_metadata, &content_start, end - 2, offset, content),
+                process_inlines_preprocessed(state, block_metadata, &content_start, end - 2, offset, content),
                 "could not process curved apostrophe text content"
             )?;
             Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
@@ -1724,8 +1718,8 @@ peg::parser! {
               }
 
         // Add a simple ID rule
-        rule id() -> String
-            = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
+        rule id() -> &'input str
+            = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
         rule id_start_char() = ['A'..='Z' | 'a'..='z' | '_']
 
@@ -1737,7 +1731,7 @@ peg::parser! {
         // TODO(nlopes): this should instead return an enum
         rule named_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
             = "id" "=" start:position!() id:id() end:position!()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id), Some((start, end)))) }
+                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id.to_string()), Some((start, end)))) }
               / ("role" / "roles") "=" value:named_attribute_value()
                 { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(value), None)) }
               / ("options" / "opts") "=" value:named_attribute_value()
@@ -1795,30 +1789,23 @@ peg::parser! {
         /// - Domain must end with alphanumeric (prevents capturing trailing punctuation
         ///   like `user@example.com.` - the dot stays outside the email for sentence
         ///   endings)
-        rule email_address() -> String
-        = local:$(
-            // Quoted local part: "Jane Doe"@example.com
-            // Quotes allow spaces and special chars in the local part (RFC 5321).
-            "\"" [^'"']+ "\""
-            // Unquoted local part (no spaces allowed)
-            / ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '%' | '+' | '-']+
-        )
-        "@"
-        // Format: alphanumeric+ (separator alphanumeric+)*
-        // This ensures domain ends with alphanumeric (not . or -) and has proper structure.
-        // e.g., `example.com.` -> matches `example.com`, trailing dot stays outside
-        domain:$(
+        rule email_address() -> &'input str
+        = email:$(
+            // Local part: quoted ("Jane Doe"@example.com) or unquoted
+            ("\"" [^'"']+ "\"" / ['a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '%' | '+' | '-']+)
+            "@"
+            // Domain: alphanumeric+ (separator alphanumeric+)*
+            // Ensures domain ends with alphanumeric (not . or -) and has proper structure.
             ['a'..='z' | 'A'..='Z' | '0'..='9']+
             (['.' | '-'] ['a'..='z' | 'A'..='Z' | '0'..='9']+)*
         )
         {?
-            // Require TLD - domain must contain at least one dot. This prevents `foo@bar`
-            // from becoming a mailto link.
+            // Require TLD - domain must contain at least one dot after @
+            let domain = email.rsplit_once('@').map(|(_, d)| d).ok_or("invalid email")?;
             if !domain.contains('.') {
                 return Err("email domain must have TLD (contain a dot)");
             }
-
-            Ok(format!("{local}@{domain}"))
+            Ok(email)
         }
 
         /// URL path component - supports query params, fragments, encoding, etc.
@@ -1902,11 +1889,8 @@ peg::parser! {
 
         /// Fragment identifier for URLs and cross-references (e.g., `#section-id`)
         /// Only used by `xref:` and `link:` macros — other macros (`image::`, `video::`, etc.) do not support fragments
-        rule path_fragment() -> String
-            = "#" fragment:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
-        {
-            format!("#{fragment}")
-        }
+        rule path_fragment() -> &'input str
+            = $("#" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
 
         /// Filesystem path - conservative character set for cross-platform compatibility
         /// Includes '{' and '}' for `AsciiDoc` attribute substitution
