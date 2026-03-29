@@ -4,7 +4,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use acdc_parser::Parser;
+use acdc_parser::{Options, Parser};
 
 struct CountingAllocator {
     alloc_count: AtomicUsize,
@@ -80,21 +80,10 @@ fn main() {
             }
         };
 
-        // Run 5 iterations and take the median to reduce noise
-        let mut counts = Vec::new();
-        let mut bytes = Vec::new();
-        for _ in 0..5 {
-            ALLOCATOR.reset();
+        let (median_count, median_bytes) = measure(|| {
             let parser = Parser::new(&content);
             let _ = parser.parse();
-            counts.push(ALLOCATOR.count());
-            bytes.push(ALLOCATOR.bytes());
-        }
-        counts.sort_unstable();
-        bytes.sort_unstable();
-
-        let median_count = counts[2];
-        let median_bytes = bytes[2];
+        });
 
         println!(
             "{:<25} {:>7}B {:>10} {:>12}",
@@ -104,6 +93,89 @@ fn main() {
             format_bytes(median_bytes),
         );
     }
+
+    // Inline-only breakdown
+    let options = Options::default();
+
+    println!("\n--- Inline parsing cost scaling ---\n");
+    println!(
+        "{:<40} {:>10} {:>12}",
+        "Input", "Allocs", "Bytes"
+    );
+    println!("{}", "-".repeat(65));
+
+    // Measure overhead: what does parse_inline cost for minimal input?
+    let (c, b) = measure(|| {
+        let _ = acdc_parser::parse_inline("x", &options);
+    });
+    println!("{:<40} {:>10} {:>12}", "single char 'x'", format_count(c), format_bytes(b));
+
+    // Measure: empty string
+    let (c, b) = measure(|| {
+        let _ = acdc_parser::parse_inline("", &options);
+    });
+    println!("{:<40} {:>10} {:>12}", "empty string", format_count(c), format_bytes(b));
+
+    // Measure scaling: 10 words of plain text
+    let (c, b) = measure(|| {
+        let _ = acdc_parser::parse_inline("one two three four five six seven eight nine ten", &options);
+    });
+    println!("{:<40} {:>10} {:>12}", "10 plain words", format_count(c), format_bytes(b));
+
+    // Measure: single bold
+    let (c, b) = measure(|| {
+        let _ = acdc_parser::parse_inline("*bold*", &options);
+    });
+    println!("{:<40} {:>10} {:>12}", "single *bold*", format_count(c), format_bytes(b));
+
+    // Measure: 10 bolds
+    let (c, b) = measure(|| {
+        let _ = acdc_parser::parse_inline("*a* *b* *c* *d* *e* *f* *g* *h* *i* *j*", &options);
+    });
+    println!("{:<40} {:>10} {:>12}", "10x *bold*", format_count(c), format_bytes(b));
+
+    println!("\n--- Per-fragment type (representative lines) ---\n");
+    println!(
+        "{:<40} {:>10} {:>12}",
+        "Fragment", "Allocs", "Bytes"
+    );
+    println!("{}", "-".repeat(65));
+
+    let inline_fragments = vec![
+        ("plain text (no formatting)", "This is a very long section of plain text that contains no special formatting whatsoever and the parser must check every single character."),
+        ("dense formatting", "*bold1* text *bold2* text _ital1_ text `mono1` text #mark1# text *bold3* _ital2_ `mono2` #mark2# text."),
+        ("cross-references", "See <<section-one>> for details. Also see <<section-two,Section Two>> for more. Reference xref:other-doc.adoc[another document]."),
+        ("index terms", "(((primary term))) Here is text. And ((visible index term)) appears inline. Also (((term A))) and (((term B))) scattered."),
+        ("escaped syntax", r"Use \*not bold* and \_not italic_ and \`not mono` and \#not highlight#. Escaped \<<not-a-ref>> and \[[not-an-anchor]]."),
+        ("mixed all types", "*bold*, _italic_, `monospace`, #highlight#, ^super^, ~sub~, <<section-one>>, ((index)), (((concealed))), and plain text."),
+    ];
+
+    for (label, text) in &inline_fragments {
+        let (median_count, median_bytes) = measure(|| {
+            let _ = acdc_parser::parse_inline(text, &options);
+        });
+
+        println!(
+            "{:<40} {:>10} {:>12}",
+            label,
+            format_count(median_count),
+            format_bytes(median_bytes),
+        );
+    }
+}
+
+fn measure(f: impl Fn()) -> (usize, usize) {
+    let mut counts = Vec::new();
+    let mut bytes = Vec::new();
+    for _ in 0..5 {
+        ALLOCATOR.reset();
+        f();
+        counts.push(ALLOCATOR.count());
+        bytes.push(ALLOCATOR.bytes());
+    }
+    counts.sort_unstable();
+    bytes.sort_unstable();
+    (counts[2], bytes[2])
 }
 
 fn format_count(n: usize) -> String {
