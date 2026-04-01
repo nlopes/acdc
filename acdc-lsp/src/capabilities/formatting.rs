@@ -8,7 +8,7 @@
 use std::ops;
 
 use acdc_parser::{Block, DelimitedBlockType, Document, Location};
-use tower_lsp::lsp_types::{FormattingOptions, Position, Range, TextEdit};
+use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
 
 use crate::state::DocumentState;
 
@@ -22,7 +22,7 @@ pub(crate) struct ProtectedRange {
 
 /// Format an entire document, returning a list of text edits.
 #[must_use]
-pub fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<TextEdit> {
+pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<TextEdit> {
     let lines: Vec<&str> = doc.text.lines().collect();
     let line_count = lines.len();
 
@@ -50,7 +50,7 @@ pub fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<
 /// Format a range of a document, returning a list of text edits.
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
-pub fn format_range(
+pub(crate) fn format_range(
     doc: &DocumentState,
     range: &Range,
     options: &FormattingOptions,
@@ -492,7 +492,7 @@ fn normalize_final_newline(text: &str, options: &FormattingOptions) -> Vec<TextE
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {
-    use tower_lsp::lsp_types::Url;
+    use tower_lsp_server::ls_types::Uri;
 
     use super::*;
     use crate::state::Workspace;
@@ -511,7 +511,7 @@ mod tests {
     /// Helper: format a document and apply edits to verify the result.
     fn format_and_apply(src: &str) -> String {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
         let options = make_options();
@@ -638,7 +638,7 @@ mod tests {
     #[test]
     fn test_final_newline_respects_option() {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         let src = "= Title\n\nParagraph";
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
@@ -704,7 +704,7 @@ mod tests {
 
         // Also verify no edits are produced
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
         let edits = format_document(&doc, &make_options());
@@ -718,7 +718,7 @@ mod tests {
     fn test_range_formatting_only_affects_range() {
         let src = "= Title  \n\nParagraph  \n\nAnother  \n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), src.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
 

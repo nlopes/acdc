@@ -3,16 +3,16 @@
 use std::collections::HashMap;
 
 use acdc_parser::{Document, DocumentAttributes, Location, Source};
-use tower_lsp::lsp_types::Diagnostic;
+use tower_lsp_server::ls_types::Diagnostic;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ConditionalDirectiveKind {
+pub(crate) enum ConditionalDirectiveKind {
     Ifdef,
     Ifndef,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ConditionalOperation {
+pub(crate) enum ConditionalOperation {
     And,
     Or,
 }
@@ -22,48 +22,48 @@ pub enum ConditionalOperation {
 /// The preprocessor flattens these before the AST is built, so we scan raw text
 /// to recover them for editor features (graying out inactive branches).
 #[derive(Debug, Clone)]
-pub struct ConditionalBlock {
-    pub kind: ConditionalDirectiveKind,
-    pub attributes: Vec<String>,
-    pub operation: Option<ConditionalOperation>,
-    pub is_active: bool,
+pub(crate) struct ConditionalBlock {
+    pub(crate) kind: ConditionalDirectiveKind,
+    pub(crate) attributes: Vec<String>,
+    pub(crate) operation: Option<ConditionalOperation>,
+    pub(crate) is_active: bool,
     /// 0-indexed line of the opening directive
-    pub start_line: usize,
+    pub(crate) start_line: usize,
     /// 0-indexed line of the closing endif (None for single-line form)
-    pub end_line: Option<usize>,
+    pub(crate) end_line: Option<usize>,
 }
 
 /// Represents a parsed document's state
 #[derive(Debug)]
-pub struct DocumentState {
+pub(crate) struct DocumentState {
     /// The source text (needed for re-parsing on change)
-    pub text: String,
+    pub(crate) text: String,
     /// Version from the editor (for sync validation)
-    pub version: i32,
+    pub(crate) version: i32,
     /// Successfully parsed AST (None if parse failed completely)
-    pub ast: Option<Document>,
+    pub(crate) ast: Option<Document>,
     /// Parse errors converted to diagnostics
-    pub diagnostics: Vec<Diagnostic>,
+    pub(crate) diagnostics: Vec<Diagnostic>,
     /// Anchor definitions: id -> Location
-    pub anchors: HashMap<String, Location>,
+    pub(crate) anchors: HashMap<String, Location>,
     /// Cross-references: (`target_id`, location)
-    pub xrefs: Vec<(String, Location)>,
+    pub(crate) xrefs: Vec<(String, Location)>,
     /// Include directives: (`target_path`, location)
-    pub includes: Vec<(String, Location)>,
+    pub(crate) includes: Vec<(String, Location)>,
     /// Attribute references: (`attr_name`, location) extracted from source text
-    pub attribute_refs: Vec<(String, Location)>,
+    pub(crate) attribute_refs: Vec<(String, Location)>,
     /// Attribute definitions: (`attr_name`, location) extracted from source text
-    pub attribute_defs: Vec<(String, Location)>,
+    pub(crate) attribute_defs: Vec<(String, Location)>,
     /// Media sources: (source, location) for images, audio, and video
-    pub media_sources: Vec<(Source, Location)>,
+    pub(crate) media_sources: Vec<(Source, Location)>,
     /// Conditional directive blocks (ifdef/ifndef) extracted from source text
-    pub conditionals: Vec<ConditionalBlock>,
+    pub(crate) conditionals: Vec<ConditionalBlock>,
 }
 
 impl DocumentState {
     /// Create a new document state with successful parse
     #[must_use]
-    pub fn new_success(
+    pub(crate) fn new_success(
         text: String,
         version: i32,
         ast: Document,
@@ -91,7 +91,7 @@ impl DocumentState {
 
     /// Create a new document state with parse failure
     #[must_use]
-    pub fn new_failure(text: String, version: i32, diagnostics: Vec<Diagnostic>) -> Self {
+    pub(crate) fn new_failure(text: String, version: i32, diagnostics: Vec<Diagnostic>) -> Self {
         let includes = extract_includes(&text);
         let attribute_refs = extract_attribute_refs(&text);
         let conditionals = extract_conditionals(&text, &DocumentAttributes::default());

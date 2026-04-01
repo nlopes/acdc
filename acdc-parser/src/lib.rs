@@ -1,5 +1,3 @@
-#![deny(clippy::pedantic)]
-#![warn(clippy::all)]
 //! `AsciiDoc` parser.
 //!
 //! This module provides a parser for the `AsciiDoc` markup language. The parser is
@@ -14,7 +12,6 @@
 //! - `parse_file`: parses the content of a file containing `AsciiDoc` content.
 //!
 //! ```rust
-//!
 //! use acdc_parser::{Document, parse};
 //!
 //! let content = r#"= Document Title
@@ -29,6 +26,18 @@
 //! let document = parse(content, &options).unwrap();
 //!
 //! println!("{:?}", document);
+//! ```
+//!
+//! # Features
+//!
+//! - Full support for `AsciiDoc` syntax, including blocks, inline elements, attributes, and more.
+//! - Configurable options for parsing behaviour, including safe mode and timing. Just
+//!   like `asciidoctor`, you can choose to enable or disable certain features based on your
+//!   needs.
+//! - Detailed error reporting with source location information.
+//! - Support for parsing from strings, files, and readers.
+//!
+
 use std::{
     path::{Path, PathBuf},
     string::ToString,
@@ -226,7 +235,11 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options,
 ) -> Result<Document, Error> {
-    let result = Preprocessor.process_reader(reader, options)?;
+    let result = {
+        let _span = tracing::info_span!("preprocess").entered();
+        Preprocessor.process_reader(reader, options)?
+    };
+    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
     parse_input(
         &result.text,
         options,
@@ -256,7 +269,11 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
-    let result = Preprocessor.process(input, options)?;
+    let result = {
+        let _span = tracing::info_span!("preprocess").entered();
+        Preprocessor.process(input, options)?
+    };
+    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
     parse_input(
         &result.text,
         options,
@@ -288,7 +305,11 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 #[instrument(skip(file_path))]
 pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
     let path = file_path.as_ref().to_path_buf();
-    let result = Preprocessor.process_file(file_path, options)?;
+    let result = {
+        let _span = tracing::info_span!("preprocess").entered();
+        Preprocessor.process_file(file_path, options)?
+    };
+    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
     parse_input(
         &result.text,
         options,

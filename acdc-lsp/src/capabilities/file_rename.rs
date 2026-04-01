@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::{Component, Path};
 
-use tower_lsp::lsp_types::{FileRename, TextEdit, Url, WorkspaceEdit};
+use tower_lsp_server::ls_types::{FileRename, TextEdit, Uri, WorkspaceEdit};
 
 use crate::convert::{location_to_range, resolve_relative_uri};
 use crate::state::{Workspace, XrefTarget};
@@ -13,15 +13,15 @@ use crate::state::{Workspace, XrefTarget};
 /// Scans all open documents for xrefs, includes, and link macros that reference
 /// any of the renamed files, and returns text edits to rewrite the paths.
 #[must_use]
-pub fn compute_file_rename_edits(
+pub(crate) fn compute_file_rename_edits(
     workspace: &Workspace,
     renames: &[FileRename],
 ) -> Option<WorkspaceEdit> {
-    let rename_map: HashMap<Url, Url> = renames
+    let rename_map: HashMap<Uri, Uri> = renames
         .iter()
         .filter_map(|r| {
-            let old = Url::parse(&r.old_uri).ok()?;
-            let new = Url::parse(&r.new_uri).ok()?;
+            let old = r.old_uri.parse::<Uri>().ok()?;
+            let new = r.new_uri.parse::<Uri>().ok()?;
             Some((old, new))
         })
         .collect();
@@ -30,10 +30,10 @@ pub fn compute_file_rename_edits(
         return None;
     }
 
-    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
 
     workspace.for_each_document(|doc_uri, doc_state| {
-        let Ok(doc_path) = doc_uri.to_file_path() else {
+        let Some(doc_path) = doc_uri.to_file_path() else {
             return;
         };
         let Some(doc_dir) = doc_path.parent() else {
@@ -47,7 +47,7 @@ pub fn compute_file_rename_edits(
                 continue;
             };
 
-            let Some(resolved) = workspace.resolve_xref_file(doc_uri, file_part) else {
+            let Some(resolved) = crate::convert::resolve_relative_uri(doc_uri, file_part) else {
                 continue;
             };
 
@@ -55,7 +55,7 @@ pub fn compute_file_rename_edits(
                 continue;
             };
 
-            let Ok(new_path) = new_uri.to_file_path() else {
+            let Some(new_path) = new_uri.to_file_path() else {
                 continue;
             };
 
@@ -81,7 +81,7 @@ pub fn compute_file_rename_edits(
                 continue;
             };
 
-            let Ok(new_path) = new_uri.to_file_path() else {
+            let Some(new_path) = new_uri.to_file_path() else {
                 continue;
             };
 
@@ -109,12 +109,12 @@ pub fn compute_file_rename_edits(
 }
 
 /// Update workspace state after files have been renamed.
-pub fn update_workspace_after_rename(workspace: &Workspace, renames: &[FileRename]) {
+pub(crate) fn update_workspace_after_rename(workspace: &Workspace, renames: &[FileRename]) {
     for rename in renames {
-        let Some(old_uri) = Url::parse(&rename.old_uri).ok() else {
+        let Some(old_uri) = rename.old_uri.parse::<Uri>().ok() else {
             continue;
         };
-        let Some(new_uri) = Url::parse(&rename.new_uri).ok() else {
+        let Some(new_uri) = rename.new_uri.parse::<Uri>().ok() else {
             continue;
         };
         workspace.rename_document_uri(&old_uri, &new_uri);
@@ -124,13 +124,13 @@ pub fn update_workspace_after_rename(workspace: &Workspace, renames: &[FileRenam
 /// Scan non-open workspace files on disk for references to renamed files.
 fn scan_workspace_files_for_renames(
     workspace: &Workspace,
-    rename_map: &HashMap<Url, Url>,
-    changes: &mut HashMap<Url, Vec<TextEdit>>,
+    rename_map: &HashMap<Uri, Uri>,
+    changes: &mut HashMap<Uri, Vec<TextEdit>>,
 ) {
     let files = workspace.discover_workspace_files();
 
     for file_path in files {
-        let Ok(file_uri) = Url::from_file_path(&file_path) else {
+        let Some(file_uri) = Uri::from_file_path(&file_path) else {
             continue;
         };
 
@@ -164,13 +164,13 @@ fn scan_workspace_files_for_renames(
             let Some(file_part) = &parsed.file else {
                 continue;
             };
-            let Some(resolved) = workspace.resolve_xref_file(&file_uri, file_part) else {
+            let Some(resolved) = crate::convert::resolve_relative_uri(&file_uri, file_part) else {
                 continue;
             };
             let Some(new_uri) = rename_map.get(&resolved) else {
                 continue;
             };
-            let Ok(new_path) = new_uri.to_file_path() else {
+            let Some(new_path) = new_uri.to_file_path() else {
                 continue;
             };
             let new_relative = compute_relative_path(doc_dir, &new_path);
@@ -193,7 +193,7 @@ fn scan_workspace_files_for_renames(
             let Some(new_uri) = rename_map.get(&resolved) else {
                 continue;
             };
-            let Ok(new_path) = new_uri.to_file_path() else {
+            let Some(new_path) = new_uri.to_file_path() else {
                 continue;
             };
             let new_relative = compute_relative_path(doc_dir, &new_path);
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn test_same_directory_rename_xref() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let doc_uri = Url::parse("file:///docs/index.adoc")?;
+        let doc_uri = "file:///docs/index.adoc".parse::<Uri>()?;
         let content = "= Index\n\nSee xref:old.adoc#intro[introduction].\n";
         workspace.update_document(doc_uri.clone(), content.to_string(), 1);
 
@@ -303,7 +303,7 @@ mod tests {
     #[test]
     fn test_cross_directory_move_xref() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let doc_uri = Url::parse("file:///docs/index.adoc")?;
+        let doc_uri = "file:///docs/index.adoc".parse::<Uri>()?;
         let content = "= Index\n\nSee xref:setup.adoc[setup guide].\n";
         workspace.update_document(doc_uri.clone(), content.to_string(), 1);
 
@@ -330,7 +330,7 @@ mod tests {
     #[test]
     fn test_include_rewriting() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let doc_uri = Url::parse("file:///docs/main.adoc")?;
+        let doc_uri = "file:///docs/main.adoc".parse::<Uri>()?;
         let content = "= Main\n\ninclude::chapter.adoc[]\n";
         workspace.update_document(doc_uri.clone(), content.to_string(), 1);
 
@@ -358,11 +358,11 @@ mod tests {
     fn test_multiple_documents() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
 
-        let doc1_uri = Url::parse("file:///docs/index.adoc")?;
+        let doc1_uri = "file:///docs/index.adoc".parse::<Uri>()?;
         let doc1_content = "= Index\n\nSee xref:shared.adoc#sec[link].\n";
         workspace.update_document(doc1_uri.clone(), doc1_content.to_string(), 1);
 
-        let doc2_uri = Url::parse("file:///docs/other.adoc")?;
+        let doc2_uri = "file:///docs/other.adoc".parse::<Uri>()?;
         let doc2_content = "= Other\n\ninclude::shared.adoc[]\n";
         workspace.update_document(doc2_uri.clone(), doc2_content.to_string(), 1);
 
@@ -397,7 +397,7 @@ mod tests {
     #[test]
     fn test_anchor_preservation() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let doc_uri = Url::parse("file:///docs/index.adoc")?;
+        let doc_uri = "file:///docs/index.adoc".parse::<Uri>()?;
         let content = "= Index\n\nSee xref:guide.adoc#getting-started[start here].\n";
         workspace.update_document(doc_uri.clone(), content.to_string(), 1);
 
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn test_same_file_xrefs_unaffected() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let doc_uri = Url::parse("file:///docs/index.adoc")?;
+        let doc_uri = "file:///docs/index.adoc".parse::<Uri>()?;
         let content = "= Index\n\n[[my-anchor]]\n== Section\n\nSee <<my-anchor>>.\n";
         workspace.update_document(doc_uri.clone(), content.to_string(), 1);
 
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn test_no_matching_references() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let doc_uri = Url::parse("file:///docs/index.adoc")?;
+        let doc_uri = "file:///docs/index.adoc".parse::<Uri>()?;
         let content = "= Index\n\nJust regular text.\n";
         workspace.update_document(doc_uri.clone(), content.to_string(), 1);
 
@@ -459,13 +459,13 @@ mod tests {
     #[test]
     fn test_workspace_state_update() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let old_uri = Url::parse("file:///docs/old.adoc")?;
+        let old_uri = "file:///docs/old.adoc".parse::<Uri>()?;
         let content = "[[my-anchor]]\n== Section\n\nContent.\n";
         workspace.update_document(old_uri.clone(), content.to_string(), 1);
 
         assert!(!workspace.find_anchor_globally("my-anchor").is_empty());
 
-        let new_uri = Url::parse("file:///docs/new.adoc")?;
+        let new_uri = "file:///docs/new.adoc".parse::<Uri>()?;
         let renames = vec![FileRename {
             old_uri: old_uri.to_string(),
             new_uri: new_uri.to_string(),
@@ -502,12 +502,12 @@ mod tests {
         )?;
 
         let workspace = Workspace::new();
-        let root_url = Url::from_file_path(&tmp).map_err(|()| "bad path")?;
+        let root_url = Uri::from_file_path(&tmp).ok_or("bad path")?;
         workspace.set_workspace_roots(vec![root_url]);
 
         // Do NOT open any documents — test the disk scan path
-        let old_uri = Url::from_file_path(tmp.join("readme.adoc")).map_err(|()| "bad old path")?;
-        let new_uri = Url::from_file_path(tmp.join("guide.adoc")).map_err(|()| "bad new path")?;
+        let old_uri = Uri::from_file_path(tmp.join("readme.adoc")).ok_or("bad old path")?;
+        let new_uri = Uri::from_file_path(tmp.join("guide.adoc")).ok_or("bad new path")?;
 
         let renames = vec![FileRename {
             old_uri: old_uri.to_string(),
@@ -520,8 +520,7 @@ mod tests {
         let edit = result.ok_or("expected edit")?;
         let changes = edit.changes.ok_or("expected changes")?;
 
-        let arch_uri =
-            Url::from_file_path(tmp.join("architecture.adoc")).map_err(|()| "bad arch path")?;
+        let arch_uri = Uri::from_file_path(tmp.join("architecture.adoc")).ok_or("bad arch path")?;
         let edits = changes
             .get(&arch_uri)
             .ok_or("expected edits for architecture.adoc")?;

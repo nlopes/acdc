@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,
+  `parse_from_reader`) for phase-level timing visibility.
+
+## [0.8.0] - 2026-03-28
+
+### Added
+
 - **Fragment support in `xref:` and `link:` macros** — targets like `xref:file.adoc#anchor[text]`
   and `link:page.html#section[text]` now parse correctly. The `#fragment` is optional and only
   applies to `xref:` and `link:` macros (not `image::`, `video::`, etc.).
@@ -32,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Single-quoted attribute values** — attribute values can now use single quotes (`'value'`)
   interchangeably with double quotes (`"value"`), matching asciidoctor behavior. Applies to
   block attributes, macro positional/named values, link titles, and table column specs.
+- **Compound author names** — author lines now support multi-word first, middle, and
+  last names (e.g., `Jan de Groot`), matching asciidoctor behavior.
 - Bidirectional sync between `Header.authors` and document attributes: the `:author:`
   document attribute now populates `Header.authors`, and parsed author lines now set
   `author`, `authors`, `firstname`, `lastname`, `middlename`, `authorinitials`, `email`,
@@ -441,14 +450,16 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#349]: https://github.com/nlopes/acdc/issues/349
 [#357]: https://github.com/nlopes/acdc/issues/357
 
-[0.7.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.7.0
-[0.6.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.6.0
-[0.5.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.5.0
-[0.4.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.4.0
-[0.3.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.3.0
-[0.2.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.2.0
-[0.1.4]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.4
-[0.1.3]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.3
-[0.1.2]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.2
-[0.1.1]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.1
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.8.0...HEAD
+[0.8.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.7.0...acdc-parser-v0.8.0
+[0.7.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.6.0...acdc-parser-v0.7.0
+[0.6.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.5.0...acdc-parser-v0.6.0
+[0.5.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.4.0...acdc-parser-v0.5.0
+[0.4.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.3.0...acdc-parser-v0.4.0
+[0.3.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.2.0...acdc-parser-v0.3.0
+[0.2.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.4...acdc-parser-v0.2.0
+[0.1.4]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.3...acdc-parser-v0.1.4
+[0.1.3]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.2...acdc-parser-v0.1.3
+[0.1.2]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.1...acdc-parser-v0.1.2
+[0.1.1]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.1.0...acdc-parser-v0.1.1
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-parser-v0.1.0

@@ -1,6 +1,6 @@
 //! Find References: locate all usages of an anchor or xref
 
-use tower_lsp::lsp_types::{Position, Url};
+use tower_lsp_server::ls_types::{Position, Uri};
 
 use crate::convert::{location_to_range, position_to_offset};
 use crate::state::{DocumentState, Workspace, XrefTarget};
@@ -11,13 +11,13 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 /// - Cursor on anchor: returns all xrefs pointing to this anchor (local + cross-file)
 /// - Cursor on xref: returns the anchor definition + all xrefs to the same target
 #[must_use]
-pub fn find_references(
+pub(crate) fn find_references(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     position: Position,
     include_declaration: bool,
-) -> Option<Vec<tower_lsp::lsp_types::Location>> {
+) -> Option<Vec<tower_lsp_server::ls_types::Location>> {
     let offset = position_to_offset(&doc.text, position)?;
     let ast = doc.ast.as_ref()?;
 
@@ -54,11 +54,11 @@ pub fn find_references(
 /// target file on disk if the anchor isn't in the global index.
 fn collect_cross_file_references(
     workspace: &Workspace,
-    current_uri: &Url,
+    current_uri: &Uri,
     anchor_id: &str,
     include_declaration: bool,
     xref_target: Option<&XrefTarget>,
-) -> Vec<tower_lsp::lsp_types::Location> {
+) -> Vec<tower_lsp_server::ls_types::Location> {
     let mut locations = Vec::new();
 
     // Include anchor declarations from workspace index
@@ -68,17 +68,18 @@ fn collect_cross_file_references(
             // Try on-disk resolution for cross-file xrefs
             if let Some(parsed) = xref_target
                 && let Some(file_path) = &parsed.file
-                && let Some(target_uri) = workspace.resolve_xref_file(current_uri, file_path)
+                && let Some(target_uri) =
+                    crate::convert::resolve_relative_uri(current_uri, file_path)
                 && let Some(loc) = workspace.find_anchor_in_document(&target_uri, anchor_id)
             {
-                locations.push(tower_lsp::lsp_types::Location {
+                locations.push(tower_lsp_server::ls_types::Location {
                     uri: target_uri,
                     range: location_to_range(&loc),
                 });
             }
         } else {
             for (uri, loc) in global {
-                locations.push(tower_lsp::lsp_types::Location {
+                locations.push(tower_lsp_server::ls_types::Location {
                     uri,
                     range: location_to_range(&loc),
                 });
@@ -92,7 +93,7 @@ fn collect_cross_file_references(
             let parsed = XrefTarget::parse(xref_target);
             let target_anchor = parsed.anchor.as_deref().unwrap_or(xref_target.as_str());
             if target_anchor == anchor_id {
-                locations.push(tower_lsp::lsp_types::Location {
+                locations.push(tower_lsp_server::ls_types::Location {
                     uri: uri.clone(),
                     range: location_to_range(xref_loc),
                 });
@@ -118,7 +119,7 @@ First reference <<target>>.
 Second reference <<target>>.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -145,7 +146,7 @@ Second reference <<target>>.
 See <<my-anchor>> for more info.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -172,7 +173,7 @@ See <<my-anchor>> for more info.
 Reference <<target>>.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -194,8 +195,8 @@ Reference <<target>>.
     #[test]
     fn test_cross_file_references() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri1 = Url::parse("file:///doc1.adoc")?;
-        let uri2 = Url::parse("file:///doc2.adoc")?;
+        let uri1 = "file:///doc1.adoc".parse::<Uri>()?;
+        let uri2 = "file:///doc2.adoc".parse::<Uri>()?;
 
         let content1 = "[[shared-anchor]]\n== Shared Section\n\nContent.\n";
         let content2 = "= Other Doc\n\nSee xref:doc1.adoc#shared-anchor[link].\n";

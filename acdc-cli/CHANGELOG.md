@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-28
+
 ### Added
 
 - **Automatic pager for terminal output** - When using `--backend terminal` and stdout is
@@ -59,5 +61,6 @@ This is tagged but unreleased in crates.io for now.
 [#329]: https://github.com/nlopes/acdc/issues/329
 [#330]: https://github.com/nlopes/acdc/issues/330
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.1.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.2.0...HEAD
+[0.2.0]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.1.0...acdc-cli-v0.2.0
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-cli-v0.1.0

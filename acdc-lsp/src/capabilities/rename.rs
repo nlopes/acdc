@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use tower_lsp::lsp_types::{Position, PrepareRenameResponse, TextEdit, Url, WorkspaceEdit};
+use tower_lsp_server::ls_types::{Position, PrepareRenameResponse, TextEdit, Uri, WorkspaceEdit};
 
 use crate::convert::{location_to_range, position_to_offset};
 use crate::state::{DocumentState, Workspace, XrefTarget};
@@ -11,7 +11,10 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 ///
 /// Returns the range and current placeholder text if valid.
 #[must_use]
-pub fn prepare_rename(doc: &DocumentState, position: Position) -> Option<PrepareRenameResponse> {
+pub(crate) fn prepare_rename(
+    doc: &DocumentState,
+    position: Position,
+) -> Option<PrepareRenameResponse> {
     let offset = position_to_offset(&doc.text, position)?;
     let ast = doc.ast.as_ref()?;
 
@@ -39,9 +42,9 @@ pub fn prepare_rename(doc: &DocumentState, position: Position) -> Option<Prepare
 /// Returns edits for the anchor definition and all xrefs pointing to it,
 /// across all open documents.
 #[must_use]
-pub fn compute_rename(
+pub(crate) fn compute_rename(
     doc: &DocumentState,
-    uri: &Url,
+    uri: &Uri,
     workspace: &Workspace,
     position: Position,
     new_name: &str,
@@ -58,7 +61,7 @@ pub fn compute_rename(
         super::hover::find_anchor_at_offset(ast, offset, doc).map(|(id, _)| id)?
     };
 
-    let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
+    let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
 
     // Add edits for anchor declarations across all documents
     for (anchor_uri, anchor_loc) in workspace.find_anchor_globally(&target_id) {
@@ -136,7 +139,7 @@ mod tests {
 Reference <<my-anchor>> here.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -169,7 +172,7 @@ Reference <<my-anchor>> here.
 See <<target>> for details.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -204,7 +207,7 @@ First ref: <<old-name>>.
 Second ref: <<old-name>>.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("expected doc")?;
 
@@ -240,7 +243,7 @@ Second ref: <<old-name>>.
 Just some text here.
 ";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 

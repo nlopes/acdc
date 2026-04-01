@@ -10,7 +10,7 @@ use std::hash::BuildHasher;
 use std::path::Path;
 
 use acdc_parser::{Block, Document, Error, Location, Positioning, Source};
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
+use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
 use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
 
@@ -19,7 +19,7 @@ use crate::state::XrefTarget;
 
 /// Convert acdc-parser Error to LSP Diagnostic
 #[must_use]
-pub fn error_to_diagnostic(error: &Error) -> Diagnostic {
+pub(crate) fn error_to_diagnostic(error: &Error) -> Diagnostic {
     let range = error
         .source_location()
         .map(|source_loc| positioning_to_range(&source_loc.positioning))
@@ -77,7 +77,7 @@ fn positioning_to_range(pos: &Positioning) -> Range {
 /// using the resolver (which may check open documents, on-disk files, etc.).
 /// Without it, cross-file xrefs get an info-level diagnostic.
 #[must_use]
-pub fn compute_warnings<S: BuildHasher, F>(
+pub(crate) fn compute_warnings<S: BuildHasher, F>(
     anchors: &HashMap<String, Location, S>,
     xrefs: &[(String, Location)],
     cross_file_resolver: Option<&F>,
@@ -120,11 +120,10 @@ where
     diagnostics
 }
 
-/// Collect duplicate anchors and return warnings.
-///
-/// This should be called during anchor collection to detect duplicates.
+/// Check if an anchor ID is already defined; returns a warning diagnostic if so.
+#[cfg(test)]
 #[must_use]
-pub fn check_duplicate_anchors<S: BuildHasher>(
+fn check_duplicate_anchors<S: BuildHasher>(
     anchor_id: &str,
     location: &Location,
     existing_anchors: &HashMap<String, Location, S>,
@@ -148,7 +147,7 @@ pub fn check_duplicate_anchors<S: BuildHasher>(
 /// Image paths are resolved relative to `imagesdir` (if set), then relative to `doc_dir`.
 /// Include paths are resolved relative to `doc_dir`.
 #[must_use]
-pub fn compute_link_diagnostics(
+pub(crate) fn compute_link_diagnostics(
     media_sources: &[(Source, Location)],
     includes: &[(String, Location)],
     doc_dir: &Path,
@@ -215,7 +214,7 @@ fn collect_sections(blocks: &[Block]) -> Vec<(u8, &Location)> {
 /// levels don't jump by more than 1 (e.g., `==` followed by `====` skips `===`).
 /// Going back to a higher level is always fine.
 #[must_use]
-pub fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnostic> {
+pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnostic> {
     let sections = collect_sections(&ast.blocks);
     let mut diagnostics = Vec::new();
     let mut last_level: u8 = 0;
@@ -249,7 +248,9 @@ pub fn compute_section_level_diagnostics(ast: &Document) -> Vec<Diagnostic> {
 /// inside inactive ifdef/ifndef blocks. This causes editors to render the
 /// content with reduced opacity (grayed out).
 #[must_use]
-pub fn compute_conditional_diagnostics(conditionals: &[ConditionalBlock]) -> Vec<Diagnostic> {
+pub(crate) fn compute_conditional_diagnostics(
+    conditionals: &[ConditionalBlock],
+) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
     for cond in conditionals {
@@ -276,11 +277,11 @@ pub fn compute_conditional_diagnostics(conditionals: &[ConditionalBlock]) -> Vec
 
         diagnostics.push(Diagnostic {
             range: Range {
-                start: tower_lsp::lsp_types::Position {
+                start: tower_lsp_server::ls_types::Position {
                     line: start_line,
                     character: 0,
                 },
-                end: tower_lsp::lsp_types::Position {
+                end: tower_lsp_server::ls_types::Position {
                     line: end_line_u32,
                     character: u32::MAX,
                 },

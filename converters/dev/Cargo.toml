@@ -11,8 +11,5 @@ acdc-parser = { path = "../../acdc-parser" }
 acdc-converters-core = { path = "../core" }
 crossterm.workspace = true
 
-[lints.rust]
-unsafe_code = "forbid"
-
-[lints.clippy]
-pedantic = "deny"
+[lints]
+workspace = true

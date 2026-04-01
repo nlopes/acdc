@@ -5,15 +5,10 @@
 //! inline leaf → inline formatting → block → section → document.
 
 use acdc_parser::{Block, DelimitedBlockType, InlineNode};
-use tower_lsp::lsp_types::{Position, Range, SelectionRange};
+use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
-use crate::convert::{location_to_range, offset_in_location, position_to_offset};
+use crate::convert::{location_to_range, offset_in_location, position_to_offset, to_lsp_u32};
 use crate::state::DocumentState;
-
-/// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
-fn to_lsp_u32(val: usize) -> u32 {
-    val.try_into().unwrap_or(u32::MAX)
-}
 
 /// Compute selection ranges for the given positions.
 ///
@@ -21,7 +16,7 @@ fn to_lsp_u32(val: usize) -> u32 {
 /// syntactic element, with `parent` links expanding outward through the AST
 /// hierarchy.
 #[must_use]
-pub fn compute_selection_ranges(
+pub(crate) fn compute_selection_ranges(
     doc: &DocumentState,
     positions: &[Position],
 ) -> Vec<SelectionRange> {
@@ -284,12 +279,12 @@ fn collect_inline_ranges(inlines: &[InlineNode], offset: usize, ranges: &mut Vec
 mod tests {
     use super::*;
     use crate::state::Workspace;
-    use tower_lsp::lsp_types::Url;
+    use tower_lsp_server::ls_types::Uri;
 
     /// Helper: parse a document and compute selection ranges for a position.
     fn selection_ranges_at(content: &str, line: u32, character: u32) -> Vec<SelectionRange> {
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
         let positions = vec![Position { line, character }];
@@ -362,7 +357,7 @@ mod tests {
     fn test_multiple_positions() {
         let content = "= Title\n\nFirst paragraph.\n\nSecond paragraph.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc").unwrap();
+        let uri = "file:///test.adoc".parse::<Uri>().unwrap();
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).unwrap();
         let positions = vec![

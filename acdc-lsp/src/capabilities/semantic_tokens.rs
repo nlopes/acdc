@@ -11,21 +11,17 @@
 use acdc_parser::{
     Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
 };
-use tower_lsp::lsp_types::{
+use tower_lsp_server::ls_types::{
     SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     WorkDoneProgressOptions,
 };
 
+use crate::convert::to_lsp_u32;
 use crate::state::ConditionalBlock;
 
-/// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
-fn to_lsp_u32(val: usize) -> u32 {
-    val.try_into().unwrap_or(u32::MAX)
-}
-
 /// Semantic token types used by this LSP
-pub const TOKEN_TYPES: &[SemanticTokenType] = &[
+pub(crate) const TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::NAMESPACE, // 0 - section titles
     SemanticTokenType::FUNCTION,  // 1 - macros (xref, link, image, include)
     SemanticTokenType::PROPERTY,  // 2 - attribute names
@@ -38,7 +34,7 @@ pub const TOKEN_TYPES: &[SemanticTokenType] = &[
 ];
 
 /// Semantic token modifiers
-pub const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
+pub(crate) const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
     SemanticTokenModifier::DECLARATION,     // 0 - anchor definitions
     SemanticTokenModifier::DEFINITION,      // 1 - section with ID
     SemanticTokenModifier::new("disabled"), // 2 - inactive conditional content
@@ -46,7 +42,7 @@ pub const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
 
 /// Create the semantic tokens legend for capability registration
 #[must_use]
-pub fn create_legend() -> SemanticTokensLegend {
+pub(crate) fn create_legend() -> SemanticTokensLegend {
     SemanticTokensLegend {
         token_types: TOKEN_TYPES.to_vec(),
         token_modifiers: TOKEN_MODIFIERS.to_vec(),
@@ -55,7 +51,7 @@ pub fn create_legend() -> SemanticTokensLegend {
 
 /// Create semantic tokens options for capability registration
 #[must_use]
-pub fn create_options() -> SemanticTokensOptions {
+pub(crate) fn create_options() -> SemanticTokensOptions {
     SemanticTokensOptions {
         legend: create_legend(),
         full: Some(SemanticTokensFullOptions::Bool(true)),
@@ -75,7 +71,7 @@ struct RawToken {
 
 /// Compute semantic tokens for a document, including conditional directive awareness.
 #[must_use]
-pub fn compute_semantic_tokens(
+pub(crate) fn compute_semantic_tokens(
     doc: &Document,
     conditionals: &[ConditionalBlock],
     text: &str,

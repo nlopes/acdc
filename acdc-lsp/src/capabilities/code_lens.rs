@@ -1,7 +1,7 @@
 //! `CodeLens`: show reference counts above headings, anchors, and attribute definitions
 
 use acdc_parser::{Block, Document, InlineNode, Section};
-use tower_lsp::lsp_types::{CodeLens, Command, Url};
+use tower_lsp_server::ls_types::{CodeLens, Command, Uri};
 
 use crate::convert::location_to_range;
 use crate::state::{DocumentState, Workspace, XrefTarget};
@@ -13,9 +13,9 @@ use crate::state::{DocumentState, Workspace, XrefTarget};
 /// - Standalone inline anchors
 /// - Document attribute definitions
 #[must_use]
-pub fn compute_code_lenses(
+pub(crate) fn compute_code_lenses(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
 ) -> Vec<CodeLens> {
     let mut lenses = Vec::new();
@@ -31,7 +31,7 @@ pub fn compute_code_lenses(
 /// Collect code lenses for section headings and inline anchors.
 fn collect_section_lenses(
     ast: &Document,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
@@ -42,7 +42,7 @@ fn collect_section_lenses(
 
 fn collect_block_lenses(
     block: &Block,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
@@ -105,7 +105,7 @@ fn collect_block_lenses(
 
 fn collect_delimited_lenses(
     inner: &acdc_parser::DelimitedBlockType,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
@@ -134,7 +134,7 @@ fn collect_delimited_lenses(
 
 fn add_section_lens(
     section: &Section,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
@@ -144,7 +144,7 @@ fn add_section_lens(
 
     let range = location_to_range(&section.location);
     // Zero-width range at start of heading line
-    let range = tower_lsp::lsp_types::Range {
+    let range = tower_lsp_server::ls_types::Range {
         start: range.start,
         end: range.start,
     };
@@ -158,7 +158,7 @@ fn add_section_lens(
 
 fn collect_inline_anchor_lenses(
     inlines: &[InlineNode],
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
@@ -167,7 +167,7 @@ fn collect_inline_anchor_lenses(
             InlineNode::InlineAnchor(anchor) => {
                 let count = count_xrefs_to_anchor(&anchor.id, workspace);
                 let range = location_to_range(&anchor.location);
-                let range = tower_lsp::lsp_types::Range {
+                let range = tower_lsp_server::ls_types::Range {
                     start: range.start,
                     end: range.start,
                 };
@@ -214,14 +214,14 @@ fn collect_inline_anchor_lenses(
 /// Collect code lenses for document attribute definitions.
 fn collect_attribute_def_lenses(
     doc: &DocumentState,
-    doc_uri: &Url,
+    doc_uri: &Uri,
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
     for (name, loc) in &doc.attribute_defs {
         let count = count_attribute_refs(name, workspace);
         let range = location_to_range(loc);
-        let range = tower_lsp::lsp_types::Range {
+        let range = tower_lsp_server::ls_types::Range {
             start: range.start,
             end: range.start,
         };
@@ -266,8 +266,8 @@ fn count_attribute_refs(attr_name: &str, workspace: &Workspace) -> usize {
 /// Build a Command for a `CodeLens` showing reference count.
 fn make_references_command(
     count: usize,
-    uri: &Url,
-    position: tower_lsp::lsp_types::Position,
+    uri: &Uri,
+    position: tower_lsp_server::ls_types::Position,
 ) -> Command {
     let title = match count {
         0 => "0 references".to_string(),
@@ -298,7 +298,7 @@ mod tests {
     fn test_section_with_references() -> Result<(), Box<dyn std::error::Error>> {
         let content = "[[target]]\n== Target Section\n\nFirst reference <<target>>.\n\nSecond reference <<target>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -328,7 +328,7 @@ mod tests {
     fn test_section_with_zero_references() -> Result<(), Box<dyn std::error::Error>> {
         let content = "== Lonely Section\n\nNo one references this.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -345,8 +345,8 @@ mod tests {
     #[test]
     fn test_cross_file_references() -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        let uri1 = Url::parse("file:///doc1.adoc")?;
-        let uri2 = Url::parse("file:///doc2.adoc")?;
+        let uri1 = "file:///doc1.adoc".parse::<Uri>()?;
+        let uri2 = "file:///doc2.adoc".parse::<Uri>()?;
 
         let content1 = "[[shared]]\n== Shared Section\n\nContent.\n";
         let content2 = "= Other Doc\n\nSee <<shared>> for details.\n";
@@ -375,7 +375,7 @@ mod tests {
         let content =
             "== First Section\n\n<<_second_section,see below>>\n\n== Second Section\n\nContent.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -394,7 +394,7 @@ mod tests {
     fn test_auto_generated_section_id() -> Result<(), Box<dyn std::error::Error>> {
         let content = "== My Section\n\nSee <<_my_section>>.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -415,7 +415,7 @@ mod tests {
     fn test_attribute_definition_lens() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":imagesdir: ./images\n\n== Section\n\nImage in {imagesdir}/logo.png\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 
@@ -442,7 +442,7 @@ mod tests {
     fn test_attribute_with_no_references() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":unused-attr: some value\n\n== Section\n\nNo attribute refs here.\n";
         let workspace = Workspace::new();
-        let uri = Url::parse("file:///test.adoc")?;
+        let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), content.to_string(), 1);
         let doc = workspace.get_document(&uri).ok_or("document not found")?;
 

@@ -1,12 +1,9 @@
 //! Folding Ranges: enable collapsible sections and blocks in editors
 
 use acdc_parser::{Block, DelimitedBlockType, Document, Location};
-use tower_lsp::lsp_types::{FoldingRange, FoldingRangeKind};
+use tower_lsp_server::ls_types::{FoldingRange, FoldingRangeKind};
 
-/// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
-fn to_lsp_u32(val: usize) -> u32 {
-    val.try_into().unwrap_or(u32::MAX)
-}
+use crate::convert::to_lsp_u32;
 
 /// Compute all folding ranges in a document
 ///
@@ -16,7 +13,7 @@ fn to_lsp_u32(val: usize) -> u32 {
 /// - Lists (ordered, unordered, description)
 /// - Comment blocks
 #[must_use]
-pub fn compute_folding_ranges(doc: &Document) -> Vec<FoldingRange> {
+pub(crate) fn compute_folding_ranges(doc: &Document) -> Vec<FoldingRange> {
     let mut ranges = Vec::new();
     collect_ranges_from_blocks(&doc.blocks, &mut ranges);
     ranges

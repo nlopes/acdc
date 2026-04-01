@@ -2,8 +2,8 @@
 //!
 //! Contains the main `Backend` struct that implements the `LanguageServer` trait.
 
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::{
+use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::ls_types::{
     CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
     CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
     CallHierarchyServerCapability, CodeActionOptions, CodeActionParams,
@@ -21,10 +21,11 @@ use tower_lsp::lsp_types::{
     SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
     ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
     SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextEdit, Url, WorkDoneProgressOptions, WorkspaceEdit,
+    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
     WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities, WorkspaceSymbolParams,
+    WorkspaceSymbolResponse,
 };
-use tower_lsp::{Client, LanguageServer};
+use tower_lsp_server::{Client, LanguageServer};
 
 use crate::capabilities::{
     call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
@@ -52,7 +53,7 @@ impl Backend {
     }
 
     /// Publish diagnostics for a document
-    async fn publish_diagnostics(&self, uri: Url) {
+    async fn publish_diagnostics(&self, uri: Uri) {
         if let Some(doc) = self.workspace.get_document(&uri) {
             self.client
                 .publish_diagnostics(uri, doc.diagnostics.clone(), Some(doc.version))
@@ -61,7 +62,6 @@ impl Backend {
     }
 }
 
-#[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("Initializing acdc-lsp");
@@ -107,7 +107,7 @@ impl LanguageServer for Backend {
                 })),
                 // Enable semantic tokens for syntax highlighting
                 semantic_tokens_provider: Some(
-                    tower_lsp::lsp_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
+                    tower_lsp_server::ls_types::SemanticTokensServerCapabilities::SemanticTokensOptions(
                         semantic_tokens::create_options(),
                     ),
                 ),
@@ -117,9 +117,9 @@ impl LanguageServer for Backend {
                 code_action_provider: Some(CodeActionProviderCapability::Options(
                     CodeActionOptions {
                         code_action_kinds: Some(vec![
-                            tower_lsp::lsp_types::CodeActionKind::QUICKFIX,
-                            tower_lsp::lsp_types::CodeActionKind::REFACTOR_EXTRACT,
-                            tower_lsp::lsp_types::CodeActionKind::SOURCE,
+                            tower_lsp_server::ls_types::CodeActionKind::QUICKFIX,
+                            tower_lsp_server::ls_types::CodeActionKind::REFACTOR_EXTRACT,
+                            tower_lsp_server::ls_types::CodeActionKind::SOURCE,
                         ]),
                         work_done_progress_options: WorkDoneProgressOptions::default(),
                         resolve_provider: Some(false),
@@ -182,6 +182,7 @@ impl LanguageServer for Backend {
                 name: "acdc-lsp".to_string(),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
+            offset_encoding: None,
         })
     }
 
@@ -199,41 +200,37 @@ impl LanguageServer for Backend {
         Ok(())
     }
 
+    #[tracing::instrument(name = "lsp/didOpen", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-
-        tracing::debug!("Document opened: {uri}");
-
         self.workspace.update_document(uri.clone(), text, version);
         self.publish_diagnostics(uri).await;
     }
 
+    #[tracing::instrument(name = "lsp/didChange", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
 
         // With FULL sync, we get the complete new text
         if let Some(change) = params.content_changes.into_iter().next() {
-            tracing::debug!("Document changed: {uri}");
-
             self.workspace
                 .update_document(uri.clone(), change.text, version);
             self.publish_diagnostics(uri).await;
         }
     }
 
+    #[tracing::instrument(name = "lsp/didClose", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-
-        tracing::debug!("Document closed: {uri}");
-
         self.workspace.remove_document(&uri);
         // Clear diagnostics for closed file
         self.client.publish_diagnostics(uri, vec![], None).await;
     }
 
+    #[tracing::instrument(name = "lsp/documentSymbol", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn document_symbol(
         &self,
         params: DocumentSymbolParams,
@@ -252,10 +249,11 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/workspaceSymbol", level = "debug", skip_all, fields(query = %params.query))]
     async fn symbol(
         &self,
         params: WorkspaceSymbolParams,
-    ) -> Result<Option<Vec<SymbolInformation>>> {
+    ) -> Result<Option<WorkspaceSymbolResponse>> {
         let query = &params.query;
         let results = self.workspace.query_workspace_symbols(query);
 
@@ -264,7 +262,7 @@ impl LanguageServer for Backend {
             .map(|(uri, symbol)| SymbolInformation {
                 name: symbol.name,
                 kind: symbol.kind,
-                location: tower_lsp::lsp_types::Location {
+                location: tower_lsp_server::ls_types::Location {
                     uri,
                     range: crate::convert::location_to_range(&symbol.location),
                 },
@@ -277,37 +275,41 @@ impl LanguageServer for Backend {
         if symbols.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(symbols))
+            Ok(Some(WorkspaceSymbolResponse::Flat(symbols)))
         }
     }
 
+    #[tracing::instrument(name = "lsp/gotoDefinition", level = "info", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
     async fn goto_definition(
         &self,
         params: GotoDefinitionParams,
     ) -> Result<Option<GotoDefinitionResponse>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
-
-        tracing::info!(%uri, ?position, "goto_definition request");
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             let result =
                 definition::find_definition_at_position(&doc, &uri, &self.workspace, position);
             tracing::info!(found = result.is_some(), "goto_definition result");
             result.map(|(target_uri, loc)| {
-                tracing::info!(%target_uri, ?loc, "goto_definition resolved to");
-                GotoDefinitionResponse::Scalar(tower_lsp::lsp_types::Location {
+                tracing::info!(
+                    target_uri = target_uri.as_str(),
+                    ?loc,
+                    "goto_definition resolved to"
+                );
+                GotoDefinitionResponse::Scalar(tower_lsp_server::ls_types::Location {
                     uri: target_uri,
                     range: crate::convert::location_to_range(&loc),
                 })
             })
         } else {
-            tracing::warn!(%uri, "document not found in workspace");
+            tracing::warn!(uri = uri.as_str(), "document not found in workspace");
             None
         };
 
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/hover", level = "info", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
     async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
@@ -321,10 +323,11 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/references", level = "debug", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
     async fn references(
         &self,
         params: ReferenceParams,
-    ) -> Result<Option<Vec<tower_lsp::lsp_types::Location>>> {
+    ) -> Result<Option<Vec<tower_lsp_server::ls_types::Location>>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
         let include_declaration = params.context.include_declaration;
@@ -338,6 +341,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/completion", level = "info", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
@@ -352,6 +356,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/signatureHelp", level = "debug", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
     async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
         let uri = params.text_document_position_params.text_document.uri;
         let position = params.text_document_position_params.position;
@@ -365,6 +370,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/documentLink", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
         let uri = params.text_document.uri;
 
@@ -376,6 +382,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/foldingRange", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
         let uri = params.text_document.uri;
 
@@ -388,6 +395,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/prepareRename", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn prepare_rename(
         &self,
         params: TextDocumentPositionParams,
@@ -404,6 +412,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/rename", level = "debug", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
     async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
@@ -418,6 +427,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/codeAction", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
         let uri = params.text_document.uri;
 
@@ -428,6 +438,7 @@ impl LanguageServer for Backend {
         Ok(response.filter(|actions| !actions.is_empty()))
     }
 
+    #[tracing::instrument(name = "lsp/codeLens", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
         let uri = params.text_document.uri;
 
@@ -439,6 +450,7 @@ impl LanguageServer for Backend {
         Ok(response.filter(|lenses| !lenses.is_empty()))
     }
 
+    #[tracing::instrument(name = "lsp/semanticTokensFull", level = "info", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn semantic_tokens_full(
         &self,
         params: SemanticTokensParams,
@@ -460,6 +472,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/formatting", level = "info", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
         let uri = params.text_document.uri;
 
@@ -471,6 +484,7 @@ impl LanguageServer for Backend {
         Ok(response.filter(|edits| !edits.is_empty()))
     }
 
+    #[tracing::instrument(name = "lsp/rangeFormatting", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn range_formatting(
         &self,
         params: DocumentRangeFormattingParams,
@@ -485,6 +499,7 @@ impl LanguageServer for Backend {
         Ok(response.filter(|edits| !edits.is_empty()))
     }
 
+    #[tracing::instrument(name = "lsp/onTypeFormatting", level = "debug", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
     async fn on_type_formatting(
         &self,
         params: DocumentOnTypeFormattingParams,
@@ -500,6 +515,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/inlayHint", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
         let uri = params.text_document.uri;
 
@@ -511,6 +527,7 @@ impl LanguageServer for Backend {
         Ok(response.filter(|hints| !hints.is_empty()))
     }
 
+    #[tracing::instrument(name = "lsp/selectionRange", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn selection_range(
         &self,
         params: SelectionRangeParams,
@@ -525,19 +542,20 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/willRenameFiles", level = "debug", skip_all, fields(count = params.files.len()))]
     async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
-        tracing::info!(count = params.files.len(), "workspace/willRenameFiles");
         Ok(file_rename::compute_file_rename_edits(
             &self.workspace,
             &params.files,
         ))
     }
 
+    #[tracing::instrument(name = "lsp/didRenameFiles", level = "debug", skip_all, fields(count = params.files.len()))]
     async fn did_rename_files(&self, params: RenameFilesParams) {
-        tracing::info!(count = params.files.len(), "workspace/didRenameFiles");
         file_rename::update_workspace_after_rename(&self.workspace, &params.files);
     }
 
+    #[tracing::instrument(name = "lsp/prepareCallHierarchy", level = "debug", skip_all, fields(uri = params.text_document_position_params.text_document.uri.as_str()))]
     async fn prepare_call_hierarchy(
         &self,
         params: CallHierarchyPrepareParams,
@@ -554,6 +572,7 @@ impl LanguageServer for Backend {
         Ok(response)
     }
 
+    #[tracing::instrument(name = "lsp/incomingCalls", level = "debug", skip_all)]
     async fn incoming_calls(
         &self,
         params: CallHierarchyIncomingCallsParams,
@@ -564,6 +583,7 @@ impl LanguageServer for Backend {
         ))
     }
 
+    #[tracing::instrument(name = "lsp/outgoingCalls", level = "debug", skip_all)]
     async fn outgoing_calls(
         &self,
         params: CallHierarchyOutgoingCallsParams,

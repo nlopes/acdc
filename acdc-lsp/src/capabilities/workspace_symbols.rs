@@ -1,22 +1,22 @@
 //! Workspace symbols: extract navigable symbols from documents for cross-file search
 
 use acdc_parser::{Block, DelimitedBlockType, Document, Section, inlines_to_string};
-use tower_lsp::lsp_types::SymbolKind;
+use tower_lsp_server::ls_types::SymbolKind;
 
 use acdc_parser::Location;
 
 /// A symbol extracted from a document for workspace-wide search
 #[derive(Debug, Clone)]
-pub struct IndexedSymbol {
-    pub name: String,
-    pub kind: SymbolKind,
-    pub location: Location,
-    pub detail: Option<String>,
+pub(crate) struct IndexedSymbol {
+    pub(crate) name: String,
+    pub(crate) kind: SymbolKind,
+    pub(crate) location: Location,
+    pub(crate) detail: Option<String>,
 }
 
 /// Extract all navigable symbols from a parsed document
 #[must_use]
-pub fn extract_workspace_symbols(doc: &Document) -> Vec<IndexedSymbol> {
+pub(crate) fn extract_workspace_symbols(doc: &Document) -> Vec<IndexedSymbol> {
     let mut symbols = Vec::new();
 
     // Document title

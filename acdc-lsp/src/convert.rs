@@ -1,14 +1,15 @@
 //! Type conversions between acdc-parser and LSP types
 
 use acdc_parser::Location;
-use tower_lsp::lsp_types::{Position, Range, Url};
+use tower_lsp_server::ls_types::{Position, Range, Uri};
 
 /// Convert usize to u32 for LSP types, saturating at `u32::MAX`.
 ///
 /// LSP uses u32 for line/column numbers while the parser uses usize.
 /// In practice, source files won't have 4 billion+ lines/columns,
 /// so saturation is a safe fallback.
-fn to_lsp_u32(val: usize) -> u32 {
+#[must_use]
+pub(crate) fn to_lsp_u32(val: usize) -> u32 {
     val.try_into().unwrap_or(u32::MAX)
 }
 
@@ -16,7 +17,7 @@ fn to_lsp_u32(val: usize) -> u32 {
 ///
 /// Returns `None` if the position is out of bounds.
 #[must_use]
-pub fn position_to_offset(source: &str, position: Position) -> Option<usize> {
+pub(crate) fn position_to_offset(source: &str, position: Position) -> Option<usize> {
     let target_line = position.line as usize;
     let target_char = position.character as usize;
 
@@ -39,7 +40,7 @@ pub fn position_to_offset(source: &str, position: Position) -> Option<usize> {
 /// The parser's `absolute_end` is inclusive (points to the last byte of the
 /// span), so we use `<=` for the upper bound.
 #[must_use]
-pub fn offset_in_location(offset: usize, location: &Location) -> bool {
+pub(crate) fn offset_in_location(offset: usize, location: &Location) -> bool {
     offset >= location.absolute_start && offset <= location.absolute_end
 }
 
@@ -50,7 +51,7 @@ pub fn offset_in_location(offset: usize, location: &Location) -> bool {
 /// We convert start by subtracting 1, and end by keeping the column as-is
 /// (subtract 1 for 1-indexed→0-indexed, then add 1 for inclusive→exclusive).
 #[must_use]
-pub fn location_to_range(loc: &Location) -> Range {
+pub(crate) fn location_to_range(loc: &Location) -> Range {
     Range {
         start: Position {
             line: to_lsp_u32(loc.start.line.saturating_sub(1)),
@@ -67,7 +68,7 @@ pub fn location_to_range(loc: &Location) -> Range {
 ///
 /// Note: acdc-parser uses 1-indexed, LSP uses 0-indexed
 #[must_use]
-pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
+pub(crate) fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
     Position {
         line: to_lsp_u32(pos.line.saturating_sub(1)),
         character: to_lsp_u32(pos.column.saturating_sub(1)),
@@ -76,20 +77,23 @@ pub fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
 
 /// Resolve a relative path against a document URI's directory.
 ///
-/// Strips the filename from `doc_uri` to get the directory, then joins
-/// `relative_path` against it. Used for resolving include targets,
-/// image sources, and cross-references.
+/// Uses RFC 3986 reference resolution via `fluent_uri`, which correctly
+/// handles `..` and `.` segments, percent-encoding, and edge cases.
 #[must_use]
-pub fn resolve_relative_uri(doc_uri: &Url, relative_path: &str) -> Option<Url> {
-    let mut base = doc_uri.clone();
-    base.path_segments_mut().ok()?.pop();
-    let base_str = base.as_str();
-    let base = if base_str.ends_with('/') {
-        base
-    } else {
-        Url::parse(&format!("{base_str}/")).ok()?
-    };
-    base.join(relative_path).ok()
+pub(crate) fn resolve_relative_uri(doc_uri: &Uri, relative_path: &str) -> Option<Uri> {
+    let reference = fluent_uri::UriRef::parse(relative_path).ok()?;
+    let resolved = reference.resolve_against(doc_uri).ok()?;
+    resolved.as_str().parse().ok()
+}
+
+/// Extract the filename from a URI string (last path segment).
+#[must_use]
+pub(crate) fn uri_filename(uri: &Uri) -> &str {
+    uri.as_str()
+        .rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .unwrap_or(uri.as_str())
 }
 
 #[cfg(test)]
@@ -149,5 +153,45 @@ mod tests {
         assert!(offset_in_location(15, &location));
         assert!(offset_in_location(20, &location)); // end is inclusive
         assert!(!offset_in_location(21, &location));
+    }
+
+    #[test]
+    fn test_resolve_relative_uri_simple() -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/main.adoc".parse()?;
+        let resolved = resolve_relative_uri(&doc, "chapter2.adoc");
+        assert_eq!(
+            resolved.map(|u| u.as_str().to_string()),
+            Some("file:///docs/chapter2.adoc".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_relative_uri_parent_traversal() -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/sub/main.adoc".parse()?;
+        let resolved = resolve_relative_uri(&doc, "../other.adoc");
+        assert_eq!(
+            resolved.map(|u| u.as_str().to_string()),
+            Some("file:///docs/other.adoc".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_resolve_relative_uri_dot_segment() -> Result<(), Box<dyn std::error::Error>> {
+        let doc: Uri = "file:///docs/main.adoc".parse()?;
+        let resolved = resolve_relative_uri(&doc, "./chapter.adoc");
+        assert_eq!(
+            resolved.map(|u| u.as_str().to_string()),
+            Some("file:///docs/chapter.adoc".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_uri_filename() -> Result<(), Box<dyn std::error::Error>> {
+        let uri: Uri = "file:///docs/main.adoc".parse()?;
+        assert_eq!(uri_filename(&uri), "main.adoc");
+        Ok(())
     }
 }

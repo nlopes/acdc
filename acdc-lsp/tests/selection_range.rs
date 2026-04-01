@@ -1,8 +1,8 @@
 //! Integration tests for `textDocument/selectionRange`.
 
-mod lsp_harness;
+mod common;
 
-use lsp_harness::LspTestClient;
+use common::LspTestClient;
 use serde_json::json;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;

@@ -3,7 +3,7 @@
 use acdc_parser::{
     Block, DelimitedBlock, DelimitedBlockType, Document, Section, inlines_to_string,
 };
-use tower_lsp::lsp_types::{DocumentSymbol, SymbolKind};
+use tower_lsp_server::ls_types::{DocumentSymbol, SymbolKind};
 
 use crate::convert::location_to_range;
 
@@ -12,7 +12,7 @@ const PARAGRAPH_PREVIEW_LEN: usize = 50;
 
 /// Extract document outline as nested symbols
 #[must_use]
-pub fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
+pub(crate) fn document_symbols(doc: &Document) -> Vec<DocumentSymbol> {
     let mut symbols = vec![];
 
     // Add header as top-level symbol if present
