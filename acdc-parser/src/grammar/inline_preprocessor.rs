@@ -237,6 +237,13 @@ fn to_unsigned(value: i32, context: &str) -> Result<usize, Error> {
     })
 }
 
+/// Whether a position being mapped is a start or end of a span.
+#[derive(Clone, Copy)]
+enum MappingEdge {
+    Start,
+    End,
+}
+
 impl SourceMap {
     /// Record a substitution.
     /// - `absolute_start`: where in the processed text the placeholder was inserted.
@@ -266,7 +273,7 @@ impl SourceMap {
     /// attribute reference start. Use `map_end_position` when mapping an
     /// end/closing position that should resolve to the attribute end.
     pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
-        self.map_position_inner(pos, false)
+        self.map_position_inner(pos, MappingEdge::Start)
     }
 
     /// Like `map_position`, but for end/closing positions.
@@ -276,11 +283,11 @@ impl SourceMap {
     /// end of a substituted value (e.g., end of `"2.0"` replacing `{version}`)
     /// maps to the end of the original reference (`}`) rather than the start.
     pub(crate) fn map_end_position(&self, pos: usize) -> Result<usize, Error> {
-        self.map_position_inner(pos, true)
+        self.map_position_inner(pos, MappingEdge::End)
     }
 
     /// Core position mapping with cumulative offset tracking.
-    fn map_position_inner(&self, pos: usize, is_end: bool) -> Result<usize, Error> {
+    fn map_position_inner(&self, pos: usize, edge: MappingEdge) -> Result<usize, Error> {
         let pos_signed = to_signed(pos, "pos")?;
         // Cumulative growth: how many extra bytes the preprocessed text has
         // relative to the original at the current scan position.
@@ -305,15 +312,10 @@ impl SourceMap {
             if pos_signed < prep_end {
                 let offset_in_replacement = pos_signed - prep_start;
                 return match rep.kind {
-                    ProcessedKind::Attribute => {
-                        if is_end {
-                            // End position → map to end of original attribute reference
-                            to_unsigned(rep_end - 1, "attribute_end")
-                        } else {
-                            // Start position → map to start of original attribute reference
-                            Ok(rep.absolute_start)
-                        }
-                    }
+                    ProcessedKind::Attribute => match edge {
+                        MappingEdge::End => to_unsigned(rep_end - 1, "attribute_end"),
+                        MappingEdge::Start => Ok(rep.absolute_start),
+                    },
                     ProcessedKind::Passthrough => {
                         if offset_in_replacement >= original_length {
                             to_unsigned(rep_end - 1, "passthrough_clamped_end")
