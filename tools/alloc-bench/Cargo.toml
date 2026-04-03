@@ -6,5 +6,13 @@ publish = false
 
 [workspace]
 
+[[bin]]
+name = "alloc-bench"
+path = "src/main.rs"
+
+[[bin]]
+name = "type-sizes"
+path = "src/type_sizes.rs"
+
 [dependencies]
 acdc-parser = { path = "../../acdc-parser" }
