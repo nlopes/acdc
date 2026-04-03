@@ -60,7 +60,7 @@ pub(crate) fn process_passthrough_with_quotes(
             passthrough.location.clone()
         };
 
-        return vec![InlineNode::RawText(Raw {
+        return vec![InlineNode::RawText(Box::new(Raw {
             content: content.to_string(),
             location: content_location,
             subs: passthrough
@@ -69,7 +69,7 @@ pub(crate) fn process_passthrough_with_quotes(
                 .filter(|s| **s != Substitution::Quotes)
                 .cloned()
                 .collect(),
-        })];
+        }))];
     }
 
     tracing::debug!(content = ?content, "Parsing passthrough content with quotes");
@@ -118,11 +118,11 @@ pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
                 ?content,
                 "quotes-only PEG parse failed, falling back to plain text"
             );
-            vec![InlineNode::PlainText(Plain {
+            vec![InlineNode::PlainText(Box::new(Plain {
                 content: content.to_string(),
                 location: Location::default(),
                 escaped: false,
-            })]
+            }))]
         }
     }
 }
@@ -157,7 +157,7 @@ pub(crate) fn process_passthrough_placeholders(
             if let Some(before) = before_content
                 && !before.is_empty()
             {
-                result.push(InlineNode::PlainText(Plain {
+                result.push(InlineNode::PlainText(Box::new(Plain {
                     content: before.to_string(),
                     location: Location {
                         // Use original string positions
@@ -175,7 +175,7 @@ pub(crate) fn process_passthrough_placeholders(
                         },
                     },
                     escaped: false,
-                }));
+                })));
                 processed_offset += before.len();
             }
 
@@ -206,11 +206,12 @@ pub(crate) fn process_passthrough_placeholders(
                     // correct locations from passthrough.location).
                     if has_quotes {
                         if let InlineNode::PlainText(p) = node {
-                            node = InlineNode::RawText(Raw {
+                            let p = *p;
+                            node = InlineNode::RawText(Box::new(Raw {
                                 content: p.content,
                                 location: p.location,
                                 subs: remaining_subs.clone(),
-                            });
+                            }));
                         }
                     }
                     result.push(node);
@@ -226,41 +227,13 @@ pub(crate) fn process_passthrough_placeholders(
         }
     }
 
-    // Add any remaining content as plain text
-    if !remaining.is_empty() {
-        // Check if the last node is PlainText and merge if so
-        if let Some(InlineNode::PlainText(last_plain)) = result.last_mut() {
-            // Merge remaining content with the last plain text node
-            last_plain.content.push_str(remaining);
-            // Extend the location to include the remaining content
-            last_plain.location.absolute_end = base_location.absolute_end;
-            last_plain.location.end = base_location.end.clone();
-        } else {
-            // Add as separate node if last node is not plain text
-            result.push(InlineNode::PlainText(Plain {
-                content: remaining.to_string(),
-                location: Location {
-                    absolute_start: base_location.absolute_start + processed_offset,
-                    absolute_end: base_location.absolute_end,
-                    start: crate::Position {
-                        line: base_location.start.line,
-                        column: base_location.start.column + processed_offset,
-                    },
-                    end: base_location.end.clone(),
-                },
-                escaped: false,
-            }));
-        }
-    }
-
-    // If no placeholders were found, return the original content as plain text
-    if result.is_empty() {
-        result.push(InlineNode::PlainText(Plain {
-            content: content.to_string(),
-            location: base_location.clone(),
-            escaped: false,
-        }));
-    }
+    append_remaining_or_default(
+        &mut result,
+        remaining,
+        content,
+        base_location,
+        processed_offset,
+    );
 
     // Clamp all locations to valid bounds within the input string
     for node in &mut result {
@@ -272,6 +245,51 @@ pub(crate) fn process_passthrough_placeholders(
 }
 
 /// Merge adjacent plain text nodes into single nodes to simplify the output
+/// Append remaining text after all placeholders, or set default content if result is empty.
+fn append_remaining_or_default(
+    result: &mut Vec<InlineNode>,
+    remaining: &str,
+    content: &str,
+    base_location: &Location,
+    processed_offset: usize,
+) {
+    // Add any remaining content as plain text
+    if !remaining.is_empty() {
+        // Check if the last node is PlainText and merge if so
+        if let Some(InlineNode::PlainText(last_plain)) = result.last_mut() {
+            // Merge remaining content with the last plain text node
+            last_plain.content.push_str(remaining);
+            // Extend the location to include the remaining content
+            last_plain.location.absolute_end = base_location.absolute_end;
+            last_plain.location.end = base_location.end.clone();
+        } else {
+            // Add as separate node if last node is not plain text
+            result.push(InlineNode::PlainText(Box::new(Plain {
+                content: remaining.to_string(),
+                location: Location {
+                    absolute_start: base_location.absolute_start + processed_offset,
+                    absolute_end: base_location.absolute_end,
+                    start: crate::Position {
+                        line: base_location.start.line,
+                        column: base_location.start.column + processed_offset,
+                    },
+                    end: base_location.end.clone(),
+                },
+                escaped: false,
+            })));
+        }
+    }
+
+    // If no placeholders were found, return the original content as plain text
+    if result.is_empty() {
+        result.push(InlineNode::PlainText(Box::new(Plain {
+            content: content.to_string(),
+            location: base_location.clone(),
+            escaped: false,
+        })));
+    }
+}
+
 pub(crate) fn merge_adjacent_plain_text_nodes(nodes: Vec<InlineNode>) -> Vec<InlineNode> {
     let mut result = Vec::new();
 

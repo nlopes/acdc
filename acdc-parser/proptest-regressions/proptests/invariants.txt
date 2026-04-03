@@ -14,3 +14,4 @@ cc 4ca14355ae73103e6e3da9dac48ffca687b4c1bd5e57fb49450997f0deeb609e # shrinks to
 cc e05f914bc4225aae5e0cc339320c6e462c6fe3e78473216f03fa851b5a652b9d # shrinks to input = "A+A+\t`a`"
 cc 12cead0ba22142bc6943adcaf3f6aa69a2aebc982edcf000f48f20028ed332ed # shrinks to input = "!A\tA\t A+A+"
 cc 9ce96c0a6da0d892083ce2955eaca1757f7d6fd83e12dcfe98c4f8a4edcf4c02 # shrinks to input = "*'++)*\t"
+cc 53ea26586f9e8511a8a2e5c2b133dbe46287ed5550eeefff3f05512e655e844c # shrinks to input = "A A\t++\t\\_0"

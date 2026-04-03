@@ -92,16 +92,16 @@ fn get_literal_paragraph(
         all_lines_have_leading_space,
         "created literal paragraph"
     );
-    Block::Paragraph(Paragraph {
-        content: vec![InlineNode::PlainText(Plain {
+    Block::Paragraph(Box::new(Paragraph {
+        content: vec![InlineNode::PlainText(Box::new(Plain {
             content,
             location: location.clone(),
             escaped: false,
-        })],
+        }))],
         metadata,
         title: block_metadata.title.clone(),
         location,
-    })
+    }))
 }
 
 /// Assembles principal text from first line and continuation lines.
@@ -544,7 +544,7 @@ fn parse_table_block_impl(
         location: table_location.clone(),
     };
 
-    Ok(Block::DelimitedBlock(DelimitedBlock {
+    Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
         metadata: metadata.clone(),
         delimiter: open_delim.to_string(),
         inner: DelimitedBlockType::DelimitedTable(table),
@@ -552,7 +552,7 @@ fn parse_table_block_impl(
         location,
         open_delimiter_location: Some(open_delimiter_location),
         close_delimiter_location: Some(close_delimiter_location),
-    }))
+    })))
 }
 
 peg::parser! {
@@ -1013,10 +1013,10 @@ peg::parser! {
         rule comment_line_block(offset: usize) -> Result<Block, Error>
         = start:position!() "//" !("/") content:$([^'\n']*) end:position!() (eol() / ![_])
         {
-            Ok(Block::Comment(Comment {
+            Ok(Block::Comment(Box::new(Comment {
                 content: content.to_string(),
                 location: state.create_location(start + offset, end + offset),
-            }))
+            })))
         }
 
         // Check if the upcoming content is a section at same or higher level (which
@@ -1111,12 +1111,12 @@ peg::parser! {
             let level = section_level.1;
             let location = state.create_block_location(start, end, offset);
 
-            Ok(Block::DiscreteHeader(DiscreteHeader {
+            Ok(Block::DiscreteHeader(Box::new(DiscreteHeader {
                 metadata: block_metadata.metadata,
                 title,
                 level,
                 location,
-            }))
+            })))
         }
 
         pub(crate) rule document_attribute_block(offset: usize) -> Result<Block, Error>
@@ -1132,11 +1132,11 @@ peg::parser! {
                 AttributeValue::Bool(_) | AttributeValue::None => value,
             };
             state.document_attributes.set(key.into(), value.clone());
-            Ok(Block::DocumentAttribute(DocumentAttribute {
+            Ok(Block::DocumentAttribute(Box::new(DocumentAttribute {
                 name: key.into(),
                 value,
                 location: state.create_location(start+offset, end+offset)
-            }))
+            })))
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
@@ -1202,13 +1202,13 @@ peg::parser! {
                 }
             }
 
-            Ok(Block::Section(Section {
+            Ok(Block::Section(Box::new(Section {
                 metadata: block_metadata.metadata,
                 title,
                 level,
                 content: content.unwrap_or(Ok(Vec::new()))?,
                 location
-            }))
+            })))
         }
 
         /// Setext-style section header: Title underlined with `-`, `~`, `^`, or `+`
@@ -1316,13 +1316,13 @@ peg::parser! {
                 }
             }
 
-            Ok(Block::Section(Section {
+            Ok(Block::Section(Box::new(Section {
                 metadata: block_metadata.metadata,
                 title,
                 level: setext_level,
                 content: content.unwrap_or(Ok(Vec::new()))?,
                 location,
-            }))
+            })))
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata, Error>
@@ -1683,10 +1683,10 @@ peg::parser! {
             let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
                 tracing::debug!(?admonition_variant, "Detected admonition block with variant");
                 metadata.style = None; // Clear style to avoid confusion (reuse existing clone)
-                return Ok(Block::Admonition(Admonition::new(admonition_variant, blocks, location).with_metadata(metadata).with_title(block_metadata.title.clone())));
+                return Ok(Block::Admonition(Box::new(Admonition::new(admonition_variant, blocks, location).with_metadata(metadata).with_title(block_metadata.title.clone()))));
             }
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata, // Use the existing clone instead of cloning again
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedExample(blocks),
@@ -1694,7 +1694,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -1714,19 +1714,19 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata,
                 delimiter: open_delim.to_string(),
-                inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
+                inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Box::new(Plain {
                     content: content.to_string(),
                     location: content_location,
                     escaped: false,
-                })]),
+                }))]),
                 title: block_metadata.title.clone(),
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -1753,7 +1753,7 @@ peg::parser! {
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedListing(inlines),
@@ -1761,7 +1761,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -1793,7 +1793,7 @@ peg::parser! {
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedListing(inlines),
@@ -1801,7 +1801,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -1830,7 +1830,7 @@ peg::parser! {
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata,
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedLiteral(inlines),
@@ -1838,7 +1838,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -1865,7 +1865,7 @@ peg::parser! {
                 })?
             };
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedOpen(blocks),
@@ -1873,7 +1873,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -1902,7 +1902,7 @@ peg::parser! {
                 })?
             };
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner: DelimitedBlockType::DelimitedSidebar(blocks),
@@ -1910,7 +1910,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         // Table block dispatcher - tries each delimiter-specific variant in order.
@@ -2021,21 +2021,21 @@ peg::parser! {
                         notation,
                     })
                 } else {
-                    DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
+                    DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Box::new(Raw {
                         content: content.to_string(),
                         location: content_location,
                         subs: vec![],
-                    })])
+                    }))])
                 }
             } else {
-                DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
+                DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Box::new(Raw {
                     content: content.to_string(),
                     location: content_location,
                     subs: vec![],
-                })])
+                }))])
             };
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner,
@@ -2043,7 +2043,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2101,11 +2101,11 @@ peg::parser! {
 
             let inner = if let Some(ref style) = metadata.style {
                 if style == "verse" {
-                    DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(Plain {
+                    DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(Box::new(Plain {
                         content: content.to_string(),
                         location: content_location.clone(),
                         escaped: false,
-                    })])
+                    }))])
                 } else {
                     let blocks = document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
                         adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing example content as blocks in quote block");
@@ -2125,7 +2125,7 @@ peg::parser! {
                 DelimitedBlockType::DelimitedQuote(blocks)
             };
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata: metadata.clone(),
                 delimiter: open_delim.to_string(),
                 inner,
@@ -2133,7 +2133,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: Some(open_delimiter_location),
                 close_delimiter_location: Some(close_delimiter_location),
-            }))
+            })))
         }
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2146,10 +2146,10 @@ peg::parser! {
             metadata.move_positional_attributes_to_attributes();
             state.warn_trailing_macro_content("toc", trailing, end, offset);
             tracing::info!("Found Table of Contents block");
-            Ok(Block::TableOfContents(TableOfContents {
+            Ok(Block::TableOfContents(Box::new(TableOfContents {
                 metadata,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2172,13 +2172,13 @@ peg::parser! {
                 metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
-            Ok(Block::Image(Image {
+            Ok(Block::Image(Box::new(Image {
                 title,
                 source,
                 metadata,
                 location: state.create_block_location(start, end, offset),
 
-            }))
+            })))
         }
 
         rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2191,12 +2191,12 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.merge(metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
-            Ok(Block::Audio(Audio {
+            Ok(Block::Audio(Box::new(Audio {
                 title,
                 source,
                 metadata,
                 location: state.create_block_location(start, end, offset),
-            }))
+            })))
         }
 
         // The video block is similar to the audio and image blocks, but it supports
@@ -2229,12 +2229,12 @@ peg::parser! {
                 metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
             }
             metadata.move_positional_attributes_to_attributes();
-            Ok(Block::Video(Video {
+            Ok(Block::Video(Box::new(Video {
                 title,
                 sources,
                 metadata,
                 location: state.create_block_location(start, end, offset),
-            }))
+            })))
         }
 
         rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2247,11 +2247,11 @@ peg::parser! {
             ) end:position!()
         {
             tracing::info!("Found thematic break block");
-            Ok(Block::ThematicBreak(ThematicBreak {
+            Ok(Block::ThematicBreak(Box::new(ThematicBreak {
                 anchors: block_metadata.metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
                 title: block_metadata.title.clone(),
                 location: state.create_block_location(start, end, offset),
-            }))
+            })))
         }
 
         rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2261,11 +2261,11 @@ peg::parser! {
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
-            Ok(Block::PageBreak(PageBreak {
+            Ok(Block::PageBreak(Box::new(PageBreak {
                 title: block_metadata.title.clone(),
                 metadata,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
@@ -2404,13 +2404,13 @@ peg::parser! {
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
-            Ok(Block::UnorderedList(UnorderedList {
+            Ok(Block::UnorderedList(Box::new(UnorderedList {
                 title: if is_nested { Title::default() } else { block_metadata.title.clone() },
                 metadata: if is_nested { BlockMetadata::default() } else { block_metadata.metadata.clone() },
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         // Parse first item content after marker has been consumed by unordered_list
@@ -2478,13 +2478,13 @@ peg::parser! {
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
-            Ok(Block::OrderedList(OrderedList {
+            Ok(Block::OrderedList(Box::new(OrderedList {
                 title: if is_nested { Title::default() } else { block_metadata.title.clone() },
                 metadata: if is_nested { BlockMetadata::default() } else { block_metadata.metadata.clone() },
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         // Parse first item content after marker has been consumed by ordered_list
@@ -2796,13 +2796,13 @@ peg::parser! {
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
-            Ok(Block::UnorderedList(UnorderedList {
+            Ok(Block::UnorderedList(Box::new(UnorderedList {
                 title: Title::default(),
                 metadata: BlockMetadata::default(),
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         /// Parse rest items in a nested unordered list.
@@ -3086,13 +3086,13 @@ peg::parser! {
             let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or(String::new(), |item| item.marker.clone());
 
-            Ok(Block::OrderedList(OrderedList {
+            Ok(Block::OrderedList(Box::new(OrderedList {
                 title: Title::default(),
                 metadata: BlockMetadata::default(),
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         /// Parse rest items in a nested ordered list.
@@ -3189,12 +3189,12 @@ peg::parser! {
             state.last_block_was_verbatim = false;
             state.last_verbatim_callouts.clear();
 
-            Ok(Block::CalloutList(CalloutList {
+            Ok(Block::CalloutList(Box::new(CalloutList {
                 title: block_metadata.title.clone(),
                 metadata: block_metadata.metadata.clone(),
                 items,
                 location: state.create_location(start+offset, end+offset),
-            }))
+            })))
         }
 
         rule callout_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(CalloutListItem, String, usize), Error>
@@ -3302,12 +3302,12 @@ peg::parser! {
                 loc_end - offset
             });
 
-            Ok(Block::DescriptionList(DescriptionList {
+            Ok(Block::DescriptionList(Box::new(DescriptionList {
                 title: block_metadata.title.clone(),
                 metadata: block_metadata.metadata.clone(),
                 items,
                 location: state.create_location(start+offset, actual_end+offset),
-            }))
+            })))
         }
 
         // Parse additional description list items (after potential auto-attached content)
@@ -3555,7 +3555,7 @@ peg::parser! {
                 metadata.citetitle = Some(CiteTitle::new(inlines));
             }
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata,
                 delimiter: "\"".to_string(),
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
@@ -3563,7 +3563,7 @@ peg::parser! {
                 location: state.create_block_location(start, end, offset),
                 open_delimiter_location: None,
                 close_delimiter_location: None,
-            }))
+            })))
         }
 
         /// Parse a markdown-style blockquote: lines starting with `> `
@@ -3641,7 +3641,7 @@ peg::parser! {
                 })?
             };
 
-            Ok(Block::DelimitedBlock(DelimitedBlock {
+            Ok(Block::DelimitedBlock(Box::new(DelimitedBlock {
                 metadata,
                 delimiter: ">".to_string(),
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
@@ -3649,7 +3649,7 @@ peg::parser! {
                 location,
                 open_delimiter_location: None,
                 close_delimiter_location: None,
-            }))
+            })))
         }
 
         /// Match a content line of a markdown-style blockquote
@@ -3714,11 +3714,11 @@ peg::parser! {
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
             let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
-                vec![InlineNode::PlainText(Plain {
+                vec![InlineNode::PlainText(Box::new(Plain {
                     content: title.clone(),
                     location: state.create_location(start+offset, (start+offset).saturating_add(title.len()).saturating_sub(1)),
                     escaped: false,
-                })].into()
+                }))].into()
             } else {
                 block_metadata.title.clone()
             };
@@ -3732,30 +3732,30 @@ peg::parser! {
                     ));
                 };
                 tracing::info!(%variant, "found admonition block with variant");
-                Ok(Block::Admonition(Admonition{
+                Ok(Block::Admonition(Box::new(Admonition{
                     metadata: block_metadata.metadata.clone(),
                     title,
-                    blocks: vec![Block::Paragraph(Paragraph {
+                    blocks: vec![Block::Paragraph(Box::new(Paragraph {
                         content,
                         metadata: block_metadata.metadata.clone(),
                         title: Title::default(),
                         location: state.create_block_location(content_start.offset, end, offset),
-                    })],
+                    }))],
                     location: state.create_block_location(start, end, offset),
                     variant: parsed_variant,
 
-                }))
+                })))
             } else {
                 let mut metadata = block_metadata.metadata.clone();
                 metadata.move_positional_attributes_to_attributes();
 
                 tracing::info!(?content, ?location, "found paragraph block");
-                Ok(Block::Paragraph(Paragraph {
+                Ok(Block::Paragraph(Box::new(Paragraph {
                     content,
                     metadata,
                     title,
                     location: state.create_block_location(start, end, offset),
-                }))
+                })))
             }
         }
 
@@ -3842,11 +3842,11 @@ peg::parser! {
         {
             let substituted_id = substitute(id, HEADER, &state.document_attributes);
             let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
-            InlineNode::InlineAnchor(Anchor {
+            InlineNode::InlineAnchor(Box::new(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_block_location(start, end, offset)
-            })
+            }))
         }
 
         rule inline_anchor_match() -> ()
@@ -3865,11 +3865,11 @@ peg::parser! {
         {
             let substituted_id = substitute(id, HEADER, &state.document_attributes);
             let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
-            InlineNode::InlineAnchor(Anchor {
+            InlineNode::InlineAnchor(Box::new(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_block_location(start, end, offset)
-            })
+            }))
         }
 
         rule attributes_line() -> (bool, BlockMetadata)
@@ -3962,11 +3962,11 @@ peg::parser! {
                         if !cite.is_empty() {
                             let loc = positional_positions.get(1).copied().flatten()
                                 .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
-                            metadata.citetitle = Some(CiteTitle::new(vec![InlineNode::PlainText(Plain {
+                            metadata.citetitle = Some(CiteTitle::new(vec![InlineNode::PlainText(Box::new(Plain {
                                 content: cite,
                                 location: loc,
                                 escaped: false,
-                            })]));
+                            }))]));
                         }
                     }
                     if !metadata.positional_attributes.is_empty() {
@@ -3974,11 +3974,11 @@ peg::parser! {
                         if !attr.is_empty() {
                             let loc = positional_positions.first().copied().flatten()
                                 .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
-                            metadata.attribution = Some(Attribution::new(vec![InlineNode::PlainText(Plain {
+                            metadata.attribution = Some(Attribution::new(vec![InlineNode::PlainText(Box::new(Plain {
                                 content: attr,
                                 location: loc,
                                 escaped: false,
-                            })]));
+                            }))]));
                         }
                     }
                 }
@@ -4427,15 +4427,15 @@ fn resolve_verbatim_callouts(
 
             // Flush current text as VerbatimText
             if !current_text.is_empty() {
-                inlines.push(InlineNode::VerbatimText(Verbatim {
+                inlines.push(InlineNode::VerbatimText(Box::new(Verbatim {
                     content: std::mem::take(&mut current_text),
                     location: base_location.clone(),
-                }));
+                })));
             }
 
             // Create CalloutRef for auto-numbered callout
             let callout_ref = CalloutRef::auto(auto_number, base_location.clone());
-            inlines.push(InlineNode::CalloutRef(callout_ref.clone()));
+            inlines.push(InlineNode::CalloutRef(Box::new(callout_ref.clone())));
             callouts.push(callout_ref);
             auto_number += 1;
 
@@ -4453,15 +4453,15 @@ fn resolve_verbatim_callouts(
 
             // Flush current text as VerbatimText
             if !current_text.is_empty() {
-                inlines.push(InlineNode::VerbatimText(Verbatim {
+                inlines.push(InlineNode::VerbatimText(Box::new(Verbatim {
                     content: std::mem::take(&mut current_text),
                     location: base_location.clone(),
-                }));
+                })));
             }
 
             // Create CalloutRef for explicit callout
             let callout_ref = CalloutRef::explicit(number, base_location.clone());
-            inlines.push(InlineNode::CalloutRef(callout_ref.clone()));
+            inlines.push(InlineNode::CalloutRef(Box::new(callout_ref.clone())));
             callouts.push(callout_ref);
 
             // Add any trailing content after the callout marker
@@ -4481,10 +4481,10 @@ fn resolve_verbatim_callouts(
 
     // Flush any remaining text
     if !current_text.is_empty() {
-        inlines.push(InlineNode::VerbatimText(Verbatim {
+        inlines.push(InlineNode::VerbatimText(Box::new(Verbatim {
             content: current_text,
             location: base_location,
-        }));
+        })));
     }
 
     (inlines, callouts)
@@ -4540,7 +4540,7 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(header.title.len(), 1);
         assert_eq!(
             header.title[0],
-            InlineNode::PlainText(Plain {
+            InlineNode::PlainText(Box::new(Plain {
                 content: "Document Title".to_string(),
                 location: Location {
                     absolute_start: 34,
@@ -4552,7 +4552,7 @@ v2.9, 01-09-2024: Fall incarnation
                     },
                 },
                 escaped: false,
-            })
+            }))
         );
         assert_eq!(header.authors.len(), 2);
         assert_eq!(header.authors[0].first_name, "Lorn Kismet");
@@ -4784,7 +4784,7 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(result.0.len(), 1);
         assert_eq!(
             result.0[0],
-            InlineNode::PlainText(Plain {
+            InlineNode::PlainText(Box::new(Plain {
                 content: "Document Title".to_string(),
                 location: Location {
                     absolute_start: 2,
@@ -4796,7 +4796,7 @@ v2.9, 01-09-2024: Fall incarnation
                     },
                 },
                 escaped: false,
-            })
+            }))
         );
         Ok(())
     }
@@ -4810,7 +4810,7 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(
             result,
             (
-                Title::new(vec![InlineNode::PlainText(Plain {
+                Title::new(vec![InlineNode::PlainText(Box::new(Plain {
                     content: "Document Title".to_string(),
                     location: Location {
                         absolute_start: 2,
@@ -4822,23 +4822,25 @@ v2.9, 01-09-2024: Fall incarnation
                         },
                     },
                     escaped: false,
-                })]),
-                Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
-                    content: "And a subtitle".to_string(),
-                    location: Location {
-                        absolute_start: 18,
-                        absolute_end: 31,
-                        start: crate::Position {
-                            line: 1,
-                            column: 19,
+                }))]),
+                Some(Subtitle::new(vec![InlineNode::PlainText(Box::new(
+                    Plain {
+                        content: "And a subtitle".to_string(),
+                        location: Location {
+                            absolute_start: 18,
+                            absolute_end: 31,
+                            start: crate::Position {
+                                line: 1,
+                                column: 19,
+                            },
+                            end: crate::Position {
+                                line: 1,
+                                column: 32,
+                            },
                         },
-                        end: crate::Position {
-                            line: 1,
-                            column: 32,
-                        },
-                    },
-                    escaped: false,
-                })]))
+                        escaped: false,
+                    }
+                ))]))
             )
         );
         Ok(())
@@ -4855,7 +4857,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert_eq!(result.title.len(), 1);
         assert_eq!(
             result.title[0],
-            InlineNode::PlainText(Plain {
+            InlineNode::PlainText(Box::new(Plain {
                 content: "Document Title".to_string(),
                 location: Location {
                     absolute_start: 2,
@@ -4867,7 +4869,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     },
                 },
                 escaped: false,
-            })
+            }))
         );
         assert_eq!(result.authors.len(), 2);
         assert_eq!(result.authors[0].first_name, "Lorn Kismet");
@@ -5164,7 +5166,7 @@ Some content.
         let header = result.header.expect("document has a header");
         assert_eq!(header.title.len(), 1);
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+            matches!(&header.title[0], InlineNode::PlainText(p) if p.content == "Document Title")
         );
         Ok(())
     }
@@ -5195,7 +5197,7 @@ Content.
         let section = section.expect("should have a section");
         assert_eq!(section.level, 1);
         assert!(
-            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section One")
+            matches!(&section.title[0], InlineNode::PlainText(p) if p.content == "Section One")
         );
         Ok(())
     }
@@ -5244,7 +5246,7 @@ Content here.
         // Check document title (level 0)
         let header = result.header.expect("document has a header");
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+            matches!(&header.title[0], InlineNode::PlainText(p) if p.content == "Document Title")
         );
 
         // Find the section
@@ -5262,7 +5264,7 @@ Content here.
 
         assert_eq!(section.level, 1);
         assert!(
-            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section One")
+            matches!(&section.title[0], InlineNode::PlainText(p) if p.content == "Section One")
         );
 
         Ok(())
@@ -5298,7 +5300,7 @@ Content C.
         // Check document title
         let header = result.header.expect("document has a header");
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+            matches!(&header.title[0], InlineNode::PlainText(p) if p.content == "Document Title")
         );
 
         // All three sections should be at the top level (siblings, not nested)
@@ -5307,7 +5309,7 @@ Content C.
             .iter()
             .filter_map(|b| {
                 if let Block::Section(s) = b {
-                    Some(s)
+                    Some(s.as_ref())
                 } else {
                     None
                 }
@@ -5327,13 +5329,13 @@ Content C.
 
         // Verify titles
         assert!(
-            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section A")
+            matches!(&sections[0].title[0], InlineNode::PlainText(p) if p.content == "Section A")
         );
         assert!(
-            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section B")
+            matches!(&sections[1].title[0], InlineNode::PlainText(p) if p.content == "Section B")
         );
         assert!(
-            matches!(&sections[2].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section C")
+            matches!(&sections[2].title[0], InlineNode::PlainText(p) if p.content == "Section C")
         );
 
         Ok(())
@@ -5437,7 +5439,7 @@ Content C.
         // Verify document title parsed
         let header = result.header.expect("document has a header");
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+            matches!(&header.title[0], InlineNode::PlainText(p) if p.content.contains("gitdatamodel"))
         );
 
         // Verify NAME and SYNOPSIS are level-1 sections
@@ -5446,7 +5448,7 @@ Content C.
             .iter()
             .filter_map(|b| {
                 if let Block::Section(s) = b {
-                    Some(s)
+                    Some(s.as_ref())
                 } else {
                     None
                 }
@@ -5460,11 +5462,9 @@ Content C.
         );
         assert_eq!(sections[0].level, 1);
         assert_eq!(sections[1].level, 1);
+        assert!(matches!(&sections[0].title[0], InlineNode::PlainText(p) if p.content == "NAME"));
         assert!(
-            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "NAME")
-        );
-        assert!(
-            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "SYNOPSIS")
+            matches!(&sections[1].title[0], InlineNode::PlainText(p) if p.content == "SYNOPSIS")
         );
 
         Ok(())
@@ -5505,7 +5505,7 @@ References.
 
         let header = result.header.expect("document has a header");
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+            matches!(&header.title[0], InlineNode::PlainText(p) if p.content.contains("gitdatamodel"))
         );
 
         let sections: Vec<&Section> = result
@@ -5513,7 +5513,7 @@ References.
             .iter()
             .filter_map(|b| {
                 if let Block::Section(s) = b {
-                    Some(s)
+                    Some(s.as_ref())
                 } else {
                     None
                 }
@@ -5556,7 +5556,7 @@ References.
 
         // Check that the index term was parsed
         let has_index_term = paragraph.content.iter().any(|inline| {
-            matches!(inline, InlineNode::Macro(InlineMacro::IndexTerm(it)) if it.is_visible() && it.term() == "Arthur")
+            matches!(inline, InlineNode::Macro(m) if matches!(m.as_ref(), InlineMacro::IndexTerm(it) if it.is_visible() && it.term() == "Arthur"))
         });
 
         assert!(
@@ -5591,7 +5591,7 @@ References.
 
         // Check that the concealed index term was parsed
         let has_concealed_term = paragraph.content.iter().any(|inline| {
-            matches!(inline, InlineNode::Macro(InlineMacro::IndexTerm(it)) if !it.is_visible() && it.term() == "Sword")
+            matches!(inline, InlineNode::Macro(m) if matches!(m.as_ref(), InlineMacro::IndexTerm(it) if !it.is_visible() && it.term() == "Sword"))
         });
 
         assert!(

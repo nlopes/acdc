@@ -282,7 +282,6 @@ pub(crate) fn process_inlines_preprocessed(
     super::location_mapping::map_inline_locations(state, &processed, &result, &location)
 }
 
-
 /// Process inlines
 ///
 /// This function processes inline content by first preprocessing it and then parsing it

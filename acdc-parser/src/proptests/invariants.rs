@@ -518,3 +518,29 @@ fn verify_block_monotonic(block: &Block) {
         | Block::Comment(_) => {}
     }
 }
+
+/// Regression: empty passthrough `++` followed by escaped italic `\\_`
+/// caused location inversion (start > end) due to byte/char mismatch
+/// in source map `physical_length` computation.
+#[test]
+fn passthrough_with_escaped_italic_locations_valid() {
+    let input = "A A\t++\t\\_0";
+    let options = Options::default();
+    let Ok(doc) = parse(input, &options) else {
+        return; // Parse failure is acceptable; we only test location validity
+    };
+    walk_document_locations(&doc, &mut |loc, ctx| {
+        assert!(
+            loc.absolute_start <= loc.absolute_end,
+            "{ctx} location has start {} > end {}",
+            loc.absolute_start,
+            loc.absolute_end
+        );
+        assert!(
+            loc.absolute_start <= input.len(),
+            "{ctx} location start {} exceeds input length {}",
+            loc.absolute_start,
+            input.len()
+        );
+    });
+}

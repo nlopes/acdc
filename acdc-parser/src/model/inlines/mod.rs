@@ -21,25 +21,25 @@ use crate::{Anchor, Image, Location, model::Locateable};
 #[derive(Clone, Debug, PartialEq)]
 pub enum InlineNode {
     // This is just "normal" text
-    PlainText(Plain),
+    PlainText(Box<Plain>),
     // This is raw text only found in Delimited Pass blocks
-    RawText(Raw),
+    RawText(Box<Raw>),
     // This is verbatim text found in Delimited Literal and Listing blocks
-    VerbatimText(Verbatim),
-    BoldText(Bold),
-    ItalicText(Italic),
-    MonospaceText(Monospace),
-    HighlightText(Highlight),
-    SubscriptText(Subscript),
-    SuperscriptText(Superscript),
-    CurvedQuotationText(CurvedQuotation),
-    CurvedApostropheText(CurvedApostrophe),
-    StandaloneCurvedApostrophe(StandaloneCurvedApostrophe),
-    LineBreak(LineBreak),
-    InlineAnchor(Anchor),
-    Macro(InlineMacro),
+    VerbatimText(Box<Verbatim>),
+    BoldText(Box<Bold>),
+    ItalicText(Box<Italic>),
+    MonospaceText(Box<Monospace>),
+    HighlightText(Box<Highlight>),
+    SubscriptText(Box<Subscript>),
+    SuperscriptText(Box<Superscript>),
+    CurvedQuotationText(Box<CurvedQuotation>),
+    CurvedApostropheText(Box<CurvedApostrophe>),
+    StandaloneCurvedApostrophe(Box<StandaloneCurvedApostrophe>),
+    LineBreak(Box<LineBreak>),
+    InlineAnchor(Box<Anchor>),
+    Macro(Box<InlineMacro>),
     /// Callout reference marker in verbatim content: `<1>`, `<.>`, etc.
-    CalloutRef(CalloutRef),
+    CalloutRef(Box<CalloutRef>),
 }
 
 impl InlineNode {
@@ -131,9 +131,12 @@ impl Locateable for InlineMacro {
 /// # use acdc_parser::{InlineMacro, InlineNode};
 /// fn extract_link_target(node: &InlineNode) -> Option<String> {
 ///     match node {
-///         InlineNode::Macro(InlineMacro::Link(link)) => Some(link.target.to_string()),
-///         InlineNode::Macro(InlineMacro::Url(url)) => Some(url.target.to_string()),
-///         InlineNode::Macro(InlineMacro::CrossReference(xref)) => Some(xref.target.clone()),
+///         InlineNode::Macro(m) => match m.as_ref() {
+///             InlineMacro::Link(link) => Some(link.target.to_string()),
+///             InlineMacro::Url(url) => Some(url.target.to_string()),
+///             InlineMacro::CrossReference(xref) => Some(xref.target.clone()),
+///             _ => None,
+///         },
 ///         _ => None,
 ///     }
 /// }

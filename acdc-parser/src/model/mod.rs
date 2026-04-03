@@ -181,28 +181,28 @@ pub struct Comment {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Block {
-    TableOfContents(TableOfContents),
+    TableOfContents(Box<TableOfContents>),
     // TODO(nlopes): we shouldn't have an admonition type here, instead it should be
     // picked up from the style attribute from the block metadata.
     //
     // The main one that would need changing is the Paragraph and the Delimited Example
     // blocks, where we currently use this but don't need to.
-    Admonition(Admonition),
-    DiscreteHeader(DiscreteHeader),
-    DocumentAttribute(DocumentAttribute),
-    ThematicBreak(ThematicBreak),
-    PageBreak(PageBreak),
-    UnorderedList(UnorderedList),
-    OrderedList(OrderedList),
-    CalloutList(CalloutList),
-    DescriptionList(DescriptionList),
-    Section(Section),
-    DelimitedBlock(DelimitedBlock),
-    Paragraph(Paragraph),
-    Image(Image),
-    Audio(Audio),
-    Video(Video),
-    Comment(Comment),
+    Admonition(Box<Admonition>),
+    DiscreteHeader(Box<DiscreteHeader>),
+    DocumentAttribute(Box<DocumentAttribute>),
+    ThematicBreak(Box<ThematicBreak>),
+    PageBreak(Box<PageBreak>),
+    UnorderedList(Box<UnorderedList>),
+    OrderedList(Box<OrderedList>),
+    CalloutList(Box<CalloutList>),
+    DescriptionList(Box<DescriptionList>),
+    Section(Box<Section>),
+    DelimitedBlock(Box<DelimitedBlock>),
+    Paragraph(Box<Paragraph>),
+    Image(Box<Image>),
+    Audio(Box<Audio>),
+    Video(Box<Video>),
+    Comment(Box<Comment>),
 }
 
 impl Locateable for Block {

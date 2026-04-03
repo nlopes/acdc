@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,
   `parse_from_reader`) for phase-level timing visibility.
 
+### Changed
+
+- All `InlineNode` and `Block` enum variants are now boxed.
+
+### Fixed
+
+- Incorrect source locations for content following passthroughs or attribute substitutions.
+- End positions of attribute-substituted content now point to the end of the original reference.
+
 ## [0.8.0] - 2026-03-28
 
 ### Added

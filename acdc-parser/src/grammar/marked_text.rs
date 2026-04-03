@@ -153,27 +153,29 @@ impl WithLocationMappingContext for InlineNode {
         mapping_ctx: &LocationMappingContext,
     ) -> Result<InlineNode, crate::Error> {
         Ok(match self {
-            InlineNode::BoldText(node) => InlineNode::BoldText(node.map_locations(mapping_ctx)?),
+            InlineNode::BoldText(node) => {
+                InlineNode::BoldText(Box::new((*node).map_locations(mapping_ctx)?))
+            }
             InlineNode::ItalicText(node) => {
-                InlineNode::ItalicText(node.map_locations(mapping_ctx)?)
+                InlineNode::ItalicText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::MonospaceText(node) => {
-                InlineNode::MonospaceText(node.map_locations(mapping_ctx)?)
+                InlineNode::MonospaceText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::HighlightText(node) => {
-                InlineNode::HighlightText(node.map_locations(mapping_ctx)?)
+                InlineNode::HighlightText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::SubscriptText(node) => {
-                InlineNode::SubscriptText(node.map_locations(mapping_ctx)?)
+                InlineNode::SubscriptText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::SuperscriptText(node) => {
-                InlineNode::SuperscriptText(node.map_locations(mapping_ctx)?)
+                InlineNode::SuperscriptText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::CurvedQuotationText(node) => {
-                InlineNode::CurvedQuotationText(node.map_locations(mapping_ctx)?)
+                InlineNode::CurvedQuotationText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::CurvedApostropheText(node) => {
-                InlineNode::CurvedApostropheText(node.map_locations(mapping_ctx)?)
+                InlineNode::CurvedApostropheText(Box::new((*node).map_locations(mapping_ctx)?))
             }
             InlineNode::RawText(_)
             | InlineNode::PlainText(_)

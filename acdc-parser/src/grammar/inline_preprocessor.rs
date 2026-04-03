@@ -167,11 +167,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         let absolute_start = self.get_offset();
         self.advance(full);
-        if reconstructed.chars().count() != full.chars().count() {
+        if reconstructed.len() != full.len() {
             self.source_map.borrow_mut().add_replacement(
                 absolute_start,
                 absolute_start + full.len(),
-                reconstructed.chars().count(),
+                reconstructed.len(),
                 ProcessedKind::Attribute,
             );
         }
@@ -242,7 +242,7 @@ impl SourceMap {
     /// - `absolute_start`: where in the processed text the placeholder was inserted.
     /// - `absolute_end`: where in the original text the placeholder ends
     /// - `processed_end`: where in the processed text the placeholder ends
-    /// - `physical_length`: the length of the inserted placeholder (in char count, not bytes)
+    /// - `physical_length`: the byte length of the inserted placeholder text
     pub(crate) fn add_replacement(
         &mut self,
         absolute_start: usize,
@@ -260,49 +260,76 @@ impl SourceMap {
         self.replacements.sort_by_key(|r| r.absolute_start);
     }
 
-    /// Map a position in the processed text back to the original source.
+    /// Map a byte position in the processed text back to the original source.
+    ///
+    /// For positions within attribute substitutions, returns the original
+    /// attribute reference start. Use `map_end_position` when mapping an
+    /// end/closing position that should resolve to the attribute end.
     pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
-        let signed_pos = to_signed(pos, "pos")?;
+        self.map_position_inner(pos, false)
+    }
 
-        // The adjustment is the total number of characters removed/added during preprocessing.
-        // For example, if we have a passthrough like `+a+`: the original text is 3 characters,
-        // but the processed text is 7 characters (FFF0FFF). So the adjustment is 7 - 3 = 4.
-        let mut adjustment: i32 = 0;
+    /// Like `map_position`, but for end/closing positions.
+    ///
+    /// For positions within attribute substitutions, returns the original
+    /// attribute reference end instead of the start. This ensures that the
+    /// end of a substituted value (e.g., end of `"2.0"` replacing `{version}`)
+    /// maps to the end of the original reference (`}`) rather than the start.
+    pub(crate) fn map_end_position(&self, pos: usize) -> Result<usize, Error> {
+        self.map_position_inner(pos, true)
+    }
+
+    /// Core position mapping with cumulative offset tracking.
+    fn map_position_inner(&self, pos: usize, is_end: bool) -> Result<usize, Error> {
+        let pos_signed = to_signed(pos, "pos")?;
+        // Cumulative growth: how many extra bytes the preprocessed text has
+        // relative to the original at the current scan position.
+        let mut cumulative_offset: i32 = 0;
 
         for rep in &self.replacements {
             let rep_start = to_signed(rep.absolute_start, "rep.absolute_start")?;
             let rep_end = to_signed(rep.absolute_end, "rep.absolute_end")?;
-            let rep_processed_end = to_signed(rep.processed_end, "rep.processed_end")?;
+            let physical_length = to_signed(rep.processed_end, "rep.processed_end")? - rep_start;
+            let original_length = rep_end - rep_start;
 
-            // Position is before this replacement - done adjusting
-            if signed_pos <= rep_start {
+            // Where this replacement starts/ends in preprocessed byte coordinates
+            let prep_start = rep_start + cumulative_offset;
+            let prep_end = prep_start + physical_length;
+
+            // Position is before this replacement in preprocessed coordinates
+            if pos_signed < prep_start {
                 break;
             }
 
             // Position is within this replacement
-            if signed_pos < rep_processed_end {
+            if pos_signed < prep_end {
+                let offset_in_replacement = pos_signed - prep_start;
                 return match rep.kind {
                     ProcessedKind::Attribute => {
-                        // All inserted characters map to the left-most original position
-                        Ok(rep.absolute_start)
-                    }
-                    ProcessedKind::Passthrough if signed_pos >= rep_end => {
-                        // Position is past the original passthrough end
-                        Ok(rep.absolute_end - 1)
+                        if is_end {
+                            // End position → map to end of original attribute reference
+                            to_unsigned(rep_end - 1, "attribute_end")
+                        } else {
+                            // Start position → map to start of original attribute reference
+                            Ok(rep.absolute_start)
+                        }
                     }
                     ProcessedKind::Passthrough => {
-                        // Within passthrough - apply current adjustment
-                        to_unsigned(signed_pos - adjustment, "within_passthrough")
+                        if offset_in_replacement >= original_length {
+                            to_unsigned(rep_end - 1, "passthrough_clamped_end")
+                        } else {
+                            to_unsigned(rep_start + offset_in_replacement, "within_passthrough")
+                        }
                     }
                 };
             }
 
-            // Position is past this replacement - accumulate adjustment
-            adjustment += rep_processed_end - rep_end;
+            // Position is after this replacement — accumulate the growth
+            cumulative_offset += physical_length - original_length;
         }
 
-        // Not within any replacement - apply total adjustment
-        to_unsigned(signed_pos - adjustment, "final_position")
+        // After all replacements — convert from preprocessed to original coordinates
+        to_unsigned(pos_signed - cumulative_offset, "final_position")
     }
 }
 
@@ -412,7 +439,7 @@ parser!(
                             state.source_map.borrow_mut().add_replacement(
                                 location.absolute_start,
                                 location.absolute_end,
-                                new_content.chars().count(),
+                                new_content.len(),
                                 ProcessedKind::Passthrough,
                             );
                             state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -423,7 +450,7 @@ parser!(
                             state.source_map.borrow_mut().add_replacement(
                                 location.absolute_start,
                                 location.absolute_end,
-                                value.chars().count(),
+                                value.len(),
                                 ProcessedKind::Attribute,
                             );
                             attributes.insert(state.source_map.borrow().replacements.len(), location);
@@ -535,7 +562,7 @@ parser!(
             state.source_map.borrow_mut().add_replacement(
                 location.absolute_start,
                 location.absolute_end,
-                new_content.chars().count(),
+                new_content.len(),
                 ProcessedKind::Passthrough,
             );
             state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -562,7 +589,7 @@ parser!(
                 state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
                     location.absolute_end,
-                    new_content.chars().count(),
+                    new_content.len(),
                     ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -588,7 +615,7 @@ parser!(
                 state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
                     location.absolute_end,
-                    new_content.chars().count(),
+                    new_content.len(),
                     ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -625,7 +652,7 @@ parser!(
                 state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
                     location.absolute_end,
-                    new_content.chars().count(),
+                    new_content.len(),
                     ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -1078,7 +1105,11 @@ mod tests {
         assert_eq!(pass.location.absolute_end, 47); // End of pass macro content including brackets
 
         assert_eq!(result.source_map.map_position(9)?, 9); // Start of pass macro
-        assert_eq!(result.source_map.map_position(24)?, 55);
+        // Byte 24 is within the 19-byte placeholder (bytes 9-27), offset 15 into it.
+        // Original passthrough spans bytes 9-46 (38 bytes), so offset 15 is within range.
+        assert_eq!(result.source_map.map_position(24)?, 24);
+        // Byte 30 is 's' in " is underlined." (after placeholder at byte 28)
+        assert_eq!(result.source_map.map_position(30)?, 49);
         Ok(())
     }
 
@@ -1115,13 +1146,15 @@ mod tests {
         assert!(matches!(&second.text, Some(s) if s == "3"));
         assert!(matches!(&third.text, Some(s) if s == "4"));
 
+        // Byte position 2 = start of first placeholder → original position 2 (first +)
         assert_eq!(result.source_map.map_position(2)?, 2);
-        // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.
-        assert_eq!(result.source_map.map_position(5)?, 4);
-        // 24 is the FFF in passthrough 2, therefore it should map to position 10
-        assert_eq!(result.source_map.map_position(24)?, 20);
-        // 48 is the n in "and", therefore it should map to position 19
-        assert_eq!(result.source_map.map_position(48)?, 44);
+        // Byte position 11 = the '0' digit within first placeholder → within +2+ passthrough
+        // offset 9 into 19-byte placeholder > original length 3, so clamps to end - 1 = 4
+        assert_eq!(result.source_map.map_position(11)?, 4);
+        // Byte position 48 = 'n' in " and " → original position 20
+        assert_eq!(result.source_map.map_position(48)?, 20);
+        // Byte position 80 = 'u' in "numbers" → original position 40
+        assert_eq!(result.source_map.map_position(80)?, 40);
         Ok(())
     }
 

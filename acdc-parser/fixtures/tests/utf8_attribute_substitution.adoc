@@ -1,0 +1,11 @@
+:project: 🦀 Ferris
+:greeting: こんにちは
+:version: 2.0
+
+= {project} Documentation
+
+Welcome! {greeting}, world.
+
+Version {version} is here.
+
+-> こんにちは.

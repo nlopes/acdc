@@ -102,7 +102,7 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
         InlineNode::LineBreak(lb) => clamp_location_bounds(&mut lb.location, input),
         InlineNode::InlineAnchor(anchor) => clamp_location_bounds(&mut anchor.location, input),
         InlineNode::CalloutRef(callout) => clamp_location_bounds(&mut callout.location, input),
-        InlineNode::Macro(m) => match m {
+        InlineNode::Macro(m) => match m.as_mut() {
             crate::InlineMacro::Footnote(f) => {
                 clamp_location_bounds(&mut f.location, input);
                 for child in &mut f.content {
@@ -190,44 +190,32 @@ pub(crate) fn create_location_mapper<'a>(
         let mut processed_abs_start = base_location.absolute_start + loc.absolute_start;
         let mut processed_abs_end = base_location.absolute_start + loc.absolute_end;
 
-        // Fix for collapsed locations (where absolute_start == absolute_end)
-        if loc.absolute_start == loc.absolute_end {
-            if loc.absolute_start == 0 && base_location.absolute_start < base_location.absolute_end
-            {
-                // Special case: single character inside constrained formatting like "*s*"
-                // Check if this is constrained formatting (which has single-character delimiters)
-                let is_constrained_single_char = if let Some(form) = form {
-                    matches!(form, Form::Constrained)
-                } else {
-                    // No enclosing formatting context: constrained heuristic never applies
-                    false
-                };
-
-                if is_constrained_single_char {
-                    // Constrained formatting: skip single-char delimiter to point at content
-                    processed_abs_start =
-                        base_location.absolute_start + CONSTRAINED_CONTENT_START_OFFSET;
-                    processed_abs_end =
-                        base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
-                } else {
-                    // General case: expand collapsed locations to the next UTF-8 boundary
-                    processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
-                        &state.input,
-                        processed_abs_end,
-                    );
-                }
+        // Handle constrained formatting single-char special case BEFORE mapping.
+        // This adjusts preprocessed-coordinate offsets for known delimiter patterns.
+        if loc.absolute_start == loc.absolute_end
+            && loc.absolute_start == 0
+            && base_location.absolute_start < base_location.absolute_end
+        {
+            let is_constrained_single_char = if let Some(form) = form {
+                matches!(form, Form::Constrained)
             } else {
-                // General case: expand collapsed locations to the next UTF-8 boundary
-                processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
-                    &state.input,
-                    processed_abs_end,
-                );
+                false
+            };
+
+            if is_constrained_single_char {
+                // Constrained formatting: skip single-char delimiter to point at content
+                processed_abs_start =
+                    base_location.absolute_start + CONSTRAINED_CONTENT_START_OFFSET;
+                processed_abs_end = base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
             }
         }
 
-        // Map those through the preprocessor source map back to original source
+        // Map through the preprocessor source map back to original source.
+        // Use map_end_position for the end coordinate so that positions within
+        // attribute substitutions resolve to the attribute's original end rather
+        // than its start.
         let mut mapped_abs_start = processed.source_map.map_position(processed_abs_start)?;
-        let mut mapped_abs_end = processed.source_map.map_position(processed_abs_end)?;
+        let mut mapped_abs_end = processed.source_map.map_end_position(processed_abs_end)?;
 
         // Clamp to input bounds - preprocessor expansion can produce positions beyond input length
         let input_len = state.input.len();
@@ -238,6 +226,19 @@ pub(crate) fn create_location_mapper<'a>(
         mapped_abs_start =
             snap_to_boundary(&state.input, mapped_abs_start, RoundDirection::Backward);
         mapped_abs_end = snap_to_boundary(&state.input, mapped_abs_end, RoundDirection::Forward);
+
+        // Expand collapsed locations AFTER mapping to original coordinates.
+        // Before mapping, positions are in preprocessed-text coordinates which may differ
+        // significantly from original-text coordinates due to passthrough placeholder expansion.
+        if mapped_abs_start == mapped_abs_end {
+            mapped_abs_end =
+                crate::grammar::utf8_utils::safe_increment_offset(&state.input, mapped_abs_end);
+        }
+
+        // Ensure start <= end after all transformations
+        if mapped_abs_start > mapped_abs_end {
+            mapped_abs_end = mapped_abs_start;
+        }
 
         // Compute human positions from the document's line map
         let start_pos = state
@@ -591,7 +592,7 @@ fn map_inline_macro(
         InlineMacro::Pass(pass) => pass.location = map_loc(&pass.location)?,
         InlineMacro::IndexTerm(index_term) => index_term.location = map_loc(&index_term.location)?,
     }
-    Ok(InlineNode::Macro(mapped_macro))
+    Ok(InlineNode::Macro(Box::new(mapped_macro)))
 }
 
 fn map_plain_text_inline_locations<'a>(
@@ -633,11 +634,11 @@ fn map_plain_text_inline_locations<'a>(
             mapped_location.end.column = mapped_location.start.column;
         }
 
-        Ok(vec![InlineNode::PlainText(Plain {
+        Ok(vec![InlineNode::PlainText(Box::new(Plain {
             content: original_content.clone(),
             location: mapped_location,
             escaped: plain.escaped,
-        })])
+        }))])
     }
 }
 

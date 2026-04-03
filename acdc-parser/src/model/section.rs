@@ -155,20 +155,20 @@ mod tests {
 
     #[test]
     fn test_id_from_title() {
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Box::new(Plain {
             content: "This is a title.".to_string(),
             location: Location::default(),
             escaped: false,
-        })];
+        }))];
         assert_eq!(
             Section::id_from_title(inlines),
             "this_is_a_title".to_string()
         );
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Box::new(Plain {
             content: "This is a----title.".to_string(),
             location: Location::default(),
             escaped: false,
-        })];
+        }))];
         assert_eq!(
             Section::id_from_title(inlines),
             "this_is_a_title".to_string()
@@ -178,23 +178,23 @@ mod tests {
     #[test]
     fn test_id_from_title_preserves_underscores() {
         // Underscores within words should be preserved (matching asciidoctor behavior)
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Box::new(Plain {
             content: "CHART_BOT".to_string(),
             location: Location::default(),
             escaped: false,
-        })];
+        }))];
         assert_eq!(Section::id_from_title(inlines), "chart_bot".to_string());
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Box::new(Plain {
             content: "haiku_robot".to_string(),
             location: Location::default(),
             escaped: false,
-        })];
+        }))];
         assert_eq!(Section::id_from_title(inlines), "haiku_robot".to_string());
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Box::new(Plain {
             content: "meme_transcriber".to_string(),
             location: Location::default(),
             escaped: false,
-        })];
+        }))];
         assert_eq!(
             Section::id_from_title(inlines),
             "meme_transcriber".to_string()
@@ -203,11 +203,11 @@ mod tests {
 
     #[test]
     fn test_section_generate_id() {
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Box::new(Plain {
             content: "This is a b__i__g title.".to_string(),
             location: Location::default(),
             escaped: false,
-        })];
+        }))];
         // metadata has an empty id
         let metadata = BlockMetadata::default();
         assert_eq!(
