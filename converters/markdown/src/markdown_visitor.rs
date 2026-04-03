@@ -340,10 +340,29 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
         Ok(())
     }
 
-    fn visit_description_list(&mut self, _list: &DescriptionList) -> Result<(), Self::Error> {
+    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
         // Description lists (definition lists) not in standard Markdown
         self.write_warning("description lists", "using regular list")?;
-        // TODO: Implement fallback rendering
+        for item in &list.items {
+            // Render term as bold text in a list item
+            write!(self.writer, "- **")?;
+            self.visit_inline_nodes(&item.term)?;
+            writeln!(self.writer, "**")?;
+
+            // Render principal text (inline content after delimiter) if present
+            if !item.principal_text.is_empty() {
+                write!(self.writer, "  ")?;
+                self.visit_inline_nodes(&item.principal_text)?;
+                writeln!(self.writer)?;
+            }
+
+            // Render description blocks indented
+            for block in &item.description {
+                write!(self.writer, "  ")?;
+                self.visit_block(block)?;
+            }
+        }
+        writeln!(self.writer)?;
         Ok(())
     }
 
