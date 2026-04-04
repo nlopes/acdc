@@ -538,11 +538,11 @@ mod tests {
 
     /// Create simple plain text inline node for testing
     fn create_plain_text(content: &str) -> InlineNode {
-        InlineNode::PlainText(Plain {
+        InlineNode::PlainText(Box::new(Plain {
             content: content.to_string(),
             location: Location::default(),
             escaped: false,
-        })
+        }))
     }
 
     /// Create test processor with default options
@@ -601,13 +601,13 @@ mod tests {
 
     #[test]
     fn test_bold_text() -> Result<(), Error> {
-        let bold = InlineNode::BoldText(Bold {
+        let bold = InlineNode::BoldText(Box::new(Bold {
             content: vec![create_plain_text("bold text")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![bold])?;
         // Bold text should contain ANSI bold escape codes
@@ -621,13 +621,13 @@ mod tests {
 
     #[test]
     fn test_italic_text() -> Result<(), Error> {
-        let italic = InlineNode::ItalicText(Italic {
+        let italic = InlineNode::ItalicText(Box::new(Italic {
             content: vec![create_plain_text("italic text")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![italic])?;
         // Italic text should contain ANSI italic escape codes
@@ -644,13 +644,13 @@ mod tests {
 
     #[test]
     fn test_monospace_text() -> Result<(), Error> {
-        let monospace = InlineNode::MonospaceText(Monospace {
+        let monospace = InlineNode::MonospaceText(Box::new(Monospace {
             content: vec![create_plain_text("monospace text")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![monospace])?;
         assert!(
@@ -669,21 +669,21 @@ mod tests {
     fn test_mixed_formatting() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Normal "),
-            InlineNode::BoldText(Bold {
+            InlineNode::BoldText(Box::new(Bold {
                 content: vec![create_plain_text("bold")],
                 role: None,
                 id: None,
                 form: Form::Constrained,
                 location: Location::default(),
-            }),
+            })),
             create_plain_text(" and "),
-            InlineNode::ItalicText(Italic {
+            InlineNode::ItalicText(Box::new(Italic {
                 content: vec![create_plain_text("italic")],
                 role: None,
                 id: None,
                 form: Form::Constrained,
                 location: Location::default(),
-            }),
+            })),
         ])?;
 
         assert!(output.contains("Normal"), "Should contain normal text");
@@ -694,13 +694,13 @@ mod tests {
 
     #[test]
     fn test_highlight_text() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight {
+        let highlight = InlineNode::HighlightText(Box::new(Highlight {
             content: vec![create_plain_text("highlighted")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![highlight])?;
         assert!(
@@ -714,13 +714,13 @@ mod tests {
 
     #[test]
     fn test_superscript_text() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
+        let superscript = InlineNode::SuperscriptText(Box::new(Superscript {
             content: vec![create_plain_text("2")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
 
@@ -734,13 +734,13 @@ mod tests {
 
     #[test]
     fn test_subscript_text() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
+        let subscript = InlineNode::SubscriptText(Box::new(Subscript {
             content: vec![create_plain_text("2")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
 
@@ -754,13 +754,13 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_letters() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
+        let subscript = InlineNode::SubscriptText(Box::new(Subscript {
             content: vec![create_plain_text("n")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
         assert!(
@@ -776,13 +776,13 @@ mod tests {
 
     #[test]
     fn test_superscript_fallback_for_letters() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
+        let superscript = InlineNode::SuperscriptText(Box::new(Superscript {
             content: vec![create_plain_text("abc")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![superscript])?;
         assert!(
@@ -798,13 +798,13 @@ mod tests {
 
     #[test]
     fn test_curved_quotation_text() -> Result<(), Error> {
-        let quoted = InlineNode::CurvedQuotationText(CurvedQuotation {
+        let quoted = InlineNode::CurvedQuotationText(Box::new(CurvedQuotation {
             content: vec![create_plain_text("quoted text")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![quoted])?;
         assert!(
@@ -821,13 +821,13 @@ mod tests {
 
     #[test]
     fn test_curved_apostrophe_text() -> Result<(), Error> {
-        let apostrophe = InlineNode::CurvedApostropheText(CurvedApostrophe {
+        let apostrophe = InlineNode::CurvedApostropheText(Box::new(CurvedApostrophe {
             content: vec![create_plain_text("text")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![apostrophe])?;
         assert!(
@@ -843,9 +843,10 @@ mod tests {
 
     #[test]
     fn test_standalone_curved_apostrophe() -> Result<(), Error> {
-        let apostrophe = InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-            location: Location::default(),
-        });
+        let apostrophe =
+            InlineNode::StandaloneCurvedApostrophe(Box::new(StandaloneCurvedApostrophe {
+                location: Location::default(),
+            }));
 
         let output = render_paragraph(vec![apostrophe])?;
         assert!(
@@ -857,10 +858,10 @@ mod tests {
 
     #[test]
     fn test_link_macro() -> Result<(), Error> {
-        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+        let link = InlineNode::Macro(Box::new(InlineMacro::Link(Link::new(
             Source::Name("https://example.com".to_string()),
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![link])?;
         assert!(
@@ -872,10 +873,10 @@ mod tests {
 
     #[test]
     fn test_image_macro_placeholder() -> Result<(), Error> {
-        let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image::new(
+        let image = InlineNode::Macro(Box::new(InlineMacro::Image(Box::new(Image::new(
             Source::Name("logo.png".to_string()),
             Location::default(),
-        ))));
+        )))));
 
         let output = render_paragraph(vec![image])?;
         assert!(
@@ -887,10 +888,10 @@ mod tests {
 
     #[test]
     fn test_keyboard_macro() -> Result<(), Error> {
-        let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard::new(
+        let kbd = InlineNode::Macro(Box::new(InlineMacro::Keyboard(Keyboard::new(
             vec!["Ctrl".to_string(), "C".to_string()],
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![kbd])?;
         assert!(
@@ -902,10 +903,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_with_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(
+        let xref = InlineNode::Macro(Box::new(InlineMacro::CrossReference(
             CrossReference::new("section-id", Location::default())
                 .with_text(vec![create_plain_text("See Section 1")]),
-        ));
+        )));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -921,10 +922,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_without_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference::new(
+        let xref = InlineNode::Macro(Box::new(InlineMacro::CrossReference(CrossReference::new(
             "section-id",
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -938,9 +939,9 @@ mod tests {
     fn test_line_break() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("First line"),
-            InlineNode::LineBreak(LineBreak {
+            InlineNode::LineBreak(Box::new(LineBreak {
                 location: Location::default(),
-            }),
+            })),
             create_plain_text("Second line"),
         ])?;
 
@@ -956,7 +957,10 @@ mod tests {
     fn test_inline_anchor_invisible() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Before"),
-            InlineNode::InlineAnchor(Anchor::new("anchor-id".to_string(), Location::default())),
+            InlineNode::InlineAnchor(Box::new(Anchor::new(
+                "anchor-id".to_string(),
+                Location::default(),
+            ))),
             create_plain_text("After"),
         ])?;
 
@@ -975,13 +979,13 @@ mod tests {
 
     #[test]
     fn test_highlight_text_with_underline_role() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight {
+        let highlight = InlineNode::HighlightText(Box::new(Highlight {
             content: vec![create_plain_text("underlined text")],
             role: Some("underline".to_string()),
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![highlight])?;
         assert!(
@@ -1003,13 +1007,13 @@ mod tests {
 
     #[test]
     fn test_superscript_renders_unicode() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
+        let superscript = InlineNode::SuperscriptText(Box::new(Superscript {
             content: vec![create_plain_text("2")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
         assert!(output.contains('x'), "Should contain base text");
@@ -1022,13 +1026,13 @@ mod tests {
 
     #[test]
     fn test_subscript_renders_unicode() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
+        let subscript = InlineNode::SubscriptText(Box::new(Subscript {
             content: vec![create_plain_text("2")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![create_plain_text("H"), subscript])?;
         assert!(output.contains('H'), "Should contain base text");
@@ -1042,13 +1046,13 @@ mod tests {
     #[test]
     fn test_superscript_fallback_for_unsupported_chars() -> Result<(), Error> {
         // Characters without Unicode superscript equivalents should fall back
-        let superscript = InlineNode::SuperscriptText(Superscript {
+        let superscript = InlineNode::SuperscriptText(Box::new(Superscript {
             content: vec![create_plain_text("@")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![superscript])?;
         assert!(
@@ -1064,13 +1068,13 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_unsupported_chars() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
+        let subscript = InlineNode::SubscriptText(Box::new(Subscript {
             content: vec![create_plain_text("@")],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![subscript])?;
         assert!(
@@ -1087,19 +1091,19 @@ mod tests {
     #[test]
     fn test_nested_formatting() -> Result<(), Error> {
         // Test bold text containing italic text
-        let nested = InlineNode::BoldText(Bold {
-            content: vec![InlineNode::ItalicText(Italic {
+        let nested = InlineNode::BoldText(Box::new(Bold {
+            content: vec![InlineNode::ItalicText(Box::new(Italic {
                 content: vec![create_plain_text("bold italic")],
                 role: None,
                 id: None,
                 form: Form::Constrained,
                 location: Location::default(),
-            })],
+            }))],
             role: None,
             id: None,
             form: Form::Constrained,
             location: Location::default(),
-        });
+        }));
 
         let output = render_paragraph(vec![nested])?;
         assert!(

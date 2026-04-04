@@ -152,34 +152,48 @@ fn collect_links_from_inlines(inlines: &[InlineNode], links: &mut Vec<LinkInfo>)
 
 fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
     match inline {
-        InlineNode::Macro(InlineMacro::Link(link)) => {
-            links.push(LinkInfo {
-                target: link.target.to_string(),
-                location: link.location.clone(),
-                tooltip: link.text.clone(),
-            });
-        }
-        InlineNode::Macro(InlineMacro::Url(url)) => {
-            links.push(LinkInfo {
-                target: url.target.to_string(),
-                location: url.location.clone(),
-                tooltip: None,
-            });
-        }
-        InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            links.push(LinkInfo {
-                target: autolink.url.to_string(),
-                location: autolink.location.clone(),
-                tooltip: None,
-            });
-        }
-        InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-            links.push(LinkInfo {
-                target: format!("mailto:{}", mailto.target),
-                location: mailto.location.clone(),
-                tooltip: None, // Text is Vec<InlineNode>, skip tooltip extraction
-            });
-        }
+        InlineNode::Macro(m) => match m.as_ref() {
+            InlineMacro::Link(link) => {
+                links.push(LinkInfo {
+                    target: link.target.to_string(),
+                    location: link.location.clone(),
+                    tooltip: link.text.clone(),
+                });
+            }
+            InlineMacro::Url(url) => {
+                links.push(LinkInfo {
+                    target: url.target.to_string(),
+                    location: url.location.clone(),
+                    tooltip: None,
+                });
+            }
+            InlineMacro::Autolink(autolink) => {
+                links.push(LinkInfo {
+                    target: autolink.url.to_string(),
+                    location: autolink.location.clone(),
+                    tooltip: None,
+                });
+            }
+            InlineMacro::Mailto(mailto) => {
+                links.push(LinkInfo {
+                    target: format!("mailto:{}", mailto.target),
+                    location: mailto.location.clone(),
+                    tooltip: None, // Text is Vec<InlineNode>, skip tooltip extraction
+                });
+            }
+            InlineMacro::Footnote(_)
+            | InlineMacro::Icon(_)
+            | InlineMacro::Image(_)
+            | InlineMacro::Keyboard(_)
+            | InlineMacro::Button(_)
+            | InlineMacro::Menu(_)
+            | InlineMacro::CrossReference(_)
+            | InlineMacro::Pass(_)
+            | InlineMacro::Stem(_)
+            | InlineMacro::IndexTerm(_)
+            // non_exhaustive
+            | _ => {}
+        },
         // Recurse into formatted text
         InlineNode::BoldText(b) => collect_links_from_inlines(&b.content, links),
         InlineNode::ItalicText(i) => collect_links_from_inlines(&i.content, links),
@@ -195,7 +209,6 @@ fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_)
         // non_exhaustive
         | _ => {}

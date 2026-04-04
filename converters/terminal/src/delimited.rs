@@ -502,20 +502,20 @@ mod tests {
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
-        vec![InlineNode::PlainText(Plain {
+        vec![InlineNode::PlainText(Box::new(Plain {
             content: content.to_string(),
             location: Location::default(),
             escaped: false,
-        })]
+        }))]
     }
 
     /// Create simple plain text title for testing
     fn create_test_title(content: &str) -> Title {
-        Title::new(vec![InlineNode::PlainText(Plain {
+        Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: content.to_string(),
             location: Location::default(),
             escaped: false,
-        })])
+        }))])
     }
 
     /// Create test processor with default options
@@ -666,10 +666,10 @@ mod tests {
 
     #[test]
     fn test_example_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("example text"),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(content),
@@ -697,10 +697,10 @@ mod tests {
 
     #[test]
     fn test_example_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("example content"),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(content),
@@ -732,10 +732,10 @@ mod tests {
 
     #[test]
     fn test_quote_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("This is a quote."),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedQuote(content),
@@ -761,10 +761,10 @@ mod tests {
 
     #[test]
     fn test_quote_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("Quote content here."),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedQuote(content),
@@ -792,14 +792,14 @@ mod tests {
     #[test]
     fn test_quote_block_multiple_paragraphs() -> Result<(), Error> {
         let content = vec![
-            Block::Paragraph(Paragraph::new(
+            Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("First paragraph."),
                 Location::default(),
-            )),
-            Block::Paragraph(Paragraph::new(
+            ))),
+            Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("Second paragraph."),
                 Location::default(),
-            )),
+            ))),
         ];
 
         let block = DelimitedBlock::new(
@@ -829,10 +829,10 @@ mod tests {
 
     #[test]
     fn test_sidebar_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("Sidebar content."),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedSidebar(content),
@@ -862,10 +862,10 @@ mod tests {
 
     #[test]
     fn test_sidebar_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("Sidebar text here."),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedSidebar(content),
@@ -894,14 +894,14 @@ mod tests {
     #[test]
     fn test_sidebar_block_multiple_paragraphs() -> Result<(), Error> {
         let content = vec![
-            Block::Paragraph(Paragraph::new(
+            Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("First sidebar paragraph."),
                 Location::default(),
-            )),
-            Block::Paragraph(Paragraph::new(
+            ))),
+            Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("Second sidebar paragraph."),
                 Location::default(),
-            )),
+            ))),
         ];
 
         let block = DelimitedBlock::new(
@@ -931,10 +931,10 @@ mod tests {
 
     #[test]
     fn test_open_block_basic() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("Open block content."),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedOpen(content),
@@ -959,10 +959,10 @@ mod tests {
 
     #[test]
     fn test_open_block_with_title() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("Content here."),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedOpen(content),
@@ -1190,10 +1190,10 @@ mod tests {
 
     #[test]
     fn test_nested_example_with_listing() -> Result<(), Error> {
-        let content = vec![Block::Paragraph(Paragraph::new(
+        let content = vec![Block::Paragraph(Box::new(Paragraph::new(
             create_test_inlines("This example shows: code snippet"),
             Location::default(),
-        ))];
+        )))];
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(content),
@@ -1226,30 +1226,30 @@ mod tests {
         let processor = create_test_processor();
 
         let block1 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
+            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("first example"),
                 Location::default(),
-            ))]),
+            )))]),
             "====".to_string(),
             Location::default(),
         )
         .with_title(create_test_title("First Example"));
 
         let block2 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
+            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("second example"),
                 Location::default(),
-            ))]),
+            )))]),
             "====".to_string(),
             Location::default(),
         )
         .with_title(create_test_title("Second Example"));
 
         let block3 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
+            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Box::new(Paragraph::new(
                 create_test_inlines("third example"),
                 Location::default(),
-            ))]),
+            )))]),
             "====".to_string(),
             Location::default(),
         )

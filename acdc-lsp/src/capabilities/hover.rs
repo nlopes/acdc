@@ -280,8 +280,10 @@ fn find_xref_in_inlines(inlines: &[InlineNode], offset: usize) -> Option<(String
 
 fn find_xref_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Location)> {
     match inline {
-        InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            if offset_in_location(offset, &xref.location) {
+        InlineNode::Macro(m) => {
+            if let InlineMacro::CrossReference(xref) = m.as_ref()
+                && offset_in_location(offset, &xref.location)
+            {
                 return Some((xref.target.clone(), xref.location.clone()));
             }
             None
@@ -300,7 +302,6 @@ fn find_xref_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_)
         // non_exhaustive
         | _ => None,
@@ -595,24 +596,39 @@ fn find_link_in_inlines(inlines: &[InlineNode], offset: usize) -> Option<(String
 
 fn find_link_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Location)> {
     match inline {
-        InlineNode::Macro(InlineMacro::Link(link)) => {
-            if offset_in_location(offset, &link.location) {
-                return Some((link.target.to_string(), link.location.clone()));
+        InlineNode::Macro(m) => match m.as_ref() {
+            InlineMacro::Link(link) => {
+                if offset_in_location(offset, &link.location) {
+                    return Some((link.target.to_string(), link.location.clone()));
+                }
+                None
             }
-            None
-        }
-        InlineNode::Macro(InlineMacro::Url(url)) => {
-            if offset_in_location(offset, &url.location) {
-                return Some((url.target.to_string(), url.location.clone()));
+            InlineMacro::Url(url) => {
+                if offset_in_location(offset, &url.location) {
+                    return Some((url.target.to_string(), url.location.clone()));
+                }
+                None
             }
-            None
-        }
-        InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            if offset_in_location(offset, &autolink.location) {
-                return Some((autolink.url.to_string(), autolink.location.clone()));
+            InlineMacro::Autolink(autolink) => {
+                if offset_in_location(offset, &autolink.location) {
+                    return Some((autolink.url.to_string(), autolink.location.clone()));
+                }
+                None
             }
-            None
-        }
+            InlineMacro::Footnote(_)
+            | InlineMacro::Icon(_)
+            | InlineMacro::Image(_)
+            | InlineMacro::Keyboard(_)
+            | InlineMacro::Button(_)
+            | InlineMacro::Menu(_)
+            | InlineMacro::Mailto(_)
+            | InlineMacro::CrossReference(_)
+            | InlineMacro::Pass(_)
+            | InlineMacro::Stem(_)
+            | InlineMacro::IndexTerm(_)
+            // non_exhaustive
+            | _ => None,
+        },
         InlineNode::BoldText(b) => find_link_in_inlines(&b.content, offset),
         InlineNode::ItalicText(i) => find_link_in_inlines(&i.content, offset),
         InlineNode::MonospaceText(m) => find_link_in_inlines(&m.content, offset),
@@ -627,7 +643,6 @@ fn find_link_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_)
         // non_exhaustive
         | _ => None,

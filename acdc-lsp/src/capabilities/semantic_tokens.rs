@@ -9,7 +9,7 @@
 //! - Comments (`comment`)
 
 use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+    Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location,
 };
 use tower_lsp_server::ls_types::{
     SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
@@ -264,26 +264,8 @@ fn collect_tokens_from_inlines(inlines: &[InlineNode], tokens: &mut Vec<RawToken
 
 fn collect_tokens_from_inline(inline: &InlineNode, tokens: &mut Vec<RawToken>) {
     match inline {
-        InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            add_token_for_location(&xref.location, 1, 0, tokens); // FUNCTION (macro)
-        }
-        InlineNode::Macro(InlineMacro::Link(link)) => {
-            add_token_for_location(&link.location, 1, 0, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Url(url)) => {
-            add_token_for_location(&url.location, 1, 0, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            add_token_for_location(&autolink.location, 1, 0, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-            add_token_for_location(&mailto.location, 1, 0, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Image(image)) => {
-            add_token_for_location(&image.location, 1, 0, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Icon(icon)) => {
-            add_token_for_location(&icon.location, 1, 0, tokens); // FUNCTION
+        InlineNode::Macro(m) => {
+            add_token_for_location(m.location(), 1, 0, tokens); // FUNCTION
         }
         InlineNode::InlineAnchor(anchor) => {
             add_token_for_location(&anchor.location, 7, 1, tokens); // DECORATOR + DECLARATION
@@ -319,7 +301,6 @@ fn collect_tokens_from_inline(inline: &InlineNode, tokens: &mut Vec<RawToken>) {
         | InlineNode::CurvedApostropheText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_)
         // non_exhaustive
         | _ => {}

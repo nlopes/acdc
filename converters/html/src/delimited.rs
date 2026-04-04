@@ -491,10 +491,10 @@ fn process_callout_guards(inlines: &[InlineNode], comment_prefix: Option<&str>) 
             if next_is_callout {
                 // Strip the comment guard from this VerbatimText
                 let stripped_content = strip_callout_comment_guard(&v.content, comment_prefix);
-                result.push(InlineNode::VerbatimText(acdc_parser::Verbatim {
+                result.push(InlineNode::VerbatimText(Box::new(acdc_parser::Verbatim {
                     content: stripped_content,
                     location: v.location.clone(),
-                }));
+                })));
             } else {
                 result.push(node.clone());
             }
@@ -635,11 +635,11 @@ fn render_pass_block_with_subs<V: WritableVisitor<Error = Error>>(
             crate::inlines::visit_inline_node(node, visitor, processor, options, &effective)?;
         }
     } else {
-        let plain = InlineNode::PlainText(Plain {
+        let plain = InlineNode::PlainText(Box::new(Plain {
             content,
             location: Location::default(),
             escaped: false,
-        });
+        }));
         crate::inlines::visit_inline_node(&plain, visitor, processor, options, &effective)?;
     }
     Ok(())
@@ -925,11 +925,11 @@ mod tests {
     use crate::{AppendixTracker, PartNumberTracker, SectionNumberTracker};
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode> {
-        vec![InlineNode::PlainText(Plain {
+        vec![InlineNode::PlainText(Box::new(Plain {
             content: content.to_string(),
             location: Location::default(),
             escaped: false,
-        })]
+        }))]
     }
 
     fn create_test_processor() -> Processor {
@@ -1081,11 +1081,11 @@ mod tests {
     #[test]
     fn test_listing_block_without_listing_caption_renders_title_without_number() -> Result<(), Error>
     {
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
+        let title = Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: "My Code Example".to_string(),
             location: Location::default(),
             escaped: false,
-        })]);
+        }))]);
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
@@ -1122,17 +1122,17 @@ mod tests {
     fn test_listing_block_with_listing_caption_renders_title_with_number() -> Result<(), Error> {
         use acdc_parser::AttributeValue;
 
-        let title1 = Title::new(vec![InlineNode::PlainText(Plain {
+        let title1 = Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: "First Example".to_string(),
             location: Location::default(),
             escaped: false,
-        })]);
+        }))]);
 
-        let title2 = Title::new(vec![InlineNode::PlainText(Plain {
+        let title2 = Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: "Second Example".to_string(),
             location: Location::default(),
             escaped: false,
-        })]);
+        }))]);
 
         let block1 = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),
@@ -1358,11 +1358,11 @@ mod tests {
 
     #[test]
     fn test_example_block_collapsible() -> Result<(), Error> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
+        let title = Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: "Click to expand".to_string(),
             location: Location::default(),
             escaped: false,
-        })]);
+        }))]);
 
         let metadata = BlockMetadata::new().with_options(vec!["collapsible".to_string()]);
 
@@ -1403,11 +1403,11 @@ mod tests {
 
     #[test]
     fn test_example_block_collapsible_open() -> Result<(), Error> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
+        let title = Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: "Initially open".to_string(),
             location: Location::default(),
             escaped: false,
-        })]);
+        }))]);
 
         let metadata =
             BlockMetadata::new().with_options(vec!["collapsible".to_string(), "open".to_string()]);

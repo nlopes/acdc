@@ -346,18 +346,18 @@ mod tests {
     use acdc_parser::{CalloutRef, CalloutRefKind, Location, Verbatim};
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode> {
-        vec![InlineNode::VerbatimText(Verbatim {
+        vec![InlineNode::VerbatimText(Box::new(Verbatim {
             content: content.to_string(),
             location: Location::default(),
-        })]
+        }))]
     }
 
     fn create_callout_ref(number: usize) -> InlineNode {
-        InlineNode::CalloutRef(CalloutRef {
+        InlineNode::CalloutRef(Box::new(CalloutRef {
             kind: CalloutRefKind::Explicit,
             number,
             location: Location::default(),
-        })
+        }))
     }
 
     #[test]
@@ -371,20 +371,20 @@ mod tests {
     #[test]
     fn test_extract_text_and_callouts_with_callouts() {
         let inlines = vec![
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "let x = 1; ".to_string(),
                 location: Location::default(),
-            }),
+            })),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "\nlet y = 2; ".to_string(),
                 location: Location::default(),
-            }),
+            })),
             create_callout_ref(2),
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "\n".to_string(),
                 location: Location::default(),
-            }),
+            })),
         ];
 
         let (text, callouts) = extract_text_and_callouts(&inlines);
@@ -398,15 +398,15 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_highlight_code_with_callouts() -> Result<(), Error> {
         let inlines = vec![
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "let x = 1; ".to_string(),
                 location: Location::default(),
-            }),
+            })),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "\nlet y = 2; ".to_string(),
                 location: Location::default(),
-            }),
+            })),
             create_callout_ref(2),
         ];
 
@@ -517,15 +517,15 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_highlight_class_mode_with_callouts() -> Result<(), Error> {
         let inlines = vec![
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "let x = 1; ".to_string(),
                 location: Location::default(),
-            }),
+            })),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
+            InlineNode::VerbatimText(Box::new(Verbatim {
                 content: "\nlet y = 2; ".to_string(),
                 location: Location::default(),
-            }),
+            })),
             create_callout_ref(2),
         ];
 

@@ -129,10 +129,10 @@ mod tests {
     use std::{cell::Cell, rc::Rc};
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode> {
-        vec![InlineNode::VerbatimText(Verbatim {
+        vec![InlineNode::VerbatimText(Box::new(Verbatim {
             content: content.to_string(),
             location: Location::default(),
-        })]
+        }))]
     }
 
     fn create_test_processor() -> Processor {

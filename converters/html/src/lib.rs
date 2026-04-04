@@ -730,10 +730,10 @@ fn apply_attribute_subs(
             .map(|node| {
                 if let InlineNode::VerbatimText(v) = node {
                     let content = substitute(&v.content, &[Substitution::Attributes], attrs);
-                    InlineNode::VerbatimText(acdc_parser::Verbatim {
+                    InlineNode::VerbatimText(Box::new(acdc_parser::Verbatim {
                         content,
                         location: v.location.clone(),
-                    })
+                    }))
                 } else {
                     node.clone()
                 }

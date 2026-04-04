@@ -325,7 +325,8 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
             };
 
             // Check if this is a mailto autolink - collect all trailing non-whitespace
-            if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
+            if let InlineNode::Macro(m) = node
+                && let InlineMacro::Autolink(al) = m.as_ref()
                 && al.url.to_string().starts_with("mailto:")
             {
                 let (trailing, skip_count, partial_bytes) =
@@ -356,7 +357,9 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
             }
 
             // Check if this is an explicit mailto macro - collect trailing non-whitespace
-            if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
+            if let InlineNode::Macro(m) = node
+                && let InlineMacro::Mailto(mailto) = m.as_ref()
+            {
                 let (trailing, skip_count, partial_bytes) =
                     self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
 

@@ -286,8 +286,10 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
     for inline in inlines {
         // Explicit arms for compile-time check when variants added
         match inline {
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                xrefs.push((xref.target.clone(), xref.location.clone()));
+            InlineNode::Macro(m) => {
+                if let InlineMacro::CrossReference(xref) = m.as_ref() {
+                    xrefs.push((xref.target.clone(), xref.location.clone()));
+                }
             }
             // Recurse into formatted text to find nested xrefs
             InlineNode::BoldText(b) => collect_inline_xrefs(&b.content, xrefs),
@@ -304,7 +306,6 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
             | InlineNode::CalloutRef(_)
             // non_exhaustive
             | _ => {}
@@ -419,8 +420,10 @@ fn collect_delimited_block_media(
 fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(Source, Location)>) {
     for inline in inlines {
         match inline {
-            InlineNode::Macro(InlineMacro::Image(img)) => {
-                sources.push((img.source.clone(), img.location.clone()));
+            InlineNode::Macro(m) => {
+                if let InlineMacro::Image(img) = m.as_ref() {
+                    sources.push((img.source.clone(), img.location.clone()));
+                }
             }
             // Recurse into formatted text to find nested images
             InlineNode::BoldText(b) => collect_inline_media(&b.content, sources),
@@ -437,7 +440,6 @@ fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(Source, Locat
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
             | InlineNode::CalloutRef(_)
             // non_exhaustive
             | _ => {}

@@ -156,11 +156,11 @@ mod tests {
     fn test_render_document_with_header() -> Result<(), Error> {
         use crate::Appearance;
         let mut doc = Document::default();
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
+        let title = Title::new(vec![InlineNode::PlainText(Box::new(Plain {
             content: "Title".to_string(),
             location: Location::default(),
             escaped: false,
-        })]);
+        }))]);
         doc.header = Some(Header::new(title, Location::default()).with_authors(vec![
             Author::new("John", Some("M"), Some("Doe"))
                     .with_email("johndoe@example.com".to_string()),
@@ -205,31 +205,31 @@ mod tests {
         use crate::Appearance;
         let mut doc = Document::default();
         doc.blocks = vec![
-            Block::Paragraph(Paragraph::new(
-                vec![InlineNode::PlainText(Plain {
+            Block::Paragraph(Box::new(Paragraph::new(
+                vec![InlineNode::PlainText(Box::new(Plain {
                     content: "Hello, world!".to_string(),
                     location: Location::default(),
                     escaped: false,
-                })],
+                }))],
                 Location::default(),
-            )),
-            Block::Section(Section::new(
-                Title::new(vec![InlineNode::PlainText(Plain {
+            ))),
+            Block::Section(Box::new(Section::new(
+                Title::new(vec![InlineNode::PlainText(Box::new(Plain {
                     content: "Section".to_string(),
                     location: Location::default(),
                     escaped: false,
-                })]),
+                }))]),
                 1,
-                vec![Block::Paragraph(Paragraph::new(
-                    vec![InlineNode::PlainText(Plain {
+                vec![Block::Paragraph(Box::new(Paragraph::new(
+                    vec![InlineNode::PlainText(Box::new(Plain {
                         content: "Hello, section!".to_string(),
                         location: Location::default(),
                         escaped: false,
-                    })],
+                    }))],
                     Location::default(),
-                ))],
+                )))],
                 Location::default(),
-            )),
+            ))),
         ];
         let buffer = Vec::new();
         let options = Options::default();

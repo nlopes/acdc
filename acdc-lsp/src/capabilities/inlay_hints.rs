@@ -178,27 +178,29 @@ fn collect_xref_hint_in_inline(
     hints: &mut Vec<InlayHint>,
 ) {
     match inline {
-        InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            if !xref.text.is_empty() {
-                return;
-            }
+        InlineNode::Macro(m) => {
+            if let InlineMacro::CrossReference(xref) = m.as_ref() {
+                if !xref.text.is_empty() {
+                    return;
+                }
 
-            let hint_pos = location_to_range(&xref.location).end;
-            if !position_in_range(hint_pos, range) {
-                return;
-            }
+                let hint_pos = location_to_range(&xref.location).end;
+                if !position_in_range(hint_pos, range) {
+                    return;
+                }
 
-            if let Some(title) = resolve_xref_title(&xref.target, ast) {
-                hints.push(InlayHint {
-                    position: hint_pos,
-                    label: InlayHintLabel::String(format!("\u{2192} {title}")),
-                    kind: None,
-                    text_edits: None,
-                    tooltip: None,
-                    padding_left: Some(true),
-                    padding_right: None,
-                    data: None,
-                });
+                if let Some(title) = resolve_xref_title(&xref.target, ast) {
+                    hints.push(InlayHint {
+                        position: hint_pos,
+                        label: InlayHintLabel::String(format!("\u{2192} {title}")),
+                        kind: None,
+                        text_edits: None,
+                        tooltip: None,
+                        padding_left: Some(true),
+                        padding_right: None,
+                        data: None,
+                    });
+                }
             }
         }
         InlineNode::BoldText(b) => {
@@ -227,7 +229,6 @@ fn collect_xref_hint_in_inline(
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_)
         // non_exhaustive
         | _ => {}

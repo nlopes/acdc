@@ -144,28 +144,28 @@ mod tests {
     };
 
     fn plain(s: &str) -> InlineNode {
-        InlineNode::PlainText(Plain {
+        InlineNode::PlainText(Box::new(Plain {
             content: s.to_string(),
             location: Location::default(),
             escaped: false,
-        })
+        }))
     }
 
     fn verbatim(s: &str) -> InlineNode {
-        InlineNode::VerbatimText(Verbatim {
+        InlineNode::VerbatimText(Box::new(Verbatim {
             content: s.to_string(),
             location: Location::default(),
-        })
+        }))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold {
+        InlineNode::BoldText(Box::new(Bold {
             role: None,
             id: None,
             form: Form::Constrained,
             content: nodes,
             location: Location::default(),
-        })
+        }))
     }
 
     #[test]
@@ -182,23 +182,23 @@ mod tests {
 
     #[test]
     fn extract_link_macro_with_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(
+        let link = InlineNode::Macro(Box::new(InlineMacro::Link(
             Link::new(
                 Source::Name("https://example.com".to_string()),
                 Location::default(),
             )
             .with_text(Some("Example".to_string())),
-        ));
+        )));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title), "See Example");
     }
 
     #[test]
     fn extract_link_macro_without_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+        let link = InlineNode::Macro(Box::new(InlineMacro::Link(Link::new(
             Source::Name("https://example.com".to_string()),
             Location::default(),
-        )));
+        ))));
         let title = [link];
         assert_eq!(extract_title_text(&title), "https://example.com");
     }
@@ -213,11 +213,11 @@ mod tests {
     fn extract_callout_ref() {
         let title = [
             plain("Code "),
-            InlineNode::CalloutRef(CalloutRef {
+            InlineNode::CalloutRef(Box::new(CalloutRef {
                 kind: CalloutRefKind::Explicit,
                 number: 1,
                 location: Location::default(),
-            }),
+            })),
         ];
         assert_eq!(extract_title_text(&title), "Code <1>");
     }
@@ -226,9 +226,11 @@ mod tests {
     fn extract_standalone_curved_apostrophe() {
         let title = [
             plain("it"),
-            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe {
-                location: Location::default(),
-            }),
+            InlineNode::StandaloneCurvedApostrophe(Box::new(
+                acdc_parser::StandaloneCurvedApostrophe {
+                    location: Location::default(),
+                },
+            )),
             plain("s"),
         ];
         assert_eq!(extract_title_text(&title), "it\u{2019}s");
