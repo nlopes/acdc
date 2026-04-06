@@ -4,6 +4,7 @@ updates:
     directories:
       - "/"
       - "/acdc-cli"
+      - "/acdc-editor-wasm"
       - "/acdc-lsp"
       - "/acdc-parser"
       - "/acdc-parser/fuzz"
@@ -11,6 +12,7 @@ updates:
       - "/converters/dev"
       - "/converters/html"
       - "/converters/manpage"
+      - "/converters/markdown"
       - "/converters/terminal"
     schedule:
       interval: "weekly"
