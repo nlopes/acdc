@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Timing summary table for multi-file conversions** — when `convert` is invoked with
+  `--timings` and more than one input file, a summary table is printed after the
+  per-file output with parse time, convert time, total per-file time, and wall-clock
+  time across the batch. Single-file output is unchanged.
+
 ## [0.2.0] - 2026-03-28
 
 ### Added
