@@ -148,6 +148,17 @@ impl Processor {
         self
     }
 
+    /// Override the detected terminal capabilities.
+    ///
+    /// Useful for tests where a deterministic capability set (for example,
+    /// forcing OSC 8 hyperlink support on) is required regardless of the
+    /// host environment's `TERM` variable.
+    #[must_use]
+    pub fn with_capabilities(mut self, capabilities: Capabilities) -> Self {
+        self.appearance.capabilities = capabilities;
+        self
+    }
+
     /// Returns the terminal capabilities.
     #[must_use]
     pub fn terminal_capabilities(&self) -> &Capabilities {

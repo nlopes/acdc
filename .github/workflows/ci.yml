@@ -69,6 +69,11 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      # Required by the libghostty-vt dev-dependency in acdc-converters-terminal,
+      # which is compiled whenever --all-targets pulls in test code.
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.15.1"
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
       - name: Install wasm32 target
@@ -105,6 +110,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
+      # Required by the libghostty-vt dev-dependency used in
+      # acdc-converters-terminal's cell-grid integration tests.
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.15.1"
       - name: Run converter tests
         run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
 
@@ -165,5 +175,10 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      # Required by acdc-converters-terminal's libghostty-vt dev-dependency,
+      # which is compiled as part of the workspace-wide doctest build.
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.15.1"
       - name: Run doc tests
         run: cargo test --doc --verbose

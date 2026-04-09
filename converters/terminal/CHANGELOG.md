@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cell-grid integration tests via `libghostty-vt`** — new `tests/grid_test.rs`
+  pipes converter output through a real VT emulator (Ghostty's `libghostty-vt`
+  0.1.1) and asserts on the rendered cell grid (character, bold/italic,
+  hyperlink) instead of raw ANSI byte streams. Complements the existing
+  fixture-based tests with a layer that survives harmless SGR reorderings and
+  catches bugs where bytes look correct but render wrong. Adds `libghostty-vt`
+  as a dev-dependency; building it requires Zig 0.15.x on `PATH` (CI jobs are
+  updated to install it automatically via `mlugg/setup-zig`).
+- **`Processor::with_capabilities()`** — new builder method to override the
+  auto-detected terminal capabilities. Used by the new cell-grid tests to
+  force OSC 8 hyperlink emission on regardless of the host `TERM`.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 

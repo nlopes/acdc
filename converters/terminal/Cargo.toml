@@ -25,6 +25,7 @@ viuer = { version = "0.11", features = ["print-file"], optional = true }
 
 [dev-dependencies]
 acdc-converters-dev.workspace = true
+libghostty-vt = "0.1.1"
 pretty_assertions.workspace = true
 
 [lints]
