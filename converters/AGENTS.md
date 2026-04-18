@@ -22,4 +22,9 @@ Shared utilities in `core/`:
 cargo run -p acdc-converters-html --example generate_html_fixtures --all-features
 cargo run -p acdc-converters-terminal --example generate_terminal_fixtures --all-features
 cargo run -p acdc-converters-manpage --example generate_manpage_fixtures --all-features
+
+# Markdown uses a shell script that drives the CLI (no example binary):
+bash converters/markdown/tests/regenerate_expected.sh
+# Regenerate a single fixture:
+bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
 ```

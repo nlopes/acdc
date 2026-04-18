@@ -178,15 +178,16 @@ The server works with any file your editor sends it. Configure your editor to re
 
 ### Go-to-definition not working
 
-The target must exist in the same document. Cross-file navigation isn't supported yet.
+The target must exist either in the current document or in another AsciiDoc file reachable from the workspace root. Valid targets:
 
-Valid targets:
 - Section IDs: `[[my-section]]` or auto-generated from section titles
 - Inline anchors: `[[anchor-id]]`
+- Bibliography anchors: `[[[entry,label]]]`
+
+Cross-file resolution uses the workspace index in `src/state/workspace.rs`, which scans open documents and on-disk `.adoc` files under the workspace root.
 
 ## Limitations
 
-- Single-file only (no cross-file references or workspace support yet)
-- Full document sync (reparsing on every change)
-- No incremental parsing
-- No code actions (quick fixes)
+- Full document sync (reparsing on every change) — incremental parsing is not yet implemented
+- The code-action catalog is small; suggestions are limited to the quick fixes currently wired up in `capabilities/code_actions.rs`
+- Cross-file navigation relies on heuristic filesystem scanning; very large workspaces may see startup cost on first open

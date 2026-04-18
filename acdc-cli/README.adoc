@@ -28,7 +28,7 @@ Options:
 
 === convert
 
-Convert `AsciiDoc` documents to various output formats (HTML, terminal).
+Convert `AsciiDoc` documents to various output formats (HTML, manpage, markdown, terminal).
 
 [source,console]
 ....
@@ -101,7 +101,7 @@ cargo build --all-features
 
 For convenience, you can use these feature groups:
 
-* `all-backends` - Enables both HTML and terminal converters
+* `all-backends` - Enables all output converters (`html`, `manpage`, `markdown`, `terminal`)
 * `dev-tools` - Enables the inspect tool
 * `test-tools` - Enables the TCK tool
 

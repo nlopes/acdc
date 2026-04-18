@@ -29,10 +29,10 @@ acdc/
 ├── acdc-cli/                 # Command-line interface
 │   └── src/
 │       └── main.rs          # CLI entry point
-├── acdc-lsp/                 # Language Server Protocol (early/experimental)
+├── acdc-lsp/                 # Language Server Protocol server
 │   └── src/
-│       ├── capabilities/    # LSP features (diagnostics, hover, definition)
-│       └── state/           # Document and workspace state management
+│       ├── capabilities/    # LSP features (diagnostics, hover, completion, rename, references, semantic tokens, …)
+│       └── state/           # Document and workspace state (cross-file anchor index)
 ├── acdc-parser/             # Core parser and AST
 │   ├── src/
 │   │   ├── grammar/         # PEG grammar definitions
@@ -54,9 +54,9 @@ acdc/
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)
 * link:./acdc-editor-wasm[acdc-editor-wasm] - WASM live editor with syntax highlighting and preview
-* link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation (early/experimental)
+* link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation
 * link:./acdc-parser[acdc-parser] - AsciiDoc parser library
-* link:./converters[converters] - collection of AsciiDoc converters
+* link:./converters[converters] - collection of AsciiDoc converters (HTML, manpage, markdown, terminal)
 
 == Architecture overview
 
@@ -76,8 +76,7 @@ acdc/
 
 == Known limitations
 
-* **Inline markup in code/links**: Bold/italic inside code spans and link text not parsed
-* **Cross-file references**: LSP and parser are single-file only
+* **Inline markup in link text**: `+link:url[*bold*]+` renders the asterisks literally; nested inline markup inside link text isn't parsed yet.
 
 See link:./acdc-parser/README.adoc[acdc-parser README] for detailed feature support and list handling notes.
 
