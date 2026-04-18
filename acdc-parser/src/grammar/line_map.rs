@@ -2,14 +2,17 @@ use crate::Position;
 
 /// Pre-calculated line position map for efficient offset-to-position conversion.
 ///
-/// `LineMap` scans the input once to build a sorted list of line start offsets,
-/// then provides O(log n) binary search lookups for any byte offset.
+/// `LineMap` scans the input once to build a sorted list of line start offsets
+/// plus a per-line ASCII flag, then provides `O(log n)` line lookups and
+/// `O(1)` column computation for the common all-ASCII case.
 ///
 /// # Key Properties
 ///
 /// - **Immutable**: Safe for use in PEG action blocks and backtracking parsers
-/// - **Efficient**: O(n) construction, O(log n) lookups
-/// - **UTF-8 aware**: Handles multi-byte characters correctly
+/// - **Efficient**: `O(n)` construction, `O(log n)` line lookup, `O(1)` column
+///   for ASCII lines, `O(line_length)` column for lines with non-ASCII content
+/// - **UTF-8 aware**: Handles multi-byte characters correctly by falling back
+///   to `chars().count()` on lines that are not pure ASCII
 ///
 /// # Usage
 ///
@@ -19,64 +22,84 @@ use crate::Position;
 /// ```
 #[derive(Debug, Clone)]
 pub(crate) struct LineMap {
-    /// Byte offsets where each line starts in the input
+    /// Byte offsets where each line starts in the input.
     line_starts: Vec<usize>,
+    /// Per-line flag: `true` when every byte of the line is ASCII (< 0x80).
+    /// For ASCII lines, column is just `offset - line_start_byte + 1` — no scan.
+    /// Indexed the same way as `line_starts`.
+    line_is_ascii: Vec<bool>,
 }
 
 impl LineMap {
     /// Build line map by scanning input once during initialization.
     /// This is called once before parsing starts.
     pub(crate) fn new(input: &str) -> Self {
-        let mut line_starts = vec![0]; // Line 1 starts at byte offset 0
+        let mut line_starts = Vec::with_capacity(input.len() / 40 + 1);
+        let mut line_is_ascii = Vec::with_capacity(input.len() / 40 + 1);
+        line_starts.push(0);
 
-        for (offset, ch) in input.char_indices() {
-            if ch == '\n' {
-                line_starts.push(offset + 1); // Next line starts after the newline (byte offset)
+        let mut current_line_ascii = true;
+        // Iterate raw bytes: `\n` is always a single-byte character in UTF-8,
+        // so we can't miss a line break while still tracking ASCII-ness.
+        for (i, &b) in input.as_bytes().iter().enumerate() {
+            if b >= 0x80 {
+                current_line_ascii = false;
+            }
+            if b == b'\n' {
+                line_is_ascii.push(current_line_ascii);
+                line_starts.push(i + 1);
+                current_line_ascii = true;
             }
         }
+        // Trailing line (no terminating newline or final line after last newline).
+        line_is_ascii.push(current_line_ascii);
 
-        Self { line_starts }
+        Self {
+            line_starts,
+            line_is_ascii,
+        }
     }
 
-    /// Convert byte offset to Position using binary search - O(log n) lookup.
-    /// This is a pure function with no side effects, safe for use in PEG action blocks.
-    /// Columns are counted as Unicode scalar values (characters), not bytes.
-    #[tracing::instrument(level = "debug")]
+    /// Convert byte offset to Position using binary search - O(log n) line
+    /// lookup, O(1) column for ASCII lines.
+    ///
+    /// Hot path — called millions of times on large documents. Do NOT add
+    /// `#[tracing::instrument]` here; span construction overhead dominates.
+    #[inline]
     pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
         // Find which line this offset belongs to
-        let line = match self.line_starts.binary_search(&offset) {
-            Ok(line_idx) => line_idx + 1, // Exact match: start of this line
-            Err(line_idx) => line_idx,    // Insert position: this line number
+        let line_idx = match self.line_starts.binary_search(&offset) {
+            Ok(i) => i, // Exact match: start of line i+1
+            Err(i) => i.saturating_sub(1),
         };
 
-        // Get the byte offset at the start of this line
-        let line_start_byte = self
-            .line_starts
-            .get(line.saturating_sub(1))
-            .copied()
-            .unwrap_or(0);
+        let line_start_byte = self.line_starts.get(line_idx).copied().unwrap_or(0);
 
         // Ensure the offset doesn't land in the middle of a multi-byte UTF-8 character.
-        // If it does, round backward to the start of the current character.
+        // UTF-8 chars are at most 4 bytes, so we only look back up to 3 bytes.
         let adjusted_offset = if offset > input.len() {
             input.len()
         } else if input.is_char_boundary(offset) {
             offset
         } else {
-            // Find the previous valid character boundary (start of current char)
-            (0..=offset)
-                .rev()
+            (1..=3)
+                .map(|i| offset.saturating_sub(i))
                 .find(|&i| input.is_char_boundary(i))
                 .unwrap_or(0)
         };
 
-        // Count characters from line start to current offset
-        let chars_in_line = input
-            .get(line_start_byte..adjusted_offset)
-            .map_or(0, |s| s.chars().count());
+        // Fast path: ASCII-only line → column is byte distance from line start.
+        let byte_count = adjusted_offset - line_start_byte;
+        let chars_in_line = if self.line_is_ascii.get(line_idx).copied().unwrap_or(false) {
+            byte_count
+        } else {
+            input
+                .get(line_start_byte..adjusted_offset)
+                .map_or(0, |s| s.chars().count())
+        };
 
         Position {
-            line,
+            line: line_idx + 1,
             column: chars_in_line + 1,
         }
     }
@@ -202,5 +225,22 @@ mod tests {
         let pos = line_map.offset_to_position(0, input);
         assert_eq!(pos.line, 1);
         assert_eq!(pos.column, 1);
+    }
+
+    #[test]
+    fn test_line_map_utf8_content() {
+        // "é" is 2 bytes in UTF-8 (0xC3 0xA9). Line 1 contains non-ASCII.
+        let input = "caf\u{00e9}\nbar";
+        let line_map = LineMap::new(input);
+
+        // Line 1 is flagged as non-ASCII (fall back to chars().count())
+        let pos = line_map.offset_to_position(5, input); // byte 5 = end of "café"
+        assert_eq!(pos.line, 1);
+        assert_eq!(pos.column, 5); // 4 chars + 1
+
+        // Line 2 is flagged ASCII (fast path)
+        let pos = line_map.offset_to_position(8, input); // byte 8 = "r"
+        assert_eq!(pos.line, 2);
+        assert_eq!(pos.column, 3);
     }
 }

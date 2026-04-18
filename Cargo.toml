@@ -78,9 +78,15 @@ opt-level = 0
 opt-level = 2
 
 [profile.release]
-# Enable link-time optimization for better cross-crate inlining
-lto = "thin"
-# Single codegen unit for maximum optimization (slower compile, faster runtime)
+opt-level = 3
+lto = "fat"
 codegen-units = 1
-# Enable debug info for profiling in release builds
-debug = "line-tables-only"
+panic = "abort"
+strip = true
+
+# Release build with debug symbols preserved for profiling (samply, cargo flamegraph).
+# Inherits all release optimizations so hotspots match production behaviour.
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false

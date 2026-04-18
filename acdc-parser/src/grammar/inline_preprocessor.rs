@@ -26,7 +26,10 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
     /// Pre-computed line map for O(log n) offset→position lookups.
-    pub(crate) line_map: LineMap,
+    /// Borrowed from the enclosing `ParserState` — `LineMap` is immutable once
+    /// built, and cloning its internal `Vec<usize>` + `Vec<bool>` on every
+    /// inline-preprocessing call was a significant allocation hotspot.
+    pub(crate) line_map: &'a LineMap,
     /// Full document input (for `LineMap` position lookups).
     pub(crate) full_input: &'a str,
     pub(crate) source_map: RefCell<SourceMap>,
@@ -55,7 +58,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `attributes_enabled` - Whether attribute substitutions are active
     pub(crate) fn new(
         input: &'a str,
-        line_map: LineMap,
+        line_map: &'a LineMap,
         full_input: &'a str,
         macros_enabled: bool,
         attributes_enabled: bool,
@@ -77,7 +80,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
     }
 
     /// Create a new state with all substitutions enabled (macros + attributes).
-    pub(crate) fn new_all_enabled(input: &'a str, line_map: LineMap, full_input: &'a str) -> Self {
+    pub(crate) fn new_all_enabled(
+        input: &'a str,
+        line_map: &'a LineMap,
+        full_input: &'a str,
+    ) -> Self {
         Self::new(input, line_map, full_input, true, true)
     }
 
@@ -717,12 +724,15 @@ mod tests {
     }
 
     fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
+        // Test helper: leak the LineMap so it outlives the borrowed state.
+        // Production callers pass a borrowed LineMap from `ParserState`.
+        let line_map: &'static LineMap = Box::leak(Box::new(LineMap::new(content)));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
-            line_map: LineMap::new(content),
+            line_map,
             full_input: content,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(content),
@@ -1406,12 +1416,13 @@ mod tests {
     }
 
     fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'_> {
+        let line_map: &'static LineMap = Box::leak(Box::new(LineMap::new(content)));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
-            line_map: LineMap::new(content),
+            line_map,
             full_input: content,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(content),

@@ -49,7 +49,7 @@ fn write_example_block<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
     blocks: &[Block],
 ) -> Result<(), Error> {
-    let is_collapsible = block.metadata.options.contains(&"collapsible".to_string());
+    let is_collapsible = block.metadata.options.iter().any(|s| s == "collapsible");
 
     if is_collapsible {
         return write_example_block_collapsible(visitor, block, blocks);
@@ -88,7 +88,7 @@ fn write_example_block_collapsible<V: WritableVisitor<Error = Error>>(
     block: &DelimitedBlock,
     blocks: &[Block],
 ) -> Result<(), Error> {
-    let is_open = block.metadata.options.contains(&"open".to_string());
+    let is_open = block.metadata.options.iter().any(|s| s == "open");
 
     let mut writer = visitor.writer_mut();
     write!(writer, "<details")?;
@@ -133,8 +133,8 @@ fn write_example_block_semantic<V: WritableVisitor<Error = Error>>(
     processor: &Processor,
     blocks: &[Block],
 ) -> Result<(), Error> {
-    let is_collapsible = block.metadata.options.contains(&"collapsible".to_string());
-    let is_open = block.metadata.options.contains(&"open".to_string());
+    let is_collapsible = block.metadata.options.iter().any(|s| s == "collapsible");
+    let is_open = block.metadata.options.iter().any(|s| s == "open");
 
     let mut writer = visitor.writer_mut();
     if is_collapsible {
