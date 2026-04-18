@@ -1,6 +1,6 @@
 //! State management for open documents
 
-mod document;
+pub(crate) mod document;
 mod workspace;
 pub(crate) mod xref_target;
 

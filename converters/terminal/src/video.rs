@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use acdc_converters_core::{video::TryUrl, visitor::WritableVisitor};
 use acdc_parser::Video;
 use crossterm::{
@@ -5,18 +7,17 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::Error;
+use crate::{Error, TerminalVisitor};
 
-pub(crate) fn visit_video<V: WritableVisitor<Error = Error>>(
-    video: &Video,
-    visitor: &mut V,
-) -> Result<(), Error> {
-    if video.sources.is_empty() {
-        return Ok(());
+impl<W: Write> TerminalVisitor<'_, W> {
+    pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
+        if video.sources.is_empty() {
+            return Ok(());
+        }
+
+        let url = video.try_url(false)?;
+        let w = self.writer_mut();
+        w.queue(PrintStyledContent(url.italic()))?;
+        Ok(())
     }
-
-    let url = video.try_url(false)?;
-    let w = visitor.writer_mut();
-    w.queue(PrintStyledContent(url.italic()))?;
-    Ok(())
 }

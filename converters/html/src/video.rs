@@ -1,70 +1,71 @@
 use std::io::Write;
 
-use acdc_converters_core::{video::TryUrl, visitor::WritableVisitor};
+use acdc_converters_core::{
+    video::TryUrl,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{AttributeValue, Video};
 
-use crate::{Error, HtmlVariant, Processor};
+use crate::{Error, HtmlVariant, HtmlVisitor};
 
-pub(crate) fn visit_video<V: WritableVisitor<Error = Error>>(
-    video: &Video,
-    visitor: &mut V,
-    processor: &Processor,
-) -> Result<(), Error> {
-    if processor.variant() == HtmlVariant::Semantic {
-        return visit_video_semantic(video, visitor);
-    }
+impl<W: Write> HtmlVisitor<'_, W> {
+    pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
+        if self.processor.variant() == HtmlVariant::Semantic {
+            return visit_video_semantic(video, self);
+        }
 
-    let mut w = visitor.writer_mut();
-    write!(w, "<div")?;
-    if let Some(id) = &video.metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
-    }
-    writeln!(w, " class=\"videoblock\">")?;
+        let mut w = self.writer_mut();
+        write!(w, "<div")?;
+        if let Some(id) = &video.metadata.id {
+            write!(w, " id=\"{}\"", id.id)?;
+        }
+        writeln!(w, " class=\"videoblock\">")?;
 
-    if !video.title.is_empty() {
-        write!(w, "<div class=\"title\">")?;
-        let _ = w;
-        visitor.visit_inline_nodes(&video.title)?;
-        w = visitor.writer_mut();
+        if !video.title.is_empty() {
+            write!(w, "<div class=\"title\">")?;
+            let _ = w;
+            self.visit_inline_nodes(&video.title)?;
+            w = self.writer_mut();
+            writeln!(w, "</div>")?;
+        }
+
+        writeln!(w, "<div class=\"content\">")?;
+
+        // Video blocks can have multiple sources
+        if video.sources.is_empty() {
+            writeln!(w, "</div>")?;
+            writeln!(w, "</div>")?;
+            return Ok(());
+        }
+
+        // Check if this is a YouTube or Vimeo video
+        // The platform is stored as an attribute with boolean value
+        let is_youtube = matches!(
+            video.metadata.attributes.get("youtube"),
+            Some(AttributeValue::Bool(true))
+        );
+        let is_vimeo = matches!(
+            video.metadata.attributes.get("vimeo"),
+            Some(AttributeValue::Bool(true))
+        );
+
+        if is_youtube || is_vimeo {
+            render_iframe_video(video, w)?;
+        } else {
+            render_local_video(video, w)?;
+        }
+
         writeln!(w, "</div>")?;
-    }
-
-    writeln!(w, "<div class=\"content\">")?;
-
-    // Video blocks can have multiple sources
-    if video.sources.is_empty() {
         writeln!(w, "</div>")?;
-        writeln!(w, "</div>")?;
-        return Ok(());
+
+        Ok(())
     }
-
-    // Check if this is a YouTube or Vimeo video
-    // The platform is stored as an attribute with boolean value
-    let is_youtube = matches!(
-        video.metadata.attributes.get("youtube"),
-        Some(AttributeValue::Bool(true))
-    );
-    let is_vimeo = matches!(
-        video.metadata.attributes.get("vimeo"),
-        Some(AttributeValue::Bool(true))
-    );
-
-    if is_youtube || is_vimeo {
-        render_iframe_video(video, w)?;
-    } else {
-        render_local_video(video, w)?;
-    }
-
-    writeln!(w, "</div>")?;
-    writeln!(w, "</div>")?;
-
-    Ok(())
 }
 
 /// Render a video as an iframe, suitable for `YouTube` or `Vimeo` embedding.
 fn render_iframe_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(), Error> {
     let url = video.try_url(true)?;
-    let allow_fullscreen = !video.metadata.options.iter().any(|o| o == "nofullscreen");
+    let allow_fullscreen = !video.metadata.options.contains(&"nofullscreen");
 
     write!(w, "<iframe")?;
 
@@ -109,20 +110,20 @@ fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(),
         write!(w, " preload=\"{preload}\"")?;
     }
 
-    if video.metadata.options.iter().any(|o| o == "autoplay") {
+    if video.metadata.options.contains(&"autoplay") {
         write!(w, " autoplay")?;
     }
 
-    if video.metadata.options.iter().any(|o| o == "muted") {
+    if video.metadata.options.contains(&"muted") {
         write!(w, " muted")?;
     }
 
     // Add nocontrols option check - if present, don't add controls
-    if !video.metadata.options.iter().any(|o| o == "nocontrols") {
+    if !video.metadata.options.contains(&"nocontrols") {
         write!(w, " controls")?;
     }
 
-    if video.metadata.options.iter().any(|o| o == "loop") {
+    if video.metadata.options.contains(&"loop") {
         write!(w, " loop")?;
     }
 
@@ -133,9 +134,9 @@ fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(),
     Ok(())
 }
 
-fn visit_video_semantic<V: WritableVisitor<Error = Error>>(
+fn visit_video_semantic<W: Write>(
     video: &Video,
-    visitor: &mut V,
+    visitor: &mut HtmlVisitor<'_, W>,
 ) -> Result<(), Error> {
     let has_title = !video.title.is_empty();
     let mut w = visitor.writer_mut();

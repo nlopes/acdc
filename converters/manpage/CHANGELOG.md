@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Performance
+
+- **Streaming output.** Rendering writes directly to the caller's `Write`
+  target, keeping allocations flat on large documents.
+
 ### Added
 
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or

@@ -1,6 +1,6 @@
 use crate::ListItem;
 
-impl ListItem {
+impl ListItem<'_> {
     /// This takes a single line and tries to parse it according to the described
     /// `AsciiDoc` list item rules. It simply identifies the depth of nesting. It handles
     /// the patterns as follows:

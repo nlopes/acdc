@@ -58,13 +58,14 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
-    let doc = acdc_parser::parse_file(&input_path, &parser_options)?;
+    let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
+    let doc = parsed.document();
 
     // Convert to Terminal output
     let mut output = Vec::new();
-    let processor =
-        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
-    processor.write_to(&doc, &mut output, Some(input_path.as_path()))?;
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static())
+        .with_terminal_width(80);
+    processor.write_to(doc, &mut output, Some(input_path.as_path()))?;
 
     if osc8 && !processor.terminal_capabilities().osc8_links {
         // If the fixture name indicates osc8 links but we're running in a terminal that

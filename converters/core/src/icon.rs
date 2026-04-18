@@ -45,8 +45,8 @@ pub enum IconMode {
     Text,
 }
 
-impl From<&DocumentAttributes> for IconMode {
-    fn from(attrs: &DocumentAttributes) -> Self {
+impl From<&DocumentAttributes<'_>> for IconMode {
+    fn from(attrs: &DocumentAttributes<'_>) -> Self {
         if let Some(icons_value) = attrs.get("icons") {
             match icons_value {
                 AttributeValue::String(s) if s == "image" => Self::Image,

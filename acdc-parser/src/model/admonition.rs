@@ -18,11 +18,11 @@ use super::title::Title;
 /// An `Admonition` represents an admonition in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Admonition {
-    pub metadata: BlockMetadata,
+pub struct Admonition<'a> {
+    pub metadata: BlockMetadata<'a>,
     pub variant: AdmonitionVariant,
-    pub blocks: Vec<Block>,
-    pub title: Title,
+    pub blocks: Vec<Block<'a>>,
+    pub title: Title<'a>,
     pub location: Location,
 }
 
@@ -70,10 +70,10 @@ impl FromStr for AdmonitionVariant {
     }
 }
 
-impl Admonition {
+impl<'a> Admonition<'a> {
     /// Create a new admonition with the given variant, blocks, and location.
     #[must_use]
-    pub fn new(variant: AdmonitionVariant, blocks: Vec<Block>, location: Location) -> Self {
+    pub fn new(variant: AdmonitionVariant, blocks: Vec<Block<'a>>, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             variant,
@@ -85,20 +85,20 @@ impl Admonition {
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
         self.title = title;
         self
     }
 }
 
-impl Serialize for Admonition {
+impl Serialize for Admonition<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

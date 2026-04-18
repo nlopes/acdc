@@ -39,20 +39,21 @@ pub fn init() -> Result<(), JsValue> {
 pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
     let mut document_attributes = DocumentAttributes::default();
     document_attributes.insert(
-        String::from("source-highlighter"),
+        std::borrow::Cow::Borrowed("source-highlighter"),
         AttributeValue::Bool(true),
     );
     let options = acdc_parser::Options::builder()
         .with_attributes(document_attributes)
         .build();
-    let document = acdc_parser::parse(input, &options).map_err(|e| format!("{e}"))?;
+    let parsed = acdc_parser::parse(input, &options).map_err(|e| format!("{e}"))?;
+    let document = parsed.document();
 
-    let highlight_html = ast_highlight::highlight_from_ast(input, &document);
+    let highlight_html = ast_highlight::highlight_from_ast(input, document);
 
     let html_options = Options::builder().embedded(true).build();
     let processor = Processor::new_with_variant(
         html_options,
-        document.attributes.clone(),
+        document.attributes.to_static(),
         HtmlVariant::Semantic,
     );
     let render_options = RenderOptions {
@@ -61,7 +62,7 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
     };
 
     let preview_html = processor
-        .convert_to_string(&document, &render_options)
+        .convert_to_string(document, &render_options)
         .map_err(|e| format!("{e}"))?;
 
     let has_stem = document.attributes.get("stem").is_some();

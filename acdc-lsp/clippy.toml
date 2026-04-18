@@ -1,0 +1,3 @@
+disallowed-methods = [
+    { path = "std::boxed::Box::leak", reason = "leaks memory for the lifetime of the process; use arena allocation or an owned wrapper (see crate::state::document::OwnedSource) instead" },
+]

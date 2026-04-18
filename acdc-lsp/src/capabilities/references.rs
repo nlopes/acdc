@@ -18,8 +18,9 @@ pub(crate) fn find_references(
     position: Position,
     include_declaration: bool,
 ) -> Option<Vec<tower_lsp_server::ls_types::Location>> {
-    let offset = position_to_offset(&doc.text, position)?;
-    let ast = doc.ast.as_ref()?;
+    let offset = position_to_offset(doc.text(), position)?;
+    let ast_guard = doc.ast()?;
+    let ast = ast_guard.document();
 
     // Check if cursor is on an xref - find all references to its target
     if let Some((target_id, _xref_loc)) = super::hover::find_xref_at_offset(ast, offset) {

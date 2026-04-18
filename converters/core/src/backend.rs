@@ -26,7 +26,7 @@ impl FromStr for Backend {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s.to_lowercase().as_ref() {
             "html" => Ok(Self::Html),
             "html5s" => Ok(Self::Html5s),
             "manpage" => Ok(Self::Manpage),

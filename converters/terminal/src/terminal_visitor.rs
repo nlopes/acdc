@@ -1,6 +1,6 @@
 //! Visitor implementation for terminal output.
 
-use std::{io::Write, rc::Rc};
+use std::io::Write;
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
@@ -16,24 +16,19 @@ use crossterm::{
 use crate::Processor;
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
-pub struct TerminalVisitor<W: Write> {
+pub struct TerminalVisitor<'a, W: Write> {
     writer: W,
-    /// Shared `Processor` — `Rc` so delegation-site clones don't deep-copy
-    /// `toc_entries: Vec<TocEntry>` and the `document_attributes` hashmap.
-    /// With a plain `Processor`, each of the ~15 `self.processor.clone()` calls
-    /// across the visitor methods copied the whole struct, producing
-    /// `O(nodes × processor_size)` behaviour on large documents.
-    pub(crate) processor: Rc<Processor>,
+    pub(crate) processor: Processor<'a>,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
 }
 
-impl<W: Write> TerminalVisitor<W> {
-    pub fn new(writer: W, processor: Processor) -> Self {
+impl<'a, W: Write> TerminalVisitor<'a, W> {
+    pub fn new(writer: W, processor: Processor<'a>) -> Self {
         Self {
             writer,
-            processor: Rc::new(processor),
+            processor,
             in_inline_span: false,
         }
     }
@@ -44,7 +39,7 @@ impl<W: Write> TerminalVisitor<W> {
     }
 }
 
-impl<W: Write> Visitor for TerminalVisitor<W> {
+impl<W: Write> Visitor for TerminalVisitor<'_, W> {
     type Error = crate::Error;
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
@@ -52,19 +47,16 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
         if self.processor.options.embedded() {
             return Ok(());
         }
-        let processor = self.processor.clone();
-        crate::document::visit_header(header, self, &processor)
+        self.render_header(header)
     }
 
     fn visit_body_content_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::toc::render(None, self, "auto", &processor)?;
+        self.render_toc(None, "auto")?;
         Ok(())
     }
 
     fn visit_preamble_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::toc::render(None, self, "preamble", &processor)?;
+        self.render_toc(None, "preamble")?;
         Ok(())
     }
 
@@ -94,15 +86,14 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
             .metadata
             .style
             .as_ref()
-            .is_some_and(|s| s == "index");
+            .is_some_and(|s| *s == "index");
 
         // Index sections are only rendered if they're the last section
         if is_index_section && !self.processor.has_valid_index_section() {
             return Ok(());
         }
 
-        let processor = self.processor.clone();
-        crate::section::visit_section(section, self, &processor)?;
+        self.render_section(section)?;
 
         if is_index_section {
             // Render the collected index catalog instead of normal content
@@ -110,7 +101,7 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
             crate::index::render(self, &processor)?;
         } else {
             // Walk nested blocks within the section
-            for nested_block in &section.content {
+            for nested_block in &section.content.clone() {
                 self.visit_block(nested_block)?;
             }
         }
@@ -119,33 +110,27 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::paragraph::visit_paragraph(para, self, &processor)
+        self.render_paragraph(para)
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::delimited::visit_delimited_block(self, block, &processor)
+        self.render_delimited_block(block)
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_ordered_list(list, self, &processor)
+        self.render_ordered_list(list)
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_unordered_list(list, self, &processor)
+        self.render_unordered_list(list)
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_description_list(list, self, &processor)
+        self.render_description_list(list)
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_callout_list(list, self, &processor)
+        self.render_callout_list(list)
     }
 
     fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
@@ -154,20 +139,19 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::admonition::visit_admonition(self, admon, &processor)
+        self.render_admonition(admon)
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        crate::image::visit_image(img, self)
+        self.render_image(img)
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        crate::video::visit_video(video, self)
+        self.render_video(video)
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        crate::audio::visit_audio(audio, self)
+        self.render_audio(audio)
     }
 
     fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {
@@ -183,13 +167,11 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 
     fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::toc::render(Some(toc), self, "macro", &processor)
+        self.render_toc(Some(toc), "macro")
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::section::visit_discrete_header(header, self, &processor)
+        self.render_discrete_header(header)
     }
 
     fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
@@ -205,9 +187,8 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
             self.in_inline_span = true;
         }
 
-        let processor = self.processor.clone();
         let in_span = self.in_inline_span;
-        let result = crate::inlines::visit_inline_node(node, self, &processor, in_span);
+        let result = self.render_inline_node(node, in_span);
 
         self.in_inline_span = saved;
         result
@@ -219,7 +200,7 @@ impl<W: Write> Visitor for TerminalVisitor<W> {
     }
 }
 
-impl<W: Write> WritableVisitor for TerminalVisitor<W> {
+impl<W: Write> WritableVisitor for TerminalVisitor<'_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

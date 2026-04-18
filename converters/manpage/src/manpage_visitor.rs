@@ -14,9 +14,9 @@ use crate::escape::{EscapeMode, manify};
 use crate::{Error, Processor};
 
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
-pub struct ManpageVisitor<W: Write> {
+pub struct ManpageVisitor<'a, W: Write> {
     writer: W,
-    pub(crate) processor: Processor,
+    pub(crate) processor: Processor<'a>,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
     /// Whether we're currently in the NAME section (which shouldn't have .sp before content).
@@ -33,9 +33,9 @@ pub struct ManpageVisitor<W: Write> {
     second_section_title: Option<String>,
 }
 
-impl<W: Write> ManpageVisitor<W> {
+impl<'a, W: Write> ManpageVisitor<'a, W> {
     /// Create a new manpage visitor.
-    pub fn new(writer: W, processor: Processor) -> Self {
+    pub fn new(writer: W, processor: Processor<'a>) -> Self {
         Self {
             writer,
             processor,
@@ -137,11 +137,11 @@ impl<W: Write> ManpageVisitor<W> {
     }
 }
 
-impl<W: Write> Visitor for ManpageVisitor<W> {
+impl<W: Write> Visitor for ManpageVisitor<'_, W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
-        crate::document::visit_document_start(doc, self)
+        self.render_document_start(doc)
     }
 
     fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
@@ -219,31 +219,31 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        crate::section::visit_section(section, self)
+        self.render_section(section)
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        crate::paragraph::visit_paragraph(para, self)
+        self.render_paragraph(para)
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
-        crate::delimited::visit_delimited_block(block, self)
+        self.render_delimited_block(block)
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        crate::list::visit_ordered_list(list, self)
+        self.render_ordered_list(list)
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
-        crate::list::visit_unordered_list(list, self)
+        self.render_unordered_list(list)
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        crate::list::visit_description_list(list, self)
+        self.render_description_list(list)
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        crate::list::visit_callout_list(list, self)
+        self.render_callout_list(list)
     }
 
     fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
@@ -252,7 +252,7 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        crate::admonition::visit_admonition(admon, self)
+        self.render_admonition(admon)
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
@@ -331,7 +331,7 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
                 let (trailing, skip_count, partial_bytes) =
                     self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
 
-                crate::inlines::write_autolink_with_trailing(self, al, &trailing)?;
+                self.write_autolink_with_trailing(al, &trailing)?;
                 i += 1 + skip_count;
 
                 // If a PlainText node was partially consumed, render only the remainder
@@ -360,7 +360,7 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
                 let (trailing, skip_count, partial_bytes) =
                     self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
 
-                crate::inlines::write_mailto_with_trailing(self, mailto, &trailing)?;
+                self.write_mailto_with_trailing(mailto, &trailing)?;
                 i += 1 + skip_count;
 
                 // If a PlainText node was partially consumed, render only the remainder
@@ -396,7 +396,7 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
             self.in_inline_span = true;
         }
 
-        let result = crate::inlines::visit_inline_node(node, self);
+        let result = self.render_inline_node(node);
 
         self.in_inline_span = saved;
         result
@@ -409,7 +409,7 @@ impl<W: Write> Visitor for ManpageVisitor<W> {
     }
 }
 
-impl<W: Write> WritableVisitor for ManpageVisitor<W> {
+impl<W: Write> WritableVisitor for ManpageVisitor<'_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

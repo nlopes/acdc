@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .embedded(embedded)
             .build();
         let processor = Processor::new(options, doc.attributes.clone());
-        processor.write_to(doc, output, None)?;
+        processor.write_document(doc, output, None)?;
         Ok(())
     })
 }

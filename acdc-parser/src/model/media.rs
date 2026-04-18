@@ -1,7 +1,6 @@
 //! Media types for `AsciiDoc` documents (images, audio, video).
 
 use std::fmt::Display;
-use std::str::FromStr;
 
 use serde::{
     Serialize,
@@ -28,7 +27,7 @@ use super::title::Title;
 ///     match source {
 ///         Source::Path(path) => path.display().to_string(),
 ///         Source::Url(url) => url.to_string(),
-///         Source::Name(name) => name.clone(),
+///         Source::Name(name) => (*name).to_string(),
 ///     }
 /// }
 /// ```
@@ -37,7 +36,7 @@ use super::title::Title;
 ///
 /// ```
 /// # use acdc_parser::Source;
-/// # let source = Source::Name("example".to_string());
+/// # let source = Source::Name("example");
 /// let source_str = source.to_string();
 /// ```
 ///
@@ -45,15 +44,15 @@ use super::title::Title;
 ///
 /// - `Path(PathBuf)` - Local filesystem path (e.g., `images/photo.png`)
 /// - `Url(url::Url)` - Remote URL (e.g., `https://example.com/image.png`)
-/// - `Name(String)` - Simple identifier (e.g., icon names like `heart`, `github`)
+/// - `Name(&str)` - Simple identifier (e.g., icon names like `heart`, `github`)
 #[derive(Clone, Debug, PartialEq)]
-pub enum Source {
+pub enum Source<'a> {
     /// A filesystem path (relative or absolute).
     Path(std::path::PathBuf),
     /// A URL (http, https, ftp, etc.).
-    Url(SourceUrl),
+    Url(SourceUrl<'a>),
     /// A simple name (used for icon names, menu targets, etc.).
-    Name(String),
+    Name(&'a str),
 }
 
 /// A parsed URL that preserves the author's original input for display.
@@ -64,23 +63,20 @@ pub enum Source {
 ///
 /// See [issue #335](https://github.com/nlopes/acdc/issues/335).
 #[derive(Clone, Debug)]
-pub struct SourceUrl {
+pub struct SourceUrl<'a> {
     url: url::Url,
-    original: String,
+    original: &'a str,
 }
 
-impl SourceUrl {
+impl<'a> SourceUrl<'a> {
     /// Create a new `SourceUrl` from a string, preserving the original for display.
     ///
     /// # Errors
     ///
     /// Returns an error if the input is not a valid URL.
-    pub fn new(input: &str) -> Result<Self, url::ParseError> {
-        let url = url::Url::parse(input)?;
-        Ok(Self {
-            url,
-            original: input.to_string(),
-        })
+    pub fn new(original: &'a str) -> Result<Self, url::ParseError> {
+        let url = url::Url::parse(original)?;
+        Ok(Self { url, original })
     }
 
     /// Get the underlying `url::Url`.
@@ -90,26 +86,26 @@ impl SourceUrl {
     }
 }
 
-impl std::ops::Deref for SourceUrl {
+impl std::ops::Deref for SourceUrl<'_> {
     type Target = url::Url;
     fn deref(&self) -> &Self::Target {
         &self.url
     }
 }
 
-impl PartialEq for SourceUrl {
+impl PartialEq for SourceUrl<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.url == other.url
     }
 }
 
-impl Display for SourceUrl {
+impl Display for SourceUrl<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.original)
     }
 }
 
-impl Source {
+impl Source<'_> {
     /// Get the filename from the source.
     ///
     /// For paths, this returns the file name component. For URLs, it returns the last path
@@ -122,15 +118,25 @@ impl Source {
                 .path_segments()
                 .and_then(std::iter::Iterator::last)
                 .filter(|s| !s.is_empty()),
-            Source::Name(name) => Some(name.as_str()),
+            Source::Name(name) => Some(name),
         }
     }
 }
 
-impl FromStr for Source {
-    type Err = Error;
+impl<'a> From<SourceUrl<'a>> for Source<'a> {
+    fn from(url: SourceUrl<'a>) -> Self {
+        Source::Url(url)
+    }
+}
 
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
+impl<'a> Source<'a> {
+    /// Construct a `Source` from a borrowed string, classifying it as either a
+    /// URL or a filesystem path based on its scheme.
+    ///
+    /// # Errors
+    /// Returns [`Error::Parse`] when `value` looks like a URL (starts with a
+    /// recognised scheme) but fails URL parsing.
+    pub fn from_str_borrowed(value: &'a str) -> Result<Self, Error> {
         // Try to parse as URL first
         if value.starts_with("http://")
             || value.starts_with("https://")
@@ -148,17 +154,16 @@ impl FromStr for Source {
                 )
             })
         } else if value.contains('/') || value.contains('\\') || value.contains('.') {
-            // Contains path separators - treat as filesystem path or contains a dot which
-            // might indicate a filename with extension
+            // Contains path separators or dot (filename with extension)
             Ok(Source::Path(std::path::PathBuf::from(value)))
         } else {
             // Contains special characters or spaces - treat as a name
-            Ok(Source::Name(value.to_string()))
+            Ok(Source::Name(value))
         }
     }
 }
 
-impl Display for Source {
+impl Display for Source<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Source::Path(path) => write!(f, "{}", path.display()),
@@ -168,7 +173,7 @@ impl Display for Source {
     }
 }
 
-impl Serialize for Source {
+impl Serialize for Source<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -195,17 +200,17 @@ impl Serialize for Source {
 /// An `Audio` represents an audio block in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Audio {
-    pub title: Title,
-    pub source: Source,
-    pub metadata: BlockMetadata,
+pub struct Audio<'a> {
+    pub title: Title<'a>,
+    pub source: Source<'a>,
+    pub metadata: BlockMetadata<'a>,
     pub location: Location,
 }
 
-impl Audio {
+impl<'a> Audio<'a> {
     /// Create a new audio with the given source and location.
     #[must_use]
-    pub fn new(source: Source, location: Location) -> Self {
+    pub fn new(source: Source<'a>, location: Location) -> Self {
         Self {
             title: Title::default(),
             source,
@@ -216,14 +221,14 @@ impl Audio {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
         self.title = title;
         self
     }
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
@@ -232,17 +237,17 @@ impl Audio {
 /// A `Video` represents a video block in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Video {
-    pub title: Title,
-    pub sources: Vec<Source>,
-    pub metadata: BlockMetadata,
+pub struct Video<'a> {
+    pub title: Title<'a>,
+    pub sources: Vec<Source<'a>>,
+    pub metadata: BlockMetadata<'a>,
     pub location: Location,
 }
 
-impl Video {
+impl<'a> Video<'a> {
     /// Create a new video with the given sources and location.
     #[must_use]
-    pub fn new(sources: Vec<Source>, location: Location) -> Self {
+    pub fn new(sources: Vec<Source<'a>>, location: Location) -> Self {
         Self {
             title: Title::default(),
             sources,
@@ -253,14 +258,14 @@ impl Video {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
         self.title = title;
         self
     }
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
@@ -269,17 +274,17 @@ impl Video {
 /// An `Image` represents an image block in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Image {
-    pub title: Title,
-    pub source: Source,
-    pub metadata: BlockMetadata,
+pub struct Image<'a> {
+    pub title: Title<'a>,
+    pub source: Source<'a>,
+    pub metadata: BlockMetadata<'a>,
     pub location: Location,
 }
 
-impl Image {
+impl<'a> Image<'a> {
     /// Create a new image with the given source and location.
     #[must_use]
-    pub fn new(source: Source, location: Location) -> Self {
+    pub fn new(source: Source<'a>, location: Location) -> Self {
         Self {
             title: Title::default(),
             source,
@@ -290,20 +295,20 @@ impl Image {
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
         self.title = title;
         self
     }
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
 }
 
-impl Serialize for Audio {
+impl Serialize for Audio<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -324,7 +329,7 @@ impl Serialize for Audio {
     }
 }
 
-impl Serialize for Image {
+impl Serialize for Image<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -345,7 +350,7 @@ impl Serialize for Image {
     }
 }
 
-impl Serialize for Video {
+impl Serialize for Video<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -375,7 +380,7 @@ mod tests {
     #[test]
     fn source_display_preserves_trailing_slash() -> Result<(), Error> {
         // Issue #335: URLs with trailing slashes should preserve them
-        let source = Source::from_str("http://example.com/")?;
+        let source = Source::from_str_borrowed("http://example.com/")?;
         assert_eq!(source.to_string(), "http://example.com/");
         Ok(())
     }
@@ -383,21 +388,21 @@ mod tests {
     #[test]
     fn source_display_no_trailing_slash_when_absent() -> Result<(), Error> {
         // Domain-only URL without trailing slash should not gain one
-        let source = Source::from_str("http://example.com")?;
+        let source = Source::from_str_borrowed("http://example.com")?;
         assert_eq!(source.to_string(), "http://example.com");
         Ok(())
     }
 
     #[test]
     fn source_display_preserves_path_trailing_slash() -> Result<(), Error> {
-        let source = Source::from_str("http://example.com/foo/")?;
+        let source = Source::from_str_borrowed("http://example.com/foo/")?;
         assert_eq!(source.to_string(), "http://example.com/foo/");
         Ok(())
     }
 
     #[test]
     fn source_display_preserves_path_without_trailing_slash() -> Result<(), Error> {
-        let source = Source::from_str("http://example.com/foo")?;
+        let source = Source::from_str_borrowed("http://example.com/foo")?;
         assert_eq!(source.to_string(), "http://example.com/foo");
         Ok(())
     }
@@ -405,14 +410,14 @@ mod tests {
     #[test]
     fn source_display_preserves_query_without_path() -> Result<(), Error> {
         // Original URL preserved exactly, even without explicit path before query
-        let source = Source::from_str("https://example.com?a=1&b=2")?;
+        let source = Source::from_str_borrowed("https://example.com?a=1&b=2")?;
         assert_eq!(source.to_string(), "https://example.com?a=1&b=2");
         Ok(())
     }
 
     #[test]
     fn source_display_preserves_trailing_slash_with_query() -> Result<(), Error> {
-        let source = Source::from_str("https://example.com/?a=1&b=2")?;
+        let source = Source::from_str_borrowed("https://example.com/?a=1&b=2")?;
         assert_eq!(source.to_string(), "https://example.com/?a=1&b=2");
         Ok(())
     }

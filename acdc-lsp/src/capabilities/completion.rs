@@ -189,7 +189,7 @@ pub(crate) fn compute_completions(
     workspace: &Workspace,
     position: Position,
 ) -> Option<Vec<CompletionItem>> {
-    let context = detect_context(&doc.text, position)?;
+    let context = detect_context(doc.text(), position)?;
 
     match context {
         CompletionContext::CrossReference { prefix } => {
@@ -424,11 +424,12 @@ fn complete_attribute_references(doc: &DocumentState, prefix: &str) -> Vec<Compl
     let mut items = Vec::new();
 
     // Add document-defined attributes
-    if let Some(ast) = &doc.ast {
+    if let Some(ast) = doc.ast() {
+        let ast = ast.document();
         for (name, _value) in ast.attributes.iter() {
-            if name.starts_with(prefix) {
+            if name.as_ref().starts_with(prefix) {
                 items.push(CompletionItem {
-                    label: name.clone(),
+                    label: name.to_string(),
                     kind: Some(CompletionItemKind::VARIABLE),
                     label_details: Some(CompletionItemLabelDetails {
                         detail: Some(" document".to_string()),

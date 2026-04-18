@@ -39,9 +39,9 @@ use super::inlines::InlineNode;
 /// Serializes as a plain JSON array of inline nodes for ASG compatibility.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
-pub struct Title(Vec<InlineNode>);
+pub struct Title<'a>(Vec<InlineNode<'a>>);
 
-impl Serialize for Title {
+impl Serialize for Title<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -50,13 +50,19 @@ impl Serialize for Title {
     }
 }
 
-pub type Subtitle = Title;
+pub type Subtitle<'a> = Title<'a>;
 
-impl Title {
+impl<'a> Title<'a> {
     /// Creates a new `Title` with the given inline content.
     #[must_use]
-    pub fn new(inlines: Vec<InlineNode>) -> Self {
+    pub fn new(inlines: Vec<InlineNode<'a>>) -> Self {
         Self(inlines)
+    }
+
+    /// Consume the title, returning the underlying inline nodes.
+    #[must_use]
+    pub fn into_inlines(self) -> Vec<InlineNode<'a>> {
+        self.0
     }
 
     /// Returns `true` if the title has no content.
@@ -72,29 +78,29 @@ impl Title {
     }
 }
 
-impl From<Vec<InlineNode>> for Title {
-    fn from(inlines: Vec<InlineNode>) -> Self {
+impl<'a> From<Vec<InlineNode<'a>>> for Title<'a> {
+    fn from(inlines: Vec<InlineNode<'a>>) -> Self {
         Self(inlines)
     }
 }
 
-impl AsRef<[InlineNode]> for Title {
-    fn as_ref(&self) -> &[InlineNode] {
+impl<'a> AsRef<[InlineNode<'a>]> for Title<'a> {
+    fn as_ref(&self) -> &[InlineNode<'a>] {
         &self.0
     }
 }
 
-impl Deref for Title {
-    type Target = [InlineNode];
+impl<'a> Deref for Title<'a> {
+    type Target = [InlineNode<'a>];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> IntoIterator for &'a Title {
-    type Item = &'a InlineNode;
-    type IntoIter = std::slice::Iter<'a, InlineNode>;
+impl<'a, 'b> IntoIterator for &'b Title<'a> {
+    type Item = &'b InlineNode<'a>;
+    type IntoIter = std::slice::Iter<'b, InlineNode<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

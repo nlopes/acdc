@@ -9,11 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`, `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.
+- **Large file gate** — files above 10 MiB are skipped during workspace indexing (anchor
+  resolution, rename, call hierarchy). Opening a document above the limit publishes an
+  informational diagnostic on line 1 and leaves text-only features working.
+- **Parser warnings as LSP diagnostics** — non-fatal parser conditions (section level
+  issues, unknown table format, missing includes, `ifdef`/`endif` mismatches, etc.) are
+  now emitted as `WARNING`-severity diagnostics alongside the existing AST-based
+  validators.
+- Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request
+  timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`,
+  `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.
 
 ### Changed
 
-- Narrowed tokio dependency from `full` to only the required features (`macros`, `rt-multi-thread`, `io-std`)
+- Narrowed tokio dependency from `full` to only the required features (`macros`,
+  `rt-multi-thread`, `io-std`)
+- Memory usage is now bounded by live open files instead of growing on every edit. Long
+  editing sessions no longer leak memory.
 
 ## [0.2.0] - 2026-03-28
 

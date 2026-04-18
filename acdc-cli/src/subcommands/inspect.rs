@@ -7,72 +7,11 @@ use std::{
 use acdc_converters_core::visitor::Visitor;
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem,
-    Location, Options, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
-    UnorderedList, Video, parse,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, Location,
+    Options, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
+    UnorderedList, Video, inlines_to_string, parse,
 };
 use crossterm::style::Stylize;
-
-/// Extract plain text from inline nodes, recursively handling formatted text.
-fn inlines_to_string(inlines: &[InlineNode]) -> String {
-    inlines
-        .iter()
-        .map(|node| match node {
-            InlineNode::PlainText(text) => text.content.clone(),
-            InlineNode::RawText(text) => text.content.clone(),
-            InlineNode::VerbatimText(text) => text.content.clone(),
-            InlineNode::BoldText(bold) => inlines_to_string(&bold.content),
-            InlineNode::ItalicText(italic) => inlines_to_string(&italic.content),
-            InlineNode::MonospaceText(mono) => inlines_to_string(&mono.content),
-            InlineNode::HighlightText(highlight) => inlines_to_string(&highlight.content),
-            InlineNode::SubscriptText(sub) => inlines_to_string(&sub.content),
-            InlineNode::SuperscriptText(sup) => inlines_to_string(&sup.content),
-            InlineNode::CurvedQuotationText(quote) => inlines_to_string(&quote.content),
-            InlineNode::CurvedApostropheText(apos) => inlines_to_string(&apos.content),
-            InlineNode::StandaloneCurvedApostrophe(_) => "'".to_string(),
-            InlineNode::LineBreak(_) => " ".to_string(),
-            InlineNode::InlineAnchor(anchor) => format!(
-                "[#{}{}]",
-                anchor.id,
-                anchor
-                    .xreflabel
-                    .as_deref()
-                    .map_or(String::new(), |l| format!("|{l}"))
-            ),
-            InlineNode::CalloutRef(callout) => format!("<{}>", callout.number),
-            InlineNode::Macro(macro_node) => match macro_node {
-                InlineMacro::Link(link) => {
-                    link.text.clone().unwrap_or_else(|| link.target.to_string())
-                }
-                InlineMacro::Url(url) => {
-                    if url.text.is_empty() {
-                        url.target.to_string()
-                    } else {
-                        inlines_to_string(&url.text)
-                    }
-                }
-                InlineMacro::Autolink(autolink) => autolink.url.to_string(),
-                InlineMacro::CrossReference(xref) => {
-                    if xref.text.is_empty() {
-                        xref.target.clone()
-                    } else {
-                        inlines_to_string(&xref.text)
-                    }
-                }
-                InlineMacro::Footnote(_)
-                | InlineMacro::Image(_)
-                | InlineMacro::Button(_)
-                | InlineMacro::Pass(_)
-                | InlineMacro::Keyboard(_)
-                | InlineMacro::Menu(_)
-                | InlineMacro::Stem(_)
-                | InlineMacro::Icon(_)
-                | _ => String::new(),
-            },
-            _ => String::new(),
-        })
-        .collect()
-}
 
 /// Inspect the AST structure of an `AsciiDoc` document
 #[derive(clap::Args)]
@@ -284,8 +223,8 @@ impl<W: Write> Visitor for TreeVisitor<W> {
                 }
 
                 for (key, value) in block.metadata.attributes.iter() {
-                    let detail = match value {
-                        AttributeValue::String(s) => s.clone(),
+                    let detail: String = match value {
+                        AttributeValue::String(s) => s.clone().into_owned(),
                         AttributeValue::Bool(b) => b.to_string(),
                         AttributeValue::None => "(null)".to_string(),
                         _ => "(unknown)".to_string(),
@@ -404,14 +343,14 @@ pub fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
 
     // Parse document
     let options = Options::default();
-    let doc = parse(&content, &options)?;
+    let parsed = parse(&content, &options)?;
 
     // Create tree visitor
     let stdout = io::stdout();
     let mut visitor = TreeVisitor::new(stdout.lock(), args.show_locations, args.max_depth);
 
     // Visit document
-    visitor.visit_document(&doc)?;
+    visitor.visit_document(parsed.document())?;
 
     Ok(())
 }

@@ -7,9 +7,9 @@ pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 /// A `Pass` represents a passthrough macro in a document.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Pass {
+pub struct Pass<'a> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub text: Option<String>,
+    pub text: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub substitutions: Vec<Substitution>,
     pub location: Location,
@@ -32,11 +32,11 @@ pub enum PassthroughKind {
 /// A `Footnote` represents an inline footnote in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Footnote {
+pub struct Footnote<'a> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    pub id: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     #[serde(skip)]
     pub number: u32,
     pub location: Location,
@@ -45,29 +45,29 @@ pub struct Footnote {
 /// An `Icon` represents an inline icon in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Icon {
-    pub target: Source,
-    pub attributes: ElementAttributes,
+pub struct Icon<'a> {
+    pub target: Source<'a>,
+    pub attributes: ElementAttributes<'a>,
     pub location: Location,
 }
 
 /// A `Link` represents an inline link in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Link {
+pub struct Link<'a> {
     // We don't serialize the text here because it's already serialized in the attributes
     // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
-    pub text: Option<String>,
-    pub target: Source,
-    pub attributes: ElementAttributes,
+    pub text: Option<&'a str>,
+    pub target: Source<'a>,
+    pub attributes: ElementAttributes<'a>,
     pub location: Location,
 }
 
-impl Link {
+impl<'a> Link<'a> {
     /// Creates a new `Link` with the given target.
     #[must_use]
-    pub fn new(target: Source, location: Location) -> Self {
+    pub fn new(target: Source<'a>, location: Location) -> Self {
         Self {
             text: None,
             target,
@@ -78,14 +78,14 @@ impl Link {
 
     /// Sets the link text.
     #[must_use]
-    pub fn with_text(mut self, text: Option<String>) -> Self {
+    pub fn with_text(mut self, text: Option<&'a str>) -> Self {
         self.text = text;
         self
     }
 
     /// Sets the link attributes.
     #[must_use]
-    pub fn with_attributes(mut self, attributes: ElementAttributes) -> Self {
+    pub fn with_attributes(mut self, attributes: ElementAttributes<'a>) -> Self {
         self.attributes = attributes;
         self
     }
@@ -94,83 +94,78 @@ impl Link {
 /// An `Url` represents an inline URL in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Url {
-    // We don't serialize the text here because it's already serialized in the attributes
-    // (that's how it's represented in the ASG)
+pub struct Url<'a> {
     #[serde(skip_serializing)]
-    pub text: Vec<InlineNode>,
-    pub target: Source,
-    pub attributes: ElementAttributes,
+    pub text: Vec<InlineNode<'a>>,
+    pub target: Source<'a>,
+    pub attributes: ElementAttributes<'a>,
     pub location: Location,
 }
 
 /// An `Mailto` represents an inline `mailto:` in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Mailto {
-    // We don't serialize the text here because it's already serialized in the attributes
-    // (that's how it's represented in the ASG)
+pub struct Mailto<'a> {
     #[serde(skip_serializing)]
-    pub text: Vec<InlineNode>,
-    pub target: Source,
-    pub attributes: ElementAttributes,
+    pub text: Vec<InlineNode<'a>>,
+    pub target: Source<'a>,
+    pub attributes: ElementAttributes<'a>,
     pub location: Location,
 }
 
 /// A `Button` represents an inline button in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Button {
-    pub label: String,
+pub struct Button<'a> {
+    pub label: &'a str,
     pub location: Location,
 }
 
 /// A `Menu` represents an inline menu in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Menu {
-    pub target: String,
+pub struct Menu<'a> {
+    pub target: &'a str,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
+    pub items: Vec<&'a str>,
     pub location: Location,
 }
 
 /// A `Keyboard` represents an inline keyboard shortcut in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Keyboard {
-    pub keys: Vec<Key>,
+pub struct Keyboard<'a> {
+    pub keys: Vec<Key<'a>>,
     pub location: Location,
 }
 
-impl Keyboard {
+impl<'a> Keyboard<'a> {
     /// Creates a new `Keyboard` with the given keys.
     #[must_use]
-    pub fn new(keys: Vec<Key>, location: Location) -> Self {
+    pub fn new(keys: Vec<Key<'a>>, location: Location) -> Self {
         Self { keys, location }
     }
 }
 
 // TODO(nlopes): this could perhaps be an enum instead with the allowed keys
-pub type Key = String;
+pub type Key<'a> = &'a str;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct CrossReference {
-    pub target: String,
-    // We don't serialize the text here because it's serialized as "inlines" in the ASG
+pub struct CrossReference<'a> {
+    pub target: &'a str,
     #[serde(skip_serializing)]
-    pub text: Vec<InlineNode>,
+    pub text: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
-impl CrossReference {
+impl<'a> CrossReference<'a> {
     /// Creates a new `CrossReference` with the given target.
     #[must_use]
-    pub fn new(target: impl Into<String>, location: Location) -> Self {
+    pub fn new(target: &'a str, location: Location) -> Self {
         Self {
-            target: target.into(),
+            target,
             text: Vec::new(),
             location,
         }
@@ -178,7 +173,7 @@ impl CrossReference {
 
     /// Sets the cross-reference display text as inline nodes.
     #[must_use]
-    pub fn with_text(mut self, text: Vec<InlineNode>) -> Self {
+    pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
         self.text = text;
         self
     }
@@ -187,8 +182,8 @@ impl CrossReference {
 /// An `Autolink` represents an inline autolink in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Autolink {
-    pub url: Source,
+pub struct Autolink<'a> {
+    pub url: Source<'a>,
     /// Whether the autolink was written with angle brackets (e.g., `<user@example.com>`).
     /// When true, the renderer should preserve the brackets in the output.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -199,53 +194,38 @@ pub struct Autolink {
 /// A `Stem` represents an inline mathematical expression.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Stem {
-    pub content: String,
+pub struct Stem<'a> {
+    pub content: &'a str,
     pub notation: StemNotation,
     pub location: Location,
 }
 
 /// The kind of index term, encoding both visibility and structure.
-///
-/// This enum makes invalid states unrepresentable: flow terms can only have
-/// a single term (no hierarchy), while concealed terms support up to three
-/// hierarchical levels.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub enum IndexTermKind {
+pub enum IndexTermKind<'a> {
     /// Visible in output, single term only.
-    ///
-    /// Created by `((term))` or `indexterm2:[term]`.
-    Flow(String),
+    Flow(&'a str),
     /// Hidden from output, supports hierarchical entries.
-    ///
-    /// Created by `(((term,secondary,tertiary)))` or `indexterm:[term,secondary,tertiary]`.
     Concealed {
-        term: String,
+        term: &'a str,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        secondary: Option<String>,
+        secondary: Option<&'a str>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        tertiary: Option<String>,
+        tertiary: Option<&'a str>,
     },
 }
 
 /// An `IndexTerm` represents an index term in a document.
-///
-/// Index terms can be either:
-/// - **Flow terms** (visible): `((term))` or `indexterm2:[term]` - the term appears in the text
-/// - **Concealed terms** (hidden): `(((term,secondary,tertiary)))` or `indexterm:[term,secondary,tertiary]`
-///   - only appears in the index
-///
-/// Concealed terms support hierarchical entries with primary, secondary, and tertiary levels.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct IndexTerm {
+pub struct IndexTerm<'a> {
     /// The kind and content of this index term.
-    pub kind: IndexTermKind,
+    pub kind: IndexTermKind<'a>,
     pub location: Location,
 }
 
-impl IndexTerm {
+impl IndexTerm<'_> {
     /// Returns the primary term.
     #[must_use]
     pub fn term(&self) -> &str {
@@ -259,7 +239,7 @@ impl IndexTerm {
     pub fn secondary(&self) -> Option<&str> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
-            IndexTermKind::Concealed { secondary, .. } => secondary.as_deref(),
+            IndexTermKind::Concealed { secondary, .. } => *secondary,
         }
     }
 
@@ -268,7 +248,7 @@ impl IndexTerm {
     pub fn tertiary(&self) -> Option<&str> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
-            IndexTermKind::Concealed { tertiary, .. } => tertiary.as_deref(),
+            IndexTermKind::Concealed { tertiary, .. } => *tertiary,
         }
     }
 

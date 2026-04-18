@@ -15,8 +15,9 @@ pub(crate) fn prepare_rename(
     doc: &DocumentState,
     position: Position,
 ) -> Option<PrepareRenameResponse> {
-    let offset = position_to_offset(&doc.text, position)?;
-    let ast = doc.ast.as_ref()?;
+    let offset = position_to_offset(doc.text(), position)?;
+    let ast_guard = doc.ast()?;
+    let ast = ast_guard.document();
 
     // Check if cursor is on an xref
     if let Some((target_id, xref_loc)) = super::hover::find_xref_at_offset(ast, offset) {
@@ -49,8 +50,9 @@ pub(crate) fn compute_rename(
     position: Position,
     new_name: &str,
 ) -> Option<WorkspaceEdit> {
-    let offset = position_to_offset(&doc.text, position)?;
-    let ast = doc.ast.as_ref()?;
+    let offset = position_to_offset(doc.text(), position)?;
+    let ast_guard = doc.ast()?;
+    let ast = ast_guard.document();
 
     // Find the target ID (from either xref or anchor)
     let target_id = if let Some((id, _)) = super::hover::find_xref_at_offset(ast, offset) {

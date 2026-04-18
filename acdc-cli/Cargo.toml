@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/nlopes/acdc"
 keywords = ["asciidoc", "parser", "converter", "documentation"]
 categories = ["command-line-utilities", "text-processing"]
+publish = false
 
 [[bin]]
 name = "acdc"

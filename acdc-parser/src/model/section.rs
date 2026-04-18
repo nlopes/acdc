@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use bumpalo::Bump;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{Block, BlockMetadata, InlineNode, Location, model::inlines::converter};
@@ -12,18 +13,23 @@ pub type SectionLevel = u8;
 /// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Section {
-    pub metadata: BlockMetadata,
-    pub title: Title,
+pub struct Section<'a> {
+    pub metadata: BlockMetadata<'a>,
+    pub title: Title<'a>,
     pub level: SectionLevel,
-    pub content: Vec<Block>,
+    pub content: Vec<Block<'a>>,
     pub location: Location,
 }
 
-impl Section {
+impl<'a> Section<'a> {
     /// Create a new section with the given title, level, content, and location.
     #[must_use]
-    pub fn new(title: Title, level: SectionLevel, content: Vec<Block>, location: Location) -> Self {
+    pub fn new(
+        title: Title<'a>,
+        level: SectionLevel,
+        content: Vec<Block<'a>>,
+        location: Location,
+    ) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             title,
@@ -35,7 +41,7 @@ impl Section {
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
@@ -44,12 +50,12 @@ impl Section {
 /// A `SafeId` represents a sanitised ID.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub enum SafeId {
-    Generated(String),
-    Explicit(String),
+pub enum SafeId<'a> {
+    Generated(&'a str),
+    Explicit(&'a str),
 }
 
-impl Display for SafeId {
+impl Display for SafeId<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SafeId::Generated(id) => write!(f, "_{id}"),
@@ -58,75 +64,100 @@ impl Display for SafeId {
     }
 }
 
-impl Section {
-    fn id_from_title(title: &[InlineNode]) -> String {
-        // Generate ID from title
-        let title_text = converter::inlines_to_string(title);
-        let mut id = title_text
-            .to_lowercase()
-            .chars()
-            .filter_map(|c| {
-                if c.is_alphanumeric() {
-                    Some(c)
-                } else if c.is_whitespace() || c == '-' || c == '.' || c == '_' {
-                    Some('_')
-                } else {
-                    None
-                }
-            })
-            .collect::<String>();
+impl<'a> SafeId<'a> {
+    /// Return the display-equivalent `&'a str` for this safe id without going
+    /// through `format!`/`to_string()`. `Generated` variants are prepended
+    /// with `_` into the arena; `Explicit` is returned unchanged.
+    #[must_use]
+    pub(crate) fn as_arena_str(&self, arena: &'a Bump) -> &'a str {
+        match self {
+            SafeId::Generated(id) => {
+                let mut s = bumpalo::collections::String::new_in(arena);
+                s.push('_');
+                s.push_str(id);
+                s.into_bump_str()
+            }
+            SafeId::Explicit(id) => id,
+        }
+    }
+}
 
-        // Trim trailing underscores
-        id = id.trim_end_matches('_').to_string();
-
-        // Collapse consecutive underscores into single underscore
-        //
-        // We'll build a (String, bool) tuple
-        // The bool tracks: "was the last char an underscore?"
-        let (collapsed, _) = id.chars().fold(
-            (String::with_capacity(id.len()), false), // (new_string, last_was_underscore)
-            |(mut acc_string, last_was_underscore), current_char| {
-                if current_char == '_' {
-                    if !last_was_underscore {
-                        acc_string.push('_'); // Only add if last char wasn't one
-                    }
-                    (acc_string, true) // Mark last_was_underscore as true
-                } else {
-                    acc_string.push(current_char);
-                    (acc_string, false) // Mark last_was_underscore as false
+impl<'a> Section<'a> {
+    /// Build a section id from title text: lowercase, non-alphanumerics
+    /// (except whitespace, `-`, `.`, `_`) dropped, survivors joined with `_`,
+    /// consecutive `_` collapsed, trailing `_` trimmed. Single pass.
+    fn id_from_title(title: &[InlineNode<'a>]) -> String {
+        let mut title_text = String::new();
+        // `write_inlines` on a `String` is infallible.
+        let _ = converter::write_inlines(&mut title_text, title);
+        let mut out = String::with_capacity(title_text.len());
+        let mut last_was_underscore = false;
+        for c in title_text.to_lowercase().chars() {
+            let mapped = if c.is_alphanumeric() {
+                Some(c)
+            } else if c.is_whitespace() || c == '-' || c == '.' || c == '_' {
+                Some('_')
+            } else {
+                None
+            };
+            let Some(ch) = mapped else { continue };
+            if ch == '_' {
+                if !last_was_underscore {
+                    out.push('_');
                 }
-            },
-        );
-        collapsed
+                last_was_underscore = true;
+            } else {
+                out.push(ch);
+                last_was_underscore = false;
+            }
+        }
+        while out.ends_with('_') {
+            out.pop();
+        }
+        out
+    }
+
+    /// Pick the explicit id if metadata provides one, else None. Shared by
+    /// the arena-returning and `String`-returning variants below.
+    fn explicit_id(metadata: &BlockMetadata<'a>) -> Option<&'a str> {
+        if let Some(anchor) = &metadata.id {
+            return Some(anchor.id);
+        }
+        metadata.anchors.last().map(|a| a.id)
     }
 
     /// Generate a section ID based on its title and metadata.
     ///
-    /// This function checks for explicit IDs in the following order:
-    /// 1. `metadata.id` - from attribute list syntax like `[id=foo]`
-    /// 2. `metadata.anchors` - from anchor syntax like `[[foo]]` or `[#foo]`
-    ///
-    /// If no explicit ID is found, it generates one from the title by converting
-    /// to lowercase, replacing spaces and hyphens with underscores, and removing
-    /// non-alphanumeric characters.
+    /// Checks in order: explicit `metadata.id` (e.g. `[id=foo]`), then the last entry in
+    /// `metadata.anchors` (e.g. `[[foo]]`), otherwise auto-generates one from the title
+    /// and interns it into the supplied arena.
     #[must_use]
-    pub fn generate_id(metadata: &BlockMetadata, title: &[InlineNode]) -> SafeId {
-        // Check explicit ID from attribute list first
-        if let Some(anchor) = &metadata.id {
-            return SafeId::Explicit(anchor.id.clone());
+    pub(crate) fn generate_id(
+        arena: &'a Bump,
+        metadata: &BlockMetadata<'a>,
+        title: &[InlineNode<'a>],
+    ) -> SafeId<'a> {
+        match Self::explicit_id(metadata) {
+            Some(id) => SafeId::Explicit(id),
+            None => SafeId::Generated(arena.alloc_str(&Self::id_from_title(title))),
         }
-        // Check last anchor from block metadata lines (e.g., [[id]] or [#id])
-        // asciidoctor uses the last anchor when multiple are present
-        if let Some(anchor) = metadata.anchors.last() {
-            return SafeId::Explicit(anchor.id.clone());
+    }
+
+    /// Generate a section ID based on its title and metadata, returning a `String`
+    /// directly.
+    ///
+    /// Returns the `Display`-formatted form (prefixed with `_` for generated IDs)
+    /// matching `safe_id.to_string()`.
+    #[must_use]
+    pub fn generate_id_string(metadata: &BlockMetadata<'a>, title: &[InlineNode<'a>]) -> String {
+        match Self::explicit_id(metadata) {
+            Some(id) => id.to_string(),
+            None => format!("_{}", Self::id_from_title(title)),
         }
-        // Fall back to auto-generated ID from title
-        let id = Self::id_from_title(title);
-        SafeId::Generated(id)
     }
 }
 
-impl Serialize for Section {
+impl Serialize for Section<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -156,7 +187,7 @@ mod tests {
     #[test]
     fn test_id_from_title() {
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
-            content: "This is a title.".to_string(),
+            content: "This is a title.",
             location: Location::default(),
             escaped: false,
         })];
@@ -165,7 +196,7 @@ mod tests {
             "this_is_a_title".to_string()
         );
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
-            content: "This is a----title.".to_string(),
+            content: "This is a----title.",
             location: Location::default(),
             escaped: false,
         })];
@@ -177,21 +208,20 @@ mod tests {
 
     #[test]
     fn test_id_from_title_preserves_underscores() {
-        // Underscores within words should be preserved (matching asciidoctor behavior)
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
-            content: "CHART_BOT".to_string(),
+            content: "CHART_BOT",
             location: Location::default(),
             escaped: false,
         })];
         assert_eq!(Section::id_from_title(inlines), "chart_bot".to_string());
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
-            content: "haiku_robot".to_string(),
+            content: "haiku_robot",
             location: Location::default(),
             escaped: false,
         })];
         assert_eq!(Section::id_from_title(inlines), "haiku_robot".to_string());
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
-            content: "meme_transcriber".to_string(),
+            content: "meme_transcriber",
             location: Location::default(),
             escaped: false,
         })];
@@ -203,56 +233,57 @@ mod tests {
 
     #[test]
     fn test_section_generate_id() {
+        let arena = Bump::new();
         let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
-            content: "This is a b__i__g title.".to_string(),
+            content: "This is a b__i__g title.",
             location: Location::default(),
             escaped: false,
         })];
         // metadata has an empty id
         let metadata = BlockMetadata::default();
         assert_eq!(
-            Section::generate_id(&metadata, inlines),
-            SafeId::Generated("this_is_a_b_i_g_title".to_string())
+            Section::generate_id(&arena, &metadata, inlines),
+            SafeId::Generated("this_is_a_b_i_g_title")
         );
 
         // metadata has a specific id in metadata.id
         let metadata = BlockMetadata {
             id: Some(Anchor {
-                id: "custom_id".to_string(),
+                id: "custom_id",
                 xreflabel: None,
                 location: Location::default(),
             }),
             ..Default::default()
         };
         assert_eq!(
-            Section::generate_id(&metadata, inlines),
-            SafeId::Explicit("custom_id".to_string())
+            Section::generate_id(&arena, &metadata, inlines),
+            SafeId::Explicit("custom_id")
         );
 
         // metadata has anchor in metadata.anchors (from [[id]] or [#id] syntax)
         let metadata = BlockMetadata {
             anchors: vec![Anchor {
-                id: "anchor_id".to_string(),
+                id: "anchor_id",
                 xreflabel: None,
                 location: Location::default(),
             }],
             ..Default::default()
         };
         assert_eq!(
-            Section::generate_id(&metadata, inlines),
-            SafeId::Explicit("anchor_id".to_string())
+            Section::generate_id(&arena, &metadata, inlines),
+            SafeId::Explicit("anchor_id")
         );
 
         // with multiple anchors, the last one is used (matches asciidoctor behavior)
         let metadata = BlockMetadata {
             anchors: vec![
                 Anchor {
-                    id: "first_anchor".to_string(),
+                    id: "first_anchor",
                     xreflabel: None,
                     location: Location::default(),
                 },
                 Anchor {
-                    id: "last_anchor".to_string(),
+                    id: "last_anchor",
                     xreflabel: None,
                     location: Location::default(),
                 },
@@ -260,27 +291,27 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            Section::generate_id(&metadata, inlines),
-            SafeId::Explicit("last_anchor".to_string())
+            Section::generate_id(&arena, &metadata, inlines),
+            SafeId::Explicit("last_anchor")
         );
 
         // metadata.id takes precedence over metadata.anchors
         let metadata = BlockMetadata {
             id: Some(Anchor {
-                id: "from_id".to_string(),
+                id: "from_id",
                 xreflabel: None,
                 location: Location::default(),
             }),
             anchors: vec![Anchor {
-                id: "from_anchors".to_string(),
+                id: "from_anchors",
                 xreflabel: None,
                 location: Location::default(),
             }],
             ..Default::default()
         };
         assert_eq!(
-            Section::generate_id(&metadata, inlines),
-            SafeId::Explicit("from_id".to_string())
+            Section::generate_id(&arena, &metadata, inlines),
+            SafeId::Explicit("from_id")
         );
     }
 }

@@ -1,5 +1,7 @@
 use std::{
+    cell::RefCell,
     path::{Path, PathBuf},
+    rc::Rc,
     str::FromStr,
 };
 
@@ -35,7 +37,7 @@ Escaping the directive is necessary even if it appears in a verbatim block since
 not aware of the surrounding document structure.
 */
 #[derive(Debug)]
-pub(crate) struct Include {
+pub(crate) struct Include<'a> {
     file_parent: PathBuf,
     target: Target,
     level_offset: Option<isize>,
@@ -44,11 +46,15 @@ pub(crate) struct Include {
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
-    options: Options,
+    options: Options<'a>,
     // Location information for error reporting
     line_number: usize,
     current_offset: usize,
     current_file: Option<PathBuf>,
+    /// Shared warnings sink threaded from the outer `Preprocessor` so
+    /// non-fatal include conditions (disabled URL includes, missing
+    /// files, bad line numbers) reach `ParseResult::warnings()`.
+    warnings: Rc<RefCell<Vec<crate::Warning>>>,
 }
 
 /// A line range that an include may specify.
@@ -85,24 +91,32 @@ struct LocationContext<'a> {
     current_file: Option<&'a Path>,
 }
 
+/// Bundled inputs for the `include_parser` PEG grammar.
+///
+/// The grammar needs the owning file path, parser options, location info
+/// for diagnostics, and a shared warnings sink. Passing them as one
+/// struct keeps each generated rule under clippy's argument-count limit.
+struct IncludeParserInputs<'a, 'b> {
+    path: &'b Path,
+    options: &'b Options<'a>,
+    location: LocationContext<'b>,
+    warnings: &'b Rc<RefCell<Vec<crate::Warning>>>,
+}
+
 peg::parser! {
-    grammar include_parser(
-        path: &std::path::Path,
-        options: &Options,
-        location: LocationContext<'_>
-    ) for str {
-        pub(crate) rule include() -> Result<Include, Error>
+    grammar include_parser<'a, 'b>(inputs: &'b IncludeParserInputs<'a, 'b>) for str {
+        pub(crate) rule include() -> Result<Include<'a>, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
-                let target_raw = substitute(&target, HEADER, &options.document_attributes);
+                let target_raw = substitute(&target, HEADER, &inputs.options.document_attributes);
                 let target =
                     if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
                         Target::Url(Url::parse(&target_raw)?)
                     } else {
-                        Target::Path(PathBuf::from(target_raw))
+                        Target::Path(PathBuf::from(target_raw.as_ref()))
                     };
 
                 let mut include = Include {
-                    file_parent: path.to_path_buf(),
+                    file_parent: inputs.path.to_path_buf(),
                     target,
                     level_offset: None,
                     line_range: Vec::new(),
@@ -110,10 +124,11 @@ peg::parser! {
                     indent: None,
                     encoding: None,
                     opts: Vec::new(),
-                    options: options.clone(),
-                    line_number: location.line_number,
-                    current_offset: location.current_offset,
-                    current_file: location.current_file.map(Path::to_path_buf),
+                    options: inputs.options.clone(),
+                    line_number: inputs.location.line_number,
+                    current_offset: inputs.location.current_offset,
+                    current_file: inputs.location.current_file.map(Path::to_path_buf),
+                    warnings: Rc::clone(inputs.warnings),
                 };
                 if let Some(attrs) = attrs {
                     include.parse_attributes(attrs)?;
@@ -246,7 +261,7 @@ pub(crate) struct IncludeResult {
     pub(crate) nested_source_ranges: Vec<SourceRange>,
 }
 
-impl Include {
+impl<'a> Include<'a> {
     fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
         for (key, value) in attributes {
             match key.as_ref() {
@@ -320,15 +335,21 @@ impl Include {
         line_number: usize,
         line_start_offset: usize,
         current_file: Option<&Path>,
-        options: &Options,
+        options: &Options<'a>,
+        warnings: &Rc<RefCell<Vec<crate::Warning>>>,
     ) -> Result<Self, Error> {
         let location = LocationContext {
             line_number,
             current_offset: line_start_offset,
             current_file,
         };
-
-        include_parser::include(line, file_parent, options, location).map_err(|e| {
+        let inputs = IncludeParserInputs {
+            path: file_parent,
+            options,
+            location,
+            warnings,
+        };
+        include_parser::include(line, &inputs).map_err(|e| {
             tracing::error!(?line, error=?e, "failed to parse include directive");
             let location = e.location;
             Error::Parse(
@@ -362,7 +383,9 @@ impl Include {
     #[allow(clippy::unnecessary_wraps)] // Err is used when "network" feature is enabled
     fn resolve_url_target(&self, url: &Url) -> Result<Option<PathBuf>, Error> {
         if self.options.safe_mode > SafeMode::Server {
-            tracing::warn!(safe_mode=?self.options.safe_mode, "URL includes are disabled by default. If you want to enable them, must run in `SERVER` mode or less.");
+            self.warn_unlocated(
+                "URL includes are disabled by default. Run in `SERVER` mode or less to enable.",
+            );
             return Ok(None);
         }
         if self
@@ -371,15 +394,17 @@ impl Include {
             .get("allow-uri-read")
             .is_none()
         {
-            tracing::warn!(
-                "URL includes are disabled by default. If you want to enable them, set the 'allow-uri-read' attribute to 'true' in the document attributes or in the command line."
+            self.warn_unlocated(
+                "URL includes are disabled by default. Set the 'allow-uri-read' attribute to 'true' to enable.",
             );
             return Ok(None);
         }
 
         #[cfg(not(feature = "network"))]
         {
-            tracing::warn!(url=?url, "network support is disabled, cannot fetch remote includes");
+            self.warn_unlocated(format!(
+                "network support is disabled, cannot fetch remote includes: {url}",
+            ));
             Ok(None)
         }
 
@@ -496,18 +521,34 @@ impl Include {
              ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref())
         {
             // For nested AsciiDoc includes, return the text and any nested ranges.
-            // This enables proper accumulation through nested includes.
-            return super::Preprocessor
-                .process_inner(&content, Some(file_path), &self.options)
-                .map(|result| (result.text, result.leveloffset_ranges, result.source_ranges))
-                .map_err(|error| {
-                    tracing::error!(path=?file_path, ?error, "failed to process file");
-                    error
-                });
+            // This enables proper accumulation through nested includes. The result
+            // may borrow from `content`, which is a local here, so materialize
+            // into an owned String via `into_owned` before handing it back.
+            // Use a preprocessor sharing our warnings sink so nested
+            // include warnings end up on the outer `ParseResult`.
+            return super::Preprocessor {
+                warnings: Rc::clone(&self.warnings),
+            }
+            .process_inner(&content, Some(file_path), &self.options)
+            .map(|result| {
+                (
+                    result.text.into_owned(),
+                    result.leveloffset_ranges,
+                    result.source_ranges,
+                )
+            })
+            .map_err(|error| {
+                tracing::error!(path=?file_path, ?error, "failed to process file");
+                error
+            });
         }
 
         // For non-AsciiDoc files, normalize the content and return empty nested ranges.
-        Ok((Preprocessor::normalize(&content), Vec::new(), Vec::new()))
+        Ok((
+            Preprocessor::normalize(&content).into_owned(),
+            Vec::new(),
+            Vec::new(),
+        ))
     }
 
     pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {
@@ -525,7 +566,10 @@ impl Include {
         // If the path doesn't exist, return empty lines (never fail parsing due to include)
         if !path.exists() {
             if !self.opts.contains(&"optional".to_string()) {
-                tracing::warn!(path=?path, "file is missing - include directive won't be processed");
+                self.warn_located(format!(
+                    "file is missing — include directive won't be processed: {}",
+                    path.display(),
+                ));
             }
             return Ok(IncludeResult {
                 lines: Vec::new(),
@@ -572,13 +616,41 @@ impl Include {
         })
     }
 
-    fn validate_line_number(num: usize) -> Option<usize> {
+    fn validate_line_number(&self, num: usize) -> Option<usize> {
         if num < 1 {
-            tracing::warn!(?num, "invalid line number in include directive");
+            self.warn_located(format!("invalid line number in include directive: {num}"));
             None
         } else {
             Some(num - 1)
         }
+    }
+
+    /// Push a warning with the include-directive source location
+    /// attached (line from `self.line_number`, column 1 — the preprocessor
+    /// operates line-by-line).
+    fn warn_located(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
+        let source_location = crate::SourceLocation {
+            file: self.current_file.clone(),
+            positioning: crate::Positioning::Position(crate::Position {
+                line: self.line_number,
+                column: 1,
+            }),
+        };
+        let warning = crate::Warning::new(
+            crate::WarningKind::Other(message.into()),
+            Some(source_location),
+        );
+        tracing::warn!("{warning}");
+        self.warnings.borrow_mut().push(warning);
+    }
+
+    /// Push a warning with no source location — used for configuration-
+    /// level conditions (disabled URL includes, network feature off)
+    /// that aren't tied to a specific include line beyond "this parse".
+    fn warn_unlocated(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
+        let warning = crate::Warning::new(crate::WarningKind::Other(message.into()), None);
+        tracing::warn!("{warning}");
+        self.warnings.borrow_mut().push(warning);
     }
 
     fn resolve_end_line(end: isize, max_size: usize) -> Option<usize> {
@@ -607,14 +679,14 @@ impl Include {
         for line in &self.line_range {
             match line {
                 LinesRange::Single(line_number) => {
-                    if let Some(idx) = Self::validate_line_number(*line_number) {
+                    if let Some(idx) = self.validate_line_number(*line_number) {
                         if idx < content_lines_count {
                             indices.insert(idx);
                         }
                     }
                 }
                 LinesRange::Range(start, end) => {
-                    let Some(start_idx) = Self::validate_line_number(*start) else {
+                    let Some(start_idx) = self.validate_line_number(*start) else {
                         continue;
                     };
                     let Some(end_idx) = Self::resolve_end_line(*end, content_lines_count) else {
@@ -644,7 +716,7 @@ impl Include {
         for line in &self.line_range {
             match line {
                 LinesRange::Single(line_number) => {
-                    if let Some(idx) = Self::validate_line_number(*line_number)
+                    if let Some(idx) = self.validate_line_number(*line_number)
                         && idx < content_lines_count
                         && let Some(line) = content_lines.get(idx)
                     {
@@ -652,7 +724,7 @@ impl Include {
                     }
                 }
                 LinesRange::Range(start, end) => {
-                    let Some(start_idx) = Self::validate_line_number(*start) else {
+                    let Some(start_idx) = self.validate_line_number(*start) else {
                         continue;
                     };
                     let Some(end_idx) = Self::resolve_end_line(*end, content_lines_count) else {
@@ -682,7 +754,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert!(matches!(
             include.target,
@@ -696,7 +768,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[leveloffset=+1,lines=1..5,tag=example]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert_eq!(include.level_offset, Some(1));
         assert_eq!(include.tags, vec![TagName::from("example")]);
@@ -709,7 +781,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::https://example.com/doc.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert!(matches!(
             include.target,
@@ -723,7 +795,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = r#"include::target.adoc[tag="example code",encoding="utf-8"]"#;
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert_eq!(include.tags, vec![TagName::from("example code")]);
         assert_eq!(include.encoding, Some("utf-8".to_string()));
@@ -735,7 +807,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[tags=intro;main;conclusion]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert_eq!(
             include.tags,
@@ -753,7 +825,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[tags=*;!debug]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert_eq!(
             include.tags,
@@ -767,7 +839,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[tags=**]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert_eq!(include.tags, vec![TagName::from("**")]);
         Ok(())
@@ -778,7 +850,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[indent=4]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options)?;
+        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
 
         assert_eq!(include.indent, Some(4));
         Ok(())

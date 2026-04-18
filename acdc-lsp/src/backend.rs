@@ -239,9 +239,9 @@ impl LanguageServer for Backend {
 
         // Get document and extract symbols while the guard is held
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            doc.ast
-                .as_ref()
-                .map(|ast| DocumentSymbolResponse::Nested(symbols::document_symbols(ast)))
+            doc.ast().map(|ast| {
+                DocumentSymbolResponse::Nested(symbols::document_symbols(ast.document()))
+            })
         } else {
             None
         };
@@ -387,7 +387,8 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            doc.ast.as_ref().map(folding::compute_folding_ranges)
+            doc.ast()
+                .map(|ast| folding::compute_folding_ranges(ast.document()))
         } else {
             None
         };
@@ -458,11 +459,11 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            doc.ast.as_ref().map(|ast| {
+            doc.ast().map(|ast| {
                 SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(
-                    ast,
+                    ast.document(),
                     &doc.conditionals,
-                    &doc.text,
+                    doc.text(),
                 ))
             })
         } else {

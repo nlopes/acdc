@@ -46,6 +46,8 @@
 //! 3. Converter reads the substitution list from AST
 //! 4. Converter applies remaining substitutions during rendering
 
+use std::borrow::Cow;
+
 use serde::Serialize;
 
 use crate::{AttributeValue, DocumentAttributes};
@@ -402,31 +404,32 @@ pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitu
 /// use acdc_parser::{DocumentAttributes, AttributeValue, Substitution, substitute};
 ///
 /// let mut attrs = DocumentAttributes::default();
-/// attrs.set("version".to_string(), AttributeValue::String("1.0".to_string()));
+/// attrs.set("version".into(), AttributeValue::String("1.0".into()));
 ///
 /// let result = substitute("Version {version}", &[Substitution::Attributes], &attrs);
 /// assert_eq!(result, "Version 1.0");
 /// ```
 #[must_use]
-pub fn substitute(
-    text: &str,
+pub fn substitute<'a, 'b>(
+    text: &'b str,
     substitutions: &[Substitution],
-    attributes: &DocumentAttributes,
-) -> String {
-    // Fast exit: if the only requested substitution is `Attributes` and the text has no
-    // `{` to expand, skip the whole machinery. Most inline plain text in real docs has no
-    // attribute references.
-    if substitutions == [Substitution::Attributes] && !text.contains('{') {
-        return text.to_string();
-    }
-
-    let mut result = text.to_string();
+    attributes: &DocumentAttributes<'a>,
+) -> Cow<'b, str>
+where
+    'a: 'b,
+{
+    let mut result = Cow::Borrowed(text);
     for substitution in substitutions {
         match substitution {
             Substitution::Attributes => {
                 // Expand {name} patterns with values from document attributes
+                if !result.contains('{') {
+                    continue;
+                }
+
                 let mut expanded = String::with_capacity(result.len());
                 let mut chars = result.chars().peekable();
+                let mut changed = false;
 
                 while let Some(ch) = chars.next() {
                     if ch == '{' {
@@ -447,9 +450,11 @@ pub fn substitute(
                             match attributes.get(&attr_name) {
                                 Some(AttributeValue::Bool(true)) => {
                                     // Boolean true attributes expand to empty string
+                                    changed = true;
                                 }
                                 Some(AttributeValue::String(attr_value)) => {
                                     expanded.push_str(attr_value);
+                                    changed = true;
                                 }
                                 _ => {
                                     // Unknown attribute - keep reference as-is
@@ -467,7 +472,9 @@ pub fn substitute(
                         expanded.push(ch);
                     }
                 }
-                result = expanded;
+                if changed {
+                    result = Cow::Owned(expanded);
+                }
             }
             // These substitutions are handled elsewhere (converter) or not yet implemented
             Substitution::SpecialChars
@@ -478,10 +485,18 @@ pub fn substitute(
             | Substitution::Callouts => {}
             // Group substitutions expand recursively
             Substitution::Normal => {
-                result = substitute(&result, NORMAL, attributes);
+                let current = std::mem::take(&mut result);
+                result = match current {
+                    Cow::Borrowed(s) => substitute(s, NORMAL, attributes),
+                    Cow::Owned(s) => Cow::Owned(substitute(&s, NORMAL, attributes).into_owned()),
+                };
             }
             Substitution::Verbatim => {
-                result = substitute(&result, VERBATIM, attributes);
+                let current = std::mem::take(&mut result);
+                result = match current {
+                    Cow::Borrowed(s) => substitute(s, VERBATIM, attributes),
+                    Cow::Owned(s) => Cow::Owned(substitute(&s, VERBATIM, attributes).into_owned()),
+                };
             }
         }
     }
@@ -875,12 +890,12 @@ mod tests {
     #[test]
     fn test_resolve_attribute_references() {
         // These two are attributes we add to the attributes map.
-        let attribute_weight = AttributeValue::String(String::from("weight"));
-        let attribute_mass = AttributeValue::String(String::from("mass"));
+        let attribute_weight: AttributeValue = "weight".into();
+        let attribute_mass: AttributeValue = "mass".into();
 
         // This one is an attribute we do NOT add to the attributes map so it can never be
         // resolved.
-        let attribute_volume_repeat = String::from("value {attribute_volume}");
+        let attribute_volume_repeat = "value {attribute_volume}";
 
         let mut attributes = DocumentAttributes::default();
         attributes.insert("weight".into(), attribute_weight.clone());
@@ -888,11 +903,11 @@ mod tests {
 
         // Resolve an attribute that is in the attributes map.
         let resolved = substitute("{weight}", HEADER, &attributes);
-        assert_eq!(resolved, "weight".to_string());
+        assert_eq!(resolved, "weight");
 
         // Resolve two attributes that are in the attributes map.
         let resolved = substitute("{weight} {mass}", HEADER, &attributes);
-        assert_eq!(resolved, "weight mass".to_string());
+        assert_eq!(resolved, "weight mass");
 
         // Resolve without attributes in the map
         let resolved = substitute("value {attribute_volume}", HEADER, &attributes);
@@ -909,11 +924,8 @@ mod tests {
         // 1. Definition-time resolution is handled separately (in the grammar parser)
         // 2. The substitute function just replaces one level of references
         let mut attributes = DocumentAttributes::default();
-        attributes.insert("foo".into(), AttributeValue::String("{bar}".to_string()));
-        attributes.insert(
-            "bar".into(),
-            AttributeValue::String("should-not-appear".to_string()),
-        );
+        attributes.insert("foo".into(), "{bar}".into());
+        attributes.insert("bar".into(), "should-not-appear".into());
 
         let resolved = substitute("{foo}", HEADER, &attributes);
         assert_eq!(resolved, "{bar}");

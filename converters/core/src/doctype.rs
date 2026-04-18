@@ -46,7 +46,7 @@ impl FromStr for Doctype {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s.to_lowercase().as_ref() {
             "article" => Ok(Self::Article),
             "book" => Ok(Self::Book),
             "manpage" => Ok(Self::Manpage),

@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{DiscreteHeader, InlineNode, Section, UNNUMBERED_SECTION_STYLES};
 use crossterm::{
@@ -5,130 +7,129 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::Processor;
+use crate::TerminalVisitor;
 
-pub(crate) fn visit_section<V: WritableVisitor<Error = crate::Error>>(
-    section: &Section,
-    visitor: &mut V,
-    processor: &Processor,
-) -> Result<(), crate::Error> {
-    let w = visitor.writer_mut();
-    writeln!(w)?;
+impl<W: Write> TerminalVisitor<'_, W> {
+    pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), crate::Error> {
+        let processor = self.processor.clone();
+        let w = self.writer_mut();
+        writeln!(w)?;
 
-    // Skip numbering for special section styles (bibliography, glossary, etc.)
-    let skip_numbering = section
-        .metadata
-        .style
-        .as_ref()
-        .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
+        // Skip numbering for special section styles (bibliography, glossary, etc.)
+        let skip_numbering = section
+            .metadata
+            .style
+            .as_ref()
+            .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(s));
 
-    // Check for appendix
-    let is_appendix = section
-        .metadata
-        .style
-        .as_ref()
-        .is_some_and(|s| s == "appendix");
+        // Check for appendix
+        let is_appendix = section
+            .metadata
+            .style
+            .as_ref()
+            .is_some_and(|s| *s == "appendix");
 
-    // For appendix at level 0, treat as level 1
-    let effective_level = if is_appendix && section.level == 0 {
-        1
-    } else {
-        section.level
-    };
+        // For appendix at level 0, treat as level 1
+        let effective_level = if is_appendix && section.level == 0 {
+            1
+        } else {
+            section.level
+        };
 
-    // Build title prefix (section number, part number, or appendix label)
-    let prefix = if is_appendix {
-        processor
-            .appendix_tracker
-            .enter_appendix()
-            .unwrap_or_default()
-    } else if section.level == 0 && !skip_numbering {
-        processor
-            .part_number_tracker
-            .enter_part()
-            .unwrap_or_default()
-    } else if !skip_numbering {
-        processor
-            .section_number_tracker
-            .enter_section(effective_level)
-            .unwrap_or_default()
-    } else {
-        String::new()
-    };
+        // Build title prefix (section number, part number, or appendix label)
+        let prefix = if is_appendix {
+            processor
+                .appendix_tracker
+                .enter_appendix()
+                .unwrap_or_default()
+        } else if section.level == 0 && !skip_numbering {
+            processor
+                .part_number_tracker
+                .enter_part()
+                .unwrap_or_default()
+        } else if !skip_numbering {
+            processor
+                .section_number_tracker
+                .enter_section(effective_level)
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
 
-    let raw_title = extract_title_text(&section.title);
-    let title = format!("{prefix}{raw_title}");
+        let raw_title = extract_title_text(&section.title);
+        let title = format!("{prefix}{raw_title}");
 
-    let tw = processor.terminal_width;
+        let tw = processor.terminal_width;
 
-    match effective_level {
-        0 | 1 => {
-            // Level 0/1: Full-width rule above, bold title, rule below
-            let color = processor.appearance.colors.section_h1;
-            let rule = "━".repeat(tw);
-            w.queue(PrintStyledContent(rule.clone().with(color)))?;
-            writeln!(w)?;
-            w.queue(PrintStyledContent(title.bold().with(color)))?;
-            writeln!(w)?;
-            w.queue(PrintStyledContent(rule.with(color)))?;
-            writeln!(w)?;
+        match effective_level {
+            0 | 1 => {
+                // Level 0/1: Full-width rule above, bold title, rule below
+                let color = processor.appearance.colors.section_h1;
+                let rule = "━".repeat(tw);
+                w.queue(PrintStyledContent(rule.clone().with(color)))?;
+                writeln!(w)?;
+                w.queue(PrintStyledContent(title.bold().with(color)))?;
+                writeln!(w)?;
+                w.queue(PrintStyledContent(rule.with(color)))?;
+                writeln!(w)?;
+            }
+            2 => {
+                // Level 2: Half-width rule + bold title
+                let color = processor.appearance.colors.section_h2;
+                let rule = "─".repeat(tw / 2);
+                w.queue(PrintStyledContent(rule.with(color)))?;
+                writeln!(w)?;
+                w.queue(PrintStyledContent(title.bold().with(color)))?;
+                writeln!(w)?;
+            }
+            3 => {
+                // Level 3: Short rule prefix + bold title
+                let color = processor.appearance.colors.section_h3;
+                w.queue(PrintStyledContent("─── ".with(color)))?;
+                w.queue(PrintStyledContent(title.bold().with(color)))?;
+                writeln!(w)?;
+            }
+            4 => {
+                // Level 4: Bold only (no separator)
+                let styled = title.bold().with(processor.appearance.colors.section_h4);
+                QueueableCommand::queue(w, PrintStyledContent(styled))?;
+                writeln!(w)?;
+            }
+            5 => {
+                // Level 5: Bold + Italic (no separator)
+                let styled = title
+                    .bold()
+                    .italic()
+                    .with(processor.appearance.colors.section_h5);
+                QueueableCommand::queue(w, PrintStyledContent(styled))?;
+                writeln!(w)?;
+            }
+            _ => {
+                // Level 6+: Italic only (no separator)
+                let styled = title.italic().with(processor.appearance.colors.section_h6);
+                QueueableCommand::queue(w, PrintStyledContent(styled))?;
+                writeln!(w)?;
+            }
         }
-        2 => {
-            // Level 2: Half-width rule + bold title
-            let color = processor.appearance.colors.section_h2;
-            let rule = "─".repeat(tw / 2);
-            w.queue(PrintStyledContent(rule.with(color)))?;
-            writeln!(w)?;
-            w.queue(PrintStyledContent(title.bold().with(color)))?;
-            writeln!(w)?;
-        }
-        3 => {
-            // Level 3: Short rule prefix + bold title
-            let color = processor.appearance.colors.section_h3;
-            w.queue(PrintStyledContent("─── ".with(color)))?;
-            w.queue(PrintStyledContent(title.bold().with(color)))?;
-            writeln!(w)?;
-        }
-        4 => {
-            // Level 4: Bold only (no separator)
-            let styled = title.bold().with(processor.appearance.colors.section_h4);
-            QueueableCommand::queue(w, PrintStyledContent(styled))?;
-            writeln!(w)?;
-        }
-        5 => {
-            // Level 5: Bold + Italic (no separator)
-            let styled = title
-                .bold()
-                .italic()
-                .with(processor.appearance.colors.section_h5);
-            QueueableCommand::queue(w, PrintStyledContent(styled))?;
-            writeln!(w)?;
-        }
-        _ => {
-            // Level 6+: Italic only (no separator)
-            let styled = title.italic().with(processor.appearance.colors.section_h6);
-            QueueableCommand::queue(w, PrintStyledContent(styled))?;
-            writeln!(w)?;
-        }
+
+        Ok(())
     }
 
-    Ok(())
-}
-
-pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = crate::Error>>(
-    header: &DiscreteHeader,
-    visitor: &mut V,
-    processor: &Processor,
-) -> Result<(), crate::Error> {
-    let w = visitor.writer_mut();
-    // Discrete headers render similar to level 4 sections (bold only)
-    let styled = extract_title_text(&header.title)
-        .bold()
-        .with(processor.appearance.colors.section_h4);
-    QueueableCommand::queue(w, PrintStyledContent(styled))?;
-    writeln!(w)?;
-    writeln!(w)?;
-    Ok(())
+    pub(crate) fn render_discrete_header(
+        &mut self,
+        header: &DiscreteHeader,
+    ) -> Result<(), crate::Error> {
+        let processor = self.processor.clone();
+        let w = self.writer_mut();
+        // Discrete headers render similar to level 4 sections (bold only)
+        let styled = extract_title_text(&header.title)
+            .bold()
+            .with(processor.appearance.colors.section_h4);
+        QueueableCommand::queue(w, PrintStyledContent(styled))?;
+        writeln!(w)?;
+        writeln!(w)?;
+        Ok(())
+    }
 }
 
 fn extract_title_text(title: &[InlineNode]) -> String {
@@ -143,17 +144,17 @@ mod tests {
         Source, Verbatim,
     };
 
-    fn plain(s: &str) -> InlineNode {
+    fn plain(s: &str) -> InlineNode<'_> {
         InlineNode::PlainText(Plain {
-            content: s.to_string(),
+            content: s,
             location: Location::default(),
             escaped: false,
         })
     }
 
-    fn verbatim(s: &str) -> InlineNode {
+    fn verbatim(s: &str) -> InlineNode<'_> {
         InlineNode::VerbatimText(Verbatim {
-            content: s.to_string(),
+            content: s,
             location: Location::default(),
         })
     }
@@ -183,11 +184,8 @@ mod tests {
     #[test]
     fn extract_link_macro_with_text() {
         let link = InlineNode::Macro(InlineMacro::Link(
-            Link::new(
-                Source::Name("https://example.com".to_string()),
-                Location::default(),
-            )
-            .with_text(Some("Example".to_string())),
+            Link::new(Source::Name("https://example.com"), Location::default())
+                .with_text(Some("Example")),
         ));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title), "See Example");
@@ -196,7 +194,7 @@ mod tests {
     #[test]
     fn extract_link_macro_without_text() {
         let link = InlineNode::Macro(InlineMacro::Link(Link::new(
-            Source::Name("https://example.com".to_string()),
+            Source::Name("https://example.com"),
             Location::default(),
         )));
         let title = [link];

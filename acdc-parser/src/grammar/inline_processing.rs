@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     Error, InlineNode, InlinePreprocessorParserState, Location, ProcessedContent,
     inline_preprocessing,
@@ -45,7 +47,7 @@ pub(crate) fn adjust_peg_error_position(
             .map_or(0, |s| s.matches('\n').count());
         let doc_position = state
             .line_map
-            .offset_to_position(absolute_offset, &state.input);
+            .offset_to_position(absolute_offset, state.input);
         (
             Some(range.file.clone()),
             crate::Position {
@@ -56,7 +58,7 @@ pub(crate) fn adjust_peg_error_position(
     } else {
         let doc_position = state
             .line_map
-            .offset_to_position(absolute_offset, &state.input);
+            .offset_to_position(absolute_offset, state.input);
         (state.current_file.clone(), doc_position)
     };
 
@@ -86,15 +88,15 @@ pub(crate) fn adjust_and_log_parse_error(
 }
 
 #[tracing::instrument(skip_all, fields(?content_start, end, offset))]
-pub(crate) fn preprocess_inline_content(
-    state: &mut ParserState,
+pub(crate) fn preprocess_inline_content<'a>(
+    state: &mut ParserState<'a>,
     content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
-    content: &str,
+    content: &'a str,
     macros_enabled: bool,
     attributes_enabled: bool,
-) -> Result<(Location, ProcessedContent), Error> {
+) -> Result<(Location, ProcessedContent<'a>), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
     let mut adjusted_end = end + offset;
     if adjusted_end > 0 && adjusted_end <= state.input.len() {
@@ -104,23 +106,44 @@ pub(crate) fn preprocess_inline_content(
         }
     }
 
-    let mut inline_state = InlinePreprocessorParserState::new(
-        content,
-        &state.line_map,
-        &state.input,
-        macros_enabled,
-        attributes_enabled,
-    );
-
     // We adjust the start and end positions to account for the content start offset
     let content_end_offset = if adjusted_end == 0 {
         0
     } else {
-        crate::grammar::utf8_utils::safe_decrement_offset(&state.input, adjusted_end)
+        crate::grammar::utf8_utils::safe_decrement_offset(state.input, adjusted_end)
     };
     let location = state.create_location(content_start.offset + offset, content_end_offset);
+
+    // Fast path: skip the preprocessing PEG pass when content has no trigger characters.
+    // The preprocessor only modifies content containing { (attribute/counter references),
+    // + (constrained/unconstrained passthroughs), or pass: (macro passthroughs).
+    let needs_preprocessing = content.as_bytes().iter().any(|&b| b == b'{' || b == b'+')
+        || (macros_enabled && content.contains("pass:"));
+
+    if !needs_preprocessing {
+        // Hot path: no preprocessing trigger characters. Borrow directly from
+        // the input instead of allocating — this is the single largest
+        // per-node cost the profiler shows on inline-heavy documents.
+        return Ok((
+            location,
+            ProcessedContent {
+                text: Cow::Borrowed(content),
+                passthroughs: Vec::new(),
+                source_map: crate::grammar::inline_preprocessor::SourceMap::default(),
+            },
+        ));
+    }
+
+    let mut inline_state = InlinePreprocessorParserState::new(
+        content,
+        state.line_map.clone(),
+        state.input,
+        state.arena,
+        macros_enabled,
+        attributes_enabled,
+    );
     inline_state.set_initial_position(&location, content_start.offset + offset);
-    tracing::info!(
+    tracing::debug!(
         ?inline_state,
         ?location,
         ?offset,
@@ -133,35 +156,45 @@ pub(crate) fn preprocess_inline_content(
     // Drain warnings collected during inline preprocessing and add them to the main
     // parser state for post-parse emission. Dedup is handled by both layers:
     // InlinePreprocessorParserState deduplicates within a single preprocessing run,
-    // and ParserState deduplicates across the entire parse.
+    // and ParserState deduplicates across the entire parse. The inline preprocessor
+    // already attaches source locations, so we forward the structured warning as-is.
     for warning in inline_state.drain_warnings() {
         state.add_warning(warning);
     }
     Ok((location, processed))
 }
 
+/// Extract the inline-parsable text from a `ProcessedContent` at `'a`.
+/// `Cow::Borrowed` preserves the outer lifetime directly; `Cow::Owned` is
+/// interned into the parser arena so downstream `InlineNode`s can carry `'a`.
+fn processed_text_as_outer<'a>(
+    processed: &ProcessedContent<'a>,
+    state: &ParserState<'a>,
+) -> &'a str {
+    match &processed.text {
+        Cow::Borrowed(s) => s,
+        Cow::Owned(s) => state.intern_str(s),
+    }
+}
+
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
-pub(crate) fn parse_inlines(
-    processed: &ProcessedContent,
-    state: &mut ParserState,
+pub(crate) fn parse_inlines<'a>(
+    processed: &'a ProcessedContent<'a>,
+    state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     location: &Location,
-) -> Result<Vec<InlineNode>, Error> {
-    let mut inline_peg_state = ParserState::new(&processed.text);
-    inline_peg_state.document_attributes = state.document_attributes.clone();
-    inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
-    inline_peg_state.quotes_only = state.quotes_only;
-    inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let text: &'a str = processed_text_as_outer(processed, state);
+    let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
+    inline_peg_state.inline_ctx.offset = 0;
+    inline_peg_state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
+    inline_peg_state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
+    inline_peg_state.inline_ctx.allow_autolinks = true;
 
     let inlines = if inline_peg_state.quotes_only {
-        inline_parser::quotes_only_inlines(
-            &processed.text,
-            &mut inline_peg_state,
-            0,
-            block_metadata,
-        )
+        inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
     } else {
-        inline_parser::inlines(&processed.text, &mut inline_peg_state, 0, block_metadata)
+        inline_parser::inlines(text, &mut inline_peg_state)
     };
 
     let inlines = match inlines {
@@ -169,7 +202,7 @@ pub(crate) fn parse_inlines(
         Err(err) => {
             return Err(adjust_peg_error_position(
                 &err,
-                &processed.text,
+                text,
                 location.absolute_start,
                 state,
             ));
@@ -181,28 +214,25 @@ pub(crate) fn parse_inlines(
 }
 
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
-pub(crate) fn parse_inlines_no_autolinks(
-    processed: &ProcessedContent,
-    state: &mut ParserState,
+pub(crate) fn parse_inlines_no_autolinks<'a>(
+    processed: &'a ProcessedContent<'a>,
+    state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     location: &Location,
-) -> Result<Vec<InlineNode>, Error> {
-    let mut inline_peg_state = ParserState::new(&processed.text);
-    inline_peg_state.document_attributes = state.document_attributes.clone();
-    inline_peg_state.footnote_tracker = state.footnote_tracker.clone();
-    inline_peg_state.outer_constrained_delimiter = state.outer_constrained_delimiter;
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let text: &'a str = processed_text_as_outer(processed, state);
+    let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
+    inline_peg_state.inline_ctx.offset = 0;
+    inline_peg_state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
+    inline_peg_state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
+    inline_peg_state.inline_ctx.allow_autolinks = false;
 
-    let inlines = match inline_parser::inlines_no_autolinks(
-        &processed.text,
-        &mut inline_peg_state,
-        0,
-        block_metadata,
-    ) {
+    let inlines = match inline_parser::inlines_no_autolinks(text, &mut inline_peg_state) {
         Ok(inlines) => inlines,
         Err(err) => {
             return Err(adjust_peg_error_position(
                 &err,
-                &processed.text,
+                text,
                 location.absolute_start,
                 state,
             ));
@@ -219,14 +249,14 @@ pub(crate) fn parse_inlines_no_autolinks(
 /// into inline nodes. Then, it maps the locations of the parsed inline nodes back to their
 /// original positions in the source.
 #[tracing::instrument(skip_all, fields(?content_start, end, offset))]
-pub(crate) fn process_inlines(
-    state: &mut ParserState,
+pub(crate) fn process_inlines<'a>(
+    state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
-    content: &str,
-) -> Result<Vec<InlineNode>, Error> {
+    content: &'a str,
+) -> Result<Vec<InlineNode<'a>>, Error> {
     let (location, processed) = preprocess_inline_content(
         state,
         content_start,
@@ -241,8 +271,11 @@ pub(crate) fn process_inlines(
     if processed.text.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let content = parse_inlines(&processed, state, block_metadata, &location)?;
-    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
+    // Promote `processed` to `'a` by interning into the parser arena so the
+    // inline parser and location remapper can hand back `InlineNode<'a>`.
+    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
+    let content = parse_inlines(processed, state, block_metadata, &location)?;
+    super::location_mapping::map_inline_locations(state, processed, &content, &location)
 }
 
 /// Process inlines with autolinks suppressed.
@@ -250,14 +283,14 @@ pub(crate) fn process_inlines(
 /// Used inside URL macros, mailto macros, and cross-references where nested
 /// autolinks would cause incorrect parsing.
 #[tracing::instrument(skip_all, fields(?content_start, end, offset))]
-pub(crate) fn process_inlines_no_autolinks(
-    state: &mut ParserState,
+pub(crate) fn process_inlines_no_autolinks<'a>(
+    state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     content_start: &PositionWithOffset,
     end: usize,
     offset: usize,
-    content: &str,
-) -> Result<Vec<InlineNode>, Error> {
+    content: &'a str,
+) -> Result<Vec<InlineNode<'a>>, Error> {
     let (location, processed) = preprocess_inline_content(
         state,
         content_start,
@@ -270,6 +303,8 @@ pub(crate) fn process_inlines_no_autolinks(
     if processed.text.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let content = parse_inlines_no_autolinks(&processed, state, block_metadata, &location)?;
-    super::location_mapping::map_inline_locations(state, &processed, &content, &location)
+    // Promote `processed` to `'a` by interning into the parser arena.
+    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
+    let content = parse_inlines_no_autolinks(processed, state, block_metadata, &location)?;
+    super::location_mapping::map_inline_locations(state, processed, &content, &location)
 }

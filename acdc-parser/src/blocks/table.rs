@@ -598,7 +598,7 @@ fn handle_cross_row_continuation(
     }
 }
 
-impl Table {
+impl Table<'_> {
     pub(crate) fn parse_rows_with_positions(
         text: &str,
         separator: &str,

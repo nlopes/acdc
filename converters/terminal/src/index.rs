@@ -35,23 +35,28 @@ fn build_index_structure(entries: &[IndexTermKind]) -> BTreeMap<String, IndexEnt
     for kind in entries {
         match kind {
             IndexTermKind::Flow(term) => {
-                index.entry(term.clone()).or_default();
+                index.entry((*term).to_string()).or_default();
             }
             IndexTermKind::Concealed {
                 term,
                 secondary,
                 tertiary,
             } => {
-                let primary_entry = index.entry(term.clone()).or_default();
+                let primary_entry = index.entry((*term).to_string()).or_default();
 
                 match (secondary, tertiary) {
                     (Some(sec), None) => {
-                        primary_entry.secondary.entry(sec.clone()).or_default();
+                        primary_entry
+                            .secondary
+                            .entry((*sec).to_string())
+                            .or_default();
                     }
                     (Some(sec), Some(tert)) => {
-                        let secondary_entry =
-                            primary_entry.secondary.entry(sec.clone()).or_default();
-                        secondary_entry.tertiary.insert(tert.clone());
+                        let secondary_entry = primary_entry
+                            .secondary
+                            .entry((*sec).to_string())
+                            .or_default();
+                        secondary_entry.tertiary.insert((*tert).to_string());
                     }
                     // Primary-only or invalid (tertiary without secondary)
                     (None, _) => {}
@@ -86,7 +91,7 @@ fn group_by_letter(
 /// Render the index catalog for an `[index]` section.
 pub(crate) fn render<V: WritableVisitor<Error = Error>>(
     visitor: &mut V,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), Error> {
     let entries = processor.index_entries.borrow();
 
