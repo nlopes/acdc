@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use acdc_converters_core::{
     Backend, Converter, Doctype, GeneratorMetadata, Options, OutputDestination,
@@ -8,7 +8,10 @@ use clap::{ArgAction, Args as ClapArgs};
 use miette::Report;
 use rayon::prelude::*;
 
-use crate::error;
+use crate::{
+    error,
+    timing::{TimingEntry, print_timing_table},
+};
 
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
@@ -284,78 +287,176 @@ where
         _ => &args.files,
     };
 
-    // PHASE 1: Parse all files in parallel (always - parsing is the expensive part)
-    let parse_results: Vec<(PathBuf, Result<acdc_parser::Document, acdc_parser::Error>)> =
-        files_to_process
-            .par_iter()
-            .map(|file| {
-                let parser_options =
-                    build_parser_options(args, &base_options, document_attributes.clone());
+    // Single-file fast path: skip rayon thread pool overhead entirely
+    if let [file] = files_to_process {
+        let parser_options = build_parser_options(args, &base_options, document_attributes.clone());
+        let parse_result = if base_options.timings() {
+            let now = std::time::Instant::now();
+            let result = acdc_parser::parse_file(file, &parser_options);
+            let elapsed = now.elapsed();
+            if result.is_ok() {
+                use acdc_converters_core::PrettyDuration;
+                eprintln!("  Parsed {} in {}", file.display(), elapsed.pretty_print());
+            }
+            result
+        } else {
+            acdc_parser::parse_file(file, &parser_options)
+        };
+        let processor = P::new(base_options, document_attributes);
+        let convert_result = match parse_result {
+            Ok(doc) => processor.convert(&doc, Some(file)),
+            Err(e) => Err(e.into()),
+        };
+        report_errors(std::iter::once((file.clone(), convert_result)));
+        return Ok(());
+    }
 
-                if base_options.timings() {
-                    let now = std::time::Instant::now();
-                    let result = acdc_parser::parse_file(file, &parser_options);
-                    let elapsed = now.elapsed();
-                    if result.is_ok() {
-                        use acdc_converters_core::PrettyDuration;
-                        eprintln!("  Parsed {} in {}", file.display(), elapsed.pretty_print());
-                    }
-                    (file.clone(), result)
-                } else {
-                    let result = acdc_parser::parse_file(file, &parser_options);
-                    (file.clone(), result)
-                }
-            })
-            .collect();
+    run_multi_file::<P>(
+        args,
+        &base_options,
+        document_attributes,
+        files_to_process,
+        parallelize,
+    );
+    Ok(())
+}
 
-    // PHASE 2: Convert documents - either in parallel or sequentially
-    let results: Vec<(PathBuf, Result<(), P::Error>)> = if parallelize {
-        // Parallel conversion for converters with separate output files (e.g., HTML)
+fn run_multi_file<P>(
+    args: &Args,
+    base_options: &Options,
+    document_attributes: DocumentAttributes,
+    files_to_process: &[PathBuf],
+    parallelize: bool,
+) where
+    P: Converter,
+    P::Error: Send + 'static + From<acdc_parser::Error>,
+{
+    let show_timings = base_options.timings();
+    let multi_file = files_to_process.len() > 1;
+    let wall_clock_start = show_timings.then(std::time::Instant::now);
+
+    // Parse all files in parallel, collecting durations when timing
+    let parse_results: Vec<(
+        PathBuf,
+        Result<acdc_parser::Document, acdc_parser::Error>,
+        Option<Duration>,
+    )> = files_to_process
+        .par_iter()
+        .map(|file| {
+            let parser_options =
+                build_parser_options(args, base_options, document_attributes.clone());
+
+            if show_timings {
+                let now = std::time::Instant::now();
+                let result = acdc_parser::parse_file(file, &parser_options);
+                let elapsed = now.elapsed();
+                (file.clone(), result, Some(elapsed))
+            } else {
+                let result = acdc_parser::parse_file(file, &parser_options);
+                (file.clone(), result, None)
+            }
+        })
+        .collect();
+
+    // Convert documents, timing each conversion from the CLI side.
+    //
+    // For multi-file + timings: suppress the converter's per-file timing output since
+    // we'll print a summary table instead.
+    let converter_options = if show_timings && multi_file {
+        Options::builder()
+            .generator_metadata(base_options.generator_metadata().clone())
+            .doctype(base_options.doctype())
+            .safe_mode(base_options.safe_mode())
+            .timings(false)
+            .embedded(base_options.embedded())
+            .output_destination(base_options.output_destination().clone())
+            .backend(base_options.backend())
+            .build()
+    } else {
+        base_options.clone()
+    };
+
+    let file_results: Vec<FileResult<P::Error>> = if parallelize {
         parse_results
             .into_par_iter()
-            .map(|(file, parse_result)| {
-                let processor = P::new(base_options.clone(), document_attributes.clone());
-                let convert_result = match parse_result {
+            .map(|(file, parse_result, parse_dur)| {
+                let processor = P::new(converter_options.clone(), document_attributes.clone());
+                let now = std::time::Instant::now();
+                let result = match parse_result {
                     Ok(doc) => processor.convert(&doc, Some(&file)),
                     Err(e) => Err(e.into()),
                 };
-                (file, convert_result)
+                let convert_dur = show_timings.then(|| now.elapsed());
+                FileResult {
+                    path: file,
+                    result,
+                    parse_dur,
+                    convert_dur,
+                }
             })
             .collect()
     } else {
-        // Sequential conversion for converters that output to stdout (e.g., Terminal)
-        let processor = P::new(base_options, document_attributes);
+        let processor = P::new(converter_options, document_attributes);
         parse_results
             .into_iter()
-            .map(|(file, parse_result)| {
-                let convert_result = match parse_result {
+            .map(|(file, parse_result, parse_dur)| {
+                let now = std::time::Instant::now();
+                let result = match parse_result {
                     Ok(doc) => processor.convert(&doc, Some(&file)),
                     Err(e) => Err(e.into()),
                 };
-                (file, convert_result)
+                let convert_dur = show_timings.then(|| now.elapsed());
+                FileResult {
+                    path: file,
+                    result,
+                    parse_dur,
+                    convert_dur,
+                }
             })
             .collect()
     };
 
-    // Separate successes from errors
-    let (_successes, errors): (Vec<_>, Vec<_>) = results
-        .into_iter()
-        .partition(|(_file, result)| result.is_ok());
+    if show_timings && multi_file {
+        let wall_clock = wall_clock_start.map(|s| s.elapsed());
+        let timing_entries: Vec<_> = file_results
+            .iter()
+            .filter_map(|fr| {
+                Some(TimingEntry {
+                    path: fr.path.clone(),
+                    parse: fr.parse_dur?,
+                    convert: fr.convert_dur?,
+                })
+            })
+            .collect();
+        print_timing_table(&timing_entries, wall_clock);
+    }
 
-    // If there are errors, collect and display them
+    report_errors(file_results.into_iter().map(|fr| (fr.path, fr.result)));
+}
+
+struct FileResult<E> {
+    path: PathBuf,
+    result: Result<(), E>,
+    parse_dur: Option<Duration>,
+    convert_dur: Option<Duration>,
+}
+
+fn report_errors<E: std::error::Error + 'static>(
+    results: impl Iterator<Item = (PathBuf, Result<(), E>)>,
+) {
+    let errors: Vec<_> = results
+        .filter_map(|(file, result)| result.err().map(|e| (file, e)))
+        .collect();
+
     if !errors.is_empty() {
         eprintln!("\nFailed to process {} file(s):", errors.len());
-        for (idx, (file, result)) in errors.iter().enumerate() {
-            if let Err(error) = result {
-                eprintln!("\n{}. File: {}", idx + 1, file.display());
-                let report = error::display(error);
-                eprintln!("{report:?}");
-            }
+        for (idx, (file, err)) in errors.iter().enumerate() {
+            eprintln!("\n{}. File: {}", idx + 1, file.display());
+            let report = error::display(err);
+            eprintln!("{report:?}");
         }
         std::process::exit(1);
     }
-
-    Ok(())
 }
 
 /// Spawn a pager process, returning the child process.

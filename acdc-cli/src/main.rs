@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 mod error;
 mod subcommands;
+mod timing;
 
 #[derive(Parser)]
 #[command(name = "acdc")]
@@ -26,11 +27,11 @@ enum Commands {
 }
 
 fn setup_logging() {
-    use tracing_subscriber::{EnvFilter, prelude::*};
-
-    let env_filter = EnvFilter::try_from_env("ACDC_LOG").or_else(|_| EnvFilter::try_new("warn"));
-
-    if let Ok(filter) = env_filter {
+    // Only install a tracing subscriber when ACDC_LOG is explicitly set.
+    // Without a subscriber, tracing macros are near-zero-cost no-ops,
+    // avoiding per-call dispatch overhead on every parse/convert operation.
+    if let Ok(filter) = tracing_subscriber::EnvFilter::try_from_env("ACDC_LOG") {
+        use tracing_subscriber::prelude::*;
         let layer = tracing_subscriber::fmt::layer()
             .with_writer(std::io::stderr)
             .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
