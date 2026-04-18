@@ -3,3 +3,8 @@
 /.dev/archive/
 .worktrees/
 /cargo-flamegraph.trace/
+/acdc-parser/**/*.html
+/perf
+/profile.json.gz
+# Claude Code runtime locks (ScheduleWakeup, etc.)
+.claude/*.lock

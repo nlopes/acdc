@@ -352,8 +352,9 @@ Some content.
 
 More content.
 ";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         // Header + 2 top-level sections
         assert_eq!(symbols.len(), 3);
@@ -394,8 +395,9 @@ More content.
     #[test]
     fn test_paragraph_symbols() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n== Section\n\nA simple paragraph.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         // Find the paragraph inside Section
         let section = symbols.get(1);
@@ -411,8 +413,9 @@ More content.
     #[test]
     fn test_admonition_symbols() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n== Section\n\nNOTE: This is a note.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         let section = symbols.get(1);
         let children = section.and_then(|s| s.children.as_ref());
@@ -430,8 +433,9 @@ More content.
     #[test]
     fn test_delimited_block_symbols() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n== Section\n\n.My sidebar\n****\nSidebar content.\n****\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         let section = symbols.get(1);
         let children = section.and_then(|s| s.children.as_ref());
@@ -455,8 +459,9 @@ More content.
     #[test]
     fn test_list_symbols() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n== Section\n\n* Item one\n* Item two\n* Item three\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         let section = symbols.get(1);
         let children = section.and_then(|s| s.children.as_ref());
@@ -473,8 +478,9 @@ More content.
     #[test]
     fn test_image_symbols() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n== Section\n\nimage::photo.png[]\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         let section = symbols.get(1);
         let children = section.and_then(|s| s.children.as_ref());
@@ -491,8 +497,9 @@ More content.
     #[test]
     fn test_comment_excluded() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n// This is a comment\n\n== Section\n\nContent.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = document_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = document_symbols(doc);
 
         // Comments should not appear in symbols
         let has_comment = symbols.iter().any(|s| s.name.contains("comment"));

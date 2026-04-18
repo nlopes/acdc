@@ -3,12 +3,13 @@
 use std::collections::HashMap;
 
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section, Source,
+    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
 };
 use tower_lsp_server::ls_types::Position;
 
 use tower_lsp_server::ls_types::Uri;
 
+use crate::state::document::OwnedSource;
 use crate::state::{DocumentState, Workspace, XrefTarget};
 
 /// Collect all anchor definitions from document AST
@@ -100,16 +101,16 @@ fn heading_line_location(section: &Section) -> Location {
 fn collect_section_anchors(section: &Section, anchors: &mut HashMap<String, Location>) {
     // Get the section ID (explicit or generated)
     // Title implements Deref<Target = [InlineNode]>
-    let safe_id = Section::generate_id(&section.metadata, &section.title);
+    let id = Section::generate_id_string(&section.metadata, &section.title);
     // Use heading-line location (section start to title end), not the full
     // section span. The full span covers all content blocks, which would make
     // the anchor match on hover anywhere inside the section body.
     let heading_loc = heading_line_location(section);
-    anchors.insert(safe_id.to_string(), heading_loc);
+    anchors.insert(id, heading_loc);
 
     // Also collect any explicit anchors from metadata
     for anchor in &section.metadata.anchors {
-        anchors.insert(anchor.id.clone(), anchor.location.clone());
+        anchors.insert(anchor.id.to_string(), anchor.location.clone());
     }
 
     // Recurse into section content
@@ -125,11 +126,11 @@ fn collect_metadata_anchors(
 ) {
     // Collect anchors from metadata (from [[id]] or [#id] syntax)
     for anchor in &metadata.anchors {
-        anchors.insert(anchor.id.clone(), anchor.location.clone());
+        anchors.insert(anchor.id.to_string(), anchor.location.clone());
     }
     // Also check explicit id attribute
     if let Some(id_anchor) = &metadata.id {
-        anchors.insert(id_anchor.id.clone(), block_location.clone());
+        anchors.insert(id_anchor.id.to_string(), block_location.clone());
     }
 }
 
@@ -165,7 +166,7 @@ fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, 
         // Explicit arms for compile-time check when variants added
         match inline {
             InlineNode::InlineAnchor(anchor) => {
-                anchors.insert(anchor.id.clone(), anchor.location.clone());
+                anchors.insert(anchor.id.to_string(), anchor.location.clone());
             }
             // Recurse into formatted text to find nested anchors
             InlineNode::BoldText(b) => collect_inline_anchors(&b.content, anchors),
@@ -287,7 +288,7 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
         // Explicit arms for compile-time check when variants added
         match inline {
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                xrefs.push((xref.target.clone(), xref.location.clone()));
+                xrefs.push((xref.target.to_string(), xref.location.clone()));
             }
             // Recurse into formatted text to find nested xrefs
             InlineNode::BoldText(b) => collect_inline_xrefs(&b.content, xrefs),
@@ -314,7 +315,7 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
 
 /// Collect all media sources (images, audio, video) from document AST
 #[must_use]
-pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(Source, Location)> {
+pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(OwnedSource, Location)> {
     let mut sources = vec![];
 
     for block in &doc.blocks {
@@ -324,7 +325,7 @@ pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(Source, Location)> {
     sources
 }
 
-fn collect_block_media(block: &Block, sources: &mut Vec<(Source, Location)>) {
+fn collect_block_media(block: &Block, sources: &mut Vec<(OwnedSource, Location)>) {
     match block {
         Block::Section(section) => {
             for child in &section.content {
@@ -367,14 +368,17 @@ fn collect_block_media(block: &Block, sources: &mut Vec<(Source, Location)>) {
             }
         }
         Block::Image(img) => {
-            sources.push((img.source.clone(), img.location.clone()));
+            sources.push((OwnedSource::from_borrowed(&img.source), img.location.clone()));
         }
         Block::Audio(audio) => {
-            sources.push((audio.source.clone(), audio.location.clone()));
+            sources.push((
+                OwnedSource::from_borrowed(&audio.source),
+                audio.location.clone(),
+            ));
         }
         Block::Video(video) => {
             for source in &video.sources {
-                sources.push((source.clone(), video.location.clone()));
+                sources.push((OwnedSource::from_borrowed(source), video.location.clone()));
             }
         }
         Block::TableOfContents(_)
@@ -391,7 +395,7 @@ fn collect_block_media(block: &Block, sources: &mut Vec<(Source, Location)>) {
 
 fn collect_delimited_block_media(
     inner: &DelimitedBlockType,
-    sources: &mut Vec<(Source, Location)>,
+    sources: &mut Vec<(OwnedSource, Location)>,
 ) {
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
@@ -416,11 +420,11 @@ fn collect_delimited_block_media(
     }
 }
 
-fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(Source, Location)>) {
+fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(OwnedSource, Location)>) {
     for inline in inlines {
         match inline {
             InlineNode::Macro(InlineMacro::Image(img)) => {
-                sources.push((img.source.clone(), img.location.clone()));
+                sources.push((OwnedSource::from_borrowed(&img.source), img.location.clone()));
             }
             // Recurse into formatted text to find nested images
             InlineNode::BoldText(b) => collect_inline_media(&b.content, sources),
@@ -453,12 +457,13 @@ pub(crate) fn find_definition_at_position(
     workspace: &Workspace,
     position: Position,
 ) -> Option<(Uri, Location)> {
-    let offset = crate::convert::position_to_offset(&doc_state.text, position)?;
-    let ast = doc_state.ast.as_ref()?;
+    let offset = crate::convert::position_to_offset(doc_state.text(), position)?;
+    let ast_guard = doc_state.ast()?;
+    let ast = ast_guard.document();
     tracing::info!(
         ?position,
         offset,
-        text_len = doc_state.text.len(),
+        text_len = doc_state.text().len(),
         "find_definition_at_position"
     );
 
@@ -585,8 +590,8 @@ Some content.
 
 More content.
 ";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let anchors = collect_anchors(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let anchors = collect_anchors(parsed.document());
 
         // Should have both explicit and generated IDs
         assert!(anchors.contains_key("explicit-id"));
@@ -607,8 +612,8 @@ See xref:section-two[Section Two].
 
 Content.
 ";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let xrefs = collect_xrefs(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let xrefs = collect_xrefs(parsed.document());
 
         assert_eq!(xrefs.len(), 1);
         let xref = xrefs.first();
@@ -648,13 +653,19 @@ Content.
             .ok_or("a.adoc should be indexed")?;
         assert!(!a_doc.xrefs.is_empty(), "a.adoc should have xrefs");
 
-        // Verify the AST has the xref findable at offset
-        let ast = a_doc.ast.as_ref().ok_or("a.adoc should have AST")?;
-        let xref_offset = a_content
-            .find("xref:")
-            .ok_or("xref: not found in content")?;
-        let found = crate::capabilities::hover::find_xref_at_offset(ast, xref_offset + 10);
-        assert!(found.is_some(), "xref should be findable at offset");
+        // Verify the AST has the xref findable at offset. The guard holds the
+        // `ParsedDocument` mutex, so it must drop before the call below — which
+        // re-enters `doc_state.ast()` and would deadlock on a non-reentrant
+        // `std::sync::Mutex`.
+        {
+            let ast_guard = a_doc.ast().ok_or("a.adoc should have AST")?;
+            let ast = ast_guard.document();
+            let xref_offset = a_content
+                .find("xref:")
+                .ok_or("xref: not found in content")?;
+            let found = crate::capabilities::hover::find_xref_at_offset(ast, xref_offset + 10);
+            assert!(found.is_some(), "xref should be findable at offset");
+        }
 
         // Use position_to_offset round-trip like the real code path
         let position = tower_lsp_server::ls_types::Position {
@@ -670,12 +681,12 @@ Content.
     #[test]
     fn test_collect_media_sources_block_image() -> Result<(), acdc_parser::Error> {
         let content = "= Document\n\nimage::photo.png[Alt text]\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let sources = collect_media_sources(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
-            matches!(s, Source::Path(p) if p.display().to_string() == "photo.png")
+            matches!(s, OwnedSource::Path(p) if p.display().to_string() == "photo.png")
         }));
         Ok(())
     }
@@ -683,12 +694,12 @@ Content.
     #[test]
     fn test_collect_media_sources_inline_image() -> Result<(), acdc_parser::Error> {
         let content = "= Document\n\n== Section\n\nSee image:icon.png[] here.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let sources = collect_media_sources(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
-            matches!(s, Source::Path(p) if p.display().to_string() == "icon.png")
+            matches!(s, OwnedSource::Path(p) if p.display().to_string() == "icon.png")
         }));
         Ok(())
     }
@@ -696,8 +707,8 @@ Content.
     #[test]
     fn test_collect_media_sources_multiple() -> Result<(), acdc_parser::Error> {
         let content = "= Document\n\nimage::a.png[]\n\n== Section\n\nimage::b.jpg[]\n\nText with image:c.svg[] inline.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let sources = collect_media_sources(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 3);
         Ok(())

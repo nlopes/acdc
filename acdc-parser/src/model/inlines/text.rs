@@ -17,41 +17,41 @@ pub enum Form {
 
 /// A `Subscript` represents a subscript section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Subscript {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct Subscript<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
 /// A `Superscript` represents a superscript section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Superscript {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct Superscript<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
 /// A `CurvedQuotation` represents a curved quotation section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CurvedQuotation {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct CurvedQuotation<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
 /// A `CurvedApostrophe` represents a curved apostrophe section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CurvedApostrophe {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct CurvedApostrophe<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
@@ -63,41 +63,41 @@ pub struct StandaloneCurvedApostrophe {
 
 /// A `Monospace` represents a monospace section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Monospace {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct Monospace<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
 /// A `Highlight` represents a highlighted section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Highlight {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct Highlight<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
 /// A `Bold` represents a bold section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Bold {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct Bold<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
 /// An `Italic` represents an italic section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Italic {
-    pub role: Option<Role>,
-    pub id: Option<String>,
+pub struct Italic<'a> {
+    pub role: Option<Role<'a>>,
+    pub id: Option<&'a str>,
     pub form: Form,
-    pub content: Vec<InlineNode>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
@@ -124,15 +124,15 @@ impl Serialize for LineBreak {
 ///
 /// This is the most basic form of text in a document.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Plain {
-    pub content: String,
+pub struct Plain<'a> {
+    pub content: &'a str,
     pub location: Location,
     /// True if content originated from an escaped pattern (e.g., `\^2^`).
     /// When true, the converter should not re-parse for quotes.
     pub escaped: bool,
 }
 
-impl Serialize for Plain {
+impl Serialize for Plain<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -152,8 +152,8 @@ impl Serialize for Plain {
 /// must be rendered as they are (e.g: "\<h1>" should not end up being a \<h1> tag, it
 /// should be "\<h1>" text in html, very likely \&lt;h1\&gt;).
 #[derive(Clone, Debug, PartialEq)]
-pub struct Raw {
-    pub content: String,
+pub struct Raw<'a> {
+    pub content: &'a str,
     pub location: Location,
     /// The substitutions to apply when rendering this node.
     ///
@@ -173,8 +173,8 @@ pub struct Raw {
 /// It is similar to `Raw`, but is intended for use in contexts where verbatim text is
 /// used, and some substitutions are done, namely converting callouts.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Verbatim {
-    pub content: String,
+pub struct Verbatim<'a> {
+    pub content: &'a str,
     pub location: Location,
 }
 

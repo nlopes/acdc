@@ -9,21 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,
-  `parse_from_reader`) for phase-level timing visibility.
-- **First-section level validation** - emit a warning when a titled document's
-  first section skips level 1 (e.g. starts with `===` instead of `==`), matching
-  `asciidoctor`'s "section title out of sequence" check. Title-less documents still
-  accept any first-section level.
+- **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`,
+  `parse_file`, `parse_from_reader`) for phase-level timing visibility.
+- **First-section level validation** - emit a warning when a titled document's first
+  section skips level 1 (e.g. starts with `===` instead of `==`), matching `asciidoctor`'s
+  "section title out of sequence" check. Title-less documents still accept any
+  first-section level.
+- **`ParsedDocument`** — new opaque return type for all `parse*()` entry points. Call
+  `.document()` to borrow the `&Document<'_>`.
+
+### Changed
+
+- **`parse*()` functions now return `ParsedDocument`** instead of `Document<'static>`.
+  Call sites add one `.document()` call.
+- **Long-running consumers no longer leak memory per parse.** Embedders like `acdc-lsp`
+  and `acdc-editor-wasm` can now parse repeatedly without their memory footprint growing
+  unboundedly.
+
+### Removed
+
+- **`FromStr for Source<'static>`** — the impl was a per-call `Box::leak` footgun: every
+  parse of a URL/Name media source leaked one boxed `String` to `'static`, accumulating to
+  multi-GB RSS in long-running LSP sessions. Internally the parser grammar now calls
+  `Source::from_str_borrowed` against arena-allocated strings (via
+  `ParserState::intern_*`), which costs no extra allocation and drops with the parse.
+  External callers that need an owned copy should convert to their own type (see
+  `acdc-lsp`'s `OwnedSource`) rather than round-tripping through `FromStr`.
 
 ### Performance
 
-- **Parsing large documents is dramatically faster** - some block-opener checks
-  performance was quadratic, and now it is linear. Several inline-preprocessor and
-  attribute-substitution paths also skip work when the input has no relevant delimiters.
-  1MB sample: **~6749ms -> ~207ms (~32× faster)**.
-- **New `DocumentAttributes::empty()`** for callers that don't need the default attribute
-  map, avoiding a bunch of allocations.
+- **Parsing large documents is dramatically faster.** Hot paths in inline parsing and
+  attribute handling skip work entirely when the input has no relevant syntax. 1MB sample:
+  ~11.7s → ~130ms (~90× faster).
 
 ## [0.8.0] - 2026-03-28
 

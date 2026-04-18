@@ -20,8 +20,8 @@ pub(crate) fn compute_code_lenses(
 ) -> Vec<CodeLens> {
     let mut lenses = Vec::new();
 
-    if let Some(ast) = &doc.ast {
-        collect_section_lenses(ast, doc_uri, workspace, &mut lenses);
+    if let Some(ast) = doc.ast() {
+        collect_section_lenses(ast.document(), doc_uri, workspace, &mut lenses);
     }
     collect_attribute_def_lenses(doc, doc_uri, workspace, &mut lenses);
 
@@ -138,8 +138,7 @@ fn add_section_lens(
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
-    let safe_id = Section::generate_id(&section.metadata, &section.title);
-    let id = safe_id.to_string();
+    let id = Section::generate_id_string(&section.metadata, &section.title);
     let count = count_xrefs_to_anchor(&id, workspace);
 
     let range = location_to_range(&section.location);
@@ -165,7 +164,7 @@ fn collect_inline_anchor_lenses(
     for inline in inlines {
         match inline {
             InlineNode::InlineAnchor(anchor) => {
-                let count = count_xrefs_to_anchor(&anchor.id, workspace);
+                let count = count_xrefs_to_anchor(anchor.id, workspace);
                 let range = location_to_range(&anchor.location);
                 let range = tower_lsp_server::ls_types::Range {
                     start: range.start,

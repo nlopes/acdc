@@ -14,6 +14,7 @@ use tower_lsp_server::ls_types::{
 use crate::convert::{
     location_to_range, offset_in_location, position_to_offset, resolve_relative_uri, uri_filename,
 };
+use crate::limits::{count_lines_bounded, read_bounded};
 use crate::state::{DocumentState, Workspace, extract_includes};
 
 /// Build a `CallHierarchyItem` representing an `AsciiDoc` file.
@@ -45,10 +46,12 @@ fn make_call_hierarchy_item(uri: Uri, line_count: usize) -> CallHierarchyItem {
 }
 
 /// Count lines in a file on disk, returning 0 if the file can't be read.
+///
+/// Uses a buffered reader so a multi-GB include still costs `O(buffer)` RSS
+/// instead of slurping the whole file.
 fn line_count_from_disk(uri: &Uri) -> usize {
     uri.to_file_path()
-        .and_then(|p| std::fs::read_to_string(p.as_ref()).ok())
-        .map_or(0, |t| t.lines().count())
+        .map_or(0, |p| count_lines_bounded(p.as_ref()))
 }
 
 /// Prepare call hierarchy items at the given position.
@@ -61,7 +64,7 @@ pub(crate) fn prepare_call_hierarchy(
     doc_uri: &Uri,
     position: Position,
 ) -> Option<Vec<CallHierarchyItem>> {
-    let offset = position_to_offset(&doc.text, position)?;
+    let offset = position_to_offset(doc.text(), position)?;
 
     // Check if cursor is on an include directive
     for (target, location) in &doc.includes {
@@ -73,7 +76,7 @@ pub(crate) fn prepare_call_hierarchy(
     }
 
     // Fallback: return an item for the current document
-    let line_count = doc.text.lines().count();
+    let line_count = doc.text().lines().count();
     Some(vec![make_call_hierarchy_item(doc_uri.clone(), line_count)])
 }
 
@@ -109,7 +112,7 @@ pub(crate) fn incoming_calls(
         if workspace.has_document(&file_uri) {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
+        let Some(text) = read_bounded(&path) else {
             continue;
         };
         let includes = extract_includes(&text);
@@ -134,7 +137,7 @@ pub(crate) fn incoming_calls(
         .into_iter()
         .map(|(uri, from_ranges)| {
             let line_count = if let Some(doc) = workspace.get_document(&uri) {
-                doc.text.lines().count()
+                doc.text().lines().count()
             } else {
                 line_count_from_disk(&uri)
             };
@@ -161,7 +164,7 @@ pub(crate) fn outgoing_calls(
         doc.includes.clone()
     } else {
         let path = item_uri.to_file_path()?;
-        let text = std::fs::read_to_string(path.as_ref()).ok()?;
+        let text = read_bounded(path.as_ref())?;
         extract_includes(&text)
     };
 
@@ -174,7 +177,7 @@ pub(crate) fn outgoing_calls(
         .filter_map(|(target, location)| {
             let resolved_uri = resolve_relative_uri(item_uri, target)?;
             let line_count = if let Some(doc) = workspace.get_document(&resolved_uri) {
-                doc.text.lines().count()
+                doc.text().lines().count()
             } else {
                 line_count_from_disk(&resolved_uri)
             };

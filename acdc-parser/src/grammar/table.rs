@@ -2,13 +2,13 @@ use crate::{ColumnStyle, Error, TableColumn, blocks::table::ParsedCell, model::S
 
 use super::{ParserState, document_parser, inline_processing::adjust_and_log_parse_error};
 
-pub(crate) fn parse_table_cell(
-    content: &str,
-    state: &mut ParserState,
+pub(crate) fn parse_table_cell<'a>(
+    content: &'a str,
+    state: &mut ParserState<'a>,
     cell_start_offset: usize,
     parent_section_level: Option<SectionLevel>,
     cell: &ParsedCell,
-) -> Result<TableColumn, Error> {
+) -> Result<TableColumn<'a>, Error> {
     // Markdown blockquotes are only parsed when cell has AsciiDoc style ('a' prefix).
     // This matches asciidoctor behavior where `> text` is only a blockquote in 'a' style cells.
     let blocks = if cell.style == Some(ColumnStyle::AsciiDoc) {

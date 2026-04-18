@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **HTML output is now streamed.** Rendering writes directly to the caller's
+  writer instead of building an intermediate string in memory, cutting
+  allocations on large documents. Public API is unchanged for callers that
+  already pass a `Write` target.
+
 ### Added
 
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or

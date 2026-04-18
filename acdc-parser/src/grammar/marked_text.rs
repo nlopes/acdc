@@ -9,9 +9,9 @@ use super::{
 ///
 /// This trait uses Generic Associated Types (GATs) to provide a unified interface for all
 /// marked text node types while maintaining compile-time type safety and zero runtime cost.
-pub(crate) trait MarkedText: Sized {
-    /// The type of content this formatted node contains (typically Vec<InlineNode>)
-    type Content: LocationMappable;
+pub(crate) trait MarkedText<'a>: Sized {
+    /// The type of content this formatted node contains (typically Vec<`InlineNode`<'a>>)
+    type Content: LocationMappable<'a>;
 
     /// Get an immutable reference to the location
     fn location(&self) -> &Location;
@@ -26,7 +26,10 @@ pub(crate) trait MarkedText: Sized {
     fn form(&self) -> &Form;
 
     /// Generic location mapping that works for any `MarkedText`
-    fn map_locations(mut self, mapping_ctx: &LocationMappingContext) -> Result<Self, crate::Error> {
+    fn map_locations(
+        mut self,
+        mapping_ctx: &LocationMappingContext<'_, 'a>,
+    ) -> Result<Self, crate::Error> {
         // Get the form first to avoid borrowing issues
         let form = self.form().clone();
         let location = self.location().clone();
@@ -63,24 +66,24 @@ pub(crate) trait MarkedText: Sized {
 /// Trait for types that can have their locations recursively mapped.
 ///
 /// This trait enables recursive location mapping for nested content structures.
-pub trait LocationMappable: Clone {
+pub trait LocationMappable<'a>: Clone {
     /// Map locations within this content using the provided location mapper
     fn map_locations_with(
         &mut self,
         map_loc: &LocationMapper<'_>,
-        state: &ParserState,
-        processed: &ProcessedContent,
+        state: &ParserState<'a>,
+        processed: &ProcessedContent<'a>,
         base_location: &Location,
     ) -> Result<(), crate::Error>;
 }
 
-/// Implementation for Vec<InlineNode> - the most common content type
-impl LocationMappable for Vec<InlineNode> {
+/// Implementation for Vec<`InlineNode`<'a>> - the most common content type
+impl<'a> LocationMappable<'a> for Vec<InlineNode<'a>> {
     fn map_locations_with(
         &mut self,
         map_loc: &LocationMapper<'_>,
-        state: &ParserState,
-        processed: &ProcessedContent,
+        state: &ParserState<'a>,
+        processed: &ProcessedContent<'a>,
         base_location: &Location,
     ) -> Result<(), crate::Error> {
         *self = super::location_mapping::map_inner_content_locations(
@@ -96,10 +99,10 @@ impl LocationMappable for Vec<InlineNode> {
 
 /// Macro to implement `MarkedText` for all marked text inline types
 macro_rules! impl_marked_text {
-    ($($type:ty),+ $(,)?) => {
+    ($($type:ident),+ $(,)?) => {
         $(
-            impl MarkedText for $type {
-                type Content = Vec<InlineNode>;
+            impl<'a> MarkedText<'a> for crate::$type<'a> {
+                type Content = Vec<InlineNode<'a>>;
 
                 fn location(&self) -> &Location {
                     &self.location
@@ -123,35 +126,35 @@ macro_rules! impl_marked_text {
 
 // Apply the macro to all marked text inline types
 impl_marked_text!(
-    crate::Bold,
-    crate::Italic,
-    crate::Monospace,
-    crate::Highlight,
-    crate::Subscript,
-    crate::Superscript,
-    crate::CurvedQuotation,
-    crate::CurvedApostrophe,
+    Bold,
+    Italic,
+    Monospace,
+    Highlight,
+    Subscript,
+    Superscript,
+    CurvedQuotation,
+    CurvedApostrophe,
 );
 
 /// Trait for enum dispatch to `MarkedText` implementations
 ///
 /// This allows us to call `MarkedText` methods on `InlineNode` enum variants
 /// without repetitive match statements.
-pub trait WithLocationMappingContext {
+pub trait WithLocationMappingContext<'a> {
     /// Map inline node locations using the provided location mapping context
     fn with_location_mapping_context(
         self,
-        mapping_ctx: &LocationMappingContext,
+        mapping_ctx: &LocationMappingContext<'_, 'a>,
     ) -> Result<Self, crate::Error>
     where
         Self: Sized;
 }
 
-impl WithLocationMappingContext for InlineNode {
+impl<'a> WithLocationMappingContext<'a> for InlineNode<'a> {
     fn with_location_mapping_context(
         self,
-        mapping_ctx: &LocationMappingContext,
-    ) -> Result<InlineNode, crate::Error> {
+        mapping_ctx: &LocationMappingContext<'_, 'a>,
+    ) -> Result<InlineNode<'a>, crate::Error> {
         Ok(match self {
             InlineNode::BoldText(node) => InlineNode::BoldText(node.map_locations(mapping_ctx)?),
             InlineNode::ItalicText(node) => {

@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{Audio, Source};
 use crossterm::{
@@ -5,25 +7,24 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::Error;
+use crate::{Error, TerminalVisitor};
 
-pub(crate) fn visit_audio<V: WritableVisitor<Error = Error>>(
-    audio: &Audio,
-    visitor: &mut V,
-) -> Result<(), Error> {
-    let w = visitor.writer_mut();
-    match &audio.source {
-        Source::Url(url) => {
-            w.queue(PrintStyledContent(url.as_str().to_string().italic()))?;
+impl<W: Write> TerminalVisitor<'_, W> {
+    pub(crate) fn render_audio(&mut self, audio: &Audio) -> Result<(), Error> {
+        let w = self.writer_mut();
+        match &audio.source {
+            Source::Url(url) => {
+                w.queue(PrintStyledContent(url.as_ref().to_string().italic()))?;
+            }
+            Source::Path(path) => {
+                w.queue(PrintStyledContent(
+                    format!("[Audio: {}]", path.display()).italic(),
+                ))?;
+            }
+            Source::Name(name) => {
+                w.queue(PrintStyledContent(format!("[Audio: {name}]").italic()))?;
+            }
         }
-        Source::Path(path) => {
-            w.queue(PrintStyledContent(
-                format!("[Audio: {}]", path.display()).italic(),
-            ))?;
-        }
-        Source::Name(name) => {
-            w.queue(PrintStyledContent(format!("[Audio: {name}]").italic()))?;
-        }
+        Ok(())
     }
-    Ok(())
 }

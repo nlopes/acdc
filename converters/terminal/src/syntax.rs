@@ -14,7 +14,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     language: &str,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), Error> {
     use crossterm::{QueueableCommand, style::PrintStyledContent};
     use syntect::{
@@ -71,7 +71,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     _language: &str,
-    _processor: &Processor,
+    _processor: &Processor<'_>,
 ) -> Result<(), Error> {
     let code = extract_text_from_inlines(inlines);
     write!(writer, "{code}")?;
@@ -87,13 +87,13 @@ fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
     for node in inlines {
         match node {
             InlineNode::VerbatimText(verbatim) => {
-                result.push_str(&verbatim.content);
+                result.push_str(verbatim.content);
             }
             InlineNode::RawText(raw) => {
-                result.push_str(&decode_numeric_char_refs(&raw.content));
+                result.push_str(&decode_numeric_char_refs(raw.content));
             }
             InlineNode::PlainText(plain) => {
-                result.push_str(&plain.content);
+                result.push_str(plain.content);
             }
             InlineNode::LineBreak(_) => {
                 result.push('\n');
@@ -128,14 +128,14 @@ mod tests {
     use acdc_parser::{DocumentAttributes, Location, Verbatim};
     use std::{cell::Cell, rc::Rc};
 
-    fn create_verbatim_inlines(content: &str) -> Vec<InlineNode> {
+    fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::VerbatimText(Verbatim {
-            content: content.to_string(),
+            content,
             location: Location::default(),
         })]
     }
 
-    fn create_test_processor() -> Processor {
+    fn create_test_processor() -> Processor<'static> {
         use crate::Appearance;
         use acdc_converters_core::section::{
             AppendixTracker, PartNumberTracker, SectionNumberTracker,

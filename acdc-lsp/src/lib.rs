@@ -9,6 +9,7 @@
 pub(crate) mod backend;
 pub(crate) mod capabilities;
 pub(crate) mod convert;
+pub(crate) mod limits;
 pub(crate) mod state;
 
 pub use backend::Backend;

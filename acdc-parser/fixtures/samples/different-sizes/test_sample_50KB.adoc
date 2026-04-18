@@ -1,0 +1,980 @@
+= Architecture
+:toc:
+:toclevels: 3
+
+== Overview and philosophy
+
+`acdc` (AsciiDoc Tooling) is a spec-first (really, best effort) AsciiDoc parser and toolchain built in Rust. The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
+
+The toolchain includes a parser library, converters for various output formats (HTML, manpage, terminal), a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
+
+=== What I'm trying to build
+
+I want to create a parser that follows the AsciiDoc Language specification whenever it's been formalized. Think of this as a reference implementation that tracks the evolving spec. When the spec is undefined or ambiguous, I match Asciidoctor's behavior to keep things familiar for users.
+
+The goal is to eventually be the canonical implementation - the one people point to when
+they want to understand how the spec should work in practice. Along the way, I'll be feeding implementation experience back to the spec process.
+
+=== How I'm approaching this
+
+I'm taking a simple, pragmatic approach:
+
+. When the spec has made a formal decision, that's what I implement - no questions asked
+. Where the spec is still undefined, I match what Asciidoctor does
+. I document any deviations (especially where following the spec means diverging from Asciidoctor)
+. Right now I'm prioritizing grammar coverage and correctness over performance
+
+The idea is that users should feel like they're getting "mostly the same" experience as Asciidoctor, but with the confidence that it aligns with the formal specification.
+
+== Why PEG?
+
+I chose Parsing Expression Grammars (PEG) for the parser because that's what the AsciiDoc Language folks decided on in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-004-use-peg-for-formal-grammar.adoc[SDR-004: Use PEG for Formal Grammar].
+
+Here's why:
+
+**The grammar mirrors the spec directly**. When the spec defines a rule, my PEG grammar rule looks almost identical. This makes it way easier for spec contributors to understand the implementation, and vice versa.
+
+**Debugging is straightforward**. Parser rules map one-to-one with spec grammar rules. When something breaks or the spec changes, I know exactly where to look.
+
+**It's readable**. PEG grammars read almost like pseudocode from the spec. Compare that to hand-written recursive descent parsers or complex parser combinator chains, and it's a clear win for maintainability.
+
+**Implementation**: I'm using https://github.com/kevinmehall/rust-peg[rust-peg], which generates efficient parsers from PEG grammar definitions embedded right in the Rust source.
+
+=== The trade-offs
+
+Nothing's free. PEG parser generation creates a lot of code that needs to be compiled, which impacts build times (especially during development). I plan to tackle this, but for now, I'm okay with things as they stand.
+
+The parser grammar generates thousands of lines of code, but that's acceptable given how much easier it makes maintaining alignment with the spec. Performance optimization is coming later - after I've got comprehensive grammar coverage.
+
+== Three-stage processing pipeline
+
+The parser works in three stages:
+
+[source]
+----
+Input Document → [Preprocessor] → [Parser] → [Converter] → Output
+----
+
+=== Stage 1: preprocessor
+
+The preprocessor (`acdc-parser/src/preprocessor/`) handles text-level transformations that need to happen before parsing. This includes:
+
+* Expanding `include::[]` directives (recursively processing included files)
+* Evaluating conditional directives like `ifdef::[]`, `ifndef::[]`, and `ifeval::[]`
+* Processing document attribute definitions (`:attr:`) and multi-line attribute continuations
+
+Why keep this separate? Because the AsciiDoc spec says these expansions must happen before parsing. The preprocessor works on raw text and produces expanded content that the parser then processes.
+
+=== Stage 2: parser (PEG + inline preprocessing)
+
+This is where the actual parsing happens (`acdc-parser/src/grammar/`). The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
+
+==== Main document grammar
+
+The primary PEG grammar lives in `document.rs` using the `peg::parser!` macro. It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
+
+==== Inline preprocessing
+
+Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].
+
+The spec defines inline markup with substitution rules that must be applied in a specific order. Nested inline markup (like bold text within a link) requires preprocessing before the main parsing pass.
+
+I use a two-pass approach:
+
+1. **Preprocessing pass**: Apply substitutions in the spec-defined order
+2. **Parsing pass**: Parse the preprocessed content into `InlineNode` elements
+
+This correctly handles nested inline markup, attribute references within inline elements, passthrough and literal content, and special character substitutions.
+
+==== Attribute parsing: blocks vs inlines
+
+Inline elements support a simplified subset of the attribute syntax available to block elements. Here's why: Asciidoctor made this choice, and since the spec hasn't formalized inline attributes yet, I'm following that behavior.
+
+The key difference is that inline attributes only support roles (`.role`) and IDs (`#id`). You don't get the full attribute machinery available to blocks - no named attributes, no positional attributes, no options.
+
+Here's the comparison:
+
+[cols="1,2,2",options="header"]
+|===
+|Attribute |Inline Elements |Block Elements
+
+|**Roles**
+|Multiple (space-separated) +
+`[.role1.role2]*text*` → `class="role1 role2"`
+|Multiple (vector) +
+`[.role1.role2]` → stored as `Vec<String>`
+
+|**ID**
+|Single +
+`[#myid]*text*` → stored as `Option<String>`
+|Single +
+`[#myid]` → stored as `Option<Anchor>`*
+
+|**Options**
+|❌ Not supported +
+`%` treated as literal character
+|✅ Multiple +
+`[%option1%option2]` → `Vec<String>`
+
+|**Style**
+|❌ Not supported
+|✅ Single +
+`[style]` → `Option<String>`
+
+|**Named attrs**
+|❌ Not supported
+|✅ Multiple +
+`[key=value,foo=bar]` → `ElementAttributes`
+
+|**Positional attrs**
+|❌ Not supported
+|✅ Multiple +
+`[pos1,pos2,pos3]` → `Vec<String>`
+
+|**Anchors**
+|❌ Not supported
+|✅ Multiple +
+`[[anchor1]][[anchor2]]` → `Vec<Anchor>`
+|===
+
+**The percent character quirk**: In inline contexts, `%` is a literal character, not an option separator like it is in block contexts. This means `[.role%option]*text*` becomes `class="role%option"`, with the percent sign included in the role name. If you start with a percent like `[%option]*text*`, that entire thing becomes the role name: `class="%option"`.
+
+**Role storage**: Both contexts support multiple roles, but they store them differently. Inline elements join multiple roles into a single space-separated string (`"role1 role2"`), while block metadata keeps them as separate vector items. This is an implementation detail - the HTML output is the same either way.
+
+==== State tracking
+
+The parser keeps track of state through `ParserState`, which includes document attributes (key-value pairs from `:name: value` syntax), a footnote tracker for collecting footnotes, a TOC tracker that builds table of contents entries from section headers, and various options like safe mode and timing flags.
+
+==== Location tracking
+
+Every piece of the AST knows where it came from in the source document. The `LineMap`
+structure provides efficient offset-to-position conversion, mapping byte offsets to line
+and column positions. This enables accurate error reporting, and has minimal overhead (I think!) thanks to pre-computed line boundaries.
+
+=== Stage 3: converters
+
+Converters (`converters/`) transform the AST into various output formats. They all implement the `Processable` trait:
+
+[source,rust]
+----
+pub trait Processable {
+    type Options;
+    type Error;
+
+    fn document_attributes_defaults() -> DocumentAttributes { ... }
+    fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
+    fn convert(&self, doc: &Document, file: Option<&Path>) -> Result<(), Self::Error>;
+    fn document_attributes(&self) -> DocumentAttributes;
+}
+----
+
+Right now I have three converters:
+
+. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes
+. Manpage (`converters/manpage`) for native roff/troff output suitable for the `man` command
+. Terminal (`converters/terminal`) for ANSI-formatted terminal display
+
+Why this trait-based design? I didn't think it over too much, honestly. It keeps things clean - the parser doesn't know anything about output formats. Each converter defines its own options and error types, which gives type safety. And implementing the trait to add a new output format is straightforward.
+
+==== Document attribute layering
+
+Document attributes follow a 4-level precedence hierarchy (lowest to highest priority):
+
+1. **Base rendering defaults** - Common defaults from `converters/core` like `lang: "en"`, admonition captions, `toclevels: "2"`, `sectnumlevels: "3"`
+
+2. **Converter-specific defaults** - Each converter can override defaults via `document_attributes_defaults()`. For example, HTML sets `copycss`, `stylesdir`, `stylesheet`; manpage sets `man-linkstyle: "blue R <>"`
+
+3. **CLI attributes** - User-provided via `-a name=value` command-line flags
+
+4. **Document attributes** - Highest priority, defined in the document header with `:name: value` syntax
+
+This layering means documents can rely on sensible defaults while retaining full control. Users can override via CLI for batch processing, and authors can override in individual documents.
+
+==== Type-based AST instead of property-based
+
+One thing worth calling out: the spec's reference implementation uses a property-based approach for the AST (look at the `*.json` fixtures in `acdc-parser/fixtures/tests/`). Everything is a generic object with properties like `"name"`, `"type"`, `"variant"`, etc.
+
+I went a different route. I created distinct Rust types for each element - `Block`, `InlineNode`, `Paragraph`, `Section`, and so on. Instead of having a generic node with a `type` property, I have proper enum variants and structs.
+
+Why? Because it lets me leverage Rust's type system as much as possible. The compiler catches mistakes at compile time instead of runtime. Pattern matching is exhaustive - if I add a new block type and forget to handle it in a converter, the compiler won't let me build. And converters get better ergonomics because they can destructure specific types rather than checking string properties.
+
+The trade-off is that my AST structure doesn't map one-to-one with the spec's JSON representation. But that's fine - the `tck` command handles the translation to spec-compatible JSON for compliance testing.
+
+== Key design decisions
+
+=== Fail-fast error handling
+
+I decided to make the parser stop on the first error it encounters.
+
+Here's why: Users get immediate, accurate feedback at the point of failure. Ambiguous parsing can produce misleading follow-on errors that don't actually represent problems. A single error makes it way easier to pinpoint exactly what's wrong.
+
+The trade-off is that if you have multiple errors, you have to fix them one at a time. I'm okay with this because it keeps things simple and accurate. Better to give one correct error than five errors where three of them are wrong.
+
+I'm planning richer error reporting with suggestions in the future, but I'm keeping the fail-fast semantics.
+
+=== Module organization
+
+The workspace is organized into clearly bounded modules:
+
+[source]
+----
+acdc/
+├── acdc-cli/          # Command-line interface
+├── acdc-lsp/          # Language Server Protocol implementation (early/experimental)
+├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
+└── converters/
+    ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
+    ├── dev/           # Development utilities (unpublished)
+    ├── html/          # HTML5 output
+    ├── manpage/       # Native roff/troff manpage output
+    └── terminal/      # ANSI terminal output
+----
+
+This keeps clear boundaries - parser, CLI, LSP, and converters are independently testable. The parser has no knowledge of output formats. Converters and the LSP depend on the parser, not the other way around. New features can be scoped to specific modules without touching everything else.
+
+=== Location tracking
+
+Every AST node includes location information:
+
+[source,rust]
+----
+pub struct Location {
+    pub absolute_start: usize,  // Byte offset from document start
+    pub absolute_end: usize,    // Byte offset from document start
+    pub start: Position,        // Line and column
+    pub end: Position,          // Line and column
+}
+----
+
+The `LineMap` pre-computes line boundaries during parsing. This means accurate error messages with line and column numbers, better debugging and diagnostics, and source mapping for generated output.
+
+== Extension points
+
+=== Adding new converters
+
+If you want to add a new converter, implement the `Processable` trait. The trait requires:
+
+* `document_attributes_defaults()` - Provide converter-specific default attributes (optional override)
+* `new()` - Initialize the converter with options and document attributes
+* `convert()` - Convert a parsed document, writing output to the destination
+* `document_attributes()` - Access the document attributes
+
+The best way to understand how this works is to look at an existing converter. The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
+
+To add a new converter:
+
+1. Create a new crate under `converters/`
+2. Add dependencies on `acdc-converters-core` and `acdc-parser`
+3. Define your options and error types
+4. Implement the `Processable` trait
+5. Walk the AST to generate your output format
+
+=== Adding new grammar rules
+
+To extend the parser with new AsciiDoc constructs:
+
+1. Add AST model types in `acdc-parser/src/model/`:
++
+[source,rust]
+----
+#[derive(Debug, Clone, Serialize)]
+pub struct MyNewElement {
+    pub location: Location,
+    pub content: Vec<InlineNode>,
+    // ... additional fields
+}
+----
+
+2. Add the grammar rule in `acdc-parser/src/grammar/document.rs`:
++
+[source,rust]
+----
+rule my_new_element() -> MyNewElement
+    = start:position() "my_syntax" content:inlines() end:position() {
+        MyNewElement {
+            location: state.create_location(start.offset, end.offset),
+            content,
+        }
+    }
+----
+
+3. Add it to the AST by adding a variant to `Block` or `InlineNode` enum:
++
+[source,rust]
+----
+pub enum Block {
+    // ... existing variants
+    MyNewElement(MyNewElement),
+}
+----
+
+4. Update converters to handle the new element type
+
+=== Adding new block or inline types
+
+For block-level elements: add a variant to the `Block` enum in `acdc-parser/src/model/mod.rs`, implement the parsing rule in the grammar, and add converter support in each backend.
+
+For inline elements: add a variant to the `InlineNode` enum in `acdc-parser/src/model/inlines/mod.rs`, figure out if inline preprocessing is needed (check SDR-005), implement the parsing rule in the inline grammar, update location mapping if needed, and add converter support.
+
+== Recent additions
+
+=== Index terms
+
+The parser supports AsciiDoc index terms in both visible and concealed forms:
+
+* **Flow terms** - Visible in text: `((term))` or `indexterm2:[term]`
+* **Concealed terms** - Hidden from output: `(((primary,secondary,tertiary)))` or `indexterm:[primary,secondary,tertiary]`
+
+These are represented by `IndexTermKind` enum with proper type safety - concealed terms can have up to three levels of hierarchy, while flow terms are single-level. The HTML converter collects these and renders an index catalog when a section with `[index]` style appears at the document end.
+
+=== Callout references
+
+Callout markers in verbatim blocks (`<1>`, `<2>`, or auto-numbering `<.>`) are parsed as `CalloutRef` with explicit or auto-numbered kinds. The parser resolves auto-numbered markers to their actual numbers during parsing.
+
+== Future directions
+
+=== WASM compilation
+
+I want to compile `acdc` to WebAssembly one day. This would enable an interactive web-based parser demo, client-side AsciiDoc preview, and integration with web-based editors (maybe even build one!).
+
+=== Parallel parsing
+
+I'm planning to look into parallel processing of files. If we need to parse and convert hundreds of files, I'd like to not take hundreds x "time that takes one".
+
+=== Performance optimization
+
+This is planned for after grammar coverage is complete.
+
+The main focus areas will be grammar modularization (if possible, as `rust-peg` doesn't actually seem to allow this easily) to reduce compilation time, and maybe runtime parsing performance.
+
+=== Language Server Protocol
+
+The `acdc-lsp` crate provides an early/experimental LSP implementation. Currently it supports diagnostics, hover information, and go-to-definition. The goal is IDE-quality error messages with context and suggestions. This is still a work in progress - completion, references, and other features are planned.
+
+== Spec compliance and compatibility
+
+=== Following the spec
+
+I'm following the AsciiDoc Language specification wherever it's been formalized. When there's a formal spec decision, that's what I implement - it's the primary source of truth. I reference the relevant Specification Document Requirement (SDRs) in the implementation, and I'm feeding implementation experience back to the spec process.
+
+The test suite includes spec compliance tests via the `tck` command.
+
+=== Asciidoctor compatibility
+
+Where the spec is undefined or ambiguous, I match Asciidoctor behavior to keep things familiar for users. I document any deviations in code comments and tests, and I'm tracking spec evolution to update the implementation when things get formalized. Building a compatibility matrix is future work.
+
+=== Testing
+
+The `tck` command produces output compatible with the AsciiDoc Language TCK test harness,
+which means automated spec compliance validation. I've got over 115 test fixtures that
+validate parsing correctness against golden JSON files. The CI pipeline runs the full test
+suite on every change to catch regressions. Currently my test fixtures are much more comprehensive than the TCK tests are - on the one hand that's great (I'm testing more stuff), on the other hand when more gets added to the harness, I may find my fixtures and parser are wrong - we'll sort when we get there.
+
+== Contributing
+
+This architecture isn't set in stone. As the project evolves, feel free to propose changes via issues or pull requests. Just document your decisions with rationale, consider spec alignment before making big architectural changes, and try to maintain extension points for future flexibility.
+
+If you have questions or want to discuss architecture, open an issue on the project repository.
+== Overview and philosophy
+
+`acdc` (AsciiDoc Tooling) is a spec-first (really, best effort) AsciiDoc parser and toolchain built in Rust. The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
+
+The toolchain includes a parser library, converters for various output formats (HTML, manpage, terminal), a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
+
+=== What I'm trying to build
+
+I want to create a parser that follows the AsciiDoc Language specification whenever it's been formalized. Think of this as a reference implementation that tracks the evolving spec. When the spec is undefined or ambiguous, I match Asciidoctor's behavior to keep things familiar for users.
+
+The goal is to eventually be the canonical implementation - the one people point to when
+they want to understand how the spec should work in practice. Along the way, I'll be feeding implementation experience back to the spec process.
+
+=== How I'm approaching this
+
+I'm taking a simple, pragmatic approach:
+
+. When the spec has made a formal decision, that's what I implement - no questions asked
+. Where the spec is still undefined, I match what Asciidoctor does
+. I document any deviations (especially where following the spec means diverging from Asciidoctor)
+. Right now I'm prioritizing grammar coverage and correctness over performance
+
+The idea is that users should feel like they're getting "mostly the same" experience as Asciidoctor, but with the confidence that it aligns with the formal specification.
+
+== Why PEG?
+
+I chose Parsing Expression Grammars (PEG) for the parser because that's what the AsciiDoc Language folks decided on in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-004-use-peg-for-formal-grammar.adoc[SDR-004: Use PEG for Formal Grammar].
+
+Here's why:
+
+**The grammar mirrors the spec directly**. When the spec defines a rule, my PEG grammar rule looks almost identical. This makes it way easier for spec contributors to understand the implementation, and vice versa.
+
+**Debugging is straightforward**. Parser rules map one-to-one with spec grammar rules. When something breaks or the spec changes, I know exactly where to look.
+
+**It's readable**. PEG grammars read almost like pseudocode from the spec. Compare that to hand-written recursive descent parsers or complex parser combinator chains, and it's a clear win for maintainability.
+
+**Implementation**: I'm using https://github.com/kevinmehall/rust-peg[rust-peg], which generates efficient parsers from PEG grammar definitions embedded right in the Rust source.
+
+=== The trade-offs
+
+Nothing's free. PEG parser generation creates a lot of code that needs to be compiled, which impacts build times (especially during development). I plan to tackle this, but for now, I'm okay with things as they stand.
+
+The parser grammar generates thousands of lines of code, but that's acceptable given how much easier it makes maintaining alignment with the spec. Performance optimization is coming later - after I've got comprehensive grammar coverage.
+
+== Three-stage processing pipeline
+
+The parser works in three stages:
+
+[source]
+----
+Input Document → [Preprocessor] → [Parser] → [Converter] → Output
+----
+
+=== Stage 1: preprocessor
+
+The preprocessor (`acdc-parser/src/preprocessor/`) handles text-level transformations that need to happen before parsing. This includes:
+
+* Expanding `include::[]` directives (recursively processing included files)
+* Evaluating conditional directives like `ifdef::[]`, `ifndef::[]`, and `ifeval::[]`
+* Processing document attribute definitions (`:attr:`) and multi-line attribute continuations
+
+Why keep this separate? Because the AsciiDoc spec says these expansions must happen before parsing. The preprocessor works on raw text and produces expanded content that the parser then processes.
+
+=== Stage 2: parser (PEG + inline preprocessing)
+
+This is where the actual parsing happens (`acdc-parser/src/grammar/`). The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
+
+==== Main document grammar
+
+The primary PEG grammar lives in `document.rs` using the `peg::parser!` macro. It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
+
+==== Inline preprocessing
+
+Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].
+
+The spec defines inline markup with substitution rules that must be applied in a specific order. Nested inline markup (like bold text within a link) requires preprocessing before the main parsing pass.
+
+I use a two-pass approach:
+
+1. **Preprocessing pass**: Apply substitutions in the spec-defined order
+2. **Parsing pass**: Parse the preprocessed content into `InlineNode` elements
+
+This correctly handles nested inline markup, attribute references within inline elements, passthrough and literal content, and special character substitutions.
+
+==== Attribute parsing: blocks vs inlines
+
+Inline elements support a simplified subset of the attribute syntax available to block elements. Here's why: Asciidoctor made this choice, and since the spec hasn't formalized inline attributes yet, I'm following that behavior.
+
+The key difference is that inline attributes only support roles (`.role`) and IDs (`#id`). You don't get the full attribute machinery available to blocks - no named attributes, no positional attributes, no options.
+
+Here's the comparison:
+
+[cols="1,2,2",options="header"]
+|===
+|Attribute |Inline Elements |Block Elements
+
+|**Roles**
+|Multiple (space-separated) +
+`[.role1.role2]*text*` → `class="role1 role2"`
+|Multiple (vector) +
+`[.role1.role2]` → stored as `Vec<String>`
+
+|**ID**
+|Single +
+`[#myid]*text*` → stored as `Option<String>`
+|Single +
+`[#myid]` → stored as `Option<Anchor>`*
+
+|**Options**
+|❌ Not supported +
+`%` treated as literal character
+|✅ Multiple +
+`[%option1%option2]` → `Vec<String>`
+
+|**Style**
+|❌ Not supported
+|✅ Single +
+`[style]` → `Option<String>`
+
+|**Named attrs**
+|❌ Not supported
+|✅ Multiple +
+`[key=value,foo=bar]` → `ElementAttributes`
+
+|**Positional attrs**
+|❌ Not supported
+|✅ Multiple +
+`[pos1,pos2,pos3]` → `Vec<String>`
+
+|**Anchors**
+|❌ Not supported
+|✅ Multiple +
+`[[anchor1]][[anchor2]]` → `Vec<Anchor>`
+|===
+
+**The percent character quirk**: In inline contexts, `%` is a literal character, not an option separator like it is in block contexts. This means `[.role%option]*text*` becomes `class="role%option"`, with the percent sign included in the role name. If you start with a percent like `[%option]*text*`, that entire thing becomes the role name: `class="%option"`.
+
+**Role storage**: Both contexts support multiple roles, but they store them differently. Inline elements join multiple roles into a single space-separated string (`"role1 role2"`), while block metadata keeps them as separate vector items. This is an implementation detail - the HTML output is the same either way.
+
+==== State tracking
+
+The parser keeps track of state through `ParserState`, which includes document attributes (key-value pairs from `:name: value` syntax), a footnote tracker for collecting footnotes, a TOC tracker that builds table of contents entries from section headers, and various options like safe mode and timing flags.
+
+==== Location tracking
+
+Every piece of the AST knows where it came from in the source document. The `LineMap`
+structure provides efficient offset-to-position conversion, mapping byte offsets to line
+and column positions. This enables accurate error reporting, and has minimal overhead (I think!) thanks to pre-computed line boundaries.
+
+=== Stage 3: converters
+
+Converters (`converters/`) transform the AST into various output formats. They all implement the `Processable` trait:
+
+[source,rust]
+----
+pub trait Processable {
+    type Options;
+    type Error;
+
+    fn document_attributes_defaults() -> DocumentAttributes { ... }
+    fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
+    fn convert(&self, doc: &Document, file: Option<&Path>) -> Result<(), Self::Error>;
+    fn document_attributes(&self) -> DocumentAttributes;
+}
+----
+
+Right now I have three converters:
+
+. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes
+. Manpage (`converters/manpage`) for native roff/troff output suitable for the `man` command
+. Terminal (`converters/terminal`) for ANSI-formatted terminal display
+
+Why this trait-based design? I didn't think it over too much, honestly. It keeps things clean - the parser doesn't know anything about output formats. Each converter defines its own options and error types, which gives type safety. And implementing the trait to add a new output format is straightforward.
+
+==== Document attribute layering
+
+Document attributes follow a 4-level precedence hierarchy (lowest to highest priority):
+
+1. **Base rendering defaults** - Common defaults from `converters/core` like `lang: "en"`, admonition captions, `toclevels: "2"`, `sectnumlevels: "3"`
+
+2. **Converter-specific defaults** - Each converter can override defaults via `document_attributes_defaults()`. For example, HTML sets `copycss`, `stylesdir`, `stylesheet`; manpage sets `man-linkstyle: "blue R <>"`
+
+3. **CLI attributes** - User-provided via `-a name=value` command-line flags
+
+4. **Document attributes** - Highest priority, defined in the document header with `:name: value` syntax
+
+This layering means documents can rely on sensible defaults while retaining full control. Users can override via CLI for batch processing, and authors can override in individual documents.
+
+==== Type-based AST instead of property-based
+
+One thing worth calling out: the spec's reference implementation uses a property-based approach for the AST (look at the `*.json` fixtures in `acdc-parser/fixtures/tests/`). Everything is a generic object with properties like `"name"`, `"type"`, `"variant"`, etc.
+
+I went a different route. I created distinct Rust types for each element - `Block`, `InlineNode`, `Paragraph`, `Section`, and so on. Instead of having a generic node with a `type` property, I have proper enum variants and structs.
+
+Why? Because it lets me leverage Rust's type system as much as possible. The compiler catches mistakes at compile time instead of runtime. Pattern matching is exhaustive - if I add a new block type and forget to handle it in a converter, the compiler won't let me build. And converters get better ergonomics because they can destructure specific types rather than checking string properties.
+
+The trade-off is that my AST structure doesn't map one-to-one with the spec's JSON representation. But that's fine - the `tck` command handles the translation to spec-compatible JSON for compliance testing.
+
+== Key design decisions
+
+=== Fail-fast error handling
+
+I decided to make the parser stop on the first error it encounters.
+
+Here's why: Users get immediate, accurate feedback at the point of failure. Ambiguous parsing can produce misleading follow-on errors that don't actually represent problems. A single error makes it way easier to pinpoint exactly what's wrong.
+
+The trade-off is that if you have multiple errors, you have to fix them one at a time. I'm okay with this because it keeps things simple and accurate. Better to give one correct error than five errors where three of them are wrong.
+
+I'm planning richer error reporting with suggestions in the future, but I'm keeping the fail-fast semantics.
+
+=== Module organization
+
+The workspace is organized into clearly bounded modules:
+
+[source]
+----
+acdc/
+├── acdc-cli/          # Command-line interface
+├── acdc-lsp/          # Language Server Protocol implementation (early/experimental)
+├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
+└── converters/
+    ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
+    ├── dev/           # Development utilities (unpublished)
+    ├── html/          # HTML5 output
+    ├── manpage/       # Native roff/troff manpage output
+    └── terminal/      # ANSI terminal output
+----
+
+This keeps clear boundaries - parser, CLI, LSP, and converters are independently testable. The parser has no knowledge of output formats. Converters and the LSP depend on the parser, not the other way around. New features can be scoped to specific modules without touching everything else.
+
+=== Location tracking
+
+Every AST node includes location information:
+
+[source,rust]
+----
+pub struct Location {
+    pub absolute_start: usize,  // Byte offset from document start
+    pub absolute_end: usize,    // Byte offset from document start
+    pub start: Position,        // Line and column
+    pub end: Position,          // Line and column
+}
+----
+
+The `LineMap` pre-computes line boundaries during parsing. This means accurate error messages with line and column numbers, better debugging and diagnostics, and source mapping for generated output.
+
+== Extension points
+
+=== Adding new converters
+
+If you want to add a new converter, implement the `Processable` trait. The trait requires:
+
+* `document_attributes_defaults()` - Provide converter-specific default attributes (optional override)
+* `new()` - Initialize the converter with options and document attributes
+* `convert()` - Convert a parsed document, writing output to the destination
+* `document_attributes()` - Access the document attributes
+
+The best way to understand how this works is to look at an existing converter. The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
+
+To add a new converter:
+
+1. Create a new crate under `converters/`
+2. Add dependencies on `acdc-converters-core` and `acdc-parser`
+3. Define your options and error types
+4. Implement the `Processable` trait
+5. Walk the AST to generate your output format
+
+=== Adding new grammar rules
+
+To extend the parser with new AsciiDoc constructs:
+
+1. Add AST model types in `acdc-parser/src/model/`:
++
+[source,rust]
+----
+#[derive(Debug, Clone, Serialize)]
+pub struct MyNewElement {
+    pub location: Location,
+    pub content: Vec<InlineNode>,
+    // ... additional fields
+}
+----
+
+2. Add the grammar rule in `acdc-parser/src/grammar/document.rs`:
++
+[source,rust]
+----
+rule my_new_element() -> MyNewElement
+    = start:position() "my_syntax" content:inlines() end:position() {
+        MyNewElement {
+            location: state.create_location(start.offset, end.offset),
+            content,
+        }
+    }
+----
+
+3. Add it to the AST by adding a variant to `Block` or `InlineNode` enum:
++
+[source,rust]
+----
+pub enum Block {
+    // ... existing variants
+    MyNewElement(MyNewElement),
+}
+----
+
+4. Update converters to handle the new element type
+
+=== Adding new block or inline types
+
+For block-level elements: add a variant to the `Block` enum in `acdc-parser/src/model/mod.rs`, implement the parsing rule in the grammar, and add converter support in each backend.
+
+For inline elements: add a variant to the `InlineNode` enum in `acdc-parser/src/model/inlines/mod.rs`, figure out if inline preprocessing is needed (check SDR-005), implement the parsing rule in the inline grammar, update location mapping if needed, and add converter support.
+
+== Recent additions
+
+=== Index terms
+
+The parser supports AsciiDoc index terms in both visible and concealed forms:
+
+* **Flow terms** - Visible in text: `((term))` or `indexterm2:[term]`
+* **Concealed terms** - Hidden from output: `(((primary,secondary,tertiary)))` or `indexterm:[primary,secondary,tertiary]`
+
+These are represented by `IndexTermKind` enum with proper type safety - concealed terms can have up to three levels of hierarchy, while flow terms are single-level. The HTML converter collects these and renders an index catalog when a section with `[index]` style appears at the document end.
+
+=== Callout references
+
+Callout markers in verbatim blocks (`<1>`, `<2>`, or auto-numbering `<.>`) are parsed as `CalloutRef` with explicit or auto-numbered kinds. The parser resolves auto-numbered markers to their actual numbers during parsing.
+
+== Future directions
+
+=== WASM compilation
+
+I want to compile `acdc` to WebAssembly one day. This would enable an interactive web-based parser demo, client-side AsciiDoc preview, and integration with web-based editors (maybe even build one!).
+
+=== Parallel parsing
+
+I'm planning to look into parallel processing of files. If we need to parse and convert hundreds of files, I'd like to not take hundreds x "time that takes one".
+
+=== Performance optimization
+
+This is planned for after grammar coverage is complete.
+
+The main focus areas will be grammar modularization (if possible, as `rust-peg` doesn't actually seem to allow this easily) to reduce compilation time, and maybe runtime parsing performance.
+
+=== Language Server Protocol
+
+The `acdc-lsp` crate provides an early/experimental LSP implementation. Currently it supports diagnostics, hover information, and go-to-definition. The goal is IDE-quality error messages with context and suggestions. This is still a work in progress - completion, references, and other features are planned.
+
+== Spec compliance and compatibility
+
+=== Following the spec
+
+I'm following the AsciiDoc Language specification wherever it's been formalized. When there's a formal spec decision, that's what I implement - it's the primary source of truth. I reference the relevant Specification Document Requirement (SDRs) in the implementation, and I'm feeding implementation experience back to the spec process.
+
+The test suite includes spec compliance tests via the `tck` command.
+
+=== Asciidoctor compatibility
+
+Where the spec is undefined or ambiguous, I match Asciidoctor behavior to keep things familiar for users. I document any deviations in code comments and tests, and I'm tracking spec evolution to update the implementation when things get formalized. Building a compatibility matrix is future work.
+
+=== Testing
+
+The `tck` command produces output compatible with the AsciiDoc Language TCK test harness,
+which means automated spec compliance validation. I've got over 115 test fixtures that
+validate parsing correctness against golden JSON files. The CI pipeline runs the full test
+suite on every change to catch regressions. Currently my test fixtures are much more comprehensive than the TCK tests are - on the one hand that's great (I'm testing more stuff), on the other hand when more gets added to the harness, I may find my fixtures and parser are wrong - we'll sort when we get there.
+
+== Contributing
+
+This architecture isn't set in stone. As the project evolves, feel free to propose changes via issues or pull requests. Just document your decisions with rationale, consider spec alignment before making big architectural changes, and try to maintain extension points for future flexibility.
+
+If you have questions or want to discuss architecture, open an issue on the project repository.
+= Architecture
+:toc:
+:toclevels: 3
+
+== Overview and philosophy
+
+`acdc` (AsciiDoc Tooling) is a spec-first (really, best effort) AsciiDoc parser and toolchain built in Rust. The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
+
+The toolchain includes a parser library, converters for various output formats (HTML, manpage, terminal), a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
+
+=== What I'm trying to build
+
+I want to create a parser that follows the AsciiDoc Language specification whenever it's been formalized. Think of this as a reference implementation that tracks the evolving spec. When the spec is undefined or ambiguous, I match Asciidoctor's behavior to keep things familiar for users.
+
+The goal is to eventually be the canonical implementation - the one people point to when
+they want to understand how the spec should work in practice. Along the way, I'll be feeding implementation experience back to the spec process.
+
+=== How I'm approaching this
+
+I'm taking a simple, pragmatic approach:
+
+. When the spec has made a formal decision, that's what I implement - no questions asked
+. Where the spec is still undefined, I match what Asciidoctor does
+. I document any deviations (especially where following the spec means diverging from Asciidoctor)
+. Right now I'm prioritizing grammar coverage and correctness over performance
+
+The idea is that users should feel like they're getting "mostly the same" experience as Asciidoctor, but with the confidence that it aligns with the formal specification.
+
+== Why PEG?
+
+I chose Parsing Expression Grammars (PEG) for the parser because that's what the AsciiDoc Language folks decided on in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-004-use-peg-for-formal-grammar.adoc[SDR-004: Use PEG for Formal Grammar].
+
+Here's why:
+
+**The grammar mirrors the spec directly**. When the spec defines a rule, my PEG grammar rule looks almost identical. This makes it way easier for spec contributors to understand the implementation, and vice versa.
+
+**Debugging is straightforward**. Parser rules map one-to-one with spec grammar rules. When something breaks or the spec changes, I know exactly where to look.
+
+**It's readable**. PEG grammars read almost like pseudocode from the spec. Compare that to hand-written recursive descent parsers or complex parser combinator chains, and it's a clear win for maintainability.
+
+**Implementation**: I'm using https://github.com/kevinmehall/rust-peg[rust-peg], which generates efficient parsers from PEG grammar definitions embedded right in the Rust source.
+
+=== The trade-offs
+
+Nothing's free. PEG parser generation creates a lot of code that needs to be compiled, which impacts build times (especially during development). I plan to tackle this, but for now, I'm okay with things as they stand.
+
+The parser grammar generates thousands of lines of code, but that's acceptable given how much easier it makes maintaining alignment with the spec. Performance optimization is coming later - after I've got comprehensive grammar coverage.
+
+== Three-stage processing pipeline
+
+The parser works in three stages:
+
+[source]
+----
+Input Document → [Preprocessor] → [Parser] → [Converter] → Output
+----
+
+=== Stage 1: preprocessor
+
+The preprocessor (`acdc-parser/src/preprocessor/`) handles text-level transformations that need to happen before parsing. This includes:
+
+* Expanding `include::[]` directives (recursively processing included files)
+* Evaluating conditional directives like `ifdef::[]`, `ifndef::[]`, and `ifeval::[]`
+* Processing document attribute definitions (`:attr:`) and multi-line attribute continuations
+
+Why keep this separate? Because the AsciiDoc spec says these expansions must happen before parsing. The preprocessor works on raw text and produces expanded content that the parser then processes.
+
+=== Stage 2: parser (PEG + inline preprocessing)
+
+This is where the actual parsing happens (`acdc-parser/src/grammar/`). The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
+
+==== Main document grammar
+
+The primary PEG grammar lives in `document.rs` using the `peg::parser!` macro. It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
+
+==== Inline preprocessing
+
+Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].
+
+The spec defines inline markup with substitution rules that must be applied in a specific order. Nested inline markup (like bold text within a link) requires preprocessing before the main parsing pass.
+
+I use a two-pass approach:
+
+1. **Preprocessing pass**: Apply substitutions in the spec-defined order
+2. **Parsing pass**: Parse the preprocessed content into `InlineNode` elements
+
+This correctly handles nested inline markup, attribute references within inline elements, passthrough and literal content, and special character substitutions.
+
+==== Attribute parsing: blocks vs inlines
+
+Inline elements support a simplified subset of the attribute syntax available to block elements. Here's why: Asciidoctor made this choice, and since the spec hasn't formalized inline attributes yet, I'm following that behavior.
+
+The key difference is that inline attributes only support roles (`.role`) and IDs (`#id`). You don't get the full attribute machinery available to blocks - no named attributes, no positional attributes, no options.
+
+Here's the comparison:
+
+[cols="1,2,2",options="header"]
+|===
+|Attribute |Inline Elements |Block Elements
+
+|**Roles**
+|Multiple (space-separated) +
+`[.role1.role2]*text*` → `class="role1 role2"`
+|Multiple (vector) +
+`[.role1.role2]` → stored as `Vec<String>`
+
+|**ID**
+|Single +
+`[#myid]*text*` → stored as `Option<String>`
+|Single +
+`[#myid]` → stored as `Option<Anchor>`*
+
+|**Options**
+|❌ Not supported +
+`%` treated as literal character
+|✅ Multiple +
+`[%option1%option2]` → `Vec<String>`
+
+|**Style**
+|❌ Not supported
+|✅ Single +
+`[style]` → `Option<String>`
+
+|**Named attrs**
+|❌ Not supported
+|✅ Multiple +
+`[key=value,foo=bar]` → `ElementAttributes`
+
+|**Positional attrs**
+|❌ Not supported
+|✅ Multiple +
+`[pos1,pos2,pos3]` → `Vec<String>`
+
+|**Anchors**
+|❌ Not supported
+|✅ Multiple +
+`[[anchor1]][[anchor2]]` → `Vec<Anchor>`
+|===
+
+**The percent character quirk**: In inline contexts, `%` is a literal character, not an option separator like it is in block contexts. This means `[.role%option]*text*` becomes `class="role%option"`, with the percent sign included in the role name. If you start with a percent like `[%option]*text*`, that entire thing becomes the role name: `class="%option"`.
+
+**Role storage**: Both contexts support multiple roles, but they store them differently. Inline elements join multiple roles into a single space-separated string (`"role1 role2"`), while block metadata keeps them as separate vector items. This is an implementation detail - the HTML output is the same either way.
+
+==== State tracking
+
+The parser keeps track of state through `ParserState`, which includes document attributes (key-value pairs from `:name: value` syntax), a footnote tracker for collecting footnotes, a TOC tracker that builds table of contents entries from section headers, and various options like safe mode and timing flags.
+
+==== Location tracking
+
+Every piece of the AST knows where it came from in the source document. The `LineMap`
+structure provides efficient offset-to-position conversion, mapping byte offsets to line
+and column positions. This enables accurate error reporting, and has minimal overhead (I think!) thanks to pre-computed line boundaries.
+
+=== Stage 3: converters
+
+Converters (`converters/`) transform the AST into various output formats. They all implement the `Processable` trait:
+
+[source,rust]
+----
+pub trait Processable {
+    type Options;
+    type Error;
+
+    fn document_attributes_defaults() -> DocumentAttributes { ... }
+    fn new(options: Self::Options, document_attributes: DocumentAttributes) -> Self;
+    fn convert(&self, doc: &Document, file: Option<&Path>) -> Result<(), Self::Error>;
+    fn document_attributes(&self) -> DocumentAttributes;
+}
+----
+
+Right now I have three converters:
+
+. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes
+. Manpage (`converters/manpage`) for native roff/troff output suitable for the `man` command
+. Terminal (`converters/terminal`) for ANSI-formatted terminal display
+
+Why this trait-based design? I didn't think it over too much, honestly. It keeps things clean - the parser doesn't know anything about output formats. Each converter defines its own options and error types, which gives type safety. And implementing the trait to add a new output format is straightforward.
+
+==== Document attribute layering
+
+Document attributes follow a 4-level precedence hierarchy (lowest to highest priority):
+
+1. **Base rendering defaults** - Common defaults from `converters/core` like `lang: "en"`, admonition captions, `toclevels: "2"`, `sectnumlevels: "3"`
+
+2. **Converter-specific defaults** - Each converter can override defaults via `document_attributes_defaults()`. For example, HTML sets `copycss`, `stylesdir`, `stylesheet`; manpage sets `man-linkstyle: "blue R <>"`
+
+3. **CLI attributes** - User-provided via `-a name=value` command-line flags
+
+4. **Document attributes** - Highest priority, defined in the document header with `:name: value` syntax
+
+This layering means documents can rely on sensible defaults while retaining full control. Users can override via CLI for batch processing, and authors can override in individual documents.
+
+==== Type-based AST instead of property-based
+
+One thing worth calling out: the spec's reference implementation uses a property-based approach for the AST (look at the `*.json` fixtures in `acdc-parser/fixtures/tests/`). Everything is a generic object with properties like `"name"`, `"type"`, `"variant"`, etc.
+
+I went a different route. I created distinct Rust types for each element - `Block`, `InlineNode`, `Paragraph`, `Section`, and so on. Instead of having a generic node with a `type` property, I have proper enum variants and structs.
+
+Why? Because it lets me leverage Rust's type system as much as possible. The compiler catches mistakes at compile time instead of runtime. Pattern matching is exhaustive - if I add a new block type and forget to handle it in a converter, the compiler won't let me build. And converters get better ergonomics because they can destructure specific types rather than checking string properties.
+
+The trade-off is that my AST structure doesn't map one-to-one with the spec's JSON representation. But that's fine - the `tck` command handles the translation to spec-compatible JSON for compliance testing.
+
+== Key design decisions
+
+=== Fail-fast error handling
+
+I decided to make the parser stop on the first error it encounters.
+
+Here's why: Users get immediate, accurate feedback at the point of failure. Ambiguous parsing can produce misleading follow-on errors that don't actually represent problems. A single error makes it way easier to pinpoint exactly what's wrong.
+
+The trade-off is that if you have multiple errors, you have to fix them one at a time. I'm okay with this because it keeps things simple and accurate. Better to give one correct error than five errors where three of them are wrong.
+
+I'm planning richer error reporting with suggestions in the future, but I'm keeping the fail-fast semantics.
+
+=== Module organization
+
+The workspace is organized into clearly bounded modules:
+
+[source]
+----
+acdc/
+├── acdc-cli/          # Command-line interface
+├── acdc-lsp/          # Language Server Protocol implementation (early/experimental)
+├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
+└── converters/
+    ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
+    ├── dev/           # Development utilities (unpublished)
+    ├── 
+----
+

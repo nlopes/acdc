@@ -144,10 +144,10 @@ pub(crate) fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
 /// A `Table` represents a table in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Table {
-    pub header: Option<TableRow>,
-    pub footer: Option<TableRow>,
-    pub rows: Vec<TableRow>,
+pub struct Table<'a> {
+    pub header: Option<TableRow<'a>>,
+    pub footer: Option<TableRow<'a>>,
+    pub rows: Vec<TableRow<'a>>,
     /// Column format specification for each column (alignment, width, style)
     /// Skipped if all columns have default format
     #[serde(default, skip_serializing_if = "are_all_columns_default")]
@@ -155,10 +155,10 @@ pub struct Table {
     pub location: Location,
 }
 
-impl Table {
+impl<'a> Table<'a> {
     /// Create a new table with the given rows and location.
     #[must_use]
-    pub fn new(rows: Vec<TableRow>, location: Location) -> Self {
+    pub fn new(rows: Vec<TableRow<'a>>, location: Location) -> Self {
         Self {
             header: None,
             footer: None,
@@ -170,14 +170,14 @@ impl Table {
 
     /// Set the header row.
     #[must_use]
-    pub fn with_header(mut self, header: Option<TableRow>) -> Self {
+    pub fn with_header(mut self, header: Option<TableRow<'a>>) -> Self {
         self.header = header;
         self
     }
 
     /// Set the footer row.
     #[must_use]
-    pub fn with_footer(mut self, footer: Option<TableRow>) -> Self {
+    pub fn with_footer(mut self, footer: Option<TableRow<'a>>) -> Self {
         self.footer = footer;
         self
     }
@@ -205,15 +205,15 @@ impl Table {
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct TableRow {
+pub struct TableRow<'a> {
     /// The cells in this row (one per table column).
-    pub columns: Vec<TableColumn>,
+    pub columns: Vec<TableColumn<'a>>,
 }
 
-impl TableRow {
+impl<'a> TableRow<'a> {
     /// Create a new table row with the given columns.
     #[must_use]
-    pub fn new(columns: Vec<TableColumn>) -> Self {
+    pub fn new(columns: Vec<TableColumn<'a>>) -> Self {
         Self { columns }
     }
 }
@@ -221,8 +221,8 @@ impl TableRow {
 /// A `TableColumn` represents a column/cell in a table row.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct TableColumn {
-    pub content: Vec<Block>,
+pub struct TableColumn<'a> {
+    pub content: Vec<Block<'a>>,
     /// Number of columns this cell spans (default 1).
     /// Specified in `AsciiDoc` with `n+|` syntax (e.g., `2+|` for colspan=2).
     #[serde(skip_serializing_if = "is_default_span")]
@@ -250,11 +250,11 @@ const fn is_default_span(span: &usize) -> bool {
     *span == 1
 }
 
-impl TableColumn {
+impl<'a> TableColumn<'a> {
     /// Create a new table column with full cell specifier options.
     #[must_use]
     pub(crate) fn with_format(
-        content: Vec<Block>,
+        content: Vec<Block<'a>>,
         colspan: usize,
         rowspan: usize,
         halign: Option<HorizontalAlignment>,

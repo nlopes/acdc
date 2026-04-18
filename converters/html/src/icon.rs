@@ -16,7 +16,7 @@ fn has_positional_attr(attrs: &ElementAttributes, name: &str) -> bool {
 fn get_icon_size(attrs: &ElementAttributes) -> Option<String> {
     // First check named attribute
     if let Some(size) = attrs.get_string("size") {
-        return Some(size);
+        return Some(size.into_owned());
     }
     // Then check for positional size values
     for size in ICON_SIZES {
@@ -35,7 +35,7 @@ fn get_icon_size(attrs: &ElementAttributes) -> Option<String> {
 /// - Text mode (no `icons` attribute): Uses text placeholders
 pub(crate) fn write_icon<W: Write + ?Sized>(
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
     icon: &Icon,
 ) -> io::Result<()> {
     let target = &icon.target;
@@ -152,7 +152,7 @@ fn write_font_icon<W: Write + ?Sized>(
 /// Write an image-based icon.
 fn write_image_icon<W: Write + ?Sized>(
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
     target: &Source,
     attrs: &ElementAttributes,
     span_class: &str,
@@ -166,7 +166,7 @@ fn write_image_icon<W: Write + ?Sized>(
     // Build alt attribute (use custom alt or target name)
     let alt = attrs
         .get_string("alt")
-        .unwrap_or_else(|| target.to_string());
+        .map_or_else(|| target.to_string(), std::borrow::Cow::into_owned);
 
     // Build img attributes
     let mut img_attrs = format!("src=\"{iconsdir}/{target}.png\" alt=\"{alt}\"");

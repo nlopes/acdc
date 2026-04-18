@@ -1,9 +1,106 @@
 //! Single document state management
 
 use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
 
-use acdc_parser::{Document, DocumentAttributes, Location, Source};
+use acdc_parser::{Document, DocumentAttributes, Location};
 use tower_lsp_server::ls_types::Diagnostic;
+
+/// Owned counterpart to `acdc_parser::Source<'_>`, detached from the parser arena
+/// so it can live in `DocumentState` alongside other extracted index data.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum OwnedSource {
+    Path(PathBuf),
+    Url(String),
+    Name(String),
+}
+
+impl OwnedSource {
+    pub(crate) fn from_borrowed(source: &acdc_parser::Source<'_>) -> Self {
+        match source {
+            acdc_parser::Source::Path(p) => Self::Path(p.clone()),
+            acdc_parser::Source::Url(u) => Self::Url(u.to_string()),
+            acdc_parser::Source::Name(n) => Self::Name((*n).to_string()),
+        }
+    }
+}
+
+/// Parsed-document wrapper for the LSP state.
+///
+/// Carries the preprocessed source text in an always-available `Box<str>`
+/// (so text-only features keep working even when parsing fails), and
+/// optionally the `acdc_parser::ParsedDocument` (arena + AST) when parsing
+/// succeeded.
+///
+/// Because `bumpalo::Bump` is not `Sync`, the `ParsedDocument` is kept
+/// behind a [`Mutex`] so `DocumentState` can be stored in a
+/// `DashMap<Uri, DocumentState>` without relying on unsafe `Sync` impls.
+/// AST access goes through [`Self::ast`] which returns an [`AstGuard`]
+/// holding the lock for the duration of the caller's use; the raw text is
+/// always accessible via [`Self::text`] without locking.
+#[derive(Debug)]
+pub(crate) struct ParsedText {
+    /// Source text (preprocessed when available, raw otherwise).
+    source: Box<str>,
+    /// Parsed document, when available. Behind a `Mutex` purely to satisfy
+    /// `Sync` — the inner value is only ever read.
+    parsed: Option<Mutex<acdc_parser::ParsedDocument>>,
+}
+
+/// RAII guard that keeps a parsed document locked for the duration of read
+/// access. Use [`Self::document`] to obtain a reference to the AST.
+pub(crate) struct AstGuard<'a> {
+    guard: MutexGuard<'a, acdc_parser::ParsedDocument>,
+}
+
+impl AstGuard<'_> {
+    /// Borrow the parsed document. The underlying mutex remains locked until
+    /// this guard is dropped.
+    pub(crate) fn document(&self) -> &Document<'_> {
+        self.guard.document()
+    }
+}
+
+impl ParsedText {
+    /// Wrap a successfully parsed document along with the raw (pre-
+    /// preprocessor) source text the LSP was given. We keep the raw text
+    /// because LSP features (include/conditional scans, formatting,
+    /// position-to-offset math) need the text the editor is showing —
+    /// the parser's own source has directives already expanded or
+    /// consumed.
+    pub(crate) fn from_parsed(raw_source: Box<str>, parsed: acdc_parser::ParsedDocument) -> Self {
+        Self {
+            source: raw_source,
+            parsed: Some(Mutex::new(parsed)),
+        }
+    }
+
+    /// Wrap raw source text (used when parsing failed).
+    pub(crate) fn from_source(source: Box<str>) -> Self {
+        Self {
+            source,
+            parsed: None,
+        }
+    }
+
+    /// Borrow the source text without locking.
+    pub(crate) fn text(&self) -> &str {
+        &self.source
+    }
+
+    /// Obtain a locked handle to the parsed AST if parsing succeeded.
+    ///
+    /// Dereference the returned guard to get `&Document<'_>`. Drops the
+    /// underlying mutex when the guard is dropped.
+    pub(crate) fn ast(&self) -> Option<AstGuard<'_>> {
+        let parsed = self.parsed.as_ref()?;
+        let guard = parsed
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Some(AstGuard { guard })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ConditionalDirectiveKind {
@@ -33,15 +130,18 @@ pub(crate) struct ConditionalBlock {
     pub(crate) end_line: Option<usize>,
 }
 
-/// Represents a parsed document's state
+/// Represents a parsed document's state.
+///
+/// The source text and the parsed AST are bound together via [`ParsedText`]
+/// because the AST borrows slices of the source string from its arena. Other
+/// index data (anchors, xrefs, media sources, etc.) are extracted into owned
+/// `String`/`'static` forms so they can be queried independently of the AST.
 #[derive(Debug)]
 pub(crate) struct DocumentState {
-    /// The source text (needed for re-parsing on change)
-    pub(crate) text: String,
+    /// Source text + parsed AST. Access the AST via [`ParsedText::ast`].
+    pub(crate) parsed: ParsedText,
     /// Version from the editor (for sync validation)
     pub(crate) version: i32,
-    /// Successfully parsed AST (None if parse failed completely)
-    pub(crate) ast: Option<Document>,
     /// Parse errors converted to diagnostics
     pub(crate) diagnostics: Vec<Diagnostic>,
     /// Anchor definitions: id -> Location
@@ -55,71 +155,66 @@ pub(crate) struct DocumentState {
     /// Attribute definitions: (`attr_name`, location) extracted from source text
     pub(crate) attribute_defs: Vec<(String, Location)>,
     /// Media sources: (source, location) for images, audio, and video
-    pub(crate) media_sources: Vec<(Source, Location)>,
+    pub(crate) media_sources: Vec<(OwnedSource, Location)>,
     /// Conditional directive blocks (ifdef/ifndef) extracted from source text
     pub(crate) conditionals: Vec<ConditionalBlock>,
 }
 
 impl DocumentState {
-    /// Create a new document state with successful parse
+    /// Borrow the source text.
     #[must_use]
-    pub(crate) fn new_success(
-        text: String,
-        version: i32,
-        ast: Document,
-        anchors: HashMap<String, Location>,
-        xrefs: Vec<(String, Location)>,
-        media_sources: Vec<(Source, Location)>,
-    ) -> Self {
-        let includes = extract_includes(&text);
-        let attribute_refs = extract_attribute_refs(&text);
-        let conditionals = extract_conditionals(&text, &ast.attributes);
-        Self {
-            attribute_defs: extract_attribute_defs(&text),
-            text,
-            version,
-            ast: Some(ast),
-            diagnostics: vec![],
-            anchors,
-            xrefs,
-            includes,
-            attribute_refs,
-            media_sources,
-            conditionals,
-        }
+    pub(crate) fn text(&self) -> &str {
+        self.parsed.text()
     }
 
-    /// Create a new document state with parse failure
+    /// Obtain a locked handle to the parsed AST, if parsing succeeded.
+    ///
+    /// Dereferences to `&Document<'_>`; the underlying mutex is held for
+    /// the guard's lifetime, so keep the guard short-lived.
+    pub(crate) fn ast(&self) -> Option<AstGuard<'_>> {
+        self.parsed.ast()
+    }
+
+    /// Construct a `DocumentState` representing a parse failure.
+    ///
+    /// Used by tests that need to model "we have text but no AST". The
+    /// production failure path lives inline in [`Workspace::parse_and_index`]
+    /// where it shares the [`ParsedText`] cell with the success path.
+    #[cfg(test)]
     #[must_use]
     pub(crate) fn new_failure(text: String, version: i32, diagnostics: Vec<Diagnostic>) -> Self {
-        let includes = extract_includes(&text);
-        let attribute_refs = extract_attribute_refs(&text);
-        let conditionals = extract_conditionals(&text, &DocumentAttributes::default());
-        // Note: We don't preserve the previous AST since Document doesn't implement Clone.
-        // Navigation features will be unavailable until the document parses successfully.
+        let parsed = ParsedText::from_source(text.into_boxed_str());
+        let raw_text = parsed.text();
+        let definitions = extract_attribute_defs(raw_text);
+        let references = extract_attribute_refs(raw_text);
+        let raw_includes = extract_includes(raw_text);
+        let raw_conditionals = extract_conditionals(raw_text, &DocumentAttributes::default());
+
         Self {
-            attribute_defs: extract_attribute_defs(&text),
-            text,
+            parsed,
             version,
-            ast: None,
             diagnostics,
             anchors: HashMap::new(),
             xrefs: vec![],
-            includes,
-            attribute_refs,
+            includes: raw_includes,
+            attribute_refs: references,
+            attribute_defs: definitions,
             media_sources: vec![],
-            conditionals,
+            conditionals: raw_conditionals,
         }
     }
 }
 
 /// Extract attribute definitions (`:name: value`) from raw text.
-fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
+pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
     let mut defs = Vec::new();
+    let mut line_start = 0usize;
 
     for (line_idx, line) in text.lines().enumerate() {
+        let this_line_start = line_start;
+        line_start += line.len() + 1;
+
         let trimmed = line.trim();
-        // Match :name: or :!name: (unset)
         let after_colon = if let Some(rest) = trimmed.strip_prefix(":!") {
             rest
         } else if let Some(rest) = trimmed.strip_prefix(':') {
@@ -140,15 +235,13 @@ fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
             let col_offset = line.find(':').unwrap_or(0);
             let line_end = line.len();
 
-            let line_start: usize = text.lines().take(line_idx).map(|l| l.len() + 1).sum();
-
             let mut location = Location::default();
             location.start.line = line_idx + 1;
             location.start.column = col_offset + 1;
             location.end.line = line_idx + 1;
             location.end.column = line_end;
-            location.absolute_start = line_start + col_offset;
-            location.absolute_end = line_start + line_end;
+            location.absolute_start = this_line_start + col_offset;
+            location.absolute_end = this_line_start + line_end;
 
             defs.push((name_candidate.to_string(), location));
         }
@@ -161,10 +254,14 @@ fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
 ///
 /// Scans for `{name}` patterns, skipping escaped references (`\{name}`)
 /// and attribute definition lines (`:name:`).
-fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
+pub(crate) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
     let mut refs = Vec::new();
+    let mut line_start = 0usize;
 
     for (line_idx, line) in text.lines().enumerate() {
+        let this_line_start = line_start;
+        line_start += line.len() + 1;
+
         let trimmed = line.trim();
         // Check if this is an attribute definition: :name: value
         if let Some(after_colon) = trimmed.strip_prefix(':')
@@ -175,13 +272,12 @@ fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
         {
-            // Attribute definition line — scan only the value part for refs
             if let Some(value_part) = after_colon.get(end + 1..) {
-                extract_refs_from_line(text, line, line_idx, value_part, &mut refs);
+                extract_refs_from_line(this_line_start, line, line_idx, value_part, &mut refs);
             }
             continue;
         }
-        extract_refs_from_line(text, line, line_idx, line, &mut refs);
+        extract_refs_from_line(this_line_start, line, line_idx, line, &mut refs);
     }
 
     refs
@@ -189,7 +285,7 @@ fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
 
 /// Extract `{name}` references from a text segment within a line.
 fn extract_refs_from_line(
-    full_text: &str,
+    line_start: usize,
     line: &str,
     line_idx: usize,
     segment: &str,
@@ -221,12 +317,6 @@ fn extract_refs_from_line(
         {
             let col_in_line = segment_offset_in_line + open;
             let col_end = segment_offset_in_line + close + 1;
-
-            let line_start: usize = full_text
-                .lines()
-                .take(line_idx)
-                .map(|l| l.len() + 1) // +1 for newline
-                .sum();
 
             let mut location = Location::default();
             location.start.line = line_idx + 1;
@@ -287,7 +377,10 @@ fn evaluate_condition(
 ///
 /// The preprocessor flattens these before the AST is built. We scan raw text
 /// to recover them for graying out inactive branches in the editor.
-fn extract_conditionals(text: &str, attrs: &DocumentAttributes) -> Vec<ConditionalBlock> {
+pub(crate) fn extract_conditionals(
+    text: &str,
+    attrs: &DocumentAttributes,
+) -> Vec<ConditionalBlock> {
     let mut blocks = Vec::new();
     let mut pending: Vec<PendingConditional> = Vec::new();
 
@@ -380,34 +473,29 @@ fn extract_conditionals(text: &str, attrs: &DocumentAttributes) -> Vec<Condition
 /// file rename operations.
 pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
     let mut includes = Vec::new();
+    let mut line_start = 0usize;
 
     for (line_idx, line) in text.lines().enumerate() {
+        let this_line_start = line_start;
+        line_start += line.len() + 1;
+
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("include::")
             && let Some(bracket_pos) = rest.find('[')
         {
             let target = &rest[..bracket_pos];
             if !target.is_empty() {
-                // Find the column offset of the include directive in the original line
                 let col_offset = line.find("include::").unwrap_or(0);
                 let target_start = col_offset + "include::".len();
                 let target_end = target_start + target.len();
 
                 let mut location = Location::default();
-                // Location uses 1-indexed lines, 1-indexed columns
                 location.start.line = line_idx + 1;
                 location.start.column = target_start + 1;
                 location.end.line = line_idx + 1;
                 location.end.column = target_end;
-
-                // Calculate absolute positions
-                let line_start: usize = text
-                    .lines()
-                    .take(line_idx)
-                    .map(|l| l.len() + 1) // +1 for newline
-                    .sum();
-                location.absolute_start = line_start + target_start;
-                location.absolute_end = line_start + target_end;
+                location.absolute_start = this_line_start + target_start;
+                location.absolute_end = this_line_start + target_end;
 
                 includes.push((target.to_string(), location));
             }
@@ -543,10 +631,15 @@ mod tests {
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("valid-name"));
     }
 
-    fn attr_set(name: &str) -> (String, acdc_parser::AttributeValue) {
+    fn attr_set(
+        name: &str,
+    ) -> (
+        std::borrow::Cow<'static, str>,
+        acdc_parser::AttributeValue<'static>,
+    ) {
         (
-            name.to_string(),
-            acdc_parser::AttributeValue::String(String::new()),
+            std::borrow::Cow::Owned(name.to_string()),
+            acdc_parser::AttributeValue::String(std::borrow::Cow::Owned(String::new())),
         )
     }
 

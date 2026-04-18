@@ -13,18 +13,20 @@ use acdc_parser::{
 use crate::{Error, MarkdownVariant, Processor};
 
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
-pub struct MarkdownVisitor<W: Write> {
+pub struct MarkdownVisitor<'a, W: Write> {
     writer: W,
-    pub(crate) processor: Processor,
+    pub(crate) processor: Processor<'a>,
     /// Current heading level (for nested sections).
     pub(crate) heading_level: usize,
     /// Collected footnotes for rendering at document end.
-    pub(crate) footnotes: Vec<(String, Vec<InlineNode>)>,
+    /// Stored as `(id, pre-rendered markdown content)` so that the visitor
+    /// does not need to borrow data from the document being walked.
+    pub(crate) footnotes: Vec<(String, String)>,
 }
 
-impl<W: Write> MarkdownVisitor<W> {
+impl<'a, W: Write> MarkdownVisitor<'a, W> {
     /// Create a new Markdown visitor.
-    pub fn new(writer: W, processor: Processor) -> Self {
+    pub fn new(writer: W, processor: Processor<'a>) -> Self {
         Self {
             writer,
             processor,
@@ -50,13 +52,13 @@ impl<W: Write> MarkdownVisitor<W> {
     }
 }
 
-impl<W: Write> WritableVisitor for MarkdownVisitor<W> {
+impl<W: Write> WritableVisitor for MarkdownVisitor<'_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }
 }
 
-impl<W: Write> Visitor for MarkdownVisitor<W> {
+impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
@@ -69,14 +71,10 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
         // Render collected footnotes (GFM only)
         if self.variant() == MarkdownVariant::GitHubFlavored && !self.footnotes.is_empty() {
             writeln!(self.writer)?;
-            // Clone footnotes to avoid borrow checker issues
-            let footnotes = self.footnotes.clone();
+            // Footnotes are already pre-rendered as markdown strings.
+            let footnotes = std::mem::take(&mut self.footnotes);
             for (id, content) in footnotes {
-                write!(self.writer, "[^{id}]: ")?;
-                for node in &content {
-                    self.visit_inline_node(node)?;
-                }
-                writeln!(self.writer)?;
+                writeln!(self.writer, "[^{id}]: {content}")?;
             }
         }
 
@@ -308,7 +306,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
             .metadata
             .attributes
             .get_string("alt")
-            .unwrap_or_else(|| "image".to_string());
+            .unwrap_or(std::borrow::Cow::Borrowed("image"));
 
         let target = Self::source_to_string(&image.source);
 
@@ -358,7 +356,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
         match node {
             InlineNode::PlainText(text) => {
-                write!(self.writer, "{}", Self::escape_markdown(&text.content))?;
+                write!(self.writer, "{}", Self::escape_markdown(text.content))?;
             }
             InlineNode::BoldText(text) => {
                 write!(self.writer, "**")?;
@@ -447,7 +445,7 @@ impl<W: Write> Visitor for MarkdownVisitor<W> {
     }
 }
 
-impl<W: Write> MarkdownVisitor<W> {
+impl<W: Write> MarkdownVisitor<'_, W> {
     /// Write code block content as raw text (no inline formatting).
     fn write_code_block_content(&mut self, content: &[InlineNode]) -> Result<(), Error> {
         for node in content {
@@ -480,7 +478,7 @@ impl<W: Write> MarkdownVisitor<W> {
         match source {
             acdc_parser::Source::Path(path) => path.display().to_string(),
             acdc_parser::Source::Url(url) => url.to_string(),
-            acdc_parser::Source::Name(name) => name.clone(),
+            acdc_parser::Source::Name(name) => (*name).to_string(),
         }
     }
 
@@ -489,7 +487,7 @@ impl<W: Write> MarkdownVisitor<W> {
         match mac {
             InlineMacro::Link(link) => {
                 let target = Self::source_to_string(&link.target);
-                let text = link.text.as_deref().unwrap_or(&target);
+                let text = link.text.unwrap_or(&target);
                 write!(self.writer, "[{text}]({target})")?;
             }
             InlineMacro::Image(image) => {
@@ -514,10 +512,10 @@ impl<W: Write> MarkdownVisitor<W> {
             InlineMacro::Footnote(footnote) => {
                 if self.variant() == MarkdownVariant::GitHubFlavored {
                     // GFM supports footnotes
-                    let id = footnote
+                    let id: String = footnote
                         .id
-                        .clone()
-                        .unwrap_or_else(|| footnote.number.to_string());
+                        .as_ref()
+                        .map_or_else(|| footnote.number.to_string(), |c| (*c).to_string());
 
                     // Store footnote for later rendering (only if not already stored)
                     if !footnote.content.is_empty()
@@ -526,7 +524,23 @@ impl<W: Write> MarkdownVisitor<W> {
                             .iter()
                             .any(|(existing_id, _)| existing_id == &id)
                     {
-                        self.footnotes.push((id.clone(), footnote.content.clone()));
+                        // Pre-render the footnote content into a markdown string
+                        // using a temporary visitor so we don't hold borrows from
+                        // the document being walked.
+                        let mut buffer: Vec<u8> = Vec::new();
+                        {
+                            let mut tmp = MarkdownVisitor {
+                                writer: &mut buffer,
+                                processor: self.processor.clone(),
+                                heading_level: self.heading_level,
+                                footnotes: Vec::new(),
+                            };
+                            for node in &footnote.content {
+                                tmp.visit_inline_node(node)?;
+                            }
+                        }
+                        let rendered = String::from_utf8(buffer).unwrap_or_default();
+                        self.footnotes.push((id.clone(), rendered));
                     }
 
                     // Render inline reference

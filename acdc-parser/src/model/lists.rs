@@ -30,24 +30,24 @@ pub enum ListItemCheckedStatus {
 /// with their full wrapper divs.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct ListItem {
+pub struct ListItem<'a> {
     pub level: ListLevel,
-    pub marker: String,
+    pub marker: &'a str,
     pub checked: Option<ListItemCheckedStatus>,
     /// Principal text - inline content that appears immediately after the list marker
-    pub principal: Vec<InlineNode>,
+    pub principal: Vec<InlineNode<'a>>,
     /// Attached blocks - blocks attached via continuation (+) or nesting
-    pub blocks: Vec<Block>,
+    pub blocks: Vec<Block<'a>>,
     pub location: Location,
 }
 
 /// A `DescriptionList` represents a description list in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct DescriptionList {
-    pub title: Title,
-    pub metadata: BlockMetadata,
-    pub items: Vec<DescriptionListItem>,
+pub struct DescriptionList<'a> {
+    pub title: Title<'a>,
+    pub metadata: BlockMetadata<'a>,
+    pub items: Vec<DescriptionListItem<'a>>,
     pub location: Location,
 }
 
@@ -74,45 +74,45 @@ pub struct DescriptionList {
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct DescriptionListItem {
+pub struct DescriptionListItem<'a> {
     /// Optional anchors (IDs) attached to this item.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub anchors: Vec<Anchor>,
+    pub anchors: Vec<Anchor<'a>>,
     /// The term being defined (inline content before the delimiter).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub term: Vec<InlineNode>,
+    pub term: Vec<InlineNode<'a>>,
     /// The delimiter used (`::`, `:::`, `::::`, or `;;`).
-    pub delimiter: String,
+    pub delimiter: &'a str,
     /// Location of the delimiter in the source.
     #[serde(skip)]
     pub delimiter_location: Option<Location>,
     /// Inline content immediately after the delimiter on the same line.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub principal_text: Vec<InlineNode>,
+    pub principal_text: Vec<InlineNode<'a>>,
     /// Block content providing the description (singular, not plural).
-    pub description: Vec<Block>,
+    pub description: Vec<Block<'a>>,
     pub location: Location,
 }
 
 /// A `UnorderedList` represents an unordered list in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct UnorderedList {
-    pub title: Title,
-    pub metadata: BlockMetadata,
-    pub items: Vec<ListItem>,
-    pub marker: String,
+pub struct UnorderedList<'a> {
+    pub title: Title<'a>,
+    pub metadata: BlockMetadata<'a>,
+    pub items: Vec<ListItem<'a>>,
+    pub marker: &'a str,
     pub location: Location,
 }
 
 /// An `OrderedList` represents an ordered list in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct OrderedList {
-    pub title: Title,
-    pub metadata: BlockMetadata,
-    pub items: Vec<ListItem>,
-    pub marker: String,
+pub struct OrderedList<'a> {
+    pub title: Title<'a>,
+    pub metadata: BlockMetadata<'a>,
+    pub items: Vec<ListItem<'a>>,
+    pub marker: &'a str,
     pub location: Location,
 }
 
@@ -121,10 +121,10 @@ pub struct OrderedList {
 /// Callout lists are used to annotate code blocks with numbered references.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct CalloutList {
-    pub title: Title,
-    pub metadata: BlockMetadata,
-    pub items: Vec<CalloutListItem>,
+pub struct CalloutList<'a> {
+    pub title: Title<'a>,
+    pub metadata: BlockMetadata<'a>,
+    pub items: Vec<CalloutListItem<'a>>,
     pub location: Location,
 }
 
@@ -141,13 +141,13 @@ pub struct CalloutList {
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct CalloutListItem {
+pub struct CalloutListItem<'a> {
     /// The callout reference (explicit or auto-numbered).
     pub callout: CalloutRef,
     /// Principal text - inline content that appears after the callout marker.
-    pub principal: Vec<InlineNode>,
+    pub principal: Vec<InlineNode<'a>>,
     /// Attached blocks - blocks attached via continuation (though rarely used for callouts).
-    pub blocks: Vec<Block>,
+    pub blocks: Vec<Block<'a>>,
     /// Source location of this item.
     pub location: Location,
 }
@@ -156,59 +156,72 @@ pub struct CalloutListItem {
 // Serialization
 // =============================================================================
 
-macro_rules! impl_list_serialize {
-    ($type:ty, $variant:literal, with_marker) => {
-        impl Serialize for $type {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
-            {
-                let mut state = serializer.serialize_map(None)?;
-                state.serialize_entry("name", "list")?;
-                state.serialize_entry("type", "block")?;
-                state.serialize_entry("variant", $variant)?;
-                state.serialize_entry("marker", &self.marker)?;
-                if !self.title.is_empty() {
-                    state.serialize_entry("title", &self.title)?;
-                }
-                if !self.metadata.is_default() {
-                    state.serialize_entry("metadata", &self.metadata)?;
-                }
-                state.serialize_entry("items", &self.items)?;
-                state.serialize_entry("location", &self.location)?;
-                state.end()
-            }
+impl Serialize for UnorderedList<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "list")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "unordered")?;
+        state.serialize_entry("marker", &self.marker)?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
         }
-    };
-    ($type:ty, $variant:literal) => {
-        impl Serialize for $type {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
-            {
-                let mut state = serializer.serialize_map(None)?;
-                state.serialize_entry("name", "list")?;
-                state.serialize_entry("type", "block")?;
-                state.serialize_entry("variant", $variant)?;
-                if !self.title.is_empty() {
-                    state.serialize_entry("title", &self.title)?;
-                }
-                if !self.metadata.is_default() {
-                    state.serialize_entry("metadata", &self.metadata)?;
-                }
-                state.serialize_entry("items", &self.items)?;
-                state.serialize_entry("location", &self.location)?;
-                state.end()
-            }
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
         }
-    };
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
 }
 
-impl_list_serialize!(UnorderedList, "unordered", with_marker);
-impl_list_serialize!(OrderedList, "ordered", with_marker);
-impl_list_serialize!(CalloutList, "callout");
+impl Serialize for OrderedList<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "list")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "ordered")?;
+        state.serialize_entry("marker", &self.marker)?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
 
-impl Serialize for DescriptionList {
+impl Serialize for CalloutList<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("name", "list")?;
+        state.serialize_entry("type", "block")?;
+        state.serialize_entry("variant", "callout")?;
+        if !self.title.is_empty() {
+            state.serialize_entry("title", &self.title)?;
+        }
+        if !self.metadata.is_default() {
+            state.serialize_entry("metadata", &self.metadata)?;
+        }
+        state.serialize_entry("items", &self.items)?;
+        state.serialize_entry("location", &self.location)?;
+        state.end()
+    }
+}
+
+impl Serialize for DescriptionList<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -228,7 +241,7 @@ impl Serialize for DescriptionList {
     }
 }
 
-impl Serialize for ListItem {
+impl Serialize for ListItem<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -267,7 +280,7 @@ impl Serialize for ListItemCheckedStatus {
     }
 }
 
-impl Serialize for CalloutListItem {
+impl Serialize for CalloutListItem<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

@@ -1,5 +1,6 @@
 //! Workspace-level state management
 
+use std::collections::HashMap;
 use std::sync::RwLock;
 
 use acdc_parser::Location;
@@ -11,7 +12,9 @@ use crate::capabilities::{
     definition, diagnostics,
     workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
 };
+use crate::limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded};
 use crate::state::DocumentState;
+use crate::state::document::ParsedText;
 
 /// Workspace-level state management
 pub(crate) struct Workspace {
@@ -94,19 +97,18 @@ impl Workspace {
         if let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
-            let imagesdir =
+            let imagesdir_owned: Option<String> =
                 state
-                    .ast
-                    .as_ref()
-                    .and_then(|ast| match ast.attributes.get("imagesdir") {
-                        Some(acdc_parser::AttributeValue::String(s)) => Some(s.as_str()),
+                    .ast()
+                    .and_then(|ast| match ast.document().attributes.get("imagesdir") {
+                        Some(acdc_parser::AttributeValue::String(s)) => Some(s.to_string()),
                         _ => None,
                     });
             let link_diags = diagnostics::compute_link_diagnostics(
                 &state.media_sources,
                 &state.includes,
                 doc_dir,
-                imagesdir,
+                imagesdir_owned.as_deref(),
             );
             state.diagnostics.extend(link_diags);
         }
@@ -116,10 +118,11 @@ impl Workspace {
         state.diagnostics.extend(conditional_diags);
 
         // Compute section level diagnostics (skipped heading levels)
-        if let Some(ast) = &state.ast {
-            let section_diags = diagnostics::compute_section_level_diagnostics(ast);
-            state.diagnostics.extend(section_diags);
-        }
+        let section_diags = state
+            .ast()
+            .map(|ast| diagnostics::compute_section_level_diagnostics(ast.document()))
+            .unwrap_or_default();
+        state.diagnostics.extend(section_diags);
 
         self.documents.insert(uri, state);
     }
@@ -170,9 +173,9 @@ impl Workspace {
     fn find_anchor_in_file_on_disk(uri: &Uri, anchor_id: &str) -> Option<Location> {
         let path = uri.to_file_path()?;
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
-        let text = std::fs::read_to_string(&path).ok()?;
-        let doc = acdc_parser::parse(&text, &acdc_parser::Options::default()).ok()?;
-        let anchors = definition::collect_anchors(&doc);
+        let text = read_bounded(path.as_ref())?;
+        let parsed = acdc_parser::parse(&text, &acdc_parser::Options::default()).ok()?;
+        let anchors = definition::collect_anchors(parsed.document());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
             ?path,
@@ -209,10 +212,10 @@ impl Workspace {
             if self.documents.contains_key(&uri) {
                 continue;
             }
-            if let Ok(text) = std::fs::read_to_string(&path)
-                && let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+            if let Some(text) = read_bounded(&path)
+                && let Ok(parsed) = acdc_parser::parse(&text, &acdc_parser::Options::default())
             {
-                let symbols = extract_workspace_symbols(&doc);
+                let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri, symbols);
             }
         }
@@ -236,8 +239,8 @@ impl Workspace {
         // Symbols from open documents (live AST)
         for entry in &self.documents {
             let uri = entry.key();
-            if let Some(ast) = &entry.value().ast {
-                let symbols = extract_workspace_symbols(ast);
+            if let Some(ast) = entry.value().ast() {
+                let symbols = extract_workspace_symbols(ast.document());
                 for symbol in symbols {
                     if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
                         results.push((uri.clone(), symbol));
@@ -298,10 +301,10 @@ impl Workspace {
 
     fn reindex_file_from_disk(&self, uri: &Uri) {
         if let Some(path) = uri.to_file_path()
-            && let Ok(text) = std::fs::read_to_string(path.as_ref())
-            && let Ok(doc) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+            && let Some(text) = read_bounded(path.as_ref())
+            && let Ok(parsed) = acdc_parser::parse(&text, &acdc_parser::Options::default())
         {
-            let symbols = extract_workspace_symbols(&doc);
+            let symbols = extract_workspace_symbols(parsed.document());
             self.symbol_index.insert(uri.clone(), symbols);
         }
     }
@@ -334,24 +337,98 @@ impl Workspace {
         }
     }
 
+    /// Line-1 informational diagnostic explaining why AST-backed features
+    /// are disabled for oversized open documents.
+    fn oversized_document_diagnostic(bytes: usize) -> tower_lsp_server::ls_types::Diagnostic {
+        use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Position, Range};
+
+        let bytes_u64 = u64::try_from(bytes).unwrap_or(u64::MAX);
+        let mib = bytes_u64 / (1024 * 1024);
+        let limit_mib = MAX_INDEXABLE_FILE_BYTES / (1024 * 1024);
+        Diagnostic {
+            range: Range {
+                start: Position {
+                    line: 0,
+                    character: 0,
+                },
+                end: Position {
+                    line: 0,
+                    character: 0,
+                },
+            },
+            severity: Some(DiagnosticSeverity::INFORMATION),
+            source: Some("acdc".to_string()),
+            message: format!(
+                "Document is {mib} MiB (above the acdc-lsp indexing limit of {limit_mib} MiB); navigation and workspace features are disabled for this file."
+            ),
+            ..Default::default()
+        }
+    }
+
     /// Parse document and extract all navigation data
     fn parse_and_index(text: String, version: i32) -> DocumentState {
         let options = acdc_parser::Options::default();
-        let result = acdc_parser::parse(&text, &options);
 
-        match result {
-            Ok(doc) => {
-                let anchors = definition::collect_anchors(&doc);
-                let xrefs = definition::collect_xrefs(&doc);
-                let media_sources = definition::collect_media_sources(&doc);
+        let mut anchors: HashMap<String, Location> = HashMap::new();
+        let mut xrefs: Vec<(String, Location)> = Vec::new();
+        let mut media_sources: Vec<(crate::state::document::OwnedSource, Location)> = Vec::new();
+        let mut parse_diagnostics: Vec<tower_lsp_server::ls_types::Diagnostic> = Vec::new();
+        let mut ast_attributes: Option<acdc_parser::DocumentAttributes<'static>> = None;
 
-                // Warnings are computed later in update_document with workspace context
-                DocumentState::new_success(text, version, doc, anchors, xrefs, media_sources)
+        // Skip parsing oversized open documents: the parser arena pre-sizes
+        // to input length, so a 1 GB file would balloon RSS. Raw-text scans
+        // below still run; the diagnostic tells the user why the rest is silent.
+        let parsed = if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_INDEXABLE_FILE_BYTES {
+            tracing::warn!(
+                bytes = text.len(),
+                limit = MAX_INDEXABLE_FILE_BYTES,
+                "document exceeds LSP indexing size limit; skipping parse"
+            );
+            parse_diagnostics.push(Self::oversized_document_diagnostic(text.len()));
+            ParsedText::from_source(text.into_boxed_str())
+        } else {
+            match acdc_parser::parse(&text, &options) {
+                Ok(parsed_doc) => {
+                    {
+                        let doc = parsed_doc.document();
+                        anchors = definition::collect_anchors(doc);
+                        xrefs = definition::collect_xrefs(doc);
+                        media_sources = definition::collect_media_sources(doc);
+                        ast_attributes = Some(doc.attributes.to_static());
+                    }
+                    ParsedText::from_parsed(text.clone().into_boxed_str(), parsed_doc)
+                }
+                Err(error) => {
+                    parse_diagnostics.push(diagnostics::error_to_diagnostic(&error));
+                    ParsedText::from_source(text.into_boxed_str())
+                }
             }
-            Err(error) => {
-                let diags = vec![diagnostics::error_to_diagnostic(&error)];
-                DocumentState::new_failure(text, version, diags)
-            }
+        };
+
+        let raw_text = parsed.text();
+        let definitions = crate::state::document::extract_attribute_defs(raw_text);
+        let references = crate::state::document::extract_attribute_refs(raw_text);
+        let raw_includes = crate::state::document::extract_includes(raw_text);
+        let raw_conditionals = if let Some(attrs) = &ast_attributes {
+            crate::state::document::extract_conditionals(raw_text, attrs)
+        } else {
+            crate::state::document::extract_conditionals(
+                raw_text,
+                &acdc_parser::DocumentAttributes::default(),
+            )
+        };
+
+        DocumentState {
+            parsed,
+            version,
+            diagnostics: parse_diagnostics,
+            anchors,
+            xrefs,
+            includes: raw_includes,
+            attribute_refs: references,
+            attribute_defs: definitions,
+            media_sources,
+            conditionals: raw_conditionals,
         }
     }
 }
@@ -473,7 +550,7 @@ mod tests {
         );
 
         let all = workspace.all_anchors();
-        let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
+        let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_ref()).collect();
         assert!(ids.contains(&"anchor1"));
         assert!(ids.contains(&"anchor2"));
         Ok(())
@@ -493,11 +570,11 @@ mod tests {
         );
 
         // Manually add doc2 to symbol_index (simulates scanned file)
-        let doc2 = acdc_parser::parse(
+        let parsed2 = acdc_parser::parse(
             "= Doc Two\n\n== TLS Configuration\n\nStuff.\n",
             &acdc_parser::Options::default(),
         )?;
-        let symbols = extract_workspace_symbols(&doc2);
+        let symbols = extract_workspace_symbols(parsed2.document());
         workspace.symbol_index.insert(uri2.clone(), symbols);
 
         // Query for "tls" (case-insensitive)
@@ -736,6 +813,71 @@ mod tests {
                 .any(|d| d.message.contains("Section level skipped")),
             "should not have section level skip warnings for valid document"
         );
+        Ok(())
+    }
+
+    /// Replays edits on a URL-heavy document and asserts the workspace keeps
+    /// exactly one document and the expected media-source count — catches
+    /// any per-edit accumulation reintroduced into `DocumentState`.
+    #[test]
+    fn update_document_does_not_accumulate_state() -> Result<(), Box<dyn std::error::Error>> {
+        use std::fmt::Write as _;
+
+        let workspace = Workspace::new();
+        let uri = "file:///url_heavy.adoc".parse::<Uri>()?;
+
+        let mut content = String::from("= URL-heavy document\n\n");
+        for i in 0..10 {
+            write!(
+                content,
+                "image::https://cdn.example.com/pic-{i}.png[Pic {i}]\n\n"
+            )?;
+            write!(
+                content,
+                "See link:https://example.com/page-{i}[page {i}].\n\n"
+            )?;
+            write!(content, "Raw https://example.com/bare-{i} link.\n\n")?;
+        }
+
+        for version in 1..=200 {
+            workspace.update_document(uri.clone(), content.clone(), version);
+        }
+
+        let doc = workspace.get_document(&uri).ok_or("document missing")?;
+        assert_eq!(doc.version, 200);
+        assert_eq!(
+            doc.media_sources.len(),
+            10,
+            "media_sources should hold exactly the 10 image URLs from the final \
+             parse, not accumulate across edits",
+        );
+        Ok(())
+    }
+
+    /// Oversized open documents skip parsing and emit one informational
+    /// diagnostic on line 1 so AST-backed features degrade gracefully.
+    #[test]
+    fn oversized_open_document_is_gated() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///huge.adoc".parse::<Uri>()?;
+
+        let size = usize::try_from(MAX_INDEXABLE_FILE_BYTES).unwrap_or(usize::MAX) + 1;
+        let mut content = String::with_capacity(size);
+        content.push_str("= Huge document\n\n");
+        content.push_str(&"a".repeat(size - content.len()));
+
+        workspace.update_document(uri.clone(), content, 1);
+
+        let doc = workspace.get_document(&uri).ok_or("document missing")?;
+        assert!(
+            doc.diagnostics
+                .iter()
+                .any(|d| d.message.contains("indexing limit")),
+            "expected an 'indexing limit' informational diagnostic"
+        );
+        assert!(doc.anchors.is_empty());
+        assert!(doc.xrefs.is_empty());
+        assert!(doc.media_sources.is_empty());
         Ok(())
     }
 }

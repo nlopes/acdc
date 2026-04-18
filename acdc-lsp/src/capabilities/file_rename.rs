@@ -144,7 +144,7 @@ fn scan_workspace_files_for_renames(
             continue;
         }
 
-        let Ok(text) = std::fs::read_to_string(&file_path) else {
+        let Some(text) = crate::limits::read_bounded(&file_path) else {
             continue;
         };
 
@@ -154,11 +154,11 @@ fn scan_workspace_files_for_renames(
 
         // Parse and scan for references
         let options = acdc_parser::Options::default();
-        let Ok(doc) = acdc_parser::parse(&text, &options) else {
+        let Ok(parsed) = acdc_parser::parse(&text, &options) else {
             continue;
         };
 
-        let xrefs = super::definition::collect_xrefs(&doc);
+        let xrefs = super::definition::collect_xrefs(parsed.document());
         for (target, location) in &xrefs {
             let parsed = XrefTarget::parse(target);
             let Some(file_part) = &parsed.file else {

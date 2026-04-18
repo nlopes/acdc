@@ -27,7 +27,7 @@ pub(crate) fn format_on_type(
         return None;
     }
 
-    let lines: Vec<&str> = doc.text.lines().collect();
+    let lines: Vec<&str> = doc.text().lines().collect();
     let cursor_line = position.line as usize;
 
     // The cursor is on the new (empty) line after Enter.
@@ -38,10 +38,10 @@ pub(crate) fn format_on_type(
     let prev_line_idx = cursor_line - 1;
     let prev_line = lines.get(prev_line_idx)?;
 
-    let protected = if let Some(ast) = &doc.ast {
-        collect_protected_ranges(ast)
+    let protected = if let Some(ast) = doc.ast() {
+        collect_protected_ranges(ast.document())
     } else {
-        collect_protected_ranges_from_text(&doc.text)
+        collect_protected_ranges_from_text(doc.text())
     };
 
     // Don't format inside protected (verbatim) ranges

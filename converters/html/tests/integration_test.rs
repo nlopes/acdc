@@ -21,7 +21,8 @@ fn run_fixture_test(
 
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
-    let doc = acdc_parser::parse_file(path, &parser_options)?;
+    let parsed = acdc_parser::parse_file(path, &parser_options)?;
+    let doc = parsed.document();
 
     let backend = match variant {
         HtmlVariant::Semantic => Backend::Html5s,
@@ -31,14 +32,15 @@ fn run_fixture_test(
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .backend(backend)
         .build();
-    let processor = Processor::new_with_variant(converter_options, doc.attributes.clone(), variant);
+    let processor =
+        Processor::new_with_variant(converter_options, doc.attributes.to_static(), variant);
     let render_options = RenderOptions {
         embedded,
         ..RenderOptions::default()
     };
 
     let mut output = Vec::new();
-    processor.convert_to_writer(&doc, &mut output, &render_options)?;
+    processor.convert_to_writer(doc, &mut output, &render_options)?;
 
     let expected = std::fs::read_to_string(&expected_path)?;
     let actual = String::from_utf8(output)?;
@@ -112,19 +114,20 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
         attrs.insert((*k).into(), v.clone());
     }
     let parser_options = ParserOptions::with_attributes(attrs);
-    let doc = acdc_parser::parse(input, &parser_options)?;
+    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let doc = parsed.document();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .backend(Backend::Html)
         .build();
     let processor = Processor::new_with_variant(
         converter_options,
-        doc.attributes.clone(),
+        doc.attributes.to_static(),
         HtmlVariant::Standard,
     );
     let render_options = RenderOptions::default();
     let mut output = Vec::new();
-    processor.convert_to_writer(&doc, &mut output, &render_options)?;
+    processor.convert_to_writer(doc, &mut output, &render_options)?;
     Ok(String::from_utf8(output)?)
 }
 
@@ -443,10 +446,14 @@ mod copycss {
         let input = "= Title\n:linkcss:\n\nHello.\n";
         let mut attrs = acdc_converters_core::default_rendering_attributes();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
-        attrs.insert("copycss".into(), AttributeValue::String(String::new()));
+        attrs.insert(
+            "copycss".into(),
+            AttributeValue::String(std::borrow::Cow::Borrowed("")),
+        );
 
         let parser_options = ParserOptions::with_attributes(attrs);
-        let doc = acdc_parser::parse(input, &parser_options)?;
+        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -454,17 +461,17 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
 
         // Write HTML output
         let mut html_output = Vec::new();
-        processor.convert_to_writer(&doc, &mut html_output, &RenderOptions::default())?;
+        processor.convert_to_writer(doc, &mut html_output, &RenderOptions::default())?;
         std::fs::write(&html_path, &html_output)?;
 
         // Trigger after_write to copy CSS
-        processor.after_write(&doc, &html_path);
+        processor.after_write(doc, &html_path);
 
         // The built-in stylesheet should have been written to disk
         let css_path = tmp.path().join("asciidoctor-light-mode.css");
@@ -497,7 +504,7 @@ mod copycss {
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
         attrs.insert(
             "copycss".into(),
-            AttributeValue::String(custom_css_path.to_string_lossy().into()),
+            AttributeValue::String(custom_css_path.to_string_lossy()),
         );
         attrs.insert(
             "stylesheet".into(),
@@ -505,7 +512,8 @@ mod copycss {
         );
 
         let parser_options = ParserOptions::with_attributes(attrs);
-        let doc = acdc_parser::parse(input, &parser_options)?;
+        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -513,17 +521,17 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
 
         // Write HTML output
         let mut html_output = Vec::new();
-        processor.convert_to_writer(&doc, &mut html_output, &RenderOptions::default())?;
+        processor.convert_to_writer(doc, &mut html_output, &RenderOptions::default())?;
         std::fs::write(&html_path, &html_output)?;
 
         // Trigger after_write
-        processor.after_write(&doc, &html_path);
+        processor.after_write(doc, &html_path);
 
         // The custom CSS should have been copied to target.css
         let target_path = tmp.path().join("target.css");
@@ -551,10 +559,14 @@ mod copycss {
         let mut attrs = acdc_converters_core::default_rendering_attributes();
         attrs.insert("stylesheet".into(), AttributeValue::Bool(false));
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
-        attrs.insert("copycss".into(), AttributeValue::String(String::new()));
+        attrs.insert(
+            "copycss".into(),
+            AttributeValue::String(std::borrow::Cow::Borrowed("")),
+        );
 
         let parser_options = ParserOptions::with_attributes(attrs);
-        let doc = acdc_parser::parse(input, &parser_options)?;
+        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -562,12 +574,12 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
 
         std::fs::write(&html_path, "dummy")?;
-        processor.after_write(&doc, &html_path);
+        processor.after_write(doc, &html_path);
 
         // No CSS files should be written
         let css_files: Vec<_> = std::fs::read_dir(tmp.path())?
@@ -590,10 +602,14 @@ mod copycss {
         let input = "= Title\n:linkcss:\n\nHello.\n";
         let mut attrs = acdc_converters_core::default_rendering_attributes();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
-        attrs.insert("copycss".into(), AttributeValue::String(String::new()));
+        attrs.insert(
+            "copycss".into(),
+            AttributeValue::String(std::borrow::Cow::Borrowed("")),
+        );
 
         let parser_options = ParserOptions::with_attributes(attrs);
-        let doc = acdc_parser::parse(input, &parser_options)?;
+        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -602,12 +618,12 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
 
         std::fs::write(&html_path, "dummy")?;
-        processor.after_write(&doc, &html_path);
+        processor.after_write(doc, &html_path);
 
         // No CSS files should be written in embedded mode
         let css_files: Vec<_> = std::fs::read_dir(tmp.path())?
@@ -647,7 +663,8 @@ mod docinfo {
         }
 
         let parser_options = ParserOptions::default();
-        let doc = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+        let parsed = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+        let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -655,7 +672,7 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
         let render_options = RenderOptions {
@@ -665,7 +682,7 @@ mod docinfo {
             ..RenderOptions::default()
         };
 
-        let html = processor.convert_to_string(&doc, &render_options)?;
+        let html = processor.convert_to_string(doc, &render_options)?;
         Ok(html)
     }
 
@@ -906,14 +923,15 @@ mod docinfo {
         std::fs::write(tmp.path().join("docinfo.html"), "<!-- from-source-dir -->")?;
 
         let parser_options = ParserOptions::default();
-        let doc = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+        let parsed = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+        let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
         let render_options = RenderOptions {
@@ -922,7 +940,7 @@ mod docinfo {
             ..RenderOptions::default()
         };
 
-        let html = processor.convert_to_string(&doc, &render_options)?;
+        let html = processor.convert_to_string(doc, &render_options)?;
 
         assert!(
             html.contains("<!-- from-custom-dir -->"),
@@ -1022,14 +1040,15 @@ mod toc_footnote {
     fn convert_embedded(input: &str) -> Result<String, Error> {
         let attrs = acdc_converters_core::default_rendering_attributes();
         let parser_options = ParserOptions::with_attributes(attrs);
-        let doc = acdc_parser::parse(input, &parser_options)?;
+        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let doc = parsed.document();
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .backend(Backend::Html)
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            doc.attributes.to_static(),
             HtmlVariant::Standard,
         );
         let render_options = RenderOptions {
@@ -1037,7 +1056,7 @@ mod toc_footnote {
             ..RenderOptions::default()
         };
         let mut output = Vec::new();
-        processor.convert_to_writer(&doc, &mut output, &render_options)?;
+        processor.convert_to_writer(doc, &mut output, &render_options)?;
         Ok(String::from_utf8(output)?)
     }
 
