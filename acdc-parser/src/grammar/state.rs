@@ -125,7 +125,10 @@ impl ParserState {
     pub(crate) fn new(input: &str) -> Self {
         Self {
             options: Options::default(),
-            document_attributes: DocumentAttributes::default(),
+            // Callers immediately overwrite this with the options-provided
+            // attributes (or keep it empty for `parse_text_for_quotes`-style
+            // transient parses), so skip building the ~57-entry default map.
+            document_attributes: DocumentAttributes::empty(),
             line_map: LineMap::new(input),
             input: input.to_string(),
             footnote_tracker: FootnoteTracker::new(),

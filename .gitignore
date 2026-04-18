@@ -2,3 +2,8 @@
 /aux
 /.dev/archive/
 .worktrees/
+
+# Perf work — profiles and timing snapshots are regenerated from scripts/perf/
+/perf/profiles/
+/perf/results/
+/profile.json.gz

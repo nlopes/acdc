@@ -36,9 +36,9 @@ pub(crate) fn visit_paragraph<V: WritableVisitor<Error = Error>>(
 
     // Check if this paragraph should be rendered as a collapsible example block
     if para.metadata.style.as_deref() == Some("example")
-        && para.metadata.options.contains(&"collapsible".to_string())
+        && para.metadata.options.iter().any(|s| s == "collapsible")
     {
-        let is_open = para.metadata.options.contains(&"open".to_string());
+        let is_open = para.metadata.options.iter().any(|s| s == "open");
         let w = visitor.writer_mut();
         write!(w, "<details")?;
         write_id(w, &para.metadata)?;

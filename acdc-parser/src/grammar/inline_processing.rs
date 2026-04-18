@@ -106,7 +106,7 @@ pub(crate) fn preprocess_inline_content(
 
     let mut inline_state = InlinePreprocessorParserState::new(
         content,
-        state.line_map.clone(),
+        &state.line_map,
         &state.input,
         macros_enabled,
         attributes_enabled,

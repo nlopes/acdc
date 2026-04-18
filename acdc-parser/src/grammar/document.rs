@@ -3291,17 +3291,19 @@ peg::parser! {
             checked
         }
 
-        rule check_start_of_description_list()
-        = &((!(description_list_marker() (eol() / " ")) [_])+ description_list_marker())
-
-        /// Like check_start_of_description_list but restricted to the current line.
-        /// Used by setext section rules to avoid false positives when a description
-        /// list marker (::, ;;) appears later in the document but not on the current line.
+        /// Lookahead guard: does the current line start a description list?
+        ///
+        /// A description list item lives on a single line (`term:: definition`),
+        /// so the lookahead MUST be restricted to the current line. Using `[_]`
+        /// instead of `[^'\n']` would let the scan continue across newlines
+        /// and eventually match a `::` far later in the document, turning every
+        /// block-opener check into an O(remaining-input) scan — O(n²) over the
+        /// whole document. Keep the `[^'\n']` form.
         rule check_line_is_description_list()
         = &((!(description_list_marker() (eol() / " " / ![_])) [^'\n'])+ description_list_marker())
 
         rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = check_start_of_description_list()
+        = check_line_is_description_list()
         first_item:description_list_item(offset, block_metadata)
         additional_items:description_list_additional_items(offset, block_metadata)*
         end:position!()
@@ -3333,7 +3335,7 @@ peg::parser! {
         rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
         = !at_dlist_block_boundary()
         eol()*
-        check_start_of_description_list()
+        check_line_is_description_list()
         item:description_list_item(offset, block_metadata)
         {
             tracing::info!("Found additional description list item");
@@ -4241,7 +4243,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
+                &state.line_map,
                 &state.input,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -4278,7 +4280,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
+                &state.line_map,
                 &state.input,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -4328,7 +4330,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
+                &state.line_map,
                 &state.input,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -5502,7 +5504,7 @@ Content C.
     fn test_setext_with_description_lists() -> Result<(), Error> {
         // Regression: description list markers (::) anywhere in the document
         // used to cause setext sections to fail because the lookahead
-        // `check_start_of_description_list` scanned the entire remaining input
+        // `check_line_is_description_list` scanned the entire remaining input
         let input = "\
 gitdatamodel(7)
 ===============

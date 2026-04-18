@@ -1,6 +1,6 @@
 //! Visitor implementation for terminal output.
 
-use std::io::Write;
+use std::{io::Write, rc::Rc};
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
@@ -18,7 +18,12 @@ use crate::Processor;
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
 pub struct TerminalVisitor<W: Write> {
     writer: W,
-    pub(crate) processor: Processor,
+    /// Shared `Processor` — `Rc` so delegation-site clones don't deep-copy
+    /// `toc_entries: Vec<TocEntry>` and the `document_attributes` hashmap.
+    /// With a plain `Processor`, each of the ~15 `self.processor.clone()` calls
+    /// across the visitor methods copied the whole struct, producing
+    /// `O(nodes × processor_size)` behaviour on large documents.
+    pub(crate) processor: Rc<Processor>,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
@@ -28,7 +33,7 @@ impl<W: Write> TerminalVisitor<W> {
     pub fn new(writer: W, processor: Processor) -> Self {
         Self {
             writer,
-            processor,
+            processor: Rc::new(processor),
             in_inline_span: false,
         }
     }

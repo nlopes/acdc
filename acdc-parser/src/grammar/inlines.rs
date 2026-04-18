@@ -1827,7 +1827,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
+                &state.line_map,
                 &state.input,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -1864,7 +1864,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
+                &state.line_map,
                 &state.input,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -1914,7 +1914,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
+                &state.line_map,
                 &state.input,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)

@@ -1,6 +1,6 @@
 //! Visitor implementation for HTML conversion.
 
-use std::{io::Write, string::ToString};
+use std::{io::Write, rc::Rc, string::ToString};
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
@@ -175,7 +175,11 @@ MathJax = {{
 /// HTML visitor that generates HTML from `AsciiDoc` AST
 pub struct HtmlVisitor<W: Write> {
     writer: W,
-    pub(crate) processor: Processor,
+    /// Shared Processor — `Rc` so per-section clones don't deep-copy the
+    /// embedded `toc_entries: Vec<TocEntry>` and `document_attributes`
+    /// hashmap. With a plain `Processor`, `visit_section` cloned the whole
+    /// struct on every call — O(sections²) on TOC-heavy docs.
+    pub(crate) processor: Rc<Processor>,
     pub(crate) render_options: RenderOptions,
     /// Current effective substitutions for inline rendering.
     /// Set per-block in `visit_delimited_block`, defaults to normal substitutions.
@@ -201,7 +205,7 @@ impl<W: Write> HtmlVisitor<W> {
         };
         Self {
             writer,
-            processor,
+            processor: Rc::new(processor),
             render_options,
             current_subs: NORMAL.to_vec(),
             section_style: None,
@@ -825,7 +829,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
         // Set hardbreaks if the paragraph option or document attribute is present
         let original_hardbreaks = self.render_options.hardbreaks;
-        if para.metadata.options.contains(&"hardbreaks".to_string())
+        if para.metadata.options.iter().any(|s| s == "hardbreaks")
             || self
                 .processor
                 .document_attributes()

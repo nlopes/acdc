@@ -168,6 +168,16 @@ fn validate_bounded_attribute(key: &str, value: &AttributeValue) {
 pub struct DocumentAttributes(AttributeMap);
 
 impl DocumentAttributes {
+    /// Create an empty `DocumentAttributes` without universal defaults.
+    ///
+    /// Use this when the attributes will be immediately replaced (e.g., via
+    /// `ParserState::new` before the options-provided attributes overwrite it)
+    /// to skip the cost of building the ~57-entry default `HashMap`.
+    #[must_use]
+    pub(crate) fn empty() -> Self {
+        Self(AttributeMap::empty())
+    }
+
     /// Iterate over all attributes.
     pub fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
         self.0.iter()

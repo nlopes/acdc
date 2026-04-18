@@ -106,6 +106,22 @@ pub fn parse_text_for_quotes(content: &str) -> Vec<InlineNode> {
         return Vec::new();
     }
 
+    // Fast path: if none of the quote-formatting delimiters appear in the
+    // content, skip the PEG invocation entirely. The `quotes_only` parser
+    // would just emit a single `PlainText` in that case, but it pays a
+    // `ParserState::new` + peg-setup cost per call. This saves the cost on
+    // the overwhelming majority of text nodes in real docs.
+    if !content
+        .bytes()
+        .any(|b| matches!(b, b'*' | b'_' | b'`' | b'#' | b'^' | b'~'))
+    {
+        return vec![InlineNode::PlainText(Plain {
+            content: content.to_string(),
+            location: Location::default(),
+            escaped: false,
+        })];
+    }
+
     let mut state = ParserState::new(content);
     state.quotes_only = true;
     let block_metadata = BlockParsingMetadata::default();

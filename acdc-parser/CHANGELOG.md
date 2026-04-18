@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `asciidoctor`'s "section title out of sequence" check. Title-less documents still
   accept any first-section level.
 
+### Performance
+
+- **Parsing large documents is dramatically faster** - some block-opener checks
+  performance was quadratic, and now it is linear. Several inline-preprocessor and
+  attribute-substitution paths also skip work when the input has no relevant delimiters.
+  1MB sample: **~6749ms -> ~207ms (~32× faster)**.
+- **New `DocumentAttributes::empty()`** for callers that don't need the default attribute
+  map, avoiding a bunch of allocations.
+
 ## [0.8.0] - 2026-03-28
 
 ### Added

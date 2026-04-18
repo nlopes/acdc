@@ -328,7 +328,7 @@ fn get_width_style(metadata: &BlockMetadata) -> String {
 
 /// Get sizing class based on %autowidth option.
 fn get_sizing_class(metadata: &BlockMetadata) -> &'static str {
-    if metadata.options.contains(&"autowidth".to_string()) {
+    if metadata.options.iter().any(|s| s == "autowidth") {
         "fit-content"
     } else {
         "stretch"

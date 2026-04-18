@@ -49,17 +49,17 @@ pub(crate) fn visit_audio<V: WritableVisitor<Error = Error>>(
     write!(w, "<audio src=\"{src}\"")?;
 
     // Add autoplay option if present
-    if audio.metadata.options.contains(&"autoplay".to_string()) {
+    if audio.metadata.options.iter().any(|s| s == "autoplay") {
         write!(w, " autoplay")?;
     }
 
     // Add loop option if present
-    if audio.metadata.options.contains(&"loop".to_string()) {
+    if audio.metadata.options.iter().any(|s| s == "loop") {
         write!(w, " loop")?;
     }
 
     // Add nocontrols option check - if present, don't add controls
-    if !audio.metadata.options.contains(&"nocontrols".to_string()) {
+    if !audio.metadata.options.iter().any(|s| s == "nocontrols") {
         write!(w, " controls")?;
     }
 
@@ -89,15 +89,15 @@ fn render_audio_element(audio: &Audio, w: &mut dyn std::io::Write) -> Result<(),
 
     write!(w, "<audio src=\"{src}\"")?;
 
-    if audio.metadata.options.contains(&"autoplay".to_string()) {
+    if audio.metadata.options.iter().any(|s| s == "autoplay") {
         write!(w, " autoplay")?;
     }
 
-    if audio.metadata.options.contains(&"loop".to_string()) {
+    if audio.metadata.options.iter().any(|s| s == "loop") {
         write!(w, " loop")?;
     }
 
-    if !audio.metadata.options.contains(&"nocontrols".to_string()) {
+    if !audio.metadata.options.iter().any(|s| s == "nocontrols") {
         write!(w, " controls")?;
     }
 

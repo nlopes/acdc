@@ -413,6 +413,13 @@ pub fn substitute(
     substitutions: &[Substitution],
     attributes: &DocumentAttributes,
 ) -> String {
+    // Fast exit: if the only requested substitution is `Attributes` and the text has no
+    // `{` to expand, skip the whole machinery. Most inline plain text in real docs has no
+    // attribute references.
+    if substitutions == [Substitution::Attributes] && !text.contains('{') {
+        return text.to_string();
+    }
+
     let mut result = text.to_string();
     for substitution in substitutions {
         match substitution {
