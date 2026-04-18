@@ -1,0 +1,76 @@
+= `acdc-converters-markdown`
+
+Markdown converter for `AsciiDoc` documents. Supports both https://spec.commonmark.org[CommonMark] and https://github.github.com/gfm/[GitHub Flavored Markdown] (GFM).
+
+== Usage
+
+[source,console]
+....
+acdc convert --backend markdown document.adoc
+....
+
+This generates `document.md` in the same directory as the source file.
+
+Process multiple files in parallel:
+
+[source,console]
+....
+acdc convert --backend markdown *.adoc
+....
+
+Stream from stdin to stdout:
+
+[source,console]
+....
+cat document.adoc | acdc convert --backend markdown --stdin
+....
+
+The CLI always uses the GFM variant. To produce plain CommonMark output, consume the crate as a library and call `Processor::with_variant(MarkdownVariant::CommonMark)`.
+
+== Features
+
+Supported constructs:
+
+- **Headings**: mapped to ATX (`#`, `##`, …). The document title renders as a top-level heading.
+- **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough (GFM), links, autolinks, images.
+- **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
+- **Code blocks**: fenced with the source language when specified, plus the callout annotations stripped and rendered as trailing references.
+- **Blockquotes** and quote/verse blocks.
+- **Tables**: GFM tables with column alignment. Skipped with a warning in CommonMark mode.
+- **Admonitions** (NOTE, TIP, IMPORTANT, WARNING, CAUTION): GitHub Alerts (`> [!NOTE]`) in GFM; plain blockquotes with a bold label in CommonMark.
+- **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected at document end; HTML superscript fallback in CommonMark.
+- **Images / videos / audio**: images render natively; video and audio degrade to links with a warning.
+- **Thematic breaks** and page breaks (rendered as `---`).
+
+== Limitations
+
+Some `AsciiDoc` features have no faithful Markdown equivalent. When the converter hits one of these, it emits a `tracing::warn!` message and falls back:
+
+- **Include directives** - not expanded at render time (the preprocessor handles them before conversion).
+- **Substitution control** (`subs=...`) - no way to express this in Markdown.
+- **Callouts inside source blocks** - Markdown has no native equivalent; rendered as plain text.
+- **Table cell spanning** (`2+|`, `.2+|`) - GFM tables are single-cell only.
+- **Complex tables** (nested, AsciiDoc-content cells) - flattened to the extent possible.
+- **Arbitrary block metadata** (roles, options) - dropped.
+
+See the crate's `src/lib.rs` module docs for the full list.
+
+== Building
+
+Enable the `markdown` feature when building the CLI:
+
+[source,console]
+....
+cargo build --features markdown -p acdc-cli
+....
+
+== Regenerating fixtures
+
+Markdown fixtures live in `tests/fixtures/source/` (inputs) and `tests/fixtures/expected/` (golden outputs). To regenerate after making converter changes:
+
+[source,console]
+....
+bash converters/markdown/tests/regenerate_expected.sh
+# or for a single fixture:
+bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
+....

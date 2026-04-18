@@ -168,10 +168,11 @@ pub trait Processable {
 }
 ----
 
-Right now I have three converters:
+Right now I have four converters:
 
-. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes
+. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes. Also ships a `html5s` variant (inspired by Jakub Jirutka's asciidoctor-html5s) that emits `<section>`/`<aside>`/`<figure>` instead of div-based layout
 . Manpage (`converters/manpage`) for native roff/troff output suitable for the `man` command
+. Markdown (`converters/markdown`) for CommonMark and GitHub Flavored Markdown output
 . Terminal (`converters/terminal`) for ANSI-formatted terminal display
 
 Why this trait-based design? I didn't think it over too much, honestly. It keeps things clean - the parser doesn't know anything about output formats. Each converter defines its own options and error types, which gives type safety. And implementing the trait to add a new output format is straightforward.
@@ -220,13 +221,15 @@ The workspace is organized into clearly bounded modules:
 ----
 acdc/
 ├── acdc-cli/          # Command-line interface
-├── acdc-lsp/          # Language Server Protocol implementation (early/experimental)
+├── acdc-editor-wasm/  # WASM live editor (syntax highlight + HTML preview)
+├── acdc-lsp/          # Language Server Protocol implementation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
     ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
     ├── dev/           # Development utilities (unpublished)
-    ├── html/          # HTML5 output
+    ├── html/          # HTML5 output (standard + html5s semantic variant)
     ├── manpage/       # Native roff/troff manpage output
+    ├── markdown/      # CommonMark / GitHub Flavored Markdown output
     └── terminal/      # ANSI terminal output
 ----
 
@@ -333,10 +336,6 @@ Callout markers in verbatim blocks (`<1>`, `<2>`, or auto-numbering `<.>`) are p
 
 == Future directions
 
-=== WASM compilation
-
-I want to compile `acdc` to WebAssembly one day. This would enable an interactive web-based parser demo, client-side AsciiDoc preview, and integration with web-based editors (maybe even build one!).
-
 === Parallel parsing
 
 I'm planning to look into parallel processing of files. If we need to parse and convert hundreds of files, I'd like to not take hundreds x "time that takes one".
@@ -347,9 +346,16 @@ This is planned for after grammar coverage is complete.
 
 The main focus areas will be grammar modularization (if possible, as `rust-peg` doesn't actually seem to allow this easily) to reduce compilation time, and maybe runtime parsing performance.
 
-=== Language Server Protocol
+=== Incremental parsing for the LSP
 
-The `acdc-lsp` crate provides an early/experimental LSP implementation. Currently it supports diagnostics, hover information, and go-to-definition. The goal is IDE-quality error messages with context and suggestions. This is still a work in progress - completion, references, and other features are planned.
+Today the LSP reparses the whole document on every change. Incremental parsing would cut latency on large files, but it requires grammar-level support that PEG doesn't give us for free - this is a longer-term research item.
+
+== Already shipped
+
+A couple of items that used to live in "future directions" and have since landed:
+
+* **WebAssembly** - `acdc-editor-wasm` compiles the parser and HTML converter to WASM and ships a browser-based live editor with syntax highlighting and preview. It's released via GitHub Releases and is available at https://acdc.nlopes.dev[acdc.nlopes.dev].
+* **Language Server Protocol** - `acdc-lsp` is a working LSP server with capabilities for diagnostics, hover, go-to-definition, find references, rename, completion, signature help, document links, folding, formatting (full + range + on-type), inlay hints, selection ranges, semantic tokens, code actions, code lens, document symbols, workspace symbols, call hierarchy, and file rename (auto-updates xrefs). Workspace-level xref resolution across open files and on-disk scanning is implemented in `acdc-lsp/src/state/workspace.rs`.
 
 == Spec compliance and compatibility
 
@@ -366,9 +372,13 @@ Where the spec is undefined or ambiguous, I match Asciidoctor behavior to keep t
 === Testing
 
 The `tck` command produces output compatible with the AsciiDoc Language TCK test harness,
-which means automated spec compliance validation. I've got over 115 test fixtures that
-validate parsing correctness against golden JSON files. The CI pipeline runs the full test
-suite on every change to catch regressions. Currently my test fixtures are much more comprehensive than the TCK tests are - on the one hand that's great (I'm testing more stuff), on the other hand when more gets added to the harness, I may find my fixtures and parser are wrong - we'll sort when we get there.
+which means automated spec compliance validation. I've got over 280 test fixtures that
+validate parsing correctness against golden JSON files, plus separate converter fixture
+suites for HTML, manpage, markdown, and terminal output. The CI pipeline runs the full
+test suite on every change to catch regressions. Currently my test fixtures are much more
+comprehensive than the TCK tests are - on the one hand that's great (I'm testing more
+stuff), on the other hand when more gets added to the harness, I may find my fixtures and
+parser are wrong - we'll sort when we get there.
 
 == Contributing
 
