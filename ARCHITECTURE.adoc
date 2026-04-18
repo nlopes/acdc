@@ -350,13 +350,6 @@ The main focus areas will be grammar modularization (if possible, as `rust-peg` 
 
 Today the LSP reparses the whole document on every change. Incremental parsing would cut latency on large files, but it requires grammar-level support that PEG doesn't give us for free - this is a longer-term research item.
 
-== Already shipped
-
-A couple of items that used to live in "future directions" and have since landed:
-
-* **WebAssembly** - `acdc-editor-wasm` compiles the parser and HTML converter to WASM and ships a browser-based live editor with syntax highlighting and preview. It's released via GitHub Releases and is available at https://acdc.nlopes.dev[acdc.nlopes.dev].
-* **Language Server Protocol** - `acdc-lsp` is a working LSP server with capabilities for diagnostics, hover, go-to-definition, find references, rename, completion, signature help, document links, folding, formatting (full + range + on-type), inlay hints, selection ranges, semantic tokens, code actions, code lens, document symbols, workspace symbols, call hierarchy, and file rename (auto-updates xrefs). Workspace-level xref resolution across open files and on-disk scanning is implemented in `acdc-lsp/src/state/workspace.rs`.
-
 == Spec compliance and compatibility
 
 === Following the spec
