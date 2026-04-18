@@ -375,7 +375,7 @@ fn maybe_render_osc8_link<W: Write + ?Sized>(
 ) -> Result<(), crate::Error> {
     if processor.appearance.capabilities.osc8_links {
         w.queue(Print(
-            format!("\x1B]8;;{target}\x1B\\{text}\x1B]8;;\x1B\\",)
+            format!("\x1B]8;;{target}\x1B\\{text}\x1B]8;;\x1B\\")
                 .with(processor.appearance.colors.link),
         ))?;
     } else {

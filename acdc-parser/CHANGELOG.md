@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,
   `parse_from_reader`) for phase-level timing visibility.
+- **First-section level validation** - emit a warning when a titled document's
+  first section skips level 1 (e.g. starts with `===` instead of `==`), matching
+  `asciidoctor`'s "section title out of sequence" check. Title-less documents still
+  accept any first-section level.
 
 ## [0.8.0] - 2026-03-28
 

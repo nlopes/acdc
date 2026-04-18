@@ -450,14 +450,17 @@ pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error> + ?Sized>(
         InlineNode::LineBreak(_) => {
             writeln!(w, "<br>")?;
         }
-        InlineNode::InlineAnchor(anchor) => {
+        InlineNode::InlineAnchor(anchor) if !options.toc_mode => {
             // Skip inline anchors in TOC mode (no nested anchors allowed)
-            if !options.toc_mode {
-                write!(w, "<a id=\"{}\"></a>", anchor.id)?;
-            }
+            write!(w, "<a id=\"{}\"></a>", anchor.id)?;
+        }
+        InlineNode::InlineAnchor(_) => {
+            // In TOC mode, ignore inline anchors since they can't be nested inside links
         }
         // `InlineNode` is `#[non_exhaustive]`, so we need a catch-all for future variants
-        _ => {}
+        _ => {
+            tracing::debug!("Unsupported inline node type: {node:?}");
+        }
     }
     Ok(())
 }

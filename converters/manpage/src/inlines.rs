@@ -360,18 +360,19 @@ fn visit_inline_macro<W: Write>(
             write!(w, "{}", stem.content)?;
         }
 
-        InlineMacro::IndexTerm(it) => {
+        InlineMacro::IndexTerm(it) if it.is_visible() => {
             // Flow terms (visible): output the term text
             // Concealed terms (hidden): output nothing
-            if it.is_visible() {
-                let w = visitor.writer_mut();
-                write!(w, "{}", manify(it.term(), EscapeMode::Normalize))?;
-            }
+            let w = visitor.writer_mut();
+            write!(w, "{}", manify(it.term(), EscapeMode::Normalize))?;
+        }
+        InlineMacro::IndexTerm(_) => {
             // Concealed terms produce no output - they're only for index generation
         }
-
-        // Handle any future variants - skip unknown macros
-        _ => {}
+        _ => {
+            // Handle any future variants - skip unknown macros
+            tracing::debug!("Unknown inline macro: {macro_node:?}");
+        }
     }
 
     Ok(())

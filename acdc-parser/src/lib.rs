@@ -572,7 +572,7 @@ mod tests {
                     Err(e) => {
                         // Some of these might fail to parse, which is OK for now
                         // We're just testing that if they parse, the locations are valid
-                        println!("Failed to parse {input:?}: {e} (this might be expected)",);
+                        eprintln!("Failed to parse {input:?}: {e} (this might be expected)");
                     }
                 }
             }

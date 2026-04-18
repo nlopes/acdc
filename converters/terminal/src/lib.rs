@@ -69,8 +69,7 @@ impl Converter for Processor {
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
 
         let terminal_width = crossterm::terminal::size()
-            .map(|(cols, _)| usize::from(cols))
-            .unwrap_or(FALLBACK_TERMINAL_WIDTH)
+            .map_or(FALLBACK_TERMINAL_WIDTH, |(cols, _)| usize::from(cols))
             .min(MAX_TERMINAL_WIDTH);
 
         Self {

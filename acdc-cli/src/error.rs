@@ -50,15 +50,13 @@ fn calculate_offset_from_position(source: &str, line: usize, column: usize) -> u
         if current_line == line {
             // Found the target line, now count columns (1-indexed)
             let line_start = idx;
-            let mut col = 1;
-            for (col_idx, col_ch) in source[line_start..].char_indices() {
+            for (col, (col_idx, col_ch)) in (1..).zip(source[line_start..].char_indices()) {
                 if col == column {
                     return line_start + col_idx;
                 }
                 if col_ch == '\n' {
                     break;
                 }
-                col += 1;
             }
             // Column not found on line, return end of line
             return line_start

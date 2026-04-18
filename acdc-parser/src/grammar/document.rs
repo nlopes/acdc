@@ -571,7 +571,7 @@ peg::parser! {
         pub(crate) rule document() -> Result<Document, Error>
         = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() blocks:blocks(0, None) end:position() (eol()* / ![_]) {
             let header = header_result?;
-            let blocks = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
+            let blocks: Vec<Block> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
             let mut document_end_offset = end.offset;
@@ -612,6 +612,25 @@ peg::parser! {
                     state.line_map.offset_to_position(absolute_end, &state.input)
                 )
             };
+
+            // Warn if the first section skips level 1 (e.g. document jumps
+            // straight from `= Doc Title` to `=== Heading`). Matches asciidoctor's
+            // "section title out of sequence" check; only fires when a doc title
+            // is present — titleless documents accept any first-section level.
+            if header.as_ref().is_some_and(|h| !h.title.is_empty())
+                && let Some(first_section) = blocks.iter().find_map(|b| {
+                    if let Block::Section(s) = b { Some(s) } else { None }
+                })
+                && first_section.level > 1
+            {
+                let (file, line) =
+                    state.resolve_source_location(first_section.location.absolute_start);
+                let level = first_section.level;
+                let markers = "=".repeat(usize::from(level) + 1);
+                state.add_warning(format!(
+                    "{file}: line {line}: expected level 1 (==) as first section, got level {level} ({markers})"
+                ));
+            }
 
             Ok(Document {
                 name: "document".to_string(),
@@ -3165,8 +3184,7 @@ peg::parser! {
             }
 
             // Validate callout list items
-            let mut expected_number = 1;
-            for item in &items {
+            for (expected_number, item) in (1..).zip(items.iter()) {
                 let actual_number = item.callout.number;
                 let (file_name, line) = state.resolve_source_location(item.location.absolute_start);
 
@@ -3181,8 +3199,6 @@ peg::parser! {
                 if !callout_exists {
                     state.add_warning(format!("{file_name}: line {line}: no callout found for <{expected_number}>"));
                 }
-
-                expected_number += 1;
             }
 
             // Reset the flag after successfully parsing the callout list
@@ -5792,5 +5808,57 @@ References.
             "should reference entry-point file, got: {}",
             state.warnings[0]
         );
+    }
+
+    /// When the document has a title and the first section skips level 1,
+    /// the parser should warn (asciidoctor's "section title out of sequence").
+    #[test]
+    fn test_first_section_not_level_1_emits_warning() -> Result<(), Error> {
+        let input = "= Doc Title\n\n=== Starts at level 2\n\nContent\n";
+        let mut state = ParserState::new(input);
+        let _ = document_parser::document(input, &mut state)??;
+        assert!(
+            state.warnings.iter().any(|w| w.contains("input: line 3")
+                && w.contains("expected level 1")
+                && w.contains("got level 2")),
+            "expected out-of-sequence warning, got: {:?}",
+            state.warnings
+        );
+        Ok(())
+    }
+
+    /// Without a document title, the first-section-level check is silent
+    /// (matches asciidoctor's behavior).
+    #[test]
+    fn test_first_section_without_doc_title_does_not_warn() -> Result<(), Error> {
+        let input = "=== No title above me\n\nContent\n";
+        let mut state = ParserState::new(input);
+        let _ = document_parser::document(input, &mut state)??;
+        assert!(
+            !state
+                .warnings
+                .iter()
+                .any(|w| w.contains("expected level 1")),
+            "should not warn without doc title, got: {:?}",
+            state.warnings
+        );
+        Ok(())
+    }
+
+    /// Valid structure (doc title + level 1 first section) must not warn.
+    #[test]
+    fn test_first_section_level_1_no_warning() -> Result<(), Error> {
+        let input = "= Doc Title\n\n== Good\n\n=== Nested\n";
+        let mut state = ParserState::new(input);
+        let _ = document_parser::document(input, &mut state)??;
+        assert!(
+            !state
+                .warnings
+                .iter()
+                .any(|w| w.contains("expected level 1")),
+            "should not warn for valid structure, got: {:?}",
+            state.warnings
+        );
+        Ok(())
     }
 }
