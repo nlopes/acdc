@@ -1063,8 +1063,8 @@ mod tests {
 
     fn highlight(input: &str) -> String {
         let options = acdc_parser::Options::default();
-        if let Ok(doc) = acdc_parser::parse(input, &options) {
-            highlight_from_ast(input, &doc)
+        if let Ok(parsed) = acdc_parser::parse(input, &options) {
+            highlight_from_ast(input, parsed.document())
         } else {
             let mut out = String::new();
             escape_into(input, &mut out);
@@ -1460,8 +1460,8 @@ mod tests {
         let input = "Setext Header\n-------------";
         // Enable setext in options for this test
         let options = acdc_parser::Options::builder().with_setext().build();
-        let doc = acdc_parser::parse(input, &options).expect("failed to parse setext");
-        let result = highlight_from_ast(input, &doc);
+        let parsed = acdc_parser::parse(input, &options).expect("failed to parse setext");
+        let result = highlight_from_ast(input, parsed.document());
 
         // Should contain two adoc-heading spans (one for title, one for underline)
         let matches: Vec<_> = result.matches("adoc-heading").collect();

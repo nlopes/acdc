@@ -31,25 +31,25 @@ impl Config {
     /// Block-level attributes from the toc macro take precedence over document attributes.
     #[must_use]
     pub fn from_attributes(
-        toc_macro: Option<&TableOfContents>,
-        attributes: &DocumentAttributes,
+        toc_macro: Option<&TableOfContents<'_>>,
+        attributes: &DocumentAttributes<'_>,
     ) -> Self {
         let placement = attributes
             .get("toc")
             .map_or("none", |v| match v {
                 // Empty string or Bool(true) means toc is enabled with auto placement
                 AttributeValue::String(s) if s.is_empty() => "auto",
-                AttributeValue::String(s) => s.as_str(),
+                AttributeValue::String(s) => s.as_ref(),
                 AttributeValue::Bool(true) => "auto",
                 // Bool(false), None, or unknown means toc is disabled
-                AttributeValue::Bool(_) | AttributeValue::None | _ => "none",
+                AttributeValue::Bool(false) | AttributeValue::None | _ => "none",
             })
             .to_lowercase();
 
         let title = attributes
             .get("toc-title")
             .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_str()),
+                AttributeValue::String(s) => Some(s.as_ref()),
                 AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             })
             .map(String::from);
@@ -76,12 +76,12 @@ impl Config {
         let toc_class = attributes
             .get("toc-class")
             .and_then(|v| match v {
-                AttributeValue::String(s) if !s.is_empty() => Some(s.clone()),
+                AttributeValue::String(s) if !s.is_empty() => Some(s.clone().into_owned()),
                 AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => {
                     None
                 }
             })
-            .unwrap_or_else(|| match placement.as_str() {
+            .unwrap_or_else(|| match placement.as_ref() {
                 "left" | "right" | "top" | "bottom" => "toc2".to_string(),
                 _ => "toc".to_string(),
             });

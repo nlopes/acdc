@@ -77,13 +77,13 @@ pub enum MarkdownVariant {
 
 /// Markdown converter processor.
 #[derive(Clone, Debug)]
-pub struct Processor {
+pub struct Processor<'a> {
     options: Options,
-    document_attributes: DocumentAttributes,
+    document_attributes: DocumentAttributes<'a>,
     variant: MarkdownVariant,
 }
 
-impl Processor {
+impl Processor<'_> {
     /// Set the Markdown variant (`CommonMark` or GitHub Flavored).
     #[must_use]
     pub fn with_variant(mut self, variant: MarkdownVariant) -> Self {
@@ -98,10 +98,10 @@ impl Processor {
     }
 }
 
-impl Converter for Processor {
+impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
         Self {
             options,
             document_attributes,
@@ -113,11 +113,15 @@ impl Converter for Processor {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes {
+    fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
     }
 
-    fn derive_output_path(&self, input: &Path, _doc: &Document) -> Result<Option<PathBuf>, Error> {
+    fn derive_output_path(
+        &self,
+        input: &Path,
+        _doc: &Document<'a>,
+    ) -> Result<Option<PathBuf>, Error> {
         let md_path = input.with_extension("md");
         // Avoid overwriting the input file
         if md_path == input {
@@ -128,13 +132,14 @@ impl Converter for Processor {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document,
+        doc: &Document<'a>,
         writer: W,
         _source_file: Option<&Path>,
     ) -> Result<(), Self::Error> {
         let processor = Processor {
+            options: self.options.clone(),
             document_attributes: doc.attributes.clone(),
-            ..self.clone()
+            variant: self.variant,
         };
         let mut visitor = MarkdownVisitor::new(writer, processor);
         visitor.visit_document(doc)?;

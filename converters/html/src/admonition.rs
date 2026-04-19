@@ -1,103 +1,105 @@
-use acdc_converters_core::visitor::WritableVisitor;
+use std::io::Write;
+
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 
-use crate::{Error, HtmlVariant, Processor};
+use crate::{Error, HtmlVariant, HtmlVisitor};
 
-pub(crate) fn visit_admonition<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    admon: &Admonition,
-    processor: &Processor,
-) -> Result<(), Error> {
-    // Get the appropriate caption attribute for this admonition type
-    // Note: Parser sets defaults, so these attributes are guaranteed to exist
-    let caption_attr = match admon.variant {
-        AdmonitionVariant::Note => "note-caption",
-        AdmonitionVariant::Tip => "tip-caption",
-        AdmonitionVariant::Important => "important-caption",
-        AdmonitionVariant::Warning => "warning-caption",
-        AdmonitionVariant::Caution => "caution-caption",
-    };
+impl<W: Write> HtmlVisitor<'_, W> {
+    pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
+        let processor = self.processor.clone();
 
-    let caption = processor
-        .document_attributes
-        .get(caption_attr)
-        .and_then(|v| match v {
-            AttributeValue::String(s) => Some(s.as_str()),
-            AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-        })
-        .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
-
-    if processor.variant() == HtmlVariant::Semantic {
-        return visit_admonition_semantic(visitor, admon, caption, processor.is_font_icons_mode());
-    }
-
-    let mut writer = visitor.writer_mut();
-    writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;
-    writeln!(writer, "<table>")?;
-    writeln!(writer, "<tr>")?;
-    writeln!(writer, "<td class=\"icon\">")?;
-
-    // Output icon based on `:icons:` document attribute
-    // - Font mode (`icons=font`): Use Font Awesome <i> element
-    // - Default: Use text label in <div class="title">
-    if processor.is_font_icons_mode() {
-        let fa_icon = match admon.variant {
-            AdmonitionVariant::Note => "fa-circle-info",
-            AdmonitionVariant::Tip => "fa-lightbulb",
-            AdmonitionVariant::Important => "fa-circle-exclamation",
-            AdmonitionVariant::Warning => "fa-triangle-exclamation",
-            AdmonitionVariant::Caution => "fa-fire",
+        // Get the appropriate caption attribute for this admonition type
+        // Note: Parser sets defaults, so these attributes are guaranteed to exist
+        let caption_attr = match admon.variant {
+            AdmonitionVariant::Note => "note-caption",
+            AdmonitionVariant::Tip => "tip-caption",
+            AdmonitionVariant::Important => "important-caption",
+            AdmonitionVariant::Warning => "warning-caption",
+            AdmonitionVariant::Caution => "caution-caption",
         };
-        writeln!(
-            writer,
-            "<i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i>",
-        )?;
-    } else {
-        writeln!(writer, "<div class=\"title\">{caption}</div>")?;
-    }
-    writeln!(writer, "</td>")?;
-    writeln!(writer, "<td class=\"content\">")?;
-    if !admon.title.is_empty() {
-        write!(writer, "<div class=\"title\">")?;
-        let _ = writer;
-        visitor.visit_inline_nodes(&admon.title)?;
-        writer = visitor.writer_mut();
-        writeln!(writer, "</div>")?;
-    }
-    let _ = writer;
 
-    // Handle paragraph rendering based on block count
-    // Single paragraph: wrap in <div class="paragraph"><p>...</p></div>
-    // Multiple blocks: render each with normal wrapper
-    match admon.blocks.as_slice() {
-        [acdc_parser::Block::Paragraph(para)] => {
-            writeln!(writer, "<div class=\"paragraph\">")?;
-            write!(writer, "<p>")?;
+        let caption = processor
+            .document_attributes
+            .get(caption_attr)
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.as_ref()),
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
+            })
+            .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
+
+        if processor.variant() == HtmlVariant::Semantic {
+            return visit_admonition_semantic(self, admon, caption, processor.is_font_icons_mode());
+        }
+
+        let mut writer = self.writer_mut();
+        writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;
+        writeln!(writer, "<table>")?;
+        writeln!(writer, "<tr>")?;
+        writeln!(writer, "<td class=\"icon\">")?;
+
+        // Output icon based on `:icons:` document attribute
+        // - Font mode (`icons=font`): Use Font Awesome <i> element
+        // - Default: Use text label in <div class="title">
+        if processor.is_font_icons_mode() {
+            let fa_icon = match admon.variant {
+                AdmonitionVariant::Note => "fa-circle-info",
+                AdmonitionVariant::Tip => "fa-lightbulb",
+                AdmonitionVariant::Important => "fa-circle-exclamation",
+                AdmonitionVariant::Warning => "fa-triangle-exclamation",
+                AdmonitionVariant::Caution => "fa-fire",
+            };
+            writeln!(
+                writer,
+                "<i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i>",
+            )?;
+        } else {
+            writeln!(writer, "<div class=\"title\">{caption}</div>")?;
+        }
+        writeln!(writer, "</td>")?;
+        writeln!(writer, "<td class=\"content\">")?;
+        if !admon.title.is_empty() {
+            write!(writer, "<div class=\"title\">")?;
             let _ = writer;
-            visitor.visit_inline_nodes(&para.content)?;
-            writer = visitor.writer_mut();
-            writeln!(writer, "</p>")?;
+            self.visit_inline_nodes(&admon.title)?;
+            writer = self.writer_mut();
             writeln!(writer, "</div>")?;
         }
-        [block] => {
-            // Single non-paragraph block: use normal rendering
-            visitor.visit_block(block)?;
-            writer = visitor.writer_mut();
-        }
-        blocks => {
-            // Multiple blocks: use normal rendering for all
-            for block in blocks {
-                visitor.visit_block(block)?;
-            }
-            writer = visitor.writer_mut();
-        }
-    }
+        let _ = writer;
 
-    writeln!(writer, "</td>")?;
-    writeln!(writer, "</tr>")?;
-    writeln!(writer, "</table>")?;
-    writeln!(writer, "</div>")?;
-    Ok(())
+        // Handle paragraph rendering based on block count
+        // Single paragraph: wrap in <div class="paragraph"><p>...</p></div>
+        // Multiple blocks: render each with normal wrapper
+        match admon.blocks.as_slice() {
+            [acdc_parser::Block::Paragraph(para)] => {
+                let writer = self.writer_mut();
+                writeln!(writer, "<div class=\"paragraph\">")?;
+                write!(writer, "<p>")?;
+                let _ = writer;
+                self.visit_inline_nodes(&para.content)?;
+                let writer = self.writer_mut();
+                writeln!(writer, "</p>")?;
+                writeln!(writer, "</div>")?;
+            }
+            [block] => {
+                // Single non-paragraph block: use normal rendering
+                self.visit_block(block)?;
+            }
+            blocks => {
+                // Multiple blocks: use normal rendering for all
+                for block in blocks {
+                    self.visit_block(block)?;
+                }
+            }
+        }
+
+        let writer = self.writer_mut();
+        writeln!(writer, "</td>")?;
+        writeln!(writer, "</tr>")?;
+        writeln!(writer, "</table>")?;
+        writeln!(writer, "</div>")?;
+        Ok(())
+    }
 }
 
 /// Render an admonition block in semantic HTML5 mode.

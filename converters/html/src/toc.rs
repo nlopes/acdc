@@ -5,7 +5,7 @@ use acdc_parser::{AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, TableOfCon
 
 use acdc_converters_core::section::{DEFAULT_SECTION_LEVEL, to_upper_roman};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, Processor};
+use crate::{Error, HtmlVariant, HtmlVisitor};
 
 struct SectionNumberConfig<'a> {
     sectnums_enabled: bool,
@@ -24,7 +24,7 @@ struct TocRenderConfig<'a> {
 /// Returns the effective TOC level for an entry.
 /// Appendix level-0 entries are demoted to level 1.
 fn effective_toc_level(entry: &TocEntry) -> u8 {
-    if entry.level == 0 && entry.style.as_ref().is_some_and(|s| s == "appendix") {
+    if entry.level == 0 && entry.style.as_ref().is_some_and(|s| *s == "appendix") {
         1
     } else {
         entry.level
@@ -48,7 +48,7 @@ fn compute_toc_section_numbers(
 
     for entry in entries {
         let level = entry.level;
-        let is_appendix = entry.style.as_ref().is_some_and(|s| s == "appendix");
+        let is_appendix = entry.style.as_ref().is_some_and(|s| *s == "appendix");
 
         // Appendix sections: use letter numbering (A, B, C) instead of regular numbering.
         // Check before the `!numbered` skip since appendix is in UNNUMBERED_SECTION_STYLES.
@@ -145,7 +145,7 @@ fn compute_toc_section_numbers(
 /// when pre-part sections exist before the first level-0 section.
 fn render_entries<W: Write>(
     entries: &[TocEntry],
-    visitor: &mut HtmlVisitor<W>,
+    visitor: &mut HtmlVisitor<'_, W>,
     config: &TocRenderConfig,
     current_level: u8,
     base_index: usize,
@@ -262,7 +262,7 @@ fn render_entries<W: Write>(
     Ok(())
 }
 
-fn section_number_config(processor: &Processor) -> SectionNumberConfig<'_> {
+fn section_number_config<'p>(processor: &'p crate::Processor<'_>) -> SectionNumberConfig<'p> {
     // Also check :numbered: as a deprecated alias for :sectnums:
     let sectnums_enabled = processor
         .document_attributes()
@@ -279,7 +279,7 @@ fn section_number_config(processor: &Processor) -> SectionNumberConfig<'_> {
     // Appendix caption: default "Appendix", customizable via :appendix-caption:,
     // disabled if :appendix-caption!: is set
     let appendix_caption = match processor.document_attributes().get("appendix-caption") {
-        Some(AttributeValue::String(s)) => Some(s.as_str()),
+        Some(AttributeValue::String(s)) => Some(s.as_ref()),
         Some(AttributeValue::Bool(false)) => None,
         _ => Some("Appendix"),
     };
@@ -292,103 +292,109 @@ fn section_number_config(processor: &Processor) -> SectionNumberConfig<'_> {
     }
 }
 
-pub(crate) fn render<W: Write>(
-    toc_macro: Option<&TableOfContents>,
-    visitor: &mut HtmlVisitor<W>,
-    placement: &str,
-    processor: &Processor,
-) -> Result<(), Error> {
-    let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
+impl<W: Write> HtmlVisitor<'_, W> {
+    pub(crate) fn render_toc(
+        &mut self,
+        toc_macro: Option<&TableOfContents>,
+        placement: &str,
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
 
-    // Determine if TOC should render at this placement point
-    // - "auto" placement point accepts: auto, left, right, top, bottom (all render in header)
-    // - "preamble" placement point accepts: preamble
-    // - "macro" placement point accepts: macro
-    let should_render = match placement {
-        "auto" => matches!(
-            config.placement(),
-            "auto" | "left" | "right" | "top" | "bottom"
-        ),
-        other => config.placement() == other,
-    };
-
-    if should_render && !processor.toc_entries.is_empty() {
-        let semantic = processor.variant() == HtmlVariant::Semantic;
-        let embedded = visitor.render_options.embedded;
-
-        // In embedded mode, sidebar positioning doesn't apply, so downgrade toc2 → toc
-        let toc_class = if embedded && config.toc_class() == "toc2" {
-            "toc"
-        } else {
-            config.toc_class()
+        // Determine if TOC should render at this placement point
+        // - "auto" placement point accepts: auto, left, right, top, bottom (all render in header)
+        // - "preamble" placement point accepts: preamble
+        // - "macro" placement point accepts: macro
+        let should_render = match placement {
+            "auto" => matches!(
+                config.placement(),
+                "auto" | "left" | "right" | "top" | "bottom"
+            ),
+            other => config.placement() == other,
         };
 
-        // toc::[] macro adds class="title" to the toctitle div
-        let is_macro = placement == "macro";
+        if should_render && !processor.toc_entries.is_empty() {
+            let semantic = processor.variant() == HtmlVariant::Semantic;
+            let embedded = self.render_options.embedded;
 
-        let section_numbers =
-            compute_toc_section_numbers(&processor.toc_entries, &section_number_config(processor));
-
-        if semantic {
-            writeln!(
-                visitor.writer_mut(),
-                "<nav id=\"toc\" class=\"{toc_class}\" role=\"doc-toc\">"
-            )?;
-            let title = config.title().unwrap_or("Table of Contents");
-            writeln!(visitor.writer_mut(), "<h2 id=\"toc-title\">{title}</h2>")?;
-        } else {
-            writeln!(
-                visitor.writer_mut(),
-                "<div id=\"toc\" class=\"{toc_class}\">"
-            )?;
-            let title_class = if is_macro { " class=\"title\"" } else { "" };
-            if let Some(title) = config.title() {
-                writeln!(
-                    visitor.writer_mut(),
-                    "<div id=\"toctitle\"{title_class}>{title}</div>"
-                )?;
+            // In embedded mode, sidebar positioning doesn't apply, so downgrade toc2 → toc
+            let toc_class = if embedded && config.toc_class() == "toc2" {
+                "toc"
             } else {
+                config.toc_class()
+            };
+
+            // toc::[] macro adds class="title" to the toctitle div
+            let is_macro = placement == "macro";
+
+            let section_numbers = compute_toc_section_numbers(
+                &processor.toc_entries,
+                &section_number_config(&self.processor),
+            );
+
+            if semantic {
                 writeln!(
-                    visitor.writer_mut(),
-                    "<div id=\"toctitle\"{title_class}>Table of Contents</div>"
+                    self.writer_mut(),
+                    "<nav id=\"toc\" class=\"{toc_class}\" role=\"doc-toc\">"
                 )?;
+                let title = config.title().unwrap_or("Table of Contents");
+                writeln!(self.writer_mut(), "<h2 id=\"toc-title\">{title}</h2>")?;
+            } else {
+                writeln!(self.writer_mut(), "<div id=\"toc\" class=\"{toc_class}\">")?;
+                let title_class = if is_macro { " class=\"title\"" } else { "" };
+                if let Some(title) = config.title() {
+                    writeln!(
+                        self.writer_mut(),
+                        "<div id=\"toctitle\"{title_class}>{title}</div>"
+                    )?;
+                } else {
+                    writeln!(
+                        self.writer_mut(),
+                        "<div id=\"toctitle\"{title_class}>Table of Contents</div>"
+                    )?;
+                }
+            }
+
+            // Determine starting level: use the first entry's effective level.
+            // Appendix level-0 entries are demoted to level 1, so they don't count as parts.
+            // When pre-part sections (level 1) appear before the first part (level 0),
+            // the outer list starts at sectlevel1 and parts are merged into that tier.
+            let first_level = self
+                .processor
+                .toc_entries
+                .first()
+                .map_or(1, effective_toc_level);
+            let has_real_parts = self
+                .processor
+                .toc_entries
+                .iter()
+                .any(|e| e.level == 0 && effective_toc_level(e) == 0);
+            let parts_at_current_level = first_level > 0 && has_real_parts;
+            let start_level = if parts_at_current_level {
+                1
+            } else {
+                first_level
+            };
+
+            let render_config = TocRenderConfig {
+                max_level: config.levels(),
+                section_numbers: &section_numbers,
+                semantic,
+            };
+            render_entries(
+                &processor.toc_entries,
+                self,
+                &render_config,
+                start_level,
+                0,
+                parts_at_current_level,
+            )?;
+            if semantic {
+                writeln!(self.writer_mut(), "</nav>")?;
+            } else {
+                writeln!(self.writer_mut(), "</div>")?;
             }
         }
-
-        // Determine starting level: use the first entry's effective level.
-        // Appendix level-0 entries are demoted to level 1, so they don't count as parts.
-        // When pre-part sections (level 1) appear before the first part (level 0),
-        // the outer list starts at sectlevel1 and parts are merged into that tier.
-        let first_level = processor.toc_entries.first().map_or(1, effective_toc_level);
-        let has_real_parts = processor
-            .toc_entries
-            .iter()
-            .any(|e| e.level == 0 && effective_toc_level(e) == 0);
-        let parts_at_current_level = first_level > 0 && has_real_parts;
-        let start_level = if parts_at_current_level {
-            1
-        } else {
-            first_level
-        };
-
-        let render_config = TocRenderConfig {
-            max_level: config.levels(),
-            section_numbers: &section_numbers,
-            semantic,
-        };
-        render_entries(
-            &processor.toc_entries,
-            visitor,
-            &render_config,
-            start_level,
-            0,
-            parts_at_current_level,
-        )?;
-        if semantic {
-            writeln!(visitor.writer_mut(), "</nav>")?;
-        } else {
-            writeln!(visitor.writer_mut(), "</div>")?;
-        }
+        Ok(())
     }
-    Ok(())
 }

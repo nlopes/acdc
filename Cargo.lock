@@ -96,6 +96,7 @@ dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
  "acdc-parser",
+ "bumpalo",
  "comfy-table",
  "crossterm",
  "pretty_assertions",
@@ -127,6 +128,7 @@ dependencies = [
  "acdc-parser",
  "dashmap",
  "fluent-uri",
+ "self_cell",
  "serde",
  "serde_json",
  "thiserror",
@@ -140,6 +142,7 @@ dependencies = [
 name = "acdc-parser"
 version = "0.8.0"
 dependencies = [
+ "bumpalo",
  "criterion",
  "crossterm",
  "csv",
@@ -150,8 +153,10 @@ dependencies = [
  "proptest",
  "rstest",
  "rustc-hash",
+ "self_cell",
  "serde",
  "serde_json",
+ "stats_alloc",
  "thiserror",
  "tracing",
  "tracing-test",
@@ -1841,9 +1846,9 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "open"
-version = "5.3.3"
+version = "5.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43bb73a7fa3799b198970490a51174027ba0d4ec504b03cd08caf513d40024bc"
+checksum = "9f3bab717c29a857abf75fcef718d441ec7cb2725f937343c734740a985d37fd"
 dependencies = [
  "is-wsl",
  "libc",
@@ -2495,6 +2500,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "self_cell"
+version = "1.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b12e76d157a900eb52e81bc6e9f3069344290341720e9178cde2407113ac8d89"
+
+[[package]]
 name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2621,6 +2632,12 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
+
+[[package]]
+name = "stats_alloc"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c0e04424e733e69714ca1bbb9204c1a57f09f5493439520f9f68c132ad25eec"
 
 [[package]]
 name = "strsim"

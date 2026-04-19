@@ -119,7 +119,7 @@ fn find_insertion_line_before(doc: &DocumentState, before_line: u32) -> u32 {
     let before = before_line as usize;
     let mut best: Option<usize> = None;
 
-    for (idx, line) in doc.text.lines().enumerate() {
+    for (idx, line) in doc.text().lines().enumerate() {
         if idx > before {
             break;
         }
@@ -139,7 +139,7 @@ fn find_insertion_line_before(doc: &DocumentState, before_line: u32) -> u32 {
 
 /// Generate wrap-in-block refactoring actions for a non-empty selection.
 fn wrap_in_block_actions(doc: &DocumentState, uri: &Uri, range: Range) -> Vec<CodeAction> {
-    let Some(selected_text) = extract_text_for_range(&doc.text, &range) else {
+    let Some(selected_text) = extract_text_for_range(doc.text(), &range) else {
         return Vec::new();
     };
 
@@ -221,14 +221,14 @@ fn char_offset_to_byte(line: &str, char_offset: usize) -> usize {
 ///
 /// Offers "Generate table of contents" if the document has no `:toc:` attribute.
 fn toc_actions(doc: &DocumentState, uri: &Uri) -> Vec<CodeAction> {
-    let has_toc = doc.text.lines().any(|line| line.starts_with(":toc:"));
+    let has_toc = doc.text().lines().any(|line| line.starts_with(":toc:"));
 
     if has_toc {
         return Vec::new();
     }
 
     // Only offer TOC if document has sections
-    let has_sections = doc.text.lines().any(|line| {
+    let has_sections = doc.text().lines().any(|line| {
         let trimmed = line.trim_start();
         trimmed.starts_with("== ") || trimmed.starts_with("=== ")
     });
@@ -275,7 +275,7 @@ fn toc_actions(doc: &DocumentState, uri: &Uri) -> Vec<CodeAction> {
 fn find_header_end(doc: &DocumentState) -> u32 {
     let mut last_header_line: Option<usize> = None;
 
-    for (idx, line) in doc.text.lines().enumerate() {
+    for (idx, line) in doc.text().lines().enumerate() {
         if idx == 0 && line.starts_with("= ") {
             last_header_line = Some(idx);
             continue;

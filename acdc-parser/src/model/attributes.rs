@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rustc_hash::FxHashMap;
 use serde::{
     Serialize,
@@ -22,23 +24,36 @@ pub fn strip_quotes(s: &str) -> &str {
 /// This type is not exported directly. Use `DocumentAttributes` for document-level
 /// attributes or `ElementAttributes` for element-level attributes.
 #[derive(Debug, PartialEq, Clone)]
-struct AttributeMap {
+struct AttributeMap<'a> {
     /// All attributes including defaults
-    all: FxHashMap<AttributeName, AttributeValue>,
+    all: FxHashMap<AttributeName<'a>, AttributeValue<'a>>,
     /// Only explicitly set attributes (not defaults) - used for serialization
-    explicit: FxHashMap<AttributeName, AttributeValue>,
+    explicit: FxHashMap<AttributeName<'a>, AttributeValue<'a>>,
 }
 
-impl Default for AttributeMap {
+impl Default for AttributeMap<'_> {
     fn default() -> Self {
+        use std::sync::LazyLock;
+        // Cache the built map so each `default()` call pays only a hashmap
+        // clone (pre-sized buckets, trivial `Cow::Borrowed` copies) instead
+        // of re-hashing the ~80 entries every time. The `FxHashMap` type
+        // is deliberately confined to this file — `constants.rs` only
+        // exposes the raw entry slice.
+        static DEFAULTS: LazyLock<FxHashMap<AttributeName<'static>, AttributeValue<'static>>> =
+            LazyLock::new(|| {
+                crate::constants::DEFAULT_ATTRIBUTE_ENTRIES
+                    .iter()
+                    .cloned()
+                    .collect()
+            });
         AttributeMap {
-            all: crate::constants::default_attributes(),
+            all: DEFAULTS.clone(),
             explicit: FxHashMap::default(), // Defaults are not explicit
         }
     }
 }
 
-impl AttributeMap {
+impl<'a> AttributeMap<'a> {
     fn empty() -> Self {
         AttributeMap {
             all: FxHashMap::default(),
@@ -46,7 +61,7 @@ impl AttributeMap {
         }
     }
 
-    fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
+    fn iter(&self) -> impl Iterator<Item = (&AttributeName<'a>, &AttributeValue<'a>)> {
         self.all.iter()
     }
 
@@ -56,19 +71,19 @@ impl AttributeMap {
         self.explicit.is_empty()
     }
 
-    fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+    fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         if !self.contains_key(&name) {
             self.all.insert(name.clone(), value.clone());
             self.explicit.insert(name, value); // Track as explicit
         }
     }
 
-    fn set(&mut self, name: AttributeName, value: AttributeValue) {
+    fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         self.all.insert(name.clone(), value.clone());
         self.explicit.insert(name, value); // Track as explicit
     }
 
-    fn get(&self, name: &str) -> Option<&AttributeValue> {
+    fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {
         self.all.get(name)
     }
 
@@ -76,19 +91,19 @@ impl AttributeMap {
         self.all.contains_key(name)
     }
 
-    fn remove(&mut self, name: &str) -> Option<AttributeValue> {
+    fn remove(&mut self, name: &str) -> Option<AttributeValue<'a>> {
         self.explicit.remove(name);
         self.all.remove(name)
     }
 
-    fn merge(&mut self, other: AttributeMap) {
+    fn merge(&mut self, other: AttributeMap<'a>) {
         for (key, value) in other.all {
             self.insert(key, value);
         }
     }
 }
 
-impl Serialize for AttributeMap {
+impl Serialize for AttributeMap<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -124,7 +139,7 @@ impl Serialize for AttributeMap {
 ///
 /// Some attributes like `sectnumlevels` and `toclevels` have valid ranges.
 /// This function emits a warning if the value is outside the valid range.
-fn validate_bounded_attribute(key: &str, value: &AttributeValue) {
+fn validate_bounded_attribute(key: &str, value: &AttributeValue<'_>) {
     let AttributeValue::String(s) = value else {
         return;
     };
@@ -165,21 +180,18 @@ fn validate_bounded_attribute(key: &str, value: &AttributeValue) {
 ///
 /// Use `DocumentAttributes::default()` to get a map with universal defaults applied.
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct DocumentAttributes(AttributeMap);
+pub struct DocumentAttributes<'a>(AttributeMap<'a>);
 
-impl DocumentAttributes {
-    /// Create an empty `DocumentAttributes` without universal defaults.
-    ///
-    /// Use this when the attributes will be immediately replaced (e.g., via
-    /// `ParserState::new` before the options-provided attributes overwrite it)
-    /// to skip the cost of building the ~57-entry default `HashMap`.
-    #[must_use]
+impl<'a> DocumentAttributes<'a> {
+    /// Create an empty `DocumentAttributes` without default attributes.
+    /// Used for lightweight parsing contexts (e.g., quotes-only) where
+    /// document attributes aren't needed.
     pub(crate) fn empty() -> Self {
         Self(AttributeMap::empty())
     }
 
     /// Iterate over all attributes.
-    pub fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&AttributeName<'a>, &AttributeValue<'a>)> {
         self.0.iter()
     }
 
@@ -192,20 +204,20 @@ impl DocumentAttributes {
     /// Insert a new attribute.
     ///
     /// NOTE: This will *NOT* overwrite an existing attribute with the same name.
-    pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+    pub fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         validate_bounded_attribute(&name, &value);
         self.0.insert(name, value);
     }
 
     /// Set an attribute, overwriting any existing value.
-    pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
+    pub fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         validate_bounded_attribute(&name, &value);
         self.0.set(name, value);
     }
 
     /// Get an attribute value by name.
     #[must_use]
-    pub fn get(&self, name: &str) -> Option<&AttributeValue> {
+    pub fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {
         self.0.get(name)
     }
 
@@ -216,7 +228,7 @@ impl DocumentAttributes {
     }
 
     /// Remove an attribute by name.
-    pub fn remove(&mut self, name: &str) -> Option<AttributeValue> {
+    pub fn remove(&mut self, name: &str) -> Option<AttributeValue<'a>> {
         self.0.remove(name)
     }
 
@@ -229,15 +241,48 @@ impl DocumentAttributes {
     ///
     /// Strips surrounding quotes from the value if present (parser quirk workaround).
     #[must_use]
-    pub fn get_string(&self, name: &str) -> Option<String> {
+    pub fn get_string(&self, name: &str) -> Option<Cow<'a, str>> {
         self.get(name).and_then(|v| match v {
-            AttributeValue::String(s) => Some(strip_quotes(s).to_string()),
+            AttributeValue::String(s) => Some(match s {
+                Cow::Borrowed(b) => Cow::Borrowed(strip_quotes(b)),
+                Cow::Owned(o) => Cow::Owned(strip_quotes(o).to_string()),
+            }),
             AttributeValue::None | AttributeValue::Bool(_) => None,
+        })
+    }
+
+    /// Clone the attributes into an independent `'static` copy. Used by
+    /// converters that cache document attributes on a processor whose
+    /// lifetime is independent of the document being rendered.
+    #[must_use]
+    pub fn to_static(&self) -> DocumentAttributes<'static> {
+        self.clone().into_static()
+    }
+
+    /// Consume the attributes, producing an independent `'static` copy.
+    #[must_use]
+    pub fn into_static(self) -> DocumentAttributes<'static> {
+        let convert_map = |map: FxHashMap<AttributeName<'a>, AttributeValue<'a>>| -> FxHashMap<AttributeName<'static>, AttributeValue<'static>> {
+            map.into_iter()
+                .map(|(k, v)| {
+                    let key: AttributeName<'static> = Cow::Owned(k.into_owned());
+                    let val = match v {
+                        AttributeValue::String(s) => AttributeValue::String(Cow::Owned(s.into_owned())),
+                        AttributeValue::Bool(b) => AttributeValue::Bool(b),
+                        AttributeValue::None => AttributeValue::None,
+                    };
+                    (key, val)
+                })
+                .collect()
+        };
+        DocumentAttributes(AttributeMap {
+            all: convert_map(self.0.all),
+            explicit: convert_map(self.0.explicit),
         })
     }
 }
 
-impl Serialize for DocumentAttributes {
+impl Serialize for DocumentAttributes<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -252,17 +297,17 @@ impl Serialize for DocumentAttributes {
 ///
 /// Use `ElementAttributes::default()` to get an empty attribute map.
 #[derive(Debug, PartialEq, Clone)]
-pub struct ElementAttributes(AttributeMap);
+pub struct ElementAttributes<'a>(AttributeMap<'a>);
 
-impl Default for ElementAttributes {
+impl Default for ElementAttributes<'_> {
     fn default() -> Self {
         ElementAttributes(AttributeMap::empty())
     }
 }
 
-impl ElementAttributes {
+impl<'a> ElementAttributes<'a> {
     /// Iterate over all attributes.
-    pub fn iter(&self) -> impl Iterator<Item = (&AttributeName, &AttributeValue)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&AttributeName<'a>, &AttributeValue<'a>)> {
         self.0.iter()
     }
 
@@ -275,18 +320,18 @@ impl ElementAttributes {
     /// Insert a new attribute.
     ///
     /// NOTE: This will *NOT* overwrite an existing attribute with the same name.
-    pub fn insert(&mut self, name: AttributeName, value: AttributeValue) {
+    pub fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         self.0.insert(name, value);
     }
 
     /// Set an attribute, overwriting any existing value.
-    pub fn set(&mut self, name: AttributeName, value: AttributeValue) {
+    pub fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         self.0.set(name, value);
     }
 
     /// Get an attribute value by name.
     #[must_use]
-    pub fn get(&self, name: &str) -> Option<&AttributeValue> {
+    pub fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {
         self.0.get(name)
     }
 
@@ -297,7 +342,7 @@ impl ElementAttributes {
     }
 
     /// Remove an attribute by name.
-    pub fn remove(&mut self, name: &str) -> Option<AttributeValue> {
+    pub fn remove(&mut self, name: &str) -> Option<AttributeValue<'a>> {
         self.0.remove(name)
     }
 
@@ -306,19 +351,44 @@ impl ElementAttributes {
         self.0.merge(other.0);
     }
 
+    /// Convert all borrowed content to owned, producing `'static` lifetime attributes.
+    #[must_use]
+    pub fn into_static(self) -> ElementAttributes<'static> {
+        let convert_map = |map: FxHashMap<AttributeName<'a>, AttributeValue<'a>>| -> FxHashMap<AttributeName<'static>, AttributeValue<'static>> {
+            map.into_iter()
+                .map(|(k, v)| {
+                    let key: AttributeName<'static> = Cow::Owned(k.into_owned());
+                    let val = match v {
+                        AttributeValue::String(s) => AttributeValue::String(Cow::Owned(s.into_owned())),
+                        AttributeValue::Bool(b) => AttributeValue::Bool(b),
+                        AttributeValue::None => AttributeValue::None,
+                    };
+                    (key, val)
+                })
+                .collect()
+        };
+        ElementAttributes(AttributeMap {
+            all: convert_map(self.0.all),
+            explicit: convert_map(self.0.explicit),
+        })
+    }
+
     /// Get a string attribute value as an owned `String`.
     ///
     /// Strips surrounding quotes from the value if present.
     #[must_use]
-    pub fn get_string(&self, name: &str) -> Option<String> {
+    pub fn get_string(&self, name: &str) -> Option<Cow<'a, str>> {
         self.get(name).and_then(|v| match v {
-            AttributeValue::String(s) => Some(strip_quotes(s).to_string()),
+            AttributeValue::String(s) => Some(match s {
+                Cow::Borrowed(b) => Cow::Borrowed(strip_quotes(b)),
+                Cow::Owned(o) => Cow::Owned(strip_quotes(o).to_string()),
+            }),
             AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }
 }
 
-impl Serialize for ElementAttributes {
+impl Serialize for ElementAttributes<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -328,7 +398,7 @@ impl Serialize for ElementAttributes {
 }
 
 /// An `AttributeName` represents the name of an attribute in a document.
-pub type AttributeName = String;
+pub type AttributeName<'a> = Cow<'a, str>;
 
 /// An `AttributeValue` represents the value of an attribute in a document.
 ///
@@ -336,16 +406,16 @@ pub type AttributeName = String;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 #[non_exhaustive]
-pub enum AttributeValue {
+pub enum AttributeValue<'a> {
     /// A string attribute value.
-    String(String),
+    String(Cow<'a, str>),
     /// A boolean attribute value. `false` means it is unset.
     Bool(bool),
     /// No value (or it was unset)
     None,
 }
 
-impl std::fmt::Display for AttributeValue {
+impl std::fmt::Display for AttributeValue<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AttributeValue::String(value) => write!(f, "{value}"),
@@ -355,25 +425,25 @@ impl std::fmt::Display for AttributeValue {
     }
 }
 
-impl From<&str> for AttributeValue {
-    fn from(value: &str) -> Self {
-        AttributeValue::String(value.to_string())
+impl<'a> From<&'a str> for AttributeValue<'a> {
+    fn from(value: &'a str) -> Self {
+        AttributeValue::String(Cow::Borrowed(value))
     }
 }
 
-impl From<String> for AttributeValue {
+impl From<String> for AttributeValue<'_> {
     fn from(value: String) -> Self {
-        AttributeValue::String(value)
+        AttributeValue::String(Cow::Owned(value))
     }
 }
 
-impl From<bool> for AttributeValue {
+impl From<bool> for AttributeValue<'_> {
     fn from(value: bool) -> Self {
         AttributeValue::Bool(value)
     }
 }
 
-impl From<()> for AttributeValue {
+impl From<()> for AttributeValue<'_> {
     fn from((): ()) -> Self {
         AttributeValue::None
     }

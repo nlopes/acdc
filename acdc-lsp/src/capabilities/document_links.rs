@@ -19,8 +19,8 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
     let mut links = Vec::new();
 
     // Collect links from AST (URLs, link macros, images)
-    if let Some(ast) = &doc.ast {
-        collect_links_from_blocks(&ast.blocks, &mut links);
+    if let Some(ast) = doc.ast() {
+        collect_links_from_blocks(&ast.document().blocks, &mut links);
     }
 
     let mut result: Vec<DocumentLink> = links
@@ -156,7 +156,7 @@ fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
             links.push(LinkInfo {
                 target: link.target.to_string(),
                 location: link.location.clone(),
-                tooltip: link.text.clone(),
+                tooltip: link.text.as_ref().map(ToString::to_string),
             });
         }
         InlineNode::Macro(InlineMacro::Url(url)) => {

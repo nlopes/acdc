@@ -1,6 +1,8 @@
 use std::{
+    borrow::Cow,
     cell::{Cell, RefCell},
     collections::HashMap,
+    rc::Rc,
 };
 
 use peg::parser;
@@ -21,17 +23,17 @@ use crate::{
 #[derive(Debug)]
 pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) pass_found_count: Cell<usize>,
-    pub(crate) passthroughs: RefCell<Vec<Pass>>,
+    pub(crate) passthroughs: RefCell<Vec<Pass<'a>>>,
     pub(crate) attributes: RefCell<HashMap<usize, Location>>,
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
     /// Pre-computed line map for O(log n) offset→position lookups.
-    /// Borrowed from the enclosing `ParserState` — `LineMap` is immutable once
-    /// built, and cloning its internal `Vec<usize>` + `Vec<bool>` on every
-    /// inline-preprocessing call was a significant allocation hotspot.
-    pub(crate) line_map: &'a LineMap,
+    pub(crate) line_map: Rc<LineMap>,
     /// Full document input (for `LineMap` position lookups).
     pub(crate) full_input: &'a str,
+    /// Arena for interning synthesised passthrough strings produced during
+    /// preprocessing (character-replacement expansions, escape-stripped text).
+    pub(crate) arena: &'a bumpalo::Bump,
     pub(crate) source_map: RefCell<SourceMap>,
     /// The substring currently being parsed.
     pub(crate) input: RefCell<&'a str>,
@@ -54,12 +56,14 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `input` - The substring to parse
     /// * `line_map` - Pre-computed line map for the full document
     /// * `full_input` - The full document input (for position lookups)
+    /// * `arena` - Arena for interning synthesised strings
     /// * `macros_enabled` - Whether macro substitutions are active
     /// * `attributes_enabled` - Whether attribute substitutions are active
     pub(crate) fn new(
         input: &'a str,
-        line_map: &'a LineMap,
+        line_map: Rc<LineMap>,
         full_input: &'a str,
+        arena: &'a bumpalo::Bump,
         macros_enabled: bool,
         attributes_enabled: bool,
     ) -> Self {
@@ -70,6 +74,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             current_offset: Cell::new(0),
             line_map,
             full_input,
+            arena,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(input),
             substring_start_offset: Cell::new(0),
@@ -82,10 +87,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// Create a new state with all substitutions enabled (macros + attributes).
     pub(crate) fn new_all_enabled(
         input: &'a str,
-        line_map: &'a LineMap,
+        line_map: Rc<LineMap>,
         full_input: &'a str,
+        arena: &'a bumpalo::Bump,
     ) -> Self {
-        Self::new(input, line_map, full_input, true, true)
+        Self::new(input, line_map, full_input, arena, true, true)
     }
 
     /// Set the initial position for parsing a substring within the document.
@@ -150,8 +156,8 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// attribute references in the content — matching asciidoctor behavior.
     fn expand_disabled_pass_macro(
         &self,
-        full: &str,
-        document_attributes: &DocumentAttributes,
+        full: &'a str,
+        document_attributes: &DocumentAttributes<'a>,
     ) -> String {
         let (subs_str, content, substitutions) = Self::parse_pass_macro_parts(full);
 
@@ -161,7 +167,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         if !has_attr_subs {
             self.advance(full);
-            return full.to_string();
+            return full.into();
         }
 
         let expanded = inline_preprocessing::attribute_reference_substitutions(
@@ -169,7 +175,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             document_attributes,
             self,
         )
-        .unwrap_or_else(|_| content.to_string());
+        .unwrap_or_else(|_| content.into());
         let reconstructed = format!("pass:{subs_str}[{expanded}]");
 
         let absolute_start = self.get_offset();
@@ -203,9 +209,9 @@ impl<'a> InlinePreprocessorParserState<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct ProcessedContent {
-    pub text: String,
-    pub passthroughs: Vec<Pass>,
+pub(crate) struct ProcessedContent<'a> {
+    pub text: Cow<'a, str>,
+    pub passthroughs: Vec<Pass<'a>>,
     pub(crate) source_map: SourceMap,
 }
 
@@ -314,12 +320,12 @@ impl SourceMap {
 }
 
 parser!(
-    pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes, state: &InlinePreprocessorParserState) for str {
+    pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes<'input>, state: &InlinePreprocessorParserState<'input>) for str {
 
-        pub rule run() -> ProcessedContent
+        pub rule run() -> ProcessedContent<'input>
             = content:inlines()+ {
                 ProcessedContent {
-                    text: content.join(""),
+                    text: Cow::Owned(content.join("")),
                     passthroughs: state.passthroughs.borrow().clone(),
                     source_map: state.source_map.borrow().clone(),
                 }
@@ -347,13 +353,13 @@ parser!(
             = text:$("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`") {
                 tracing::debug!(text, "monospace matched");
                 state.advance(text);
-                text.to_string()
+                text.into()
             }
 
         rule kbd_macro() -> String
             = text:$("kbd:[" (!"]" [_])* "]") {
                 state.advance(text);
-                text.to_string()
+                text.into()
             }
 
         /// Counter reference: `{counter:name}`, `{counter:name:initial}`, `{counter2:name}`
@@ -410,7 +416,7 @@ parser!(
                             // Treat character replacement attributes as passthroughs (like +++<+++)
                             // Empty substitutions = RawText = bypasses further inline parsing
                             state.passthroughs.borrow_mut().push(Pass {
-                                text: Some(value.clone()),
+                                text: Some(state.arena.alloc_str(value)),
                                 substitutions: Vec::new(),
                                 location: location.clone(),
                                 kind: PassthroughKind::AttributeRef,
@@ -434,7 +440,7 @@ parser!(
                                 ProcessedKind::Attribute,
                             );
                             attributes.insert(state.source_map.borrow().replacements.len(), location);
-                            value.clone()
+                            value.to_string()
                         }
                     },
                     Some(AttributeValue::Bool(true)) => {
@@ -530,7 +536,7 @@ parser!(
                 return format!("+{content}+");
             }
             state.passthroughs.borrow_mut().push(Pass {
-                text: Some(content.to_string()),
+                text: Some(content),
                 // We add SpecialChars here for single and double but we don't do
                 // anything with them, only the converter does.
                 substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
@@ -557,7 +563,7 @@ parser!(
                 }
                 let location = state.calculate_location(start, content, 4);
                 state.passthroughs.borrow_mut().push(Pass {
-                    text: Some(content.to_string()),
+                    text: Some(content),
                     // We add SpecialChars here for single and double but we don't do
                     // anything with them, only the converter does.
                     substitutions: vec![Substitution::SpecialChars].into_iter().collect(),
@@ -585,7 +591,7 @@ parser!(
                 }
                 let location = state.calculate_location(start, content, 6);
                 state.passthroughs.borrow_mut().push(Pass {
-                    text: Some(content.to_string()),
+                    text: Some(content),
                     substitutions: Vec::new(),
                     location: location.clone(),
                     kind: PassthroughKind::Triple,
@@ -618,12 +624,12 @@ parser!(
             let content = if substitutions.contains(&Substitution::Attributes)
                 || substitutions.contains(&Substitution::Normal)
             {
-                inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.to_string())
+                inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.into())
             } else {
-                content.to_string()
+                content.into()
             };
                 state.passthroughs.borrow_mut().push(Pass {
-                    text: Some(content.clone()),
+                    text: Some(state.arena.alloc_str(&content)),
                     substitutions: substitutions.clone(),
                     location: location.clone(),
                     kind: PassthroughKind::Macro,
@@ -654,7 +660,11 @@ parser!(
             = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
 
         rule unprocessed_text() -> String
-            = text:$((!(passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_])+) {
+            = text:$((
+                [^'{' | '+' | '`' | 'k' | 'p']+
+                /
+                !(passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+            )+) {
                 state.advance(text);
                 text.to_string()
             }
@@ -689,7 +699,7 @@ parser!(
         rule attribute_reference_content() -> String
             = "{" attribute_name:attribute_name() "}" {
                 match document_attributes.get(attribute_name) {
-                    Some(AttributeValue::String(value)) => value.clone(),
+                    Some(AttributeValue::String(value)) => value.to_string(),
                         // TODO(nlopes): do we need to handle other types?
                         // For non-string attributes, keep original text
                     _ => format!("{{{attribute_name}}}"),
@@ -697,7 +707,11 @@ parser!(
             }
 
         rule unprocessed_text_content() -> String
-            = text:$((!(passthrough_pattern() / attribute_reference_pattern()) [_])+) {
+            = text:$((
+                [^'{' | '+' | '`' | 'p']+
+                /
+                !(passthrough_pattern() / attribute_reference_pattern()) [_]
+            )+) {
                 text.to_string()
             }
 
@@ -715,7 +729,7 @@ mod tests {
     use super::*;
     use crate::DocumentAttributes;
 
-    fn setup_attributes() -> DocumentAttributes {
+    fn setup_attributes() -> DocumentAttributes<'static> {
         let mut attributes = DocumentAttributes::default();
         attributes.insert("s".into(), AttributeValue::String("link:/nonono".into()));
         attributes.insert("version".into(), AttributeValue::String("1.0".into()));
@@ -724,16 +738,16 @@ mod tests {
     }
 
     fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
-        // Test helper: leak the LineMap so it outlives the borrowed state.
-        // Production callers pass a borrowed LineMap from `ParserState`.
-        let line_map: &'static LineMap = Box::leak(Box::new(LineMap::new(content)));
+        // Leak a per-call arena so test states have the required lifetime.
+        let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
-            line_map,
+            line_map: Rc::new(LineMap::new(content)),
             full_input: content,
+            arena,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(content),
             substring_start_offset: Cell::new(0),
@@ -759,7 +773,7 @@ mod tests {
         let Some(first) = passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.text, Some("hello"));
         assert_eq!(first.kind, PassthroughKind::Single);
         Ok(())
     }
@@ -778,7 +792,7 @@ mod tests {
         let Some(first) = result.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.text, Some("hello"));
         assert_eq!(first.kind, PassthroughKind::Double);
         Ok(())
     }
@@ -797,7 +811,7 @@ mod tests {
         let Some(first) = result.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.text, Some("hello"));
         assert_eq!(first.kind, PassthroughKind::Triple);
         Ok(())
     }
@@ -816,7 +830,7 @@ mod tests {
         let Some(first) = result.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert_eq!(first.text, Some("hello".to_string()));
+        assert_eq!(first.text, Some("hello"));
         assert_eq!(first.kind, PassthroughKind::Single);
         Ok(())
     }
@@ -849,7 +863,7 @@ mod tests {
         let Some(first) = result.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "*bold*"));
+        assert!(matches!(&first.text, Some(s) if *s == "*bold*"));
         assert_eq!(first.location.absolute_start, 24);
         assert_eq!(first.location.absolute_end, 32);
         assert_eq!(first.location.start.line, 3);
@@ -861,7 +875,7 @@ mod tests {
         let Some(second) = result.passthroughs.get(1) else {
             panic!("expected second passthrough");
         };
-        assert!(matches!(&second.text, Some(s) if s == "**more bold**"));
+        assert!(matches!(&second.text, Some(s) if *s == "**more bold**"));
         assert_eq!(second.location.absolute_start, 42);
         assert_eq!(second.location.absolute_end, 59);
         assert_eq!(second.location.start.line, 3);
@@ -943,7 +957,7 @@ mod tests {
         };
         assert!(matches!(
             &first.text,
-            Some(s) if s == "this {s} won't expand"
+            Some(s) if *s == "this {s} won't expand"
         ));
 
         // Verify source mapping
@@ -977,7 +991,7 @@ mod tests {
         };
         assert!(matches!(
             &first.text,
-            Some(s) if s == "special {nested2} value"
+            Some(s) if *s == "special {nested2} value"
         ));
 
         // Verify source positions for debugging
@@ -1030,8 +1044,8 @@ mod tests {
         };
 
         // Check passthrough content with greedy matching
-        assert!(matches!(&first_pass.text, Some(s) if s == "<h1>+World"));
-        assert!(matches!(&second_pass.text, Some(s) if s == "<u>+Gemini"));
+        assert!(matches!(&first_pass.text, Some(s) if *s == "<h1>+World"));
+        assert!(matches!(&second_pass.text, Some(s) if *s == "<u>+Gemini"));
 
         // Verify substitutions were captured
         assert!(
@@ -1076,7 +1090,7 @@ mod tests {
         // Check passthrough content preserved original text
         assert!(matches!(
             &pass.text,
-            Some(s) if s == "<u>underline _test-doc_</u>"
+            Some(s) if *s == "<u>underline _test-doc_</u>"
         ));
 
         // Verify substitutions were captured
@@ -1121,9 +1135,9 @@ mod tests {
         assert!(matches!(first.kind, PassthroughKind::Single));
         assert!(matches!(second.kind, PassthroughKind::Double));
         assert!(matches!(third.kind, PassthroughKind::Triple));
-        assert!(matches!(&first.text, Some(s) if s == "2"));
-        assert!(matches!(&second.text, Some(s) if s == "3"));
-        assert!(matches!(&third.text, Some(s) if s == "4"));
+        assert!(matches!(&first.text, Some(s) if *s == "2"));
+        assert!(matches!(&second.text, Some(s) if *s == "3"));
+        assert!(matches!(&third.text, Some(s) if *s == "4"));
 
         assert_eq!(result.source_map.map_position(2)?, 2);
         // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.
@@ -1146,7 +1160,7 @@ mod tests {
         let Some(first) = result.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "A+B"));
+        assert!(matches!(&first.text, Some(s) if *s == "A+B"));
 
         // Test case 2: +A+ +B+ should create two separate passthroughs (space breaks greedy)
         let input2 = "Test +A+ +B+ end";
@@ -1159,8 +1173,8 @@ mod tests {
         let Some(second) = result2.passthroughs.get(1) else {
             panic!("expected second passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "A"));
-        assert!(matches!(&second.text, Some(s) if s == "B"));
+        assert!(matches!(&first.text, Some(s) if *s == "A"));
+        assert!(matches!(&second.text, Some(s) if *s == "B"));
 
         // Test case 3: +A+B+C+D+ should greedily match all
         let input3 = "Test +A+B+C+D+ end";
@@ -1170,7 +1184,7 @@ mod tests {
         let Some(first) = result3.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "A+B+C+D"));
+        assert!(matches!(&first.text, Some(s) if *s == "A+B+C+D"));
 
         // Test case 4: +HTML+tags+ with boundary characters
         let input4 = "Test +<em>+text+ end";
@@ -1180,7 +1194,7 @@ mod tests {
         let Some(first) = result4.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "<em>+text"));
+        assert!(matches!(&first.text, Some(s) if *s == "<em>+text"));
 
         // Test case 5: Multiple + with punctuation boundaries
         let input5 = "Look +here+there+, ok";
@@ -1190,7 +1204,7 @@ mod tests {
         let Some(first) = result5.passthroughs.first() else {
             panic!("expected first passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "here+there"));
+        assert!(matches!(&first.text, Some(s) if *s == "here+there"));
 
         // Test case 6: The original bug case from f.adoc
         let input6 = "Hello +<h1>+World+</h1>+ and +<u>+Gemini+</u>+ end";
@@ -1203,8 +1217,8 @@ mod tests {
         let Some(second) = result6.passthroughs.get(1) else {
             panic!("expected second passthrough");
         };
-        assert!(matches!(&first.text, Some(s) if s == "<h1>+World"));
-        assert!(matches!(&second.text, Some(s) if s == "<u>+Gemini"));
+        assert!(matches!(&first.text, Some(s) if *s == "<h1>+World"));
+        assert!(matches!(&second.text, Some(s) if *s == "<u>+Gemini"));
 
         Ok(())
     }
@@ -1303,10 +1317,10 @@ mod tests {
             "Should have 19 passthroughs for all ASCII char replacement attributes"
         );
         // Spot-check a few key passthroughs
-        assert_eq!(result.passthroughs[0].text.as_deref(), Some("&#39;")); // apos
-        assert_eq!(result.passthroughs[2].text.as_deref(), Some("+")); // plus
-        assert_eq!(result.passthroughs[4].text.as_deref(), Some("&")); // amp
-        assert_eq!(result.passthroughs[16].text.as_deref(), Some("C++")); // cpp
+        assert_eq!(result.passthroughs[0].text, Some("&#39;")); // apos
+        assert_eq!(result.passthroughs[2].text, Some("+")); // plus
+        assert_eq!(result.passthroughs[4].text, Some("&")); // amp
+        assert_eq!(result.passthroughs[16].text, Some("C++")); // cpp
 
         Ok(())
     }
@@ -1331,8 +1345,8 @@ mod tests {
             "Use \u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}option\u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD} syntax"
         );
         assert_eq!(result2.passthroughs.len(), 2);
-        assert_eq!(result2.passthroughs[0].text.as_deref(), Some("["));
-        assert_eq!(result2.passthroughs[1].text.as_deref(), Some("]"));
+        assert_eq!(result2.passthroughs[0].text, Some("["));
+        assert_eq!(result2.passthroughs[1].text, Some("]"));
 
         // Test 3: Adjacent attributes (Unicode chars, not passthroughs)
         let input3 = "{ldquo}Hello{rdquo}";
@@ -1360,8 +1374,8 @@ mod tests {
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD} is same as \u{FFFD}\u{FFFD}\u{FFFD}1\u{FFFD}\u{FFFD}\u{FFFD}"
         );
         assert_eq!(result6.passthroughs.len(), 2);
-        assert_eq!(result6.passthroughs[0].text.as_deref(), Some("C++"));
-        assert_eq!(result6.passthroughs[1].text.as_deref(), Some("C++"));
+        assert_eq!(result6.passthroughs[0].text, Some("C++"));
+        assert_eq!(result6.passthroughs[1].text, Some("C++"));
 
         Ok(())
     }
@@ -1416,14 +1430,15 @@ mod tests {
     }
 
     fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'_> {
-        let line_map: &'static LineMap = Box::leak(Box::new(LineMap::new(content)));
+        let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
-            line_map,
+            line_map: Rc::new(LineMap::new(content)),
             full_input: content,
+            arena,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(content),
             substring_start_offset: Cell::new(0),

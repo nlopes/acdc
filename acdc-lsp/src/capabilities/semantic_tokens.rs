@@ -429,9 +429,9 @@ mod tests {
 Some content.
 ";
         let options = Options::default();
-        let doc = acdc_parser::parse(content, &options)?;
+        let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(&doc, &[], content);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
         // Should have at least tokens for section titles
         assert!(!tokens.data.is_empty());
         Ok(())
@@ -447,9 +447,9 @@ Some content.
 See <<target>> for more.
 ";
         let options = Options::default();
-        let doc = acdc_parser::parse(content, &options)?;
+        let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(&doc, &[], content);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
         // Should have tokens for section, anchor, and xref
         assert!(tokens.data.len() >= 2);
         Ok(())
@@ -474,7 +474,8 @@ See <<target>> for more.
 
         let content = "ifdef::missing[]\ninactive content\nendif::[]";
         let options = Options::default();
-        let doc = acdc_parser::parse(content, &options)?;
+        let parsed = acdc_parser::parse(content, &options)?;
+        let doc = parsed.document();
 
         let conditionals = vec![ConditionalBlock {
             kind: ConditionalDirectiveKind::Ifdef,
@@ -485,7 +486,7 @@ See <<target>> for more.
             end_line: Some(2),
         }];
 
-        let tokens = compute_semantic_tokens(&doc, &conditionals, content);
+        let tokens = compute_semantic_tokens(doc, &conditionals, content);
         // Should have tokens: ifdef line (KEYWORD), inactive content (COMMENT+disabled), endif (KEYWORD)
         assert!(tokens.data.len() >= 3);
 
@@ -536,7 +537,8 @@ See <<target>> for more.
 
         let content = "ifdef::present[]\nactive content\nendif::[]";
         let options = Options::default();
-        let doc = acdc_parser::parse(content, &options)?;
+        let parsed = acdc_parser::parse(content, &options)?;
+        let doc = parsed.document();
 
         let conditionals = vec![ConditionalBlock {
             kind: ConditionalDirectiveKind::Ifdef,
@@ -547,7 +549,7 @@ See <<target>> for more.
             end_line: Some(2),
         }];
 
-        let tokens = compute_semantic_tokens(&doc, &conditionals, content);
+        let tokens = compute_semantic_tokens(doc, &conditionals, content);
         // Active block: should have KEYWORD tokens for directives but NO disabled tokens
         let mut abs_tokens = Vec::new();
         let mut prev_line = 0u32;

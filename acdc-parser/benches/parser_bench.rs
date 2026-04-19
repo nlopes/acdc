@@ -1,4 +1,4 @@
-use std::{fs, hint::black_box};
+use std::{fs, hint::black_box, time::Duration};
 
 use acdc_parser::Parser;
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
@@ -38,6 +38,30 @@ fn parse_benchmark(c: &mut Criterion) {
             });
         },
     );
+
+    // Large-document size ladder: isolates pure parser time (no CLI startup,
+    // no file IO, no HTML rendering) so we can measure the asymptotic gap
+    // against asciidoctor without the noise of a full `convert` pipeline.
+    for size in &["5KB", "50KB", "250KB", "500KB", "1MB"] {
+        let path = format!("fixtures/samples/different-sizes/test_sample_{size}.adoc");
+        if let Ok(content) = fs::read_to_string(&path) {
+            if *size == "1MB" {
+                group.measurement_time(Duration::from_secs(10));
+            }
+            group.bench_with_input(
+                BenchmarkId::new("parse", format!("sample_{size}")),
+                &content,
+                |b, input| {
+                    b.iter(|| {
+                        let parser = Parser::new(black_box(input));
+                        black_box(parser.parse())
+                    });
+                },
+            );
+        } else {
+            eprintln!("skipping missing fixture: {path}");
+        }
+    }
 
     group.finish();
 }

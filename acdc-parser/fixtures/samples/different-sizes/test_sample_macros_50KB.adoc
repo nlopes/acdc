@@ -1,0 +1,910 @@
+= Inline macro stress sample
+:toc:
+:toclevels: 3
+:sectnums:
+:icons: font
+:version: 9.4.2
+:product: acdc
+:org: Example Corp
+:url-repo: https://github.com/example/repo
+:url-docs: https://docs.example.com
+:url-api: https://api.example.com
+:url-issues: https://github.com/example/repo/issues
+
+A stress fixture for inline-macro-heavy parse + convert paths. Every paragraph
+below is packed with `link:`, `xref:`, `footnote:`, `image:`, `kbd:`, `btn:`,
+`menu:`, `mailto:`, `icon:`, `pass:[]`, `stem:[]`, `indexterm:`, attribute
+references, bare autolinks, anchors, inline formatting, and cross-references.
+
+=== Section 0 anchor[[sec-0]]
+
+See link:https://example.com/page-0[page 0], xref:sec-1[next], and
+kbd:[Ctrl+Shift+0] to footnote:[cross-ref 0: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user0@example.com[user 0] for *bold 0*, _italic 0_,
+`mono 0`, #highlight 0#, ~sub0~, ^sup0^. image:diagram-0.svg[alt
+text 0,200,150]. stem:[x^0 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-0,sub-0] indexterm2:[keyword-0].
+Visit https://example.com/pulls/0 or link:https://api.example.com/v0[API v0].
+See also <<sec-0,previous>>, footnote:name-0[named 0], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 0] +
+kbd:[Alt+F0] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/0[post 0] and *_mixed 0_* with `code 0`.
+
+=== Section 1 anchor[[sec-1]]
+
+See link:https://example.com/page-1[page 1], xref:sec-2[next], and
+kbd:[Ctrl+Shift+1] to footnote:[cross-ref 1: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user1@example.com[user 1] for *bold 1*, _italic 1_,
+`mono 1`, #highlight 1#, ~sub1~, ^sup1^. image:diagram-1.svg[alt
+text 1,200,150]. stem:[x^1 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-1,sub-1] indexterm2:[keyword-1].
+Visit https://example.com/pulls/1 or link:https://api.example.com/v1[API v1].
+See also <<sec-0,previous>>, footnote:name-1[named 1], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 1] +
+kbd:[Alt+F1] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/1[post 1] and *_mixed 1_* with `code 1`.
+
+=== Section 2 anchor[[sec-2]]
+
+See link:https://example.com/page-2[page 2], xref:sec-3[next], and
+kbd:[Ctrl+Shift+2] to footnote:[cross-ref 2: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user2@example.com[user 2] for *bold 2*, _italic 2_,
+`mono 2`, #highlight 2#, ~sub2~, ^sup2^. image:diagram-2.svg[alt
+text 2,200,150]. stem:[x^2 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-2,sub-2] indexterm2:[keyword-2].
+Visit https://example.com/pulls/2 or link:https://api.example.com/v2[API v2].
+See also <<sec-1,previous>>, footnote:name-2[named 2], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 2] +
+kbd:[Alt+F2] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/2[post 2] and *_mixed 2_* with `code 2`.
+
+=== Section 3 anchor[[sec-3]]
+
+See link:https://example.com/page-3[page 3], xref:sec-4[next], and
+kbd:[Ctrl+Shift+3] to footnote:[cross-ref 3: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user3@example.com[user 3] for *bold 3*, _italic 3_,
+`mono 3`, #highlight 3#, ~sub3~, ^sup3^. image:diagram-3.svg[alt
+text 3,200,150]. stem:[x^3 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-3,sub-3] indexterm2:[keyword-3].
+Visit https://example.com/pulls/3 or link:https://api.example.com/v3[API v3].
+See also <<sec-2,previous>>, footnote:name-3[named 3], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 3] +
+kbd:[Alt+F3] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/3[post 3] and *_mixed 3_* with `code 3`.
+
+=== Section 4 anchor[[sec-4]]
+
+See link:https://example.com/page-4[page 4], xref:sec-5[next], and
+kbd:[Ctrl+Shift+4] to footnote:[cross-ref 4: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user4@example.com[user 4] for *bold 4*, _italic 4_,
+`mono 4`, #highlight 4#, ~sub4~, ^sup4^. image:diagram-4.svg[alt
+text 4,200,150]. stem:[x^4 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-4,sub-4] indexterm2:[keyword-4].
+Visit https://example.com/pulls/4 or link:https://api.example.com/v4[API v4].
+See also <<sec-3,previous>>, footnote:name-4[named 4], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 4] +
+kbd:[Alt+F4] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/4[post 4] and *_mixed 4_* with `code 4`.
+
+.List of 5 references
+* link:https://example.com/a-5[First ref 5] + kbd:[F1] for help footnote:[aux 5]
+* xref:sec-5[Section 5] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-5.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-5@example.com[team] plus https://example.com/issues/5
+
+=== Section 5 anchor[[sec-5]]
+
+See link:https://example.com/page-5[page 5], xref:sec-6[next], and
+kbd:[Ctrl+Shift+5] to footnote:[cross-ref 5: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user5@example.com[user 5] for *bold 5*, _italic 5_,
+`mono 5`, #highlight 5#, ~sub5~, ^sup5^. image:diagram-5.svg[alt
+text 5,200,150]. stem:[x^5 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-5,sub-0] indexterm2:[keyword-5].
+Visit https://example.com/pulls/5 or link:https://api.example.com/v5[API v5].
+See also <<sec-4,previous>>, footnote:name-5[named 5], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 5] +
+kbd:[Alt+F5] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/5[post 5] and *_mixed 5_* with `code 5`.
+
+=== Section 6 anchor[[sec-6]]
+
+See link:https://example.com/page-6[page 6], xref:sec-7[next], and
+kbd:[Ctrl+Shift+6] to footnote:[cross-ref 6: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user6@example.com[user 6] for *bold 6*, _italic 6_,
+`mono 6`, #highlight 6#, ~sub6~, ^sup6^. image:diagram-6.svg[alt
+text 6,200,150]. stem:[x^6 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-6,sub-1] indexterm2:[keyword-6].
+Visit https://example.com/pulls/6 or link:https://api.example.com/v6[API v6].
+See also <<sec-5,previous>>, footnote:name-6[named 6], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 6] +
+kbd:[Alt+F6] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/6[post 6] and *_mixed 6_* with `code 6`.
+
+.Glossary fragment 7
+link:https://docs.example.com/term-7[term 7]:: see xref:sec-7[here] footnote:[glossary 7]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+7]:: open menu:View[Panel 7]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-7.svg[ico,16,16]
+
+=== Section 7 anchor[[sec-7]]
+
+See link:https://example.com/page-7[page 7], xref:sec-8[next], and
+kbd:[Ctrl+Shift+7] to footnote:[cross-ref 7: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user7@example.com[user 7] for *bold 7*, _italic 7_,
+`mono 7`, #highlight 7#, ~sub7~, ^sup7^. image:diagram-7.svg[alt
+text 7,200,150]. stem:[x^7 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-7,sub-2] indexterm2:[keyword-7].
+Visit https://example.com/pulls/7 or link:https://api.example.com/v7[API v7].
+See also <<sec-6,previous>>, footnote:name-7[named 7], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 7] +
+kbd:[Alt+F7] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/7[post 7] and *_mixed 7_* with `code 7`.
+
+=== Section 8 anchor[[sec-8]]
+
+See link:https://example.com/page-8[page 8], xref:sec-9[next], and
+kbd:[Ctrl+Shift+8] to footnote:[cross-ref 8: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user8@example.com[user 8] for *bold 8*, _italic 8_,
+`mono 8`, #highlight 8#, ~sub8~, ^sup8^. image:diagram-8.svg[alt
+text 8,200,150]. stem:[x^8 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-8,sub-3] indexterm2:[keyword-8].
+Visit https://example.com/pulls/8 or link:https://api.example.com/v8[API v8].
+See also <<sec-7,previous>>, footnote:name-8[named 8], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 8] +
+kbd:[Alt+F8] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/8[post 8] and *_mixed 8_* with `code 8`.
+
+=== Section 9 anchor[[sec-9]]
+
+See link:https://example.com/page-9[page 9], xref:sec-10[next], and
+kbd:[Ctrl+Shift+9] to footnote:[cross-ref 9: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user9@example.com[user 9] for *bold 9*, _italic 9_,
+`mono 9`, #highlight 9#, ~sub9~, ^sup9^. image:diagram-9.svg[alt
+text 9,200,150]. stem:[x^9 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-9,sub-4] indexterm2:[keyword-9].
+Visit https://example.com/pulls/9 or link:https://api.example.com/v9[API v9].
+See also <<sec-8,previous>>, footnote:name-9[named 9], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 9] +
+kbd:[Alt+F9] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/9[post 9] and *_mixed 9_* with `code 9`.
+
+.List of 10 references
+* link:https://example.com/a-10[First ref 10] + kbd:[F1] for help footnote:[aux 10]
+* xref:sec-10[Section 10] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-10.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-10@example.com[team] plus https://example.com/issues/10
+
+=== Section 10 anchor[[sec-10]]
+
+See link:https://example.com/page-10[page 10], xref:sec-11[next], and
+kbd:[Ctrl+Shift+0] to footnote:[cross-ref 10: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user10@example.com[user 10] for *bold 10*, _italic 10_,
+`mono 10`, #highlight 10#, ~sub10~, ^sup10^. image:diagram-10.svg[alt
+text 10,200,150]. stem:[x^0 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-10,sub-0] indexterm2:[keyword-10].
+Visit https://example.com/pulls/10 or link:https://api.example.com/v0[API v0].
+See also <<sec-9,previous>>, footnote:name-10[named 10], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 10] +
+kbd:[Alt+F0] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/10[post 10] and *_mixed 10_* with `code 10`.
+
+=== Section 11 anchor[[sec-11]]
+
+See link:https://example.com/page-11[page 11], xref:sec-12[next], and
+kbd:[Ctrl+Shift+1] to footnote:[cross-ref 11: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user11@example.com[user 11] for *bold 11*, _italic 11_,
+`mono 11`, #highlight 11#, ~sub11~, ^sup11^. image:diagram-11.svg[alt
+text 11,200,150]. stem:[x^1 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-11,sub-1] indexterm2:[keyword-11].
+Visit https://example.com/pulls/11 or link:https://api.example.com/v1[API v1].
+See also <<sec-10,previous>>, footnote:name-11[named 11], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 11] +
+kbd:[Alt+F1] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/11[post 11] and *_mixed 11_* with `code 11`.
+
+=== Section 12 anchor[[sec-12]]
+
+See link:https://example.com/page-12[page 12], xref:sec-13[next], and
+kbd:[Ctrl+Shift+2] to footnote:[cross-ref 12: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user12@example.com[user 12] for *bold 12*, _italic 12_,
+`mono 12`, #highlight 12#, ~sub12~, ^sup12^. image:diagram-12.svg[alt
+text 12,200,150]. stem:[x^2 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-12,sub-2] indexterm2:[keyword-12].
+Visit https://example.com/pulls/12 or link:https://api.example.com/v2[API v2].
+See also <<sec-11,previous>>, footnote:name-12[named 12], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 12] +
+kbd:[Alt+F2] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/12[post 12] and *_mixed 12_* with `code 12`.
+
+=== Section 13 anchor[[sec-13]]
+
+See link:https://example.com/page-13[page 13], xref:sec-14[next], and
+kbd:[Ctrl+Shift+3] to footnote:[cross-ref 13: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user13@example.com[user 13] for *bold 13*, _italic 13_,
+`mono 13`, #highlight 13#, ~sub13~, ^sup13^. image:diagram-13.svg[alt
+text 13,200,150]. stem:[x^3 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-13,sub-3] indexterm2:[keyword-13].
+Visit https://example.com/pulls/13 or link:https://api.example.com/v3[API v3].
+See also <<sec-12,previous>>, footnote:name-13[named 13], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 13] +
+kbd:[Alt+F3] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/13[post 13] and *_mixed 13_* with `code 13`.
+
+.Glossary fragment 14
+link:https://docs.example.com/term-14[term 14]:: see xref:sec-14[here] footnote:[glossary 14]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+14]:: open menu:View[Panel 14]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-14.svg[ico,16,16]
+
+=== Section 14 anchor[[sec-14]]
+
+See link:https://example.com/page-14[page 14], xref:sec-15[next], and
+kbd:[Ctrl+Shift+4] to footnote:[cross-ref 14: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user14@example.com[user 14] for *bold 14*, _italic 14_,
+`mono 14`, #highlight 14#, ~sub14~, ^sup14^. image:diagram-14.svg[alt
+text 14,200,150]. stem:[x^4 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-14,sub-4] indexterm2:[keyword-14].
+Visit https://example.com/pulls/14 or link:https://api.example.com/v4[API v4].
+See also <<sec-13,previous>>, footnote:name-14[named 14], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 14] +
+kbd:[Alt+F4] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/14[post 14] and *_mixed 14_* with `code 14`.
+
+.List of 15 references
+* link:https://example.com/a-15[First ref 15] + kbd:[F1] for help footnote:[aux 15]
+* xref:sec-15[Section 15] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-15.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-15@example.com[team] plus https://example.com/issues/15
+
+=== Section 15 anchor[[sec-15]]
+
+See link:https://example.com/page-15[page 15], xref:sec-16[next], and
+kbd:[Ctrl+Shift+5] to footnote:[cross-ref 15: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user15@example.com[user 15] for *bold 15*, _italic 15_,
+`mono 15`, #highlight 15#, ~sub15~, ^sup15^. image:diagram-15.svg[alt
+text 15,200,150]. stem:[x^5 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-15,sub-0] indexterm2:[keyword-15].
+Visit https://example.com/pulls/15 or link:https://api.example.com/v5[API v5].
+See also <<sec-14,previous>>, footnote:name-15[named 15], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 15] +
+kbd:[Alt+F5] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/15[post 15] and *_mixed 15_* with `code 15`.
+
+=== Section 16 anchor[[sec-16]]
+
+See link:https://example.com/page-16[page 16], xref:sec-17[next], and
+kbd:[Ctrl+Shift+6] to footnote:[cross-ref 16: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user16@example.com[user 16] for *bold 16*, _italic 16_,
+`mono 16`, #highlight 16#, ~sub16~, ^sup16^. image:diagram-16.svg[alt
+text 16,200,150]. stem:[x^6 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-16,sub-1] indexterm2:[keyword-16].
+Visit https://example.com/pulls/16 or link:https://api.example.com/v6[API v6].
+See also <<sec-15,previous>>, footnote:name-16[named 16], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 16] +
+kbd:[Alt+F6] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/16[post 16] and *_mixed 16_* with `code 16`.
+
+=== Section 17 anchor[[sec-17]]
+
+See link:https://example.com/page-17[page 17], xref:sec-18[next], and
+kbd:[Ctrl+Shift+7] to footnote:[cross-ref 17: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user17@example.com[user 17] for *bold 17*, _italic 17_,
+`mono 17`, #highlight 17#, ~sub17~, ^sup17^. image:diagram-17.svg[alt
+text 17,200,150]. stem:[x^7 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-17,sub-2] indexterm2:[keyword-17].
+Visit https://example.com/pulls/17 or link:https://api.example.com/v7[API v7].
+See also <<sec-16,previous>>, footnote:name-17[named 17], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 17] +
+kbd:[Alt+F7] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/17[post 17] and *_mixed 17_* with `code 17`.
+
+=== Section 18 anchor[[sec-18]]
+
+See link:https://example.com/page-18[page 18], xref:sec-19[next], and
+kbd:[Ctrl+Shift+8] to footnote:[cross-ref 18: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user18@example.com[user 18] for *bold 18*, _italic 18_,
+`mono 18`, #highlight 18#, ~sub18~, ^sup18^. image:diagram-18.svg[alt
+text 18,200,150]. stem:[x^8 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-18,sub-3] indexterm2:[keyword-18].
+Visit https://example.com/pulls/18 or link:https://api.example.com/v8[API v8].
+See also <<sec-17,previous>>, footnote:name-18[named 18], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 18] +
+kbd:[Alt+F8] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/18[post 18] and *_mixed 18_* with `code 18`.
+
+=== Section 19 anchor[[sec-19]]
+
+See link:https://example.com/page-19[page 19], xref:sec-20[next], and
+kbd:[Ctrl+Shift+9] to footnote:[cross-ref 19: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user19@example.com[user 19] for *bold 19*, _italic 19_,
+`mono 19`, #highlight 19#, ~sub19~, ^sup19^. image:diagram-19.svg[alt
+text 19,200,150]. stem:[x^9 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-19,sub-4] indexterm2:[keyword-19].
+Visit https://example.com/pulls/19 or link:https://api.example.com/v9[API v9].
+See also <<sec-18,previous>>, footnote:name-19[named 19], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 19] +
+kbd:[Alt+F9] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/19[post 19] and *_mixed 19_* with `code 19`.
+
+.List of 20 references
+* link:https://example.com/a-20[First ref 20] + kbd:[F1] for help footnote:[aux 20]
+* xref:sec-20[Section 20] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-20.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-20@example.com[team] plus https://example.com/issues/20
+
+=== Section 20 anchor[[sec-20]]
+
+See link:https://example.com/page-20[page 20], xref:sec-21[next], and
+kbd:[Ctrl+Shift+0] to footnote:[cross-ref 20: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user20@example.com[user 20] for *bold 20*, _italic 20_,
+`mono 20`, #highlight 20#, ~sub20~, ^sup20^. image:diagram-20.svg[alt
+text 20,200,150]. stem:[x^0 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-20,sub-0] indexterm2:[keyword-20].
+Visit https://example.com/pulls/20 or link:https://api.example.com/v0[API v0].
+See also <<sec-19,previous>>, footnote:name-20[named 20], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 20] +
+kbd:[Alt+F0] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/20[post 20] and *_mixed 20_* with `code 20`.
+
+.Glossary fragment 21
+link:https://docs.example.com/term-21[term 21]:: see xref:sec-21[here] footnote:[glossary 21]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+21]:: open menu:View[Panel 21]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-21.svg[ico,16,16]
+
+=== Section 21 anchor[[sec-21]]
+
+See link:https://example.com/page-21[page 21], xref:sec-22[next], and
+kbd:[Ctrl+Shift+1] to footnote:[cross-ref 21: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user21@example.com[user 21] for *bold 21*, _italic 21_,
+`mono 21`, #highlight 21#, ~sub21~, ^sup21^. image:diagram-21.svg[alt
+text 21,200,150]. stem:[x^1 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-21,sub-1] indexterm2:[keyword-21].
+Visit https://example.com/pulls/21 or link:https://api.example.com/v1[API v1].
+See also <<sec-20,previous>>, footnote:name-21[named 21], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 21] +
+kbd:[Alt+F1] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/21[post 21] and *_mixed 21_* with `code 21`.
+
+=== Section 22 anchor[[sec-22]]
+
+See link:https://example.com/page-22[page 22], xref:sec-23[next], and
+kbd:[Ctrl+Shift+2] to footnote:[cross-ref 22: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user22@example.com[user 22] for *bold 22*, _italic 22_,
+`mono 22`, #highlight 22#, ~sub22~, ^sup22^. image:diagram-22.svg[alt
+text 22,200,150]. stem:[x^2 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-22,sub-2] indexterm2:[keyword-22].
+Visit https://example.com/pulls/22 or link:https://api.example.com/v2[API v2].
+See also <<sec-21,previous>>, footnote:name-22[named 22], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 22] +
+kbd:[Alt+F2] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/22[post 22] and *_mixed 22_* with `code 22`.
+
+=== Section 23 anchor[[sec-23]]
+
+See link:https://example.com/page-23[page 23], xref:sec-24[next], and
+kbd:[Ctrl+Shift+3] to footnote:[cross-ref 23: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user23@example.com[user 23] for *bold 23*, _italic 23_,
+`mono 23`, #highlight 23#, ~sub23~, ^sup23^. image:diagram-23.svg[alt
+text 23,200,150]. stem:[x^3 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-23,sub-3] indexterm2:[keyword-23].
+Visit https://example.com/pulls/23 or link:https://api.example.com/v3[API v3].
+See also <<sec-22,previous>>, footnote:name-23[named 23], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 23] +
+kbd:[Alt+F3] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/23[post 23] and *_mixed 23_* with `code 23`.
+
+=== Section 24 anchor[[sec-24]]
+
+See link:https://example.com/page-24[page 24], xref:sec-25[next], and
+kbd:[Ctrl+Shift+4] to footnote:[cross-ref 24: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user24@example.com[user 24] for *bold 24*, _italic 24_,
+`mono 24`, #highlight 24#, ~sub24~, ^sup24^. image:diagram-24.svg[alt
+text 24,200,150]. stem:[x^4 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-24,sub-4] indexterm2:[keyword-24].
+Visit https://example.com/pulls/24 or link:https://api.example.com/v4[API v4].
+See also <<sec-23,previous>>, footnote:name-24[named 24], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 24] +
+kbd:[Alt+F4] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/24[post 24] and *_mixed 24_* with `code 24`.
+
+.List of 25 references
+* link:https://example.com/a-25[First ref 25] + kbd:[F1] for help footnote:[aux 25]
+* xref:sec-25[Section 25] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-25.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-25@example.com[team] plus https://example.com/issues/25
+
+=== Section 25 anchor[[sec-25]]
+
+See link:https://example.com/page-25[page 25], xref:sec-26[next], and
+kbd:[Ctrl+Shift+5] to footnote:[cross-ref 25: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user25@example.com[user 25] for *bold 25*, _italic 25_,
+`mono 25`, #highlight 25#, ~sub25~, ^sup25^. image:diagram-25.svg[alt
+text 25,200,150]. stem:[x^5 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-25,sub-0] indexterm2:[keyword-25].
+Visit https://example.com/pulls/25 or link:https://api.example.com/v5[API v5].
+See also <<sec-24,previous>>, footnote:name-25[named 25], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 25] +
+kbd:[Alt+F5] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/25[post 25] and *_mixed 25_* with `code 25`.
+
+=== Section 26 anchor[[sec-26]]
+
+See link:https://example.com/page-26[page 26], xref:sec-27[next], and
+kbd:[Ctrl+Shift+6] to footnote:[cross-ref 26: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user26@example.com[user 26] for *bold 26*, _italic 26_,
+`mono 26`, #highlight 26#, ~sub26~, ^sup26^. image:diagram-26.svg[alt
+text 26,200,150]. stem:[x^6 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-26,sub-1] indexterm2:[keyword-26].
+Visit https://example.com/pulls/26 or link:https://api.example.com/v6[API v6].
+See also <<sec-25,previous>>, footnote:name-26[named 26], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 26] +
+kbd:[Alt+F6] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/26[post 26] and *_mixed 26_* with `code 26`.
+
+=== Section 27 anchor[[sec-27]]
+
+See link:https://example.com/page-27[page 27], xref:sec-28[next], and
+kbd:[Ctrl+Shift+7] to footnote:[cross-ref 27: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user27@example.com[user 27] for *bold 27*, _italic 27_,
+`mono 27`, #highlight 27#, ~sub27~, ^sup27^. image:diagram-27.svg[alt
+text 27,200,150]. stem:[x^7 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-27,sub-2] indexterm2:[keyword-27].
+Visit https://example.com/pulls/27 or link:https://api.example.com/v7[API v7].
+See also <<sec-26,previous>>, footnote:name-27[named 27], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 27] +
+kbd:[Alt+F7] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/27[post 27] and *_mixed 27_* with `code 27`.
+
+.Glossary fragment 28
+link:https://docs.example.com/term-28[term 28]:: see xref:sec-28[here] footnote:[glossary 28]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+28]:: open menu:View[Panel 28]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-28.svg[ico,16,16]
+
+=== Section 28 anchor[[sec-28]]
+
+See link:https://example.com/page-28[page 28], xref:sec-29[next], and
+kbd:[Ctrl+Shift+8] to footnote:[cross-ref 28: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user28@example.com[user 28] for *bold 28*, _italic 28_,
+`mono 28`, #highlight 28#, ~sub28~, ^sup28^. image:diagram-28.svg[alt
+text 28,200,150]. stem:[x^8 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-28,sub-3] indexterm2:[keyword-28].
+Visit https://example.com/pulls/28 or link:https://api.example.com/v8[API v8].
+See also <<sec-27,previous>>, footnote:name-28[named 28], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 28] +
+kbd:[Alt+F8] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/28[post 28] and *_mixed 28_* with `code 28`.
+
+=== Section 29 anchor[[sec-29]]
+
+See link:https://example.com/page-29[page 29], xref:sec-30[next], and
+kbd:[Ctrl+Shift+9] to footnote:[cross-ref 29: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user29@example.com[user 29] for *bold 29*, _italic 29_,
+`mono 29`, #highlight 29#, ~sub29~, ^sup29^. image:diagram-29.svg[alt
+text 29,200,150]. stem:[x^9 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-29,sub-4] indexterm2:[keyword-29].
+Visit https://example.com/pulls/29 or link:https://api.example.com/v9[API v9].
+See also <<sec-28,previous>>, footnote:name-29[named 29], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 29] +
+kbd:[Alt+F9] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/29[post 29] and *_mixed 29_* with `code 29`.
+
+.List of 30 references
+* link:https://example.com/a-30[First ref 30] + kbd:[F1] for help footnote:[aux 30]
+* xref:sec-30[Section 30] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-30.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-30@example.com[team] plus https://example.com/issues/30
+
+=== Section 30 anchor[[sec-30]]
+
+See link:https://example.com/page-30[page 30], xref:sec-31[next], and
+kbd:[Ctrl+Shift+0] to footnote:[cross-ref 30: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user30@example.com[user 30] for *bold 30*, _italic 30_,
+`mono 30`, #highlight 30#, ~sub30~, ^sup30^. image:diagram-30.svg[alt
+text 30,200,150]. stem:[x^0 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-30,sub-0] indexterm2:[keyword-30].
+Visit https://example.com/pulls/30 or link:https://api.example.com/v0[API v0].
+See also <<sec-29,previous>>, footnote:name-30[named 30], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 30] +
+kbd:[Alt+F0] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/30[post 30] and *_mixed 30_* with `code 30`.
+
+=== Section 31 anchor[[sec-31]]
+
+See link:https://example.com/page-31[page 31], xref:sec-32[next], and
+kbd:[Ctrl+Shift+1] to footnote:[cross-ref 31: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user31@example.com[user 31] for *bold 31*, _italic 31_,
+`mono 31`, #highlight 31#, ~sub31~, ^sup31^. image:diagram-31.svg[alt
+text 31,200,150]. stem:[x^1 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-31,sub-1] indexterm2:[keyword-31].
+Visit https://example.com/pulls/31 or link:https://api.example.com/v1[API v1].
+See also <<sec-30,previous>>, footnote:name-31[named 31], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 31] +
+kbd:[Alt+F1] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/31[post 31] and *_mixed 31_* with `code 31`.
+
+=== Section 32 anchor[[sec-32]]
+
+See link:https://example.com/page-32[page 32], xref:sec-33[next], and
+kbd:[Ctrl+Shift+2] to footnote:[cross-ref 32: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user32@example.com[user 32] for *bold 32*, _italic 32_,
+`mono 32`, #highlight 32#, ~sub32~, ^sup32^. image:diagram-32.svg[alt
+text 32,200,150]. stem:[x^2 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-32,sub-2] indexterm2:[keyword-32].
+Visit https://example.com/pulls/32 or link:https://api.example.com/v2[API v2].
+See also <<sec-31,previous>>, footnote:name-32[named 32], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 32] +
+kbd:[Alt+F2] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/32[post 32] and *_mixed 32_* with `code 32`.
+
+=== Section 33 anchor[[sec-33]]
+
+See link:https://example.com/page-33[page 33], xref:sec-34[next], and
+kbd:[Ctrl+Shift+3] to footnote:[cross-ref 33: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user33@example.com[user 33] for *bold 33*, _italic 33_,
+`mono 33`, #highlight 33#, ~sub33~, ^sup33^. image:diagram-33.svg[alt
+text 33,200,150]. stem:[x^3 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-33,sub-3] indexterm2:[keyword-33].
+Visit https://example.com/pulls/33 or link:https://api.example.com/v3[API v3].
+See also <<sec-32,previous>>, footnote:name-33[named 33], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 33] +
+kbd:[Alt+F3] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/33[post 33] and *_mixed 33_* with `code 33`.
+
+=== Section 34 anchor[[sec-34]]
+
+See link:https://example.com/page-34[page 34], xref:sec-35[next], and
+kbd:[Ctrl+Shift+4] to footnote:[cross-ref 34: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user34@example.com[user 34] for *bold 34*, _italic 34_,
+`mono 34`, #highlight 34#, ~sub34~, ^sup34^. image:diagram-34.svg[alt
+text 34,200,150]. stem:[x^4 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-34,sub-4] indexterm2:[keyword-34].
+Visit https://example.com/pulls/34 or link:https://api.example.com/v4[API v4].
+See also <<sec-33,previous>>, footnote:name-34[named 34], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 34] +
+kbd:[Alt+F4] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/34[post 34] and *_mixed 34_* with `code 34`.
+
+.List of 35 references
+* link:https://example.com/a-35[First ref 35] + kbd:[F1] for help footnote:[aux 35]
+* xref:sec-35[Section 35] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-35.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-35@example.com[team] plus https://example.com/issues/35
+
+.Glossary fragment 35
+link:https://docs.example.com/term-35[term 35]:: see xref:sec-35[here] footnote:[glossary 35]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+35]:: open menu:View[Panel 35]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-35.svg[ico,16,16]
+
+=== Section 35 anchor[[sec-35]]
+
+See link:https://example.com/page-35[page 35], xref:sec-36[next], and
+kbd:[Ctrl+Shift+5] to footnote:[cross-ref 35: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user35@example.com[user 35] for *bold 35*, _italic 35_,
+`mono 35`, #highlight 35#, ~sub35~, ^sup35^. image:diagram-35.svg[alt
+text 35,200,150]. stem:[x^5 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-35,sub-0] indexterm2:[keyword-35].
+Visit https://example.com/pulls/35 or link:https://api.example.com/v5[API v5].
+See also <<sec-34,previous>>, footnote:name-35[named 35], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 35] +
+kbd:[Alt+F5] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/35[post 35] and *_mixed 35_* with `code 35`.
+
+=== Section 36 anchor[[sec-36]]
+
+See link:https://example.com/page-36[page 36], xref:sec-37[next], and
+kbd:[Ctrl+Shift+6] to footnote:[cross-ref 36: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user36@example.com[user 36] for *bold 36*, _italic 36_,
+`mono 36`, #highlight 36#, ~sub36~, ^sup36^. image:diagram-36.svg[alt
+text 36,200,150]. stem:[x^6 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-36,sub-1] indexterm2:[keyword-36].
+Visit https://example.com/pulls/36 or link:https://api.example.com/v6[API v6].
+See also <<sec-35,previous>>, footnote:name-36[named 36], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 36] +
+kbd:[Alt+F6] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/36[post 36] and *_mixed 36_* with `code 36`.
+
+=== Section 37 anchor[[sec-37]]
+
+See link:https://example.com/page-37[page 37], xref:sec-38[next], and
+kbd:[Ctrl+Shift+7] to footnote:[cross-ref 37: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user37@example.com[user 37] for *bold 37*, _italic 37_,
+`mono 37`, #highlight 37#, ~sub37~, ^sup37^. image:diagram-37.svg[alt
+text 37,200,150]. stem:[x^7 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-37,sub-2] indexterm2:[keyword-37].
+Visit https://example.com/pulls/37 or link:https://api.example.com/v7[API v7].
+See also <<sec-36,previous>>, footnote:name-37[named 37], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 37] +
+kbd:[Alt+F7] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/37[post 37] and *_mixed 37_* with `code 37`.
+
+=== Section 38 anchor[[sec-38]]
+
+See link:https://example.com/page-38[page 38], xref:sec-39[next], and
+kbd:[Ctrl+Shift+8] to footnote:[cross-ref 38: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user38@example.com[user 38] for *bold 38*, _italic 38_,
+`mono 38`, #highlight 38#, ~sub38~, ^sup38^. image:diagram-38.svg[alt
+text 38,200,150]. stem:[x^8 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-38,sub-3] indexterm2:[keyword-38].
+Visit https://example.com/pulls/38 or link:https://api.example.com/v8[API v8].
+See also <<sec-37,previous>>, footnote:name-38[named 38], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 38] +
+kbd:[Alt+F8] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/38[post 38] and *_mixed 38_* with `code 38`.
+
+=== Section 39 anchor[[sec-39]]
+
+See link:https://example.com/page-39[page 39], xref:sec-40[next], and
+kbd:[Ctrl+Shift+9] to footnote:[cross-ref 39: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user39@example.com[user 39] for *bold 39*, _italic 39_,
+`mono 39`, #highlight 39#, ~sub39~, ^sup39^. image:diagram-39.svg[alt
+text 39,200,150]. stem:[x^9 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-39,sub-4] indexterm2:[keyword-39].
+Visit https://example.com/pulls/39 or link:https://api.example.com/v9[API v9].
+See also <<sec-38,previous>>, footnote:name-39[named 39], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 39] +
+kbd:[Alt+F9] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/39[post 39] and *_mixed 39_* with `code 39`.
+
+.List of 40 references
+* link:https://example.com/a-40[First ref 40] + kbd:[F1] for help footnote:[aux 40]
+* xref:sec-40[Section 40] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-40.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-40@example.com[team] plus https://example.com/issues/40
+
+=== Section 40 anchor[[sec-40]]
+
+See link:https://example.com/page-40[page 40], xref:sec-41[next], and
+kbd:[Ctrl+Shift+0] to footnote:[cross-ref 40: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user40@example.com[user 40] for *bold 40*, _italic 40_,
+`mono 40`, #highlight 40#, ~sub40~, ^sup40^. image:diagram-40.svg[alt
+text 40,200,150]. stem:[x^0 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-40,sub-0] indexterm2:[keyword-40].
+Visit https://example.com/pulls/40 or link:https://api.example.com/v0[API v0].
+See also <<sec-39,previous>>, footnote:name-40[named 40], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 40] +
+kbd:[Alt+F0] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/40[post 40] and *_mixed 40_* with `code 40`.
+
+=== Section 41 anchor[[sec-41]]
+
+See link:https://example.com/page-41[page 41], xref:sec-42[next], and
+kbd:[Ctrl+Shift+1] to footnote:[cross-ref 41: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user41@example.com[user 41] for *bold 41*, _italic 41_,
+`mono 41`, #highlight 41#, ~sub41~, ^sup41^. image:diagram-41.svg[alt
+text 41,200,150]. stem:[x^1 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-41,sub-1] indexterm2:[keyword-41].
+Visit https://example.com/pulls/41 or link:https://api.example.com/v1[API v1].
+See also <<sec-40,previous>>, footnote:name-41[named 41], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 41] +
+kbd:[Alt+F1] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/41[post 41] and *_mixed 41_* with `code 41`.
+
+.Glossary fragment 42
+link:https://docs.example.com/term-42[term 42]:: see xref:sec-42[here] footnote:[glossary 42]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+42]:: open menu:View[Panel 42]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-42.svg[ico,16,16]
+
+=== Section 42 anchor[[sec-42]]
+
+See link:https://example.com/page-42[page 42], xref:sec-43[next], and
+kbd:[Ctrl+Shift+2] to footnote:[cross-ref 42: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user42@example.com[user 42] for *bold 42*, _italic 42_,
+`mono 42`, #highlight 42#, ~sub42~, ^sup42^. image:diagram-42.svg[alt
+text 42,200,150]. stem:[x^2 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-42,sub-2] indexterm2:[keyword-42].
+Visit https://example.com/pulls/42 or link:https://api.example.com/v2[API v2].
+See also <<sec-41,previous>>, footnote:name-42[named 42], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 42] +
+kbd:[Alt+F2] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/42[post 42] and *_mixed 42_* with `code 42`.
+
+=== Section 43 anchor[[sec-43]]
+
+See link:https://example.com/page-43[page 43], xref:sec-44[next], and
+kbd:[Ctrl+Shift+3] to footnote:[cross-ref 43: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user43@example.com[user 43] for *bold 43*, _italic 43_,
+`mono 43`, #highlight 43#, ~sub43~, ^sup43^. image:diagram-43.svg[alt
+text 43,200,150]. stem:[x^3 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-43,sub-3] indexterm2:[keyword-43].
+Visit https://example.com/pulls/43 or link:https://api.example.com/v3[API v3].
+See also <<sec-42,previous>>, footnote:name-43[named 43], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 43] +
+kbd:[Alt+F3] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/43[post 43] and *_mixed 43_* with `code 43`.
+
+=== Section 44 anchor[[sec-44]]
+
+See link:https://example.com/page-44[page 44], xref:sec-45[next], and
+kbd:[Ctrl+Shift+4] to footnote:[cross-ref 44: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user44@example.com[user 44] for *bold 44*, _italic 44_,
+`mono 44`, #highlight 44#, ~sub44~, ^sup44^. image:diagram-44.svg[alt
+text 44,200,150]. stem:[x^4 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-44,sub-4] indexterm2:[keyword-44].
+Visit https://example.com/pulls/44 or link:https://api.example.com/v4[API v4].
+See also <<sec-43,previous>>, footnote:name-44[named 44], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 44] +
+kbd:[Alt+F4] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/44[post 44] and *_mixed 44_* with `code 44`.
+
+.List of 45 references
+* link:https://example.com/a-45[First ref 45] + kbd:[F1] for help footnote:[aux 45]
+* xref:sec-45[Section 45] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-45.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-45@example.com[team] plus https://example.com/issues/45
+
+=== Section 45 anchor[[sec-45]]
+
+See link:https://example.com/page-45[page 45], xref:sec-46[next], and
+kbd:[Ctrl+Shift+5] to footnote:[cross-ref 45: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user45@example.com[user 45] for *bold 45*, _italic 45_,
+`mono 45`, #highlight 45#, ~sub45~, ^sup45^. image:diagram-45.svg[alt
+text 45,200,150]. stem:[x^5 + y_{3}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-45,sub-0] indexterm2:[keyword-45].
+Visit https://example.com/pulls/45 or link:https://api.example.com/v5[API v5].
+See also <<sec-44,previous>>, footnote:name-45[named 45], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 45] +
+kbd:[Alt+F5] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/45[post 45] and *_mixed 45_* with `code 45`.
+
+=== Section 46 anchor[[sec-46]]
+
+See link:https://example.com/page-46[page 46], xref:sec-47[next], and
+kbd:[Ctrl+Shift+6] to footnote:[cross-ref 46: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user46@example.com[user 46] for *bold 46*, _italic 46_,
+`mono 46`, #highlight 46#, ~sub46~, ^sup46^. image:diagram-46.svg[alt
+text 46,200,150]. stem:[x^6 + y_{4}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-46,sub-1] indexterm2:[keyword-46].
+Visit https://example.com/pulls/46 or link:https://api.example.com/v6[API v6].
+See also <<sec-45,previous>>, footnote:name-46[named 46], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 46] +
+kbd:[Alt+F6] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/46[post 46] and *_mixed 46_* with `code 46`.
+
+=== Section 47 anchor[[sec-47]]
+
+See link:https://example.com/page-47[page 47], xref:sec-48[next], and
+kbd:[Ctrl+Shift+7] to footnote:[cross-ref 47: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user47@example.com[user 47] for *bold 47*, _italic 47_,
+`mono 47`, #highlight 47#, ~sub47~, ^sup47^. image:diagram-47.svg[alt
+text 47,200,150]. stem:[x^7 + y_{5}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-47,sub-2] indexterm2:[keyword-47].
+Visit https://example.com/pulls/47 or link:https://api.example.com/v7[API v7].
+See also <<sec-46,previous>>, footnote:name-47[named 47], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 47] +
+kbd:[Alt+F7] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/47[post 47] and *_mixed 47_* with `code 47`.
+
+=== Section 48 anchor[[sec-48]]
+
+See link:https://example.com/page-48[page 48], xref:sec-49[next], and
+kbd:[Ctrl+Shift+8] to footnote:[cross-ref 48: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user48@example.com[user 48] for *bold 48*, _italic 48_,
+`mono 48`, #highlight 48#, ~sub48~, ^sup48^. image:diagram-48.svg[alt
+text 48,200,150]. stem:[x^8 + y_{6}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-48,sub-3] indexterm2:[keyword-48].
+Visit https://example.com/pulls/48 or link:https://api.example.com/v8[API v8].
+See also <<sec-47,previous>>, footnote:name-48[named 48], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 48] +
+kbd:[Alt+F8] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/48[post 48] and *_mixed 48_* with `code 48`.
+
+.Glossary fragment 49
+link:https://docs.example.com/term-49[term 49]:: see xref:sec-49[here] footnote:[glossary 49]
+`{version}`:: current *{product}* version
+kbd:[Ctrl+49]:: open menu:View[Panel 49]
+icon:bolt[]:: quick action via btn:[Run] and image:ico-49.svg[ico,16,16]
+
+=== Section 49 anchor[[sec-49]]
+
+See link:https://example.com/page-49[page 49], xref:sec-50[next], and
+kbd:[Ctrl+Shift+9] to footnote:[cross-ref 49: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user49@example.com[user 49] for *bold 49*, _italic 49_,
+`mono 49`, #highlight 49#, ~sub49~, ^sup49^. image:diagram-49.svg[alt
+text 49,200,150]. stem:[x^9 + y_{0}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-49,sub-4] indexterm2:[keyword-49].
+Visit https://example.com/pulls/49 or link:https://api.example.com/v9[API v9].
+See also <<sec-48,previous>>, footnote:name-49[named 49], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 49] +
+kbd:[Alt+F9] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/49[post 49] and *_mixed 49_* with `code 49`.
+
+.List of 50 references
+* link:https://example.com/a-50[First ref 50] + kbd:[F1] for help footnote:[aux 50]
+* xref:sec-50[Section 50] with btn:[Open] and menu:Go[To Line...]
+* image:thumb-50.png[thumb,32,32] and icon:check[role="green"] *done*
+* stem:[a^2 + b^2 = c^2] and `pass:[<code>raw</code>]` and _{version}_
+* mailto:team-50@example.com[team] plus https://example.com/issues/50
+
+=== Section 50 anchor[[sec-50]]
+
+See link:https://example.com/page-50[page 50], xref:sec-51[next], and
+kbd:[Ctrl+Shift+0] to footnote:[cross-ref 50: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user50@example.com[user 50] for *bold 50*, _italic 50_,
+`mono 50`, #highlight 50#, ~sub50~, ^sup50^. image:diagram-50.svg[alt
+text 50,200,150]. stem:[x^0 + y_{1}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-50,sub-0] indexterm2:[keyword-50].
+Visit https://example.com/pulls/50 or link:https://api.example.com/v0[API v0].
+See also <<sec-49,previous>>, footnote:name-50[named 50], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 50] +
+kbd:[Alt+F0] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/50[post 50] and *_mixed 50_* with `code 50`.
+
+=== Section 51 anchor[[sec-51]]
+
+See link:https://example.com/page-51[page 51], xref:sec-52[next], and
+kbd:[Ctrl+Shift+1] to footnote:[cross-ref 51: {product} v{version}
+notes]. Press btn:[Save], menu:File[Export > PDF > A4], or icon:cog[role="fa-2x"].
+Reach mailto:user51@example.com[user 51] for *bold 51*, _italic 51_,
+`mono 51`, #highlight 51#, ~sub51~, ^sup51^. image:diagram-51.svg[alt
+text 51,200,150]. stem:[x^1 + y_{2}] with pass:[<u>literal</u>]
+and pass:q[*not parsed*]. indexterm:[term-51,sub-1] indexterm2:[keyword-51].
+Visit https://example.com/pulls/51 or link:https://api.example.com/v1[API v1].
+See also <<sec-50,previous>>, footnote:name-51[named 51], and
+`{version}` → {version}. link:mailto:ops@example.com[ops 51] +
+kbd:[Alt+F1] btn:[Apply] menu:Edit[Find > Replace]. Another
+link:https://nlopes.dev/51[post 51] and *_mixed 51_* with `code 51`.
+

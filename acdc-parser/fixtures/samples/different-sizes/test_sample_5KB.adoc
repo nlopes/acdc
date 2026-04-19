@@ -1,0 +1,85 @@
+= Architecture
+:toc:
+:toclevels: 3
+
+== Overview and philosophy
+
+`acdc` (AsciiDoc Tooling) is a spec-first (really, best effort) AsciiDoc parser and toolchain built in Rust. The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
+
+The toolchain includes a parser library, converters for various output formats (HTML, manpage, terminal), a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
+
+=== What I'm trying to build
+
+I want to create a parser that follows the AsciiDoc Language specification whenever it's been formalized. Think of this as a reference implementation that tracks the evolving spec. When the spec is undefined or ambiguous, I match Asciidoctor's behavior to keep things familiar for users.
+
+The goal is to eventually be the canonical implementation - the one people point to when
+they want to understand how the spec should work in practice. Along the way, I'll be feeding implementation experience back to the spec process.
+
+=== How I'm approaching this
+
+I'm taking a simple, pragmatic approach:
+
+. When the spec has made a formal decision, that's what I implement - no questions asked
+. Where the spec is still undefined, I match what Asciidoctor does
+. I document any deviations (especially where following the spec means diverging from Asciidoctor)
+. Right now I'm prioritizing grammar coverage and correctness over performance
+
+The idea is that users should feel like they're getting "mostly the same" experience as Asciidoctor, but with the confidence that it aligns with the formal specification.
+
+== Why PEG?
+
+I chose Parsing Expression Grammars (PEG) for the parser because that's what the AsciiDoc Language folks decided on in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-004-use-peg-for-formal-grammar.adoc[SDR-004: Use PEG for Formal Grammar].
+
+Here's why:
+
+**The grammar mirrors the spec directly**. When the spec defines a rule, my PEG grammar rule looks almost identical. This makes it way easier for spec contributors to understand the implementation, and vice versa.
+
+**Debugging is straightforward**. Parser rules map one-to-one with spec grammar rules. When something breaks or the spec changes, I know exactly where to look.
+
+**It's readable**. PEG grammars read almost like pseudocode from the spec. Compare that to hand-written recursive descent parsers or complex parser combinator chains, and it's a clear win for maintainability.
+
+**Implementation**: I'm using https://github.com/kevinmehall/rust-peg[rust-peg], which generates efficient parsers from PEG grammar definitions embedded right in the Rust source.
+
+=== The trade-offs
+
+Nothing's free. PEG parser generation creates a lot of code that needs to be compiled, which impacts build times (especially during development). I plan to tackle this, but for now, I'm okay with things as they stand.
+
+The parser grammar generates thousands of lines of code, but that's acceptable given how much easier it makes maintaining alignment with the spec. Performance optimization is coming later - after I've got comprehensive grammar coverage.
+
+== Three-stage processing pipeline
+
+The parser works in three stages:
+
+[source]
+----
+Input Document → [Preprocessor] → [Parser] → [Converter] → Output
+----
+
+=== Stage 1: preprocessor
+
+The preprocessor (`acdc-parser/src/preprocessor/`) handles text-level transformations that need to happen before parsing. This includes:
+
+* Expanding `include::[]` directives (recursively processing included files)
+* Evaluating conditional directives like `ifdef::[]`, `ifndef::[]`, and `ifeval::[]`
+* Processing document attribute definitions (`:attr:`) and multi-line attribute continuations
+
+Why keep this separate? Because the AsciiDoc spec says these expansions must happen before parsing. The preprocessor works on raw text and produces expanded content that the parser then processes.
+
+=== Stage 2: parser (PEG + inline preprocessing)
+
+This is where the actual parsing happens (`acdc-parser/src/grammar/`). The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
+
+==== Main document grammar
+
+The primary PEG grammar lives in `document.rs` using the `peg::parser!` macro. It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
+
+==== Inline preprocessing
+
+Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].
+
+The spec defines inline markup with substitution rules that must be applied in a specific order. Nested inline markup (like bold text within a link) requires preprocessing before the main parsing pass.
+
+I use a two-pass approach:
+
+1. **Preprocessing pass**: Apply substitutions in the spec-defined order
+2. **Parsing pass**: Parse the prepr

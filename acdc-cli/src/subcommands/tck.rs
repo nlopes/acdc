@@ -69,12 +69,12 @@ pub fn run(_args: &Args) -> Result<(), Error> {
     let mut stdout = io::stdout();
     match tck_input.r#type.as_str() {
         "block" => {
-            let doc = acdc_parser::parse(&tck_input.contents, &parser_options)?;
-            serde_json::to_writer(&stdout, &doc)?;
+            let parsed = acdc_parser::parse(&tck_input.contents, &parser_options)?;
+            serde_json::to_writer(&stdout, parsed.document())?;
         }
         "inline" => {
-            let inlines = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;
-            serde_json::to_writer(&stdout, &inlines)?;
+            let parsed = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;
+            serde_json::to_writer(&stdout, parsed.inlines())?;
         }
         other => {
             tracing::error!(type=other, "Unsupported type, expected 'block' or 'inline'");

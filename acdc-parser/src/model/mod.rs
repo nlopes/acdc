@@ -1,6 +1,7 @@
 //! The data models for the `AsciiDoc` document.
 use std::{fmt::Display, str::FromStr, string::ToString};
 
+use bumpalo::Bump;
 use serde::{
     Serialize,
     ser::{SerializeMap, Serializer},
@@ -46,14 +47,12 @@ pub use title::{Subtitle, Title};
 /// A `Document` represents the root of an `AsciiDoc` document.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Document {
-    pub(crate) name: String,
-    pub(crate) r#type: String,
-    pub header: Option<Header>,
-    pub attributes: DocumentAttributes,
-    pub blocks: Vec<Block>,
-    pub footnotes: Vec<Footnote>,
-    pub toc_entries: Vec<TocEntry>,
+pub struct Document<'a> {
+    pub header: Option<Header<'a>>,
+    pub attributes: DocumentAttributes<'a>,
+    pub blocks: Vec<Block<'a>>,
+    pub footnotes: Vec<Footnote<'a>>,
+    pub toc_entries: Vec<TocEntry<'a>>,
     pub location: Location,
 }
 
@@ -63,37 +62,37 @@ pub struct Document {
 /// (such as ID and roles) that can be applied to the document title.
 #[derive(Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Header {
+pub struct Header<'a> {
     #[serde(skip_serializing_if = "BlockMetadata::is_default")]
-    pub metadata: BlockMetadata,
+    pub metadata: BlockMetadata<'a>,
     #[serde(skip_serializing_if = "Title::is_empty")]
-    pub title: Title,
+    pub title: Title<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subtitle: Option<Subtitle>,
+    pub subtitle: Option<Subtitle<'a>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub authors: Vec<Author>,
+    pub authors: Vec<Author<'a>>,
     pub location: Location,
 }
 
 /// An `Author` represents the author of a document.
 #[derive(Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Author {
+pub struct Author<'a> {
     #[serde(rename = "firstname")]
-    pub first_name: String,
+    pub first_name: &'a str,
     #[serde(skip_serializing_if = "Option::is_none", rename = "middlename")]
-    pub middle_name: Option<String>,
+    pub middle_name: Option<&'a str>,
     #[serde(rename = "lastname")]
-    pub last_name: String,
-    pub initials: String,
+    pub last_name: &'a str,
+    pub initials: &'a str,
     #[serde(skip_serializing_if = "Option::is_none", rename = "address")]
-    pub email: Option<String>,
+    pub email: Option<&'a str>,
 }
 
-impl Header {
+impl<'a> Header<'a> {
     /// Create a new header with the given title and location.
     #[must_use]
-    pub fn new(title: Title, location: Location) -> Self {
+    pub fn new(title: Title<'a>, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             title,
@@ -105,35 +104,37 @@ impl Header {
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
 
     /// Set the subtitle.
     #[must_use]
-    pub fn with_subtitle(mut self, subtitle: Subtitle) -> Self {
+    pub fn with_subtitle(mut self, subtitle: Subtitle<'a>) -> Self {
         self.subtitle = Some(subtitle);
         self
     }
 
     /// Set the authors.
     #[must_use]
-    pub fn with_authors(mut self, authors: Vec<Author>) -> Self {
+    pub fn with_authors(mut self, authors: Vec<Author<'a>>) -> Self {
         self.authors = authors;
         self
     }
 }
 
-impl Author {
-    /// Create a new author with the given names and initials.
+impl<'a> Author<'a> {
+    /// Assemble an author from already-prepared name parts. No normalization
+    /// or allocation happens — callers (tests, external consumers) are
+    /// responsible for providing the display-ready strings they want.
     #[must_use]
-    pub fn new(first_name: &str, middle_name: Option<&str>, last_name: Option<&str>) -> Self {
-        let first_name = first_name.replace('_', " ");
-        let middle_name = middle_name.map(|m| m.replace('_', " "));
-        let last_name = last_name.map(|l| l.replace('_', " ")).unwrap_or_default();
-        let initials =
-            Self::generate_initials(&first_name, middle_name.as_deref(), Some(&last_name));
+    pub fn from_parts(
+        first_name: &'a str,
+        middle_name: Option<&'a str>,
+        last_name: &'a str,
+        initials: &'a str,
+    ) -> Self {
         Self {
             first_name,
             middle_name,
@@ -143,9 +144,57 @@ impl Author {
         }
     }
 
+    /// Create a new author with the given names. Arena-allocates any
+    /// underscore-normalized strings and computed initials.
+    #[must_use]
+    pub(crate) fn new(
+        arena: &'a Bump,
+        first_name: &'a str,
+        middle_name: Option<&'a str>,
+        last_name: Option<&'a str>,
+    ) -> Self {
+        let first_processed = first_name.replace('_', " ");
+        let middle_processed = middle_name.map(|m| m.replace('_', " "));
+        let last_processed = last_name.map(|l| l.replace('_', " "));
+
+        let initials = Self::generate_initials(
+            &first_processed,
+            middle_processed.as_deref(),
+            last_processed.as_deref(),
+        );
+
+        Self {
+            first_name: if first_processed == first_name {
+                first_name
+            } else {
+                arena.alloc_str(&first_processed)
+            },
+            middle_name: middle_name
+                .zip(middle_processed.as_ref())
+                .map(|(orig, proc)| {
+                    if proc == orig {
+                        orig
+                    } else {
+                        &*arena.alloc_str(proc)
+                    }
+                }),
+            last_name: last_name
+                .zip(last_processed.as_ref())
+                .map_or("", |(orig, proc)| {
+                    if proc == orig {
+                        orig
+                    } else {
+                        arena.alloc_str(proc)
+                    }
+                }),
+            initials: arena.alloc_str(&initials),
+            email: None,
+        }
+    }
+
     /// Set the email address.
     #[must_use]
-    pub fn with_email(mut self, email: String) -> Self {
+    pub fn with_email(mut self, email: &'a str) -> Self {
         self.email = Some(email);
         self
     }
@@ -169,8 +218,8 @@ impl Author {
 /// They act as block boundaries but produce no output.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Comment {
-    pub content: String,
+pub struct Comment<'a> {
+    pub content: &'a str,
     pub location: Location,
 }
 
@@ -180,32 +229,32 @@ pub struct Comment {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum Block {
-    TableOfContents(TableOfContents),
+pub enum Block<'a> {
+    TableOfContents(TableOfContents<'a>),
     // TODO(nlopes): we shouldn't have an admonition type here, instead it should be
     // picked up from the style attribute from the block metadata.
     //
     // The main one that would need changing is the Paragraph and the Delimited Example
     // blocks, where we currently use this but don't need to.
-    Admonition(Admonition),
-    DiscreteHeader(DiscreteHeader),
-    DocumentAttribute(DocumentAttribute),
-    ThematicBreak(ThematicBreak),
-    PageBreak(PageBreak),
-    UnorderedList(UnorderedList),
-    OrderedList(OrderedList),
-    CalloutList(CalloutList),
-    DescriptionList(DescriptionList),
-    Section(Section),
-    DelimitedBlock(DelimitedBlock),
-    Paragraph(Paragraph),
-    Image(Image),
-    Audio(Audio),
-    Video(Video),
-    Comment(Comment),
+    Admonition(Admonition<'a>),
+    DiscreteHeader(DiscreteHeader<'a>),
+    DocumentAttribute(DocumentAttribute<'a>),
+    ThematicBreak(ThematicBreak<'a>),
+    PageBreak(PageBreak<'a>),
+    UnorderedList(UnorderedList<'a>),
+    OrderedList(OrderedList<'a>),
+    CalloutList(CalloutList<'a>),
+    DescriptionList(DescriptionList<'a>),
+    Section(Section<'a>),
+    DelimitedBlock(DelimitedBlock<'a>),
+    Paragraph(Paragraph<'a>),
+    Image(Image<'a>),
+    Audio(Audio<'a>),
+    Video(Video<'a>),
+    Comment(Comment<'a>),
 }
 
-impl Locateable for Block {
+impl Locateable for Block<'_> {
     fn location(&self) -> &Location {
         match self {
             Block::Section(s) => &s.location,
@@ -235,13 +284,13 @@ impl Locateable for Block {
 /// document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct DocumentAttribute {
-    pub name: AttributeName,
-    pub value: AttributeValue,
+pub struct DocumentAttribute<'a> {
+    pub name: AttributeName<'a>,
+    pub value: AttributeValue<'a>,
     pub location: Location,
 }
 
-impl Serialize for DocumentAttribute {
+impl Serialize for DocumentAttribute<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -261,9 +310,9 @@ impl Serialize for DocumentAttribute {
 /// sidebar.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct DiscreteHeader {
-    pub metadata: BlockMetadata,
-    pub title: Title,
+pub struct DiscreteHeader<'a> {
+    pub metadata: BlockMetadata<'a>,
+    pub title: Title<'a>,
     pub level: u8,
     pub location: Location,
 }
@@ -271,13 +320,13 @@ pub struct DiscreteHeader {
 /// A `ThematicBreak` represents a thematic break in a document.
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct ThematicBreak {
-    pub anchors: Vec<Anchor>,
-    pub title: Title,
+pub struct ThematicBreak<'a> {
+    pub anchors: Vec<Anchor<'a>>,
+    pub title: Title<'a>,
     pub location: Location,
 }
 
-impl Serialize for ThematicBreak {
+impl Serialize for ThematicBreak<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -300,13 +349,13 @@ impl Serialize for ThematicBreak {
 /// A `PageBreak` represents a page break in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct PageBreak {
-    pub title: Title,
-    pub metadata: BlockMetadata,
+pub struct PageBreak<'a> {
+    pub title: Title<'a>,
+    pub metadata: BlockMetadata<'a>,
     pub location: Location,
 }
 
-impl Serialize for PageBreak {
+impl Serialize for PageBreak<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -326,7 +375,7 @@ impl Serialize for PageBreak {
     }
 }
 
-impl Serialize for Comment {
+impl Serialize for Comment<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -345,12 +394,12 @@ impl Serialize for Comment {
 /// A `TableOfContents` represents a table of contents block.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct TableOfContents {
-    pub metadata: BlockMetadata,
+pub struct TableOfContents<'a> {
+    pub metadata: BlockMetadata<'a>,
     pub location: Location,
 }
 
-impl Serialize for TableOfContents {
+impl Serialize for TableOfContents<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -369,17 +418,17 @@ impl Serialize for TableOfContents {
 /// A `Paragraph` represents a paragraph in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Paragraph {
-    pub metadata: BlockMetadata,
-    pub title: Title,
-    pub content: Vec<InlineNode>,
+pub struct Paragraph<'a> {
+    pub metadata: BlockMetadata<'a>,
+    pub title: Title<'a>,
+    pub content: Vec<InlineNode<'a>>,
     pub location: Location,
 }
 
-impl Paragraph {
+impl<'a> Paragraph<'a> {
     /// Create a new paragraph with the given content and location.
     #[must_use]
-    pub fn new(content: Vec<InlineNode>, location: Location) -> Self {
+    pub fn new(content: Vec<InlineNode<'a>>, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             title: Title::default(),
@@ -390,14 +439,14 @@ impl Paragraph {
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
         self.title = title;
         self
     }
@@ -406,20 +455,20 @@ impl Paragraph {
 /// A `DelimitedBlock` represents a delimited block in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct DelimitedBlock {
-    pub metadata: BlockMetadata,
-    pub inner: DelimitedBlockType,
-    pub delimiter: String,
-    pub title: Title,
+pub struct DelimitedBlock<'a> {
+    pub metadata: BlockMetadata<'a>,
+    pub inner: DelimitedBlockType<'a>,
+    pub delimiter: &'a str,
+    pub title: Title<'a>,
     pub location: Location,
     pub open_delimiter_location: Option<Location>,
     pub close_delimiter_location: Option<Location>,
 }
 
-impl DelimitedBlock {
+impl<'a> DelimitedBlock<'a> {
     /// Create a new delimited block.
     #[must_use]
-    pub fn new(inner: DelimitedBlockType, delimiter: String, location: Location) -> Self {
+    pub fn new(inner: DelimitedBlockType<'a>, delimiter: &'a str, location: Location) -> Self {
         Self {
             metadata: BlockMetadata::default(),
             inner,
@@ -433,14 +482,14 @@ impl DelimitedBlock {
 
     /// Set the metadata.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
         self
     }
 
     /// Set the title.
     #[must_use]
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
         self.title = title;
         self
     }
@@ -478,15 +527,15 @@ impl FromStr for StemNotation {
 /// Content of a stem block with math notation.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct StemContent {
-    pub content: String,
+pub struct StemContent<'a> {
+    pub content: &'a str,
     pub notation: StemNotation,
 }
 
-impl StemContent {
+impl<'a> StemContent<'a> {
     /// Create a new stem content with the given content and notation.
     #[must_use]
-    pub fn new(content: String, notation: StemNotation) -> Self {
+    pub fn new(content: &'a str, notation: StemNotation) -> Self {
         Self { content, notation }
     }
 }
@@ -530,32 +579,32 @@ impl StemContent {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum DelimitedBlockType {
+pub enum DelimitedBlockType<'a> {
     /// Comment block content (not rendered in output).
-    DelimitedComment(Vec<InlineNode>),
+    DelimitedComment(Vec<InlineNode<'a>>),
     /// Example block - can contain nested blocks, admonitions, etc.
-    DelimitedExample(Vec<Block>),
+    DelimitedExample(Vec<Block<'a>>),
     /// Listing block - typically source code with syntax highlighting.
-    DelimitedListing(Vec<InlineNode>),
+    DelimitedListing(Vec<InlineNode<'a>>),
     /// Literal block - preformatted text rendered verbatim.
-    DelimitedLiteral(Vec<InlineNode>),
+    DelimitedLiteral(Vec<InlineNode<'a>>),
     /// Open block - generic container for nested blocks.
-    DelimitedOpen(Vec<Block>),
+    DelimitedOpen(Vec<Block<'a>>),
     /// Sidebar block - supplementary content in a styled container.
-    DelimitedSidebar(Vec<Block>),
+    DelimitedSidebar(Vec<Block<'a>>),
     /// Table block - structured tabular data.
-    DelimitedTable(Table),
+    DelimitedTable(Table<'a>),
     /// Passthrough block - content passed directly to output without processing.
-    DelimitedPass(Vec<InlineNode>),
+    DelimitedPass(Vec<InlineNode<'a>>),
     /// Quote block - blockquote with optional attribution.
-    DelimitedQuote(Vec<Block>),
+    DelimitedQuote(Vec<Block<'a>>),
     /// Verse block - poetry/lyrics preserving line breaks.
-    DelimitedVerse(Vec<InlineNode>),
+    DelimitedVerse(Vec<InlineNode<'a>>),
     /// STEM (math) block - LaTeX or `AsciiMath` notation.
-    DelimitedStem(StemContent),
+    DelimitedStem(StemContent<'a>),
 }
 
-impl DelimitedBlockType {
+impl DelimitedBlockType<'_> {
     fn name(&self) -> &'static str {
         match self {
             DelimitedBlockType::DelimitedComment(_) => "comment",
@@ -573,7 +622,7 @@ impl DelimitedBlockType {
     }
 }
 
-impl Serialize for Document {
+impl Serialize for Document<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -597,7 +646,7 @@ impl Serialize for Document {
     }
 }
 
-impl Serialize for DelimitedBlock {
+impl Serialize for DelimitedBlock<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -641,7 +690,7 @@ impl Serialize for DelimitedBlock {
     }
 }
 
-impl Serialize for DiscreteHeader {
+impl Serialize for DiscreteHeader<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -661,7 +710,7 @@ impl Serialize for DiscreteHeader {
     }
 }
 
-impl Serialize for Paragraph {
+impl Serialize for Paragraph<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

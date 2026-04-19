@@ -35,7 +35,7 @@ Escaping the directive is necessary even if it appears in a verbatim block since
 not aware of the surrounding document structure.
 */
 #[derive(Debug)]
-pub(crate) struct Include {
+pub(crate) struct Include<'a> {
     file_parent: PathBuf,
     target: Target,
     level_offset: Option<isize>,
@@ -44,7 +44,7 @@ pub(crate) struct Include {
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
-    options: Options,
+    options: Options<'a>,
     // Location information for error reporting
     line_number: usize,
     current_offset: usize,
@@ -86,19 +86,19 @@ struct LocationContext<'a> {
 }
 
 peg::parser! {
-    grammar include_parser(
+    grammar include_parser<'a>(
         path: &std::path::Path,
-        options: &Options,
+        options: &Options<'a>,
         location: LocationContext<'_>
     ) for str {
-        pub(crate) rule include() -> Result<Include, Error>
+        pub(crate) rule include() -> Result<Include<'a>, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
                 let target_raw = substitute(&target, HEADER, &options.document_attributes);
                 let target =
                     if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
                         Target::Url(Url::parse(&target_raw)?)
                     } else {
-                        Target::Path(PathBuf::from(target_raw))
+                        Target::Path(PathBuf::from(target_raw.as_ref()))
                     };
 
                 let mut include = Include {
@@ -246,7 +246,7 @@ pub(crate) struct IncludeResult {
     pub(crate) nested_source_ranges: Vec<SourceRange>,
 }
 
-impl Include {
+impl<'a> Include<'a> {
     fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
         for (key, value) in attributes {
             match key.as_ref() {
@@ -320,7 +320,7 @@ impl Include {
         line_number: usize,
         line_start_offset: usize,
         current_file: Option<&Path>,
-        options: &Options,
+        options: &Options<'a>,
     ) -> Result<Self, Error> {
         let location = LocationContext {
             line_number,
@@ -496,10 +496,18 @@ impl Include {
              ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref())
         {
             // For nested AsciiDoc includes, return the text and any nested ranges.
-            // This enables proper accumulation through nested includes.
+            // This enables proper accumulation through nested includes. The result
+            // may borrow from `content`, which is a local here, so materialize
+            // into an owned String via `into_owned` before handing it back.
             return super::Preprocessor
                 .process_inner(&content, Some(file_path), &self.options)
-                .map(|result| (result.text, result.leveloffset_ranges, result.source_ranges))
+                .map(|result| {
+                    (
+                        result.text.into_owned(),
+                        result.leveloffset_ranges,
+                        result.source_ranges,
+                    )
+                })
                 .map_err(|error| {
                     tracing::error!(path=?file_path, ?error, "failed to process file");
                     error
@@ -507,7 +515,11 @@ impl Include {
         }
 
         // For non-AsciiDoc files, normalize the content and return empty nested ranges.
-        Ok((Preprocessor::normalize(&content), Vec::new(), Vec::new()))
+        Ok((
+            Preprocessor::normalize(&content).into_owned(),
+            Vec::new(),
+            Vec::new(),
+        ))
     }
 
     pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {

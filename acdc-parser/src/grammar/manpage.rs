@@ -58,8 +58,8 @@ pub fn parse_manpage_title(title: &str) -> Option<ManpageTitle> {
     }
 
     Some(ManpageTitle {
-        name: name.to_string(),
-        volume: volume.to_string(),
+        name: name.into(),
+        volume: volume.into(),
     })
 }
 
@@ -68,9 +68,9 @@ pub fn extract_plain_text(nodes: &[InlineNode]) -> String {
     let mut result = String::new();
     for node in nodes {
         match node {
-            InlineNode::PlainText(text) => result.push_str(&text.content),
-            InlineNode::RawText(text) => result.push_str(&text.content),
-            InlineNode::VerbatimText(text) => result.push_str(&text.content),
+            InlineNode::PlainText(text) => result.push_str(text.content),
+            InlineNode::RawText(text) => result.push_str(text.content),
+            InlineNode::VerbatimText(text) => result.push_str(text.content),
             InlineNode::BoldText(bold) => result.push_str(&extract_plain_text(&bold.content)),
             InlineNode::ItalicText(italic) => result.push_str(&extract_plain_text(&italic.content)),
             InlineNode::MonospaceText(mono) => result.push_str(&extract_plain_text(&mono.content)),
@@ -132,7 +132,7 @@ fn sanitize_mantitle(name: &str) -> String {
             prev_hyphen = false;
         }
     }
-    result.trim_end_matches('-').to_string()
+    result.trim_end_matches('-').into()
 }
 
 /// Derive manpage attributes from the document header.
@@ -160,9 +160,9 @@ fn sanitize_mantitle(name: &str) -> String {
 /// `Ok(true)` if manpage attributes were derived,
 /// `Ok(false)` if no header was provided,
 /// `Err` if strict mode and title doesn't conform
-pub fn derive_manpage_header_attrs(
-    header: Option<&Header>,
-    attrs: &mut DocumentAttributes,
+pub(crate) fn derive_manpage_header_attrs<'a>(
+    header: Option<&Header<'a>>,
+    attrs: &mut DocumentAttributes<'a>,
     strict: bool,
     source_file: Option<&std::path::Path>,
 ) -> Result<bool, Error> {
@@ -175,12 +175,12 @@ pub fn derive_manpage_header_attrs(
     if let Some(manpage_title) = parse_manpage_title(&title_text) {
         // Conforming title: use parsed name and volume
         attrs.insert(
-            "mantitle".to_string(),
-            AttributeValue::String(manpage_title.name.to_lowercase()),
+            "mantitle".into(),
+            AttributeValue::String(manpage_title.name.to_lowercase().into()),
         );
         attrs.insert(
-            "manvolnum".to_string(),
-            AttributeValue::String(manpage_title.volume),
+            "manvolnum".into(),
+            AttributeValue::String(manpage_title.volume.into()),
         );
 
         tracing::debug!(
@@ -217,11 +217,8 @@ pub fn derive_manpage_header_attrs(
             "doctype=manpage but title doesn't match name(volume) format; using filename as fallback"
         );
 
-        attrs.insert("mantitle".to_string(), AttributeValue::String(sanitized));
-        attrs.insert(
-            "manvolnum".to_string(),
-            AttributeValue::String("1".to_string()),
-        );
+        attrs.insert("mantitle".into(), AttributeValue::String(sanitized.into()));
+        attrs.insert("manvolnum".into(), AttributeValue::String("1".into()));
 
         tracing::debug!(
             mantitle = ?attrs.get("mantitle"),
@@ -247,23 +244,20 @@ pub fn derive_manpage_header_attrs(
 /// # Returns
 ///
 /// true if manname/manpurpose were derived, false otherwise
-pub fn derive_name_section_attrs(content: &str, attrs: &mut DocumentAttributes) -> bool {
+pub(crate) fn derive_name_section_attrs<'a>(
+    content: &'a str,
+    attrs: &mut DocumentAttributes<'a>,
+) -> bool {
     // Split on " - " (with spaces) to get name and purpose
     if let Some(idx) = content.find(" - ") {
         let name = content[..idx].trim();
         let purpose = content[idx + 3..].trim();
 
         if !name.is_empty() {
-            attrs.insert(
-                "manname".to_string(),
-                AttributeValue::String(name.to_string()),
-            );
+            attrs.insert("manname".into(), AttributeValue::String(name.into()));
 
             if !purpose.is_empty() {
-                attrs.insert(
-                    "manpurpose".to_string(),
-                    AttributeValue::String(purpose.to_string()),
-                );
+                attrs.insert("manpurpose".into(), AttributeValue::String(purpose.into()));
             }
 
             tracing::debug!(
@@ -327,11 +321,11 @@ mod tests {
         ));
         assert_eq!(
             attrs.get("manname"),
-            Some(&AttributeValue::String("myprogram".to_string()))
+            Some(&AttributeValue::String("myprogram".into()))
         );
         assert_eq!(
             attrs.get("manpurpose"),
-            Some(&AttributeValue::String("a test program".to_string()))
+            Some(&AttributeValue::String("a test program".into()))
         );
     }
 

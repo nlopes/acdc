@@ -25,7 +25,7 @@ fn render_cell_content(
     col: &acdc_parser::TableColumn,
     col_index: usize,
     columns: &[acdc_parser::ColumnFormat],
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<Cell, Error> {
     let buffer = Vec::new();
     let inner = BufWriter::new(buffer);
@@ -435,7 +435,7 @@ fn is_hspan_origin(grid: &[GridRow<'_>], row_idx: usize, col_idx: usize) -> bool
 fn build_comfy_cells_from_grid(
     grid_row: &GridRow<'_>,
     tbl: &acdc_parser::Table,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<Vec<Cell>, Error> {
     let mut cells = Vec::with_capacity(grid_row.cells.len());
     for (col_idx, kind) in grid_row.cells.iter().enumerate() {
@@ -493,7 +493,7 @@ fn apply_column_widths(table_widget: &mut Table, tbl: &acdc_parser::Table, num_c
 pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
     tbl: &acdc_parser::Table,
     visitor: &mut V,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), Error> {
     let terminal_width = processor.terminal_width;
 
@@ -609,17 +609,23 @@ mod tests {
     use acdc_parser::{Block, DelimitedBlockType, DocumentAttributes};
 
     /// Parse an `AsciiDoc` string and extract the first table from the document.
+    ///
+    /// Leaks the parsed document so the returned `Table<'static>` borrows
+    /// from memory that lives for the rest of the test process.
     #[allow(clippy::expect_used)]
-    fn parse_table(adoc: &str) -> acdc_parser::Table {
+    fn parse_table(adoc: &str) -> acdc_parser::Table<'static> {
         let options = acdc_parser::Options::default();
-        let doc = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
-        doc.blocks
-            .into_iter()
+        let parsed = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
+        let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+        parsed
+            .document()
+            .blocks
+            .iter()
             .find_map(|block| {
                 if let Block::DelimitedBlock(db) = block
-                    && let DelimitedBlockType::DelimitedTable(table) = db.inner
+                    && let DelimitedBlockType::DelimitedTable(table) = &db.inner
                 {
-                    return Some(table);
+                    return Some(table.clone());
                 }
                 None
             })
@@ -627,7 +633,7 @@ mod tests {
     }
 
     /// Create test processor with default options
-    fn create_test_processor() -> Processor {
+    fn create_test_processor() -> Processor<'static> {
         use crate::Appearance;
         use acdc_converters_core::section::{
             AppendixTracker, PartNumberTracker, SectionNumberTracker,

@@ -40,6 +40,7 @@
 
 use std::{
     path::{Path, PathBuf},
+    rc::Rc,
     string::ToString,
 };
 
@@ -51,6 +52,7 @@ mod error;
 pub(crate) mod grammar;
 mod model;
 mod options;
+mod parsed;
 mod preprocessor;
 mod safe_mode;
 
@@ -76,6 +78,7 @@ pub use model::{
     inlines_to_string, strip_quotes, substitute,
 };
 pub use options::{Options, OptionsBuilder, SafeMode};
+pub use parsed::{OwnedSource, ParsedDocument, ParsedInline};
 
 /// Type-based parser for `AsciiDoc` content.
 ///
@@ -123,7 +126,7 @@ pub use options::{Options, OptionsBuilder, SafeMode};
 #[derive(Debug)]
 pub struct Parser<'input> {
     input: &'input str,
-    options: Options,
+    options: Options<'input>,
 }
 
 impl<'input> Parser<'input> {
@@ -166,7 +169,7 @@ impl<'input> Parser<'input> {
     /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
-    pub fn with_options(mut self, options: Options) -> Self {
+    pub fn with_options(mut self, options: Options<'input>) -> Self {
         self.options = options;
         self
     }
@@ -185,7 +188,7 @@ impl<'input> Parser<'input> {
     /// # Errors
     ///
     /// Returns an error if the input cannot be parsed as valid `AsciiDoc`.
-    pub fn parse(self) -> Result<Document, Error> {
+    pub fn parse(self) -> Result<ParsedDocument, Error> {
         parse(self.input, &self.options)
     }
 
@@ -206,7 +209,7 @@ impl<'input> Parser<'input> {
     /// # Errors
     ///
     /// Returns an error if the input cannot be parsed.
-    pub fn parse_inline(self) -> Result<Vec<InlineNode>, Error> {
+    pub fn parse_inline(self) -> Result<ParsedInline, Error> {
         parse_inline(self.input, &self.options)
     }
 }
@@ -233,16 +236,17 @@ impl<'input> Parser<'input> {
 #[instrument(skip(reader))]
 pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
-    options: &Options,
-) -> Result<Document, Error> {
+    options: &Options<'_>,
+) -> Result<ParsedDocument, Error> {
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor.process_reader(reader, options)?
     };
-    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
+    let text: Box<str> = result.text.into_owned().into_boxed_str();
+    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
-        &result.text,
-        options,
+        text,
+        options.clone(),
         None,
         result.leveloffset_ranges,
         result.source_ranges,
@@ -268,15 +272,16 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// # Errors
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
-pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
+pub fn parse(input: &str, options: &Options<'_>) -> Result<ParsedDocument, Error> {
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor.process(input, options)?
     };
-    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
+    let text: Box<str> = result.text.into_owned().into_boxed_str();
+    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
-        &result.text,
-        options,
+        text,
+        options.clone(),
         None,
         result.leveloffset_ranges,
         result.source_ranges,
@@ -303,16 +308,21 @@ pub fn parse(input: &str, options: &Options) -> Result<Document, Error> {
 /// # Errors
 /// This function returns an error if the content cannot be parsed.
 #[instrument(skip(file_path))]
-pub fn parse_file<P: AsRef<Path>>(file_path: P, options: &Options) -> Result<Document, Error> {
+pub fn parse_file<P: AsRef<Path>>(
+    file_path: P,
+    options: &Options<'_>,
+) -> Result<ParsedDocument, Error> {
     let path = file_path.as_ref().to_path_buf();
+    let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor.process_file(file_path, options)?
+        Preprocessor.process_with_file(&raw, file_path.as_ref(), options)?
     };
-    let _span = tracing::info_span!("grammar_parse", input_len = result.text.len()).entered();
+    let text: Box<str> = result.text.into_owned().into_boxed_str();
+    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
-        &result.text,
-        options,
+        text,
+        options.clone(),
         Some(path),
         result.leveloffset_ranges,
         result.source_ranges,
@@ -354,31 +364,42 @@ fn peg_error_to_source_location(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 fn parse_input(
-    input: &str,
-    options: &Options,
+    input: Box<str>,
+    options: Options<'_>,
     file_path: Option<PathBuf>,
     leveloffset_ranges: Vec<model::LeveloffsetRange>,
     source_ranges: Vec<model::SourceRange>,
-) -> Result<Document, Error> {
+) -> Result<ParsedDocument, Error> {
     tracing::trace!(?input, "post preprocessor");
-    let mut state = grammar::ParserState::new(input);
-    state.document_attributes = options.document_attributes.clone();
-    state.options = options.clone();
-    state.current_file = file_path;
-    state.leveloffset_ranges = leveloffset_ranges;
-    state.source_ranges = source_ranges;
-    let result = match grammar::document_parser::document(input, &mut state) {
-        Ok(doc) => doc,
-        Err(error) => {
-            tracing::error!(?error, "error parsing document content");
-            let source_location = peg_error_to_source_location(&error, &state);
-            Err(Error::Parse(Box::new(source_location), error.to_string()))
-        }
-    };
-    state.emit_warnings();
-    result
+    // Pin the preprocessed source text and a fresh `bumpalo::Bump` arena
+    // together. The grammar borrows `&owner.source` and allocates every owned
+    // string into `&owner.arena` via `ParserState::intern_str`. The returned
+    // `Document<'_>` borrows from both — `ParsedDocument` keeps them alive
+    // for as long as the consumer holds the wrapper. On drop, the arena and
+    // source free together in one shot.
+    let owner = parsed::OwnedInput::new(input);
+    let options_owned = options.into_static();
+    ParsedDocument::try_new(owner, move |owner| {
+        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        state.document_attributes = Rc::new(options_owned.document_attributes.clone());
+        state.options = Rc::new(options_owned);
+        state.current_file = file_path;
+        state.leveloffset_ranges = leveloffset_ranges;
+        state.source_ranges = source_ranges;
+        let result = match grammar::document_parser::document(&owner.source, &mut state) {
+            Ok(Ok(doc)) => Ok(doc),
+            Ok(Err(e)) => Err(e),
+            Err(error) => {
+                tracing::error!(?error, "error parsing document content");
+                let source_location = peg_error_to_source_location(&error, &state);
+                Err(Error::Parse(Box::new(source_location), error.to_string()))
+            }
+        };
+        state.emit_warnings();
+        result
+    })
 }
 
 /// Parse inline `AsciiDoc` content from a string.
@@ -406,28 +427,27 @@ fn parse_input(
 /// # Errors
 /// This function returns an error if the inline content cannot be parsed.
 #[instrument]
-pub fn parse_inline(input: &str, options: &Options) -> Result<Vec<InlineNode>, Error> {
+pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParsedInline, Error> {
     tracing::trace!(?input, "post preprocessor");
-    let mut state = grammar::ParserState::new(input);
-    state.document_attributes = options.document_attributes.clone();
-    state.options = options.clone();
-    let result = match grammar::inline_parser::inlines(
-        input,
-        &mut state,
-        0,
-        &grammar::BlockParsingMetadata::default(),
-    ) {
-        Ok(inlines) => Ok(inlines),
-        Err(error) => {
-            tracing::error!(?error, "error parsing inline content");
-            Err(Error::Parse(
-                Box::new(peg_error_to_source_location(&error, &state)),
-                error.to_string(),
-            ))
-        }
-    };
-    state.emit_warnings();
-    result
+    let owner = parsed::OwnedInput::new(input.into());
+    let options_owned = options.clone().into_static();
+    ParsedInline::try_new(owner, move |owner| {
+        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        state.document_attributes = Rc::new(options_owned.document_attributes.clone());
+        state.options = Rc::new(options_owned);
+        let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
+            Ok(inlines) => Ok(inlines),
+            Err(error) => {
+                tracing::error!(?error, "error parsing inline content");
+                Err(Error::Parse(
+                    Box::new(peg_error_to_source_location(&error, &state)),
+                    error.to_string(),
+                ))
+            }
+        };
+        state.emit_warnings();
+        result
+    })
 }
 
 #[cfg(test)]
@@ -438,15 +458,15 @@ mod proptests;
 #[allow(clippy::panic)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use super::*;
+    use std::{fs, path::PathBuf};
+
     use pretty_assertions::assert_eq;
 
-    fn read_file_contents_with_extension(
-        path: &std::path::PathBuf,
-        ext: &str,
-    ) -> Result<String, Error> {
+    use super::*;
+
+    fn read_file_contents_with_extension(path: &PathBuf, ext: &str) -> Result<String, Error> {
         let test_file_path = path.with_extension(ext);
-        let file_contents = std::fs::read_to_string(&test_file_path).inspect_err(
+        let file_contents = fs::read_to_string(&test_file_path).inspect_err(
             |e| tracing::warn!(?path, ?test_file_path, error = %e, "test file not found"),
         )?;
         Ok(file_contents)
@@ -454,16 +474,14 @@ mod tests {
 
     #[rstest::rstest]
     #[tracing_test::traced_test]
-    fn test_with_fixtures(
-        #[files("fixtures/tests/**/*.adoc")] path: std::path::PathBuf,
-    ) -> Result<(), Error> {
+    fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: PathBuf) -> Result<(), Error> {
         let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
 
         match parse_file(&path, &options) {
             Ok(result) => {
                 let expected = read_file_contents_with_extension(&path, "json")?;
-                let actual =
-                    serde_json::to_string_pretty(&result).expect("could not serialize result");
+                let actual = serde_json::to_string_pretty(result.document())
+                    .expect("could not serialize result");
                 assert_eq!(expected, actual);
             }
             Err(e) => {
@@ -492,7 +510,8 @@ mod tests {
                 let result = parse(input, &options);
 
                 match result {
-                    Ok(doc) => {
+                    Ok(parsed) => {
+                        let doc = parsed.document();
                         // Validate the invariant using absolute offsets
                         assert!(
                             doc.location.absolute_start <= doc.location.absolute_end,
@@ -519,8 +538,9 @@ mod tests {
 
             for input in test_cases {
                 let options = Options::default();
-                let doc =
+                let parsed =
                     parse(input, &options).unwrap_or_else(|_| panic!("Should parse {input:?}"));
+                let doc = parsed.document();
 
                 assert!(
                     doc.location.absolute_start <= doc.location.absolute_end,
@@ -551,7 +571,8 @@ mod tests {
                 let result = parse(input, &options);
 
                 match result {
-                    Ok(doc) => {
+                    Ok(parsed) => {
+                        let doc = parsed.document();
                         // All offsets should be on UTF-8 boundaries
                         assert!(
                             input.is_char_boundary(doc.location.absolute_start),
@@ -572,7 +593,7 @@ mod tests {
                     Err(e) => {
                         // Some of these might fail to parse, which is OK for now
                         // We're just testing that if they parse, the locations are valid
-                        eprintln!("Failed to parse {input:?}: {e} (this might be expected)");
+                        println!("Failed to parse {input:?}: {e} (this might be expected)");
                     }
                 }
             }
@@ -627,6 +648,8 @@ mod tests {
     }
 
     mod attribute_resolution_tests {
+        use std::borrow::Cow;
+
         use crate::{AttributeValue, Options, parse};
 
         #[test]
@@ -638,12 +661,13 @@ mod tests {
 {foo}
 ";
             let options = Options::default();
-            let doc = parse(input, &options).expect("should parse");
+            let parsed = parse(input, &options).expect("should parse");
+            let doc = parsed.document();
 
             // foo should have bar's value expanded at definition time
             assert_eq!(
                 doc.attributes.get("foo"),
-                Some(&AttributeValue::String("resolved-bar".to_string()))
+                Some(&AttributeValue::String(Cow::Borrowed("resolved-bar")))
             );
         }
 
@@ -656,12 +680,13 @@ mod tests {
 {foo}
 ";
             let options = Options::default();
-            let doc = parse(input, &options).expect("should parse");
+            let parsed = parse(input, &options).expect("should parse");
+            let doc = parsed.document();
 
             // foo should keep {bar} as literal since bar wasn't defined yet
             assert_eq!(
                 doc.attributes.get("foo"),
-                Some(&AttributeValue::String("{bar}".to_string()))
+                Some(&AttributeValue::String(Cow::Borrowed("{bar}")))
             );
         }
 
@@ -676,20 +701,21 @@ mod tests {
 {a}
 ";
             let options = Options::default();
-            let doc = parse(input, &options).expect("should parse");
+            let parsed = parse(input, &options).expect("should parse");
+            let doc = parsed.document();
 
             // c is defined first, so b gets "final-value", then a gets "final-value"
             assert_eq!(
                 doc.attributes.get("c"),
-                Some(&AttributeValue::String("final-value".to_string()))
+                Some(&AttributeValue::String(Cow::Borrowed("final-value")))
             );
             assert_eq!(
                 doc.attributes.get("b"),
-                Some(&AttributeValue::String("final-value".to_string()))
+                Some(&AttributeValue::String(Cow::Borrowed("final-value")))
             );
             assert_eq!(
                 doc.attributes.get("a"),
-                Some(&AttributeValue::String("final-value".to_string()))
+                Some(&AttributeValue::String(Cow::Borrowed("final-value")))
             );
         }
     }

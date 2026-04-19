@@ -19,11 +19,13 @@ setext = []  # Enable Setext-style (underlined) header parsing
 pre-spec-subs = []
 
 [dependencies]
+bumpalo = { version = "3", features = ["collections"] }
 csv = "1.4"
 encoding_rs = "0.8"
 evalexpr = "13"
 peg = "0.8"
 rustc-hash.workspace = true
+self_cell = "1"
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
@@ -38,6 +40,10 @@ crossterm = "0.29"
 pretty_assertions.workspace = true
 proptest = "1.9"
 rstest.workspace = true
+# Tiny tracking global allocator for the `no_leak` integration test. Encapsulates
+# its own `unsafe impl GlobalAlloc` so the workspace `forbid(unsafe_code)` lint
+# stays untouched.
+stats_alloc = "0.1"
 tracing-test.workspace = true
 
 [[bench]]

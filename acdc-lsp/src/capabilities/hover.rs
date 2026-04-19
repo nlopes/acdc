@@ -16,8 +16,9 @@ pub(crate) fn compute_hover(
     workspace: &Workspace,
     position: Position,
 ) -> Option<Hover> {
-    let offset = position_to_offset(&doc.text, position)?;
-    let ast = doc.ast.as_ref()?;
+    let offset = position_to_offset(doc.text(), position)?;
+    let ast_guard = doc.ast()?;
+    let ast = ast_guard.document();
 
     // Check for xref at this position
     if let Some((target, xref_loc)) = find_xref_at_offset(ast, offset) {
@@ -282,7 +283,7 @@ fn find_xref_in_inline(inline: &InlineNode, offset: usize) -> Option<(String, Lo
     match inline {
         InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
             if offset_in_location(offset, &xref.location) {
-                return Some((xref.target.clone(), xref.location.clone()));
+                return Some((xref.target.to_string(), xref.location.clone()));
             }
             None
         }
@@ -451,7 +452,7 @@ fn find_inline_anchor_in_inline(inline: &InlineNode, offset: usize) -> Option<(S
     match inline {
         InlineNode::InlineAnchor(anchor) => {
             if offset_in_location(offset, &anchor.location) {
-                return Some((anchor.id.clone(), anchor.location.clone()));
+                return Some((anchor.id.to_string(), anchor.location.clone()));
             }
             None
         }

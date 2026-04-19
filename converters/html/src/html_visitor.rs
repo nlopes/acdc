@@ -12,46 +12,21 @@ use acdc_parser::{
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
 
-/// Compute effective substitutions for a block.
-///
-/// This function resolves `SubstitutionSpec` to a concrete list of substitutions
-/// using the appropriate baseline for the block type:
-/// - Verbatim blocks (listing, literal): Use `VERBATIM` baseline
-/// - Non-verbatim blocks (paragraph, etc.): Use `NORMAL` baseline
-#[cfg(feature = "pre-spec-subs")]
+/// Resolve a `SubstitutionSpec` against the baseline for the block kind
+/// (verbatim = `VERBATIM`, otherwise `NORMAL`).
 #[must_use]
 pub(crate) fn effective_subs(
     spec: Option<&SubstitutionSpec>,
     is_verbatim: bool,
 ) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
-
     let result = match spec {
         Some(s) => s.resolve(baseline),
         None => baseline.to_vec(),
     };
-    tracing::debug!(
-        "effective_subs(spec={:?}, is_verbatim={}) => {:?}",
-        spec,
-        is_verbatim,
-        result
-    );
+    #[cfg(feature = "pre-spec-subs")]
+    tracing::debug!(?spec, is_verbatim, ?result, "effective_subs");
     result
-}
-
-/// Compute effective substitutions for a block (no pre-spec-subs feature).
-#[cfg(not(feature = "pre-spec-subs"))]
-#[must_use]
-pub(crate) fn effective_subs(
-    spec: Option<&SubstitutionSpec>,
-    is_verbatim: bool,
-) -> Vec<Substitution> {
-    let baseline = if is_verbatim { VERBATIM } else { NORMAL };
-
-    match spec {
-        Some(s) => s.resolve(baseline),
-        None => baseline.to_vec(),
-    }
 }
 
 fn link_css<W: Write>(
@@ -75,7 +50,7 @@ fn link_css<W: Write>(
     writeln!(
         writer,
         r#"<link rel="stylesheet" href="{}/{}">"#,
-        stylesdir.as_str().trim_end_matches('/'),
+        stylesdir.trim_end_matches('/'),
         stylesheet
     )?;
 
@@ -173,13 +148,9 @@ MathJax = {{
 }
 
 /// HTML visitor that generates HTML from `AsciiDoc` AST
-pub struct HtmlVisitor<W: Write> {
+pub struct HtmlVisitor<'a, W: Write> {
     writer: W,
-    /// Shared Processor — `Rc` so per-section clones don't deep-copy the
-    /// embedded `toc_entries: Vec<TocEntry>` and `document_attributes`
-    /// hashmap. With a plain `Processor`, `visit_section` cloned the whole
-    /// struct on every call — O(sections²) on TOC-heavy docs.
-    pub(crate) processor: Rc<Processor>,
+    pub(crate) processor: Rc<Processor<'a>>,
     pub(crate) render_options: RenderOptions,
     /// Current effective substitutions for inline rendering.
     /// Set per-block in `visit_delimited_block`, defaults to normal substitutions.
@@ -191,8 +162,8 @@ pub struct HtmlVisitor<W: Write> {
     docinfo: DocInfo,
 }
 
-impl<W: Write> HtmlVisitor<W> {
-    pub fn new(writer: W, processor: Processor, render_options: RenderOptions) -> Self {
+impl<'a, W: Write> HtmlVisitor<'a, W> {
+    pub fn new(writer: W, processor: Rc<Processor<'a>>, render_options: RenderOptions) -> Self {
         let docinfo = if render_options.embedded {
             DocInfo::empty()
         } else {
@@ -205,7 +176,7 @@ impl<W: Write> HtmlVisitor<W> {
         };
         Self {
             writer,
-            processor: Rc::new(processor),
+            processor,
             render_options,
             current_subs: NORMAL.to_vec(),
             section_style: None,
@@ -251,7 +222,7 @@ impl<W: Write> HtmlVisitor<W> {
                     writeln!(
                         self.writer,
                         r#"<link rel="stylesheet" href="{}/{}">"#,
-                        stylesdir.as_str().trim_end_matches('/'),
+                        stylesdir.trim_end_matches('/'),
                         crate::SYNTECT_STYLESHEET
                     )?;
                 } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
@@ -362,26 +333,7 @@ impl<W: Write> HtmlVisitor<W> {
         }
 
         if let Some(header) = &document.header {
-            // Create a temporary visitor with inlines_basic mode
-            let mut temp_visitor = HtmlVisitor {
-                writer: &mut self.writer,
-                processor: self.processor.clone(),
-                render_options: RenderOptions {
-                    inlines_basic: true,
-                    ..self.render_options.clone()
-                },
-                current_subs: self.current_subs.clone(),
-                section_style: None,
-                docinfo: DocInfo::empty(),
-            };
-            let processor = temp_visitor.processor.clone();
-            let options = temp_visitor.render_options.clone();
-            crate::document::render_header_metadata(
-                header,
-                &mut temp_visitor,
-                &processor,
-                &options,
-            )?;
+            self.render_header_metadata(header)?;
         }
 
         // Render stylesheet and webfonts (skipped when :!stylesheet: is set)
@@ -494,7 +446,7 @@ impl<W: Write> HtmlVisitor<W> {
     }
 }
 
-impl<W: Write> Visitor for HtmlVisitor<W> {
+impl<W: Write> Visitor for HtmlVisitor<'_, W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
@@ -573,7 +525,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         // Add roles from document title metadata to body classes
         if let Some(header) = &doc.header {
             for role in &header.metadata.roles {
-                body_classes.push(role.clone());
+                body_classes.push(role.to_string());
             }
         }
 
@@ -583,14 +535,10 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         let body_id = doc.header.as_ref().and_then(|header| {
             // Check explicit ID from attribute list first (e.g., [id=my-id])
             if let Some(anchor) = &header.metadata.id {
-                return Some(anchor.id.clone());
+                return Some(anchor.id);
             }
             // Check anchors from [[id]] or [#id] syntax - use last one like asciidoctor
-            header
-                .metadata
-                .anchors
-                .last()
-                .map(|anchor| anchor.id.clone())
+            header.metadata.anchors.last().map(|anchor| anchor.id)
         });
 
         // Render body tag with optional id from title metadata
@@ -613,8 +561,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             writeln!(self.writer, "</div>")?; // Close preamble
         }
 
-        let processor = self.processor.clone();
-        crate::toc::render(None, self, "preamble", &processor)?;
+        self.render_toc(None, "preamble")?;
         Ok(())
     }
 
@@ -655,8 +602,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
         if self.render_options.embedded {
             // In embedded mode, render the TOC but skip the header chrome
-            let processor = self.processor.clone();
-            crate::toc::render(None, self, "auto", &processor)?;
+            self.render_toc(None, "auto")?;
             return Ok(());
         }
         if self.processor.variant() == HtmlVariant::Semantic {
@@ -739,8 +685,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         }
 
         // Render TOC after header if toc="auto"
-        let processor = self.processor.clone();
-        crate::toc::render(None, self, "auto", &processor)?;
+        self.render_toc(None, "auto")?;
         if self.processor.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "</header>")?;
         } else {
@@ -753,8 +698,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         if self.render_options.embedded {
             // When there's no header, the TOC hasn't been rendered yet
             if doc.header.is_none() {
-                let processor = self.processor.clone();
-                crate::toc::render(None, self, "auto", &processor)?;
+                self.render_toc(None, "auto")?;
             }
             return Ok(());
         }
@@ -774,8 +718,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
                 } else {
                     writeln!(self.writer, "<div id=\"header\">")?;
                 }
-                let processor = self.processor.clone();
-                crate::toc::render(None, self, "auto", &processor)?;
+                self.render_toc(None, "auto")?;
                 if self.processor.variant() == HtmlVariant::Semantic {
                     writeln!(self.writer, "</header>")?;
                 } else {
@@ -805,10 +748,13 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
         let previous_style = self.section_style.clone();
-        self.section_style.clone_from(&section.metadata.style);
-        let result = crate::section::visit_section(section, self, &processor);
+        self.section_style = section
+            .metadata
+            .style
+            .as_ref()
+            .map(std::string::ToString::to_string);
+        let result = self.render_section(section);
         self.section_style = previous_style;
         result
     }
@@ -818,7 +764,6 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
         let is_verbatim = para
             .metadata
             .style
-            .as_deref()
             .is_some_and(|s| matches!(s, "literal" | "listing" | "source"));
 
         // Compute effective substitutions for this paragraph
@@ -829,7 +774,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
 
         // Set hardbreaks if the paragraph option or document attribute is present
         let original_hardbreaks = self.render_options.hardbreaks;
-        if para.metadata.options.iter().any(|s| s == "hardbreaks")
+        if para.metadata.options.contains(&"hardbreaks")
             || self
                 .processor
                 .document_attributes()
@@ -838,8 +783,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             self.render_options.hardbreaks = true;
         }
 
-        let processor = self.processor.clone();
-        let result = crate::paragraph::visit_paragraph(para, self, &processor);
+        let result = self.render_paragraph(para);
 
         // Restore state
         self.current_subs = original_subs;
@@ -866,9 +810,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             self.render_options.inlines_verbatim = true;
         }
 
-        let processor = self.processor.clone();
-        let options = self.render_options.clone();
-        let result = crate::delimited::visit_delimited_block(self, block, &processor, &options);
+        let result = self.render_delimited_block(block);
 
         // Restore state
         self.current_subs = original_subs;
@@ -878,24 +820,20 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_ordered_list(list, self, &processor)
+        self.render_ordered_list(list)
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
         let section_style = self.section_style.clone();
-        let processor = self.processor.clone();
-        crate::list::visit_unordered_list(list, self, section_style.as_deref(), &processor)
+        self.render_unordered_list(list, section_style.as_deref())
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_description_list(list, self, &processor)
+        self.render_description_list(list)
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::list::visit_callout_list(list, self, &processor)
+        self.render_callout_list(list)
     }
 
     fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
@@ -904,23 +842,19 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::admonition::visit_admonition(self, admon, &processor)
+        self.render_admonition(admon)
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::image::visit_image(img, self, &processor)
+        self.render_image(img)
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::video::visit_video(video, self, &processor)
+        self.render_video(video)
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::audio::visit_audio(audio, self, &processor)
+        self.render_audio(audio)
     }
 
     fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {
@@ -942,8 +876,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 
     fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
-        let processor = self.processor.clone();
-        crate::toc::render(Some(toc), self, "macro", &processor)
+        self.render_toc(Some(toc), "macro")
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
@@ -963,10 +896,9 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
             self.render_options.in_inline_span = true;
         }
 
-        let processor = self.processor.clone();
         let options = self.render_options.clone();
         let subs = self.current_subs.clone();
-        let result = crate::inlines::visit_inline_node(node, self, &processor, &options, &subs);
+        let result = self.render_inline_node(node, &options, &subs);
 
         self.render_options.in_inline_span = saved;
         result
@@ -978,7 +910,7 @@ impl<W: Write> Visitor for HtmlVisitor<W> {
     }
 }
 
-impl<W: Write> WritableVisitor for HtmlVisitor<W> {
+impl<W: Write> WritableVisitor for HtmlVisitor<'_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

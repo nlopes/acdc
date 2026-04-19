@@ -1,17 +1,18 @@
 use crate::{AttributeValue, DocumentAttributes};
+use std::borrow::Cow;
 
 /// Parsed revision information
 #[derive(Debug)]
-pub(crate) struct RevisionInfo {
-    pub number: String,
-    pub date: Option<String>,
-    pub remark: Option<String>,
+pub(crate) struct RevisionInfo<'a> {
+    pub number: Cow<'a, str>,
+    pub date: Option<Cow<'a, str>>,
+    pub remark: Option<Cow<'a, str>>,
 }
 
 /// Process revision info and insert into document attributes
-pub(crate) fn process_revision_info(
-    revision_info: RevisionInfo,
-    document_attributes: &mut DocumentAttributes,
+pub(crate) fn process_revision_info<'a>(
+    revision_info: RevisionInfo<'a>,
+    document_attributes: &mut DocumentAttributes<'a>,
 ) {
     if document_attributes.contains_key("revnumber") {
         tracing::warn!(

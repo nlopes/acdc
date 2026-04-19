@@ -1,4 +1,5 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
+use std::borrow::Cow;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -19,16 +20,33 @@ use include::{Include, IncludeResult};
 
 /// Result from preprocessing that includes both the processed text and metadata needed
 /// for accurate parsing (like leveloffset ranges).
+///
+/// `text` borrows from the caller's input when possible (fast path: no include /
+/// conditional / multi-line-attribute triggers), enabling zero-copy parsing all
+/// the way through the grammar. When any trigger fires, `text` is `Cow::Owned`.
 #[derive(Debug, Default)]
-pub(crate) struct PreprocessorResult {
+pub(crate) struct PreprocessorResult<'a> {
     /// The preprocessed document text.
-    pub(crate) text: String,
+    pub(crate) text: Cow<'a, str>,
     /// Byte ranges where specific leveloffset values apply.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
     /// Byte ranges mapping preprocessed output back to source files.
     /// Used by the parser to produce accurate file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
+}
+
+impl PreprocessorResult<'_> {
+    /// Materialize any borrowed text into an owned `PreprocessorResult<'static>`.
+    /// Used by `process_file` / `process_reader` where the source buffer is a
+    /// local and cannot outlive the function.
+    fn into_owned(self) -> PreprocessorResult<'static> {
+        PreprocessorResult {
+            text: Cow::Owned(self.text.into_owned()),
+            leveloffset_ranges: self.leveloffset_ranges,
+            source_ranges: self.source_ranges,
+        }
+    }
 }
 
 /// Mutable state accumulated during preprocessing.
@@ -137,18 +155,83 @@ impl Preprocessor {
         }
     }
 
-    fn normalize(input: &str) -> String {
-        // Pre-allocate string with input length as estimate
-        // (trimming end may reduce size slightly, but close enough)
-        let lines: Vec<&str> = input.lines().map(str::trim_end).collect();
+    /// Normalize line endings and trailing whitespace.
+    ///
+    /// Fast path: when the input already uses LF line endings, has no trailing
+    /// whitespace on any line, and no embedded CR characters, return
+    /// `Cow::Borrowed` (optionally trimming a single trailing newline to match
+    /// `str::lines`'s drop-trailing-empty behavior). Slow path: rebuild the
+    /// buffer line-by-line as before.
+    fn normalize(input: &str) -> Cow<'_, str> {
+        // Match the original behavior of `input.lines()`: a single trailing
+        // newline (`\n` or `\r\n`) is dropped.
+        let trimmed = input
+            .strip_suffix("\r\n")
+            .or_else(|| input.strip_suffix('\n'))
+            .unwrap_or(input);
+        // Any `\r` (including inside `\r\n` pairs) or trailing whitespace on a
+        // line forces a rebuild.
+        let needs_rebuild = trimmed.as_bytes().contains(&b'\r')
+            || trimmed
+                .split('\n')
+                .any(|line| matches!(line.as_bytes().last(), Some(b' ' | b'\t')));
+        if !needs_rebuild {
+            return Cow::Borrowed(trimmed);
+        }
         let mut result = String::with_capacity(input.len());
-        for (i, line) in lines.iter().enumerate() {
+        for (i, line) in input.lines().map(str::trim_end).enumerate() {
             if i > 0 {
                 result.push('\n');
             }
             result.push_str(line);
         }
-        result
+        Cow::Owned(result)
+    }
+
+    /// Fast-path detection: returns `true` if the normalized text contains no
+    /// preprocessor triggers (include, ifdef/ifndef/ifeval, escaped directives,
+    /// multi-line attribute continuations). When true, the slow rebuild loop is
+    /// unnecessary and the caller can return the normalized text directly,
+    /// preserving any borrow from the original input.
+    ///
+    /// This is a read-only scan: it must not mutate options. Single-line
+    /// attributes (`:attr: value`) are intentionally left to downstream parsing
+    /// — the slow path's attribute mutation is only needed to evaluate
+    /// conditional directives, which by definition trigger the slow path.
+    ///
+    /// Note: we deliberately do NOT track verbatim block state here. The slow
+    /// path processes `include::` (and other) directives regardless of whether
+    /// they appear inside `----` listing blocks — that matches asciidoctor's
+    /// behavior and is exercised by fixtures like `include_with_indent.adoc`.
+    /// Skipping lines inside verbatim blocks would silently pass such inputs
+    /// through unmodified.
+    fn try_pass_through(text: &str) -> bool {
+        for line in text.lines() {
+            // Escaped directives are unescaped by the slow path.
+            if line.starts_with("\\include")
+                || line.starts_with("\\ifdef")
+                || line.starts_with("\\ifndef")
+                || line.starts_with("\\ifeval")
+            {
+                return false;
+            }
+            // Multi-line attribute continuation would be collapsed by the slow path.
+            if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
+                return false;
+            }
+            // Directive lines: include::, ifdef::, ifndef::, ifeval::
+            if line.ends_with(']')
+                && !line.starts_with('[')
+                && line.contains("::")
+                && (line.starts_with("include")
+                    || line.starts_with("ifdef")
+                    || line.starts_with("ifndef")
+                    || line.starts_with("ifeval"))
+            {
+                return false;
+            }
+        }
+        true
     }
 
     #[tracing::instrument(skip(reader))]
@@ -156,34 +239,51 @@ impl Preprocessor {
         &self,
         mut reader: R,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
+    ) -> Result<PreprocessorResult<'static>, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).map_err(|e| {
             tracing::error!(error=?e, "failed to read from reader");
             e
         })?;
-        self.process(&input, options)
+        // The local `input` cannot outlive this function, so materialize any
+        // borrowed text into an owned result.
+        Ok(self.process_inner(&input, None, options)?.into_owned())
     }
 
     #[tracing::instrument]
-    pub(crate) fn process(
+    pub(crate) fn process<'a>(
         &self,
-        input: &str,
+        input: &'a str,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
+    ) -> Result<PreprocessorResult<'a>, Error> {
         self.process_inner(input, None, options)
     }
 
+    /// Like `process` but lets the caller pass the file path explicitly, used
+    /// by `parse_file` where the input has already been read and leaked.
+    #[tracing::instrument(skip(file_path))]
+    pub(crate) fn process_with_file<'a>(
+        &self,
+        input: &'a str,
+        file_path: &Path,
+        options: &Options,
+    ) -> Result<PreprocessorResult<'a>, Error> {
+        self.process_inner(input, Some(file_path), options)
+    }
+
+    #[cfg(test)]
     #[tracing::instrument(skip(file_path))]
     pub(crate) fn process_file<P: AsRef<Path>>(
         &self,
         file_path: P,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
+    ) -> Result<PreprocessorResult<'static>, Error> {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            self.process_inner(&input, Some(file_path.as_ref()), options)
+            Ok(self
+                .process_inner(&input, Some(file_path.as_ref()), options)?
+                .into_owned())
         } else {
             Err(Error::InvalidIncludePath(
                 Box::new(Self::create_source_location(1, Some(file_path.as_ref()))),
@@ -483,16 +583,41 @@ impl Preprocessor {
     }
 
     #[tracing::instrument]
-    fn process_inner(
+    fn process_inner<'a>(
         &self,
-        input: &str,
+        input: &'a str,
         file_parent: Option<&Path>,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
-        let input = Preprocessor::normalize(input);
+    ) -> Result<PreprocessorResult<'a>, Error> {
+        let normalized = Preprocessor::normalize(input);
+
+        // Fast path: no triggers means the slow rebuild would produce byte-identical
+        // output. Return the normalized text directly, preserving any borrow from
+        // the caller's input so that downstream parsing can be zero-copy.
+        if Self::try_pass_through(&normalized) {
+            return Ok(PreprocessorResult {
+                text: normalized,
+                leveloffset_ranges: Vec::new(),
+                source_ranges: Vec::new(),
+            });
+        }
+
+        // Slow path: at least one trigger fires (include, conditional,
+        // multi-line attribute continuation, or escaped directive). Rebuild
+        // line-by-line as before. Hold the normalized text as a local so the
+        // peekable iterator can borrow from it for the duration of this call.
+        let normalized_owned;
+        let normalized_ref: &str = match &normalized {
+            Cow::Borrowed(s) => s,
+            Cow::Owned(s) => {
+                normalized_owned = s;
+                normalized_owned.as_str()
+            }
+        };
+
         let mut options = options.clone();
-        let output = Vec::with_capacity(input.lines().count());
-        let mut lines = input.lines().peekable();
+        let output = Vec::with_capacity(normalized_ref.lines().count());
+        let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut current_offset = 0;
         let mut out = PreprocessorState {
@@ -551,7 +676,7 @@ impl Preprocessor {
         }
 
         Ok(PreprocessorResult {
-            text: out.lines.join("\n"),
+            text: Cow::Owned(out.lines.join("\n")),
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
         })

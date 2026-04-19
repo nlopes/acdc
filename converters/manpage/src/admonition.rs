@@ -10,38 +10,37 @@ use acdc_parser::Admonition;
 
 use crate::{Error, ManpageVisitor};
 
-/// Visit an admonition block.
-pub(crate) fn visit_admonition<W: Write>(
-    admon: &Admonition,
-    visitor: &mut ManpageVisitor<W>,
-) -> Result<(), Error> {
-    let w = visitor.writer_mut();
+impl<W: Write> ManpageVisitor<'_, W> {
+    /// Visit an admonition block.
+    pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
+        let w = self.writer_mut();
 
-    // Spacing before admonition
-    writeln!(w, ".sp")?;
+        // Spacing before admonition
+        writeln!(w, ".sp")?;
 
-    // Label (bold, uppercase)
-    let label = format!("{:?}", admon.variant).to_uppercase();
-    write!(w, "\\fB{label}:\\fP")?;
+        // Label (bold, uppercase)
+        let label = format!("{:?}", admon.variant).to_uppercase();
+        write!(w, "\\fB{label}:\\fP")?;
 
-    // Optional title
-    if !admon.title.is_empty() {
-        write!(w, " ")?;
-        visitor.visit_inline_nodes(&admon.title)?;
+        // Optional title
+        if !admon.title.is_empty() {
+            write!(w, " ")?;
+            self.visit_inline_nodes(&admon.title)?;
+        }
+
+        let w = self.writer_mut();
+        writeln!(w)?;
+
+        // Indented content
+        writeln!(w, ".RS 4")?;
+
+        for block in &admon.blocks.clone() {
+            self.visit_block(block)?;
+        }
+
+        let w = self.writer_mut();
+        writeln!(w, ".RE")?;
+
+        Ok(())
     }
-
-    let w = visitor.writer_mut();
-    writeln!(w)?;
-
-    // Indented content
-    writeln!(w, ".RS 4")?;
-
-    for block in &admon.blocks {
-        visitor.visit_block(block)?;
-    }
-
-    let w = visitor.writer_mut();
-    writeln!(w, ".RE")?;
-
-    Ok(())
 }

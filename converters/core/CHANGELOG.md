@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- **Typography replacements are much cheaper on plain prose.** Text without
+  special characters (arrows, ellipses, escapes) no longer incurs per-paragraph
+  replacement work.
+
 ### Added
 
 - **Typography replacements API** — `Replacements` struct, `apply()`, and

@@ -182,8 +182,8 @@ impl FixtureGenerator {
                 .with_attributes(acdc_converters_core::default_rendering_attributes())
                 .build();
 
-            let doc = match acdc_parser::parse_file(&input_path, &parser_options) {
-                Ok(doc) => doc,
+            let parsed = match acdc_parser::parse_file(&input_path, &parser_options) {
+                Ok(parsed) => parsed,
                 Err(e) => {
                     println!(
                         "{} Error parsing {}: {e}",
@@ -197,7 +197,7 @@ impl FixtureGenerator {
 
             // Convert using the provided function
             let mut output = Vec::new();
-            if let Err(e) = convert_fn(&doc, &mut output) {
+            if let Err(e) = convert_fn(parsed.document(), &mut output) {
                 println!(
                     "{} Error converting {} to {}: {e}",
                     PrintStyledContent("❌".red()),

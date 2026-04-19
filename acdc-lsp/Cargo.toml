@@ -21,6 +21,7 @@ path = "src/lib.rs"
 [dependencies]
 acdc-parser.workspace = true
 dashmap = "6"
+self_cell = "1"
 fluent-uri = "0.4.1"
 serde.workspace = true
 serde_json.workspace = true

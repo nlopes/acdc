@@ -37,8 +37,8 @@ impl DocInfo {
             return Self::empty();
         }
 
-        let docinfo_val = match attributes.get("docinfo") {
-            Some(AttributeValue::String(s)) if !s.is_empty() => s.clone(),
+        let docinfo_val: String = match attributes.get("docinfo") {
+            Some(AttributeValue::String(s)) if !s.is_empty() => s.to_string(),
             // `:docinfo:` set with no value defaults to "private"
             Some(AttributeValue::Bool(true)) => "private".to_string(),
             Some(AttributeValue::String(s)) if s.is_empty() => "private".to_string(),
@@ -194,7 +194,7 @@ fn resolve_docinfo_dir(attributes: &DocumentAttributes, source_dir: Option<&Path
     if let Some(AttributeValue::String(dir)) = attributes.get("docinfodir")
         && !dir.is_empty()
     {
-        let dir_path = Path::new(dir.as_str());
+        let dir_path = Path::new(dir.as_ref());
         if dir_path.is_absolute() {
             return dir_path.to_path_buf();
         }
@@ -276,7 +276,7 @@ fn load_position_content(
                 let processed = if subs.is_empty() {
                     content
                 } else {
-                    substitute(&content, subs, attributes)
+                    substitute(&content, subs, attributes).into_owned()
                 };
                 if !processed.trim().is_empty() {
                     parts.push(processed);

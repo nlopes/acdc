@@ -95,7 +95,7 @@ pub struct GridRow<'a> {
     /// The cell kinds for each logical column position.
     pub cells: Vec<CellKind>,
     /// Reference to the original AST row.
-    pub ast_row: &'a TableRow,
+    pub ast_row: &'a TableRow<'a>,
     /// Whether this row is a header row.
     pub is_header: bool,
     /// Whether this row is a footer row.
@@ -130,8 +130,8 @@ pub fn determine_column_count(table: &Table) -> usize {
 /// Each cell position is either a real content cell, a horizontal span
 /// placeholder, or a vertical span placeholder.
 #[must_use]
-pub fn build_grid(table: &Table, num_cols: usize) -> Vec<GridRow<'_>> {
-    let all_rows: Vec<(&TableRow, bool, bool)> = table
+pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<'a>> {
+    let all_rows: Vec<(&'a TableRow<'a>, bool, bool)> = table
         .header
         .iter()
         .map(|r| (r, true, false))
@@ -370,17 +370,23 @@ mod tests {
         use acdc_parser::{Block, DelimitedBlockType};
 
         /// Parse an `AsciiDoc` string and extract the first table.
+        ///
+        /// Leaks the parsed document so the returned `Table<'static>` borrows
+        /// from memory that lives for the rest of the test process.
         #[allow(clippy::expect_used)]
-        fn parse_table(adoc: &str) -> Table {
+        fn parse_table(adoc: &str) -> Table<'static> {
             let options = acdc_parser::Options::default();
-            let doc = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
-            doc.blocks
-                .into_iter()
+            let parsed = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
+            let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+            parsed
+                .document()
+                .blocks
+                .iter()
                 .find_map(|block| {
                     if let Block::DelimitedBlock(db) = block
-                        && let DelimitedBlockType::DelimitedTable(table) = db.inner
+                        && let DelimitedBlockType::DelimitedTable(table) = &db.inner
                     {
-                        return Some(table);
+                        return Some(table.clone());
                     }
                     None
                 })

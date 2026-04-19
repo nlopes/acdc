@@ -9,11 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`, `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.
+- **File-size gate for disk-side indexing.** Files above `MAX_INDEXABLE_FILE_BYTES` (10
+  MiB) are skipped during workspace scan, anchor-on-disk resolution, rename refactor, and
+  call-hierarchy lookups; each skip logs a `tracing::warn!`. Call-hierarchy's
+  line-counting now streams via `BufReader` instead of slurping the whole file. When the
+  editor opens a document above the 10 MiB limit, the LSP skips parsing, publishes one
+  informational diagnostic on line 1 (`"Document is N MiB (above the acdc-lsp indexing
+  limit...)"`), and leaves text-only features working.
+- **`clippy.toml` disallows `std::boxed::Box::leak`** to prevent reintroduction of the
+  per-edit leak that drove the 20 GB RSS incident.
+- Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request
+  timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`,
+  `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.
 
 ### Changed
 
 - Narrowed tokio dependency from `full` to only the required features (`macros`, `rt-multi-thread`, `io-std`)
+- Memory usage is now bounded by live open files instead of growing on every
+  edit. Long editing sessions no longer leak memory.
 
 ## [0.2.0] - 2026-03-28
 

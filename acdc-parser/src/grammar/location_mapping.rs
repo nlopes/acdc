@@ -129,9 +129,9 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
 }
 
 /// Context for location mapping operations
-pub(crate) struct LocationMappingContext<'a> {
-    pub state: &'a ParserState,
-    pub processed: &'a ProcessedContent,
+pub(crate) struct LocationMappingContext<'a, 'b> {
+    pub state: &'a ParserState<'b>,
+    pub processed: &'a ProcessedContent<'b>,
     pub base_location: &'a Location,
 }
 
@@ -178,8 +178,8 @@ pub(crate) type LocationMapper<'a> = dyn Fn(&Location) -> Result<Location, crate
 /// 2. Uses the preprocessor source map to find original positions
 /// 3. Computes human-readable line/column positions
 pub(crate) fn create_location_mapper<'a>(
-    state: &'a ParserState,
-    processed: &'a ProcessedContent,
+    state: &'a ParserState<'_>,
+    processed: &'a ProcessedContent<'_>,
     base_location: &'a Location,
     form: Option<&'a Form>,
 ) -> Box<LocationMapper<'a>> {
@@ -212,14 +212,14 @@ pub(crate) fn create_location_mapper<'a>(
                 } else {
                     // General case: expand collapsed locations to the next UTF-8 boundary
                     processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
-                        &state.input,
+                        state.input,
                         processed_abs_end,
                     );
                 }
             } else {
                 // General case: expand collapsed locations to the next UTF-8 boundary
                 processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
-                    &state.input,
+                    state.input,
                     processed_abs_end,
                 );
             }
@@ -236,16 +236,16 @@ pub(crate) fn create_location_mapper<'a>(
 
         // Ensure mapped positions are on valid UTF-8 boundaries
         mapped_abs_start =
-            snap_to_boundary(&state.input, mapped_abs_start, RoundDirection::Backward);
-        mapped_abs_end = snap_to_boundary(&state.input, mapped_abs_end, RoundDirection::Forward);
+            snap_to_boundary(state.input, mapped_abs_start, RoundDirection::Backward);
+        mapped_abs_end = snap_to_boundary(state.input, mapped_abs_end, RoundDirection::Forward);
 
         // Compute human positions from the document's line map
         let start_pos = state
             .line_map
-            .offset_to_position(mapped_abs_start, &state.input);
+            .offset_to_position(mapped_abs_start, state.input);
         let mut end_pos = state
             .line_map
-            .offset_to_position(mapped_abs_end, &state.input);
+            .offset_to_position(mapped_abs_end, state.input);
 
         // For single-character content inside constrained formatting, ensure both start and end column point to the same character
         let is_single_char_fix = mapped_abs_end == mapped_abs_start + 1
@@ -279,8 +279,8 @@ pub(crate) fn create_location_mapper<'a>(
 /// When attribute substitutions collapse locations to a single point (e.g., `{attr}` -> `value`),
 /// we need to extend the location back to cover the original attribute span for better UX.
 pub(crate) fn extend_attribute_location_if_needed(
-    state: &ParserState,
-    processed: &ProcessedContent,
+    state: &ParserState<'_>,
+    processed: &ProcessedContent<'_>,
     mut location: Location,
 ) -> Location {
     // Check if location is collapsed and we have attribute replacements to consider
@@ -300,10 +300,10 @@ pub(crate) fn extend_attribute_location_if_needed(
             // Extend location to cover the full original attribute
             let start_pos = state
                 .line_map
-                .offset_to_position(attr_replacement.absolute_start, &state.input);
+                .offset_to_position(attr_replacement.absolute_start, state.input);
             let end_pos = state
                 .line_map
-                .offset_to_position(attr_replacement.absolute_end, &state.input);
+                .offset_to_position(attr_replacement.absolute_end, state.input);
             location = Location {
                 absolute_start: attr_replacement.absolute_start,
                 absolute_end: attr_replacement.absolute_end,
@@ -319,13 +319,13 @@ pub(crate) fn extend_attribute_location_if_needed(
 ///
 /// This handles the complex case where formatted text contains nested content that may
 /// include attribute substitutions requiring location extension.
-pub(crate) fn map_inner_content_locations(
-    content: Vec<InlineNode>,
+pub(crate) fn map_inner_content_locations<'a>(
+    content: Vec<InlineNode<'a>>,
     map_loc: &LocationMapper<'_>,
-    state: &ParserState,
-    processed: &ProcessedContent,
+    state: &ParserState<'a>,
+    processed: &ProcessedContent<'a>,
     base_location: &Location,
-) -> Result<Vec<InlineNode>, crate::Error> {
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
     content
         .into_iter()
         .map(|node| -> Result<InlineNode, crate::Error> {
@@ -333,10 +333,10 @@ pub(crate) fn map_inner_content_locations(
                 InlineNode::PlainText(mut inner_plain) => {
                     // Replace passthrough placeholders in the content
                     let content = super::passthrough_processing::replace_passthrough_placeholders(
-                        &inner_plain.content,
+                        inner_plain.content,
                         processed,
                     );
-                    inner_plain.content = content;
+                    inner_plain.content = state.intern_str(&content);
 
                     // Map to document coordinates first (use normal location mapping for inner content)
                     let mut mapped = map_loc(&inner_plain.location)?;
@@ -438,7 +438,7 @@ pub(crate) fn remap_inline_node_location(node: &mut InlineNode, base_offset: usi
 pub(crate) fn create_original_source_location(
     plain_content: &str,
     plain_location: &Location,
-    processed: &ProcessedContent,
+    processed: &ProcessedContent<'_>,
     base_location: &Location,
 ) -> Location {
     // Check if this PlainText content actually contains passthrough placeholders
@@ -472,95 +472,99 @@ pub(crate) fn create_original_source_location(
 /// See the module-level documentation for a detailed explanation of the coordinate
 /// transformation pipeline and special cases.
 #[tracing::instrument(skip_all, fields(location=?location, processed=?processed, content=?content))]
-pub(crate) fn map_inline_locations(
-    state: &ParserState,
-    processed: &ProcessedContent,
-    content: &Vec<InlineNode>,
+pub(crate) fn map_inline_locations<'a>(
+    state: &ParserState<'a>,
+    processed: &'a ProcessedContent<'a>,
+    content: &[InlineNode<'a>],
     location: &Location,
-) -> Result<Vec<InlineNode>, crate::Error> {
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
     tracing::info!(?location, "mapping inline locations");
 
     let map_loc = create_location_mapper(state, processed, location, None);
 
-    content.iter().try_fold(
-        Vec::new(),
-        |mut acc, inline| -> Result<Vec<InlineNode>, crate::Error> {
-            let nodes = match inline {
-                InlineNode::PlainText(plain) => {
-                    map_plain_text_inline_locations(plain, state, processed, location, &map_loc)?
-                }
-                marked_text @ (InlineNode::ItalicText(_)
-                | InlineNode::BoldText(_)
-                | InlineNode::MonospaceText(_)
-                | InlineNode::HighlightText(_)
-                | InlineNode::SubscriptText(_)
-                | InlineNode::SuperscriptText(_)
-                | InlineNode::CurvedQuotationText(_)
-                | InlineNode::CurvedApostropheText(_)) => {
-                    let mapping_ctx = LocationMappingContext {
-                        state,
-                        processed,
-                        base_location: location,
-                    };
-                    vec![
-                        marked_text
-                            .clone()
-                            .with_location_mapping_context(&mapping_ctx)?,
-                    ]
-                }
-                InlineNode::StandaloneCurvedApostrophe(standalone) => {
-                    let mut mapped_standalone = standalone.clone();
-                    mapped_standalone.location = map_loc(&standalone.location)?;
-                    vec![InlineNode::StandaloneCurvedApostrophe(mapped_standalone)]
-                }
-                InlineNode::Macro(inline_macro) => {
-                    vec![map_inline_macro(
-                        inline_macro,
-                        state,
-                        processed,
-                        location,
-                        &map_loc,
-                    )?]
-                }
-                InlineNode::LineBreak(lb) => {
-                    let mut mapped_lb = lb.clone();
-                    mapped_lb.location = map_loc(&lb.location)?;
-                    vec![InlineNode::LineBreak(mapped_lb)]
-                }
-                InlineNode::RawText(raw) => {
-                    let mut mapped = raw.clone();
-                    mapped.location = map_loc(&raw.location)?;
-                    vec![InlineNode::RawText(mapped)]
-                }
-                InlineNode::VerbatimText(verbatim) => {
-                    let mut mapped = verbatim.clone();
-                    mapped.location = map_loc(&verbatim.location)?;
-                    vec![InlineNode::VerbatimText(mapped)]
-                }
-                InlineNode::InlineAnchor(anchor) => {
-                    let mut mapped = anchor.clone();
-                    mapped.location = map_loc(&anchor.location)?;
-                    vec![InlineNode::InlineAnchor(mapped)]
-                }
-                InlineNode::CalloutRef(callout) => {
-                    let mut mapped = callout.clone();
-                    mapped.location = map_loc(&callout.location)?;
-                    vec![InlineNode::CalloutRef(mapped)]
-                }
-            };
-            acc.extend(nodes);
-            Ok(acc)
-        },
-    )
+    // `PlainText` is the only variant that can expand to multiple output nodes
+    // (passthrough placeholder substitution). Every other variant maps 1:1, so
+    // sizing `acc` at `content.len()` is a lower bound; growth beyond that is
+    // rare and cheap.
+    let mut acc: Vec<InlineNode<'a>> = Vec::with_capacity(content.len());
+    for inline in content {
+        match inline {
+            InlineNode::PlainText(plain) => {
+                // May expand to N nodes (placeholder splits); push in place.
+                let nodes =
+                    map_plain_text_inline_locations(plain, state, processed, location, &map_loc)?;
+                acc.extend(nodes);
+            }
+            marked_text @ (InlineNode::ItalicText(_)
+            | InlineNode::BoldText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)) => {
+                let mapping_ctx = LocationMappingContext {
+                    state,
+                    processed,
+                    base_location: location,
+                };
+                acc.push(
+                    marked_text
+                        .clone()
+                        .with_location_mapping_context(&mapping_ctx)?,
+                );
+            }
+            InlineNode::StandaloneCurvedApostrophe(standalone) => {
+                let mut mapped_standalone = standalone.clone();
+                mapped_standalone.location = map_loc(&standalone.location)?;
+                acc.push(InlineNode::StandaloneCurvedApostrophe(mapped_standalone));
+            }
+            InlineNode::Macro(inline_macro) => {
+                acc.push(map_inline_macro(
+                    inline_macro,
+                    state,
+                    processed,
+                    location,
+                    &map_loc,
+                )?);
+            }
+            InlineNode::LineBreak(lb) => {
+                let mut mapped_lb = lb.clone();
+                mapped_lb.location = map_loc(&lb.location)?;
+                acc.push(InlineNode::LineBreak(mapped_lb));
+            }
+            InlineNode::RawText(raw) => {
+                let mut mapped = raw.clone();
+                mapped.location = map_loc(&raw.location)?;
+                acc.push(InlineNode::RawText(mapped));
+            }
+            InlineNode::VerbatimText(verbatim) => {
+                let mut mapped = verbatim.clone();
+                mapped.location = map_loc(&verbatim.location)?;
+                acc.push(InlineNode::VerbatimText(mapped));
+            }
+            InlineNode::InlineAnchor(anchor) => {
+                let mut mapped = anchor.clone();
+                mapped.location = map_loc(&anchor.location)?;
+                acc.push(InlineNode::InlineAnchor(mapped));
+            }
+            InlineNode::CalloutRef(callout) => {
+                let mut mapped = callout.clone();
+                mapped.location = map_loc(&callout.location)?;
+                acc.push(InlineNode::CalloutRef(mapped));
+            }
+        }
+    }
+    Ok(acc)
 }
 
-fn map_inline_macro(
-    inline_macro: &crate::InlineMacro,
-    state: &ParserState,
-    processed: &ProcessedContent,
+fn map_inline_macro<'a>(
+    inline_macro: &crate::InlineMacro<'a>,
+    state: &ParserState<'a>,
+    processed: &'a ProcessedContent<'a>,
     location: &Location,
     map_loc: &LocationMapper<'_>,
-) -> Result<InlineNode, crate::Error> {
+) -> Result<InlineNode<'a>, crate::Error> {
     use crate::InlineMacro;
     let mut mapped_macro = inline_macro.clone();
     match &mut mapped_macro {
@@ -595,13 +599,15 @@ fn map_inline_macro(
 }
 
 fn map_plain_text_inline_locations<'a>(
-    plain: &Plain,
-    state: &'a ParserState,
-    processed: &'a ProcessedContent,
-    location: &'a Location,
+    plain: &Plain<'a>,
+    state: &ParserState<'a>,
+    processed: &'a ProcessedContent<'a>,
+    location: &Location,
     map_loc: &LocationMapper<'_>,
-) -> Result<Vec<InlineNode>, crate::Error> {
-    let original_content = &plain.content;
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+    // Extract plain text at `'a` so the passthrough-processing path can hand
+    // back `InlineNode<'a>`. The content is already arena-allocated `&'a str`.
+    let original_content: &'a str = plain.content;
 
     // Check if this PlainText contains passthrough placeholders
     let contains_passthroughs = !processed.passthroughs.is_empty()
@@ -634,7 +640,7 @@ fn map_plain_text_inline_locations<'a>(
         }
 
         Ok(vec![InlineNode::PlainText(Plain {
-            content: original_content.clone(),
+            content: original_content,
             location: mapped_location,
             escaped: plain.escaped,
         })])
@@ -646,8 +652,12 @@ mod tests {
     use crate::{Block, Options, parse};
 
     fn check_monotonic(input: &str) -> Result<(), String> {
-        let doc = parse(input, &Options::default()).map_err(|e| format!("parse failed: {e}"))?;
-        let first_block = doc.blocks.first().ok_or("expected at least one block")?;
+        let parsed = parse(input, &Options::default()).map_err(|e| format!("parse failed: {e}"))?;
+        let first_block = parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or("expected at least one block")?;
         let Block::Paragraph(para) = first_block else {
             return Err(format!("Expected paragraph, got {first_block:?}"));
         };

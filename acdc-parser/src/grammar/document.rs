@@ -16,10 +16,7 @@ use crate::{
         doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
-        inline_processing::{
-            adjust_and_log_parse_error, parse_inlines, preprocess_inline_content, process_inlines,
-        },
-        location_mapping::map_inline_locations,
+        inline_processing::{adjust_and_log_parse_error, process_inlines},
         manpage::{derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text},
         revision::{RevisionInfo, process_revision_info},
         table::parse_table_cell,
@@ -38,6 +35,8 @@ use super::helpers::{
     process_attribute_list, strip_url_backslash_escapes, title_looks_like_description_list,
 };
 use super::setext;
+use std::borrow::Cow;
+use std::rc::Rc;
 
 /// Helper to check delimiter matching and return error if mismatched
 fn check_delimiters(
@@ -53,48 +52,48 @@ fn check_delimiters(
     }
 }
 
-fn get_literal_paragraph(
-    state: &ParserState,
-    content: &str,
+fn get_literal_paragraph<'input>(
+    state: &ParserState<'input>,
+    content: &'input str,
     start: usize,
     end: usize,
     offset: usize,
-    block_metadata: &BlockParsingMetadata,
-) -> Block {
+    block_metadata: &BlockParsingMetadata<'input>,
+) -> Block<'input> {
     tracing::debug!(
         content,
         "paragraph starts with a space - switching to literal block"
     );
     let mut metadata = block_metadata.metadata.clone();
     metadata.move_positional_attributes_to_attributes();
-    metadata.style = Some("literal".to_string());
+    metadata.style = Some("literal");
     let location = state.create_block_location(start, end, offset);
 
     // Strip leading space from each line ONLY if ALL lines consistently have leading space
     // This matches asciidoctor's behavior
-    let lines: Vec<&str> = content.lines().collect();
-    let all_lines_have_leading_space = lines
-        .iter()
+    let all_lines_have_leading_space = content
+        .lines()
         .all(|line| line.is_empty() || line.starts_with(' '));
 
-    let content = if all_lines_have_leading_space {
-        lines
-            .iter()
-            .map(|line| line.strip_prefix(' ').unwrap_or(line))
-            .collect::<Vec<_>>()
-            .join("\n")
+    let content_ref: &'input str = if all_lines_have_leading_space {
+        state.intern_join(
+            content
+                .lines()
+                .map(|line| line.strip_prefix(' ').unwrap_or(line)),
+            "\n",
+        )
     } else {
-        content.to_string()
+        content
     };
 
     tracing::debug!(
-        content,
+        content = content_ref,
         all_lines_have_leading_space,
         "created literal paragraph"
     );
     Block::Paragraph(Paragraph {
         content: vec![InlineNode::PlainText(Plain {
-            content,
+            content: content_ref,
             location: location.clone(),
             escaped: false,
         })],
@@ -106,11 +105,27 @@ fn get_literal_paragraph(
 
 /// Assembles principal text from first line and continuation lines.
 /// Used by list item parsing rules to combine multi-line content.
-fn assemble_principal_text(first_line: &str, continuation_lines: &[&str]) -> String {
+/// Produce the principal text for a list item, interned into the arena.
+///
+/// When there are no continuation lines (the common case), this just returns
+/// the borrowed `first_line` unchanged — zero allocation. Otherwise it writes
+/// `first_line` followed by each continuation line (separated by `\n`) into a
+/// fresh arena string.
+fn assemble_principal_text<'a>(
+    state: &ParserState<'a>,
+    first_line: &'a str,
+    continuation_lines: &[&str],
+) -> &'a str {
     if continuation_lines.is_empty() {
-        first_line.to_string()
+        first_line
     } else {
-        format!("{first_line}\n{}", continuation_lines.join("\n"))
+        let mut s = bumpalo::collections::String::new_in(state.arena);
+        s.push_str(first_line);
+        for line in continuation_lines {
+            s.push('\n');
+            s.push_str(line);
+        }
+        s.into_bump_str()
     }
 }
 
@@ -196,11 +211,11 @@ struct TableParseParams<'a> {
 /// This helper function contains the common table parsing logic used by all
 /// delimiter-specific table rules (pipe, exclamation, comma, colon).
 #[allow(clippy::too_many_lines)]
-fn parse_table_block_impl(
+fn parse_table_block_impl<'input>(
     params: &TableParseParams<'_>,
-    state: &mut ParserState,
-    block_metadata: &BlockParsingMetadata,
-) -> Result<Block, Error> {
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+) -> Result<Block<'input>, Error> {
     let &TableParseParams {
         start,
         offset,
@@ -235,11 +250,11 @@ fn parse_table_block_impl(
     let separator = if let Some(AttributeValue::String(sep)) =
         block_metadata.metadata.attributes.get("separator")
     {
-        sep.clone()
+        sep.to_string()
     } else if let Some(AttributeValue::String(format)) =
         block_metadata.metadata.attributes.get("format")
     {
-        match format.as_str() {
+        match &**format {
             "csv" => ",",
             "dsv" => ":",
             "tsv" => "\t",
@@ -382,10 +397,7 @@ fn parse_table_block_impl(
     };
 
     // Set this to true if the user mandates it!
-    let mut has_header = block_metadata
-        .metadata
-        .options
-        .contains(&String::from("header"));
+    let mut has_header = block_metadata.metadata.options.contains(&"header");
     let raw_rows = Table::parse_rows_with_positions(
         content,
         &separator,
@@ -397,21 +409,15 @@ fn parse_table_block_impl(
     // If the user forces a noheader, we should not have a header, so after we've
     // tried to figure out if there are any headers, we should set it to false one
     // last time.
-    if block_metadata
-        .metadata
-        .options
-        .contains(&String::from("noheader"))
-    {
+    if block_metadata.metadata.options.contains(&"noheader") {
         has_header = false;
     }
-    let has_footer = block_metadata
-        .metadata
-        .options
-        .contains(&String::from("footer"));
+    let has_footer = block_metadata.metadata.options.contains(&"footer");
 
     let mut header = None;
     let mut footer = None;
-    let mut rows = Vec::new();
+    // `rows` ends up with one entry per raw row (minus header/footer split).
+    let mut rows = Vec::with_capacity(raw_rows.len());
 
     // Track rowspan state: maps column positions to remaining rowspan count.
     // When a cell has rowspan > 1, we track how many more rows it occupies.
@@ -419,8 +425,10 @@ fn parse_table_block_impl(
     let mut active_rowspans: Vec<(usize, usize, usize)> = Vec::new();
 
     for (i, row) in raw_rows.iter().enumerate() {
-        // Process cells, handling duplication
-        let mut columns = Vec::new();
+        // Each raw cell produces at least one `columns` entry; duplication
+        // produces more but is rare. `row.len()` is a tight lower bound and
+        // sizes the common case exactly.
+        let mut columns = Vec::with_capacity(row.len());
         let mut col_idx = 0; // Track current column index for column format lookup
         for cell in row {
             // Apply column format style if cell doesn't have explicit style
@@ -435,8 +443,11 @@ fn parse_table_block_impl(
                 cell.clone()
             };
 
+            // Cell content is owned by the ParsedCell; intern into the parser
+            // arena so downstream block parsing can borrow at `'input`.
+            let cell_content: &'input str = state.intern_str(&effective_cell.content);
             let parsed = parse_table_cell(
-                &effective_cell.content,
+                cell_content,
                 state,
                 effective_cell.start,
                 block_metadata.parent_section_level,
@@ -546,7 +557,7 @@ fn parse_table_block_impl(
 
     Ok(Block::DelimitedBlock(DelimitedBlock {
         metadata: metadata.clone(),
-        delimiter: open_delim.to_string(),
+        delimiter: state.intern_str(open_delim),
         inner: DelimitedBlockType::DelimitedTable(table),
         title: block_metadata.title.clone(),
         location,
@@ -556,7 +567,7 @@ fn parse_table_block_impl(
 }
 
 peg::parser! {
-    pub(crate) grammar document_parser(state: &mut ParserState) for str {
+    pub(crate) grammar document_parser(state: &mut ParserState<'input>) for str {
         use std::str::FromStr;
         use crate::model::{substitute, Substitution};
         use crate::grammar::inlines::inline_parser;
@@ -568,10 +579,10 @@ peg::parser! {
         // We also ignore comments before the header - maybe we should change this but as
         // it stands in our current model, it makes no sense to have comments in the
         // blocks as it is a completely separate part of the document.
-        pub(crate) rule document() -> Result<Document, Error>
+        pub(crate) rule document() -> Result<Document<'input>, Error>
         = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() blocks:blocks(0, None) end:position() (eol()* / ![_]) {
             let header = header_result?;
-            let blocks: Vec<Block> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
+            let blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
             let mut document_end_offset = end.offset;
@@ -586,7 +597,7 @@ peg::parser! {
             let document_end_offset = if document_end_offset == 0 {
                 0
             } else {
-                crate::grammar::utf8_utils::safe_decrement_offset(&state.input, document_end_offset)
+                crate::grammar::utf8_utils::safe_decrement_offset(state.input, document_end_offset)
             };
 
             // Ensure the invariant: absolute_start <= absolute_end
@@ -609,7 +620,7 @@ peg::parser! {
             } else {
                 (
                     start.position,
-                    state.line_map.offset_to_position(absolute_end, &state.input)
+                    state.line_map.offset_to_position(absolute_end, state.input)
                 )
             };
 
@@ -633,8 +644,6 @@ peg::parser! {
             }
 
             Ok(Document {
-                name: "document".to_string(),
-                r#type: "block".to_string(),
                 header,
                 location: Location {
                     absolute_start,
@@ -642,14 +651,14 @@ peg::parser! {
                     start: start_position,
                     end: end_position,
                 },
-                attributes: state.document_attributes.clone(),
+                attributes: DocumentAttributes::clone(&state.document_attributes),
                 blocks,
                 footnotes: state.footnote_tracker.footnotes.clone(),
                 toc_entries: state.toc_tracker.entries.clone(),
             })
         }
 
-        pub(crate) rule header() -> Result<Option<Header>, Error>
+        pub(crate) rule header() -> Result<Option<Header<'input>>, Error>
             = start:position!()
             ((document_attribute() / comment()) (eol()+ / ![_]))*
             // Parse header metadata (anchors and attributes) before the document title
@@ -662,7 +671,7 @@ peg::parser! {
             if let Some((title, subtitle, authors)) = title_authors {
                 let mut location = state.create_location(start, end);
                 // Decrement end by one character (for byte offset, use safe UTF-8 decrement)
-                location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(&state.input, location.absolute_end);
+                location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(state.input, location.absolute_end);
                 location.end.column = location.end.column.saturating_sub(1);
                 let mut header = Header {
                     metadata,
@@ -673,14 +682,18 @@ peg::parser! {
                 };
 
                 // Derive author attributes bidirectionally
-                derive_author_attrs(&mut header, &mut state.document_attributes);
+                derive_author_attrs(
+                    state.arena,
+                    &mut header,
+                    Rc::make_mut(&mut state.document_attributes),
+                );
 
                 // Derive manpage attributes from header if doctype=manpage
                 // This must happen during parsing so {mantitle} etc. work in body
                 if is_manpage_doctype(&state.document_attributes) {
                     derive_manpage_header_attrs(
                         Some(&header),
-                        &mut state.document_attributes,
+                        Rc::make_mut(&mut state.document_attributes),
                         state.options.strict,
                         state.current_file.as_deref(),
                     )?;
@@ -688,7 +701,7 @@ peg::parser! {
 
                 Ok(Some(header))
             } else {
-                tracing::info!("No title or authors found in the document header.");
+                tracing::debug!("No title or authors found in the document header.");
                 Ok(None)
             }
         }
@@ -696,7 +709,7 @@ peg::parser! {
         /// Parse block metadata lines (anchors and attributes) that can appear before a document title.
         /// Only consumes metadata if followed by a document title to avoid stealing attributes
         /// meant for the first block when there's no document title.
-        rule header_metadata() -> BlockMetadata
+        rule header_metadata() -> BlockMetadata<'input>
             = lines:(
                 anchor:anchor() { HeaderMetadataLine::Anchor(anchor) }
                 / attr:attributes_line() { HeaderMetadataLine::Attributes((attr.0, Box::new(attr.1))) }
@@ -727,25 +740,25 @@ peg::parser! {
             }
             / { BlockMetadata::default() }
 
-        pub(crate) rule title_authors() -> (Title, Option<Subtitle>, Vec<Author>)
+        pub(crate) rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
         = title_and_subtitle:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
         {
             let (title, subtitle) = title_and_subtitle;
-            tracing::info!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
+            tracing::debug!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
             (title, subtitle, authors)
         }
         / title_and_subtitle:document_title() &eol() {
             let (title, subtitle) = title_and_subtitle;
-            tracing::info!(?title, ?subtitle, "Found title in the document header without authors.");
+            tracing::debug!(?title, ?subtitle, "Found title in the document header without authors.");
             (title, subtitle, vec![])
         }
 
-        pub(crate) rule document_title() -> (Title, Option<Subtitle>)
+        pub(crate) rule document_title() -> (Title<'input>, Option<Subtitle<'input>>)
         = document_title_atx()
         / document_title_setext()
 
         /// ATX-style document title: `= Title` or `# Title`
-        rule document_title_atx() -> (Title, Option<Subtitle>)
+        rule document_title_atx() -> (Title<'input>, Option<Subtitle<'input>>)
         = document_title_token() whitespace() start:position() title:$([^'\n']*) end:position!()
         {?
             tracing::debug!(?title, "Processing ATX document title");
@@ -772,7 +785,7 @@ peg::parser! {
                     let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
-                        position: state.line_map.offset_to_position(sub_start_offset, &state.input),
+                        position: state.line_map.offset_to_position(sub_start_offset, state.input),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
                     let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
@@ -799,7 +812,7 @@ peg::parser! {
         /// The underline must be within ±2 characters of the title width.
         /// Only enabled when the setext feature is compiled in AND the runtime
         /// option is enabled.
-        rule document_title_setext() -> (Title, Option<Subtitle>)
+        rule document_title_setext() -> (Title<'input>, Option<Subtitle<'input>>)
         = start:position() title:$([^'\n']+) end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
@@ -845,7 +858,7 @@ peg::parser! {
                     let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
-                        position: state.line_map.offset_to_position(sub_start_offset, &state.input),
+                        position: state.line_map.offset_to_position(sub_start_offset, state.input),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
                     let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
@@ -864,26 +877,32 @@ peg::parser! {
 
         rule document_title_token() = "=" / "#"
 
-        rule authors_and_revision() -> Vec<Author>
+        rule authors_and_revision() -> Vec<Author<'input>>
             // Capture the author line, substitute any attribute references, then parse
             = author_line:$([^'\n']+) (eol() revision_pre_substitution())? {?
-                let substituted = substitute(author_line.trim(), HEADER, &state.document_attributes);
+                let substituted_cow = substitute(author_line.trim(), HEADER, &state.document_attributes);
+                // Intern any owned substitution result so the downstream
+                // `authors()` parse can yield `Author<'input>` that outlives
+                // this action block.
+                let substituted: &'input str = match substituted_cow {
+                    Cow::Borrowed(s) => s,
+                    Cow::Owned(s) => state.intern_str(&s),
+                };
                 tracing::debug!(?author_line, ?substituted, "Processing author line with substitution");
 
                 // Parse the substituted content as authors
-                let mut temp_state = ParserState::new(&substituted);
-                temp_state.document_attributes = state.document_attributes.clone();
+                let mut temp_state = ParserState::for_inline_parsing(substituted, state);
 
-                match document_parser::authors(&substituted, &mut temp_state) {
+                match document_parser::authors(substituted, &mut temp_state) {
                     Ok(authors) => {
-                        tracing::info!(?authors, "Parsed authors from line");
+                        tracing::debug!(?authors, "Parsed authors from line");
                         Ok(authors)
                     }
                     Err(_) => Err("line did not parse as authors")
                 }
             }
 
-        pub(crate) rule authors() -> Vec<Author>
+        pub(crate) rule authors() -> Vec<Author<'input>>
             = authors:(author() ++ (";" whitespace()*)) {
                 authors
             }
@@ -893,25 +912,25 @@ peg::parser! {
         /// - "First Last <email>"
         /// - "First <email>"
         /// - "First Last"
-        pub(crate) rule author() -> Author
+        pub(crate) rule author() -> Author<'input>
             = name:author_name() email:author_email()? {
                 let mut author = name;
                 if let Some(email_addr) = email {
-                    author.email = Some(email_addr.to_string());
+                    author.email = Some(email_addr);
                 }
                 author
             }
 
         /// Parse author name in format: "First [Middle] Last" or just "First"
-        rule author_name() -> Author
+        rule author_name() -> Author<'input>
         = first:name_part() whitespace()+ middle:name_part() whitespace()+ last:$(name_part() ++ whitespace()) {
-            Author::new(first, Some(middle), Some(last))
+            Author::new(state.arena, first, Some(middle), Some(last))
         }
         / first:name_part() whitespace()+ last:name_part() {
-            Author::new(first, None, Some(last))
+            Author::new(state.arena, first, None, Some(last))
         }
         / first:name_part() {
-            Author::new(first, None, None)
+            Author::new(state.arena, first, None, None)
         }
 
         /// Parse email address in format: " <email@domain>"
@@ -926,37 +945,40 @@ peg::parser! {
         pub(crate) rule revision() -> ()
             = number:$("v"? digits() ++ ".") date:revision_date()? remark:revision_remark()? {
                 let revision_info = RevisionInfo {
-                    number: number.to_string(),
-                    date: date.map(ToString::to_string),
-                    remark: remark.map(ToString::to_string),
+                    number: Cow::Owned(number.to_string()),
+                    date: date.map(|d| Cow::Owned(d.to_string())),
+                    remark: remark.map(|r| Cow::Owned(r.to_string())),
                 };
                 if revision_info.number.is_empty() {
                     // No revision number found, nothing to do
                     return;
                 }
-                process_revision_info(revision_info, &mut state.document_attributes);
+                process_revision_info(revision_info, Rc::make_mut(&mut state.document_attributes));
             }
 
         /// Parse revision line with attribute reference support
         rule revision_pre_substitution() -> ()
             // Capture the revision line, substitute any attribute references, then parse
             = rev_line:$([^'\n']+) {?
-                let substituted = substitute(rev_line.trim(), HEADER, &state.document_attributes);
+                let substituted_cow = substitute(rev_line.trim(), HEADER, &state.document_attributes);
+                let substituted: &'input str = match substituted_cow {
+                    Cow::Borrowed(s) => s,
+                    Cow::Owned(s) => state.intern_str(&s),
+                };
                 tracing::debug!(?rev_line, ?substituted, "Processing revision line with substitution");
 
                 // Parse the substituted content as revision
-                let mut temp_state = ParserState::new(&substituted);
-                temp_state.document_attributes = state.document_attributes.clone();
+                let mut temp_state = ParserState::for_inline_parsing(substituted, state);
 
-                match document_parser::revision(&substituted, &mut temp_state) {
+                match document_parser::revision(substituted, &mut temp_state) {
                     Ok(()) => {
                         // Copy revision attributes from temp_state back to main state
                         for key in ["revnumber", "revdate", "revremark"] {
                             if let Some(value) = temp_state.document_attributes.get(key) {
-                                state.document_attributes.insert(key.into(), value.clone());
+                                Rc::make_mut(&mut state.document_attributes).insert(key.into(), value.clone());
                             }
                         }
-                        tracing::info!("Parsed revision from line");
+                        tracing::debug!("Parsed revision from line");
                         Ok(())
                     }
                     Err(_) => Err("line did not parse as revision")
@@ -977,20 +999,20 @@ peg::parser! {
         = att:document_attribute_match() (&eol() / ![_])
         {
             let AttributeEntry{key, value, set} = att;
-            tracing::info!(%set, %key, %value, "Found document attribute in the document header");
+            tracing::debug!(%set, %key, %value, "Found document attribute in the document header");
             // Apply definition-time substitution: if value contains {attr} references,
             // expand them using currently defined attributes (matching asciidoctor behavior)
             let value = match value {
                 AttributeValue::String(s) => {
                     let substituted = substitute(&s, HEADER, &state.document_attributes);
-                    AttributeValue::String(substituted)
+                    AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
                 }
                 AttributeValue::Bool(_) | AttributeValue::None => value,
             };
-            state.document_attributes.set(key.into(), value);
+            Rc::make_mut(&mut state.document_attributes).set(key.into(), value);
         }
 
-        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
+        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
         = blocks:block(offset, parent_section_level)*
         {
             blocks.into_iter().collect::<Result<Vec<_>, Error>>()
@@ -999,7 +1021,7 @@ peg::parser! {
         /// Blocks for table cells without `AsciiDoc` style - excludes block types that require full parsing.
         /// Table cells use a simplified block parser that excludes sections, document attributes,
         /// and block types like lists, delimited blocks, toc, page breaks, and markdown blockquotes.
-        pub(crate) rule blocks_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
+        pub(crate) rule blocks_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
         = eol()*
         blocks:(
             comment_line_block(offset) /
@@ -1009,7 +1031,7 @@ peg::parser! {
             blocks.into_iter().collect::<Result<Vec<_>, Error>>()
         }
 
-        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = eol()*
         // First check: if we're at a same-or-higher-level section, fail the entire block
         // This prevents section content from consuming sibling/parent sections as paragraphs
@@ -1029,11 +1051,11 @@ peg::parser! {
 
         /// Single-line comment that becomes a block in the AST.
         /// Line comments begin with `//` (but not `///` or `////` which are block comment delimiters).
-        rule comment_line_block(offset: usize) -> Result<Block, Error>
+        rule comment_line_block(offset: usize) -> Result<Block<'input>, Error>
         = start:position!() "//" !("/") content:$([^'\n']*) end:position!() (eol() / ![_])
         {
             Ok(Block::Comment(Comment {
-                content: content.to_string(),
+                content,
                 location: state.create_location(start + offset, end + offset),
             }))
         }
@@ -1113,7 +1135,7 @@ peg::parser! {
             }
         }
 
-        rule discrete_header(offset: usize) -> Result<Block, Error>
+        rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, None) {?
             bm.map_err(|e| {
@@ -1125,7 +1147,7 @@ peg::parser! {
         title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() end:position!() &(eol()*<1,2> / ![_])
         {
             let title = title?;
-            tracing::info!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
+            tracing::debug!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
             let level = section_level.1;
             let location = state.create_block_location(start, end, offset);
@@ -1138,7 +1160,7 @@ peg::parser! {
             }))
         }
 
-        pub(crate) rule document_attribute_block(offset: usize) -> Result<Block, Error>
+        pub(crate) rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
         = start:position!() att:document_attribute_match() end:position!()
         {
             let AttributeEntry{ key, value, .. } = att;
@@ -1146,11 +1168,11 @@ peg::parser! {
             let value = match value {
                 AttributeValue::String(s) => {
                     let substituted = substitute(&s, HEADER, &state.document_attributes);
-                    AttributeValue::String(substituted)
+                    AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
                 }
                 AttributeValue::Bool(_) | AttributeValue::None => value,
             };
-            state.document_attributes.set(key.into(), value.clone());
+            Rc::make_mut(&mut state.document_attributes).set(key.into(), value.clone());
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
                 value,
@@ -1158,7 +1180,7 @@ peg::parser! {
             }))
         }
 
-        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
@@ -1173,25 +1195,25 @@ peg::parser! {
         title_start:position!()
         section_header:(title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_]) {
             let title = title?;
-            let section_id = Section::generate_id(&block_metadata.metadata, &title).to_string();
+            let section_id: &'input str = Section::generate_id(state.arena, &block_metadata.metadata, &title).as_arena_str(state.arena);
 
             // Extract xreflabel from the last anchor (same anchor used for section ID)
             // This matches asciidoctor behavior: [[id,xreflabel]] provides custom cross-reference text
-            let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel.clone());
+            let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel);
 
             // Special section styles (bibliography, glossary, etc.) should not be numbered
-            let numbered = !block_metadata.metadata.style.as_ref()
-                .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
+            let numbered = !block_metadata.metadata.style
+                .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s));
 
             // Register section for TOC immediately after title is parsed, before content
-            state.toc_tracker.register_section(title.clone(), section_level.1, section_id.clone(), xreflabel, numbered, block_metadata.metadata.style.clone());
+            state.toc_tracker.register_section(title.clone(), section_level.1, section_id, xreflabel, numbered, block_metadata.metadata.style);
 
-            Ok::<(Title, String), Error>((title, section_id))
+            Ok::<(Title<'input>, &'input str), Error>((title, section_id))
         })
         content:section_content(offset, Some(section_level.1+1))? end:position!()
         {
             let (title, section_id) = section_header?;
-            tracing::info!(?offset, ?block_metadata, ?title, "parsing section block");
+            tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
 
             // Validate section level against parent section level if any is provided
             if let Some(parent_level) = parent_section_level && (
@@ -1216,8 +1238,9 @@ peg::parser! {
                     && let Some(Ok(ref blocks)) = content
                     && let Some(Block::Paragraph(para)) = blocks.first()
                 {
-                    let para_text = extract_plain_text(&para.content);
-                    derive_name_section_attrs(&para_text, &mut state.document_attributes);
+                    let para_text_owned = extract_plain_text(&para.content);
+                    let para_text: &'input str = state.intern_str(&para_text_owned);
+                    derive_name_section_attrs(para_text, Rc::make_mut(&mut state.document_attributes));
                 }
             }
 
@@ -1285,7 +1308,7 @@ peg::parser! {
         /// Parse a setext-style section (title followed by underline).
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
-        pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         !check_line_is_description_list()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
@@ -1301,19 +1324,20 @@ peg::parser! {
             match process_inlines(state, &block_metadata, &title_start, title_end, offset, title) {
                 Ok(processed_title) => {
                     let processed_title = Title::new(processed_title);
-                    let section_id = Section::generate_id(&block_metadata.metadata, &processed_title).to_string();
+                    let section_id_str = Section::generate_id(state.arena, &block_metadata.metadata, &processed_title).to_string();
+                    let section_id: &'input str = state.intern_str(&section_id_str);
 
                     // Extract xreflabel from the last anchor
-                    let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel.clone());
+                    let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel);
 
                     // Special section styles (bibliography, glossary, etc.) should not be numbered
-                    let numbered = !block_metadata.metadata.style.as_ref()
-                        .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s.as_str()));
+                    let numbered = !block_metadata.metadata.style
+                        .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s));
 
                     // Register section for TOC
-                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id.clone(), xreflabel, numbered, block_metadata.metadata.style.clone());
+                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id, xreflabel, numbered, block_metadata.metadata.style);
 
-                    Ok::<(Title, String), Error>((processed_title, section_id))
+                    Ok::<(Title<'input>, &'input str), Error>((processed_title, section_id))
                 }
                 Err(e) => Err(e),
             }
@@ -1330,8 +1354,9 @@ peg::parser! {
                     && let Some(Ok(ref blocks)) = content
                     && let Some(Block::Paragraph(para)) = blocks.first()
                 {
-                    let para_text = extract_plain_text(&para.content);
-                    derive_name_section_attrs(&para_text, &mut state.document_attributes);
+                    let para_text_owned = extract_plain_text(&para.content);
+                    let para_text: &'input str = state.intern_str(&para_text_owned);
+                    derive_name_section_attrs(para_text, Rc::make_mut(&mut state.document_attributes));
                 }
             }
 
@@ -1344,11 +1369,11 @@ peg::parser! {
             }))
         }
 
-        rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata, Error>
+        rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
-            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.key, doc_attr.value)) }
+            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(Cow::Borrowed(doc_attr.key), doc_attr.value)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )* meta_end:position!()
         {
@@ -1396,11 +1421,11 @@ peg::parser! {
                         let value = match value {
                             AttributeValue::String(s) => {
                                 let substituted = substitute(&s, HEADER, &state.document_attributes);
-                                AttributeValue::String(substituted)
+                                AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
                             }
                             AttributeValue::Bool(_) | AttributeValue::None => value,
                         };
-                        state.document_attributes.set(key.into(), value);
+                        Rc::make_mut(&mut state.document_attributes).set(key, value);
                     },
                     BlockMetadataLine::Title(inner) => {
                         title = inner;
@@ -1430,10 +1455,10 @@ peg::parser! {
         // A title line can be a simple title or a section title
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
-        rule title_line(offset: usize) -> Result<Title, Error>
+        rule title_line(offset: usize) -> Result<Title<'input>, Error>
         = period() start:position() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
         {
-            tracing::info!(?title, ?start, ?end, "Found title line in block metadata");
+            tracing::debug!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
             let title = process_inlines(state, &block_metadata, &start, end, offset, title)?;
             Ok(title.into())
@@ -1445,7 +1470,7 @@ peg::parser! {
         rule document_attribute_line() -> AttributeEntry<'input>
         = attr:document_attribute_match() eol()
         {
-            tracing::info!(?attr, "Found document attribute in block metadata");
+            tracing::debug!(?attr, "Found document attribute in block metadata");
             attr
         }
 
@@ -1477,18 +1502,18 @@ peg::parser! {
             Ok((level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes)))
         }
 
-        rule section_title(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Title, Error>
+        rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Title<'input>, Error>
         = title_start:position() title:$([^'\n']*) end:position!()
         {
-            tracing::info!(?title, ?title_start, ?end, offset, "Found section title");
+            tracing::debug!(?title, ?title_start, ?end, offset, "Found section title");
             let content = process_inlines(state, block_metadata, &title_start, end, offset, title)?;
             Ok(Title::new(content))
         }
 
-        rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block>, Error>
+        rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
         = blocks(offset, parent_section_level) / { Ok(vec![]) }
 
-        pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
@@ -1514,7 +1539,7 @@ peg::parser! {
 
         // Block parsing for continuation context - lists inside continuations cannot consume
         // further continuations (those belong to the parent item that started the continuation)
-        rule block_in_continuation(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        rule block_in_continuation(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
@@ -1542,7 +1567,7 @@ peg::parser! {
         /// Block parsing for table cells without `AsciiDoc` style - excludes block types that require full parsing.
         /// Only `a` (`AsciiDoc`) style cells should have full block parsing.
         /// Excluded: delimited_block, list, toc, page_break, markdown_blockquote
-        rule block_generic_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block, Error>
+        rule block_generic_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
@@ -1566,8 +1591,8 @@ peg::parser! {
         rule delimited_block(
             start: usize,
             offset: usize,
-            block_metadata: &BlockParsingMetadata,
-        ) -> Result<Block, Error>
+            block_metadata: &BlockParsingMetadata<'input>,
+        ) -> Result<Block<'input>, Error>
         = comment_block(start, offset, block_metadata)
         / example_block(start, offset, block_metadata)
         / listing_block(start, offset, block_metadata)
@@ -1670,12 +1695,12 @@ peg::parser! {
         rule markdown_language() -> &'input str
         = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+) { lang }
 
-        rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = open_start:position!() open_delim:example_delimiter() eol()
         content_start:position!() content:until_example_delimiter(open_delim) content_end:position!()
         eol() close_start:position!() close_delim:example_delimiter() end:position!()
         {
-            tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
+            tracing::debug!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
             check_delimiters(open_delim, close_delim, "example", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
@@ -1698,7 +1723,7 @@ peg::parser! {
 
             // We want to detect if this is an admonition block. We do that by checking if
             // we have a style that matches an admonition variant.
-            if let Some(ref style) = block_metadata.metadata.style &&
+            if let Some(style) = block_metadata.metadata.style &&
             let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
                 tracing::debug!(?admonition_variant, "Detected admonition block with variant");
                 metadata.style = None; // Clear style to avoid confusion (reuse existing clone)
@@ -1707,7 +1732,7 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata, // Use the existing clone instead of cloning again
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedExample(blocks),
                 title: block_metadata.title.clone(),
                 location,
@@ -1716,7 +1741,7 @@ peg::parser! {
             }))
         }
 
-        rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:comment_delimiter() eol()
             content_start:position!() content:until_comment_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:comment_delimiter() end:position!()
@@ -1735,9 +1760,9 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
-                    content: content.to_string(),
+                    content,
                     location: content_location,
                     escaped: false,
                 })]),
@@ -1748,11 +1773,11 @@ peg::parser! {
             }))
         }
 
-        rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = traditional_listing_block(start, offset, block_metadata)
             / markdown_listing_block(start, offset, block_metadata)
 
-        rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:listing_delimiter() eol()
             content_start:position!() content:until_listing_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:listing_delimiter() end:position!()
@@ -1768,13 +1793,13 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
-            let (inlines, callouts) = resolve_verbatim_callouts(content, content_location);
+            let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedListing(inlines),
                 title: block_metadata.title.clone(),
                 location,
@@ -1783,7 +1808,7 @@ peg::parser! {
             }))
         }
 
-        rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
             content_start:position!() content:until_markdown_code_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:markdown_code_delimiter() end:position!()
@@ -1795,8 +1820,8 @@ peg::parser! {
             // to "source". This matches the behavior of [source,lang] blocks so that
             // detect_language() works.
             if let Some(language) = lang {
-                metadata.positional_attributes.insert(0, language.to_string());
-                metadata.style = Some("source".to_string());
+                metadata.positional_attributes.insert(0, language);
+                metadata.style = Some("source");
             }
 
             metadata.move_positional_attributes_to_attributes();
@@ -1808,13 +1833,13 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
-            let (inlines, callouts) = resolve_verbatim_callouts(content, content_location);
+            let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedListing(inlines),
                 title: block_metadata.title.clone(),
                 location,
@@ -1823,7 +1848,7 @@ peg::parser! {
             }))
         }
 
-        pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         =
         open_start:position!()
         open_delim:literal_delimiter()
@@ -1845,13 +1870,13 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
-            let (inlines, callouts) = resolve_verbatim_callouts(content, content_location);
+            let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedLiteral(inlines),
                 title: block_metadata.title.clone(),
                 location,
@@ -1860,7 +1885,7 @@ peg::parser! {
             }))
         }
 
-        rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:open_delimiter() eol()
             content_start:position!() content:until_open_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:open_delimiter() end:position!()
@@ -1886,7 +1911,7 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedOpen(blocks),
                 title: block_metadata.title.clone(),
                 location,
@@ -1895,12 +1920,12 @@ peg::parser! {
             }))
         }
 
-        rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:sidebar_delimiter() eol()
             content_start:position!() content:until_sidebar_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:sidebar_delimiter() end:position!()
         {
-            tracing::info!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
+            tracing::debug!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
             check_delimiters(open_delim, close_delim, "sidebar", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
@@ -1923,7 +1948,7 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner: DelimitedBlockType::DelimitedSidebar(blocks),
                 title: block_metadata.title.clone(),
                 location,
@@ -1935,13 +1960,13 @@ peg::parser! {
         // Table block dispatcher - tries each delimiter-specific variant in order.
         // This enables nested tables: |=== outer can contain !=== inner because
         // each rule only looks for its own closing delimiter.
-        rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = pipe_table_block(start, offset, block_metadata)
             / excl_table_block(start, offset, block_metadata)
             / comma_table_block(start, offset, block_metadata)
             / colon_table_block(start, offset, block_metadata)
 
-        rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() eol()
               content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
               eol() close_start:position!() close_delim:pipe_table_delimiter() end:position!()
@@ -1957,7 +1982,7 @@ peg::parser! {
             )
         }
 
-        rule excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:excl_table_delimiter() eol()
               content_start:position!() content:until_excl_table_delimiter() content_end:position!()
               eol() close_start:position!() close_delim:excl_table_delimiter() end:position!()
@@ -1973,7 +1998,7 @@ peg::parser! {
             )
         }
 
-        rule comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:comma_table_delimiter() eol()
               content_start:position!() content:until_comma_table_delimiter() content_end:position!()
               eol() close_start:position!() close_delim:comma_table_delimiter() end:position!()
@@ -1989,7 +2014,7 @@ peg::parser! {
             )
         }
 
-        rule colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:colon_table_delimiter() eol()
               content_start:position!() content:until_colon_table_delimiter() content_end:position!()
               eol() close_start:position!() close_delim:colon_table_delimiter() end:position!()
@@ -2005,7 +2030,7 @@ peg::parser! {
             )
         }
 
-        rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:pass_delimiter() eol()
             content_start:position!() content:until_pass_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:pass_delimiter() end:position!()
@@ -2022,7 +2047,7 @@ peg::parser! {
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
             // Check if this is a stem block
-            let inner = if let Some(ref style) = metadata.style {
+            let inner = if let Some(style) = metadata.style {
                 if style == "stem" {
                     // Get notation from :stem: document attribute
                     let notation = match state.document_attributes.get("stem") {
@@ -2036,19 +2061,19 @@ peg::parser! {
                     };
                     metadata.style = None; // Clear style to avoid confusion
                     DelimitedBlockType::DelimitedStem(StemContent {
-                        content: content.to_string(),
+                        content,
                         notation,
                     })
                 } else {
                     DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-                        content: content.to_string(),
+                        content,
                         location: content_location,
                         subs: vec![],
                     })])
                 }
             } else {
                 DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-                    content: content.to_string(),
+                    content,
                     location: content_location,
                     subs: vec![],
                 })])
@@ -2056,7 +2081,7 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner,
                 title: block_metadata.title.clone(),
                 location,
@@ -2065,7 +2090,7 @@ peg::parser! {
             }))
         }
 
-        rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:quote_delimiter() eol()
             content_start:position!() content:until_quote_delimiter(open_delim) content_end:position!()
             eol() close_start:position!() close_delim:quote_delimiter() end:position!()
@@ -2091,37 +2116,50 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, end, offset);
 
-            if let Some(ref attr) = metadata.attribution
+            // Collect params first (releases the borrow on metadata.attribution
+            // before we reassign below).
+            let attribution_params = if let Some(ref attr) = metadata.attribution
             && let Some(InlineNode::PlainText(plain)) = attr.first()
-            && needs_inline_processing(&plain.content)
+            && needs_inline_processing(plain.content)
             {
                 let attr_pos = PositionWithOffset {
                     offset: plain.location.absolute_start.saturating_sub(offset),
                     position: plain.location.start.clone(),
                 };
                 let attr_end = plain.location.absolute_end.saturating_sub(offset);
-                if let Ok(inlines) = process_inlines(state, block_metadata, &attr_pos, attr_end, offset, &plain.content) && !inlines.is_empty() {
-                    metadata.attribution = Some(Attribution::new(inlines));
-                }
+                let content: &'input str = plain.content;
+                Some((content, attr_pos, attr_end))
+            } else { None };
+            if let Some((content, attr_pos, attr_end)) = attribution_params
+                && let Ok(inlines) = process_inlines(state, block_metadata, &attr_pos, attr_end, offset, content)
+                && !inlines.is_empty()
+            {
+                metadata.attribution = Some(Attribution::new(inlines));
             }
-            if let Some(ref cite) = metadata.citetitle
+
+            let citetitle_params = if let Some(ref cite) = metadata.citetitle
             && let Some(InlineNode::PlainText(plain)) = cite.first()
-            && needs_inline_processing(&plain.content)
+            && needs_inline_processing(plain.content)
             {
                 let cite_pos = PositionWithOffset {
                     offset: plain.location.absolute_start.saturating_sub(offset),
                     position: plain.location.start.clone(),
                 };
                 let cite_end = plain.location.absolute_end.saturating_sub(offset);
-                if let Ok(inlines) = process_inlines(state, block_metadata, &cite_pos, cite_end, offset, &plain.content) && !inlines.is_empty() {
-                    metadata.citetitle = Some(CiteTitle::new(inlines));
-                }
+                let content: &'input str = plain.content;
+                Some((content, cite_pos, cite_end))
+            } else { None };
+            if let Some((content, cite_pos, cite_end)) = citetitle_params
+                && let Ok(inlines) = process_inlines(state, block_metadata, &cite_pos, cite_end, offset, content)
+                && !inlines.is_empty()
+            {
+                metadata.citetitle = Some(CiteTitle::new(inlines));
             }
 
-            let inner = if let Some(ref style) = metadata.style {
+            let inner = if let Some(style) = metadata.style {
                 if style == "verse" {
                     DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(Plain {
-                        content: content.to_string(),
+                        content,
                         location: content_location.clone(),
                         escaped: false,
                     })])
@@ -2146,7 +2184,7 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata: metadata.clone(),
-                delimiter: open_delim.to_string(),
+                delimiter: open_delim,
                 inner,
                 title: block_metadata.title.clone(),
                 location,
@@ -2155,7 +2193,7 @@ peg::parser! {
             }))
         }
 
-        rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = "toc::" attributes:attributes() end:position!()
           trailing:$([^'\n']*)
         {
@@ -2164,14 +2202,14 @@ peg::parser! {
             metadata.merge(&metadata_from_attributes);
             metadata.move_positional_attributes_to_attributes();
             state.warn_trailing_macro_content("toc", trailing, end, offset);
-            tracing::info!("Found Table of Contents block");
+            tracing::debug!("Found Table of Contents block");
             Ok(Block::TableOfContents(TableOfContents {
                 metadata,
                 location: state.create_location(start+offset, end+offset),
             }))
         }
 
-        rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = "image::" source:source() attributes:macro_attributes() end:position!()
           trailing:$([^'\n']*)
         {
@@ -2182,13 +2220,13 @@ peg::parser! {
             metadata.merge(&metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
-                metadata.attributes.insert("alt".into(), AttributeValue::String(style.clone()));
+                metadata.attributes.insert("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
             }
             if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
+                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1))));
             }
             if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
+                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0))));
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
@@ -2200,7 +2238,7 @@ peg::parser! {
             }))
         }
 
-        rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule audio(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = "audio::" source:source() attributes:macro_attributes() end:position!()
           trailing:$([^'\n']*)
         {
@@ -2221,7 +2259,7 @@ peg::parser! {
         // The video block is similar to the audio and image blocks, but it supports
         // multiple sources. This is for example to allow passing multiple youtube video
         // ids to form a playlist.
-        rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule video(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = "video::" sources:(source() ** comma()) attributes:macro_attributes() end:position!()
           trailing:$([^'\n']*)
         {
@@ -2234,18 +2272,18 @@ peg::parser! {
                 metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
                     tracing::debug!(?metadata, "transforming video metadata style into attribute");
-                    metadata.attributes.insert(style.clone(), AttributeValue::Bool(true));
+                    metadata.attributes.insert(Cow::Borrowed(style), AttributeValue::Bool(true));
                 } else {
                     // assume poster
                     tracing::debug!(?metadata, "transforming video metadata style into attribute, assuming poster");
-                    metadata.attributes.insert("poster".into(), AttributeValue::String(style.clone()));
+                    metadata.attributes.insert("poster".into(), AttributeValue::String(Cow::Borrowed(style)));
                 }
             }
             if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".into(), AttributeValue::String(metadata.positional_attributes.remove(1)));
+                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1))));
             }
             if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".into(), AttributeValue::String(metadata.positional_attributes.remove(0)));
+                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0))));
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
@@ -2256,7 +2294,7 @@ peg::parser! {
             }))
         }
 
-        rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule thematic_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = ("'''"
                // Below are the markdown-style thematic breaks
                / "---"
@@ -2265,7 +2303,7 @@ peg::parser! {
                / "* * *"
             ) end:position!()
         {
-            tracing::info!("Found thematic break block");
+            tracing::debug!("Found thematic break block");
             Ok(Block::ThematicBreak(ThematicBreak {
                 anchors: block_metadata.metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
                 title: block_metadata.title.clone(),
@@ -2273,10 +2311,10 @@ peg::parser! {
             }))
         }
 
-        rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = "<<<" end:position!() &eol()*<2,2>
         {
-            tracing::info!("Found page break block");
+            tracing::debug!("Found page break block");
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
@@ -2287,13 +2325,13 @@ peg::parser! {
             }))
         }
 
-        rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = list_with_continuation(start, offset, block_metadata, true)
 
         // Parameterized list rule - allow_continuation controls whether list items can consume
         // explicit continuations. Set to false when parsing lists inside continuation blocks
         // to prevent nested lists from consuming parent-level continuations.
-        rule list_with_continuation(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool) -> Result<Block, Error>
+        rule list_with_continuation(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool) -> Result<Block<'input>, Error>
         = callout_list(start, offset, block_metadata)
         / unordered_list(start, offset, block_metadata, None, allow_continuation, false)
         / ordered_list(start, offset, block_metadata, None, allow_continuation, false)
@@ -2406,7 +2444,7 @@ peg::parser! {
             / ("[[" [^']']+ "]]" whitespace()* eol())
         )
 
-        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_ordered_marker: Option<&'input str>, allow_continuation: bool, is_nested: bool) -> Result<Block, Error>
+        rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>, allow_continuation: bool, is_nested: bool) -> Result<Block<'input>, Error>
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
         = whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
@@ -2414,14 +2452,14 @@ peg::parser! {
         rest:(unordered_list_rest_item(offset, block_metadata, parent_ordered_marker, allow_continuation, base_marker))*
         end:position!()
         {
-            tracing::info!("Found unordered list block");
+            tracing::debug!("Found unordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
-            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
-            let marker = items.first().map_or(String::new(), |item| item.marker.clone());
+            let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
+            let marker = items.first().map_or("", |item| item.marker);
 
             Ok(Block::UnorderedList(UnorderedList {
                 title: if is_nested { Title::default() } else { block_metadata.title.clone() },
@@ -2434,53 +2472,40 @@ peg::parser! {
 
         // Parse first item content after marker has been consumed by unordered_list
         // marker_start is the position where the marker began, for correct location tracking
-        rule unordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = item:unordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_ordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
         / item:unordered_list_item_no_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_ordered_marker) { item }
 
-        rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_ordered_marker: Option<&'input str>, allow_continuation: bool, base_marker: &str) -> Result<(ListItem, usize), Error>
-        // Case 1: No blank lines (directly at content) - accept any depth for consecutive items
-        //
-        // OPTIMIZATION: `!at_ordered_marker_ahead()` (only in parent_ordered_marker.is_some() branch)
-        // This lookahead is purely for performance - it fails fast when an ordered marker (`.`)
-        // appears after nested unordered items. Without it, `unordered_list_item` would attempt
-        // to parse the ordered marker, fail, and backtrack - same result, just slower.
-        // See fixtures: nested_unordered_in_ordered.adoc, nested_ordered_in_unordered.adoc
-        = !at_list_separator() !eol() comment_line()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
-        {?
-            if parent_ordered_marker.is_some() {
-                Ok(item)
-            } else {
-                Err("skip")
-            }
-        }
-        / !at_list_separator() !eol() comment_line()* item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
-        {?
-            if parent_ordered_marker.is_some() {
-                Err("skip")
-            } else {
-                Ok(item)
-            }
-        }
-        // Case 2: Blank lines present (at newline(s)) - reject shallower markers (they belong to parent list)
-        / !at_list_separator() eol()+ comment_line()* !at_shallower_unordered_marker(base_marker) !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
-        {?
-            if parent_ordered_marker.is_some() {
-                Ok(item)
-            } else {
-                Err("skip")
-            }
-        }
-        / !at_list_separator() eol()+ comment_line()* !at_shallower_unordered_marker(base_marker) item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
-        {?
-            if parent_ordered_marker.is_some() {
-                Err("skip")
-            } else {
-                Ok(item)
-            }
-        }
+        // Zero-cost guards for the front-of-alternative branch selector in
+        // `*_list_rest_item`. Keeps the expensive item parse out of the branch
+        // whose trailing semantic action would have just discarded it.
+        rule parent_is_some(parent: Option<&'input str>) -> ()
+        = {? if parent.is_some() { Ok(()) } else { Err("parent_is_none") } }
 
-        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_unordered_marker: Option<&'input str>, allow_continuation: bool, is_nested: bool) -> Result<Block, Error>
+        rule parent_is_none(parent: Option<&'input str>) -> ()
+        = {? if parent.is_none() { Ok(()) } else { Err("parent_is_some") } }
+
+        rule unordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>, allow_continuation: bool, base_marker: &str) -> Result<(ListItem<'input>, usize), Error>
+        // `parent_ordered_marker` is fixed for the whole `unordered_list` call, so
+        // rather than parse the (expensive) item first and reject via a trailing
+        // `{? }` action on three of four alternatives, guard each alternative at
+        // the front with a zero-cost check and only parse when the branch applies.
+        // The `!at_ordered_marker_ahead()` lookahead is kept only in the
+        // `parent_ordered_marker.is_some()` branch where it actually pays off.
+        // See fixtures: nested_unordered_in_ordered.adoc, nested_ordered_in_unordered.adoc
+        //
+        // Branch: parent is ordered
+        = parent_is_some(parent_ordered_marker) !at_list_separator() !eol() comment_line()* !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
+          { item }
+        / parent_is_some(parent_ordered_marker) !at_list_separator() eol()+ comment_line()* !at_shallower_unordered_marker(base_marker) !at_ordered_marker_ahead() item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
+          { item }
+        // Branch: no ordered parent
+        / parent_is_none(parent_ordered_marker) !at_list_separator() !eol() comment_line()* item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
+          { item }
+        / parent_is_none(parent_ordered_marker) !at_list_separator() eol()+ comment_line()* !at_shallower_unordered_marker(base_marker) item:unordered_list_item(offset, block_metadata, allow_continuation, parent_ordered_marker)
+          { item }
+
+        rule ordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>, allow_continuation: bool, is_nested: bool) -> Result<Block<'input>, Error>
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
         = whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
@@ -2488,14 +2513,14 @@ peg::parser! {
         rest:(ordered_list_rest_item(offset, block_metadata, parent_unordered_marker, allow_continuation, base_marker))*
         end:position!()
         {
-            tracing::info!("Found ordered list block");
+            tracing::debug!("Found ordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
-            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
-            let marker = items.first().map_or(String::new(), |item| item.marker.clone());
+            let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
+            let marker = items.first().map_or("", |item| item.marker);
 
             Ok(Block::OrderedList(OrderedList {
                 title: if is_nested { Title::default() } else { block_metadata.title.clone() },
@@ -2508,62 +2533,35 @@ peg::parser! {
 
         // Parse first item content after marker has been consumed by ordered_list
         // marker_start is the position where the marker began, for correct location tracking
-        rule ordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_item_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = item:ordered_list_item_with_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_unordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
         / item:ordered_list_item_no_continuation_after_marker(offset, block_metadata, marker, marker_start, parent_unordered_marker) { item }
 
-        rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_unordered_marker: Option<&'input str>, allow_continuation: bool, base_marker: &str) -> Result<(ListItem, usize), Error>
-        // Case 1: No blank lines (directly at content) - accept any depth for consecutive items
+        rule ordered_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>, allow_continuation: bool, base_marker: &str) -> Result<(ListItem<'input>, usize), Error>
+        // Mirror of `unordered_list_rest_item`'s front-guard structure. See that
+        // rule's comment for the rationale.
         //
-        // OPTIMIZATION: `!at_unordered_marker_ahead()` (only in parent_unordered_marker.is_none() branch)
-        // This lookahead is purely for performance - it fails fast when an unordered marker (`*`)
-        // appears after nested ordered items. Without it, `ordered_list_item` would attempt
-        // to parse the unordered marker, fail, and backtrack - same result, just slower.
-        // See fixtures: nested_unordered_in_ordered.adoc, nested_ordered_in_unordered.adoc
-        = !at_list_separator() !eol() comment_line()* !at_unordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
-        {?
-            if parent_unordered_marker.is_some() {
-                Ok(item)
-            } else {
-                Err("skip")
-            }
-        }
-        / !at_list_separator() !eol() comment_line()* item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
-        {?
-            if parent_unordered_marker.is_some() {
-                Err("skip")
-            } else {
-                Ok(item)
-            }
-        }
-        // Case 2: Blank lines present (at newline(s)) - reject shallower markers (they belong to parent list)
-        / !at_list_separator() eol()+ comment_line()* !at_shallower_ordered_marker(base_marker) !at_unordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
-        {?
-            if parent_unordered_marker.is_some() {
-                Ok(item)
-            } else {
-                Err("skip")
-            }
-        }
-        / !at_list_separator() eol()+ comment_line()* !at_shallower_ordered_marker(base_marker) item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
-        {?
-            if parent_unordered_marker.is_some() {
-                Err("skip")
-            } else {
-                Ok(item)
-            }
-        }
+        // Branch: parent is unordered
+        = parent_is_some(parent_unordered_marker) !at_list_separator() !eol() comment_line()* !at_unordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
+          { item }
+        / parent_is_some(parent_unordered_marker) !at_list_separator() eol()+ comment_line()* !at_shallower_ordered_marker(base_marker) !at_unordered_marker_ahead() item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
+          { item }
+        // Branch: no unordered parent
+        / parent_is_none(parent_unordered_marker) !at_list_separator() !eol() comment_line()* item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
+          { item }
+        / parent_is_none(parent_unordered_marker) !at_list_separator() eol()+ comment_line()* !at_shallower_ordered_marker(base_marker) item:ordered_list_item(offset, block_metadata, allow_continuation, parent_unordered_marker)
+          { item }
 
         // Note: The `*_with_continuation` and `*_no_continuation` variants exist because
         // PEG parsers are greedy - nested items must NOT consume explicit continuations
         // that belong to their parent. Attempting to handle this in semantic actions
         // (by always parsing continuations then discarding them) would consume input
         // needed by the parent rule. This structural duplication is intentional.
-        rule unordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = item:unordered_list_item_with_continuation(offset, block_metadata, parent_ordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
         / item:unordered_list_item_no_continuation(offset, block_metadata, parent_ordered_marker) { item }
 
-        rule unordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()*
         marker:unordered_list_marker()
@@ -2594,16 +2592,16 @@ peg::parser! {
         ) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             // Process principal text as inline nodes
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2611,7 +2609,7 @@ peg::parser! {
             if let Some(Some(Ok(nested_list))) = nested {
                 blocks.push(nested_list);
             }
-            // Collect all continuation blocks (each is a Result<Block, Error>)
+            // Collect all continuation blocks (each is a Result<Block<'input>, Error>)
             blocks.extend(explicit_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
@@ -2621,7 +2619,7 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(start+offset, actual_end+offset),
             }, actual_end))
@@ -2630,7 +2628,7 @@ peg::parser! {
         // Version with immediate continuations only (for nested items)
         // Nested items consume continuations with 0 empty lines (immediate attachment).
         // Continuations with 1+ empty lines bubble up to ancestor items.
-        rule unordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()*
         marker:unordered_list_marker()
@@ -2649,15 +2647,15 @@ peg::parser! {
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (immediate continuation only)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2675,7 +2673,7 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(start+offset, actual_end+offset),
             }, actual_end))
@@ -2684,7 +2682,7 @@ peg::parser! {
         // After-marker variants: used when marker has already been consumed by parent rule
         // These are identical to the regular variants except they take marker as a parameter
         // instead of parsing it, and start after the marker position
-        rule unordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()
         checked:checklist_item()?
@@ -2699,15 +2697,15 @@ peg::parser! {
         ) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2722,13 +2720,13 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(marker_start+offset, actual_end+offset),
             }, actual_end))
         }
 
-        rule unordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()
         checked:checklist_item()?
@@ -2740,15 +2738,15 @@ peg::parser! {
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker, immediate only)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2763,7 +2761,7 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(marker_start+offset, actual_end+offset),
             }, actual_end))
@@ -2774,7 +2772,7 @@ peg::parser! {
         /// current_marker: the marker of the parent unordered list item (e.g., "*" or "**")
         /// parent_ordered_marker: the marker of an ancestor ordered list (if any), to prevent
         /// consuming sibling ordered markers that belong to a parent ordered list context
-        rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block, Error>>
+        rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
         // !at_root_ordered_marker() prevents root-level ordered items (no leading
         // whitespace) from being incorrectly parsed as nested. Without this, `. item` at
         // column 1 would be nested inside the parent unordered item instead of being a
@@ -2797,7 +2795,7 @@ peg::parser! {
         /// This is used to parse same-type nesting (e.g., ** inside *) as hierarchical content
         /// rather than flat siblings, enabling proper ancestor continuation handling.
         /// Uses allow_continuation=false to prevent nested items from consuming parent continuations.
-        rule unordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_marker: &str, parent_ordered_marker: Option<&'input str>) -> Result<Block, Error>
+        rule unordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, parent_ordered_marker: Option<&'input str>) -> Result<Block<'input>, Error>
         // Parse first item - must have a deeper marker than parent_marker
         = &at_deeper_unordered_marker(parent_marker)
           whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
@@ -2806,14 +2804,14 @@ peg::parser! {
           rest:(unordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_ordered_marker))*
           end:position!()
         {
-            tracing::info!(?parent_marker, ?base_marker, "Found nested unordered list block");
+            tracing::debug!(?parent_marker, ?base_marker, "Found nested unordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
-            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
-            let marker = items.first().map_or(String::new(), |item| item.marker.clone());
+            let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
+            let marker = items.first().map_or("", |item| item.marker);
 
             Ok(Block::UnorderedList(UnorderedList {
                 title: Title::default(),
@@ -2827,7 +2825,7 @@ peg::parser! {
         /// Parse rest items in a nested unordered list.
         /// Items must be deeper than parent_marker and at same-or-deeper level as base_marker.
         /// Stops when we encounter a marker at or shallower than parent_marker.
-        rule unordered_list_nested_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_marker: &str, base_marker: &str, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule unordered_list_nested_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, base_marker: &str, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         // Case 1: No blank lines - accept same-level or deeper items
         = !at_list_separator() !eol() comment_line()*
           // Must not be at shallower-or-equal to parent (that would end the nested list)
@@ -2851,11 +2849,11 @@ peg::parser! {
         }
 
         // See comment on unordered_list_item for why *_with/without_continuation variants exist.
-        rule ordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata, allow_continuation: bool, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = item:ordered_list_item_with_continuation(offset, block_metadata, parent_unordered_marker) {? if allow_continuation { Ok(item) } else { Err("skip") } }
         / item:ordered_list_item_no_continuation(offset, block_metadata, parent_unordered_marker) { item }
 
-        rule ordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()*
         marker:ordered_list_marker()
@@ -2886,16 +2884,16 @@ peg::parser! {
         ) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             // Process principal text as inline nodes
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2903,7 +2901,7 @@ peg::parser! {
             if let Some(Some(Ok(nested_list))) = nested {
                 blocks.push(nested_list);
             }
-            // Collect all continuation blocks (each is a Result<Block, Error>)
+            // Collect all continuation blocks (each is a Result<Block<'input>, Error>)
             blocks.extend(explicit_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
@@ -2913,7 +2911,7 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(start+offset, actual_end+offset),
             }, actual_end))
@@ -2922,7 +2920,7 @@ peg::parser! {
         // Version with immediate continuations only (for nested items)
         // Nested items consume continuations with 0 empty lines (immediate attachment).
         // Continuations with 1+ empty lines bubble up to ancestor items.
-        rule ordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()*
         marker:ordered_list_marker()
@@ -2941,15 +2939,15 @@ peg::parser! {
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (immediate continuation only)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2967,14 +2965,14 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(start+offset, actual_end+offset),
             }, actual_end))
         }
 
         // After-marker variants for ordered lists: used when marker has already been consumed by parent rule
-        rule ordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()
         checked:checklist_item()?
@@ -2989,15 +2987,15 @@ peg::parser! {
         ) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3012,13 +3010,13 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(marker_start+offset, actual_end+offset),
             }, actual_end))
         }
 
-        rule ordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = start:position!()
         whitespace()
         checked:checklist_item()?
@@ -3030,15 +3028,15 @@ peg::parser! {
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         end:position!()
         {
-            tracing::info!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker, immediate only)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
-            let principal_text = assemble_principal_text(first_line, &continuation_lines);
+            let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3053,7 +3051,7 @@ peg::parser! {
                 principal,
                 blocks,
                 level,
-                marker: marker.to_string(),
+                marker,
                 checked,
                 location: state.create_location(marker_start+offset, actual_end+offset),
             }, actual_end))
@@ -3064,7 +3062,7 @@ peg::parser! {
         /// current_marker: the marker of the parent ordered list item (e.g., "." or "..")
         /// parent_unordered_marker: the marker of an ancestor unordered list (if any), to prevent
         /// consuming sibling unordered markers that belong to a parent unordered list context
-        rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block, Error>>
+        rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
         // !at_root_unordered_marker() prevents root-level unordered items (no leading
         // whitespace) from being incorrectly parsed as nested. Without this, `* item` at
         // column 1 would be nested inside the parent ordered item instead of being a
@@ -3087,7 +3085,7 @@ peg::parser! {
         /// This is used to parse same-type nesting (e.g., .. inside .) as hierarchical content
         /// rather than flat siblings, enabling proper ancestor continuation handling.
         /// Uses allow_continuation=false to prevent nested items from consuming parent continuations.
-        rule ordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata, parent_marker: &str, parent_unordered_marker: Option<&'input str>) -> Result<Block, Error>
+        rule ordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, parent_unordered_marker: Option<&'input str>) -> Result<Block<'input>, Error>
         // Parse first item - must have a deeper marker than parent_marker
         = &at_deeper_ordered_marker(parent_marker)
           whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
@@ -3096,14 +3094,14 @@ peg::parser! {
           rest:(ordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_unordered_marker))*
           end:position!()
         {
-            tracing::info!(?parent_marker, ?base_marker, "Found nested ordered list block");
+            tracing::debug!(?parent_marker, ?base_marker, "Found nested ordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
             let end = content.last().map_or(end, |(_, item_end)| *item_end);
-            let items: Vec<ListItem> = content.into_iter().map(|(item, _)| item).collect();
-            let marker = items.first().map_or(String::new(), |item| item.marker.clone());
+            let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
+            let marker = items.first().map_or("", |item| item.marker);
 
             Ok(Block::OrderedList(OrderedList {
                 title: Title::default(),
@@ -3117,7 +3115,7 @@ peg::parser! {
         /// Parse rest items in a nested ordered list.
         /// Items must be deeper than parent_marker and at same-or-deeper level as base_marker.
         /// Stops when we encounter a marker at or shallower than parent_marker.
-        rule ordered_list_nested_rest_item(offset: usize, block_metadata: &BlockParsingMetadata, parent_marker: &str, base_marker: &str, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem, usize), Error>
+        rule ordered_list_nested_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, base_marker: &str, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         // Case 1: No blank lines - accept same-level or deeper items
         = !at_list_separator() !eol() comment_line()*
           // Must not be at shallower-or-equal to parent (that would end the nested list)
@@ -3151,7 +3149,7 @@ peg::parser! {
             }
         }
 
-        rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule callout_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         // !not_after_verbatim_block(): callout lists only make sense after source/listing
         // blocks The double negative succeeds only when last_block_was_verbatim is true
         = !not_after_verbatim_block()
@@ -3163,7 +3161,7 @@ peg::parser! {
         rest:(callout_list_rest_item(offset, block_metadata))*
         end:position!()
         {
-            tracing::info!("Found callout list block");
+            tracing::debug!("Found callout list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -3213,13 +3211,13 @@ peg::parser! {
             }))
         }
 
-        rule callout_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(CalloutListItem, String, usize), Error>
+        rule callout_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
         = eol()+ item:callout_list_item(offset, block_metadata)
         {?
             Ok(item)
         }
 
-        rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<(CalloutListItem, String, usize), Error>
+        rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
         = start:position!()
         whitespace()*
         marker:callout_list_marker()
@@ -3238,7 +3236,7 @@ peg::parser! {
         first_line_end:position!()
         {
             // Combine first line and continuation lines
-            let principal_text = if continuation_lines.is_empty() {
+            let principal_text_owned = if continuation_lines.is_empty() {
                 first_line.to_string()
             } else {
                 let mut text = first_line.to_string();
@@ -3248,6 +3246,7 @@ peg::parser! {
                 }
                 text
             };
+            let principal_text: &'input str = state.intern_str(&principal_text_owned);
 
             // The end position for the list item should be at the last character of content
             let item_end = if principal_text.is_empty() {
@@ -3260,7 +3259,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, &principal_text)?
+                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
             };
 
             // For callout lists, we don't support nested content or attached blocks
@@ -3291,24 +3290,22 @@ peg::parser! {
             checked
         }
 
-        /// Lookahead guard: does the current line start a description list?
-        ///
-        /// A description list item lives on a single line (`term:: definition`),
-        /// so the lookahead MUST be restricted to the current line. Using `[_]`
-        /// instead of `[^'\n']` would let the scan continue across newlines
-        /// and eventually match a `::` far later in the document, turning every
-        /// block-opener check into an O(remaining-input) scan — O(n²) over the
-        /// whole document. Keep the `[^'\n']` form.
+        rule check_start_of_description_list()
+        = &((!(description_list_marker() (eol() / " " / ![_]) / eol() eol()) [_])+ description_list_marker())
+
+        /// Like check_start_of_description_list but restricted to the current line.
+        /// Used by setext section rules to avoid false positives when a description
+        /// list marker (::, ;;) appears later in the document but not on the current line.
         rule check_line_is_description_list()
         = &((!(description_list_marker() (eol() / " " / ![_])) [^'\n'])+ description_list_marker())
 
-        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
-        = check_line_is_description_list()
+        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = check_start_of_description_list()
         first_item:description_list_item(offset, block_metadata)
         additional_items:description_list_additional_items(offset, block_metadata)*
         end:position!()
         {
-            tracing::info!("Found description list block with auto-attachment support");
+            tracing::debug!("Found description list block with auto-attachment support");
             let mut items = vec![first_item?];
 
             for additional in additional_items {
@@ -3332,17 +3329,17 @@ peg::parser! {
         //
         // !at_dlist_block_boundary() prevents continuing the list when a blank line is
         // followed by block attributes. This allows attributes to apply to a new list.
-        rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
+        rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = !at_dlist_block_boundary()
         eol()*
-        check_line_is_description_list()
+        check_start_of_description_list()
         item:description_list_item(offset, block_metadata)
         {
-            tracing::info!("Found additional description list item");
+            tracing::debug!("Found additional description list item");
             item
         }
 
-        rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<DescriptionListItem, Error>
+        rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = start:position!()
         term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
@@ -3378,9 +3375,12 @@ peg::parser! {
         attached_content:description_list_attached_content(offset, block_metadata)*
         end:position!()
         {
-            tracing::info!(%term, %delimiter, "parsing description list item with auto-attachment");
+            tracing::debug!(%term, %delimiter, "parsing description list item with auto-attachment");
 
-            let term = inline_parser::inlines(term.trim(), state, start+offset, block_metadata)
+            state.inline_ctx.offset = start + offset;
+            state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
+            state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
+            let term = inline_parser::inlines(term.trim(), state)
                 .unwrap_or_else(|e| {
                     adjust_and_log_parse_error(&e, term.trim(), start+offset, state, "Error parsing term as inline content");
                     vec![]
@@ -3395,7 +3395,7 @@ peg::parser! {
             };
 
             // Collect all attached blocks (auto-attached and explicitly continued)
-            let mut description = Vec::new();
+            let mut description = Vec::with_capacity(attached_content.len());
             for content in attached_content {
                 match content {
                     Ok(blocks) => description.extend(blocks),
@@ -3428,7 +3428,7 @@ peg::parser! {
             Ok(DescriptionListItem {
                 anchors: vec![],
                 term,
-                delimiter: delimiter.to_string(),
+                delimiter,
                 delimiter_location: Some(delimiter_location),
                 principal_text,
                 description,
@@ -3436,7 +3436,7 @@ peg::parser! {
             })
         }
 
-        rule description_list_attached_content(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        rule description_list_attached_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
         = eol() content:(
             // Explicit continuation - this uses +, allows any content including delimited
             // blocks
@@ -3448,13 +3448,13 @@ peg::parser! {
             content
         }
 
-        rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
         = eol()* // Consume any blank lines before the list
         &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
         list_start:position!()
         list:(unordered_list(list_start, offset, block_metadata, None, true, true) / ordered_list(list_start, offset, block_metadata, None, true, true))
         {
-            tracing::info!("Auto-attaching list to description list item");
+            tracing::debug!("Auto-attaching list to description list item");
             Ok(vec![list?])
         }
 
@@ -3462,14 +3462,14 @@ peg::parser! {
         // Same pattern as list_explicit_continuation: + marker followed by a single block
         // Uses block_in_continuation to prevent lists inside continuations from consuming
         // further continuations that belong to the parent item
-        rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Vec<Block>, Error>
+        rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
         = continuations:(
             eol()* "+" eol()
             block:block_in_continuation(offset, block_metadata.parent_section_level)
             { block }
           )+
         {
-            tracing::info!(count = continuations.len(), "Description list explicit continuation blocks");
+            tracing::debug!(count = continuations.len(), "Description list explicit continuation blocks");
             Ok(continuations.into_iter().filter_map(Result::ok).collect())
         }
 
@@ -3478,11 +3478,11 @@ peg::parser! {
         // Uses block_in_continuation to prevent lists inside continuations from consuming
         // further continuations that belong to the parent item.
         // Pattern: exactly one newline before + (content\n+\nblock)
-        rule list_explicit_continuation_immediate(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule list_explicit_continuation_immediate(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = eol() !eol() "+" eol()
           block:block_in_continuation(offset, block_metadata.parent_section_level)
         {
-            tracing::info!("List immediate continuation block (0 empty lines)");
+            tracing::debug!("List immediate continuation block (0 empty lines)");
             block
         }
 
@@ -3492,11 +3492,11 @@ peg::parser! {
         // Uses block_in_continuation to prevent lists inside continuations from consuming
         // further continuations that belong to the parent item.
         // Pattern: two or more newlines before + (content\n\n+\nblock)
-        rule list_explicit_continuation_ancestor(offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule list_explicit_continuation_ancestor(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = eol() eol()+ "+" eol()
           block:block_in_continuation(offset, block_metadata.parent_section_level)
         {
-            tracing::info!("List ancestor continuation block (1+ empty lines)");
+            tracing::debug!("List ancestor continuation block (1+ empty lines)");
             block
         }
 
@@ -3507,54 +3507,50 @@ peg::parser! {
         // "I hold it that a little rebellion now and then is a good thing."
         // -- Thomas Jefferson, Papers of Thomas Jefferson
         // ```
-        rule quoted_paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule quoted_paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = content_start:position!()
           "\"" quoted_content:$((!"\"" [_])+) "\""
           eol()
           "-- " attr_start:position() attribution_line:$([^'\n']+)
           end:position!()
         {
-            tracing::info!(?quoted_content, ?attribution_line, "found quoted paragraph");
+            tracing::debug!(?quoted_content, ?attribution_line, "found quoted paragraph");
 
             // Parse attribution line: "Author Name, Source Title" or just "Author Name"
-            let (attr_str, cite_str) = match attribution_line.split_once(',') {
-                Some((attr, cite)) => (attr.trim().to_string(), Some(cite.trim().to_string())),
-                None => (attribution_line.trim().to_string(), None),
+            // Intern the slices into the parser arena so downstream inline parsing
+            // can produce nodes with the `'input` lifetime.
+            let (attr_str, cite_str): (&'input str, Option<&'input str>) = match attribution_line.split_once(',') {
+                Some((attr, cite)) => (state.intern_str(attr.trim()), Some(state.intern_str(cite.trim()))),
+                None => (state.intern_str(attribution_line.trim()), None),
             };
 
             // Parse attribution through inline pipeline
             let attr_end_offset = attr_start.offset + attr_str.len();
-            let (attr_location, attr_processed) = preprocess_inline_content(
+            let attr_inlines = process_inlines(
                 state,
+                block_metadata,
                 &attr_start,
                 attr_end_offset,
                 offset,
-                &attr_str,
-                block_metadata.macros_enabled,
-                true,
+                attr_str,
             )?;
-            let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
-            let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
 
             // Parse citation through inline pipeline if present
-            let cite_inlines = if let Some(ref cite) = cite_str {
+            let cite_inlines = if let Some(cite) = cite_str {
                 let cite_offset_in_line = attribution_line.find(',').unwrap_or(0) + 1;
                 let cite_raw_start = attr_start.offset + cite_offset_in_line + (attribution_line[cite_offset_in_line..].len() - attribution_line[cite_offset_in_line..].trim_start().len());
                 let cite_pos = PositionWithOffset {
                     offset: cite_raw_start,
-                    position: state.line_map.offset_to_position(cite_raw_start, &state.input),
+                    position: state.line_map.offset_to_position(cite_raw_start, state.input),
                 };
-                let (cite_location, cite_processed) = preprocess_inline_content(
+                Some(process_inlines(
                     state,
+                    block_metadata,
                     &cite_pos,
                     cite_raw_start + cite.len(),
                     offset,
                     cite,
-                    block_metadata.macros_enabled,
-                    true,
-                )?;
-                let inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
-                Some(map_inline_locations(state, &cite_processed, &inlines, &cite_location)?)
+                )?)
             } else {
                 None
             };
@@ -3567,7 +3563,7 @@ peg::parser! {
 
             // Build metadata with quote style and attribution
             let mut metadata = block_metadata.metadata.clone();
-            metadata.style = Some("quote".to_string());
+            metadata.style = Some("quote");
             metadata.attribution = Some(Attribution::new(attr_inlines));
             if let Some(inlines) = cite_inlines {
                 metadata.citetitle = Some(CiteTitle::new(inlines));
@@ -3575,7 +3571,7 @@ peg::parser! {
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
-                delimiter: "\"".to_string(),
+                delimiter: "\"",
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
                 title: block_metadata.title.clone(),
                 location: state.create_block_location(start, end, offset),
@@ -3595,54 +3591,50 @@ peg::parser! {
         ///
         /// The content after `> ` on each line is joined and parsed as blocks.
         /// Attribution is extracted from a line matching `> -- Author[, Citation]`.
-        rule markdown_blockquote(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule markdown_blockquote(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = lines:markdown_blockquote_content_line()+ attribution:markdown_blockquote_attribution()? end:position!()
         {
-            tracing::info!(?lines, ?attribution, "found markdown blockquote");
+            tracing::debug!(?lines, ?attribution, "found markdown blockquote");
 
-            let content = lines.join("\n");
+            let content: &'input str = state.intern_join(lines.iter(), "\n");
             let content_start = start;
 
             // Build metadata with quote style and attribution
             let mut metadata = block_metadata.metadata.clone();
-            metadata.style = Some("quote".to_string());
+            metadata.style = Some("quote");
             if let Some((author, author_start, citation)) = attribution {
+                let author: &'input str = state.intern_str(&author);
                 // Parse author through inline pipeline
                 let author_pos = PositionWithOffset {
                     offset: author_start,
-                    position: state.line_map.offset_to_position(author_start, &state.input),
+                    position: state.line_map.offset_to_position(author_start, state.input),
                 };
                 let attr_end_offset = author_start + author.len();
-                let (attr_location, attr_processed) = preprocess_inline_content(
+                let attr_inlines = process_inlines(
                     state,
+                    block_metadata,
                     &author_pos,
                     attr_end_offset,
                     offset,
-                    &author,
-                    block_metadata.macros_enabled,
-                    true,
+                    author,
                 )?;
-                let attr_inlines = parse_inlines(&attr_processed, state, block_metadata, &attr_location)?;
-                let attr_inlines = map_inline_locations(state, &attr_processed, &attr_inlines, &attr_location)?;
                 metadata.attribution = Some(Attribution::new(attr_inlines));
 
                 if let Some((cite, cite_start)) = citation {
+                    let cite: &'input str = state.intern_str(&cite);
                     // Parse citation through inline pipeline
                     let cite_pos = PositionWithOffset {
                         offset: cite_start,
-                        position: state.line_map.offset_to_position(cite_start, &state.input),
+                        position: state.line_map.offset_to_position(cite_start, state.input),
                     };
-                    let (cite_location, cite_processed) = preprocess_inline_content(
+                    let cite_inlines = process_inlines(
                         state,
+                        block_metadata,
                         &cite_pos,
                         cite_start + cite.len(),
                         offset,
-                        &cite,
-                        block_metadata.macros_enabled,
-                        true,
+                        cite,
                     )?;
-                    let cite_inlines = parse_inlines(&cite_processed, state, block_metadata, &cite_location)?;
-                    let cite_inlines = map_inline_locations(state, &cite_processed, &cite_inlines, &cite_location)?;
                     metadata.citetitle = Some(CiteTitle::new(cite_inlines));
                 }
             }
@@ -3653,15 +3645,15 @@ peg::parser! {
             let blocks = if content.trim().is_empty() {
                 Vec::new()
             } else {
-                document_parser::blocks(&content, state, content_start + offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    adjust_and_log_parse_error(&e, &content, content_start + offset, state, "Error parsing content as blocks in markdown blockquote");
+                document_parser::blocks(content, state, content_start + offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                    adjust_and_log_parse_error(&e, content, content_start + offset, state, "Error parsing content as blocks in markdown blockquote");
                     Ok(Vec::new())
                 })?
             };
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
-                delimiter: ">".to_string(),
+                delimiter: ">",
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
                 title: block_metadata.title.clone(),
                 location,
@@ -3692,7 +3684,7 @@ peg::parser! {
             (author.trim().to_string(), author_start, None)
         }
 
-        rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata) -> Result<Block, Error>
+        rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = admonition:admonition()?
         content_start:position()
         content:$((!(
@@ -3726,14 +3718,12 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
             }
 
-            let (location, processed) = preprocess_inline_content(state, &content_start, end, offset, content, block_metadata.macros_enabled, block_metadata.attributes_enabled)?;
-            let content = parse_inlines(&processed, state, block_metadata, &location)?;
-            let content = map_inline_locations(state, &processed, &content, &location)?;
+            let content = process_inlines(state, block_metadata, &content_start, end, offset, content)?;
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
             let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
                 vec![InlineNode::PlainText(Plain {
-                    content: title.clone(),
+                    content: state.intern_cow(title.clone()),
                     location: state.create_location(start+offset, (start+offset).saturating_add(title.len()).saturating_sub(1)),
                     escaped: false,
                 })].into()
@@ -3749,7 +3739,7 @@ peg::parser! {
                         variant
                     ));
                 };
-                tracing::info!(%variant, "found admonition block with variant");
+                tracing::debug!(%variant, "found admonition block with variant");
                 Ok(Block::Admonition(Admonition{
                     metadata: block_metadata.metadata.clone(),
                     title,
@@ -3767,7 +3757,7 @@ peg::parser! {
                 let mut metadata = block_metadata.metadata.clone();
                 metadata.move_positional_attributes_to_attributes();
 
-                tracing::info!(?content, ?location, "found paragraph block");
+                tracing::debug!(?content, "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {
                     content,
                     metadata,
@@ -3802,7 +3792,7 @@ peg::parser! {
             }
         )
 
-        rule anchor() -> Anchor
+        rule anchor() -> Anchor<'input>
         = start:position!()
         result:(
             // Double-bracket [[id]] syntax - allows dots in ID since no role shorthand
@@ -3832,8 +3822,8 @@ peg::parser! {
         eol()
         {
             let (id, reftext) = result;
-            let substituted_id = substitute(id, HEADER, &state.document_attributes);
-            let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
+            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
+            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
@@ -3841,7 +3831,7 @@ peg::parser! {
             }
         }
 
-        rule inline_anchor(offset: usize) -> InlineNode
+        rule inline_anchor(offset: usize) -> InlineNode<'input>
         = start:position!()
         double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
@@ -3858,8 +3848,8 @@ peg::parser! {
         double_close_square_bracket()
         end:position!()
         {
-            let substituted_id = substitute(id, HEADER, &state.document_attributes);
-            let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
+            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
+            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
@@ -3872,7 +3862,7 @@ peg::parser! {
 
         /// Bibliography anchor: `[[[id]]]` or `[[[id,reftext]]]`
         /// Must be parsed before inline_anchor to avoid capturing `[id` as the ID
-        rule bibliography_anchor(offset: usize) -> InlineNode
+        rule bibliography_anchor(offset: usize) -> InlineNode<'input>
         = start:position!()
         "[[["
         warn_anchor_id_with_whitespace()?
@@ -3881,8 +3871,8 @@ peg::parser! {
         "]]]"
         end:position!()
         {
-            let substituted_id = substitute(id, HEADER, &state.document_attributes);
-            let substituted_reftext = reftext.map(|rt| substitute(rt, HEADER, &state.document_attributes));
+            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
+            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
@@ -3890,7 +3880,7 @@ peg::parser! {
             })
         }
 
-        rule attributes_line() -> (bool, BlockMetadata)
+        rule attributes_line() -> (bool, BlockMetadata<'input>)
             // Don't match empty [] followed by blank line - that's a list separator, not
             // block attributes. Without this, `[]\n\n` would be parsed as an empty
             // attributes line, breaking list separation
@@ -3903,26 +3893,26 @@ peg::parser! {
         rule empty_list_separator()
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
-        pub(crate) rule attributes() -> (bool, BlockMetadata, Option<(usize, usize)>)
+        pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
             = start:position!() open_square_bracket() content:(
                 // The case in which we keep the style empty
                 attributes:(comma() att:attribute() { att })+ {
-                    tracing::info!(?attributes, "Found empty style with attributes");
+                    tracing::debug!(?attributes, "Found empty style with attributes");
                     (true, None, attributes)
                 } /
                 // The case in which there is a block style and other attributes
                 style:block_style() attributes:(comma() att:attribute() { att })+ {
-                    tracing::info!(?style, ?attributes, "Found block style with attributes");
+                    tracing::debug!(?style, ?attributes, "Found block style with attributes");
                     (false, Some(style), attributes)
                 } /
                 // The case in which there is a block style and no other attributes
                 style:block_style() {
-                    tracing::info!(?style, "Found block style");
+                    tracing::debug!(?style, "Found block style");
                     (false, Some(style), vec![])
                 } /
                 // The case in which there are only attributes
                 attributes:(att:attribute() comma()? { att })* {
-                    tracing::info!(?attributes, "Found attributes");
+                    tracing::debug!(?attributes, "Found attributes");
                     (false, None, attributes)
                 })
             close_square_bracket() end:position!() {
@@ -3936,14 +3926,14 @@ peg::parser! {
                         if style_name == "discrete" {
                             discrete = true;
                         } else if metadata.style.is_none() {
-                            metadata.style = Some(style_name);
+                            metadata.style = Some(state.intern_cow(style_name));
                         } else {
                             metadata.attributes.insert(style_name, AttributeValue::None);
                         }
                     }
                     metadata.id = id;
-                    metadata.roles.extend(roles);
-                    metadata.options.extend(options);
+                    metadata.roles.extend(roles.into_iter().map(|r| state.intern_cow(r)));
+                    metadata.options.extend(options.into_iter().map(|o| state.intern_cow(o)));
                 }
 
                 // Process attribute list using shared helper
@@ -3968,7 +3958,7 @@ peg::parser! {
 
                 // Extract attribution/citetitle for quote/verse styles using positions
                 // from the original attributes vec (before positional_attributes is consumed)
-                if metadata.style.as_deref() == Some("quote") || metadata.style.as_deref() == Some("verse") {
+                if metadata.style == Some("quote") || metadata.style == Some("verse") {
                     let positional_positions: Vec<Option<(usize, usize)>> = attributes.iter()
                         .flatten()
                         .filter(|(_, v, _)| *v == AttributeValue::None)
@@ -3981,7 +3971,7 @@ peg::parser! {
                             let loc = positional_positions.get(1).copied().flatten()
                                 .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
                             metadata.citetitle = Some(CiteTitle::new(vec![InlineNode::PlainText(Plain {
-                                content: cite,
+                                content: state.intern_str(&cite),
                                 location: loc,
                                 escaped: false,
                             })]));
@@ -3993,7 +3983,7 @@ peg::parser! {
                             let loc = positional_positions.first().copied().flatten()
                                 .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
                             metadata.attribution = Some(Attribution::new(vec![InlineNode::PlainText(Plain {
-                                content: attr,
+                                content: state.intern_str(&attr),
                                 location: loc,
                                 escaped: false,
                             })]));
@@ -4012,7 +4002,7 @@ peg::parser! {
         /// Asciidoctor behavior:
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
-        pub(crate) rule macro_attributes() -> (bool, BlockMetadata, Option<(usize, usize)>)
+        pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
             = start:position!() open_square_bracket()
               attrs:(att:macro_attribute() comma()? { att })*
               close_square_bracket() end:position!()
@@ -4043,10 +4033,10 @@ peg::parser! {
             }
 
         /// Named attribute or additional positional in macro context
-        rule macro_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
+        rule macro_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
             = whitespace()* att:named_attribute() { att }
             / val:macro_positional_value() {
-                val.map(|v| (v, AttributeValue::None, None))
+                val.map(|v| (Cow::Owned(v), AttributeValue::None, None))
             }
 
         rule open_square_bracket() = "["
@@ -4060,10 +4050,10 @@ peg::parser! {
 
         /// Parse a single attribute shorthand: .role, #id, or %option
         /// Used by block_style() for block-level attributes
-        rule shorthand() -> Shorthand
-        = "#" id:block_style_id() { Shorthand::Id(id.to_string()) }
-        / "." role:role() { Shorthand::Role(role.to_string()) }
-        / "%" option:option() { Shorthand::Option(option.to_string()) }
+        rule shorthand() -> Shorthand<'input>
+        = "#" id:block_style_id() { Shorthand::Id(Cow::Borrowed(id)) }
+        / "." role:role() { Shorthand::Role(Cow::Borrowed(role)) }
+        / "%" option:option() { Shorthand::Option(Cow::Borrowed(option)) }
 
         // The option rule is used to parse options in the form of "option=value" or
         // "%option" (we don't capture the % here).
@@ -4076,11 +4066,11 @@ peg::parser! {
 
         rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
 
-        pub(crate) rule attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
+        pub(crate) rule attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
             = whitespace()* att:named_attribute() { att }
               / whitespace()* start:position!() att:positional_attribute_value() end:position!() {
-                  let substituted = substitute(&att, &[Substitution::Attributes], &state.document_attributes);
-                  Some((substituted, AttributeValue::None, Some((start, end))))
+                  let substituted = substitute(&att, &[Substitution::Attributes], &state.document_attributes).into_owned();
+                  Some((Cow::Owned(substituted), AttributeValue::None, Some((start, end))))
               }
 
         // Add a simple ID rule
@@ -4088,17 +4078,17 @@ peg::parser! {
             = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
 
         // TODO(nlopes): this should instead return an enum
-        rule named_attribute() -> Option<(String, AttributeValue, Option<(usize, usize)>)>
+        rule named_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
             = "id" "=" start:position!() id:id() end:position!()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ID.to_string(), AttributeValue::String(id), Some((start, end)))) }
+                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_ID), AttributeValue::String(Cow::Owned(id)), Some((start, end)))) }
               / ("role" / "roles") "=" value:named_attribute_value()
-                { Some((RESERVED_NAMED_ATTRIBUTE_ROLE.to_string(), AttributeValue::String(value), None)) }
+                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_ROLE), AttributeValue::String(Cow::Owned(value)), None)) }
               / ("options" / "opts") "=" value:named_attribute_value()
-                { Some((RESERVED_NAMED_ATTRIBUTE_OPTIONS.to_string(), AttributeValue::String(value), None)) }
+                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_OPTIONS), AttributeValue::String(Cow::Owned(value)), None)) }
               / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
                 {
-                    let substituted_value = substitute(&value, &[Substitution::Attributes], &state.document_attributes);
-                    Some((name.to_string(), AttributeValue::String(substituted_value), Some((start, end))))
+                    let substituted_value = substitute(&value, &[Substitution::Attributes], &state.document_attributes).into_owned();
+                    Some((Cow::Borrowed(name), AttributeValue::String(Cow::Owned(substituted_value)), Some((start, end))))
                 }
 
         // The block style is a positional attribute that is used to set the style of a block element.
@@ -4112,23 +4102,23 @@ peg::parser! {
         // Each shorthand entry is placed directly adjacent to previous one, starting
         // immediately after the optional block style. The order of the entries does not
         // matter, except for the style, which must come first.
-        pub(crate) rule block_style() -> (Option<String>, Option<Anchor>, Vec<String>, Vec<String>)
+        pub(crate) rule block_style() -> (Option<Cow<'input, str>>, Option<Anchor<'input>>, Vec<Cow<'input, str>>, Vec<Cow<'input, str>>)
             = start:position!() content:(
                 style:positional_attribute_value() shorthands:(
                     "#" id_start:position!() id:block_style_id() id_end:position!() {
-                        (Shorthand::Id(id.to_string()), Some((id_start, id_end)))
+                        (Shorthand::Id(Cow::Owned(id.to_string())), Some((id_start, id_end)))
                     }
                     / s:shorthand() { (s, None) }
                 )+ {
-                    (Some(style), shorthands)
+                    (Some(Cow::Owned(style)), shorthands)
                 } /
                 style:positional_attribute_value() !"=" {
-                    tracing::info!(%style, "Found block style without shorthands");
-                    (Some(style), Vec::new())
+                    tracing::debug!(%style, "Found block style without shorthands");
+                    (Some(Cow::Owned(style)), Vec::new())
                 } /
                 shorthands:(
                     "#" id_start:position!() id:block_style_id() id_end:position!() {
-                        (Shorthand::Id(id.to_string()), Some((id_start, id_end)))
+                        (Shorthand::Id(Cow::Owned(id.to_string())), Some((id_start, id_end)))
                     }
                     / s:shorthand() { (s, None) }
                 )+ {
@@ -4145,7 +4135,7 @@ peg::parser! {
                         Shorthand::Id(id) => {
                             let (id_start, id_end) = pos.unwrap_or((start, end));
                             maybe_anchor = Some(Anchor {
-                                id,
+                                id: state.intern_cow(id),
                                 xreflabel: None,
                                 location: state.create_location(id_start, id_end)
                             });
@@ -4243,20 +4233,24 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                &state.line_map,
-                &state.input,
+                state.line_map.clone(),
+                state.input,
+                state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
                 tracing::error!(?e, "could not preprocess url path");
                 "could not preprocess url path"
             })?;
-            for warning in inline_state.drain_warnings() {
-                state.add_warning(warning);
-            }
             // Strip backslash escapes before URL parsing to prevent the url crate
             // from normalizing backslashes to forward slashes
-            Ok(strip_url_backslash_escapes(&processed.text))
+            let result = strip_url_backslash_escapes(&processed.text).into_owned();
+            let warnings = inline_state.drain_warnings();
+            drop(inline_state);
+            for warning in warnings {
+                state.add_warning(warning);
+            }
+            Ok(result)
         }
 
         /// URL for bare autolinks — avoids capturing trailing sentence punctuation
@@ -4280,18 +4274,22 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                &state.line_map,
-                &state.input,
+                state.line_map.clone(),
+                state.input,
+                state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
                 .map_err(|e| {
                     tracing::error!(?e, "could not preprocess bare url path");
                     "could not preprocess bare url path"
                 })?;
-            for warning in inline_state.drain_warnings() {
+            let result = strip_url_backslash_escapes(&processed.text).into_owned();
+            let warnings = inline_state.drain_warnings();
+            drop(inline_state);
+            for warning in warnings {
                 state.add_warning(warning);
             }
-            Ok(strip_url_backslash_escapes(&processed.text))
+            Ok(result)
         }
 
         /// Balanced parenthesized group in a URL path.
@@ -4330,29 +4328,35 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                &state.line_map,
-                &state.input,
+                state.line_map.clone(),
+                state.input,
+                state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
                 tracing::error!(?e, "could not preprocess path");
                 "could not preprocess path"
             })?;
-            for warning in inline_state.drain_warnings() {
+            let result = processed.text.into_owned();
+            let warnings = inline_state.drain_warnings();
+            drop(inline_state);
+            for warning in warnings {
                 state.add_warning(warning);
             }
-            Ok(processed.text)
+            Ok(result)
         }
 
 
-        pub rule source() -> Source
+        pub rule source() -> Source<'input>
             = source:
         (
             u:url() {?
-                Source::from_str(&u).map_err(|_| "failed to parse URL")
+                let interned = state.intern_str(&u);
+                Source::from_str_borrowed(interned).map_err(|_| "failed to parse URL")
             }
             / p:path() {?
-                Source::from_str(&p).map_err(|_| "failed to parse path")
+                let interned = state.intern_str(&p);
+                Source::from_str_borrowed(interned).map_err(|_| "failed to parse path")
             }
         )
         { source }
@@ -4403,14 +4407,26 @@ peg::parser! {
         value:document_attribute_value()?
         {
             let (set, key) = key_entry;
-            AttributeEntry::new(key, set, value.as_deref())
+            let attr_value = if !set {
+                AttributeValue::Bool(false)
+            } else if let Some(v) = value {
+                let trimmed = v.trim();
+                match trimmed {
+                    "true" => AttributeValue::Bool(true),
+                    "false" => AttributeValue::Bool(false),
+                    _ => AttributeValue::String(Cow::Owned(v)),
+                }
+            } else {
+                AttributeValue::Bool(true)
+            };
+            AttributeEntry { set, key, value: attr_value }
         }
         / expected!("document attribute key starting with ':'")
 
         rule position() -> PositionWithOffset = offset:position!() {
             PositionWithOffset {
                 offset,
-                position: state.line_map.offset_to_position(offset, &state.input)
+                position: state.line_map.offset_to_position(offset, state.input)
             }
         }
 
@@ -4431,14 +4447,19 @@ peg::parser! {
 /// A tuple of:
 /// - `Vec<InlineNode>` - Alternating `VerbatimText` and `CalloutRef` nodes
 /// - `Vec<CalloutRef>` - Just the callout references (for validation with callout lists)
-fn resolve_verbatim_callouts(
+fn resolve_verbatim_callouts<'a>(
+    arena: &'a bumpalo::Bump,
     text: &str,
     base_location: Location,
-) -> (Vec<InlineNode>, Vec<CalloutRef>) {
+) -> (Vec<InlineNode<'a>>, Vec<CalloutRef>) {
     let mut inlines = Vec::new();
     let mut callouts = Vec::new();
     let mut auto_number = 1usize;
-    let mut current_text = String::new();
+    // Build text directly in the arena: each flush hands ownership of the
+    // current `BumpString` to the AST via `into_bump_str()`, then we start
+    // fresh in the same arena. Avoids the heap-`String`-then-arena-copy
+    // round-trip per `VerbatimText` node.
+    let mut current_text = bumpalo::collections::String::new_in(arena);
 
     for (line_idx, line) in text.lines().enumerate() {
         // Add newline separator between lines (except first)
@@ -4455,8 +4476,12 @@ fn resolve_verbatim_callouts(
 
             // Flush current text as VerbatimText
             if !current_text.is_empty() {
+                let flushed = std::mem::replace(
+                    &mut current_text,
+                    bumpalo::collections::String::new_in(arena),
+                );
                 inlines.push(InlineNode::VerbatimText(Verbatim {
-                    content: std::mem::take(&mut current_text),
+                    content: flushed.into_bump_str(),
                     location: base_location.clone(),
                 }));
             }
@@ -4481,8 +4506,12 @@ fn resolve_verbatim_callouts(
 
             // Flush current text as VerbatimText
             if !current_text.is_empty() {
+                let flushed = std::mem::replace(
+                    &mut current_text,
+                    bumpalo::collections::String::new_in(arena),
+                );
                 inlines.push(InlineNode::VerbatimText(Verbatim {
-                    content: std::mem::take(&mut current_text),
+                    content: flushed.into_bump_str(),
                     location: base_location.clone(),
                 }));
             }
@@ -4510,7 +4539,7 @@ fn resolve_verbatim_callouts(
     // Flush any remaining text
     if !current_text.is_empty() {
         inlines.push(InlineNode::VerbatimText(Verbatim {
-            content: current_text,
+            content: current_text.into_bump_str(),
             location: base_location,
         }));
     }
@@ -4562,14 +4591,14 @@ v2.9, 01-09-2024: Fall incarnation
 :description: The document's description.
 :sectanchors:
 :url-repo: https://my-git-repo.com";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
         let header = result.header.expect("document has a header");
         assert_eq!(header.title.len(), 1);
         assert_eq!(
             header.title[0],
             InlineNode::PlainText(Plain {
-                content: "Document Title".to_string(),
+                content: "Document Title",
                 location: Location {
                     absolute_start: 34,
                     absolute_end: 47,
@@ -4584,21 +4613,15 @@ v2.9, 01-09-2024: Fall incarnation
         );
         assert_eq!(header.authors.len(), 2);
         assert_eq!(header.authors[0].first_name, "Lorn Kismet");
-        assert_eq!(header.authors[0].middle_name, Some("R.".to_string()));
+        assert_eq!(header.authors[0].middle_name, Some("R."));
         assert_eq!(header.authors[0].last_name, "Lee");
         assert_eq!(header.authors[0].initials, "LRL");
-        assert_eq!(
-            header.authors[0].email,
-            Some("kismet@asciidoctor.org".to_string())
-        );
+        assert_eq!(header.authors[0].email, Some("kismet@asciidoctor.org"));
         assert_eq!(header.authors[1].first_name, "Norberto");
-        assert_eq!(header.authors[1].middle_name, Some("M.".to_string()));
+        assert_eq!(header.authors[1].middle_name, Some("M."));
         assert_eq!(header.authors[1].last_name, "Lopes");
         assert_eq!(header.authors[1].initials, "NML");
-        assert_eq!(
-            header.authors[1].email,
-            Some("nlopesml@gmail.com".to_string())
-        );
+        assert_eq!(header.authors[1].email, Some("nlopesml@gmail.com"));
         assert_eq!(
             state.document_attributes.get("revnumber"),
             Some(&AttributeValue::String("v2.9".into()))
@@ -4633,20 +4656,20 @@ v2.9, 01-09-2024: Fall incarnation
     fn test_authors() -> Result<(), Error> {
         let input =
             "Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::authors(input, &mut state)?;
 
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].first_name, "Lorn Kismet");
-        assert_eq!(result[0].middle_name, Some("R.".to_string()));
+        assert_eq!(result[0].middle_name, Some("R."));
         assert_eq!(result[0].last_name, "Lee");
         assert_eq!(result[0].initials, "LRL");
-        assert_eq!(result[0].email, Some("kismet@asciidoctor.org".to_string()));
+        assert_eq!(result[0].email, Some("kismet@asciidoctor.org"));
         assert_eq!(result[1].first_name, "Norberto");
-        assert_eq!(result[1].middle_name, Some("M.".to_string()));
+        assert_eq!(result[1].middle_name, Some("M."));
         assert_eq!(result[1].last_name, "Lopes");
         assert_eq!(result[1].initials, "NML");
-        assert_eq!(result[1].email, Some("nlopesml@gmail.com".to_string()));
+        assert_eq!(result[1].email, Some("nlopesml@gmail.com"));
         Ok(())
     }
 
@@ -4654,13 +4677,13 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_author() -> Result<(), Error> {
         let input = "Norberto M. Lopes supa dough <nlopesml@gmail.com>";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::author(input, &mut state)?;
         assert_eq!(result.first_name, "Norberto");
-        assert_eq!(result.middle_name, Some("M.".to_string()));
+        assert_eq!(result.middle_name, Some("M."));
         assert_eq!(result.last_name, "Lopes supa dough");
         assert_eq!(result.initials, "NML");
-        assert_eq!(result.email, Some("nlopesml@gmail.com".to_string()));
+        assert_eq!(result.email, Some("nlopesml@gmail.com"));
         Ok(())
     }
 
@@ -4668,7 +4691,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_compound_first_name() -> Result<(), Error> {
         let input = "Ann_Marie Jenson";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::author(input, &mut state)?;
         assert_eq!(result.first_name, "Ann Marie");
         assert_eq!(result.middle_name, None);
@@ -4681,7 +4704,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_compound_last_name() -> Result<(), Error> {
         let input = "Tomás López_del_Toro";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::author(input, &mut state)?;
         assert_eq!(result.first_name, "Tomás");
         assert_eq!(result.middle_name, None);
@@ -4694,10 +4717,10 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_compound_middle_name() -> Result<(), Error> {
         let input = "First Middle_Name Last";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::author(input, &mut state)?;
         assert_eq!(result.first_name, "First");
-        assert_eq!(result.middle_name, Some("Middle Name".to_string()));
+        assert_eq!(result.middle_name, Some("Middle Name"));
         assert_eq!(result.last_name, "Last");
         assert_eq!(result.initials, "FML");
         Ok(())
@@ -4707,7 +4730,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_multiple_compound_authors() -> Result<(), Error> {
         let input = "Ann_Marie Jenson; Tomás López_del_Toro";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::authors(input, &mut state)?;
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].first_name, "Ann Marie");
@@ -4723,7 +4746,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_unicode_author_name() -> Result<(), Error> {
         let input = "Tomás Müller";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::author(input, &mut state)?;
         assert_eq!(result.first_name, "Tomás");
         assert_eq!(result.last_name, "Müller");
@@ -4735,7 +4758,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_full() -> Result<(), Error> {
         let input = "v2.9, 01-09-2024: Fall incarnation";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -4756,7 +4779,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_with_date_no_remark() -> Result<(), Error> {
         let input = "v2.9, 01-09-2024";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -4774,7 +4797,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_no_date_with_remark() -> Result<(), Error> {
         let input = "v2.9: Fall incarnation";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -4792,7 +4815,7 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_revision_no_date_no_remark() -> Result<(), Error> {
         let input = "v2.9";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
@@ -4807,13 +4830,13 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_document_title() -> Result<(), Error> {
         let input = "= Document Title";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document_title(input, &mut state)?;
         assert_eq!(result.0.len(), 1);
         assert_eq!(
             result.0[0],
             InlineNode::PlainText(Plain {
-                content: "Document Title".to_string(),
+                content: "Document Title",
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
@@ -4833,13 +4856,13 @@ v2.9, 01-09-2024: Fall incarnation
     #[tracing_test::traced_test]
     fn test_document_title_and_subtitle() -> Result<(), Error> {
         let input = "= Document Title: And a subtitle";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document_title(input, &mut state)?;
         assert_eq!(
             result,
             (
                 Title::new(vec![InlineNode::PlainText(Plain {
-                    content: "Document Title".to_string(),
+                    content: "Document Title",
                     location: Location {
                         absolute_start: 2,
                         absolute_end: 15,
@@ -4852,7 +4875,7 @@ v2.9, 01-09-2024: Fall incarnation
                     escaped: false,
                 })]),
                 Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
-                    content: "And a subtitle".to_string(),
+                    content: "And a subtitle",
                     location: Location {
                         absolute_start: 18,
                         absolute_end: 31,
@@ -4877,14 +4900,14 @@ v2.9, 01-09-2024: Fall incarnation
     fn test_header_with_title_and_authors() -> Result<(), Error> {
         let input = "= Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result =
             document_parser::header(input, &mut state)??.expect("header should be present");
         assert_eq!(result.title.len(), 1);
         assert_eq!(
             result.title[0],
             InlineNode::PlainText(Plain {
-                content: "Document Title".to_string(),
+                content: "Document Title",
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
@@ -4899,21 +4922,15 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         );
         assert_eq!(result.authors.len(), 2);
         assert_eq!(result.authors[0].first_name, "Lorn Kismet");
-        assert_eq!(result.authors[0].middle_name, Some("R.".to_string()));
+        assert_eq!(result.authors[0].middle_name, Some("R."));
         assert_eq!(result.authors[0].last_name, "Lee");
         assert_eq!(result.authors[0].initials, "LRL");
-        assert_eq!(
-            result.authors[0].email,
-            Some("kismet@asciidoctor.org".to_string())
-        );
+        assert_eq!(result.authors[0].email, Some("kismet@asciidoctor.org"));
         assert_eq!(result.authors[1].first_name, "Norberto");
-        assert_eq!(result.authors[1].middle_name, Some("M.".to_string()));
+        assert_eq!(result.authors[1].middle_name, Some("M."));
         assert_eq!(result.authors[1].last_name, "Lopes");
         assert_eq!(result.authors[1].initials, "NML");
-        assert_eq!(
-            result.authors[1].email,
-            Some("nlopesml@gmail.com".to_string())
-        );
+        assert_eq!(result.authors[1].email, Some("nlopesml@gmail.com"));
         Ok(())
     }
 
@@ -4921,7 +4938,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_empty_attribute_list() -> Result<(), Error> {
         let input = "[]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(metadata.id, None);
@@ -4936,7 +4953,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
         let input = "[discrete]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(discrete); // Should be discrete
         assert_eq!(metadata.id, None);
@@ -4950,13 +4967,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_attribute_with_id() -> Result<(), Error> {
         let input = "[id=my-id,role=admin,options=read,options=write]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
             Some(Anchor {
-                id: "my-id".to_string(),
+                id: "my-id",
                 xreflabel: None,
                 location: Location {
                     absolute_start: 4,
@@ -4970,9 +4987,9 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             })
         );
         assert_eq!(metadata.style, None);
-        assert!(metadata.roles.contains(&"admin".to_string()));
-        assert!(metadata.options.contains(&"read".to_string()));
-        assert!(metadata.options.contains(&"write".to_string()));
+        assert!(metadata.roles.contains(&"admin"));
+        assert!(metadata.options.contains(&"read"));
+        assert!(metadata.options.contains(&"write"));
         Ok(())
     }
 
@@ -4980,13 +4997,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
         let input = "[astyle#myid.admin,options=read,options=write]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
             Some(Anchor {
-                id: "myid".to_string(),
+                id: "myid",
                 xreflabel: None,
                 location: Location {
                     absolute_start: 8,
@@ -4999,10 +5016,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 }
             })
         );
-        assert_eq!(metadata.style, Some("astyle".to_string()));
-        assert!(metadata.roles.contains(&"admin".to_string()));
-        assert!(metadata.options.contains(&"read".to_string()));
-        assert!(metadata.options.contains(&"write".to_string()));
+        assert_eq!(metadata.style, Some("astyle"));
+        assert!(metadata.roles.contains(&"admin"));
+        assert!(metadata.options.contains(&"read"));
+        assert!(metadata.options.contains(&"write"));
         Ok(())
     }
 
@@ -5010,13 +5027,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
         let input = "[astyle#myid.admin,options=\"read,write\"]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete); // Not discrete
         assert_eq!(
             metadata.id,
             Some(Anchor {
-                id: "myid".to_string(),
+                id: "myid",
                 xreflabel: None,
                 location: Location {
                     absolute_start: 8,
@@ -5029,10 +5046,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 }
             })
         );
-        assert_eq!(metadata.style, Some("astyle".to_string()));
-        assert!(metadata.roles.contains(&"admin".to_string()));
-        assert!(metadata.options.contains(&"read".to_string()));
-        assert!(metadata.options.contains(&"write".to_string()));
+        assert_eq!(metadata.style, Some("astyle"));
+        assert!(metadata.roles.contains(&"admin"));
+        assert!(metadata.options.contains(&"read"));
+        assert!(metadata.options.contains(&"write"));
         Ok(())
     }
 
@@ -5041,13 +5058,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_shorthand_id_role_combined() -> Result<(), Error> {
         // Test [#id.role] syntax - ID with role, no style
         let input = "[#bracket-id.some-role]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete);
         assert_eq!(
             metadata.id,
             Some(Anchor {
-                id: "bracket-id".to_string(),
+                id: "bracket-id",
                 xreflabel: None,
                 location: Location {
                     absolute_start: 2,
@@ -5061,7 +5078,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             })
         );
         assert_eq!(metadata.style, None);
-        assert!(metadata.roles.contains(&"some-role".to_string()));
+        assert!(metadata.roles.contains(&"some-role"));
         Ok(())
     }
 
@@ -5070,13 +5087,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
         // Test [#id.role%option] syntax - ID with role and option
         let input = "[#my-id.my-role%my-option]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete);
         assert_eq!(
             metadata.id,
             Some(Anchor {
-                id: "my-id".to_string(),
+                id: "my-id",
                 xreflabel: None,
                 location: Location {
                     absolute_start: 2,
@@ -5087,8 +5104,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
             })
         );
         assert_eq!(metadata.style, None);
-        assert!(metadata.roles.contains(&"my-role".to_string()));
-        assert!(metadata.options.contains(&"my-option".to_string()));
+        assert!(metadata.roles.contains(&"my-role"));
+        assert!(metadata.options.contains(&"my-option"));
         Ok(())
     }
 
@@ -5097,12 +5114,12 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_shorthand_multiple_roles() -> Result<(), Error> {
         // Test [#id.role1.role2] syntax - ID with multiple roles
         let input = "[#my-id.role-one.role-two]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete);
-        assert_eq!(metadata.id.as_ref().map(|a| a.id.as_str()), Some("my-id"));
-        assert!(metadata.roles.contains(&"role-one".to_string()));
-        assert!(metadata.roles.contains(&"role-two".to_string()));
+        assert_eq!(metadata.id.as_ref().map(|a| a.id), Some("my-id"));
+        assert!(metadata.roles.contains(&"role-one"));
+        assert!(metadata.roles.contains(&"role-two"));
         Ok(())
     }
 
@@ -5112,12 +5129,12 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         // Test [style#id.role] syntax - already tested in test_document_attribute_with_id_mixed
         // but let's verify it still works
         let input = "[quote#my-id.my-role]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete);
-        assert_eq!(metadata.id.as_ref().map(|a| a.id.as_str()), Some("my-id"));
-        assert_eq!(metadata.style, Some("quote".to_string()));
-        assert!(metadata.roles.contains(&"my-role".to_string()));
+        assert_eq!(metadata.id.as_ref().map(|a| a.id), Some("my-id"));
+        assert_eq!(metadata.style, Some("quote"));
+        assert!(metadata.roles.contains(&"my-role"));
         Ok(())
     }
 
@@ -5126,12 +5143,12 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_shorthand_just_roles() -> Result<(), Error> {
         // Test [.role1.role2] syntax - just roles, no ID
         let input = "[.role-one.role-two]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(!discrete);
         assert_eq!(metadata.id, None);
-        assert!(metadata.roles.contains(&"role-one".to_string()));
-        assert!(metadata.roles.contains(&"role-two".to_string()));
+        assert!(metadata.roles.contains(&"role-one"));
+        assert!(metadata.roles.contains(&"role-two"));
         Ok(())
     }
 
@@ -5140,7 +5157,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     fn test_toc_simple() -> Result<(), Error> {
         let input =
             "= Document Title\n\n== Section 1\n\nSome content.\n\n== Section 2\n\nMore content.";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
 
         // Check that TOC entries were generated
@@ -5156,7 +5173,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_toc_tree() -> Result<(), Error> {
         let input = "= Document Title\n\n== Section A\n\nContent A.\n\n=== Section A.1\n\nContent A.1\n\n== Section B\n\nContent B.";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
 
         // Check that TOC entries were generated and ordered correctly
@@ -5171,7 +5188,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[tracing_test::traced_test]
     fn test_toc_empty_document() -> Result<(), Error> {
         let input = "= Document Title\n\nJust some content without sections.";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
         assert_eq!(result.toc_entries.len(), 0);
         Ok(())
@@ -5186,13 +5203,13 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
 
 Some content.
 ";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let header = result.header.expect("document has a header");
         assert_eq!(header.title.len(), 1);
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
         );
         Ok(())
     }
@@ -5208,8 +5225,8 @@ Section One
 
 Content.
 ";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Find the section
@@ -5223,7 +5240,7 @@ Content.
         let section = section.expect("should have a section");
         assert_eq!(section.level, 1);
         assert!(
-            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section One")
+            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
         );
         Ok(())
     }
@@ -5237,7 +5254,7 @@ Content.
 
 Some content.
 ";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         // setext is disabled by default
         assert!(!state.options.setext);
         // Should not parse as setext title when disabled
@@ -5265,14 +5282,14 @@ Section One
 
 Content here.
 ";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Check document title (level 0)
         let header = result.header.expect("document has a header");
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
         );
 
         // Find the section
@@ -5290,7 +5307,7 @@ Content here.
 
         assert_eq!(section.level, 1);
         assert!(
-            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section One")
+            matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
         );
 
         Ok(())
@@ -5319,14 +5336,14 @@ Section C
 
 Content C.
 ";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Check document title
         let header = result.header.expect("document has a header");
         assert!(
-            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Document Title")
+            matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
         );
 
         // All three sections should be at the top level (siblings, not nested)
@@ -5355,13 +5372,13 @@ Content C.
 
         // Verify titles
         assert!(
-            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section A")
+            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section A")
         );
         assert!(
-            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section B")
+            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section B")
         );
         assert!(
-            matches!(&sections[2].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "Section C")
+            matches!(&sections[2].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section C")
         );
 
         Ok(())
@@ -5380,8 +5397,8 @@ Content C.
 
         // Test level 1 with -
         let input = "= Doc\n\nLevel One\n---------\n\nContent.\n";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -5398,8 +5415,8 @@ Content C.
 
         // Test level 2 with ~
         let input = "= Doc\n\nLevel Two\n~~~~~~~~~\n\nContent.\n";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -5416,8 +5433,8 @@ Content C.
 
         // Test level 3 with ^
         let input = "= Doc\n\nLevel Three\n^^^^^^^^^^^\n\nContent.\n";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -5434,8 +5451,8 @@ Content C.
 
         // Test level 4 with +
         let input = "= Doc\n\nLevel Four\n++++++++++\n\nContent.\n";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -5458,8 +5475,8 @@ Content C.
     #[tracing_test::traced_test]
     fn test_setext_manpage_style_document() -> Result<(), Error> {
         let input = "gitdatamodel(7)\n===============\n\nNAME\n----\ngitdatamodel - Git's core data model\n\nSYNOPSIS\n--------\ngitdatamodel\n";
-        let mut state = ParserState::new(input);
-        state.options.setext = true;
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Verify document title parsed
@@ -5489,10 +5506,10 @@ Content C.
         assert_eq!(sections[0].level, 1);
         assert_eq!(sections[1].level, 1);
         assert!(
-            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "NAME")
+            matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "NAME")
         );
         assert!(
-            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if content == "SYNOPSIS")
+            matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "SYNOPSIS")
         );
 
         Ok(())
@@ -5504,7 +5521,7 @@ Content C.
     fn test_setext_with_description_lists() -> Result<(), Error> {
         // Regression: description list markers (::) anywhere in the document
         // used to cause setext sections to fail because the lookahead
-        // `check_line_is_description_list` scanned the entire remaining input
+        // `check_start_of_description_list` scanned the entire remaining input
         let input = "\
 gitdatamodel(7)
 ===============
@@ -5529,9 +5546,10 @@ REFERENCES
 References.
 ";
         let options = crate::Options::builder().with_setext().build();
-        let result = crate::parse(input, &options)?;
+        let parsed = crate::parse(input, &options)?;
+        let result = parsed.document();
 
-        let header = result.header.expect("document has a header");
+        let header = result.header.as_ref().expect("document has a header");
         assert!(
             matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
         );
@@ -5566,7 +5584,7 @@ References.
         use crate::InlineMacro;
 
         let input = "= Test\n\nThis is about ((Arthur)) the king.\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
 
         // Find the paragraph
@@ -5601,7 +5619,7 @@ References.
         use crate::InlineMacro;
 
         let input = "= Test\n\n(((Sword, Broadsword)))This is a concealed index term.\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
 
         // Find the paragraph
@@ -5642,7 +5660,7 @@ References.
     #[tracing_test::traced_test]
     fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
         // Helper to extract the first Image block from a document
-        fn get_image(doc: &Document) -> &Image {
+        fn get_image<'a>(doc: &'a Document<'a>) -> &'a Image<'a> {
             doc.blocks
                 .iter()
                 .find_map(|b| {
@@ -5657,25 +5675,25 @@ References.
 
         // Test trailing period in alt text
         let input = "image::photo.jpg[Diablo 4 picture of Lilith.]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
         let img = get_image(&result);
         assert_eq!(
             img.metadata.attributes.get("alt"),
             Some(&AttributeValue::String(
-                "Diablo 4 picture of Lilith.".to_string()
+                "Diablo 4 picture of Lilith.".into()
             )),
             "Trailing period should be preserved in alt text"
         );
 
         // Test .role as literal text (not a shorthand)
         let input = "image::photo.jpg[.role]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
         let img = get_image(&result);
         assert_eq!(
             img.metadata.attributes.get("alt"),
-            Some(&AttributeValue::String(".role".to_string())),
+            Some(&AttributeValue::String(".role".into())),
             ".role should be literal alt text, not a CSS class"
         );
         assert!(
@@ -5685,12 +5703,12 @@ References.
 
         // Test #id as literal text (not a shorthand)
         let input = "image::photo.jpg[Issue #42]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
         let img = get_image(&result);
         assert_eq!(
             img.metadata.attributes.get("alt"),
-            Some(&AttributeValue::String("Issue #42".to_string())),
+            Some(&AttributeValue::String("Issue #42".into())),
             "#42 should be preserved as literal text"
         );
         assert!(
@@ -5700,12 +5718,12 @@ References.
 
         // Test named role= attribute still works
         let input = "image::photo.jpg[role=thumbnail]";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
         let img = get_image(&result);
         assert_eq!(
             img.metadata.roles,
-            vec!["thumbnail".to_string()],
+            vec![std::borrow::Cow::Borrowed("thumbnail")],
             "Named role= attribute should work"
         );
 
@@ -5720,7 +5738,7 @@ References.
     fn test_block_macro_trailing_content_emits_warning() -> Result<(), Error> {
         // image macro with trailing content followed by an attributed paragraph
         let input = "image::foo.svg[role=inline][100,100]\n\n[.lead]\nHello\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
 
         // Should have parsed an image block and a paragraph
@@ -5759,7 +5777,7 @@ References.
         // Simulate: lines 0..30 are from the main file, lines 30..80 are from
         // "sponsor.adoc" (included), and the trailing content is at byte 45.
         let input = "a]b\n".repeat(20); // 80 bytes total (4 bytes per line)
-        let mut state = ParserState::new(&input);
+        let mut state = ParserState::new_for_test(&input);
         state.current_file = Some(PathBuf::from("/docs/main.adoc"));
         state.source_ranges = vec![SourceRange {
             start_offset: 28, // byte 28 starts the included region
@@ -5793,7 +5811,7 @@ References.
         use std::path::PathBuf;
 
         let input = "image::x.png[alt]extra\nsecond line\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         state.current_file = Some(PathBuf::from("/docs/main.adoc"));
         state.source_ranges = vec![SourceRange {
             start_offset: 100, // well beyond input - shouldn't match
@@ -5817,7 +5835,7 @@ References.
     #[test]
     fn test_first_section_not_level_1_emits_warning() -> Result<(), Error> {
         let input = "= Doc Title\n\n=== Starts at level 2\n\nContent\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let _ = document_parser::document(input, &mut state)??;
         assert!(
             state.warnings.iter().any(|w| w.contains("input: line 3")
@@ -5834,7 +5852,7 @@ References.
     #[test]
     fn test_first_section_without_doc_title_does_not_warn() -> Result<(), Error> {
         let input = "=== No title above me\n\nContent\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let _ = document_parser::document(input, &mut state)??;
         assert!(
             !state
@@ -5851,7 +5869,7 @@ References.
     #[test]
     fn test_first_section_level_1_no_warning() -> Result<(), Error> {
         let input = "= Doc Title\n\n== Good\n\n=== Nested\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         let _ = document_parser::document(input, &mut state)??;
         assert!(
             !state

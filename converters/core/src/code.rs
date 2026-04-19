@@ -9,8 +9,8 @@ use acdc_parser::BlockMetadata;
 /// Any language string is returned, not just known ones. This ensures
 /// `[source,text]` and other arbitrary languages get proper `<code>` wrappers.
 #[must_use]
-pub fn detect_language(metadata: &BlockMetadata) -> Option<&str> {
-    let is_source = metadata.style.as_deref() == Some("source");
+pub fn detect_language<'a, 'b: 'a>(metadata: &'a BlockMetadata<'b>) -> Option<&'a str> {
+    let is_source = metadata.style == Some("source");
     if !is_source {
         return None;
     }
@@ -20,7 +20,7 @@ pub fn detect_language(metadata: &BlockMetadata) -> Option<&str> {
         .attributes
         .iter()
         .next()
-        .map(|(key, _)| key.as_str())
+        .map(|(key, _)| key.as_ref())
 }
 
 /// Get the default line comment prefix for a programming language.

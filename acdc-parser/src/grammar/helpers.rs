@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     Anchor, AttributeValue, BlockMetadata, Title, grammar::ParserState, model::SectionLevel,
 };
@@ -12,31 +14,31 @@ pub(crate) struct PositionWithOffset {
 // types.
 #[derive(Debug)]
 pub(crate) enum BlockMetadataLine<'input> {
-    Anchor(Anchor),
-    Attributes((bool, Box<BlockMetadata>)),
-    Title(Title),
-    DocumentAttribute(&'input str, AttributeValue),
+    Anchor(Anchor<'input>),
+    Attributes((bool, Box<BlockMetadata<'input>>)),
+    Title(Title<'input>),
+    DocumentAttribute(Cow<'input, str>, AttributeValue<'input>),
 }
 
 // Used purely in the grammar to break down header metadata lines (anchors and attributes
 // that appear before the document title).
 #[derive(Debug)]
-pub(crate) enum HeaderMetadataLine {
-    Anchor(Anchor),
-    Attributes((bool, Box<BlockMetadata>)),
+pub(crate) enum HeaderMetadataLine<'input> {
+    Anchor(Anchor<'input>),
+    Attributes((bool, Box<BlockMetadata<'input>>)),
 }
 
 // Used purely in the grammar to represent the parsed block details
 #[derive(Debug)]
-pub(crate) struct BlockParsingMetadata {
-    pub(crate) metadata: BlockMetadata,
-    pub(crate) title: Title,
+pub(crate) struct BlockParsingMetadata<'input> {
+    pub(crate) metadata: BlockMetadata<'input>,
+    pub(crate) title: Title<'input>,
     pub(crate) parent_section_level: Option<SectionLevel>,
     pub(crate) macros_enabled: bool,
     pub(crate) attributes_enabled: bool,
 }
 
-impl Default for BlockParsingMetadata {
+impl Default for BlockParsingMetadata<'_> {
     fn default() -> Self {
         Self {
             metadata: BlockMetadata::default(),
@@ -51,10 +53,10 @@ impl Default for BlockParsingMetadata {
 /// Attribute shorthand syntax: .role, #id, %option
 /// Used for both block-level attributes and inline formatting attributes
 #[derive(Debug)]
-pub(crate) enum Shorthand {
-    Id(String),
-    Role(String),
-    Option(String),
+pub(crate) enum Shorthand<'input> {
+    Id(Cow<'input, str>),
+    Role(Cow<'input, str>),
+    Option(Cow<'input, str>),
 }
 
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
@@ -76,13 +78,18 @@ pub(crate) const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
 /// - `\=>` → `=>` (right double arrow escape)
 /// - `\<=` → `<=` (left double arrow escape)
 /// - `\--` → `--` (em-dash escape)
-pub(crate) fn strip_url_backslash_escapes(text: &str) -> String {
-    text.replace("\\...", "...")
-        .replace("\\->", "->")
-        .replace("\\<-", "<-")
-        .replace("\\=>", "=>")
-        .replace("\\<=", "<=")
-        .replace("\\--", "--")
+pub(crate) fn strip_url_backslash_escapes(text: &str) -> Cow<'_, str> {
+    if !text.contains('\\') {
+        return Cow::Borrowed(text);
+    }
+    Cow::Owned(
+        text.replace("\\...", "...")
+            .replace("\\->", "->")
+            .replace("\\<-", "<-")
+            .replace("\\=>", "=>")
+            .replace("\\<=", "<=")
+            .replace("\\--", "--"),
+    )
 }
 
 /// Configuration for attribute list processing
@@ -110,7 +117,7 @@ impl AttributeProcessingMode {
     };
 }
 
-/// Parse a comma-separated list of values.
+/// Parse a comma-separated list of values, interning each into the state's arena.
 ///
 /// Used for `role=` and `options=` attributes which can be either:
 /// - A single value: `role=thumbnail`
@@ -118,11 +125,15 @@ impl AttributeProcessingMode {
 ///
 /// Quotes are already stripped by `named_attribute_value()` / `strip_quotes()` upstream,
 /// so this function only needs to split on commas.
-pub(crate) fn parse_comma_separated_values(value: &str) -> Vec<String> {
+pub(crate) fn parse_comma_separated_values<'a>(
+    state: &ParserState<'a>,
+    value: &str,
+) -> Vec<&'a str> {
     value
         .split(',')
-        .map(|s| s.trim().to_string())
+        .map(str::trim)
         .filter(|s| !s.is_empty())
+        .map(|s| state.intern_str(s))
         .collect()
 }
 
@@ -132,10 +143,16 @@ pub(crate) fn parse_comma_separated_values(value: &str) -> Vec<String> {
 /// `macro_attributes()` (for image, audio, video, icon macros).
 ///
 /// Returns the title position if a `title=` attribute was found.
-pub(crate) fn process_attribute_list(
-    attrs: impl IntoIterator<Item = Option<(String, AttributeValue, Option<(usize, usize)>)>>,
-    metadata: &mut BlockMetadata,
-    state: &ParserState,
+pub(crate) fn process_attribute_list<'input>(
+    attrs: impl IntoIterator<
+        Item = Option<(
+            Cow<'input, str>,
+            AttributeValue<'input>,
+            Option<(usize, usize)>,
+        )>,
+    >,
+    metadata: &mut BlockMetadata<'input>,
+    state: &ParserState<'input>,
     fallback_start: usize,
     fallback_end: usize,
     mode: AttributeProcessingMode,
@@ -144,11 +161,17 @@ pub(crate) fn process_attribute_list(
     let mut first_positional = true;
 
     for (key, value, pos) in attrs.into_iter().flatten() {
-        match key.as_str() {
+        match key.as_ref() {
             k if k == RESERVED_NAMED_ATTRIBUTE_ID && metadata.id.is_none() => {
                 let (id_start, id_end) = pos.unwrap_or((fallback_start, fallback_end));
+                let id: &'input str = match value {
+                    AttributeValue::String(s) => state.intern_cow(s),
+                    AttributeValue::Bool(_) | AttributeValue::None => {
+                        state.intern_fmt(format_args!("{value}"))
+                    }
+                };
                 metadata.id = Some(Anchor {
-                    id: value.to_string(),
+                    id,
                     xreflabel: None,
                     location: state.create_location(id_start, id_end),
                 });
@@ -159,14 +182,16 @@ pub(crate) fn process_attribute_list(
                     // `role='a b'` → two roles; `role='a,b'` → one role containing a comma.
                     for role in s.split_whitespace() {
                         if !role.is_empty() {
-                            metadata.roles.push(role.to_string());
+                            metadata.roles.push(state.intern_str(role));
                         }
                     }
                 }
             }
             k if k == RESERVED_NAMED_ATTRIBUTE_OPTIONS => {
                 if let AttributeValue::String(ref s) = value {
-                    metadata.options.extend(parse_comma_separated_values(s));
+                    metadata
+                        .options
+                        .extend(parse_comma_separated_values(state, s));
                 }
             }
             // Skip subs= attribute - it's handled separately by the caller
@@ -189,11 +214,12 @@ pub(crate) fn process_attribute_list(
                         .insert(key, AttributeValue::String(s.clone()));
                 } else if value == AttributeValue::None {
                     // Positional attribute
+                    let key_str: &'input str = state.intern_cow(key);
                     if mode.first_positional_is_style && first_positional {
-                        metadata.style = Some(key);
+                        metadata.style = Some(key_str);
                         first_positional = false;
                     } else {
-                        metadata.positional_attributes.push(key);
+                        metadata.positional_attributes.push(key_str);
                     }
                 }
             }

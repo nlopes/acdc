@@ -345,14 +345,14 @@ mod tests {
     use super::*;
     use acdc_parser::{CalloutRef, CalloutRefKind, Location, Verbatim};
 
-    fn create_verbatim_inlines(content: &str) -> Vec<InlineNode> {
+    fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::VerbatimText(Verbatim {
-            content: content.to_string(),
+            content,
             location: Location::default(),
         })]
     }
 
-    fn create_callout_ref(number: usize) -> InlineNode {
+    fn create_callout_ref(number: usize) -> InlineNode<'static> {
         InlineNode::CalloutRef(CalloutRef {
             kind: CalloutRefKind::Explicit,
             number,
@@ -372,17 +372,17 @@ mod tests {
     fn test_extract_text_and_callouts_with_callouts() {
         let inlines = vec![
             InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ".to_string(),
+                content: "let x = 1; ",
                 location: Location::default(),
             }),
             create_callout_ref(1),
             InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ".to_string(),
+                content: "\nlet y = 2; ",
                 location: Location::default(),
             }),
             create_callout_ref(2),
             InlineNode::VerbatimText(Verbatim {
-                content: "\n".to_string(),
+                content: "\n",
                 location: Location::default(),
             }),
         ];
@@ -399,12 +399,12 @@ mod tests {
     fn test_highlight_code_with_callouts() -> Result<(), Error> {
         let inlines = vec![
             InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ".to_string(),
+                content: "let x = 1; ",
                 location: Location::default(),
             }),
             create_callout_ref(1),
             InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ".to_string(),
+                content: "\nlet y = 2; ",
                 location: Location::default(),
             }),
             create_callout_ref(2),
@@ -518,12 +518,12 @@ mod tests {
     fn test_highlight_class_mode_with_callouts() -> Result<(), Error> {
         let inlines = vec![
             InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ".to_string(),
+                content: "let x = 1; ",
                 location: Location::default(),
             }),
             create_callout_ref(1),
             InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ".to_string(),
+                content: "\nlet y = 2; ",
                 location: Location::default(),
             }),
             create_callout_ref(2),

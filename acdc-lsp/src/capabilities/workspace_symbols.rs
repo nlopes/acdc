@@ -57,7 +57,7 @@ fn extract_block_symbols(block: &Block, symbols: &mut Vec<IndexedSymbol>) {
         }
         Block::DocumentAttribute(attr) => {
             symbols.push(IndexedSymbol {
-                name: attr.name.clone(),
+                name: attr.name.to_string(),
                 kind: SymbolKind::CONSTANT,
                 location: attr.location.clone(),
                 detail: Some(attr.value.to_string()),
@@ -152,9 +152,9 @@ fn extract_section_symbols(section: &Section, symbols: &mut Vec<IndexedSymbol>) 
     extract_metadata_anchors(&section.metadata, &section.location, symbols);
 
     // Also add generated section ID as anchor
-    let safe_id = Section::generate_id(&section.metadata, &section.title);
+    let id = Section::generate_id_string(&section.metadata, &section.title);
     symbols.push(IndexedSymbol {
-        name: safe_id.to_string(),
+        name: id,
         kind: SymbolKind::KEY,
         location: section.location.clone(),
         detail: Some("Anchor".to_string()),
@@ -178,7 +178,7 @@ fn extract_metadata_anchors(
             &anchor.location
         };
         symbols.push(IndexedSymbol {
-            name: anchor.id.clone(),
+            name: anchor.id.to_string(),
             kind: SymbolKind::KEY,
             location: loc.clone(),
             detail: Some("Anchor".to_string()),
@@ -191,7 +191,7 @@ fn extract_metadata_anchors(
             &id_anchor.location
         };
         symbols.push(IndexedSymbol {
-            name: id_anchor.id.clone(),
+            name: id_anchor.id.to_string(),
             kind: SymbolKind::KEY,
             location: loc.clone(),
             detail: Some("Anchor".to_string()),
@@ -242,8 +242,9 @@ mod tests {
     fn test_extract_symbols_sections() -> Result<(), acdc_parser::Error> {
         let content =
             "= Document Title\n\n== Section One\n\nContent.\n\n== Section Two\n\n=== Subsection\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = extract_workspace_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = extract_workspace_symbols(doc);
 
         // Document title + 3 sections + generated anchors
         let section_symbols: Vec<_> = symbols
@@ -260,8 +261,9 @@ mod tests {
     #[test]
     fn test_extract_symbols_anchors() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n[[my-anchor]]\n== Section\n\nContent.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = extract_workspace_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = extract_workspace_symbols(doc);
 
         assert!(
             symbols
@@ -274,8 +276,9 @@ mod tests {
     #[test]
     fn test_extract_symbols_discrete_header() -> Result<(), acdc_parser::Error> {
         let content = "= Doc\n\n[discrete]\n== Discrete Title\n\nContent.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = extract_workspace_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = extract_workspace_symbols(doc);
 
         assert!(
             symbols
@@ -290,8 +293,9 @@ mod tests {
     fn test_extract_symbols_document_attributes() -> Result<(), acdc_parser::Error> {
         // Body document attributes produce Block::DocumentAttribute
         let content = "= Doc\n\n== Section\n\n:my-attr: some value\n\nContent.\n";
-        let doc = acdc_parser::parse(content, &Options::default())?;
-        let symbols = extract_workspace_symbols(&doc);
+        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let doc = parsed.document();
+        let symbols = extract_workspace_symbols(doc);
 
         assert!(
             symbols

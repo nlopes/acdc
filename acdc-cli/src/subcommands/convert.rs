@@ -1,4 +1,9 @@
-use std::{path::PathBuf, time::Duration};
+use std::{
+    borrow::Cow,
+    io::BufReader,
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use acdc_converters_core::{
     Backend, Converter, Doctype, GeneratorMetadata, Options, OutputDestination,
@@ -120,10 +125,8 @@ pub fn run(args: &Args) -> miette::Result<()> {
             // This matches asciidoctor behavior where --backend manpage implies --doctype manpage
             let doctype = if matches!(args.backend, Backend::Manpage) {
                 // Set doctype attribute for the parser (parser checks this to derive manpage attrs)
-                document_attributes.insert(
-                    "doctype".to_string(),
-                    AttributeValue::String("manpage".to_string()),
-                );
+                document_attributes
+                    .insert("doctype".into(), AttributeValue::String("manpage".into()));
                 Doctype::Manpage
             } else {
                 args.doctype
@@ -252,11 +255,11 @@ fn open_output_files(args: &Args, output_destination: &OutputDestination) {
 fn run_processor<P>(
     args: &Args,
     base_options: Options,
-    document_attributes: DocumentAttributes,
+    document_attributes: DocumentAttributes<'static>,
     parallelize: bool,
 ) -> Result<(), P::Error>
 where
-    P: Converter,
+    P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
 {
     if !args.stdin && args.files.is_empty() {
@@ -270,9 +273,13 @@ where
         let parser_options =
             build_parser_options(args, &base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
-        let mut reader = std::io::BufReader::new(stdin.lock());
-        let doc = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
-        return processor.convert(&doc, None);
+        let mut reader = BufReader::new(stdin.lock());
+        let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+        // The CLI is a one-shot tool — leak the parsed document so its
+        // arena lives for the rest of the process, giving us the `'static`
+        // lifetime that `Converter<'static>` expects.
+        let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+        return processor.convert(parsed.document(), None);
     }
 
     // When --out-file is specified with multiple files, only process the first file
@@ -291,7 +298,7 @@ where
     if let [file] = files_to_process {
         let parser_options = build_parser_options(args, &base_options, document_attributes.clone());
         let parse_result = if base_options.timings() {
-            let now = std::time::Instant::now();
+            let now = Instant::now();
             let result = acdc_parser::parse_file(file, &parser_options);
             let elapsed = now.elapsed();
             if result.is_ok() {
@@ -304,7 +311,11 @@ where
         };
         let processor = P::new(base_options, document_attributes);
         let convert_result = match parse_result {
-            Ok(doc) => processor.convert(&doc, Some(file)),
+            Ok(parsed) => {
+                // Leak into 'static: CLI is a one-shot process.
+                let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+                processor.convert(parsed.document(), Some(file))
+            }
             Err(e) => Err(e.into()),
         };
         report_errors(std::iter::once((file.clone(), convert_result)));
@@ -324,21 +335,21 @@ where
 fn run_multi_file<P>(
     args: &Args,
     base_options: &Options,
-    document_attributes: DocumentAttributes,
+    document_attributes: DocumentAttributes<'static>,
     files_to_process: &[PathBuf],
     parallelize: bool,
 ) where
-    P: Converter,
+    P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
 {
     let show_timings = base_options.timings();
     let multi_file = files_to_process.len() > 1;
-    let wall_clock_start = show_timings.then(std::time::Instant::now);
+    let wall_clock_start = show_timings.then(Instant::now);
 
-    // Parse all files in parallel, collecting durations when timing
+    // Parse all files in parallel, collecting durations when timing.
     let parse_results: Vec<(
         PathBuf,
-        Result<acdc_parser::Document, acdc_parser::Error>,
+        Result<acdc_parser::ParsedDocument, acdc_parser::Error>,
         Option<Duration>,
     )> = files_to_process
         .par_iter()
@@ -347,7 +358,7 @@ fn run_multi_file<P>(
                 build_parser_options(args, base_options, document_attributes.clone());
 
             if show_timings {
-                let now = std::time::Instant::now();
+                let now = Instant::now();
                 let result = acdc_parser::parse_file(file, &parser_options);
                 let elapsed = now.elapsed();
                 (file.clone(), result, Some(elapsed))
@@ -381,9 +392,13 @@ fn run_multi_file<P>(
             .into_par_iter()
             .map(|(file, parse_result, parse_dur)| {
                 let processor = P::new(converter_options.clone(), document_attributes.clone());
-                let now = std::time::Instant::now();
+                let now = Instant::now();
                 let result = match parse_result {
-                    Ok(doc) => processor.convert(&doc, Some(&file)),
+                    Ok(parsed) => {
+                        let parsed: &'static acdc_parser::ParsedDocument =
+                            Box::leak(Box::new(parsed));
+                        processor.convert(parsed.document(), Some(&file))
+                    }
                     Err(e) => Err(e.into()),
                 };
                 let convert_dur = show_timings.then(|| now.elapsed());
@@ -400,9 +415,13 @@ fn run_multi_file<P>(
         parse_results
             .into_iter()
             .map(|(file, parse_result, parse_dur)| {
-                let now = std::time::Instant::now();
+                let now = Instant::now();
                 let result = match parse_result {
-                    Ok(doc) => processor.convert(&doc, Some(&file)),
+                    Ok(parsed) => {
+                        let parsed: &'static acdc_parser::ParsedDocument =
+                            Box::leak(Box::new(parsed));
+                        processor.convert(parsed.document(), Some(&file))
+                    }
                     Err(e) => Err(e.into()),
                 };
                 let convert_dur = show_timings.then(|| now.elapsed());
@@ -526,10 +545,48 @@ fn spawn_pager(no_pager: bool) -> Option<std::process::Child> {
 /// Run terminal converter with optional pager support.
 /// When stdout is a TTY and pager is not disabled, pipes output through a pager.
 #[cfg(feature = "terminal")]
+fn run_terminal_stdin(
+    args: &Args,
+    base_options: &Options,
+    document_attributes: DocumentAttributes<'static>,
+    output_to_file: bool,
+) -> Result<(), acdc_converters_terminal::Error> {
+    use std::io::BufWriter;
+
+    use acdc_converters_terminal::Processor;
+
+    let processor = Processor::new(base_options.clone(), document_attributes);
+    let parser_options =
+        build_parser_options(args, base_options, processor.document_attributes().clone());
+    let stdin = std::io::stdin();
+    let mut reader = BufReader::new(stdin.lock());
+    let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+    // Leak into 'static: CLI is a one-shot process.
+    let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+    let doc = parsed.document();
+
+    // If writing to file, use the processor's convert method (respects output_path)
+    if output_to_file {
+        return processor.convert(doc, None);
+    }
+
+    // Try pager for stdin too
+    if let Some(mut pager) = spawn_pager(args.no_pager) {
+        if let Some(pager_stdin) = pager.stdin.take() {
+            let writer = BufWriter::new(pager_stdin);
+            processor.write_to(doc, writer, None)?;
+        }
+        let _ = pager.wait()?;
+        return Ok(());
+    }
+    processor.convert(doc, None)
+}
+
+#[cfg(feature = "terminal")]
 fn run_terminal_with_pager(
     args: &Args,
     base_options: Options,
-    document_attributes: DocumentAttributes,
+    document_attributes: DocumentAttributes<'static>,
 ) -> Result<(), acdc_converters_terminal::Error> {
     use std::io::BufWriter;
 
@@ -544,30 +601,8 @@ fn run_terminal_with_pager(
     // If so, write directly to file without pager
     let output_to_file = args.out_file.as_ref().is_some_and(|s| s != "-");
 
-    // Handle stdin separately
     if args.stdin {
-        let processor = Processor::new(base_options.clone(), document_attributes.clone());
-        let parser_options =
-            build_parser_options(args, &base_options, processor.document_attributes().clone());
-        let stdin = std::io::stdin();
-        let mut reader = std::io::BufReader::new(stdin.lock());
-        let doc = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
-
-        // If writing to file, use the processor's convert method (respects output_path)
-        if output_to_file {
-            return processor.convert(&doc, None);
-        }
-
-        // Try pager for stdin too
-        if let Some(mut pager) = spawn_pager(args.no_pager) {
-            if let Some(pager_stdin) = pager.stdin.take() {
-                let writer = BufWriter::new(pager_stdin);
-                processor.write_to(&doc, writer, None)?;
-            }
-            let _ = pager.wait()?;
-            return Ok(());
-        }
-        return processor.convert(&doc, None);
+        return run_terminal_stdin(args, &base_options, document_attributes, output_to_file);
     }
 
     // When --out-file is specified with multiple files, only process the first file
@@ -584,7 +619,7 @@ fn run_terminal_with_pager(
     // Parse all files in parallel
     let parse_results: Vec<(
         std::path::PathBuf,
-        Result<acdc_parser::Document, acdc_parser::Error>,
+        Result<acdc_parser::ParsedDocument, acdc_parser::Error>,
     )> = files_to_process
         .par_iter()
         .map(|file| {
@@ -592,7 +627,7 @@ fn run_terminal_with_pager(
                 build_parser_options(args, &base_options, document_attributes.clone());
 
             if base_options.timings() {
-                let now = std::time::Instant::now();
+                let now = Instant::now();
                 let result = acdc_parser::parse_file(file, &parser_options);
                 let elapsed = now.elapsed();
                 if result.is_ok() {
@@ -613,7 +648,10 @@ fn run_terminal_with_pager(
     if output_to_file {
         for (file, parse_result) in parse_results {
             match parse_result {
-                Ok(doc) => processor.convert(&doc, Some(&file))?,
+                Ok(parsed) => {
+                    let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+                    processor.convert(parsed.document(), Some(&file))?;
+                }
                 Err(e) => return Err(e.into()),
             }
         }
@@ -626,7 +664,11 @@ fn run_terminal_with_pager(
             let mut writer = BufWriter::new(pager_stdin);
             for (_file, parse_result) in parse_results {
                 match parse_result {
-                    Ok(doc) => processor.write_to(&doc, &mut writer, None)?,
+                    Ok(parsed) => {
+                        let parsed: &'static acdc_parser::ParsedDocument =
+                            Box::leak(Box::new(parsed));
+                        processor.write_to(parsed.document(), &mut writer, None)?;
+                    }
                     Err(e) => return Err(e.into()),
                 }
             }
@@ -638,7 +680,10 @@ fn run_terminal_with_pager(
         // No pager - use convert() which writes to stdout
         for (file, parse_result) in parse_results {
             match parse_result {
-                Ok(doc) => processor.convert(&doc, Some(&file))?,
+                Ok(parsed) => {
+                    let parsed: &'static acdc_parser::ParsedDocument = Box::leak(Box::new(parsed));
+                    processor.convert(parsed.document(), Some(&file))?;
+                }
                 Err(e) => return Err(e.into()),
             }
         }
@@ -647,20 +692,24 @@ fn run_terminal_with_pager(
     Ok(())
 }
 
-fn build_attributes_map(values: &[String]) -> DocumentAttributes {
+fn build_attributes_map(values: &[String]) -> DocumentAttributes<'static> {
     // Start with rendering defaults (from converters/core)
     // CLI-provided attributes will override these defaults
     let mut map = acdc_converters_core::default_rendering_attributes();
 
     // Add CLI-provided attributes (these take precedence over defaults)
     for raw_attr in values {
-        let (name, val) = if let Some(stripped) = raw_attr.strip_suffix('!') {
-            (stripped.to_string(), AttributeValue::None)
-        } else if let Some((name, val)) = raw_attr.split_once('=') {
-            (name.to_string(), AttributeValue::String(val.to_string()))
-        } else {
-            (raw_attr.clone(), AttributeValue::Bool(true))
-        };
+        let (name, val): (Cow<'static, str>, AttributeValue<'static>) =
+            if let Some(stripped) = raw_attr.strip_suffix('!') {
+                (stripped.to_string().into(), AttributeValue::None)
+            } else if let Some((name, val)) = raw_attr.split_once('=') {
+                (
+                    name.to_string().into(),
+                    AttributeValue::String(val.to_string().into()),
+                )
+            } else {
+                (raw_attr.clone().into(), AttributeValue::Bool(true))
+            };
         map.set(name, val); // use set() to override defaults
     }
     map
@@ -670,8 +719,8 @@ fn build_attributes_map(values: &[String]) -> DocumentAttributes {
 fn build_parser_options(
     args: &Args,
     base_options: &Options,
-    document_attributes: DocumentAttributes,
-) -> acdc_parser::Options {
+    document_attributes: DocumentAttributes<'static>,
+) -> acdc_parser::Options<'static> {
     let mut builder = acdc_parser::Options::builder()
         .with_safe_mode(base_options.safe_mode())
         .with_attributes(document_attributes);

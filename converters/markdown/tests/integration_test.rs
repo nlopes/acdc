@@ -30,16 +30,17 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     // Parse the AsciiDoc input with rendering defaults
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
-    let doc = acdc_parser::parse_file(&path, &parser_options)?;
+    let parsed = acdc_parser::parse_file(&path, &parser_options)?;
+    let doc = parsed.document();
 
     // Convert to Markdown (GFM variant)
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone())
+    let processor = Processor::new(converter_options, doc.attributes.to_static())
         .with_variant(MarkdownVariant::GitHubFlavored);
-    processor.write_to(&doc, &mut output, Some(&path))?;
+    processor.write_to(doc, &mut output, Some(&path))?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -76,16 +77,17 @@ fn test_commonmark_variant(
     // Parse the AsciiDoc input
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
-    let doc = acdc_parser::parse_file(&path, &parser_options)?;
+    let parsed = acdc_parser::parse_file(&path, &parser_options)?;
+    let doc = parsed.document();
 
     // Convert to Markdown (CommonMark variant)
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone())
+    let processor = Processor::new(converter_options, doc.attributes.to_static())
         .with_variant(MarkdownVariant::CommonMark);
-    processor.write_to(&doc, &mut output, Some(&path))?;
+    processor.write_to(doc, &mut output, Some(&path))?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
