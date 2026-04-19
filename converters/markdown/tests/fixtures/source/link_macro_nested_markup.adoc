@@ -1,0 +1,5 @@
+Visit link:https://example.com[*bold link*] for more.
+
+Or use link:https://example.com[_italic link_] instead.
+
+Combo: link:https://example.com[*bold _and italic_*].

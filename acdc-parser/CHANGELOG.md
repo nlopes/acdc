@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- **`Link.text` is now `Vec<InlineNode>`** (was `Option<String>`). The `link:url[text]`
+  macro now parses inline markup inside the brackets, so the AST carries structured
+  inline nodes instead of a raw string. `Link::with_text` and direct field access
+  must be updated accordingly. `Url`, `Mailto`, and `CrossReference` already used this
+  shape; `Link` is now consistent with them.
+
+### Fixed
+
+- **Inline markup is parsed inside `link:` macro text** (e.g. `link:url[*bold*]` now
+  produces a `BoldText` node instead of literal asterisks), matching `asciidoctor`.
+  Bare URLs inside link text are not re-parsed as autolinks.
+
 ### Added
 
 - **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,

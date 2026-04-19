@@ -203,7 +203,7 @@ peg::parser! {
             / check_macros(block_metadata) mailto_macro:mailto_macro(offset, block_metadata) { mailto_macro }
             / check_macros(block_metadata) url_macro:url_macro(offset, block_metadata) { url_macro }
             / check_macros(block_metadata) pass:inline_pass(offset) { pass }
-            / check_macros(block_metadata) link_macro:link_macro(offset) { link_macro }
+            / check_macros(block_metadata) link_macro:link_macro(offset, block_metadata) { link_macro }
             / check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink:inline_autolink(offset) { inline_autolink }
             / inline_line_break:inline_line_break(offset) { inline_line_break }
             / bold_text_unconstrained:bold_text_unconstrained(offset, block_metadata) { bold_text_unconstrained }
@@ -903,8 +903,10 @@ peg::parser! {
         /// This approach isolates link parsing from block attribute parsing, preventing
         /// regressions in other parts of the parser while correctly handling edge cases
         /// like quotes, special characters, and mixed content.
-        rule link_macro(offset: usize) -> InlineNode
-        = start:position!() "link:" target:source() fragment:path_fragment()? "[" content:(
+        rule link_macro(offset: usize, block_metadata: &BlockParsingMetadata) -> InlineNode
+        = start:position!() "link:" target:source() fragment:path_fragment()? "["
+        content_start:position()
+        content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
@@ -924,6 +926,15 @@ peg::parser! {
             let target = match fragment {
                 Some(f) => Source::from_str(&format!("{target}{f}")).unwrap_or(target),
                 None => target,
+            };
+            let text = if let Some(text) = text {
+                process_inlines_no_autolinks(state, block_metadata, &content_start, end, offset, &text)
+                    .map_err(|e| {
+                        tracing::error!(?e, link_text = text, "could not process link macro text");
+                        "could not process link macro text"
+                    })?
+            } else {
+                vec![]
             };
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
                 text,
@@ -1591,7 +1602,7 @@ peg::parser! {
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
-                    / (check_macros(block_metadata) &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos)))
+                    / (check_macros(block_metadata) &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match(offset, block_metadata) / inline_image(start_pos, block_metadata) / inline_icon(start_pos, block_metadata) / inline_stem(start_pos) / inline_keyboard(start_pos) / inline_button(start_pos) / inline_menu(start_pos) / mailto_macro(start_pos, block_metadata) / url_macro(start_pos, block_metadata) / inline_pass(start_pos) / link_macro(start_pos, block_metadata)))
                     / (check_macros(block_metadata) check_autolinks(allow_autolinks) inline_autolink(start_pos))
                     / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained(start_pos, block_metadata) / bold_text_constrained_match() / italic_text_unconstrained(start_pos, block_metadata) / italic_text_constrained_match() / monospace_text_unconstrained(start_pos, block_metadata) / monospace_text_constrained_match() / highlight_text_unconstrained(start_pos, block_metadata) / highlight_text_constrained_match() / superscript_text(start_pos, block_metadata) / subscript_text(start_pos, block_metadata) / curved_quotation_text(start_pos, block_metadata) / curved_apostrophe_text(start_pos, block_metadata) / standalone_curved_apostrophe(start_pos, block_metadata))
                 ) [_]

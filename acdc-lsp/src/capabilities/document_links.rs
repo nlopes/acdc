@@ -1,6 +1,8 @@
 //! Document Links: make URLs, file references, and includes clickable
 
-use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
+use acdc_parser::{
+    Block, DelimitedBlockType, InlineMacro, InlineNode, Location, inlines_to_string,
+};
 use tower_lsp_server::ls_types::{DocumentLink, Uri};
 
 use crate::convert::{location_to_range, resolve_relative_uri};
@@ -153,10 +155,15 @@ fn collect_links_from_inlines(inlines: &[InlineNode], links: &mut Vec<LinkInfo>)
 fn collect_links_from_inline(inline: &InlineNode, links: &mut Vec<LinkInfo>) {
     match inline {
         InlineNode::Macro(InlineMacro::Link(link)) => {
+            let tooltip = if link.text.is_empty() {
+                None
+            } else {
+                Some(inlines_to_string(&link.text))
+            };
             links.push(LinkInfo {
                 target: link.target.to_string(),
                 location: link.location.clone(),
-                tooltip: link.text.clone(),
+                tooltip,
             });
         }
         InlineNode::Macro(InlineMacro::Url(url)) => {

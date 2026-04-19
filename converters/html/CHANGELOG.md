@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Nested inline markup inside `link:` text now renders** (e.g. `link:url[*bold*]` →
+  `<a href="url"><strong>bold</strong></a>`), matching `asciidoctor`.
+
 ### Added
 
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or

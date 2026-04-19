@@ -1,0 +1,11 @@
+link:https://example.com[*bold link*]
+
+link:https://example.com[_italic link_]
+
+link:https://example.com[`mono link`]
+
+link:https://example.com[*bold _and italic_*]
+
+link:https://example.com[\*not bold*]
+
+link:https://example.com[Visit https://other.example for details]

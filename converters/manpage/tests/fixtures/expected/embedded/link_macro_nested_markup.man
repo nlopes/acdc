@@ -1,0 +1,10 @@
+.sp
+\c
+.URL "https://example.com" "\fBbold link\fP" ""
+and \c
+.URL "https://example.com" "\fIitalic link\fP" ""
+\&.
+.sp
+Mixed: \c
+.URL "https://example.com" "\fBbold \fIand italic\fP\fP" ""
+\&.

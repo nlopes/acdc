@@ -148,12 +148,19 @@ fn write_link<W: Write>(visitor: &mut ManpageVisitor<W>, link: &Link) -> Result<
     // The macro must be on its own line; continuation text goes on the next line
     let target_str = link.target.to_string();
     let escaped_target = manify(&target_str, EscapeMode::Normalize);
-    let w = visitor.writer_mut();
-    if let Some(text) = &link.text {
-        let display = manify(text, EscapeMode::Normalize);
-        writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display}\" \"\"")?;
-    } else {
+    if link.text.is_empty() {
+        let w = visitor.writer_mut();
         writeln!(w, "\\c\n.URL \"{escaped_target}\" \"\" \"\"")?;
+    } else {
+        // Render text to a buffer so nested inline markup (\fB, \fI, etc.) is
+        // preserved without re-escaping.
+        let mut buf = Vec::new();
+        let processor = visitor.processor.clone();
+        let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
+        text_visitor.visit_inline_nodes(&link.text)?;
+        let display_text = String::from_utf8_lossy(&buf).trim().to_string();
+        let w = visitor.writer_mut();
+        writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display_text}\" \"\"")?;
     }
     visitor.strip_next_leading_space = true;
 

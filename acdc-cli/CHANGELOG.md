@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Adopted `acdc-parser`'s new `Link.text: Vec<InlineNode>`** — `inspect` flattens link
+  text via `inlines_to_string` for plain-text display.
+
 ### Added
 
 - **Timing summary table for multi-file conversions** — when `convert` is invoked with

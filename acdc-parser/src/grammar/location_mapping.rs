@@ -576,7 +576,10 @@ fn map_inline_macro(
             mailto.location = map_loc(&mailto.location)?;
             mailto.text = map_inline_locations(state, processed, &mailto.text, location)?;
         }
-        InlineMacro::Link(link) => link.location = map_loc(&link.location)?,
+        InlineMacro::Link(link) => {
+            link.location = map_loc(&link.location)?;
+            link.text = map_inline_locations(state, processed, &link.text, location)?;
+        }
         InlineMacro::Icon(icon) => icon.location = map_loc(&icon.location)?,
         InlineMacro::Button(button) => button.location = map_loc(&button.location)?,
         InlineMacro::Image(image) => image.location = map_loc(&image.location)?,

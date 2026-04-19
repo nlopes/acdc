@@ -525,32 +525,43 @@ fn render_inline_macro<V: WritableVisitor<Error = Error> + ?Sized>(
                 .document_attributes()
                 .get("hide-uri-scheme")
                 .is_some();
-            let text = l
-                .text
-                .as_ref()
-                .map(|t| substitution_text(t, subs, options))
-                .filter(|t| !t.is_empty()) // Treat empty string as None
-                .unwrap_or_else(|| {
-                    // For mailto: links without custom text, show just the email address
-                    let target_str = l.target.to_string();
-                    if let Some(email) = target_str.strip_prefix("mailto:") {
-                        email.to_string()
-                    } else if hide_uri_scheme {
-                        strip_uri_scheme(&target_str).to_string()
-                    } else {
-                        target_str
-                    }
-                });
+            let fallback_text = || {
+                // For mailto: links without custom text, show just the email address
+                let target_str = l.target.to_string();
+                if let Some(email) = target_str.strip_prefix("mailto:") {
+                    email.to_string()
+                } else if hide_uri_scheme {
+                    strip_uri_scheme(&target_str).to_string()
+                } else {
+                    target_str
+                }
+            };
             if options.inlines_basic || options.toc_mode {
                 // In basic or TOC mode, render as text only (no link wrapper)
-                write!(w, "{text}")?;
+                if l.text.is_empty() {
+                    write!(w, "{}", fallback_text())?;
+                } else {
+                    for inline in &l.text {
+                        visit_inline_node(inline, visitor, processor, options, subs)?;
+                    }
+                }
             } else {
                 let target_attr = window_attrs(&l.attributes);
                 write!(
                     w,
-                    "<a href=\"{}\"{target_attr}>{text}</a>",
+                    "<a href=\"{}\"{target_attr}>",
                     escape_href(&l.target.to_string())
                 )?;
+                if l.text.is_empty() {
+                    let w = visitor.writer_mut();
+                    write!(w, "{}", fallback_text())?;
+                } else {
+                    for inline in &l.text {
+                        visit_inline_node(inline, visitor, processor, options, subs)?;
+                    }
+                }
+                let w = visitor.writer_mut();
+                write!(w, "</a>")?;
             }
         }
         InlineMacro::Image(i) => {

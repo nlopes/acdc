@@ -1,0 +1,3 @@
+link:https://example.com[*bold link*] and link:https://example.com[_italic link_].
+
+Mixed: link:https://example.com[*bold _and italic_*].

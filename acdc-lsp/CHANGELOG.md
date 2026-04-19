@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Adopted `acdc-parser`'s new `Link.text: Vec<InlineNode>`** — document-link tooltips
+  are now built via `inlines_to_string` over the parsed link text.
+
 ### Added
 
 - Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`, `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.

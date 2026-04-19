@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Fixed
+
+- **Nested inline markup inside `link:` text now renders correctly** — bold/italic/monospace
+  inside `link:url[...]` is preserved as `\fB...\fP` / `\fI...\fP` / `\f(CR...\fP` in the
+  `.URL` macro display string.
+
 ### Added
 
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or

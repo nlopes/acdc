@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Nested inline markup inside `link:` text now renders** — bold/italic/monospace
+  inside `link:url[...]` is included in the OSC8 link display text.
+
 ### Added
 
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or

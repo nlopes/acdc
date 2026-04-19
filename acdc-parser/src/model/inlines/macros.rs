@@ -58,7 +58,7 @@ pub struct Link {
     // We don't serialize the text here because it's already serialized in the attributes
     // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
-    pub text: Option<String>,
+    pub text: Vec<InlineNode>,
     pub target: Source,
     pub attributes: ElementAttributes,
     pub location: Location,
@@ -69,16 +69,16 @@ impl Link {
     #[must_use]
     pub fn new(target: Source, location: Location) -> Self {
         Self {
-            text: None,
+            text: Vec::new(),
             target,
             attributes: ElementAttributes::default(),
             location,
         }
     }
 
-    /// Sets the link text.
+    /// Sets the link text as a sequence of inline nodes.
     #[must_use]
-    pub fn with_text(mut self, text: Option<String>) -> Self {
+    pub fn with_text(mut self, text: Vec<InlineNode>) -> Self {
         self.text = text;
         self
     }

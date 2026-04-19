@@ -29,7 +29,11 @@ pub fn inlines_to_string(inlines: &[InlineNode]) -> String {
             InlineNode::InlineAnchor(_) => String::new(),
             InlineNode::Macro(macro_node) => match macro_node {
                 InlineMacro::Link(link) => {
-                    link.text.clone().unwrap_or_else(|| link.target.to_string())
+                    if link.text.is_empty() {
+                        link.target.to_string()
+                    } else {
+                        inlines_to_string(&link.text)
+                    }
                 }
                 InlineMacro::Url(url) => {
                     if url.text.is_empty() {

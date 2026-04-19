@@ -187,7 +187,7 @@ mod tests {
                 Source::Name("https://example.com".to_string()),
                 Location::default(),
             )
-            .with_text(Some("Example".to_string())),
+            .with_text(vec![plain("Example")]),
         ));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title), "See Example");

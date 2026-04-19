@@ -397,12 +397,13 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
 ) -> Result<(), crate::Error> {
     match inline_macro {
         InlineMacro::Link(l) => {
-            let target = l.target.clone();
-            let text = match l.text.clone() {
-                Some(text) => text,
-                None => target.to_string(),
+            let target = l.target.to_string();
+            let text = if l.text.is_empty() {
+                target.clone()
+            } else {
+                render_inline_nodes_to_string(&l.text, processor)?
             };
-            maybe_render_osc8_link(target.clone().to_string().as_str(), &text, w, processor)?;
+            maybe_render_osc8_link(target.as_str(), &text, w, processor)?;
         }
         InlineMacro::Url(u) => {
             maybe_render_osc8_link(
