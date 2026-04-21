@@ -41,12 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
   superscript, subscript, and curved quotes is no longer converted to an em-dash at string
   boundaries, matching asciidoctor behavior.
-- `extract_plain_text` now preserves text content from formatted inline nodes (bold, italic, monospace, etc.) in literal paragraphs
-- ANSI SGR state tracking now prunes cancelled codes (e.g. bold-off removes bold) instead of accumulating indefinitely
+- `extract_plain_text` now preserves text content from formatted inline nodes (bold,
+  italic, monospace, etc.) in literal paragraphs
+- ANSI SGR state tracking now prunes cancelled codes (e.g. bold-off removes bold) instead
+  of accumulating indefinitely
 - `extract_title_text` now preserves inline content from `VerbatimText`, `RawText`,
-  `StandaloneCurvedApostrophe`, `LineBreak`, `CalloutRef`, and all `Macro` variants
-  in section titles. Previously these were silently dropped.
-- Comprehensive test fixture now marked as OSC8 so it is skipped in CI environments without OSC8 support.
+  `StandaloneCurvedApostrophe`, `LineBreak`, `CalloutRef`, and all `Macro` variants in
+  section titles. Previously these were silently dropped.
+- Comprehensive test fixture now marked as OSC8 so it is skipped in CI environments
+  without OSC8 support.
+- **Inline markup in `link:` text** — bold, italic, monospace, etc. inside `link:url[...]`
+  are now honoured in the OSC8 display text.
 
 ### Changed
 

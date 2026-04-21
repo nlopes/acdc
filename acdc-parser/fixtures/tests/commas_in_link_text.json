@@ -32,6 +32,23 @@
             "type": "url",
             "value": "https://example.com"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Example, a test website",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 27
+                },
+                {
+                  "line": 1,
+                  "col": 49
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 1,
@@ -98,6 +115,23 @@
             "type": "url",
             "value": "https://reddit.com/about/"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "About reddit, including some mind boggling statistics",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 64
+                },
+                {
+                  "line": 3,
+                  "col": 116
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
@@ -164,6 +198,23 @@
             "type": "url",
             "value": "https://rust-lang.org"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The Rust language, official docs",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 55
+                },
+                {
+                  "line": 5,
+                  "col": 86
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 5,
@@ -252,6 +303,23 @@
                 "type": "url",
                 "value": "https://example.com/path"
               },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Link text, with comma",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 29
+                    },
+                    {
+                      "line": 9,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 9,

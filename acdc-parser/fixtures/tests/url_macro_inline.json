@@ -29,6 +29,23 @@
             "type": "url",
             "value": "https://www.rust-lang.org"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "the Rust programming language website",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 33
+                },
+                {
+                  "line": 1,
+                  "col": 69
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 1,

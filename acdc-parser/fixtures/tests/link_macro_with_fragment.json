@@ -14,6 +14,23 @@
             "type": "path",
             "value": "page.html#section"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Section",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 24
+                },
+                {
+                  "line": 1,
+                  "col": 30
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 1,

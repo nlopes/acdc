@@ -55,10 +55,8 @@ pub struct Icon<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Link<'a> {
-    // We don't serialize the text here because it's already serialized in the attributes
-    // (that's how it's represented in the ASG)
     #[serde(skip_serializing)]
-    pub text: Option<&'a str>,
+    pub text: Vec<InlineNode<'a>>,
     pub target: Source<'a>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
@@ -69,16 +67,16 @@ impl<'a> Link<'a> {
     #[must_use]
     pub fn new(target: Source<'a>, location: Location) -> Self {
         Self {
-            text: None,
+            text: Vec::new(),
             target,
             attributes: ElementAttributes::default(),
             location,
         }
     }
 
-    /// Sets the link text.
+    /// Sets the link text as inline nodes.
     #[must_use]
-    pub fn with_text(mut self, text: Option<&'a str>) -> Self {
+    pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
         self.text = text;
         self
     }

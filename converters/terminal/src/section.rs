@@ -185,7 +185,7 @@ mod tests {
     fn extract_link_macro_with_text() {
         let link = InlineNode::Macro(InlineMacro::Link(
             Link::new(Source::Name("https://example.com"), Location::default())
-                .with_text(Some("Example")),
+                .with_text(vec![plain("Example")]),
         ));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title), "See Example");

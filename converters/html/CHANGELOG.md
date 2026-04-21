@@ -255,6 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bare `&` in URL query strings within `href` attributes is now escaped to `&amp;` for
   valid HTML. Applies to all link types: autolinks, link macros, URL macros, mailto macros,
   and inline/block images with link attributes.
+- **Inline markup in `link:` text** — `link:url[*bold*]` now renders
+  `<strong>bold</strong>` instead of literal asterisks.
 
 ### Changed
 

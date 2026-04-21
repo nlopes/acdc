@@ -46,6 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Long-running consumers no longer leak memory per parse.** Embedders like
   `acdc-lsp` and `acdc-editor-wasm` can parse repeatedly with a flat memory
   footprint.
+- **BREAKING**: `Link.text` changed from `Option<&'a str>` to `Vec<InlineNode<'a>>` so
+  inline markup inside `link:` macros is preserved as structured nodes. `Link::new`
+  initialises it as `Vec::new()`; `Link::with_text` now takes `Vec<InlineNode<'a>>`.
+- `Link`, `Url`, and `Mailto` now serialize their text under an `inlines` key on the ASG
+  (consistent with `xref`/`footnote`), only when non-empty. Previously the text was not
+  serialized at all.
+
+### Fixed
+
+- **Inline markup inside `link:` macro text** — `link:url[*bold*]` now parses nested
+  formatting (bold, italic, monospace, passthroughs, etc.) through the full inline
+  grammar, matching `url:` / `mailto:` behaviour.
 
 ### Removed
 

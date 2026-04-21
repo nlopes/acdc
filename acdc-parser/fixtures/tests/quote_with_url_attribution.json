@@ -18,6 +18,23 @@
               "type": "url",
               "value": "https://example.com/"
             },
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Example",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 25
+                  },
+                  {
+                    "line": 2,
+                    "col": 31
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 2,

@@ -478,8 +478,15 @@ impl<W: Write> MarkdownVisitor<'_, W> {
         match mac {
             InlineMacro::Link(link) => {
                 let target = link.target.to_string();
-                let text = link.text.unwrap_or(&target);
-                write!(self.writer, "[{text}]({target})")?;
+                if link.text.is_empty() {
+                    write!(self.writer, "[{target}]({target})")?;
+                } else {
+                    write!(self.writer, "[")?;
+                    for node in &link.text {
+                        self.visit_inline_node(node)?;
+                    }
+                    write!(self.writer, "]({target})")?;
+                }
             }
             InlineMacro::Image(image) => {
                 // Inline image macro

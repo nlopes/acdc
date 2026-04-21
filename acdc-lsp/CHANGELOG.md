@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rt-multi-thread`, `io-std`)
 - Memory usage is now bounded by live open files instead of growing on every edit. Long
   editing sessions no longer leak memory.
+- Document-link tooltips for `link:` macros now flatten parsed inline markup via
+  `inlines_to_string` (follows the `Link.text` type change in `acdc-parser`).
 
 ## [0.2.0] - 2026-03-28
 

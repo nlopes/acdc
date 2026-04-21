@@ -51,10 +51,13 @@ fn write_inline_node<W: Write + ?Sized>(w: &mut W, node: &InlineNode<'_>) -> fmt
 
 fn write_inline_macro<W: Write + ?Sized>(w: &mut W, m: &InlineMacro<'_>) -> fmt::Result {
     match m {
-        InlineMacro::Link(link) => match link.text.as_ref() {
-            Some(text) => write!(w, "{text}"),
-            None => write!(w, "{}", link.target),
-        },
+        InlineMacro::Link(link) => {
+            if link.text.is_empty() {
+                write!(w, "{}", link.target)
+            } else {
+                write_inlines(w, &link.text)
+            }
+        }
         InlineMacro::Url(url) => {
             if url.text.is_empty() {
                 write!(w, "{}", url.target)

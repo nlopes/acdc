@@ -1052,7 +1052,9 @@ peg::parser! {
         /// regressions in other parts of the parser while correctly handling edge cases
         /// like quotes, special characters, and mixed content.
         rule link_macro() -> InlineNode<'input>
-        = start:position!() "link:" target:source() fragment:path_fragment()? "[" content:(
+        = start:position!() "link:" target:source() fragment:path_fragment()? "["
+        content_start:position()
+        content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
@@ -1062,6 +1064,11 @@ peg::parser! {
         ) "]" end:position!()
         {?
             tracing::debug!(?target, ?content, "Found link macro inline");
+            let bm = BlockParsingMetadata {
+                macros_enabled: state.inline_ctx.macros_enabled,
+                attributes_enabled: state.inline_ctx.attributes_enabled,
+                ..BlockParsingMetadata::default()
+            };
             let (text, attributes) = content;
             let mut metadata = BlockMetadata::default();
             for (k, v, _pos) in attributes {
@@ -1075,6 +1082,15 @@ peg::parser! {
                     Source::from_str_borrowed(combined).unwrap_or(target)
                 }
                 None => target,
+            };
+            let text = if let Some(text) = text {
+                process_inlines_no_autolinks(state, &bm, &content_start, end, state.inline_ctx.offset, text)
+                    .map_err(|e| {
+                        tracing::error!(?e, link_text = text, "could not process link macro text");
+                        "could not process link macro text"
+                    })?
+            } else {
+                vec![]
             };
             Ok(InlineNode::Macro(InlineMacro::Link(Link {
                 text,

@@ -460,9 +460,10 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
     match inline_macro {
         InlineMacro::Link(l) => {
             let target = l.target.clone();
-            let text: String = match l.text {
-                Some(text) => text.to_string(),
-                None => target.to_string(),
+            let text = if l.text.is_empty() {
+                target.to_string()
+            } else {
+                render_inline_nodes_to_string(&l.text, processor)?
             };
             maybe_render_osc8_link(target.clone().to_string().as_ref(), &text, w, processor)?;
         }

@@ -46,8 +46,12 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
   superscript, subscript, and curved quotes is no longer converted to an em-dash at string
   boundaries, matching asciidoctor behavior.
-- Non-paragraph content in table cells (lists, code blocks, admonitions) is no longer silently dropped
-- Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third argument (matching autolink behaviour)
+- Non-paragraph content in table cells (lists, code blocks, admonitions) is no longer
+  silently dropped
+- Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third
+  argument (matching autolink behaviour)
+- **Inline markup in `link:` text** — the `.URL` macro's display-text argument now
+  reflects parsed inline markup inside the link's bracket expression.
 
 ### Changed
 

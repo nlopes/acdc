@@ -398,6 +398,23 @@
                 "type": "url",
                 "value": "mailto:support@example.com"
               },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Contact Support",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 46
+                    },
+                    {
+                      "line": 17,
+                      "col": 60
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 17,
@@ -500,6 +517,23 @@
                 "type": "url",
                 "value": "mailto:sales@example.com"
               },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Sales Team",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 50
+                    },
+                    {
+                      "line": 21,
+                      "col": 59
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 21,
@@ -671,6 +705,23 @@
                 "type": "url",
                 "value": "mailto:help@example.com"
               },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Help Desk",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 42
+                    },
+                    {
+                      "line": 29,
+                      "col": 50
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 29,

@@ -238,9 +238,14 @@ pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
             parts.extend(menu.items.iter().map(|i| (*i).to_string()));
             parts.join(" > ")
         }
-        InlineMacro::Link(l) => l
-            .text
-            .map_or_else(|| l.target.to_string(), ToString::to_string),
+        InlineMacro::Link(l) => {
+            let text = extract_inline_text(&l.text, line_break);
+            if text.is_empty() {
+                l.target.to_string()
+            } else {
+                text
+            }
+        }
         InlineMacro::Url(u) => {
             let text = extract_inline_text(&u.text, line_break);
             if text.is_empty() {

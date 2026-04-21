@@ -12,21 +12,21 @@
           "variant": "link",
           "target": {
             "type": "url",
-            "value": "https://example.com/page#section"
+            "value": "https://example.com"
           },
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
-              "value": "Section",
+              "value": "literal *stars*",
               "location": [
                 {
                   "line": 1,
-                  "col": 39
+                  "col": 27
                 },
                 {
                   "line": 1,
-                  "col": 45
+                  "col": 42
                 }
               ]
             }
@@ -38,7 +38,7 @@
             },
             {
               "line": 1,
-              "col": 46
+              "col": 44
             }
           ],
           "attributes": {}
@@ -51,7 +51,7 @@
         },
         {
           "line": 1,
-          "col": 46
+          "col": 43
         }
       ]
     }
@@ -63,7 +63,7 @@
     },
     {
       "line": 1,
-      "col": 46
+      "col": 43
     }
   ]
 }

@@ -18,6 +18,23 @@
               "type": "url",
               "value": "https://example.com/docs"
             },
+            "inlines": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Example Docs",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 34
+                  },
+                  {
+                    "line": 1,
+                    "col": 45
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 1,

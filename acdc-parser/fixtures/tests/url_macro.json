@@ -29,6 +29,23 @@
             "type": "url",
             "value": "https://example.com"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Example Website",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 27
+                },
+                {
+                  "line": 1,
+                  "col": 41
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 1,
@@ -95,6 +112,23 @@
             "type": "url",
             "value": "https://github.com/anthropics/claude-code"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Claude Code on GitHub",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 62
+                },
+                {
+                  "line": 3,
+                  "col": 82
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
@@ -132,6 +166,23 @@
             "type": "url",
             "value": "https://docs.anthropic.com"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Anthropic Documentation",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 129
+                },
+                {
+                  "line": 3,
+                  "col": 151
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,
@@ -198,6 +249,23 @@
             "type": "url",
             "value": "https://rust-lang.org"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The Rust Programming Language",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 53
+                },
+                {
+                  "line": 5,
+                  "col": 81
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 5,

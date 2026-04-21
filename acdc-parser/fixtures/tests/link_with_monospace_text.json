@@ -12,21 +12,39 @@
           "variant": "link",
           "target": {
             "type": "url",
-            "value": "https://example.com/page#section"
+            "value": "https://example.com"
           },
           "inlines": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Section",
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "code",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 27
+                    },
+                    {
+                      "line": 1,
+                      "col": 30
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 1,
-                  "col": 39
+                  "col": 26
                 },
                 {
                   "line": 1,
-                  "col": 45
+                  "col": 31
                 }
               ]
             }
@@ -38,7 +56,7 @@
             },
             {
               "line": 1,
-              "col": 46
+              "col": 32
             }
           ],
           "attributes": {}
@@ -51,7 +69,7 @@
         },
         {
           "line": 1,
-          "col": 46
+          "col": 32
         }
       ]
     }
@@ -63,7 +81,7 @@
     },
     {
       "line": 1,
-      "col": 46
+      "col": 32
     }
   ]
 }

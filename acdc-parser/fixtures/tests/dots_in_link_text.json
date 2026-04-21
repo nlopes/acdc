@@ -32,6 +32,23 @@
             "type": "path",
             "value": "/projects/markdown/basics.text"
           },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "see the source for it by adding \\\\'.text' to the URL",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 63
+                },
+                {
+                  "line": 3,
+                  "col": 114
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,

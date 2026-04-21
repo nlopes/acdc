@@ -381,6 +381,9 @@ where
     map.serialize_entry("type", "inline")?;
     map.serialize_entry("variant", "link")?;
     map.serialize_entry("target", &u.target)?;
+    if !u.text.is_empty() {
+        map.serialize_entry("inlines", &u.text)?;
+    }
     map.serialize_entry("location", &u.location)?;
     map.serialize_entry("attributes", &u.attributes)
 }
@@ -393,6 +396,9 @@ where
     map.serialize_entry("type", "inline")?;
     map.serialize_entry("variant", "mailto")?;
     map.serialize_entry("target", &m.target)?;
+    if !m.text.is_empty() {
+        map.serialize_entry("inlines", &m.text)?;
+    }
     map.serialize_entry("location", &m.location)?;
     map.serialize_entry("attributes", &m.attributes)
 }
@@ -405,6 +411,9 @@ where
     map.serialize_entry("type", "inline")?;
     map.serialize_entry("variant", "link")?;
     map.serialize_entry("target", &l.target)?;
+    if !l.text.is_empty() {
+        map.serialize_entry("inlines", &l.text)?;
+    }
     map.serialize_entry("location", &l.location)?;
     map.serialize_entry("attributes", &l.attributes)
 }

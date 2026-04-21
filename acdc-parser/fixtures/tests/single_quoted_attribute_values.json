@@ -898,6 +898,23 @@
                 "type": "url",
                 "value": "https://example.com"
               },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Example Site",
+                  "location": [
+                    {
+                      "line": 55,
+                      "col": 30
+                    },
+                    {
+                      "line": 55,
+                      "col": 41
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 55,
