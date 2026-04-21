@@ -7,23 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Packaging
+
+- Shrunk the published tarball by excluding developer-only files: `AGENTS.md`,
+  `README.adoc` (duplicate of `README.md`), `benches/`, `examples/`, `fixtures/`,
+  `proptest-regressions/`, and `tests/`. Reduces the package from ~676 files to
+  ~120 and drops ~19 MB of test fixtures that consumers never needed.
+
 ### Added
 
-- **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`, `parse_file`,
-  `parse_from_reader`) for phase-level timing visibility.
-- **First-section level validation** - emit a warning when a titled document's
-  first section skips level 1 (e.g. starts with `===` instead of `==`), matching
-  `asciidoctor`'s "section title out of sequence" check. Title-less documents still
-  accept any first-section level.
+- **`preprocess` and `grammar_parse` tracing spans** in all parse entry points (`parse`,
+  `parse_file`, `parse_from_reader`) for phase-level timing visibility.
+- **First-section level validation** - emit a warning when a titled document's first
+  section skips level 1 (e.g. starts with `===` instead of `==`), matching `asciidoctor`'s
+  "section title out of sequence" check. Title-less documents still accept any
+  first-section level.
+- **`ParseResult` and `ParseInlineResult`** — new return types from `parse_*`. Each
+  bundles the AST, source text, and any non-fatal warnings. Access via `.document()` /
+  `.inlines()`, `.source()`, `.warnings()`, and `.take_warnings()`. Marked `#[must_use]`
+  so warnings aren't silently dropped.
+- **`Warning` and `WarningKind`** — non-fatal parser diagnostics are now returned as
+  typed values with `.source_location()` and `.advice()` accessors, mirroring `Error`.
+
+### Changed
+
+- **BREAKING**: `parse*()` now returns `Result<ParseResult, Error>` (and
+  `Result<ParseInlineResult, Error>` for `parse_inline`) instead of
+  `Result<Document, Error>` / `Result<Vec<InlineNode>, Error>`. Use `.document()`
+  / `.inlines()` to borrow the AST.
+- **Warnings are exposed on `ParseResult::warnings()`** instead of flowing only
+  through `tracing`. Every warning — grammar (unknown table format, bad row column
+  count, callout gaps, anchor whitespace, first-section level, trailing macro
+  content, counter references, experimental `subs=`) and preprocessor (missing
+  include files, URL includes blocked by safe-mode, missing `allow-uri-read`,
+  `network` feature disabled for remote includes, invalid include line numbers,
+  `ifdef`/`endif` attribute mismatches) — now carries a `SourceLocation` with an
+  optional file path. `tracing::warn!` emission is kept as a fallback.
+- **Long-running consumers no longer leak memory per parse.** Embedders like
+  `acdc-lsp` and `acdc-editor-wasm` can parse repeatedly with a flat memory
+  footprint.
+
+### Removed
+
+- **BREAKING**: `impl FromStr for Source<'static>` is removed. It leaked a boxed
+  `String` to `'static` on every call, accumulating to multi-GB RSS in long-running
+  LSP sessions. If you need an owned copy, convert to your own type.
 
 ### Performance
 
-- **Parsing large documents is dramatically faster** - some block-opener checks
-  performance was quadratic, and now it is linear. Several inline-preprocessor and
-  attribute-substitution paths also skip work when the input has no relevant delimiters.
-  1MB sample: **~6749ms -> ~207ms (~32× faster)**.
-- **New `DocumentAttributes::empty()`** for callers that don't need the default attribute
-  map, avoiding a bunch of allocations.
+- **Parsing large documents is dramatically faster.** Hot paths in inline parsing and
+  attribute handling skip work entirely when the input has no relevant syntax. 1MB sample:
+  ~11.7s → ~130ms (~90× faster).
 
 ## [0.8.0] - 2026-03-28
 

@@ -1,13 +1,15 @@
+use std::borrow::Cow;
+
 pub use crate::safe_mode::SafeMode;
 
 use crate::{AttributeValue, DocumentAttributes};
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-pub struct Options {
+pub struct Options<'a> {
     pub safe_mode: SafeMode,
     pub timings: bool,
-    pub document_attributes: DocumentAttributes,
+    pub document_attributes: DocumentAttributes<'a>,
     /// Strict mode - fail on non-conformance instead of warn-and-continue.
     ///
     /// When enabled, issues that would normally result in a warning and fallback
@@ -25,7 +27,7 @@ pub struct Options {
     pub setext: bool,
 }
 
-impl Options {
+impl<'a> Options<'a> {
     /// Create a new `OptionsBuilder` for fluent configuration.
     ///
     /// # Example
@@ -40,7 +42,7 @@ impl Options {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn builder() -> OptionsBuilder {
+    pub fn builder() -> OptionsBuilder<'a> {
         OptionsBuilder::default()
     }
 
@@ -65,10 +67,23 @@ impl Options {
     /// let options = Options::with_attributes(attrs);
     /// ```
     #[must_use]
-    pub fn with_attributes(document_attributes: DocumentAttributes) -> Self {
+    pub fn with_attributes(document_attributes: DocumentAttributes<'a>) -> Self {
         Self {
             document_attributes,
             ..Default::default()
+        }
+    }
+
+    /// Consume the options, producing an independent `'static` copy.
+    #[must_use]
+    pub fn into_static(self) -> Options<'static> {
+        Options {
+            safe_mode: self.safe_mode,
+            timings: self.timings,
+            document_attributes: self.document_attributes.into_static(),
+            strict: self.strict,
+            #[cfg(feature = "setext")]
+            setext: self.setext,
         }
     }
 }
@@ -91,16 +106,16 @@ impl Options {
 /// ```
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
-pub struct OptionsBuilder {
+pub struct OptionsBuilder<'a> {
     safe_mode: SafeMode,
     timings: bool,
-    document_attributes: DocumentAttributes,
+    document_attributes: DocumentAttributes<'a>,
     strict: bool,
     #[cfg(feature = "setext")]
     setext: bool,
 }
 
-impl OptionsBuilder {
+impl<'a> OptionsBuilder<'a> {
     /// Set the safe mode for parsing.
     ///
     /// # Example
@@ -175,8 +190,8 @@ impl OptionsBuilder {
     #[must_use]
     pub fn with_attribute(
         mut self,
-        name: impl Into<String>,
-        value: impl Into<AttributeValue>,
+        name: impl Into<Cow<'a, str>>,
+        value: impl Into<AttributeValue<'a>>,
     ) -> Self {
         self.document_attributes.insert(name.into(), value.into());
         self
@@ -197,7 +212,7 @@ impl OptionsBuilder {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn with_attributes(mut self, document_attributes: DocumentAttributes) -> Self {
+    pub fn with_attributes(mut self, document_attributes: DocumentAttributes<'a>) -> Self {
         self.document_attributes = document_attributes;
         self
     }
@@ -235,7 +250,7 @@ impl OptionsBuilder {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> Options {
+    pub fn build(self) -> Options<'a> {
         Options {
             safe_mode: self.safe_mode,
             timings: self.timings,

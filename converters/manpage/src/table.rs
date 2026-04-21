@@ -48,7 +48,7 @@ fn format_entry(
 }
 
 /// Render a data row from the grid, producing a colon-separated string.
-fn render_grid_row(grid_row: &GridRow<'_>, processor: &Processor) -> Result<String, Error> {
+fn render_grid_row(grid_row: &GridRow<'_>, processor: &Processor<'_>) -> Result<String, Error> {
     let mut data_cells = Vec::with_capacity(grid_row.cells.len());
 
     for kind in &grid_row.cells {
@@ -77,7 +77,7 @@ fn render_grid_row(grid_row: &GridRow<'_>, processor: &Processor) -> Result<Stri
 pub(crate) fn visit_table<W: Write>(
     table: &Table,
     _block: &DelimitedBlock,
-    visitor: &mut ManpageVisitor<W>,
+    visitor: &mut ManpageVisitor<'_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor.clone();
 
@@ -141,7 +141,10 @@ pub(crate) fn visit_table<W: Write>(
 }
 
 /// Format a table cell with inline formatting preserved.
-fn format_cell_with_inlines(cell: &TableColumn, processor: &Processor) -> Result<String, Error> {
+fn format_cell_with_inlines(
+    cell: &TableColumn,
+    processor: &Processor<'_>,
+) -> Result<String, Error> {
     let mut buf = Vec::new();
     let mut cell_visitor = ManpageVisitor::new(&mut buf, processor.clone());
 

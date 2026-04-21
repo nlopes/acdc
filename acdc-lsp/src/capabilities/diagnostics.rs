@@ -9,13 +9,14 @@ use std::hash::BuildHasher;
 
 use std::path::Path;
 
-use acdc_parser::{Block, Document, Error, Location, Positioning, Source};
+use acdc_parser::{Block, Document, Error, Location, Positioning, Warning};
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
 use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
 
 use crate::convert::{location_to_range, parser_position_to_lsp};
 use crate::state::XrefTarget;
+use crate::state::document::OwnedSource;
 
 /// Convert acdc-parser Error to LSP Diagnostic
 #[must_use]
@@ -47,6 +48,26 @@ pub(crate) fn error_to_diagnostic(error: &Error) -> Diagnostic {
         severity: Some(DiagnosticSeverity::ERROR),
         source: Some("acdc".to_string()),
         message,
+        ..Default::default()
+    }
+}
+
+/// Convert an acdc-parser `Warning` to an LSP `Diagnostic`. Parser
+/// warnings are non-fatal by definition, so the severity is always
+/// `WARNING`. Warnings without a source location fall back to a
+/// zero-width range at the document start.
+#[must_use]
+pub(crate) fn warning_to_diagnostic(warning: &Warning) -> Diagnostic {
+    let range = warning
+        .source_location()
+        .map(|loc| positioning_to_range(&loc.positioning))
+        .unwrap_or_default();
+
+    Diagnostic {
+        range,
+        severity: Some(DiagnosticSeverity::WARNING),
+        source: Some("acdc".to_string()),
+        message: warning.kind.to_string(),
         ..Default::default()
     }
 }
@@ -148,7 +169,7 @@ fn check_duplicate_anchors<S: BuildHasher>(
 /// Include paths are resolved relative to `doc_dir`.
 #[must_use]
 pub(crate) fn compute_link_diagnostics(
-    media_sources: &[(Source, Location)],
+    media_sources: &[(OwnedSource, Location)],
     includes: &[(String, Location)],
     doc_dir: &Path,
     imagesdir: Option<&str>,
@@ -156,7 +177,7 @@ pub(crate) fn compute_link_diagnostics(
     let mut diagnostics = Vec::new();
 
     for (source, location) in media_sources {
-        if let Source::Path(path) = source {
+        if let OwnedSource::Path(path) = source {
             let resolved = if path.is_absolute() {
                 path.clone()
             } else if let Some(images_dir) = imagesdir {
@@ -197,7 +218,7 @@ pub(crate) fn compute_link_diagnostics(
 }
 
 /// Collect sections in document order by walking the AST recursively.
-fn collect_sections(blocks: &[Block]) -> Vec<(u8, &Location)> {
+fn collect_sections<'a>(blocks: &'a [Block<'_>]) -> Vec<(u8, &'a Location)> {
     let mut sections = Vec::new();
     for block in blocks {
         if let Block::Section(section) = block {
@@ -301,17 +322,20 @@ pub(crate) fn compute_conditional_diagnostics(
 mod tests {
     use super::*;
 
-    fn parse_doc(text: &str) -> Result<acdc_parser::Document, acdc_parser::Error> {
+    /// Parse a document for tests, returning the owning wrapper. Callers
+    /// access the AST via `.document()` which borrows from the returned
+    /// value and thus cannot outlive it.
+    fn parse_doc(text: &str) -> Result<acdc_parser::ParseResult, acdc_parser::Error> {
         acdc_parser::parse(text, &acdc_parser::Options::default())
     }
 
     #[test]
     fn test_section_level_valid_progression_no_warnings() -> Result<(), Box<dyn std::error::Error>>
     {
-        let doc = parse_doc(
+        let parsed = parse_doc(
             "= Title\n\n== Chapter 1\n\n=== Section 1.1\n\n== Chapter 2\n\n=== Section 2.1\n",
         )?;
-        let diags = compute_section_level_diagnostics(&doc);
+        let diags = compute_section_level_diagnostics(parsed.document());
         assert!(
             diags.is_empty(),
             "valid progression should produce no warnings, got: {diags:?}"
@@ -322,8 +346,8 @@ mod tests {
     #[test]
     fn test_section_level_first_section_skip() -> Result<(), Box<dyn std::error::Error>> {
         // First section is === (level 2) but should be == (level 1)
-        let doc = parse_doc("= Title\n\n=== Skipped First\n")?;
-        let diags = compute_section_level_diagnostics(&doc);
+        let parsed = parse_doc("= Title\n\n=== Skipped First\n")?;
+        let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let d = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
@@ -342,8 +366,8 @@ mod tests {
 
     #[test]
     fn test_section_level_going_up_no_warning() -> Result<(), Box<dyn std::error::Error>> {
-        let doc = parse_doc("= Title\n\n== Chapter 1\n\n=== Deep\n\n== Chapter 2\n")?;
-        let diags = compute_section_level_diagnostics(&doc);
+        let parsed = parse_doc("= Title\n\n== Chapter 1\n\n=== Deep\n\n== Chapter 2\n")?;
+        let diags = compute_section_level_diagnostics(parsed.document());
         assert!(
             diags.is_empty(),
             "going up should produce no warnings, got: {diags:?}"
@@ -354,8 +378,8 @@ mod tests {
     #[test]
     fn test_section_level_large_skip() -> Result<(), Box<dyn std::error::Error>> {
         // First section is ==== (level 3), skipping levels 1 and 2
-        let doc = parse_doc("= Title\n\n==== Big Skip\n")?;
-        let diags = compute_section_level_diagnostics(&doc);
+        let parsed = parse_doc("= Title\n\n==== Big Skip\n")?;
+        let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let d = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
@@ -374,8 +398,8 @@ mod tests {
 
     #[test]
     fn test_section_level_jump_down_one_ok() -> Result<(), Box<dyn std::error::Error>> {
-        let doc = parse_doc("= Title\n\n== Chapter\n\n=== Section\n")?;
-        let diags = compute_section_level_diagnostics(&doc);
+        let parsed = parse_doc("= Title\n\n== Chapter\n\n=== Section\n")?;
+        let diags = compute_section_level_diagnostics(parsed.document());
         assert!(
             diags.is_empty(),
             "increment by 1 should be fine, got: {diags:?}"
@@ -488,7 +512,7 @@ mod tests {
     fn test_missing_image_produces_warning() -> Result<(), Box<dyn std::error::Error>> {
         let loc = Location::default();
         let media = vec![(
-            Source::Path(std::path::PathBuf::from("nonexistent.png")),
+            OwnedSource::Path(std::path::PathBuf::from("nonexistent.png")),
             loc,
         )];
         let tmp = std::env::temp_dir().join("acdc_test_missing_img");
@@ -511,7 +535,10 @@ mod tests {
         std::fs::create_dir_all(&tmp)?;
         std::fs::write(tmp.join("photo.png"), b"fake")?;
 
-        let media = vec![(Source::Path(std::path::PathBuf::from("photo.png")), loc)];
+        let media = vec![(
+            OwnedSource::Path(std::path::PathBuf::from("photo.png")),
+            loc,
+        )];
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
         assert!(diags.is_empty());
 
@@ -520,21 +547,22 @@ mod tests {
     }
 
     #[test]
-    fn test_url_source_skipped() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_url_source_skipped() {
         let loc = Location::default();
-        let url = acdc_parser::SourceUrl::new("https://example.com/img.png")?;
-        let media = vec![(Source::Url(url), loc)];
+        let media = vec![(
+            OwnedSource::Url("https://example.com/img.png".to_string()),
+            loc,
+        )];
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
         assert!(diags.is_empty());
-        Ok(())
     }
 
     #[test]
     fn test_name_source_skipped() {
         let loc = Location::default();
-        let media = vec![(Source::Name("heart".to_string()), loc)];
+        let media = vec![(OwnedSource::Name("heart".to_string()), loc)];
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
@@ -579,7 +607,10 @@ mod tests {
         std::fs::create_dir_all(tmp.join("images"))?;
         std::fs::write(tmp.join("images/photo.png"), b"fake")?;
 
-        let media = vec![(Source::Path(std::path::PathBuf::from("photo.png")), loc)];
+        let media = vec![(
+            OwnedSource::Path(std::path::PathBuf::from("photo.png")),
+            loc,
+        )];
 
         // Without imagesdir: should warn (file not in root)
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
@@ -601,7 +632,7 @@ mod tests {
         std::fs::write(tmp.join("absolute.png"), b"fake")?;
 
         let abs_path = tmp.join("absolute.png");
-        let media = vec![(Source::Path(abs_path), loc)];
+        let media = vec![(OwnedSource::Path(abs_path), loc)];
 
         // imagesdir should be ignored for absolute paths
         let diags = compute_link_diagnostics(&media, &[], &tmp, Some("other"));

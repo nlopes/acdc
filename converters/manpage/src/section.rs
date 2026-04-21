@@ -13,70 +13,69 @@ use crate::{
     escape::{escape_quoted, uppercase_title},
 };
 
-/// Visit a section and its content.
-pub(crate) fn visit_section<W: Write>(
-    section: &Section,
-    visitor: &mut ManpageVisitor<W>,
-) -> Result<(), Error> {
-    let title_text = extract_plain_text(&section.title);
+impl<W: Write> ManpageVisitor<'_, W> {
+    /// Visit a section and its content.
+    pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
+        let title_text = extract_plain_text(&section.title);
 
-    // Track level-1 section titles for convention validation
-    if section.level == 1 {
-        visitor.record_section_title(&title_text);
+        // Track level-1 section titles for convention validation
+        if section.level == 1 {
+            self.record_section_title(&title_text);
+        }
+
+        // Check if this is the NAME section (which has special formatting rules)
+        let is_name_section = title_text.eq_ignore_ascii_case("name");
+
+        // In embedded mode, skip the NAME section entirely (matches asciidoctor --embedded)
+        if self.processor.options.embedded() && is_name_section {
+            return Ok(());
+        }
+
+        // Level 1 sections use .SH, level 2+ use .SS
+        // Manpage convention: uppercase section titles for level 1
+        let w = self.writer_mut();
+
+        if section.level == 1 {
+            // Main section - .SH with uppercase title
+            writeln!(
+                w,
+                ".SH \"{}\"",
+                escape_quoted(&uppercase_title(&title_text))
+            )?;
+        } else if section.level <= 2 {
+            // Subsection - .SS (preserve original case, matching asciidoctor)
+            writeln!(w, ".SS \"{}\"", escape_quoted(&title_text))?;
+        } else {
+            // Levels 3+ - no roff section macro exists; render as bold paragraph heading
+            writeln!(w, ".sp")?;
+            write!(w, "\\fB")?;
+            self.visit_inline_nodes(&section.title)?;
+            let w = self.writer_mut();
+            writeln!(w, "\\fP")?;
+        }
+
+        // Set NAME section flag for content rendering
+        if is_name_section {
+            self.in_name_section = true;
+        }
+
+        // Visit section content
+        for block in &section.content.clone() {
+            self.visit_block(block)?;
+        }
+
+        // Reset NAME section flag
+        if is_name_section {
+            self.in_name_section = false;
+        }
+
+        Ok(())
     }
-
-    // Check if this is the NAME section (which has special formatting rules)
-    let is_name_section = title_text.eq_ignore_ascii_case("name");
-
-    // In embedded mode, skip the NAME section entirely (matches asciidoctor --embedded)
-    if visitor.processor.options.embedded() && is_name_section {
-        return Ok(());
-    }
-
-    // Level 1 sections use .SH, level 2+ use .SS
-    // Manpage convention: uppercase section titles for level 1
-    let w = visitor.writer_mut();
-
-    if section.level == 1 {
-        // Main section - .SH with uppercase title
-        writeln!(
-            w,
-            ".SH \"{}\"",
-            escape_quoted(&uppercase_title(&title_text))
-        )?;
-    } else if section.level <= 2 {
-        // Subsection - .SS (preserve original case, matching asciidoctor)
-        writeln!(w, ".SS \"{}\"", escape_quoted(&title_text))?;
-    } else {
-        // Levels 3+ - no roff section macro exists; render as bold paragraph heading
-        writeln!(w, ".sp")?;
-        write!(w, "\\fB")?;
-        visitor.visit_inline_nodes(&section.title)?;
-        let w = visitor.writer_mut();
-        writeln!(w, "\\fP")?;
-    }
-
-    // Set NAME section flag for content rendering
-    if is_name_section {
-        visitor.in_name_section = true;
-    }
-
-    // Visit section content
-    for block in &section.content {
-        visitor.visit_block(block)?;
-    }
-
-    // Reset NAME section flag
-    if is_name_section {
-        visitor.in_name_section = false;
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::escape::uppercase_title;
 
     #[test]
     fn test_uppercase_section() {

@@ -50,9 +50,9 @@ proptest! {
     #[test]
     fn all_locations_in_bounds(input in ascii_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             let input_len = input.len();
-            walk_document_locations(&doc, &mut |loc, ctx| {
+            walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
                     loc.absolute_start <= input_len,
                     "{ctx} location start {} exceeds input length {input_len}",
@@ -79,11 +79,12 @@ proptest! {
     fn byte_offsets_utf8_safe(input in unicode_stress_test()) {
         let options = Options::default();
         // Preprocess the input first to get the actual string the parser works on
-        if let Ok(result) = crate::Preprocessor.process(&input, &options) {
+        if let Ok(result) = crate::Preprocessor::process(&input, &options, std::rc::Rc::default()) {
             // Parse the preprocessed input
-            let mut state = crate::grammar::ParserState::new(&result.text);
-            state.document_attributes = options.document_attributes.clone();
-            state.options = options.clone();
+            let arena = bumpalo::Bump::new();
+            let mut state = crate::grammar::ParserState::new(&result.text, &arena);
+            state.document_attributes = std::rc::Rc::new(options.document_attributes.clone());
+            state.options = std::rc::Rc::new(options.clone());
             state.leveloffset_ranges = result.leveloffset_ranges;
             if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
                 let text = &result.text;
@@ -112,7 +113,7 @@ proptest! {
     #[test]
     fn positions_are_monotonic(input in structured_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             verify_monotonic_positions("Block", &doc.blocks);
         }
     }
@@ -126,9 +127,9 @@ proptest! {
     #[test]
     fn table_locations_in_bounds(input in table_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             let input_len = input.len();
-            walk_document_locations(&doc, &mut |loc, ctx| {
+            walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
                     loc.absolute_start <= input_len,
                     "{ctx} location start {} exceeds input length {input_len}",
@@ -165,7 +166,7 @@ proptest! {
     #[test]
     fn description_list_positions_monotonic(input in description_list_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             verify_monotonic_positions("DescriptionList", &doc.blocks);
         }
     }
@@ -175,7 +176,7 @@ proptest! {
     #[test]
     fn rich_document_positions_monotonic(input in rich_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             verify_monotonic_positions("RichDocument", &doc.blocks);
         }
     }
@@ -185,9 +186,9 @@ proptest! {
     #[test]
     fn nested_list_locations_in_bounds(input in nested_list_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             let input_len = input.len();
-            walk_document_locations(&doc, &mut |loc, ctx| {
+            walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
                     loc.absolute_start <= input_len,
                     "{ctx} location start {} exceeds input length {input_len}",
@@ -207,7 +208,7 @@ proptest! {
     #[test]
     fn delimited_block_positions_monotonic(input in delimited_block_document()) {
         let options = Options::default();
-        if let Ok(doc) = parse(&input, &options) {
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
             verify_monotonic_positions("DelimitedBlock", &doc.blocks);
         }
     }

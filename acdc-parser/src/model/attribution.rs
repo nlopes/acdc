@@ -15,9 +15,9 @@ use super::inlines::InlineNode;
 /// Serializes as a plain JSON array of inline nodes.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
-pub struct Attribution(Vec<InlineNode>);
+pub struct Attribution<'a>(Vec<InlineNode<'a>>);
 
-impl Serialize for Attribution {
+impl Serialize for Attribution<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -26,10 +26,10 @@ impl Serialize for Attribution {
     }
 }
 
-impl Attribution {
+impl<'a> Attribution<'a> {
     /// Creates a new `Attribution` with the given inline content.
     #[must_use]
-    pub fn new(inlines: Vec<InlineNode>) -> Self {
+    pub fn new(inlines: Vec<InlineNode<'a>>) -> Self {
         Self(inlines)
     }
 
@@ -46,29 +46,29 @@ impl Attribution {
     }
 }
 
-impl From<Vec<InlineNode>> for Attribution {
-    fn from(inlines: Vec<InlineNode>) -> Self {
+impl<'a> From<Vec<InlineNode<'a>>> for Attribution<'a> {
+    fn from(inlines: Vec<InlineNode<'a>>) -> Self {
         Self(inlines)
     }
 }
 
-impl AsRef<[InlineNode]> for Attribution {
-    fn as_ref(&self) -> &[InlineNode] {
+impl<'a> AsRef<[InlineNode<'a>]> for Attribution<'a> {
+    fn as_ref(&self) -> &[InlineNode<'a>] {
         &self.0
     }
 }
 
-impl Deref for Attribution {
-    type Target = [InlineNode];
+impl<'a> Deref for Attribution<'a> {
+    type Target = [InlineNode<'a>];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> IntoIterator for &'a Attribution {
-    type Item = &'a InlineNode;
-    type IntoIter = std::slice::Iter<'a, InlineNode>;
+impl<'a, 'b> IntoIterator for &'b Attribution<'a> {
+    type Item = &'b InlineNode<'a>;
+    type IntoIter = std::slice::Iter<'b, InlineNode<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -85,9 +85,9 @@ impl<'a> IntoIterator for &'a Attribution {
 /// Serializes as a plain JSON array of inline nodes.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
-pub struct CiteTitle(Vec<InlineNode>);
+pub struct CiteTitle<'a>(Vec<InlineNode<'a>>);
 
-impl Serialize for CiteTitle {
+impl Serialize for CiteTitle<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -96,10 +96,10 @@ impl Serialize for CiteTitle {
     }
 }
 
-impl CiteTitle {
+impl<'a> CiteTitle<'a> {
     /// Creates a new `CiteTitle` with the given inline content.
     #[must_use]
-    pub fn new(inlines: Vec<InlineNode>) -> Self {
+    pub fn new(inlines: Vec<InlineNode<'a>>) -> Self {
         Self(inlines)
     }
 
@@ -116,29 +116,29 @@ impl CiteTitle {
     }
 }
 
-impl From<Vec<InlineNode>> for CiteTitle {
-    fn from(inlines: Vec<InlineNode>) -> Self {
+impl<'a> From<Vec<InlineNode<'a>>> for CiteTitle<'a> {
+    fn from(inlines: Vec<InlineNode<'a>>) -> Self {
         Self(inlines)
     }
 }
 
-impl AsRef<[InlineNode]> for CiteTitle {
-    fn as_ref(&self) -> &[InlineNode] {
+impl<'a> AsRef<[InlineNode<'a>]> for CiteTitle<'a> {
+    fn as_ref(&self) -> &[InlineNode<'a>] {
         &self.0
     }
 }
 
-impl Deref for CiteTitle {
-    type Target = [InlineNode];
+impl<'a> Deref for CiteTitle<'a> {
+    type Target = [InlineNode<'a>];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a> IntoIterator for &'a CiteTitle {
-    type Item = &'a InlineNode;
-    type IntoIter = std::slice::Iter<'a, InlineNode>;
+impl<'a, 'b> IntoIterator for &'b CiteTitle<'a> {
+    type Item = &'b InlineNode<'a>;
+    type IntoIter = std::slice::Iter<'b, InlineNode<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

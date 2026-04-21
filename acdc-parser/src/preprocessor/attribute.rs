@@ -28,13 +28,13 @@ pub(crate) fn parse_line(attributes: &mut DocumentAttributes, line: &str) {
     match attribute_parser::document_attribute(line) {
         Ok((unset, name, value)) => {
             if unset {
-                attributes.insert(name, AttributeValue::Bool(false));
+                attributes.insert(name.into(), AttributeValue::Bool(false));
             } else {
                 let value = match value {
-                    Some(v) => substitute(&v, HEADER, attributes),
+                    Some(v) => substitute(&v, HEADER, attributes).into_owned(),
                     None => String::new(),
                 };
-                attributes.insert(name, AttributeValue::String(value));
+                attributes.insert(name.into(), AttributeValue::String(value.into()));
             }
         }
         Err(e) => {
@@ -70,7 +70,7 @@ mod tests {
         parse_line(&mut attributes, ":name:");
         assert_eq!(
             attributes.get("name"),
-            Some(&AttributeValue::String(String::new()))
+            Some(&AttributeValue::String(std::borrow::Cow::Borrowed("")))
         );
     }
 

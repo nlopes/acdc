@@ -7,23 +7,30 @@ use std::{
 
 use acdc_converters_core::{
     Backend, Converter, Options, decode_numeric_char_refs,
-    section::{AppendixTracker, PartNumberTracker, SectionNumberTracker},
+    section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
     visitor::Visitor,
 };
-use acdc_parser::{
-    Block, Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, TocEntry,
-};
+use acdc_parser::{Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, TocEntry};
 
 pub(crate) use appearance::Appearance;
 
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 pub(crate) const MAX_TERMINAL_WIDTH: usize = 120;
 
+/// Leak a `&str` into a `&'static str`.
+///
+/// Used when caching index term data beyond the parser's arena lifetime.
+/// Leaks are bounded by the number of index entries encountered during a
+/// single document conversion; acceptable for a short-lived converter run.
+fn leak_str(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
+}
+
 #[derive(Clone, Debug)]
-pub struct Processor {
+pub struct Processor<'a> {
     pub(crate) options: Options,
-    pub(crate) document_attributes: DocumentAttributes,
-    pub(crate) toc_entries: Vec<TocEntry>,
+    pub(crate) document_attributes: DocumentAttributes<'a>,
+    pub(crate) toc_entries: Vec<TocEntry<'a>>,
     /// Shared counter for auto-numbering example blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     pub(crate) example_counter: Rc<Cell<usize>>,
@@ -38,24 +45,28 @@ pub struct Processor {
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
     pub(crate) terminal_width: usize,
     /// Collected index term kinds for rendering in the index catalog.
-    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermKind>>>,
+    ///
+    /// Stored as `'static` because entries are collected during visitor
+    /// traversal where the `Visitor` trait erases lifetimes, preventing
+    /// propagation of `'a` through the call chain.
+    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermKind<'static>>>>,
     /// Whether the document has a valid `[index]` section (last section).
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
     pub(crate) list_indent: Rc<Cell<usize>>,
 }
 
-impl Converter for Processor {
+impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn document_attributes_defaults() -> DocumentAttributes {
+    fn document_attributes_defaults() -> DocumentAttributes<'static> {
         // Terminal converter uses environment detection (Appearance::detect())
         // rather than document attributes for its configuration.
         // No terminal-specific attribute defaults needed.
         DocumentAttributes::default()
     }
 
-    fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
         let mut document_attributes = document_attributes;
         for (name, value) in Self::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
@@ -92,18 +103,22 @@ impl Converter for Processor {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes {
+    fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
     }
 
-    fn derive_output_path(&self, _input: &Path, _doc: &Document) -> Result<Option<PathBuf>, Error> {
+    fn derive_output_path(
+        &self,
+        _input: &Path,
+        _doc: &Document<'a>,
+    ) -> Result<Option<PathBuf>, Error> {
         // Terminal converter always outputs to stdout by default
         Ok(None)
     }
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document,
+        doc: &Document<'a>,
         writer: W,
         _source_file: Option<&Path>,
     ) -> Result<(), Self::Error> {
@@ -124,7 +139,7 @@ impl Converter for Processor {
             appendix_tracker,
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: Self::last_section_is_index(&doc.blocks),
+            has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             list_indent: Rc::new(Cell::new(0)),
         };
         let mut visitor = TerminalVisitor::new(writer, processor);
@@ -137,7 +152,7 @@ impl Converter for Processor {
     }
 }
 
-impl Processor {
+impl Processor<'_> {
     /// Override the detected terminal width.
     ///
     /// Useful for tests and fixture generation where a deterministic width is needed.
@@ -154,33 +169,27 @@ impl Processor {
     }
 
     /// Collect an index term entry for later rendering in the index catalog.
-    pub(crate) fn add_index_entry(&self, kind: IndexTermKind) {
-        self.index_entries.borrow_mut().push(kind);
+    pub(crate) fn add_index_entry(&self, kind: &IndexTermKind<'_>) {
+        let owned: IndexTermKind<'static> = match kind {
+            IndexTermKind::Flow(t) => IndexTermKind::Flow(leak_str(t)),
+            IndexTermKind::Concealed {
+                term,
+                secondary,
+                tertiary,
+            } => IndexTermKind::Concealed {
+                term: leak_str(term),
+                secondary: secondary.map(leak_str),
+                tertiary: tertiary.map(leak_str),
+            },
+            _ => return,
+        };
+        self.index_entries.borrow_mut().push(owned);
     }
 
     /// Check if the document has a valid index section (last section with `[index]` style).
     #[must_use]
     pub(crate) fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
-    }
-
-    /// Check if the last section in the document has the `[index]` style.
-    fn last_section_is_index(blocks: &[Block]) -> bool {
-        let last_section = blocks.iter().rev().find_map(|block| {
-            if let Block::Section(section) = block {
-                Some(section)
-            } else {
-                None
-            }
-        });
-
-        last_section.is_some_and(|section| {
-            section
-                .metadata
-                .style
-                .as_ref()
-                .is_some_and(|s| s == "index")
-        })
     }
 }
 
@@ -192,7 +201,7 @@ pub(crate) fn extract_inline_text(nodes: &[InlineNode], line_break: &str) -> Str
     nodes
         .iter()
         .map(|node| match node {
-            InlineNode::PlainText(p) => p.content.clone(),
+            InlineNode::PlainText(p) => p.content.to_string(),
             InlineNode::BoldText(b) => extract_inline_text(&b.content, line_break),
             InlineNode::ItalicText(i) => extract_inline_text(&i.content, line_break),
             InlineNode::MonospaceText(m) => extract_inline_text(&m.content, line_break),
@@ -201,8 +210,8 @@ pub(crate) fn extract_inline_text(nodes: &[InlineNode], line_break: &str) -> Str
             InlineNode::SubscriptText(s) => extract_inline_text(&s.content, line_break),
             InlineNode::CurvedQuotationText(c) => extract_inline_text(&c.content, line_break),
             InlineNode::CurvedApostropheText(c) => extract_inline_text(&c.content, line_break),
-            InlineNode::VerbatimText(v) => v.content.clone(),
-            InlineNode::RawText(r) => decode_numeric_char_refs(&r.content).into_owned(),
+            InlineNode::VerbatimText(v) => v.content.to_string(),
+            InlineNode::RawText(r) => decode_numeric_char_refs(r.content).into_owned(),
             InlineNode::StandaloneCurvedApostrophe(_) => "\u{2019}".to_string(),
             InlineNode::LineBreak(_) => line_break.to_string(),
             InlineNode::CalloutRef(c) => format!("<{}>", c.number),
@@ -217,14 +226,21 @@ pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
     match m {
         InlineMacro::Image(img) => img.source.to_string(),
         InlineMacro::Icon(icon) => icon.target.to_string(),
-        InlineMacro::Keyboard(kbd) => kbd.keys.join("+"),
-        InlineMacro::Button(b) => b.label.clone(),
+        InlineMacro::Keyboard(kbd) => kbd
+            .keys
+            .iter()
+            .map(std::convert::AsRef::as_ref)
+            .collect::<Vec<&str>>()
+            .join("+"),
+        InlineMacro::Button(b) => b.label.to_string(),
         InlineMacro::Menu(menu) => {
-            let mut parts = vec![menu.target.clone()];
-            parts.extend(menu.items.iter().cloned());
+            let mut parts: Vec<String> = vec![menu.target.to_string()];
+            parts.extend(menu.items.iter().map(|i| (*i).to_string()));
             parts.join(" > ")
         }
-        InlineMacro::Link(l) => l.text.clone().unwrap_or_else(|| l.target.to_string()),
+        InlineMacro::Link(l) => l
+            .text
+            .map_or_else(|| l.target.to_string(), ToString::to_string),
         InlineMacro::Url(u) => {
             let text = extract_inline_text(&u.text, line_break);
             if text.is_empty() {
@@ -245,16 +261,16 @@ pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
         InlineMacro::CrossReference(x) => {
             let text = extract_inline_text(&x.text, line_break);
             if text.is_empty() {
-                x.target.clone()
+                x.target.to_string()
             } else {
                 text
             }
         }
         InlineMacro::Footnote(f) => format!("[{}]", f.number),
-        InlineMacro::Pass(p) => p.text.clone().unwrap_or_default(),
-        InlineMacro::Stem(s) => s.content.clone(),
+        InlineMacro::Pass(p) => p.text.map(ToString::to_string).unwrap_or_default(),
+        InlineMacro::Stem(s) => s.content.to_string(),
         InlineMacro::IndexTerm(it) => match &it.kind {
-            IndexTermKind::Flow(term) => term.clone(),
+            IndexTermKind::Flow(term) => (*term).to_string(),
             IndexTermKind::Concealed { .. } | _ => String::new(),
         },
         _ => String::new(),

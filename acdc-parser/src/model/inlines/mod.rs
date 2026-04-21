@@ -19,30 +19,30 @@ use crate::{Anchor, Image, Location, model::Locateable};
 /// nodes and are only valid within a paragraph (a leaf).
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
-pub enum InlineNode {
+pub enum InlineNode<'a> {
     // This is just "normal" text
-    PlainText(Plain),
+    PlainText(Plain<'a>),
     // This is raw text only found in Delimited Pass blocks
-    RawText(Raw),
+    RawText(Raw<'a>),
     // This is verbatim text found in Delimited Literal and Listing blocks
-    VerbatimText(Verbatim),
-    BoldText(Bold),
-    ItalicText(Italic),
-    MonospaceText(Monospace),
-    HighlightText(Highlight),
-    SubscriptText(Subscript),
-    SuperscriptText(Superscript),
-    CurvedQuotationText(CurvedQuotation),
-    CurvedApostropheText(CurvedApostrophe),
+    VerbatimText(Verbatim<'a>),
+    BoldText(Bold<'a>),
+    ItalicText(Italic<'a>),
+    MonospaceText(Monospace<'a>),
+    HighlightText(Highlight<'a>),
+    SubscriptText(Subscript<'a>),
+    SuperscriptText(Superscript<'a>),
+    CurvedQuotationText(CurvedQuotation<'a>),
+    CurvedApostropheText(CurvedApostrophe<'a>),
     StandaloneCurvedApostrophe(StandaloneCurvedApostrophe),
     LineBreak(LineBreak),
-    InlineAnchor(Anchor),
-    Macro(InlineMacro),
+    InlineAnchor(Anchor<'a>),
+    Macro(InlineMacro<'a>),
     /// Callout reference marker in verbatim content: `<1>`, `<.>`, etc.
     CalloutRef(CalloutRef),
 }
 
-impl InlineNode {
+impl InlineNode<'_> {
     /// Returns the source location of this inline node.
     #[must_use]
     pub fn location(&self) -> &Location {
@@ -50,7 +50,7 @@ impl InlineNode {
     }
 }
 
-impl Locateable for InlineNode {
+impl Locateable for InlineNode<'_> {
     fn location(&self) -> &Location {
         match self {
             InlineNode::PlainText(t) => &t.location,
@@ -72,15 +72,8 @@ impl Locateable for InlineNode {
         }
     }
 }
-impl InlineMacro {
-    /// Returns the source location of this inline macro.
-    #[must_use]
-    pub fn location(&self) -> &Location {
-        <Self as Locateable>::location(self)
-    }
-}
 
-impl Locateable for InlineMacro {
+impl Locateable for InlineMacro<'_> {
     fn location(&self) -> &Location {
         match self {
             Self::Footnote(f) => &f.location,
@@ -133,42 +126,50 @@ impl Locateable for InlineMacro {
 ///     match node {
 ///         InlineNode::Macro(InlineMacro::Link(link)) => Some(link.target.to_string()),
 ///         InlineNode::Macro(InlineMacro::Url(url)) => Some(url.target.to_string()),
-///         InlineNode::Macro(InlineMacro::CrossReference(xref)) => Some(xref.target.clone()),
+///         InlineNode::Macro(InlineMacro::CrossReference(xref)) => Some(xref.target.to_string()),
 ///         _ => None,
 ///     }
 /// }
 /// ```
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum InlineMacro {
+pub enum InlineMacro<'a> {
     /// Footnote reference: `footnote:[content]` or `footnote:id[content]`
-    Footnote(Footnote),
+    Footnote(Footnote<'a>),
     /// Icon macro: `icon:name[attributes]`
-    Icon(Icon),
+    Icon(Icon<'a>),
     /// Inline image: `image:path[alt,width,height]`
-    Image(Box<Image>),
+    Image(Box<Image<'a>>),
     /// Keyboard shortcut: `kbd:[Ctrl+C]`
-    Keyboard(Keyboard),
+    Keyboard(Keyboard<'a>),
     /// UI button: `btn:[Label]`
-    Button(Button),
+    Button(Button<'a>),
     /// Menu path: `menu:TopLevel[Item > Subitem]`
-    Menu(Menu),
+    Menu(Menu<'a>),
     /// URL with optional text: parsed from `link:` macro or bare URLs
-    Url(Url),
+    Url(Url<'a>),
     /// Explicit link macro: `link:target[text]`
-    Link(Link),
+    Link(Link<'a>),
     /// Email link: `mailto:address[text]`
-    Mailto(Mailto),
+    Mailto(Mailto<'a>),
     /// Auto-detected URL: `<\https://example.com>`
-    Autolink(Autolink),
+    Autolink(Autolink<'a>),
     /// Cross-reference: `<<id,text>>` or `xref:id[text]`
-    CrossReference(CrossReference),
+    CrossReference(CrossReference<'a>),
     /// Inline passthrough: `pass:[content]` - not serialized to ASG
-    Pass(Pass),
+    Pass(Pass<'a>),
     /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
-    Stem(Stem),
+    Stem(Stem<'a>),
     /// Index term: `((term))` (visible) or `(((term)))` (hidden)
-    IndexTerm(IndexTerm),
+    IndexTerm(IndexTerm<'a>),
+}
+
+impl InlineMacro<'_> {
+    /// Returns the source location of this inline macro.
+    #[must_use]
+    pub fn location(&self) -> &Location {
+        <Self as Locateable>::location(self)
+    }
 }
 
 /// Macro to serialize inline format types (Bold, Italic, Monospace, etc.)
@@ -190,7 +191,7 @@ macro_rules! serialize_inline_format {
     }};
 }
 
-impl Serialize for InlineNode {
+impl Serialize for InlineNode<'_> {
     #[allow(clippy::too_many_lines)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -278,7 +279,7 @@ impl Serialize for InlineNode {
 }
 
 fn serialize_inline_macro<S>(
-    macro_node: &InlineMacro,
+    macro_node: &InlineMacro<'_>,
     map: &mut S::SerializeMap,
 ) -> Result<(), S::Error>
 where
@@ -304,7 +305,7 @@ where
     }
 }
 
-fn serialize_footnote<S>(f: &Footnote, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_footnote<S>(f: &Footnote<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -315,7 +316,7 @@ where
     map.serialize_entry("location", &f.location)
 }
 
-fn serialize_icon<S>(i: &Icon, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_icon<S>(i: &Icon<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -328,7 +329,7 @@ where
     map.serialize_entry("location", &i.location)
 }
 
-fn serialize_image<S>(i: &Image, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_image<S>(i: &Image<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -339,7 +340,7 @@ where
     map.serialize_entry("location", &i.location)
 }
 
-fn serialize_keyboard<S>(k: &Keyboard, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_keyboard<S>(k: &Keyboard<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -349,7 +350,7 @@ where
     map.serialize_entry("location", &k.location)
 }
 
-fn serialize_button<S>(b: &Button, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_button<S>(b: &Button<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -359,7 +360,7 @@ where
     map.serialize_entry("location", &b.location)
 }
 
-fn serialize_menu<S>(m: &Menu, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_menu<S>(m: &Menu<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -372,7 +373,7 @@ where
     map.serialize_entry("location", &m.location)
 }
 
-fn serialize_url<S>(u: &Url, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_url<S>(u: &Url<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -384,7 +385,7 @@ where
     map.serialize_entry("attributes", &u.attributes)
 }
 
-fn serialize_mailto<S>(m: &Mailto, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_mailto<S>(m: &Mailto<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -396,7 +397,7 @@ where
     map.serialize_entry("attributes", &m.attributes)
 }
 
-fn serialize_link<S>(l: &Link, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_link<S>(l: &Link<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -408,7 +409,7 @@ where
     map.serialize_entry("attributes", &l.attributes)
 }
 
-fn serialize_autolink<S>(a: &Autolink, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_autolink<S>(a: &Autolink<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -419,7 +420,7 @@ where
     map.serialize_entry("location", &a.location)
 }
 
-fn serialize_xref<S>(x: &CrossReference, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_xref<S>(x: &CrossReference<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -432,7 +433,7 @@ where
     map.serialize_entry("location", &x.location)
 }
 
-fn serialize_stem<S>(s: &Stem, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_stem<S>(s: &Stem<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -443,7 +444,7 @@ where
     map.serialize_entry("location", &s.location)
 }
 
-fn serialize_indexterm<S>(i: &IndexTerm, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_indexterm<S>(i: &IndexTerm<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {

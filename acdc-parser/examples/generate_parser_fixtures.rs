@@ -27,8 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let options = acdc_parser::Options::default();
         match acdc_parser::parse_file(&path, &options) {
-            Ok(doc) => {
-                let json = serde_json::to_string_pretty(&doc)?;
+            Ok(parsed) => {
+                let json = serde_json::to_string_pretty(parsed.document())?;
                 std::fs::write(&json_path, json)?;
                 println!(
                     "{} Generated {}",

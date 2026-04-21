@@ -4,12 +4,12 @@
 //! Terms are organized alphabetically by first letter, with hierarchical
 //! nesting for secondary and tertiary terms.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, io::Write};
 
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{IndexTermKind, Section};
 
-use crate::{Error, IndexTermEntry, Processor};
+use crate::{Error, HtmlVisitor, IndexTermEntry};
 
 /// Represents a single index entry with all its occurrences.
 #[derive(Debug, Default)]
@@ -37,7 +37,7 @@ fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<String, IndexEn
         match &entry.kind {
             IndexTermKind::Flow(term) => {
                 // Flow terms: primary only
-                let primary_entry = index.entry(term.clone()).or_default();
+                let primary_entry = index.entry(term.to_string()).or_default();
                 primary_entry.anchors.push(entry.anchor_id.clone());
             }
             IndexTermKind::Concealed {
@@ -45,7 +45,7 @@ fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<String, IndexEn
                 secondary,
                 tertiary,
             } => {
-                let primary_entry = index.entry(term.clone()).or_default();
+                let primary_entry = index.entry(term.to_string()).or_default();
 
                 match (secondary, tertiary) {
                     (None, None) => {
@@ -55,16 +55,16 @@ fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<String, IndexEn
                     (Some(sec), None) => {
                         // Primary + secondary
                         let secondary_entry =
-                            primary_entry.secondary.entry(sec.clone()).or_default();
+                            primary_entry.secondary.entry(sec.to_string()).or_default();
                         secondary_entry.anchors.push(entry.anchor_id.clone());
                     }
                     (Some(sec), Some(tert)) => {
                         // Primary + secondary + tertiary
                         let secondary_entry =
-                            primary_entry.secondary.entry(sec.clone()).or_default();
+                            primary_entry.secondary.entry(sec.to_string()).or_default();
                         secondary_entry
                             .tertiary
-                            .entry(tert.clone())
+                            .entry(tert.to_string())
                             .or_default()
                             .push(entry.anchor_id.clone());
                     }
@@ -117,11 +117,11 @@ fn render_links(anchors: &[String]) -> String {
 /// Render the index catalog for a section with `[index]` style.
 ///
 /// This generates nested definition lists organized alphabetically by first letter.
-pub(crate) fn render<V: WritableVisitor<Error = Error>>(
+pub(crate) fn render<W: Write>(
     _section: &Section,
-    visitor: &mut V,
-    processor: &Processor,
+    visitor: &mut HtmlVisitor<'_, W>,
 ) -> Result<(), Error> {
+    let processor = visitor.processor.clone();
     let entries = processor.index_entries().borrow();
 
     if entries.is_empty() {

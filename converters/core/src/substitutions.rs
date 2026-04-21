@@ -69,20 +69,32 @@ const ESCAPED_REGISTERED: &str = "\u{E000}REGISTERED\u{E000}";
 /// ```
 #[must_use]
 pub fn strip_backslash_escapes(text: &str) -> String {
-    // First, replace multi-character pattern escapes with placeholders.
-    // This protects them from typography substitutions.
-    let text = text
-        .replace("\\...", ESCAPED_ELLIPSIS)
-        .replace("\\->", ESCAPED_ARROW_RIGHT)
-        .replace("\\<-", ESCAPED_ARROW_LEFT)
-        .replace("\\=>", ESCAPED_DARROW_RIGHT)
-        .replace("\\<=", ESCAPED_DARROW_LEFT)
-        .replace("\\--", ESCAPED_EMDASH)
-        .replace("\\(TM)", ESCAPED_TRADEMARK)
-        .replace("\\(C)", ESCAPED_COPYRIGHT)
-        .replace("\\(R)", ESCAPED_REGISTERED);
+    // Fast path: nothing to do if there's no backslash in the text. This
+    // skips 9+ no-op `str::replace` calls (each of which would allocate a
+    // fresh `String` via copy) plus the char-by-char rebuild loop for the
+    // single-character escape pass. On prose-heavy documents this path
+    // fires for the overwhelming majority of text nodes.
+    if !text.contains('\\') {
+        return text.to_owned();
+    }
 
-    // Then handle single-character escapes
+    // Slow path: only rebuild strings for patterns that actually appear.
+    let mut text = std::borrow::Cow::Borrowed(text);
+    text = replace_if_present(text, "\\...", ESCAPED_ELLIPSIS);
+    text = replace_if_present(text, "\\->", ESCAPED_ARROW_RIGHT);
+    text = replace_if_present(text, "\\<-", ESCAPED_ARROW_LEFT);
+    text = replace_if_present(text, "\\=>", ESCAPED_DARROW_RIGHT);
+    text = replace_if_present(text, "\\<=", ESCAPED_DARROW_LEFT);
+    text = replace_if_present(text, "\\--", ESCAPED_EMDASH);
+    text = replace_if_present(text, "\\(TM)", ESCAPED_TRADEMARK);
+    text = replace_if_present(text, "\\(C)", ESCAPED_COPYRIGHT);
+    text = replace_if_present(text, "\\(R)", ESCAPED_REGISTERED);
+
+    // Then handle single-character escapes. Skip the char loop entirely if
+    // the only remaining backslashes are non-escapable — saves a rebuild.
+    if !text.contains('\\') {
+        return text.into_owned();
+    }
     let mut result = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
 
@@ -111,6 +123,22 @@ pub fn strip_backslash_escapes(text: &str) -> String {
     result
 }
 
+/// Replace `from` with `to` only if `from` actually occurs in `text`.
+/// Avoids the unconditional `String` allocation that `str::replace` does
+/// even on no-match inputs. Critical for hot-path text substitution where
+/// the overwhelming majority of inputs contain none of the triggers.
+fn replace_if_present<'a>(
+    text: std::borrow::Cow<'a, str>,
+    from: &str,
+    to: &str,
+) -> std::borrow::Cow<'a, str> {
+    if text.contains(from) {
+        std::borrow::Cow::Owned(text.replace(from, to))
+    } else {
+        text
+    }
+}
+
 /// Restore escaped patterns after typography substitutions are complete.
 ///
 /// This converts the placeholders created by [`strip_backslash_escapes`] back
@@ -130,15 +158,23 @@ pub fn strip_backslash_escapes(text: &str) -> String {
 /// ```
 #[must_use]
 pub fn restore_escaped_patterns(text: &str) -> String {
-    text.replace(ESCAPED_ELLIPSIS, "...")
-        .replace(ESCAPED_ARROW_RIGHT, "->")
-        .replace(ESCAPED_ARROW_LEFT, "<-")
-        .replace(ESCAPED_DARROW_RIGHT, "=>")
-        .replace(ESCAPED_DARROW_LEFT, "<=")
-        .replace(ESCAPED_EMDASH, "--")
-        .replace(ESCAPED_TRADEMARK, "(TM)")
-        .replace(ESCAPED_COPYRIGHT, "(C)")
-        .replace(ESCAPED_REGISTERED, "(R)")
+    // Fast path: all placeholders share the `\u{E000}` Private Use Area
+    // prefix. A single contains check skips the whole chain when there's
+    // nothing to restore — true for the vast majority of text nodes.
+    if !text.contains('\u{E000}') {
+        return text.to_owned();
+    }
+    let mut text = std::borrow::Cow::Borrowed(text);
+    text = replace_if_present(text, ESCAPED_ELLIPSIS, "...");
+    text = replace_if_present(text, ESCAPED_ARROW_RIGHT, "->");
+    text = replace_if_present(text, ESCAPED_ARROW_LEFT, "<-");
+    text = replace_if_present(text, ESCAPED_DARROW_RIGHT, "=>");
+    text = replace_if_present(text, ESCAPED_DARROW_LEFT, "<=");
+    text = replace_if_present(text, ESCAPED_EMDASH, "--");
+    text = replace_if_present(text, ESCAPED_TRADEMARK, "(TM)");
+    text = replace_if_present(text, ESCAPED_COPYRIGHT, "(C)");
+    text = replace_if_present(text, ESCAPED_REGISTERED, "(R)");
+    text.into_owned()
 }
 
 /// Typography replacements for `AsciiDoc` content.
@@ -244,6 +280,15 @@ impl Replacements<'_> {
     /// ```
     #[must_use]
     pub fn apply(&self, text: &str, string_boundaries_are_space: bool) -> String {
+        // Fast path: if none of the trigger bytes appear in the text, no
+        // substitution can possibly match. `replace_em_dashes` and
+        // `replace_apostrophes` still do char-by-char scans in their slow
+        // paths, so we check them too — a single byte scan is much cheaper
+        // than re-building the string several times.
+        if !needs_substitution(text) {
+            return text.to_owned();
+        }
+
         // 1. Em-dashes
         let text = replace_em_dashes(
             text,
@@ -252,25 +297,35 @@ impl Replacements<'_> {
             string_boundaries_are_space,
         );
 
-        // 2. Arrows (double arrows before single to avoid partial matches)
-        let text = text
-            .replace("=>", self.double_arrow_right)
-            .replace("<=", self.double_arrow_left)
-            .replace("->", self.arrow_right)
-            .replace("<-", self.arrow_left);
+        // 2-4. Arrows, symbols, ellipsis — only allocate when the pattern
+        // is actually present, avoiding 8 unconditional string copies for
+        // the common case of text that contains none of them.
+        let mut text = std::borrow::Cow::<str>::Owned(text);
+        text = replace_if_present(text, "=>", self.double_arrow_right);
+        text = replace_if_present(text, "<=", self.double_arrow_left);
+        text = replace_if_present(text, "->", self.arrow_right);
+        text = replace_if_present(text, "<-", self.arrow_left);
+        text = replace_if_present(text, "(C)", self.copyright);
+        text = replace_if_present(text, "(R)", self.registered);
+        text = replace_if_present(text, "(TM)", self.trademark);
+        text = replace_if_present(text, "...", self.ellipsis);
 
-        // 3. Symbols
-        let text = text
-            .replace("(C)", self.copyright)
-            .replace("(R)", self.registered)
-            .replace("(TM)", self.trademark);
-
-        // 4. Ellipsis
-        let text = text.replace("...", self.ellipsis);
-
-        // 5. Smart apostrophes
-        replace_apostrophes(&text, self.apostrophe)
+        // 5. Smart apostrophes (char-by-char rebuild; skip if no `'`).
+        if text.contains('\'') {
+            replace_apostrophes(&text, self.apostrophe)
+        } else {
+            text.into_owned()
+        }
     }
+}
+
+/// Cheap byte-level check for any character that could start a substitution
+/// trigger sequence. Used by `Replacements::apply` to skip the entire
+/// transform pipeline when the text contains nothing to rewrite.
+fn needs_substitution(text: &str) -> bool {
+    text.as_bytes()
+        .iter()
+        .any(|&b| matches!(b, b'-' | b'=' | b'(' | b'\'' | b'.'))
 }
 
 /// Replace em-dash patterns in text.

@@ -1,20 +1,37 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::borrow::Cow;
+use std::cell::{Cell, RefCell};
+use std::{collections::HashMap, path::PathBuf, rc::Rc};
+
+use bumpalo::Bump;
 
 use crate::{
     CalloutRef, DocumentAttributes, Footnote, Location, Options, Positioning, SourceLocation,
-    Title, TocEntry,
+    Title, TocEntry, Warning, WarningKind,
     grammar::LineMap,
     model::{LeveloffsetRange, SourceRange},
 };
 
 #[derive(Debug)]
-pub(crate) struct ParserState {
-    pub(crate) document_attributes: DocumentAttributes,
-    pub(crate) line_map: LineMap,
-    pub(crate) options: Options,
-    pub(crate) input: String,
-    pub(crate) footnote_tracker: FootnoteTracker,
-    pub(crate) toc_tracker: TocTracker,
+pub(crate) struct ParserState<'a> {
+    pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
+    pub(crate) line_map: Rc<LineMap>,
+    /// Parse options, shared via `Rc` so the per-inline-parse
+    /// `for_inline_parsing` sub-state is cheap to construct — the old
+    /// `Options` deep-clone (including its ~80-entry `DocumentAttributes`
+    /// default map) was a meaningful hot spot.
+    pub(crate) options: Rc<Options<'a>>,
+    /// The input being parsed. Borrowed from the caller's buffer so that
+    /// model nodes can hold `Cow::Borrowed` references into it without
+    /// allocating per-token strings.
+    pub(crate) input: &'a str,
+    /// Bump arena for transient strings that downstream inline parsing must
+    /// borrow from with lifetime `'a`. Used for substitution buffers, escape
+    /// unwrapping, and other grammar sites that historically built local
+    /// `String`s and then tried to hand them to the inline parser. Strings
+    /// are pushed via `arena.alloc_str(...)`, yielding `&'a str`.
+    pub(crate) arena: &'a Bump,
+    pub(crate) footnote_tracker: FootnoteTracker<'a>,
+    pub(crate) toc_tracker: TocTracker<'a>,
     pub(crate) last_block_was_verbatim: bool,
     /// Callout references found in the last verbatim block (for validation with callout lists)
     pub(crate) last_verbatim_callouts: Vec<CalloutRef>,
@@ -28,10 +45,16 @@ pub(crate) struct ParserState {
     /// Set by the preprocessor when processing `include::` directives.
     /// Used to produce accurate file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
-    /// Warnings collected during PEG parsing for post-parse emission.
-    /// PEG backtracking can cause the same warning to fire multiple times;
-    /// storing them here with deduplication and emitting after parsing avoids duplicates.
-    pub(crate) warnings: Vec<String>,
+    /// Warnings collected during PEG parsing. Shared across the top-level
+    /// state and any `for_inline_parsing` sub-states via `Rc`, so warnings
+    /// raised during nested inline parses (author lines, revision lines,
+    /// substituted inline content) reach the top-level `ParseResult`
+    /// alongside everything else. The outer `parse_input` / `parse_inline`
+    /// keeps a clone of this `Rc` and recovers the final `Vec<Warning>`
+    /// after the self-cell builder closure drops the `ParserState`.
+    /// Deduplicated on insertion because PEG backtracking can re-fire the
+    /// same warning multiple times.
+    pub(crate) warnings: Rc<RefCell<Vec<Warning>>>,
     /// When true, inline parsing uses a reduced rule set that only matches
     /// formatting markup (bold, italic, monospace, highlight, superscript,
     /// subscript, curved quotes) and plain text. Used by `parse_text_for_quotes`
@@ -42,22 +65,61 @@ pub(crate) struct ParserState {
     /// Used to correctly fail boundary checks when the outer delimiter is a
     /// word character (only `_` among the formatting delimiters).
     pub(crate) outer_constrained_delimiter: Option<u8>,
+    /// Context set before entering the PEG inline parser. These fields are
+    /// constant within a single `inlines()` call, allowing rules to be
+    /// argument-free and thus cacheable by the PEG packrat memoizer.
+    pub(crate) inline_ctx: InlineContext,
+    /// Memoised `@`-lookahead covering `[.., scanned_up_to)` with the first
+    /// `@` in that range, if any. Without the `scanned_up_to` field, a cached
+    /// "no `@`" result at offset X is indistinguishable from "`@` is at X"
+    /// and can trigger the expensive email rule the cache was meant to avoid.
+    pub(crate) next_at_sign_cache: Cell<Option<AtLookahead>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct AtLookahead {
+    pub(crate) scanned_up_to: usize,
+    pub(crate) first_at: Option<usize>,
+}
+
+/// Inline parsing context — constant within a single `inlines()` call.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct InlineContext {
+    /// Byte offset for location calculation in inline rules.
+    pub(crate) offset: usize,
+    /// Whether macro substitutions are enabled for the current block.
+    pub(crate) macros_enabled: bool,
+    /// Whether attribute substitutions are enabled for the current block.
+    pub(crate) attributes_enabled: bool,
+    /// Whether bare autolinks (URLs/emails without macro syntax) are matched.
+    pub(crate) allow_autolinks: bool,
+}
+
+impl Default for InlineContext {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            macros_enabled: true,
+            attributes_enabled: true,
+            allow_autolinks: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FootnoteTracker {
+pub(crate) struct FootnoteTracker<'a> {
     /// All registered footnotes in the order they were encountered.
-    pub(crate) footnotes: Vec<Footnote>,
+    pub(crate) footnotes: Vec<Footnote<'a>>,
     /// The last assigned footnote number (starts at 1)
     last_footnote_position: u32,
     /// Map of named footnote IDs to their assigned numbers
     ///
     /// This helps ensure that named footnotes are only assigned a number once and reused.
     /// If it's an anonymous footnote (no ID), it always gets a new number.
-    named_footnote_numbers: HashMap<String, u32>,
+    named_footnote_numbers: HashMap<&'a str, u32>,
 }
 
-impl FootnoteTracker {
+impl<'a> FootnoteTracker<'a> {
     pub(crate) fn new() -> Self {
         Self {
             footnotes: Vec::new(),
@@ -66,36 +128,35 @@ impl FootnoteTracker {
         }
     }
 
-    /// Register a footnote and assign it a number, but only if not already processed
+    /// Register a footnote and assign it a number. Named footnotes are
+    /// deduplicated: subsequent occurrences with the same id reuse the first
+    /// number and are not re-added to the list. Anonymous footnotes always
+    /// get a fresh number.
     #[tracing::instrument(skip_all, fields(?footnote))]
-    pub(crate) fn push(&mut self, footnote: &mut Footnote) {
-        if let Some(id) = &footnote.id {
-            if let Some(&existing_number) = self.named_footnote_numbers.get(id) {
-                footnote.number = existing_number;
-            } else {
-                let number = self.last_footnote_position;
-                self.named_footnote_numbers.insert(id.clone(), number);
-                footnote.number = number;
-                self.footnotes.push(footnote.clone());
-                self.last_footnote_position += 1;
-            }
-        } else {
-            // Anonymous footnote
-            let number = self.last_footnote_position;
-            footnote.number = number;
-            self.footnotes.push(footnote.clone());
-            self.last_footnote_position += 1;
+    pub(crate) fn push(&mut self, footnote: &mut Footnote<'a>) {
+        if let Some(id) = footnote.id
+            && let Some(&existing) = self.named_footnote_numbers.get(id)
+        {
+            footnote.number = existing;
+            return;
         }
+        footnote.number = self.last_footnote_position;
+        if let Some(id) = footnote.id {
+            self.named_footnote_numbers
+                .insert(id, self.last_footnote_position);
+        }
+        self.footnotes.push(footnote.clone());
+        self.last_footnote_position += 1;
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct TocTracker {
+pub(crate) struct TocTracker<'a> {
     /// All TOC entries collected during parsing, in document order
-    pub(crate) entries: Vec<TocEntry>,
+    pub(crate) entries: Vec<TocEntry<'a>>,
 }
 
-impl TocTracker {
+impl<'a> TocTracker<'a> {
     /// Register a section for inclusion in the TOC.
     ///
     /// The `numbered` parameter indicates whether this section should receive
@@ -103,12 +164,12 @@ impl TocTracker {
     /// `false` for special section styles like `[bibliography]`, `[glossary]`, etc.
     pub(crate) fn register_section(
         &mut self,
-        title: Title,
+        title: Title<'a>,
         level: u8,
-        id: String,
-        xreflabel: Option<String>,
+        id: &'a str,
+        xreflabel: Option<&'a str>,
         numbered: bool,
-        style: Option<String>,
+        style: Option<&'a str>,
     ) {
         self.entries.push(TocEntry {
             id,
@@ -121,16 +182,79 @@ impl TocTracker {
     }
 }
 
-impl ParserState {
-    pub(crate) fn new(input: &str) -> Self {
+impl<'a> ParserState<'a> {
+    /// Allocate `s` into the arena, returning a `&'a str` that lives for the
+    /// parse. Used by grammar rules that build a transient owned `String`
+    /// (attribute substitution, escape unwrapping, …) and need to hand the
+    /// result to the inline parser with the outer `'a` lifetime so that the
+    /// resulting `InlineNode`s can be returned.
+    pub(crate) fn intern_str(&self, s: &str) -> &'a str {
+        self.arena.alloc_str(s)
+    }
+
+    /// Promote a `Cow<'b, str>` to `&'a str`. `Owned` variants are interned
+    /// into the arena; `Borrowed` values pass through unchanged (no copy)
+    /// when their lifetime already outlives `'a`, which is the common case
+    /// for substitution results that borrowed from the grammar input.
+    pub(crate) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
+    where
+        'b: 'a,
+    {
+        match cow {
+            Cow::Borrowed(s) => s,
+            Cow::Owned(s) => self.arena.alloc_str(&s),
+        }
+    }
+
+    /// Format `args` directly into the arena, returning `&'a str`. Avoids the
+    /// heap-`String` + `alloc_str`-copy pair that `intern_str(&format!(...))`
+    /// forces: a single write into `bumpalo::collections::String`.
+    pub(crate) fn intern_fmt(&self, args: std::fmt::Arguments<'_>) -> &'a str {
+        use std::fmt::Write as _;
+        let mut s = bumpalo::collections::String::new_in(self.arena);
+        // `BumpString::write_fmt` is infallible; the `Err` arm is unreachable.
+        let _ = s.write_fmt(args);
+        s.into_bump_str()
+    }
+
+    /// Concatenate `parts` into the arena separated by `sep`, returning
+    /// `&'a str`. Avoids the heap-`String` `.join(...)` followed by an
+    /// `alloc_str` copy.
+    pub(crate) fn intern_join<I, S>(&self, parts: I, sep: &str) -> &'a str
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut s = bumpalo::collections::String::new_in(self.arena);
+        let mut first = true;
+        for p in parts {
+            if !first {
+                s.push_str(sep);
+            }
+            first = false;
+            s.push_str(p.as_ref());
+        }
+        s.into_bump_str()
+    }
+
+    /// Testing helper: constructs a `ParserState` backed by a leaked `Bump`.
+    /// One leak per call, bounded by the number of test cases executed —
+    /// acceptable because `cargo test` tears down the process afterwards.
+    /// Do **not** use from production code paths (use `new` with an explicit
+    /// arena owned by the caller instead).
+    #[cfg(test)]
+    pub(crate) fn new_for_test(input: &'a str) -> Self {
+        let arena: &'a Bump = Box::leak(Box::new(Bump::new()));
+        Self::new(input, arena)
+    }
+
+    pub(crate) fn new(input: &'a str, arena: &'a Bump) -> Self {
         Self {
-            options: Options::default(),
-            // Callers immediately overwrite this with the options-provided
-            // attributes (or keep it empty for `parse_text_for_quotes`-style
-            // transient parses), so skip building the ~57-entry default map.
-            document_attributes: DocumentAttributes::empty(),
-            line_map: LineMap::new(input),
-            input: input.to_string(),
+            options: Rc::new(Options::default()),
+            document_attributes: Rc::new(DocumentAttributes::default()),
+            line_map: Rc::new(LineMap::new(input)),
+            input,
+            arena,
             footnote_tracker: FootnoteTracker::new(),
             toc_tracker: TocTracker::default(),
             last_block_was_verbatim: false,
@@ -138,46 +262,68 @@ impl ParserState {
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
-            warnings: Vec::new(),
+            warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: false,
             outer_constrained_delimiter: None,
+            inline_ctx: InlineContext::default(),
+            next_at_sign_cache: Cell::new(None),
         }
     }
 
-    /// Resolve a byte offset in the combined preprocessed text to the correct
-    /// source file name and line number. For offsets within included content,
-    /// returns the included file's name and line; otherwise falls back to the
-    /// entry-point file.
-    pub(crate) fn resolve_source_location(&self, offset: usize) -> (String, usize) {
-        // Find the most specific (innermost/last) SourceRange containing this offset
-        if let Some(range) = self.source_ranges.iter().rev().find(|r| r.contains(offset)) {
-            let file_name = range
-                .file
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-                .to_string();
-            // Count newlines from range start to offset to get line within the included file
-            let line_in_file =
-                if offset >= range.start_offset && range.start_offset <= self.input.len() {
-                    let end = offset.min(self.input.len());
-                    let bytes_before = &self.input[range.start_offset..end];
-                    range.start_line + bytes_before.matches('\n').count()
-                } else {
-                    range.start_line
-                };
-            (file_name, line_in_file)
-        } else {
-            // Not from an include — use the entry-point file
-            let file_name = self
-                .current_file
-                .as_ref()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("input")
-                .to_string();
-            let pos = self.line_map.offset_to_position(offset, &self.input);
-            (file_name, pos.line)
+    /// Minimal constructor for quotes-only parsing where document attributes aren't needed.
+    pub(crate) fn new_quotes_only(input: &'a str, arena: &'a Bump) -> Self {
+        use std::sync::LazyLock;
+        // Cache empty options to avoid creating default DocumentAttributes (~80 HashMap
+        // entries) on every call. Quotes-only parsing doesn't use document attributes.
+        static EMPTY_OPTIONS: LazyLock<Options<'static>> = LazyLock::new(|| Options {
+            document_attributes: DocumentAttributes::empty(),
+            ..Options::default()
+        });
+        Self {
+            options: Rc::new(EMPTY_OPTIONS.clone()),
+            document_attributes: Rc::new(DocumentAttributes::empty()),
+            line_map: Rc::new(LineMap::new(input)),
+            input,
+            arena,
+            footnote_tracker: FootnoteTracker::new(),
+            toc_tracker: TocTracker::default(),
+            last_block_was_verbatim: false,
+            last_verbatim_callouts: Vec::new(),
+            current_file: None,
+            leveloffset_ranges: Vec::new(),
+            source_ranges: Vec::new(),
+            warnings: Rc::new(RefCell::new(Vec::new())),
+            quotes_only: true,
+            outer_constrained_delimiter: None,
+            inline_ctx: InlineContext::default(),
+            next_at_sign_cache: Cell::new(None),
+        }
+    }
+
+    /// Lightweight constructor for inline parsing that reuses parent state fields
+    /// instead of creating expensive defaults that get immediately overwritten.
+    pub(crate) fn for_inline_parsing(input: &'a str, parent: &ParserState<'a>) -> Self {
+        Self {
+            options: parent.options.clone(),
+            document_attributes: Rc::clone(&parent.document_attributes),
+            line_map: Rc::new(LineMap::new(input)),
+            input,
+            arena: parent.arena,
+            footnote_tracker: parent.footnote_tracker.clone(),
+            toc_tracker: TocTracker::default(),
+            last_block_was_verbatim: false,
+            last_verbatim_callouts: Vec::new(),
+            current_file: None,
+            leveloffset_ranges: Vec::new(),
+            source_ranges: Vec::new(),
+            // Share the parent's warnings vec so anything raised during a
+            // nested inline sub-parse reaches the top-level `ParseResult`
+            // without a separate drain step.
+            warnings: Rc::clone(&parent.warnings),
+            quotes_only: parent.quotes_only,
+            outer_constrained_delimiter: parent.outer_constrained_delimiter,
+            inline_ctx: parent.inline_ctx,
+            next_at_sign_cache: Cell::new(None),
         }
     }
 
@@ -190,23 +336,49 @@ impl ParserState {
         offset: usize,
     ) {
         if !trailing.trim().is_empty() {
-            let (file_name, line) = self.resolve_source_location(end + offset);
-            self.add_warning(format!(
-                "{file_name}: line {line}: unexpected content after {macro_name} macro: '{trailing}'"
-            ));
+            let start_abs = end + offset;
+            let location = self.create_location(start_abs, start_abs + trailing.len());
+            self.add_generic_warning_at(
+                format!("unexpected content after {macro_name} macro: '{trailing}'"),
+                location,
+            );
         }
     }
 
-    /// Collect a warning for post-parse emission. Deduplicates by message.
-    pub(crate) fn add_warning(&mut self, message: String) {
-        if !self.warnings.contains(&message) {
-            self.warnings.push(message);
+    /// Collect an ad-hoc string warning with no source location. Prefer
+    /// [`Self::add_generic_warning_at`] whenever the call site has a
+    /// `Location`; untethered warnings are still useful (e.g. document-
+    /// wide conditions) but callers that can place the warning should.
+    pub(crate) fn add_generic_warning(&self, message: String) {
+        self.add_warning(Warning::new(WarningKind::Other(Cow::Owned(message)), None));
+    }
+
+    /// Collect an ad-hoc string warning anchored to a grammar `Location`.
+    /// Converts through `create_error_source_location` so the resulting
+    /// `SourceLocation` carries the correct file, including the mapping
+    /// through `source_ranges` for included content.
+    pub(crate) fn add_generic_warning_at(&self, message: String, location: Location) {
+        let source_location = self.create_error_source_location(location);
+        self.add_warning(Warning::new(
+            WarningKind::Other(Cow::Owned(message)),
+            Some(source_location),
+        ));
+    }
+
+    /// Collect a typed warning. Deduplicates against previously collected
+    /// warnings (PEG backtracking can fire the same warning repeatedly).
+    pub(crate) fn add_warning(&self, warning: Warning) {
+        let mut warnings = self.warnings.borrow_mut();
+        if !warnings.contains(&warning) {
+            warnings.push(warning);
         }
     }
 
-    /// Emit all collected warnings via tracing. Call after parsing completes.
+    /// Emit all collected warnings via tracing. Call after parsing
+    /// completes. Acts as a belt-and-suspenders fallback for callers that
+    /// ignore the warnings slice on `ParseResult`.
     pub(crate) fn emit_warnings(&self) {
-        for warning in &self.warnings {
+        for warning in self.warnings.borrow().iter() {
             tracing::warn!("{warning}");
         }
     }
@@ -272,14 +444,14 @@ impl ParserState {
         let clamped_end = end.min(self.input.len());
 
         // Ensure UTF-8 boundaries (both round backward for inclusive semantics)
-        let safe_start = ensure_char_boundary(&self.input, clamped_start);
-        let safe_end = ensure_char_boundary(&self.input, clamped_end);
+        let safe_start = ensure_char_boundary(self.input, clamped_start);
+        let safe_end = ensure_char_boundary(self.input, clamped_end);
 
         // Ensure start <= end
         let safe_end = safe_end.max(safe_start);
 
-        let start_pos = self.line_map.offset_to_position(safe_start, &self.input);
-        let end_pos = self.line_map.offset_to_position(safe_end, &self.input);
+        let start_pos = self.line_map.offset_to_position(safe_start, self.input);
+        let end_pos = self.line_map.offset_to_position(safe_end, self.input);
 
         Location {
             absolute_start: safe_start,
@@ -308,7 +480,7 @@ impl ParserState {
         let final_end = if adjusted_end == 0 {
             0
         } else {
-            safe_decrement_offset(&self.input, adjusted_end)
+            safe_decrement_offset(self.input, adjusted_end)
         };
 
         // create_location handles all UTF-8 boundary enforcement
@@ -323,41 +495,75 @@ impl ParserState {
 mod tests {
     use super::*;
 
+    fn warning_kinds(state: &ParserState<'_>) -> Vec<WarningKind> {
+        state
+            .warnings
+            .borrow()
+            .iter()
+            .map(|w| w.kind.clone())
+            .collect()
+    }
+
+    fn other_kind(msg: &'static str) -> WarningKind {
+        WarningKind::Other(Cow::Borrowed(msg))
+    }
+
     #[test]
     fn add_warning_deduplicates_identical_messages() {
-        let mut state = ParserState::new("test");
-        state.add_warning("duplicate warning".to_string());
-        state.add_warning("duplicate warning".to_string());
-        state.add_warning("duplicate warning".to_string());
-        assert_eq!(state.warnings.len(), 1);
-        assert_eq!(state.warnings[0], "duplicate warning");
+        let state = ParserState::new_for_test("test");
+        state.add_generic_warning("duplicate warning".to_string());
+        state.add_generic_warning("duplicate warning".to_string());
+        state.add_generic_warning("duplicate warning".to_string());
+        let warnings = state.warnings.borrow();
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].kind, other_kind("duplicate warning"));
     }
 
     #[test]
     fn add_warning_preserves_distinct_messages() {
-        let mut state = ParserState::new("test");
-        state.add_warning("first".to_string());
-        state.add_warning("second".to_string());
-        state.add_warning("third".to_string());
-        assert_eq!(state.warnings.len(), 3);
+        let state = ParserState::new_for_test("test");
+        state.add_generic_warning("first".to_string());
+        state.add_generic_warning("second".to_string());
+        state.add_generic_warning("third".to_string());
+        assert_eq!(state.warnings.borrow().len(), 3);
     }
 
     #[test]
     fn add_warning_preserves_insertion_order() {
-        let mut state = ParserState::new("test");
-        state.add_warning("beta".to_string());
-        state.add_warning("alpha".to_string());
-        state.add_warning("beta".to_string());
-        state.add_warning("gamma".to_string());
-        assert_eq!(state.warnings, vec!["beta", "alpha", "gamma"]);
+        let state = ParserState::new_for_test("test");
+        state.add_generic_warning("beta".to_string());
+        state.add_generic_warning("alpha".to_string());
+        state.add_generic_warning("beta".to_string());
+        state.add_generic_warning("gamma".to_string());
+        assert_eq!(
+            warning_kinds(&state),
+            vec![other_kind("beta"), other_kind("alpha"), other_kind("gamma"),],
+        );
+    }
+
+    #[test]
+    fn add_warning_is_shared_across_inline_subparses() {
+        // `for_inline_parsing` must share the parent's warnings store so
+        // a warning raised inside a substituted author/revision/inline
+        // sub-parse reaches the outer `ParseResult`.
+        let parent = ParserState::new_for_test("parent input");
+        parent.add_generic_warning("from parent".to_string());
+        {
+            let child = ParserState::for_inline_parsing("child input", &parent);
+            child.add_generic_warning("from child".to_string());
+        }
+        let kinds = warning_kinds(&parent);
+        assert_eq!(kinds.len(), 2);
+        assert!(kinds.contains(&other_kind("from parent")));
+        assert!(kinds.contains(&other_kind("from child")));
     }
 
     #[test]
     #[tracing_test::traced_test]
     fn emit_warnings_outputs_via_tracing() {
-        let mut state = ParserState::new("test");
-        state.add_warning("warning one".to_string());
-        state.add_warning("warning two".to_string());
+        let state = ParserState::new_for_test("test");
+        state.add_generic_warning("warning one".to_string());
+        state.add_generic_warning("warning two".to_string());
         state.emit_warnings();
         assert!(logs_contain("warning one"));
         assert!(logs_contain("warning two"));
@@ -369,7 +575,7 @@ mod tests {
 
         // Simulate: main file "line1\n", included file "inc_line1\ninc_line2\n"
         let input = "line1\ninc_line1\ninc_line2\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         state.current_file = Some(PathBuf::from("main.adoc"));
         state.source_ranges.push(SourceRange {
             start_offset: 6, // "inc_line1\n..." starts at byte 6
@@ -396,7 +602,7 @@ mod tests {
     #[test]
     fn create_error_source_location_falls_back_to_current_file() {
         let input = "main content\n";
-        let mut state = ParserState::new(input);
+        let mut state = ParserState::new_for_test(input);
         state.current_file = Some(PathBuf::from("main.adoc"));
         // No source ranges
 

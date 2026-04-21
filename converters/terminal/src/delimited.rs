@@ -1,3 +1,5 @@
+use std::io::{BufWriter, Write};
+
 use acdc_converters_core::{
     code::detect_language,
     decode_numeric_char_refs,
@@ -12,7 +14,7 @@ use crossterm::{
 };
 
 use crate::wrap::{pad_to_width, wrap_ansi_text};
-use crate::{Error, Processor};
+use crate::{Error, TerminalVisitor};
 
 struct BoxChars {
     tl: &'static str,
@@ -86,385 +88,370 @@ fn render_boxed_content<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-/// Visit a delimited block in terminal format.
-pub(crate) fn visit_delimited_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    block: &DelimitedBlock,
-    processor: &Processor,
-) -> Result<(), Error> {
-    match &block.inner {
-        DelimitedBlockType::DelimitedTable(t) => {
-            render_title_if_present(visitor, &block.title)?;
-            crate::table::visit_table(t, visitor, processor)
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines) => {
-            render_preformatted_block(visitor, &block.title, inlines, &block.metadata, processor)
-        }
-        DelimitedBlockType::DelimitedExample(blocks) => {
-            render_example_block(visitor, &block.title, blocks, processor)
-        }
-        DelimitedBlockType::DelimitedQuote(blocks) => {
-            render_quote_block(visitor, &block.title, blocks, processor)
-        }
-        DelimitedBlockType::DelimitedSidebar(blocks) => {
-            render_sidebar_block(visitor, &block.title, blocks, processor)
-        }
-        DelimitedBlockType::DelimitedOpen(blocks) => {
-            // Open blocks are transparent containers
-            render_title_if_present(visitor, &block.title)?;
-            for nested_block in blocks {
-                visitor.visit_block(nested_block)?;
+impl<W: Write> TerminalVisitor<'_, W> {
+    /// Visit a delimited block in terminal format.
+    pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
+        match &block.inner {
+            DelimitedBlockType::DelimitedTable(t) => {
+                self.render_title_if_present(&block.title)?;
+                let processor = self.processor.clone();
+                crate::table::visit_table(t, self, &processor)
             }
-            Ok(())
+            DelimitedBlockType::DelimitedListing(inlines)
+            | DelimitedBlockType::DelimitedLiteral(inlines) => {
+                self.render_preformatted_block(&block.title, inlines, &block.metadata)
+            }
+            DelimitedBlockType::DelimitedExample(blocks) => {
+                self.render_example_block(&block.title, blocks)
+            }
+            DelimitedBlockType::DelimitedQuote(blocks) => {
+                self.render_quote_block(&block.title, blocks)
+            }
+            DelimitedBlockType::DelimitedSidebar(blocks) => {
+                self.render_sidebar_block(&block.title, blocks)
+            }
+            DelimitedBlockType::DelimitedOpen(blocks) => {
+                // Open blocks are transparent containers
+                self.render_title_if_present(&block.title)?;
+                let blocks = blocks.clone();
+                for nested_block in &blocks {
+                    self.visit_block(nested_block)?;
+                }
+                Ok(())
+            }
+            DelimitedBlockType::DelimitedVerse(inlines) => {
+                self.render_verse_block(&block.title, inlines)
+            }
+            DelimitedBlockType::DelimitedPass(inlines) => {
+                // Passthrough content is rendered as-is
+                self.render_title_if_present(&block.title)?;
+                let inlines = inlines.clone();
+                self.visit_inline_nodes(&inlines)?;
+                let w = self.writer_mut();
+                writeln!(w)?;
+                Ok(())
+            }
+            DelimitedBlockType::DelimitedStem(stem) => {
+                let notation = stem.notation.to_string();
+                self.render_stem_block(&block.title, &notation, stem.content)
+            }
+            DelimitedBlockType::DelimitedComment(_) => {
+                // Comments are not rendered
+                Ok(())
+            }
+            _ => {
+                // Handle any future block types
+                tracing::warn!(?block.inner, "Unknown delimited block type");
+                Ok(())
+            }
         }
-        DelimitedBlockType::DelimitedVerse(inlines) => {
-            render_verse_block(visitor, &block.title, inlines, processor)
+    }
+
+    /// Render a preformatted block (listing or literal) with optional syntax highlighting.
+    fn render_preformatted_block(
+        &mut self,
+        title: &[InlineNode],
+        inlines: &[InlineNode],
+        metadata: &BlockMetadata,
+    ) -> Result<(), Error> {
+        // Detect language for syntax highlighting
+        let language = detect_language(metadata);
+
+        // Title if present
+        if !title.is_empty() {
+            self.render_title_with_wrapper(title, "\n", "\n")?;
         }
-        DelimitedBlockType::DelimitedPass(inlines) => {
-            // Passthrough content is rendered as-is
-            render_title_if_present(visitor, &block.title)?;
-            visitor.visit_inline_nodes(inlines)?;
-            let w = visitor.writer_mut();
+
+        let processor = self.processor.clone();
+        let tw = processor.terminal_width;
+        let color = processor.appearance.colors.label_listing;
+
+        // Top separator with optional language label
+        let top_sep = if let Some(lang) = language {
+            let label = format!("[ {lang} ]");
+            let half = tw.saturating_sub(label.len()) / 2;
+            format!(
+                "{}{label}{}",
+                "─".repeat(half),
+                "─".repeat(tw.saturating_sub(half + label.len()))
+            )
+        } else {
+            "─".repeat(tw)
+        };
+        let w = self.writer_mut();
+        writeln!(w, "{}", top_sep.clone().with(color))?;
+
+        // Render code content to buffer
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut code_buffer = inner;
+
+        if let Some(lang) = language {
+            crate::syntax::highlight_code(&mut code_buffer, inlines, lang, &processor)?;
+        } else {
+            // Fallback to plain text
+            use std::io::Write;
+            for node in inlines {
+                match node {
+                    InlineNode::VerbatimText(v) => {
+                        write!(code_buffer, "{}", v.content)?;
+                    }
+                    InlineNode::RawText(r) => {
+                        write!(code_buffer, "{}", decode_numeric_char_refs(r.content))?;
+                    }
+                    InlineNode::PlainText(p) => {
+                        write!(code_buffer, "{}", p.content)?;
+                    }
+                    InlineNode::LineBreak(_) => {
+                        writeln!(code_buffer)?;
+                    }
+                    InlineNode::CalloutRef(callout) => {
+                        write!(code_buffer, "<{}>", callout.number)?;
+                    }
+                    InlineNode::BoldText(_)
+                    | InlineNode::ItalicText(_)
+                    | InlineNode::HighlightText(_)
+                    | InlineNode::MonospaceText(_)
+                    | InlineNode::SuperscriptText(_)
+                    | InlineNode::SubscriptText(_)
+                    | InlineNode::CurvedQuotationText(_)
+                    | InlineNode::CurvedApostropheText(_)
+                    | InlineNode::StandaloneCurvedApostrophe(_)
+                    | InlineNode::InlineAnchor(_)
+                    | InlineNode::Macro(_)
+                    | _ => {}
+                }
+            }
+        }
+
+        let buffer = code_buffer
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+
+        // Render code content directly (no left border)
+        let content = String::from_utf8_lossy(&buffer);
+        let w = self.writer_mut();
+        write!(w, "{content}")?;
+        if !content.ends_with('\n') {
             writeln!(w)?;
-            Ok(())
         }
-        DelimitedBlockType::DelimitedStem(stem) => render_stem_block(
-            visitor,
-            &block.title,
-            &stem.notation.to_string(),
-            &stem.content,
-            processor,
-        ),
-        DelimitedBlockType::DelimitedComment(_) => {
-            // Comments are not rendered
-            Ok(())
-        }
-        _ => {
-            // Handle any future block types
-            tracing::warn!(?block.inner, "Unknown delimited block type");
-            Ok(())
-        }
-    }
-}
 
-/// Render a preformatted block (listing or literal) with optional syntax highlighting.
-fn render_preformatted_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-    inlines: &[InlineNode],
-    metadata: &BlockMetadata,
-    processor: &Processor,
-) -> Result<(), Error> {
-    use std::io::BufWriter;
+        // Bottom separator
+        writeln!(w, "{}", "─".repeat(tw).with(color))?;
 
-    // Detect language for syntax highlighting
-    let language = detect_language(metadata);
-
-    // Title if present
-    if !title.is_empty() {
-        visitor.render_title_with_wrapper(title, "\n", "\n")?;
+        Ok(())
     }
 
-    let tw = processor.terminal_width;
-    let color = processor.appearance.colors.label_listing;
+    /// Render an example block with box borders.
+    fn render_example_block(
+        &mut self,
+        title: &[InlineNode],
+        blocks: &[Block],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
 
-    // Top separator with optional language label
-    let top_sep = if let Some(lang) = language {
-        let label = format!("[ {lang} ]");
+        let caption = processor
+            .document_attributes
+            .get("example-caption")
+            .and_then(|v| match v {
+                AttributeValue::String(s) => Some(s.clone().into_owned()),
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
+            })
+            .unwrap_or_else(|| "Example".to_string());
+
+        // Build label
+        let label: String = if title.is_empty() {
+            caption
+        } else {
+            let count = processor.example_counter.get() + 1;
+            processor.example_counter.set(count);
+
+            let title_text = extract_inline_text(title);
+            format!("{caption} {count}. {title_text}")
+        };
+
+        // Render content to buffer
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        for nested_block in blocks {
+            temp_visitor.visit_block(nested_block)?;
+        }
+        let buffer = temp_visitor
+            .into_writer()
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+        let content = String::from_utf8_lossy(&buffer);
+
+        let color = crossterm::style::Color::Cyan;
+        render_boxed_content(
+            self,
+            &label,
+            content.trim_end(),
+            processor.terminal_width,
+            &SQUARE_BOX,
+            color,
+        )?;
+
+        Ok(())
+    }
+
+    /// Render a quote block with `│` left border.
+    fn render_quote_block(&mut self, title: &[InlineNode], blocks: &[Block]) -> Result<(), Error> {
+        let processor = self.processor.clone();
+
+        // Render title if present
+        self.render_title_with_wrapper(title, "", "\n")?;
+
+        // Render content to temporary buffer
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+
+        for nested_block in blocks {
+            temp_visitor.visit_block(nested_block)?;
+        }
+
+        let buffer = temp_visitor
+            .into_writer()
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+
+        let content = String::from_utf8_lossy(&buffer);
+        let color = processor.appearance.colors.admon_tip; // Green for quotes
+
+        // Word-wrap content to fit within the "│ " prefix
+        let available = processor.terminal_width.saturating_sub(2);
+        let wrapped = wrap_ansi_text(&content, available);
+
+        // Left border with `│` on each line, content in italic
+        let w = self.writer_mut();
+        for line in wrapped.lines() {
+            w.queue(PrintStyledContent("│ ".with(color)))?;
+            let styled_line = line.italic();
+            QueueableCommand::queue(w, PrintStyledContent(styled_line))?;
+            writeln!(w)?;
+        }
+
+        // Empty closing border line
+        if !content.is_empty() {
+            w.queue(PrintStyledContent("│".with(color)))?;
+            writeln!(w)?;
+        }
+
+        Ok(())
+    }
+
+    /// Render a sidebar block with rounded box borders.
+    fn render_sidebar_block(
+        &mut self,
+        title: &[InlineNode],
+        blocks: &[Block],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+
+        let label = if title.is_empty() {
+            String::new()
+        } else {
+            extract_inline_text(title)
+        };
+
+        // Render content to buffer
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        for nested_block in blocks {
+            temp_visitor.visit_block(nested_block)?;
+        }
+        let buffer = temp_visitor
+            .into_writer()
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+        let content = String::from_utf8_lossy(&buffer);
+
+        let color = crossterm::style::Color::Blue;
+        render_boxed_content(
+            self,
+            &label,
+            content.trim_end(),
+            processor.terminal_width,
+            &ROUNDED_BOX,
+            color,
+        )?;
+
+        Ok(())
+    }
+
+    /// Render a verse block (poetry) with `┊` left border preserving line breaks.
+    fn render_verse_block(
+        &mut self,
+        title: &[InlineNode],
+        inlines: &[InlineNode],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+
+        self.render_title_with_wrapper(title, "", "\n")?;
+
+        // Render verse content to buffer to process line by line
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        temp_visitor.visit_inline_nodes(inlines)?;
+        let buffer = temp_visitor
+            .into_writer()
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+
+        let content = String::from_utf8_lossy(&buffer);
+        let color = crossterm::style::Color::Magenta;
+
+        let w = self.writer_mut();
+        for line in content.lines() {
+            w.queue(PrintStyledContent("┊ ".with(color)))?;
+            write!(w, "{line}")?;
+            writeln!(w)?;
+        }
+        // Closing border
+        w.queue(PrintStyledContent("┊".with(color)))?;
+        writeln!(w)?;
+
+        Ok(())
+    }
+
+    /// Render a STEM/math block with styled borders.
+    fn render_stem_block(
+        &mut self,
+        title: &[InlineNode],
+        notation: &str,
+        content: &str,
+    ) -> Result<(), Error> {
+        self.render_title_if_present(title)?;
+
+        let processor = self.processor.clone();
+        let tw = processor.terminal_width;
+        let color = processor.appearance.colors.label_listing;
+
+        // Top separator with notation label
+        let label = format!(" {notation} ");
         let half = tw.saturating_sub(label.len()) / 2;
-        format!(
-            "{}{label}{}",
+        let top = format!(
+            "{}{}{}",
             "─".repeat(half),
+            label,
             "─".repeat(tw.saturating_sub(half + label.len()))
-        )
-    } else {
-        "─".repeat(tw)
-    };
-    let w = visitor.writer_mut();
-    writeln!(w, "{}", top_sep.clone().with(color))?;
+        );
 
-    // Render code content to buffer
-    let buffer = Vec::new();
-    let inner = BufWriter::new(buffer);
-    let mut code_buffer = inner;
-
-    if let Some(lang) = language {
-        crate::syntax::highlight_code(&mut code_buffer, inlines, lang, processor)?;
-    } else {
-        // Fallback to plain text
-        use std::io::Write;
-        for node in inlines {
-            match node {
-                InlineNode::VerbatimText(v) => {
-                    write!(code_buffer, "{}", v.content)?;
-                }
-                InlineNode::RawText(r) => {
-                    write!(code_buffer, "{}", decode_numeric_char_refs(&r.content))?;
-                }
-                InlineNode::PlainText(p) => {
-                    write!(code_buffer, "{}", p.content)?;
-                }
-                InlineNode::LineBreak(_) => {
-                    writeln!(code_buffer)?;
-                }
-                InlineNode::CalloutRef(callout) => {
-                    write!(code_buffer, "<{}>", callout.number)?;
-                }
-                InlineNode::BoldText(_)
-                | InlineNode::ItalicText(_)
-                | InlineNode::HighlightText(_)
-                | InlineNode::MonospaceText(_)
-                | InlineNode::SuperscriptText(_)
-                | InlineNode::SubscriptText(_)
-                | InlineNode::CurvedQuotationText(_)
-                | InlineNode::CurvedApostropheText(_)
-                | InlineNode::StandaloneCurvedApostrophe(_)
-                | InlineNode::InlineAnchor(_)
-                | InlineNode::Macro(_)
-                | _ => {}
-            }
-        }
+        let w = self.writer_mut();
+        writeln!(w, "{}", top.with(color))?;
+        writeln!(w, "{content}")?;
+        writeln!(w, "{}", "─".repeat(tw).with(color))?;
+        Ok(())
     }
 
-    let buffer = code_buffer
-        .into_inner()
-        .map_err(std::io::IntoInnerError::into_error)?;
-
-    // Render code content directly (no left border)
-    let content = String::from_utf8_lossy(&buffer);
-    let w = visitor.writer_mut();
-    write!(w, "{content}")?;
-    if !content.ends_with('\n') {
-        writeln!(w)?;
+    /// Helper to render title if present.
+    fn render_title_if_present(&mut self, title: &[InlineNode]) -> Result<(), Error> {
+        self.render_title_with_wrapper(title, "  ", "\n")
     }
-
-    // Bottom separator
-    writeln!(w, "{}", "─".repeat(tw).with(color))?;
-
-    Ok(())
-}
-
-/// Render an example block with box borders.
-fn render_example_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-    blocks: &[Block],
-    processor: &Processor,
-) -> Result<(), Error> {
-    use std::io::BufWriter;
-
-    let caption = processor
-        .document_attributes
-        .get("example-caption")
-        .and_then(|v| match v {
-            AttributeValue::String(s) => Some(s.clone()),
-            AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-        })
-        .unwrap_or_else(|| "Example".to_string());
-
-    // Build label
-    let label = if title.is_empty() {
-        caption
-    } else {
-        let count = processor.example_counter.get() + 1;
-        processor.example_counter.set(count);
-
-        let title_text = extract_inline_text(title);
-        format!("{caption} {count}. {title_text}")
-    };
-
-    // Render content to buffer
-    let buffer = Vec::new();
-    let inner = BufWriter::new(buffer);
-    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
-    for nested_block in blocks {
-        temp_visitor.visit_block(nested_block)?;
-    }
-    let buffer = temp_visitor
-        .into_writer()
-        .into_inner()
-        .map_err(std::io::IntoInnerError::into_error)?;
-    let content = String::from_utf8_lossy(&buffer);
-
-    let color = crossterm::style::Color::Cyan;
-    render_boxed_content(
-        visitor,
-        &label,
-        content.trim_end(),
-        processor.terminal_width,
-        &SQUARE_BOX,
-        color,
-    )?;
-
-    Ok(())
-}
-
-/// Render a quote block with `│` left border.
-fn render_quote_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-    blocks: &[Block],
-    processor: &Processor,
-) -> Result<(), Error> {
-    use std::io::BufWriter;
-
-    // Render title if present
-    visitor.render_title_with_wrapper(title, "", "\n")?;
-
-    // Render content to temporary buffer
-    let buffer = Vec::new();
-    let inner = BufWriter::new(buffer);
-    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
-
-    for nested_block in blocks {
-        temp_visitor.visit_block(nested_block)?;
-    }
-
-    let buffer = temp_visitor
-        .into_writer()
-        .into_inner()
-        .map_err(std::io::IntoInnerError::into_error)?;
-
-    let content = String::from_utf8_lossy(&buffer);
-    let color = processor.appearance.colors.admon_tip; // Green for quotes
-
-    // Word-wrap content to fit within the "│ " prefix
-    let available = processor.terminal_width.saturating_sub(2);
-    let wrapped = wrap_ansi_text(&content, available);
-
-    // Left border with `│` on each line, content in italic
-    let w = visitor.writer_mut();
-    for line in wrapped.lines() {
-        w.queue(PrintStyledContent("│ ".with(color)))?;
-        let styled_line = line.italic();
-        QueueableCommand::queue(w, PrintStyledContent(styled_line))?;
-        writeln!(w)?;
-    }
-
-    // Empty closing border line
-    if !content.is_empty() {
-        w.queue(PrintStyledContent("│".with(color)))?;
-        writeln!(w)?;
-    }
-
-    Ok(())
-}
-
-/// Render a sidebar block with rounded box borders.
-fn render_sidebar_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-    blocks: &[Block],
-    processor: &Processor,
-) -> Result<(), Error> {
-    use std::io::BufWriter;
-
-    let label = if title.is_empty() {
-        String::new()
-    } else {
-        extract_inline_text(title)
-    };
-
-    // Render content to buffer
-    let buffer = Vec::new();
-    let inner = BufWriter::new(buffer);
-    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
-    for nested_block in blocks {
-        temp_visitor.visit_block(nested_block)?;
-    }
-    let buffer = temp_visitor
-        .into_writer()
-        .into_inner()
-        .map_err(std::io::IntoInnerError::into_error)?;
-    let content = String::from_utf8_lossy(&buffer);
-
-    let color = crossterm::style::Color::Blue;
-    render_boxed_content(
-        visitor,
-        &label,
-        content.trim_end(),
-        processor.terminal_width,
-        &ROUNDED_BOX,
-        color,
-    )?;
-
-    Ok(())
-}
-
-/// Render a verse block (poetry) with `┊` left border preserving line breaks.
-fn render_verse_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-    inlines: &[InlineNode],
-    processor: &Processor,
-) -> Result<(), Error> {
-    use std::io::BufWriter;
-
-    visitor.render_title_with_wrapper(title, "", "\n")?;
-
-    // Render verse content to buffer to process line by line
-    let buffer = Vec::new();
-    let inner = BufWriter::new(buffer);
-    let mut temp_visitor = crate::TerminalVisitor::new(inner, processor.clone());
-    temp_visitor.visit_inline_nodes(inlines)?;
-    let buffer = temp_visitor
-        .into_writer()
-        .into_inner()
-        .map_err(std::io::IntoInnerError::into_error)?;
-
-    let content = String::from_utf8_lossy(&buffer);
-    let color = crossterm::style::Color::Magenta;
-
-    let w = visitor.writer_mut();
-    for line in content.lines() {
-        w.queue(PrintStyledContent("┊ ".with(color)))?;
-        write!(w, "{line}")?;
-        writeln!(w)?;
-    }
-    // Closing border
-    w.queue(PrintStyledContent("┊".with(color)))?;
-    writeln!(w)?;
-
-    Ok(())
-}
-
-/// Render a STEM/math block with styled borders.
-fn render_stem_block<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-    notation: &str,
-    content: &str,
-    processor: &Processor,
-) -> Result<(), Error> {
-    render_title_if_present(visitor, title)?;
-
-    let tw = processor.terminal_width;
-    let color = processor.appearance.colors.label_listing;
-
-    // Top separator with notation label
-    let label = format!(" {notation} ");
-    let half = tw.saturating_sub(label.len()) / 2;
-    let top = format!(
-        "{}{}{}",
-        "─".repeat(half),
-        label,
-        "─".repeat(tw.saturating_sub(half + label.len()))
-    );
-
-    let w = visitor.writer_mut();
-    writeln!(w, "{}", top.with(color))?;
-    writeln!(w, "{content}")?;
-    writeln!(w, "{}", "─".repeat(tw).with(color))?;
-    Ok(())
-}
-
-/// Helper to render title if present.
-fn render_title_if_present<V: WritableVisitor<Error = Error>>(
-    visitor: &mut V,
-    title: &[InlineNode],
-) -> Result<(), Error> {
-    visitor.render_title_with_wrapper(title, "  ", "\n")
 }
 
 /// Extract plain text from inline nodes (for labels/titles).
@@ -472,7 +459,7 @@ fn extract_inline_text(nodes: &[InlineNode]) -> String {
     nodes
         .iter()
         .map(|node| match node {
-            InlineNode::PlainText(p) => p.content.clone(),
+            InlineNode::PlainText(p) => p.content.to_string(),
             InlineNode::BoldText(b) => extract_inline_text(&b.content),
             InlineNode::ItalicText(i) => extract_inline_text(&i.content),
             InlineNode::MonospaceText(m) => extract_inline_text(&m.content),
@@ -501,25 +488,25 @@ mod tests {
     use acdc_parser::{DocumentAttributes, Location, Paragraph, Plain, Title};
 
     /// Create simple plain text inline nodes for testing
-    fn create_test_inlines(content: &str) -> Vec<InlineNode> {
+    fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::PlainText(Plain {
-            content: content.to_string(),
+            content,
             location: Location::default(),
             escaped: false,
         })]
     }
 
     /// Create simple plain text title for testing
-    fn create_test_title(content: &str) -> Title {
+    fn create_test_title(content: &str) -> Title<'_> {
         Title::new(vec![InlineNode::PlainText(Plain {
-            content: content.to_string(),
+            content,
             location: Location::default(),
             escaped: false,
         })])
     }
 
     /// Create test processor with default options
-    fn create_test_processor() -> Processor {
+    fn create_test_processor() -> crate::Processor<'static> {
         use crate::Appearance;
         use acdc_converters_core::section::{
             AppendixTracker, PartNumberTracker, SectionNumberTracker,
@@ -533,7 +520,7 @@ mod tests {
             PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
         let appendix_tracker =
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        Processor {
+        crate::Processor {
             options,
             document_attributes,
             toc_entries: vec![],
@@ -553,7 +540,7 @@ mod tests {
     fn test_listing_block_basic() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code content here")),
-            "----".to_string(),
+            "----",
             Location::default(),
         );
 
@@ -580,7 +567,7 @@ mod tests {
     fn test_listing_block_with_title() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            "----".to_string(),
+            "----",
             Location::default(),
         )
         .with_title(create_test_title("My Code Listing"));
@@ -609,7 +596,7 @@ mod tests {
     fn test_literal_block_basic() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            "....".to_string(),
+            "....",
             Location::default(),
         );
 
@@ -636,7 +623,7 @@ mod tests {
     fn test_literal_block_with_title() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal content")),
-            "....".to_string(),
+            "....",
             Location::default(),
         )
         .with_title(create_test_title("Literal Block Title"));
@@ -673,7 +660,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(content),
-            "====".to_string(),
+            "====",
             Location::default(),
         );
 
@@ -704,7 +691,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(content),
-            "====".to_string(),
+            "====",
             Location::default(),
         )
         .with_title(create_test_title("Custom Example Title"));
@@ -739,7 +726,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedQuote(content),
-            "____".to_string(),
+            "____",
             Location::default(),
         );
 
@@ -768,7 +755,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedQuote(content),
-            "____".to_string(),
+            "____",
             Location::default(),
         )
         .with_title(create_test_title("Quote Title"));
@@ -804,7 +791,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedQuote(content),
-            "____".to_string(),
+            "____",
             Location::default(),
         );
 
@@ -836,7 +823,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedSidebar(content),
-            "****".to_string(),
+            "****",
             Location::default(),
         );
 
@@ -869,7 +856,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedSidebar(content),
-            "****".to_string(),
+            "****",
             Location::default(),
         )
         .with_title(create_test_title("Sidebar Title"));
@@ -906,7 +893,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedSidebar(content),
-            "****".to_string(),
+            "****",
             Location::default(),
         );
 
@@ -938,7 +925,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedOpen(content),
-            "--".to_string(),
+            "--",
             Location::default(),
         );
 
@@ -966,7 +953,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedOpen(content),
-            "--".to_string(),
+            "--",
             Location::default(),
         )
         .with_title(create_test_title("Open Block Title"));
@@ -996,7 +983,7 @@ mod tests {
             DelimitedBlockType::DelimitedVerse(create_test_inlines(
                 "Roses are red\nViolets are blue",
             )),
-            "____".to_string(),
+            "____",
             Location::default(),
         );
 
@@ -1020,7 +1007,7 @@ mod tests {
     fn test_verse_block_with_title() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedVerse(create_test_inlines("Poetry line 1\nPoetry line 2")),
-            "____".to_string(),
+            "____",
             Location::default(),
         )
         .with_title(create_test_title("Poem Title"));
@@ -1045,7 +1032,7 @@ mod tests {
     fn test_pass_block_basic() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedPass(create_test_inlines("<raw>passthrough</raw>")),
-            "++++".to_string(),
+            "++++",
             Location::default(),
         );
 
@@ -1068,11 +1055,11 @@ mod tests {
     fn test_stem_block_placeholder() -> Result<(), Error> {
         use acdc_parser::{StemContent, StemNotation};
 
-        let stem_content = StemContent::new("x = y^2".to_string(), StemNotation::Latexmath);
+        let stem_content = StemContent::new("x = y^2", StemNotation::Latexmath);
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedStem(stem_content),
-            "++++".to_string(),
+            "++++",
             Location::default(),
         );
 
@@ -1097,7 +1084,7 @@ mod tests {
     fn test_comment_block_not_rendered() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedComment(create_test_inlines("This is a comment")),
-            "////".to_string(),
+            "////",
             Location::default(),
         );
 
@@ -1120,7 +1107,7 @@ mod tests {
     fn test_empty_listing_block() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(Vec::new()),
-            "----".to_string(),
+            "----",
             Location::default(),
         );
 
@@ -1143,7 +1130,7 @@ mod tests {
     fn test_empty_quote_block() -> Result<(), Error> {
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedQuote(Vec::new()),
-            "____".to_string(),
+            "____",
             Location::default(),
         );
 
@@ -1169,7 +1156,7 @@ mod tests {
             DelimitedBlockType::DelimitedListing(create_test_inlines(
                 "<html>&amp; special chars \"quotes\" 'apostrophes'",
             )),
-            "----".to_string(),
+            "----",
             Location::default(),
         );
 
@@ -1197,7 +1184,7 @@ mod tests {
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(content),
-            "====".to_string(),
+            "====",
             Location::default(),
         )
         .with_title(create_test_title("Nested Content"));
@@ -1230,7 +1217,7 @@ mod tests {
                 create_test_inlines("first example"),
                 Location::default(),
             ))]),
-            "====".to_string(),
+            "====",
             Location::default(),
         )
         .with_title(create_test_title("First Example"));
@@ -1240,7 +1227,7 @@ mod tests {
                 create_test_inlines("second example"),
                 Location::default(),
             ))]),
-            "====".to_string(),
+            "====",
             Location::default(),
         )
         .with_title(create_test_title("Second Example"));
@@ -1250,7 +1237,7 @@ mod tests {
                 create_test_inlines("third example"),
                 Location::default(),
             ))]),
-            "====".to_string(),
+            "====",
             Location::default(),
         )
         .with_title(create_test_title("Third Example"));

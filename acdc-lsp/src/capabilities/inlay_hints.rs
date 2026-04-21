@@ -18,8 +18,8 @@ pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<Inl
 
     collect_attribute_hints(doc, range, &mut hints);
 
-    if let Some(ast) = &doc.ast {
-        collect_xref_hints(ast, range, &mut hints);
+    if let Some(ast) = doc.ast() {
+        collect_xref_hints(ast.document(), range, &mut hints);
     }
 
     hints
@@ -30,9 +30,10 @@ pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<Inl
 /// For each `{name}` reference that resolves to a string value,
 /// shows the resolved value as a hint after the closing `}`.
 fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<InlayHint>) {
-    let Some(ast) = &doc.ast else {
+    let Some(ast) = doc.ast() else {
         return;
     };
+    let ast = ast.document();
 
     for (name, loc) in &doc.attribute_refs {
         let hint_pos = location_to_range(loc).end;
@@ -44,7 +45,7 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
             if value.is_empty() {
                 continue;
             }
-            let label = truncate_hint_value(value);
+            let label = truncate_hint_value(value.as_ref());
             hints.push(InlayHint {
                 position: hint_pos,
                 label: InlayHintLabel::String(label),
@@ -188,7 +189,7 @@ fn collect_xref_hint_in_inline(
                 return;
             }
 
-            if let Some(title) = resolve_xref_title(&xref.target, ast) {
+            if let Some(title) = resolve_xref_title(xref.target, ast) {
                 hints.push(InlayHint {
                     position: hint_pos,
                     label: InlayHintLabel::String(format!("\u{2192} {title}")),
@@ -250,8 +251,7 @@ fn resolve_xref_title(target: &str, ast: &Document) -> Option<String> {
             Some(
                 entry
                     .xreflabel
-                    .clone()
-                    .unwrap_or_else(|| inlines_to_string(&entry.title)),
+                    .map_or_else(|| inlines_to_string(&entry.title), ToString::to_string),
             )
         } else {
             None

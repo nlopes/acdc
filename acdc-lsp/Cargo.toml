@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/nlopes/acdc"
 keywords = ["asciidoc", "lsp", "language-server", "editor"]
 categories = ["development-tools", "text-editors"]
+publish = false
 
 [[bin]]
 name = "acdc-lsp"
@@ -21,6 +22,7 @@ path = "src/lib.rs"
 [dependencies]
 acdc-parser.workspace = true
 dashmap = "6"
+self_cell = "1"
 fluent-uri = "0.4.1"
 serde.workspace = true
 serde_json.workspace = true

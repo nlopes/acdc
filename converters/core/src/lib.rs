@@ -137,44 +137,47 @@ pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
 /// The `:toc:` attribute is intentionally NOT set by default - TOC generation
 /// must be explicitly requested in the document.
 #[must_use]
-pub fn default_rendering_attributes() -> DocumentAttributes {
+pub fn default_rendering_attributes() -> DocumentAttributes<'static> {
     let mut attrs = DocumentAttributes::default();
 
     // HTML lang attribute (default: "en")
-    attrs.set("lang".to_string(), AttributeValue::String("en".to_string()));
+    attrs.set(
+        std::borrow::Cow::Borrowed("lang"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("en")),
+    );
 
     // Admonition captions (capitalized to match asciidoctor)
     attrs.set(
-        "note-caption".to_string(),
-        AttributeValue::String("Note".to_string()),
+        std::borrow::Cow::Borrowed("note-caption"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("Note")),
     );
     attrs.set(
-        "tip-caption".to_string(),
-        AttributeValue::String("Tip".to_string()),
+        std::borrow::Cow::Borrowed("tip-caption"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("Tip")),
     );
     attrs.set(
-        "important-caption".to_string(),
-        AttributeValue::String("Important".to_string()),
+        std::borrow::Cow::Borrowed("important-caption"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("Important")),
     );
     attrs.set(
-        "warning-caption".to_string(),
-        AttributeValue::String("Warning".to_string()),
+        std::borrow::Cow::Borrowed("warning-caption"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("Warning")),
     );
     attrs.set(
-        "caution-caption".to_string(),
-        AttributeValue::String("Caution".to_string()),
+        std::borrow::Cow::Borrowed("caution-caption"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("Caution")),
     );
 
     // TOC levels (only used when :toc: is set)
     attrs.set(
-        "toclevels".to_string(),
-        AttributeValue::String("2".to_string()),
+        std::borrow::Cow::Borrowed("toclevels"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("2")),
     );
 
     // Section numbering levels (for future section numbering feature)
     attrs.set(
-        "sectnumlevels".to_string(),
-        AttributeValue::String("3".to_string()),
+        std::borrow::Cow::Borrowed("sectnumlevels"),
+        AttributeValue::String(std::borrow::Cow::Borrowed("3")),
     );
 
     // NOTE: :toc: is intentionally NOT set - TOC should only appear when explicitly requested
@@ -487,7 +490,7 @@ impl std::fmt::Display for GeneratorMetadata {
 /// - [`convert`](Converter::convert) - Main entry point with routing
 /// - [`convert_to_stdout`](Converter::convert_to_stdout) - Output to stdout
 /// - [`convert_to_file`](Converter::convert_to_file) - Output to file with timing
-pub trait Converter: Sized {
+pub trait Converter<'a>: Sized {
     /// The error type for this converter.
     ///
     /// Must implement `From<std::io::Error>` for the provided methods to work.
@@ -505,19 +508,19 @@ pub trait Converter: Sized {
     /// - Manpage: `man-linkstyle`, `manname-title`
     /// - Terminal: (none - uses environment detection)
     #[must_use]
-    fn document_attributes_defaults() -> DocumentAttributes {
+    fn document_attributes_defaults() -> DocumentAttributes<'static> {
         DocumentAttributes::default()
     }
 
     /// Create a new converter instance.
-    fn new(options: Options, document_attributes: DocumentAttributes) -> Self;
+    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self;
 
     /// Get a reference to the converter options.
     fn options(&self) -> &Options;
 
     /// Get a reference to the document attributes.
     #[must_use]
-    fn document_attributes(&self) -> &DocumentAttributes;
+    fn document_attributes(&self) -> &DocumentAttributes<'a>;
 
     /// Derive output path from input path (e.g., "doc.adoc" → "doc.html").
     ///
@@ -537,7 +540,7 @@ pub trait Converter: Sized {
     fn derive_output_path(
         &self,
         input: &std::path::Path,
-        doc: &acdc_parser::Document,
+        doc: &acdc_parser::Document<'a>,
     ) -> Result<Option<std::path::PathBuf>, Self::Error>;
 
     /// Core conversion: write the document to any writer.
@@ -556,7 +559,7 @@ pub trait Converter: Sized {
     /// Returns an error if conversion or writing fails.
     fn write_to<W: std::io::Write>(
         &self,
-        doc: &acdc_parser::Document,
+        doc: &acdc_parser::Document<'a>,
         writer: W,
         source_file: Option<&std::path::Path>,
     ) -> Result<(), Self::Error>;
@@ -565,7 +568,7 @@ pub trait Converter: Sized {
     ///
     /// Override for converter-specific cleanup (e.g., CSS copying for HTML).
     /// Default implementation does nothing.
-    fn after_write(&self, _doc: &acdc_parser::Document, _output_path: &std::path::Path) {}
+    fn after_write(&self, _doc: &acdc_parser::Document<'a>, _output_path: &std::path::Path) {}
 
     /// Returns the backend type for this converter.
     ///
@@ -580,7 +583,7 @@ pub trait Converter: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert_to_stdout(
         &self,
-        doc: &acdc_parser::Document,
+        doc: &acdc_parser::Document<'a>,
         source_file: Option<&std::path::Path>,
     ) -> Result<(), Self::Error> {
         let stdout = std::io::stdout();
@@ -596,7 +599,7 @@ pub trait Converter: Sized {
     /// Returns an error if file creation, conversion, or writing fails.
     fn convert_to_file(
         &self,
-        doc: &acdc_parser::Document,
+        doc: &acdc_parser::Document<'a>,
         source_file: Option<&std::path::Path>,
         output_path: &std::path::Path,
     ) -> Result<(), Self::Error> {
@@ -652,7 +655,7 @@ pub trait Converter: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert(
         &self,
-        doc: &acdc_parser::Document,
+        doc: &acdc_parser::Document<'a>,
         source_file: Option<&std::path::Path>,
     ) -> Result<(), Self::Error> {
         match self.options().output_destination() {

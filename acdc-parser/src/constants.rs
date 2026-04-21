@@ -7,11 +7,28 @@
 // Format-specific attributes (like HTML's `lang`) should be handled
 // by individual converters with appropriate fallbacks.
 
+use std::borrow::Cow;
+
 use crate::{AttributeName, AttributeValue};
 
-/// Universal default attributes applied to all documents
+const fn str_attr(
+    name: &'static str,
+    value: &'static str,
+) -> (AttributeName<'static>, AttributeValue<'static>) {
+    (
+        Cow::Borrowed(name),
+        AttributeValue::String(Cow::Borrowed(value)),
+    )
+}
+
+/// Universal default attribute entries applied to all documents.
 ///
-/// These match asciidoctor's default behavior and include:
+/// Exposed as a raw `const` slice so the map type (`FxHashMap`, currently)
+/// does not leak out of this module. Callers that need a map build one
+/// from these entries in whatever storage they use internally — see
+/// `AttributeMap::default()` for the cached-and-cloned fast path.
+///
+/// Includes:
 /// - Character replacement / intrinsic attributes (empty, sp, nbsp, etc.)
 /// - Admonition captions
 /// - Block captions (example, figure, table, appendix)
@@ -20,236 +37,70 @@ use crate::{AttributeName, AttributeValue};
 /// - Structural settings (TOC levels, section numbering depth)
 /// - ID generation settings
 /// - Attribute processing compliance settings
-#[allow(clippy::too_many_lines)]
-pub fn default_attributes() -> rustc_hash::FxHashMap<AttributeName, AttributeValue> {
-    [
+pub(crate) const DEFAULT_ATTRIBUTE_ENTRIES: &[(AttributeName<'static>, AttributeValue<'static>)] =
+    &[
         // Character replacement / intrinsic attributes
-        (
-            AttributeName::from("empty"),
-            AttributeValue::String(String::new()),
-        ),
-        (
-            AttributeName::from("blank"),
-            AttributeValue::String(String::new()),
-        ),
-        (
-            AttributeName::from("sp"),
-            AttributeValue::String(" ".into()),
-        ),
-        (
-            AttributeName::from("nbsp"),
-            AttributeValue::String("\u{00A0}".into()),
-        ),
-        (
-            AttributeName::from("zwsp"),
-            AttributeValue::String("\u{200B}".into()),
-        ),
-        (
-            AttributeName::from("wj"),
-            AttributeValue::String("\u{2060}".into()),
-        ),
-        (
-            AttributeName::from("apos"),
-            AttributeValue::String("&#39;".into()),
-        ),
-        (
-            AttributeName::from("quot"),
-            AttributeValue::String("&#34;".into()),
-        ),
-        (
-            AttributeName::from("lsquo"),
-            AttributeValue::String("\u{2018}".into()),
-        ),
-        (
-            AttributeName::from("rsquo"),
-            AttributeValue::String("\u{2019}".into()),
-        ),
-        (
-            AttributeName::from("ldquo"),
-            AttributeValue::String("\u{201C}".into()),
-        ),
-        (
-            AttributeName::from("rdquo"),
-            AttributeValue::String("\u{201D}".into()),
-        ),
-        (
-            AttributeName::from("deg"),
-            AttributeValue::String("\u{00B0}".into()),
-        ),
-        (
-            AttributeName::from("plus"),
-            AttributeValue::String("+".into()),
-        ),
-        (
-            AttributeName::from("brvbar"),
-            AttributeValue::String("\u{00A6}".into()),
-        ),
-        (
-            AttributeName::from("vbar"),
-            AttributeValue::String("|".into()),
-        ),
-        (
-            AttributeName::from("amp"),
-            AttributeValue::String("&".into()),
-        ),
-        (
-            AttributeName::from("lt"),
-            AttributeValue::String("<".into()),
-        ),
-        (
-            AttributeName::from("gt"),
-            AttributeValue::String(">".into()),
-        ),
-        (
-            AttributeName::from("startsb"),
-            AttributeValue::String("[".into()),
-        ),
-        (
-            AttributeName::from("endsb"),
-            AttributeValue::String("]".into()),
-        ),
-        (
-            AttributeName::from("caret"),
-            AttributeValue::String("^".into()),
-        ),
-        (
-            AttributeName::from("asterisk"),
-            AttributeValue::String("*".into()),
-        ),
-        (
-            AttributeName::from("tilde"),
-            AttributeValue::String("~".into()),
-        ),
-        (
-            AttributeName::from("backslash"),
-            AttributeValue::String("\\".into()),
-        ),
-        (
-            AttributeName::from("backtick"),
-            AttributeValue::String("`".into()),
-        ),
-        (
-            AttributeName::from("two-colons"),
-            AttributeValue::String("::".into()),
-        ),
-        (
-            AttributeName::from("two-semicolons"),
-            AttributeValue::String(";;".into()),
-        ),
-        (
-            AttributeName::from("cpp"),
-            AttributeValue::String("C++".into()),
-        ),
-        (
-            AttributeName::from("cxx"),
-            AttributeValue::String("C++".into()),
-        ),
-        (
-            AttributeName::from("pp"),
-            AttributeValue::String("++".into()),
-        ),
+        str_attr("empty", ""),
+        str_attr("blank", ""),
+        str_attr("sp", " "),
+        str_attr("nbsp", "\u{00A0}"),
+        str_attr("zwsp", "\u{200B}"),
+        str_attr("wj", "\u{2060}"),
+        str_attr("apos", "&#39;"),
+        str_attr("quot", "&#34;"),
+        str_attr("lsquo", "\u{2018}"),
+        str_attr("rsquo", "\u{2019}"),
+        str_attr("ldquo", "\u{201C}"),
+        str_attr("rdquo", "\u{201D}"),
+        str_attr("deg", "\u{00B0}"),
+        str_attr("plus", "+"),
+        str_attr("brvbar", "\u{00A6}"),
+        str_attr("vbar", "|"),
+        str_attr("amp", "&"),
+        str_attr("lt", "<"),
+        str_attr("gt", ">"),
+        str_attr("startsb", "["),
+        str_attr("endsb", "]"),
+        str_attr("caret", "^"),
+        str_attr("asterisk", "*"),
+        str_attr("tilde", "~"),
+        str_attr("backslash", "\\"),
+        str_attr("backtick", "`"),
+        str_attr("two-colons", "::"),
+        str_attr("two-semicolons", ";;"),
+        str_attr("cpp", "C++"),
+        str_attr("cxx", "C++"),
+        str_attr("pp", "++"),
         // Appendix
-        (
-            AttributeName::from("appendix-caption"),
-            AttributeValue::String("Appendix".into()),
-        ),
-        (
-            AttributeName::from("appendix-refsig"),
-            AttributeValue::String("Appendix".into()),
-        ),
+        str_attr("appendix-caption", "Appendix"),
+        str_attr("appendix-refsig", "Appendix"),
         // Admonition captions
-        (
-            AttributeName::from("note-caption"),
-            AttributeValue::String("Note".into()),
-        ),
-        (
-            AttributeName::from("tip-caption"),
-            AttributeValue::String("Tip".into()),
-        ),
-        (
-            AttributeName::from("important-caption"),
-            AttributeValue::String("Important".into()),
-        ),
-        (
-            AttributeName::from("warning-caption"),
-            AttributeValue::String("Warning".into()),
-        ),
-        (
-            AttributeName::from("caution-caption"),
-            AttributeValue::String("Caution".into()),
-        ),
+        str_attr("note-caption", "Note"),
+        str_attr("tip-caption", "Tip"),
+        str_attr("important-caption", "Important"),
+        str_attr("warning-caption", "Warning"),
+        str_attr("caution-caption", "Caution"),
         // Block captions
-        (
-            AttributeName::from("example-caption"),
-            AttributeValue::String("Example".into()),
-        ),
-        (
-            AttributeName::from("figure-caption"),
-            AttributeValue::String("Figure".into()),
-        ),
-        (
-            AttributeName::from("table-caption"),
-            AttributeValue::String("Table".into()),
-        ),
+        str_attr("example-caption", "Example"),
+        str_attr("figure-caption", "Figure"),
+        str_attr("table-caption", "Table"),
         // UI labels
-        (
-            AttributeName::from("toc-title"),
-            AttributeValue::String("Table of Contents".into()),
-        ),
-        (
-            AttributeName::from("untitled-label"),
-            AttributeValue::String("Untitled".into()),
-        ),
-        (
-            AttributeName::from("version-label"),
-            AttributeValue::String("Version".into()),
-        ),
-        (
-            AttributeName::from("last-update-label"),
-            AttributeValue::String("Last updated".into()),
-        ),
+        str_attr("toc-title", "Table of Contents"),
+        str_attr("untitled-label", "Untitled"),
+        str_attr("version-label", "Version"),
+        str_attr("last-update-label", "Last updated"),
         // Reference labels
-        (
-            AttributeName::from("chapter-refsig"),
-            AttributeValue::String("Chapter".into()),
-        ),
-        (
-            AttributeName::from("section-refsig"),
-            AttributeValue::String("Section".into()),
-        ),
-        (
-            AttributeName::from("part-refsig"),
-            AttributeValue::String("Part".into()),
-        ),
+        str_attr("chapter-refsig", "Chapter"),
+        str_attr("section-refsig", "Section"),
+        str_attr("part-refsig", "Part"),
         // Structural settings
-        (
-            AttributeName::from("toclevels"),
-            AttributeValue::String("2".into()),
-        ),
-        (
-            AttributeName::from("sectnumlevels"),
-            AttributeValue::String("3".into()),
-        ),
+        str_attr("toclevels", "2"),
+        str_attr("sectnumlevels", "3"),
         // ID generation
-        (
-            AttributeName::from("idprefix"),
-            AttributeValue::String("_".into()),
-        ),
-        (
-            AttributeName::from("idseparator"),
-            AttributeValue::String("_".into()),
-        ),
-        (AttributeName::from("sectids"), AttributeValue::Bool(true)),
+        str_attr("idprefix", "_"),
+        str_attr("idseparator", "_"),
+        (Cow::Borrowed("sectids"), AttributeValue::Bool(true)),
         // Attribute processing compliance
-        (
-            AttributeName::from("attribute-missing"),
-            AttributeValue::String("skip".into()),
-        ),
-        (
-            AttributeName::from("attribute-undefined"),
-            AttributeValue::String("drop-line".into()),
-        ),
-    ]
-    .into_iter()
-    .collect()
-}
+        str_attr("attribute-missing", "skip"),
+        str_attr("attribute-undefined", "drop-line"),
+    ];

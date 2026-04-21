@@ -9,7 +9,23 @@ use std::{
     rc::Rc,
 };
 
-use acdc_parser::{AttributeValue, DocumentAttributes, MAX_SECTION_LEVELS};
+use acdc_parser::{AttributeValue, Block, DocumentAttributes, MAX_SECTION_LEVELS};
+
+/// Whether the last section in `blocks` is tagged with the `[index]` style.
+///
+/// Used by converters to decide whether to defer index-term catalog rendering
+/// until the document's explicit index section.
+#[must_use]
+pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
+    let last_section = blocks.iter().rev().find_map(|block| {
+        if let Block::Section(section) = block {
+            Some(section)
+        } else {
+            None
+        }
+    });
+    last_section.is_some_and(|section| section.metadata.style.as_ref().is_some_and(|s| *s == style))
+}
 
 /// Default maximum section level for numbering.
 pub const DEFAULT_SECTION_LEVEL: u8 = 3;
@@ -150,7 +166,7 @@ impl PartNumberTracker {
         let signifier = document_attributes
             .get("part-signifier")
             .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.clone()),
+                AttributeValue::String(s) => Some(s.clone().into_owned()),
                 AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             });
 
@@ -216,7 +232,7 @@ impl AppendixTracker {
     ) -> Self {
         // :appendix-caption: defaults to "Appendix" unless explicitly set or negated
         let caption = match document_attributes.get("appendix-caption") {
-            Some(AttributeValue::String(s)) => Some(s.clone()),
+            Some(AttributeValue::String(s)) => Some(s.clone().into_owned()),
             Some(AttributeValue::Bool(false)) => None,
             _ => Some("Appendix".to_string()),
         };
@@ -248,23 +264,23 @@ impl AppendixTracker {
 mod tests {
     use super::*;
 
-    fn attrs_with_sectnums() -> DocumentAttributes {
+    fn attrs_with_sectnums() -> DocumentAttributes<'static> {
         let mut attrs = DocumentAttributes::default();
-        attrs.insert("sectnums".to_string(), AttributeValue::Bool(true));
+        attrs.insert("sectnums".into(), AttributeValue::Bool(true));
         attrs
     }
 
-    fn attrs_with_numbered() -> DocumentAttributes {
+    fn attrs_with_numbered() -> DocumentAttributes<'static> {
         let mut attrs = DocumentAttributes::default();
-        attrs.insert("numbered".to_string(), AttributeValue::Bool(true));
+        attrs.insert("numbered".into(), AttributeValue::Bool(true));
         attrs
     }
 
-    fn attrs_with_sectnums_and_levels(levels: u8) -> DocumentAttributes {
+    fn attrs_with_sectnums_and_levels(levels: u8) -> DocumentAttributes<'static> {
         let mut attrs = attrs_with_sectnums();
         attrs.set(
-            "sectnumlevels".to_string(),
-            AttributeValue::String(levels.to_string()),
+            "sectnumlevels".into(),
+            AttributeValue::String(levels.to_string().into()),
         );
         attrs
     }
@@ -280,7 +296,7 @@ mod tests {
     #[test]
     fn test_tracker_disabled_returns_none() {
         let mut attrs = DocumentAttributes::default();
-        attrs.insert("sectnums".to_string(), AttributeValue::Bool(false));
+        attrs.insert("sectnums".into(), AttributeValue::Bool(false));
         let tracker = SectionNumberTracker::new(&attrs);
         assert!(tracker.enter_section(1).is_none());
     }
@@ -401,13 +417,10 @@ mod tests {
         assert_eq!(to_upper_roman(0), "");
     }
 
-    fn attrs_with_partnums() -> DocumentAttributes {
+    fn attrs_with_partnums() -> DocumentAttributes<'static> {
         let mut attrs = attrs_with_sectnums();
-        attrs.insert(
-            "doctype".to_string(),
-            AttributeValue::String("book".to_string()),
-        );
-        attrs.insert("partnums".to_string(), AttributeValue::Bool(true));
+        attrs.insert("doctype".into(), AttributeValue::String("book".into()));
+        attrs.insert("partnums".into(), AttributeValue::Bool(true));
         attrs
     }
 
@@ -436,8 +449,8 @@ mod tests {
     fn test_part_tracker_with_signifier() {
         let mut attrs = attrs_with_partnums();
         attrs.insert(
-            "part-signifier".to_string(),
-            AttributeValue::String("Part".to_string()),
+            "part-signifier".into(),
+            AttributeValue::String("Part".into()),
         );
         let section_tracker = SectionNumberTracker::new(&attrs);
         let tracker = PartNumberTracker::new(&attrs, section_tracker);
@@ -472,8 +485,8 @@ mod tests {
     fn test_appendix_tracker_custom_caption() {
         let mut attrs = DocumentAttributes::default();
         attrs.set(
-            "appendix-caption".to_string(),
-            AttributeValue::String("Annexe".to_string()),
+            "appendix-caption".into(),
+            AttributeValue::String("Annexe".into()),
         );
         let section_tracker = SectionNumberTracker::new(&attrs);
         let tracker = AppendixTracker::new(&attrs, section_tracker);
@@ -484,7 +497,7 @@ mod tests {
     #[test]
     fn test_appendix_tracker_disabled_caption() {
         let mut attrs = DocumentAttributes::default();
-        attrs.set("appendix-caption".to_string(), AttributeValue::Bool(false));
+        attrs.set("appendix-caption".into(), AttributeValue::Bool(false));
         let section_tracker = SectionNumberTracker::new(&attrs);
         let tracker = AppendixTracker::new(&attrs, section_tracker);
         assert!(tracker.enter_appendix().is_none());

@@ -93,7 +93,7 @@ fn format_span_attrs(cell: &TableColumn) -> String {
 fn render_cell_content<V>(
     blocks: &[Block],
     visitor: &mut V,
-    _processor: &Processor,
+    _processor: &Processor<'_>,
     _options: &RenderOptions,
     wrap_paragraph: bool,
     style: Option<ColumnStyle>,
@@ -195,7 +195,7 @@ where
 fn render_table_caption<V>(
     visitor: &mut V,
     title: &[InlineNode],
-    processor: &Processor,
+    processor: &Processor<'_>,
     metadata: &BlockMetadata,
 ) -> Result<(), Error>
 where
@@ -207,7 +207,7 @@ where
             if custom_caption.is_empty() {
                 String::new()
             } else {
-                custom_caption
+                custom_caption.into_owned()
             }
         } else {
             processor.caption_prefix("table-caption", &processor.table_counter, "Table")
@@ -283,7 +283,7 @@ fn get_frame_class(metadata: &BlockMetadata) -> &'static str {
     metadata
         .attributes
         .get_string("frame")
-        .map_or("frame-all", |frame| match frame.as_str() {
+        .map_or("frame-all", |frame| match frame.as_ref() {
             "ends" | "topbot" => "frame-ends",
             "sides" => "frame-sides",
             "none" => "frame-none",
@@ -296,7 +296,7 @@ fn get_grid_class(metadata: &BlockMetadata) -> &'static str {
     metadata
         .attributes
         .get_string("grid")
-        .map_or("grid-all", |grid| match grid.as_str() {
+        .map_or("grid-all", |grid| match grid.as_ref() {
             "rows" => "grid-rows",
             "cols" => "grid-cols",
             "none" => "grid-none",
@@ -309,7 +309,7 @@ fn get_stripes_class(metadata: &BlockMetadata) -> Option<&'static str> {
     metadata
         .attributes
         .get_string("stripes")
-        .and_then(|stripes| match stripes.as_str() {
+        .and_then(|stripes| match stripes.as_ref() {
             "even" => Some("stripes-even"),
             "odd" => Some("stripes-odd"),
             "all" => Some("stripes-all"),
@@ -328,7 +328,7 @@ fn get_width_style(metadata: &BlockMetadata) -> String {
 
 /// Get sizing class based on %autowidth option.
 fn get_sizing_class(metadata: &BlockMetadata) -> &'static str {
-    if metadata.options.iter().any(|s| s == "autowidth") {
+    if metadata.options.contains(&"autowidth") {
         "fit-content"
     } else {
         "stretch"
@@ -341,7 +341,7 @@ fn render_body_cell<V>(
     col_index: usize,
     columns: &[ColumnFormat],
     visitor: &mut V,
-    processor: &Processor,
+    processor: &Processor<'_>,
     options: &RenderOptions,
     semantic: bool,
 ) -> Result<(), Error>
@@ -378,7 +378,7 @@ where
 pub(crate) fn render_table<V>(
     table: &Table,
     visitor: &mut V,
-    processor: &Processor,
+    processor: &Processor<'_>,
     options: &RenderOptions,
     metadata: &BlockMetadata,
     title: &[InlineNode],

@@ -1,7 +1,9 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    decode_numeric_char_refs, substitutions::Replacements, visitor::WritableVisitor,
+    decode_numeric_char_refs,
+    substitutions::Replacements,
+    visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
@@ -79,14 +81,14 @@ fn try_to_unicode_subscript(text: &str) -> Option<String> {
 fn render_script_text<W: Write>(
     nodes: &[InlineNode],
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
     converter: fn(&str) -> Option<String>,
 ) -> Result<(), Error> {
     // Collect plain text to attempt Unicode conversion
     let plain: Option<String> = nodes
         .iter()
         .map(|n| match n {
-            InlineNode::PlainText(p) => Some(p.content.as_str()),
+            InlineNode::PlainText(p) => Some(p.content),
             InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::BoldText(_)
@@ -129,7 +131,7 @@ fn render_script_text<W: Write>(
 /// requires the full text upfront to apply styling.
 fn render_inline_nodes_to_string(
     nodes: &[InlineNode],
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<String, Error> {
     let mut buffer = std::io::BufWriter::new(Vec::new());
     for node in nodes {
@@ -145,15 +147,15 @@ fn render_inline_nodes_to_string(
 fn render_inline_node_to_writer<W: Write>(
     node: &InlineNode,
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
-            let text = Replacements::unicode().transform(&p.content, false);
+            let text = Replacements::unicode().transform(p.content, false);
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
-            write!(w, "{}", decode_numeric_char_refs(&r.content))?;
+            write!(w, "{}", decode_numeric_char_refs(r.content))?;
         }
         InlineNode::VerbatimText(v) => {
             // Verbatim text preserves backslashes
@@ -170,7 +172,7 @@ fn render_inline_node_to_writer<W: Write>(
             }
         }
         InlineNode::HighlightText(h) => {
-            if h.role.as_deref() == Some("underline") {
+            if h.role == Some("underline") {
                 // Underline role: just render content (no highlight styling in buffer)
                 for inner in &h.content {
                     render_inline_node_to_writer(inner, w, processor)?;
@@ -233,145 +235,205 @@ fn render_inline_node_to_writer<W: Write>(
     Ok(())
 }
 
-/// Internal implementation for visiting inline nodes
-#[allow(clippy::too_many_lines)]
-pub(crate) fn visit_inline_node<V: WritableVisitor<Error = Error>>(
-    node: &InlineNode,
-    visitor: &mut V,
-    processor: &Processor,
-    in_inline_span: bool,
-) -> Result<(), crate::Error> {
-    match node {
-        InlineNode::PlainText(p) => {
-            let text = Replacements::unicode().transform(&p.content, !in_inline_span);
-            let w = visitor.writer_mut();
-            write!(w, "{text}")?;
+impl<W: Write> crate::TerminalVisitor<'_, W> {
+    /// Internal implementation for visiting inline nodes
+    pub(crate) fn render_inline_node(
+        &mut self,
+        node: &InlineNode,
+        in_inline_span: bool,
+    ) -> Result<(), crate::Error> {
+        let processor = self.processor.clone();
+        match node {
+            InlineNode::PlainText(p) => {
+                let text = Replacements::unicode().transform(p.content, !in_inline_span);
+                let w = self.writer_mut();
+                write!(w, "{text}")?;
+            }
+            InlineNode::ItalicText(_)
+            | InlineNode::BoldText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::MonospaceText(_) => {
+                self.render_formatted_inline_node(node, &processor)?;
+            }
+            InlineNode::SuperscriptText(_) | InlineNode::SubscriptText(_) => {
+                self.render_script_inline_node(node, &processor)?;
+            }
+            InlineNode::Macro(m) => {
+                let w = self.writer_mut();
+                render_inline_macro_to_writer(m, w, &processor)?;
+            }
+            InlineNode::InlineAnchor(_) => {
+                // Anchors are invisible in terminal output
+            }
+            InlineNode::RawText(r) => {
+                let w = self.writer_mut();
+                write!(w, "{}", decode_numeric_char_refs(r.content))?;
+            }
+            InlineNode::VerbatimText(v) => {
+                let w = self.writer_mut();
+                write!(w, "{}", v.content)?;
+            }
+            InlineNode::CurvedQuotationText(c) => {
+                let w = self.writer_mut();
+                write!(w, "\u{201C}")?;
+                self.visit_inline_nodes(&c.content)?;
+                let w = self.writer_mut();
+                write!(w, "\u{201D}")?;
+            }
+            InlineNode::CurvedApostropheText(c) => {
+                let w = self.writer_mut();
+                write!(w, "\u{2018}")?;
+                self.visit_inline_nodes(&c.content)?;
+                let w = self.writer_mut();
+                write!(w, "\u{2019}")?;
+            }
+            InlineNode::StandaloneCurvedApostrophe(_) => {
+                let w = self.writer_mut();
+                write!(w, "\u{2019}")?;
+            }
+            InlineNode::LineBreak(_) => {
+                let w = self.writer_mut();
+                writeln!(w)?;
+            }
+            InlineNode::CalloutRef(callout) => {
+                // Render callout reference as bold (N)
+                let w = self.writer_mut();
+                w.queue(crossterm::style::SetAttribute(
+                    crossterm::style::Attribute::Bold,
+                ))?;
+                write!(w, "({})", callout.number)?;
+                w.queue(crossterm::style::SetAttribute(
+                    crossterm::style::Attribute::NormalIntensity,
+                ))?;
+            }
+            _ => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    format!("Unsupported inline node in terminal: {node:?}"),
+                )
+                .into());
+            }
         }
-        InlineNode::ItalicText(i) => {
-            let w = visitor.writer_mut();
-            w.queue(SetAttribute(Attribute::Italic))?;
-            visitor.visit_inline_nodes(&i.content)?;
-            let w = visitor.writer_mut();
-            w.queue(SetAttribute(Attribute::NoItalic))?;
-        }
-        InlineNode::BoldText(b) => {
-            let w = visitor.writer_mut();
-            w.queue(SetAttribute(Attribute::Bold))?;
-            visitor.visit_inline_nodes(&b.content)?;
-            let w = visitor.writer_mut();
-            w.queue(SetAttribute(Attribute::NormalIntensity))?;
-        }
-        InlineNode::HighlightText(h) => {
-            if h.role.as_deref() == Some("underline") {
-                let w = visitor.writer_mut();
-                w.queue(SetAttribute(Attribute::Underlined))?;
-                visitor.visit_inline_nodes(&h.content)?;
-                let w = visitor.writer_mut();
-                w.queue(SetAttribute(Attribute::NoUnderline))?;
-            } else {
-                let w = visitor.writer_mut();
-                w.queue(SetForegroundColor(Color::Black))?;
-                w.queue(SetBackgroundColor(Color::Yellow))?;
-                visitor.visit_inline_nodes(&h.content)?;
-                let w = visitor.writer_mut();
+        Ok(())
+    }
+
+    /// Render bold, italic, highlight, or monospace inline nodes with crossterm styling.
+    fn render_formatted_inline_node(
+        &mut self,
+        node: &InlineNode,
+        processor: &crate::Processor<'_>,
+    ) -> Result<(), crate::Error> {
+        match node {
+            InlineNode::ItalicText(i) => {
+                let w = self.writer_mut();
+                w.queue(SetAttribute(Attribute::Italic))?;
+                self.visit_inline_nodes(&i.content)?;
+                let w = self.writer_mut();
+                w.queue(SetAttribute(Attribute::NoItalic))?;
+            }
+            InlineNode::BoldText(b) => {
+                let w = self.writer_mut();
+                w.queue(SetAttribute(Attribute::Bold))?;
+                self.visit_inline_nodes(&b.content)?;
+                let w = self.writer_mut();
+                w.queue(SetAttribute(Attribute::NormalIntensity))?;
+            }
+            InlineNode::HighlightText(h) => {
+                if h.role == Some("underline") {
+                    let w = self.writer_mut();
+                    w.queue(SetAttribute(Attribute::Underlined))?;
+                    self.visit_inline_nodes(&h.content)?;
+                    let w = self.writer_mut();
+                    w.queue(SetAttribute(Attribute::NoUnderline))?;
+                } else {
+                    let w = self.writer_mut();
+                    w.queue(SetForegroundColor(Color::Black))?;
+                    w.queue(SetBackgroundColor(Color::Yellow))?;
+                    self.visit_inline_nodes(&h.content)?;
+                    let w = self.writer_mut();
+                    w.queue(ResetColor)?;
+                }
+            }
+            InlineNode::MonospaceText(m) => {
+                let w = self.writer_mut();
+                w.queue(SetForegroundColor(
+                    processor.appearance.colors.inline_monospace,
+                ))?;
+                self.visit_inline_nodes(&m.content)?;
+                let w = self.writer_mut();
                 w.queue(ResetColor)?;
             }
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            | _ => {}
         }
-        InlineNode::MonospaceText(m) => {
-            let w = visitor.writer_mut();
-            w.queue(SetForegroundColor(
-                processor.appearance.colors.inline_monospace,
-            ))?;
-            visitor.visit_inline_nodes(&m.content)?;
-            let w = visitor.writer_mut();
-            w.queue(ResetColor)?;
-        }
-        InlineNode::Macro(m) => {
-            let w = visitor.writer_mut();
-            render_inline_macro_to_writer(m, w, processor)?;
-        }
-        InlineNode::InlineAnchor(_) => {
-            // Anchors are invisible in terminal output
-        }
-        InlineNode::RawText(r) => {
-            let w = visitor.writer_mut();
-            write!(w, "{}", decode_numeric_char_refs(&r.content))?;
-        }
-        InlineNode::VerbatimText(v) => {
-            let w = visitor.writer_mut();
-            write!(w, "{}", v.content)?;
-        }
-        InlineNode::SuperscriptText(s) => {
-            let text = render_inline_nodes_to_string(&s.content, processor)?;
-            let w = visitor.writer_mut();
-            if let Some(converted) = try_to_unicode_superscript(&text) {
-                write!(w, "{converted}")?;
-            } else {
-                w.queue(SetAttribute(Attribute::Dim))?;
-                write!(w, "{text}")?;
-                w.queue(SetAttribute(Attribute::NormalIntensity))?;
-            }
-        }
-        InlineNode::SubscriptText(s) => {
-            let text = render_inline_nodes_to_string(&s.content, processor)?;
-            let w = visitor.writer_mut();
-            if let Some(converted) = try_to_unicode_subscript(&text) {
-                write!(w, "{converted}")?;
-            } else {
-                w.queue(SetAttribute(Attribute::Dim))?;
-                write!(w, "{text}")?;
-                w.queue(SetAttribute(Attribute::NormalIntensity))?;
-            }
-        }
-        InlineNode::CurvedQuotationText(c) => {
-            let w = visitor.writer_mut();
-            write!(w, "\u{201C}")?;
-            visitor.visit_inline_nodes(&c.content)?;
-            let w = visitor.writer_mut();
-            write!(w, "\u{201D}")?;
-        }
-        InlineNode::CurvedApostropheText(c) => {
-            let w = visitor.writer_mut();
-            write!(w, "\u{2018}")?;
-            visitor.visit_inline_nodes(&c.content)?;
-            let w = visitor.writer_mut();
-            write!(w, "\u{2019}")?;
-        }
-        InlineNode::StandaloneCurvedApostrophe(_) => {
-            let w = visitor.writer_mut();
-            write!(w, "\u{2019}")?;
-        }
-        InlineNode::LineBreak(_) => {
-            let w = visitor.writer_mut();
-            writeln!(w)?;
-        }
-        InlineNode::CalloutRef(callout) => {
-            // Render callout reference as bold (N)
-            let w = visitor.writer_mut();
-            w.queue(crossterm::style::SetAttribute(
-                crossterm::style::Attribute::Bold,
-            ))?;
-            write!(w, "({})", callout.number)?;
-            w.queue(crossterm::style::SetAttribute(
-                crossterm::style::Attribute::NormalIntensity,
-            ))?;
-        }
-        _ => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Unsupported,
-                format!("Unsupported inline node in terminal: {node:?}"),
-            )
-            .into());
-        }
+        Ok(())
     }
-    Ok(())
+
+    /// Render superscript or subscript inline nodes.
+    fn render_script_inline_node(
+        &mut self,
+        node: &InlineNode,
+        processor: &crate::Processor<'_>,
+    ) -> Result<(), crate::Error> {
+        match node {
+            InlineNode::SuperscriptText(s) => {
+                let text = render_inline_nodes_to_string(&s.content, processor)?;
+                let w = self.writer_mut();
+                if let Some(converted) = try_to_unicode_superscript(&text) {
+                    write!(w, "{converted}")?;
+                } else {
+                    w.queue(SetAttribute(Attribute::Dim))?;
+                    write!(w, "{text}")?;
+                    w.queue(SetAttribute(Attribute::NormalIntensity))?;
+                }
+            }
+            InlineNode::SubscriptText(s) => {
+                let text = render_inline_nodes_to_string(&s.content, processor)?;
+                let w = self.writer_mut();
+                if let Some(converted) = try_to_unicode_subscript(&text) {
+                    write!(w, "{converted}")?;
+                } else {
+                    w.queue(SetAttribute(Attribute::Dim))?;
+                    write!(w, "{text}")?;
+                    w.queue(SetAttribute(Attribute::NormalIntensity))?;
+                }
+            }
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_)
+            | _ => {}
+        }
+        Ok(())
+    }
 }
 
 fn maybe_render_osc8_link<W: Write + ?Sized>(
     target: &str,
     text: &str,
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), crate::Error> {
     if processor.appearance.capabilities.osc8_links {
         w.queue(Print(
@@ -391,22 +453,22 @@ fn maybe_render_osc8_link<W: Write + ?Sized>(
 }
 
 fn render_inline_macro_to_writer<W: Write + ?Sized>(
-    inline_macro: &InlineMacro,
+    inline_macro: &InlineMacro<'_>,
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), crate::Error> {
     match inline_macro {
         InlineMacro::Link(l) => {
             let target = l.target.clone();
-            let text = match l.text.clone() {
-                Some(text) => text,
+            let text: String = match l.text {
+                Some(text) => text.to_string(),
                 None => target.to_string(),
             };
-            maybe_render_osc8_link(target.clone().to_string().as_str(), &text, w, processor)?;
+            maybe_render_osc8_link(target.clone().to_string().as_ref(), &text, w, processor)?;
         }
         InlineMacro::Url(u) => {
             maybe_render_osc8_link(
-                u.target.to_string().as_str(),
+                u.target.to_string().as_ref(),
                 &render_inline_nodes_to_string(&u.text, processor)?,
                 w,
                 processor,
@@ -414,7 +476,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
         }
         InlineMacro::Mailto(m) => {
             maybe_render_osc8_link(
-                m.target.to_string().as_str(),
+                m.target.to_string().as_ref(),
                 &render_inline_nodes_to_string(&m.text, processor)?,
                 w,
                 processor,
@@ -435,7 +497,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
         InlineMacro::CrossReference(xref) => render_cross_reference(xref, w)?,
         InlineMacro::Pass(p) => {
             // Pass content through as-is
-            if let Some(ref text) = p.text {
+            if let Some(text) = p.text {
                 write!(w, "{text}")?;
             }
         }
@@ -471,7 +533,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
         }
         InlineMacro::IndexTerm(it) => {
             // Collect entry for index catalog rendering
-            processor.add_index_entry(it.kind.clone());
+            processor.add_index_entry(&it.kind);
 
             // Flow terms (visible): output the term text
             // Concealed terms (hidden): output nothing
@@ -493,7 +555,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
 fn render_button<W: Write + ?Sized>(
     button: &Button,
     w: &mut W,
-    processor: &Processor,
+    processor: &Processor<'_>,
 ) -> Result<(), crate::Error> {
     if processor.document_attributes.contains_key("experimental") {
         w.queue(PrintStyledContent(
@@ -502,7 +564,7 @@ fn render_button<W: Write + ?Sized>(
     } else {
         // If the no-button attribute is set, just render the label as plain text
         w.queue(PrintStyledContent(
-            format!("btn:[{}]", button.label.clone()).white(),
+            format!("btn:[{}]", button.label).white(),
         ))?;
     }
     Ok(())
@@ -537,16 +599,16 @@ mod tests {
     };
 
     /// Create simple plain text inline node for testing
-    fn create_plain_text(content: &str) -> InlineNode {
+    fn create_plain_text(content: &str) -> InlineNode<'_> {
         InlineNode::PlainText(Plain {
-            content: content.to_string(),
+            content,
             location: Location::default(),
             escaped: false,
         })
     }
 
     /// Create test processor with default options
-    fn create_test_processor() -> Processor {
+    fn create_test_processor() -> Processor<'static> {
         use crate::Appearance;
         use acdc_converters_core::section::{
             AppendixTracker, PartNumberTracker, SectionNumberTracker,
@@ -858,7 +920,7 @@ mod tests {
     #[test]
     fn test_link_macro() -> Result<(), Error> {
         let link = InlineNode::Macro(InlineMacro::Link(Link::new(
-            Source::Name("https://example.com".to_string()),
+            Source::Name("https://example.com"),
             Location::default(),
         )));
 
@@ -873,7 +935,7 @@ mod tests {
     #[test]
     fn test_image_macro_placeholder() -> Result<(), Error> {
         let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image::new(
-            Source::Name("logo.png".to_string()),
+            Source::Name("logo.png"),
             Location::default(),
         ))));
 
@@ -888,7 +950,7 @@ mod tests {
     #[test]
     fn test_keyboard_macro() -> Result<(), Error> {
         let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard::new(
-            vec!["Ctrl".to_string(), "C".to_string()],
+            vec!["Ctrl", "C"],
             Location::default(),
         )));
 
@@ -956,7 +1018,7 @@ mod tests {
     fn test_inline_anchor_invisible() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Before"),
-            InlineNode::InlineAnchor(Anchor::new("anchor-id".to_string(), Location::default())),
+            InlineNode::InlineAnchor(Anchor::new("anchor-id", Location::default())),
             create_plain_text("After"),
         ])?;
 
@@ -977,7 +1039,7 @@ mod tests {
     fn test_highlight_text_with_underline_role() -> Result<(), Error> {
         let highlight = InlineNode::HighlightText(Highlight {
             content: vec![create_plain_text("underlined text")],
-            role: Some("underline".to_string()),
+            role: Some("underline"),
             id: None,
             form: Form::Constrained,
             location: Location::default(),

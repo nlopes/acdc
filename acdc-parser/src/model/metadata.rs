@@ -8,26 +8,30 @@ use super::attribution::{Attribution, CiteTitle};
 use super::location::Location;
 use super::substitution::SubstitutionSpec;
 
-pub type Role = String;
+pub type Role<'a> = &'a str;
 
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct BlockMetadata {
+pub struct BlockMetadata<'a> {
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
-    pub attributes: ElementAttributes,
+    pub attributes: ElementAttributes<'a>,
+    /// Parser intermediate state: positional attrs from `[foo,bar,baz]` that
+    /// haven't yet been routed to named slots (style/width/height/…) or
+    /// merged into `attributes`. Grammar rules drain this before the block
+    /// is finalised; external consumers never see non-empty values.
     #[serde(default, skip_serializing)]
-    pub positional_attributes: Vec<String>,
+    pub(crate) positional_attributes: Vec<&'a str>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub roles: Vec<Role>,
+    pub roles: Vec<Role<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub options: Vec<String>,
+    pub options: Vec<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub style: Option<String>,
+    pub style: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<Anchor>,
+    pub id: Option<Anchor<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub anchors: Vec<Anchor>,
+    pub anchors: Vec<Anchor<'a>>,
     /// Substitutions to apply to block content.
     ///
     /// - `None`: Use block-type defaults (VERBATIM for listing/literal, NORMAL for paragraphs)
@@ -37,14 +41,14 @@ pub struct BlockMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub substitutions: Option<SubstitutionSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub attribution: Option<Attribution>,
+    pub attribution: Option<Attribution<'a>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub citetitle: Option<CiteTitle>,
+    pub citetitle: Option<CiteTitle<'a>>,
     #[serde(skip)]
     pub location: Option<Location>,
 }
 
-impl BlockMetadata {
+impl<'a> BlockMetadata<'a> {
     /// Create a new block metadata with default values.
     #[must_use]
     pub fn new() -> Self {
@@ -53,48 +57,46 @@ impl BlockMetadata {
 
     /// Set the attributes.
     #[must_use]
-    pub fn with_attributes(mut self, attributes: ElementAttributes) -> Self {
+    pub fn with_attributes(mut self, attributes: ElementAttributes<'a>) -> Self {
         self.attributes = attributes;
         self
     }
 
     /// Set the options.
     #[must_use]
-    pub fn with_options(mut self, options: Vec<String>) -> Self {
+    pub fn with_options(mut self, options: Vec<&'a str>) -> Self {
         self.options = options;
         self
     }
 
     /// Set the roles.
     #[must_use]
-    pub fn with_roles(mut self, roles: Vec<Role>) -> Self {
+    pub fn with_roles(mut self, roles: Vec<Role<'a>>) -> Self {
         self.roles = roles;
         self
     }
 
     /// Set the style.
     #[must_use]
-    pub fn with_style(mut self, style: Option<String>) -> Self {
+    pub fn with_style(mut self, style: Option<&'a str>) -> Self {
         self.style = style;
         self
     }
 
     /// Set the ID.
     #[must_use]
-    pub fn with_id(mut self, id: Option<Anchor>) -> Self {
+    pub fn with_id(mut self, id: Option<Anchor<'a>>) -> Self {
         self.id = id;
         self
     }
 
-    pub fn move_positional_attributes_to_attributes(&mut self) {
+    pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
         for positional_attribute in self.positional_attributes.drain(..) {
-            self.attributes
-                .insert(positional_attribute, AttributeValue::None);
+            self.attributes.insert(
+                std::borrow::Cow::Borrowed(positional_attribute),
+                AttributeValue::None,
+            );
         }
-    }
-
-    pub fn set_attributes(&mut self, attributes: ElementAttributes) {
-        self.attributes = attributes;
     }
 
     #[must_use]
@@ -112,7 +114,7 @@ impl BlockMetadata {
     }
 
     #[tracing::instrument(level = "debug")]
-    pub fn merge(&mut self, other: &BlockMetadata) {
+    pub(crate) fn merge(&mut self, other: &BlockMetadata<'a>) {
         self.attributes.merge(other.attributes.clone());
         self.positional_attributes
             .extend(other.positional_attributes.clone());

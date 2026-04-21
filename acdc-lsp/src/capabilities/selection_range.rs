@@ -20,16 +20,17 @@ pub(crate) fn compute_selection_ranges(
     doc: &DocumentState,
     positions: &[Position],
 ) -> Vec<SelectionRange> {
-    let Some(ast) = doc.ast.as_ref() else {
+    let Some(ast) = doc.ast() else {
         return positions.iter().map(|p| fallback_range(*p)).collect();
     };
+    let ast = ast.document();
 
-    let doc_range = document_range(&doc.text);
+    let doc_range = document_range(doc.text());
 
     positions
         .iter()
         .map(|&pos| {
-            let Some(offset) = position_to_offset(&doc.text, pos) else {
+            let Some(offset) = position_to_offset(doc.text(), pos) else {
                 return fallback_range(pos);
             };
 

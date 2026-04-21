@@ -29,17 +29,17 @@ pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
 /// An anchor is a reference point in a document that can be linked to.
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct Anchor {
-    pub id: String,
+pub struct Anchor<'a> {
+    pub id: &'a str,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub xreflabel: Option<String>,
+    pub xreflabel: Option<&'a str>,
     pub location: Location,
 }
 
-impl Anchor {
+impl<'a> Anchor<'a> {
     /// Create a new anchor with the given ID and location.
     #[must_use]
-    pub fn new(id: String, location: Location) -> Self {
+    pub fn new(id: &'a str, location: Location) -> Self {
         Self {
             id,
             xreflabel: None,
@@ -49,7 +49,7 @@ impl Anchor {
 
     /// Set the cross-reference label.
     #[must_use]
-    pub fn with_xreflabel(mut self, xreflabel: Option<String>) -> Self {
+    pub fn with_xreflabel(mut self, xreflabel: Option<&'a str>) -> Self {
         self.xreflabel = xreflabel;
         self
     }
@@ -60,24 +60,24 @@ impl Anchor {
 /// This is collected during parsing from Section.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct TocEntry {
+pub struct TocEntry<'a> {
     /// Unique identifier for this section (used for anchor links)
-    pub id: String,
+    pub id: &'a str,
     /// Title of the section
-    pub title: Title,
+    pub title: Title<'a>,
     /// Section level (1 for top-level, 2 for subsection, etc.)
     pub level: u8,
     /// Optional cross-reference label (from `[[id,xreflabel]]` syntax)
-    pub xreflabel: Option<String>,
+    pub xreflabel: Option<&'a str>,
     /// Whether this section should be numbered when `sectnums` is enabled.
     ///
     /// False for special section styles like `[bibliography]`, `[glossary]`, etc.
     pub numbered: bool,
     /// Optional style from block metadata (e.g., "appendix", "bibliography").
-    pub style: Option<String>,
+    pub style: Option<&'a str>,
 }
 
-impl Serialize for TocEntry {
+impl Serialize for TocEntry<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

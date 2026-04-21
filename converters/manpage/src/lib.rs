@@ -27,6 +27,7 @@
 //! - `\fB`, `\fI`, `\fP` for inline formatting
 
 use std::{
+    borrow::Cow,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -52,19 +53,50 @@ pub use manpage_visitor::ManpageVisitor;
 
 /// Manpage converter processor.
 #[derive(Clone, Debug)]
-pub struct Processor {
+pub struct Processor<'a> {
     options: Options,
-    document_attributes: DocumentAttributes,
+    document_attributes: DocumentAttributes<'a>,
 }
 
-impl Processor {
+impl<'a> Processor<'a> {
+    /// Convert a document to manpage output, writing to the provided writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if conversion or writing fails.
+    pub fn write_document<W: Write>(
+        &self,
+        doc: &Document<'a>,
+        writer: W,
+        source_file: Option<&Path>,
+    ) -> Result<(), Error> {
+        let mut attrs: DocumentAttributes<'a> = doc.attributes.clone();
+
+        if !attrs.contains_key("revdate")
+            && let Some(date_str) = source_file.and_then(file_modified_date)
+        {
+            attrs.insert(
+                "revdate".into(),
+                AttributeValue::String(Cow::Owned(date_str)),
+            );
+        }
+
+        let processor = Processor {
+            document_attributes: attrs,
+            ..self.clone()
+        };
+        let mut visitor = ManpageVisitor::new(writer, processor);
+        visitor.visit_document(doc)?;
+        Ok(())
+    }
+
     /// Determine the output file extension based on the volume number.
     fn output_extension(doc: &Document) -> String {
         // Read manvolnum from document attributes (set by parser)
         doc.attributes
             .get("manvolnum")
             .and_then(|v| match v {
-                acdc_parser::AttributeValue::String(s) => Some(s.clone()),
+                acdc_parser::AttributeValue::String(s) => Some(s.clone().into_owned()),
                 acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => {
                     None
                 }
@@ -73,21 +105,18 @@ impl Processor {
     }
 }
 
-impl Converter for Processor {
+impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn document_attributes_defaults() -> DocumentAttributes {
-        let mut attrs = DocumentAttributes::default();
+    fn document_attributes_defaults() -> DocumentAttributes<'static> {
+        let mut attrs: DocumentAttributes<'static> = DocumentAttributes::default();
         // man-linkstyle controls how links are rendered in the manpage
         // Format: "color style <text>" - blue R <> means blue, regular, angle brackets
-        attrs.insert(
-            "man-linkstyle".into(),
-            AttributeValue::String("blue R <>".into()),
-        );
+        attrs.insert("man-linkstyle".into(), "blue R <>".into());
         attrs
     }
 
-    fn new(options: Options, document_attributes: DocumentAttributes) -> Self {
+    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
         let mut document_attributes = document_attributes;
         for (name, value) in Self::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
@@ -103,11 +132,15 @@ impl Converter for Processor {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes {
+    fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
     }
 
-    fn derive_output_path(&self, input: &Path, doc: &Document) -> Result<Option<PathBuf>, Error> {
+    fn derive_output_path(
+        &self,
+        input: &Path,
+        doc: &Document<'a>,
+    ) -> Result<Option<PathBuf>, Error> {
         let extension = Self::output_extension(doc);
         let manpage_path = input.with_extension(&extension);
         // Avoid overwriting the input file
@@ -119,26 +152,11 @@ impl Converter for Processor {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document,
+        doc: &Document<'a>,
         writer: W,
         source_file: Option<&Path>,
     ) -> Result<(), Self::Error> {
-        let mut attrs = doc.attributes.clone();
-
-        // If no revdate is set, use the source file's modification date
-        if !attrs.contains_key("revdate")
-            && let Some(date_str) = source_file.and_then(file_modified_date)
-        {
-            attrs.insert("revdate".into(), AttributeValue::String(date_str));
-        }
-
-        let processor = Processor {
-            document_attributes: attrs,
-            ..self.clone()
-        };
-        let mut visitor = ManpageVisitor::new(writer, processor);
-        visitor.visit_document(doc)?;
-        Ok(())
+        self.write_document(doc, writer, source_file)
     }
 
     fn backend(&self) -> Backend {

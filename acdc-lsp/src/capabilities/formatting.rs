@@ -23,13 +23,13 @@ pub(crate) struct ProtectedRange {
 /// Format an entire document, returning a list of text edits.
 #[must_use]
 pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) -> Vec<TextEdit> {
-    let lines: Vec<&str> = doc.text.lines().collect();
+    let lines: Vec<&str> = doc.text().lines().collect();
     let line_count = lines.len();
 
-    let protected = if let Some(ast) = &doc.ast {
-        collect_protected_ranges(ast)
+    let protected = if let Some(ast) = doc.ast() {
+        collect_protected_ranges(ast.document())
     } else {
-        collect_protected_ranges_from_text(&doc.text)
+        collect_protected_ranges_from_text(doc.text())
     };
 
     let range = 0..line_count;
@@ -38,11 +38,11 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     edits.extend(trim_trailing_whitespace(&lines, &protected, range.clone()));
     edits.extend(collapse_blank_lines(&lines, &protected, range.clone()));
 
-    if let Some(ast) = &doc.ast {
-        edits.extend(ensure_block_separation(&lines, ast, range));
+    if let Some(ast) = doc.ast() {
+        edits.extend(ensure_block_separation(&lines, ast.document(), range));
     }
 
-    edits.extend(normalize_final_newline(&doc.text, options));
+    edits.extend(normalize_final_newline(doc.text(), options));
 
     edits
 }
@@ -55,7 +55,7 @@ pub(crate) fn format_range(
     range: &Range,
     options: &FormattingOptions,
 ) -> Vec<TextEdit> {
-    let lines: Vec<&str> = doc.text.lines().collect();
+    let lines: Vec<&str> = doc.text().lines().collect();
     let line_count = lines.len();
 
     // Expand to full lines
@@ -63,10 +63,10 @@ pub(crate) fn format_range(
     let end_line = (range.end.line as usize).min(line_count.saturating_sub(1));
     let line_range = start_line..end_line + 1;
 
-    let protected = if let Some(ast) = &doc.ast {
-        collect_protected_ranges(ast)
+    let protected = if let Some(ast) = doc.ast() {
+        collect_protected_ranges(ast.document())
     } else {
-        collect_protected_ranges_from_text(&doc.text)
+        collect_protected_ranges_from_text(doc.text())
     };
 
     let mut edits = Vec::new();
@@ -78,13 +78,17 @@ pub(crate) fn format_range(
     ));
     edits.extend(collapse_blank_lines(&lines, &protected, line_range.clone()));
 
-    if let Some(ast) = &doc.ast {
-        edits.extend(ensure_block_separation(&lines, ast, line_range.clone()));
+    if let Some(ast) = doc.ast() {
+        edits.extend(ensure_block_separation(
+            &lines,
+            ast.document(),
+            line_range.clone(),
+        ));
     }
 
     // Only normalize final newline if range includes the last line
     if end_line >= line_count.saturating_sub(1) {
-        edits.extend(normalize_final_newline(&doc.text, options));
+        edits.extend(normalize_final_newline(doc.text(), options));
     }
 
     edits
@@ -317,7 +321,7 @@ fn collapse_blank_lines(
 }
 
 /// Get the location from a `Block` enum variant.
-fn block_location(block: &Block) -> &Location {
+fn block_location<'a>(block: &'a Block<'_>) -> &'a Location {
     match block {
         Block::Section(s) => &s.location,
         Block::Paragraph(p) => &p.location,
@@ -755,19 +759,7 @@ mod tests {
     #[test]
     fn test_parse_failed_document_still_formats() {
         let src = "Some text  \n\n\n\nMore text  \n";
-        let doc = DocumentState {
-            text: src.to_string(),
-            version: 1,
-            ast: None,
-            diagnostics: vec![],
-            anchors: std::collections::HashMap::new(),
-            xrefs: vec![],
-            includes: vec![],
-            attribute_refs: vec![],
-            attribute_defs: vec![],
-            media_sources: vec![],
-            conditionals: vec![],
-        };
+        let doc = DocumentState::new_failure(src.to_string(), 1, vec![]);
 
         let options = make_options();
         let edits = format_document(&doc, &options);

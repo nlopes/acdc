@@ -1,11 +1,10 @@
 //! The preprocessor module is responsible for processing the input document and expanding include directives.
-use std::fmt::Write as _;
-use std::path::Path;
+use std::{borrow::Cow, cell::RefCell, fmt::Write as _, path::Path, rc::Rc};
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    Options,
+    Options, Warning, WarningKind,
     error::{Error, Positioning, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
@@ -19,16 +18,43 @@ use include::{Include, IncludeResult};
 
 /// Result from preprocessing that includes both the processed text and metadata needed
 /// for accurate parsing (like leveloffset ranges).
+///
+/// `text` borrows from the caller's input when possible (fast path: no include /
+/// conditional / multi-line-attribute triggers), enabling zero-copy parsing all
+/// the way through the grammar. When any trigger fires, `text` is `Cow::Owned`.
 #[derive(Debug, Default)]
-pub(crate) struct PreprocessorResult {
+pub(crate) struct PreprocessorResult<'a> {
     /// The preprocessed document text.
-    pub(crate) text: String,
+    pub(crate) text: Cow<'a, str>,
     /// Byte ranges where specific leveloffset values apply.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
     /// Byte ranges mapping preprocessed output back to source files.
     /// Used by the parser to produce accurate file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
+}
+
+impl PreprocessorResult<'_> {
+    /// Materialize any borrowed text into an owned `PreprocessorResult<'static>`.
+    /// Used by `process_file` / `process_reader` where the source buffer is a
+    /// local and cannot outlive the function.
+    fn into_owned(self) -> PreprocessorResult<'static> {
+        PreprocessorResult {
+            text: Cow::Owned(self.text.into_owned()),
+            leveloffset_ranges: self.leveloffset_ranges,
+            source_ranges: self.source_ranges,
+        }
+    }
+}
+
+/// Per-directive context bundling position and file information that
+/// would otherwise need to be threaded individually through every
+/// directive helper (and push the argument count past clippy's limit).
+#[derive(Debug)]
+struct DirectiveContext<'a> {
+    line_number: &'a mut usize,
+    current_offset: usize,
+    file_parent: Option<&'a Path>,
 }
 
 /// Mutable state accumulated during preprocessing.
@@ -118,8 +144,38 @@ pub(crate) fn read_and_decode_file(
     ))
 }
 
-#[derive(Debug, Default)]
-pub(crate) struct Preprocessor;
+/// Preprocessor shared across `Include` / `Conditional` / `Tag` helpers.
+///
+/// Carries a warning sink (`Rc<RefCell<Vec<Warning>>>`) that the caller
+/// — typically `parse_input` / `parse_inline` in `lib.rs` — also hands
+/// to the later `ParserState`. That makes preprocessor warnings
+/// (missing includes, unclosed tags, bad attribute lines, if/endif
+/// mismatches, ...) reach `ParseResult::warnings()` alongside grammar
+/// warnings.
+///
+/// All public entry points take the handle explicitly; the struct is
+/// purely a carrier so nested `&self` helpers (`process_include`,
+/// `process_conditional`, `process_directive_line`) can reach the sink
+/// without threading it through every parameter list.
+#[derive(Debug)]
+pub(crate) struct Preprocessor {
+    warnings: Rc<RefCell<Vec<Warning>>>,
+}
+
+impl Preprocessor {
+    /// Push a warning with an attached source location, also emitting it
+    /// through `tracing::warn!` as a belt-and-suspenders fallback so
+    /// subscribers keep seeing the same messages.
+    pub(crate) fn add_warning_at(
+        &self,
+        message: impl Into<Cow<'static, str>>,
+        location: SourceLocation,
+    ) {
+        let warning = Warning::new(WarningKind::Other(message.into()), Some(location));
+        tracing::warn!(?warning);
+        self.warnings.borrow_mut().push(warning);
+    }
+}
 
 impl Preprocessor {
     /// Helper to create a `SourceLocation` from preprocessor context (line-level precision).
@@ -137,53 +193,137 @@ impl Preprocessor {
         }
     }
 
-    fn normalize(input: &str) -> String {
-        // Pre-allocate string with input length as estimate
-        // (trimming end may reduce size slightly, but close enough)
-        let lines: Vec<&str> = input.lines().map(str::trim_end).collect();
+    /// Normalize line endings and trailing whitespace.
+    ///
+    /// Fast path: when the input already uses LF line endings, has no trailing
+    /// whitespace on any line, and no embedded CR characters, return
+    /// `Cow::Borrowed` (optionally trimming a single trailing newline to match
+    /// `str::lines`'s drop-trailing-empty behavior). Slow path: rebuild the
+    /// buffer line-by-line as before.
+    fn normalize(input: &str) -> Cow<'_, str> {
+        // Match the original behavior of `input.lines()`: a single trailing
+        // newline (`\n` or `\r\n`) is dropped.
+        let trimmed = input
+            .strip_suffix("\r\n")
+            .or_else(|| input.strip_suffix('\n'))
+            .unwrap_or(input);
+        // Any `\r` (including inside `\r\n` pairs) or trailing whitespace on a
+        // line forces a rebuild.
+        let needs_rebuild = trimmed.as_bytes().contains(&b'\r')
+            || trimmed
+                .split('\n')
+                .any(|line| matches!(line.as_bytes().last(), Some(b' ' | b'\t')));
+        if !needs_rebuild {
+            return Cow::Borrowed(trimmed);
+        }
         let mut result = String::with_capacity(input.len());
-        for (i, line) in lines.iter().enumerate() {
+        for (i, line) in input.lines().map(str::trim_end).enumerate() {
             if i > 0 {
                 result.push('\n');
             }
             result.push_str(line);
         }
-        result
+        Cow::Owned(result)
     }
 
-    #[tracing::instrument(skip(reader))]
+    /// Fast-path detection: returns `true` if the normalized text contains no
+    /// preprocessor triggers (include, ifdef/ifndef/ifeval, escaped directives,
+    /// multi-line attribute continuations). When true, the slow rebuild loop is
+    /// unnecessary and the caller can return the normalized text directly,
+    /// preserving any borrow from the original input.
+    ///
+    /// This is a read-only scan: it must not mutate options. Single-line
+    /// attributes (`:attr: value`) are intentionally left to downstream parsing
+    /// — the slow path's attribute mutation is only needed to evaluate
+    /// conditional directives, which by definition trigger the slow path.
+    ///
+    /// Note: we deliberately do NOT track verbatim block state here. The slow
+    /// path processes `include::` (and other) directives regardless of whether
+    /// they appear inside `----` listing blocks — that matches asciidoctor's
+    /// behavior and is exercised by fixtures like `include_with_indent.adoc`.
+    /// Skipping lines inside verbatim blocks would silently pass such inputs
+    /// through unmodified.
+    fn try_pass_through(text: &str) -> bool {
+        for line in text.lines() {
+            // Escaped directives are unescaped by the slow path.
+            if line.starts_with("\\include")
+                || line.starts_with("\\ifdef")
+                || line.starts_with("\\ifndef")
+                || line.starts_with("\\ifeval")
+            {
+                return false;
+            }
+            // Multi-line attribute continuation would be collapsed by the slow path.
+            if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
+                return false;
+            }
+            // Directive lines: include::, ifdef::, ifndef::, ifeval::
+            if line.ends_with(']')
+                && !line.starts_with('[')
+                && line.contains("::")
+                && (line.starts_with("include")
+                    || line.starts_with("ifdef")
+                    || line.starts_with("ifndef")
+                    || line.starts_with("ifeval"))
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    #[tracing::instrument(skip(reader, warnings))]
     pub(crate) fn process_reader<R: std::io::Read>(
-        &self,
         mut reader: R,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
+        warnings: Rc<RefCell<Vec<Warning>>>,
+    ) -> Result<PreprocessorResult<'static>, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).map_err(|e| {
             tracing::error!(error=?e, "failed to read from reader");
             e
         })?;
-        self.process(&input, options)
+        // The local `input` cannot outlive this function, so materialize any
+        // borrowed text into an owned result.
+        Ok(Self { warnings }
+            .process_inner(&input, None, options)?
+            .into_owned())
     }
 
-    #[tracing::instrument]
-    pub(crate) fn process(
-        &self,
-        input: &str,
+    #[tracing::instrument(skip(warnings))]
+    pub(crate) fn process<'a>(
+        input: &'a str,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
-        self.process_inner(input, None, options)
+        warnings: Rc<RefCell<Vec<Warning>>>,
+    ) -> Result<PreprocessorResult<'a>, Error> {
+        Self { warnings }.process_inner(input, None, options)
     }
 
-    #[tracing::instrument(skip(file_path))]
+    /// Like `process` but lets the caller pass the file path explicitly, used
+    /// by `parse_file` where the input has already been read and leaked.
+    #[tracing::instrument(skip(file_path, warnings))]
+    pub(crate) fn process_with_file<'a>(
+        input: &'a str,
+        file_path: &Path,
+        options: &Options,
+        warnings: Rc<RefCell<Vec<Warning>>>,
+    ) -> Result<PreprocessorResult<'a>, Error> {
+        Self { warnings }.process_inner(input, Some(file_path), options)
+    }
+
+    #[cfg(test)]
+    #[tracing::instrument(skip(file_path, warnings))]
     pub(crate) fn process_file<P: AsRef<Path>>(
-        &self,
         file_path: P,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
+        warnings: Rc<RefCell<Vec<Warning>>>,
+    ) -> Result<PreprocessorResult<'static>, Error> {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            self.process_inner(&input, Some(file_path.as_ref()), options)
+            Ok(Self { warnings }
+                .process_inner(&input, Some(file_path.as_ref()), options)?
+                .into_owned())
         } else {
             Err(Error::InvalidIncludePath(
                 Box::new(Self::create_source_location(1, Some(file_path.as_ref()))),
@@ -195,8 +335,9 @@ impl Preprocessor {
     /// Process an include directive.
     ///
     /// Returns the included content along with any leveloffset that applies.
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     fn process_include(
+        &self,
         line: &str,
         line_number: usize,
         current_offset: usize,
@@ -212,6 +353,7 @@ impl Preprocessor {
                     current_offset,
                     Some(current_file_path),
                     options,
+                    &self.warnings,
                 )?;
                 return Ok(Some(include.lines()?));
             }
@@ -222,19 +364,22 @@ impl Preprocessor {
     }
 
     /// Process a conditional directive (ifdef/ifndef/ifeval)
-    #[tracing::instrument(skip(lines, attributes))]
+    #[tracing::instrument(skip(self, lines, attributes))]
     fn process_conditional<'a, I: Iterator<Item = &'a str>>(
+        &self,
         line: &str,
         lines: &mut std::iter::Peekable<I>,
-        line_number: &mut usize,
-        condition_line_number: usize,
-        current_offset: usize,
-        file_parent: Option<&Path>,
+        ctx: &mut DirectiveContext<'_>,
         attributes: &crate::DocumentAttributes,
     ) -> Result<Option<String>, Error> {
         let mut content = String::new();
-        let condition =
-            conditional::parse_line(line, condition_line_number, current_offset, file_parent)?;
+        let condition_line_number = *ctx.line_number;
+        let condition = conditional::parse_line(
+            line,
+            condition_line_number,
+            ctx.current_offset,
+            ctx.file_parent,
+        )?;
 
         while let Some(next_line) = lines.peek() {
             if next_line.is_empty() {
@@ -242,38 +387,44 @@ impl Preprocessor {
                 break;
             } else if next_line.starts_with("endif") {
                 // Calculate the line number and offset for the endif line
-                let endif_line_number = *line_number + 1;
+                let endif_line_number = *ctx.line_number + 1;
                 let endif_offset =
-                    current_offset + line.len() + content.len() + content.lines().count();
+                    ctx.current_offset + line.len() + content.len() + content.lines().count();
                 let endif = conditional::parse_endif(
                     next_line,
                     endif_line_number,
                     endif_offset,
-                    file_parent,
+                    ctx.file_parent,
                 )?;
 
                 if !endif.closes(&condition) {
-                    tracing::warn!("attribute mismatch between if and endif directives");
+                    // Record as a warning in addition to raising the hard
+                    // error: the warning lands on `ParseResult::warnings`
+                    // even if the caller recovers from the error.
+                    self.add_warning_at(
+                        "attribute mismatch between if and endif directives",
+                        Self::create_source_location(endif_line_number, ctx.file_parent),
+                    );
                     return Err(Error::InvalidConditionalDirective(Box::new(
-                        Self::create_source_location(endif_line_number, file_parent),
+                        Self::create_source_location(endif_line_number, ctx.file_parent),
                     )));
                 }
                 tracing::trace!(?content, "multiline if directive");
                 lines.next();
-                *line_number += 1;
+                *ctx.line_number += 1;
                 break;
             }
             let _ = writeln!(content, "{next_line}");
             lines.next();
-            *line_number += 1;
+            *ctx.line_number += 1;
         }
 
         if condition.is_true(
             attributes,
             &mut content,
             condition_line_number,
-            current_offset,
-            file_parent,
+            ctx.current_offset,
+            ctx.file_parent,
         )? {
             Ok(Some(content))
         } else {
@@ -440,11 +591,10 @@ impl Preprocessor {
     }
 
     fn process_directive_line<'a>(
+        &self,
         line: &'a str,
         lines: &mut std::iter::Peekable<std::str::Lines<'a>>,
-        line_number: &mut usize,
-        current_offset: usize,
-        file_parent: Option<&Path>,
+        ctx: &mut DirectiveContext<'_>,
         options: &Options,
         out: &mut PreprocessorState,
     ) -> Result<(), Error> {
@@ -458,22 +608,19 @@ impl Preprocessor {
             || line.starts_with("ifndef")
             || line.starts_with("ifeval")
         {
-            let current_line = *line_number;
-            if let Some(content) = Self::process_conditional(
-                line,
-                lines,
-                line_number,
-                current_line,
-                current_offset,
-                file_parent,
-                &options.document_attributes,
-            )? {
+            if let Some(content) =
+                self.process_conditional(line, lines, ctx, &options.document_attributes)?
+            {
                 out.push_line(content);
             }
         } else if line.starts_with("include") {
-            if let Some(include_result) =
-                Self::process_include(line, *line_number, current_offset, file_parent, options)?
-            {
+            if let Some(include_result) = self.process_include(
+                line,
+                *ctx.line_number,
+                ctx.current_offset,
+                ctx.file_parent,
+                options,
+            )? {
                 Self::handle_include_result(include_result, out);
             }
         } else {
@@ -483,16 +630,41 @@ impl Preprocessor {
     }
 
     #[tracing::instrument]
-    fn process_inner(
+    fn process_inner<'a>(
         &self,
-        input: &str,
+        input: &'a str,
         file_parent: Option<&Path>,
         options: &Options,
-    ) -> Result<PreprocessorResult, Error> {
-        let input = Preprocessor::normalize(input);
+    ) -> Result<PreprocessorResult<'a>, Error> {
+        let normalized = Preprocessor::normalize(input);
+
+        // Fast path: no triggers means the slow rebuild would produce byte-identical
+        // output. Return the normalized text directly, preserving any borrow from
+        // the caller's input so that downstream parsing can be zero-copy.
+        if Self::try_pass_through(&normalized) {
+            return Ok(PreprocessorResult {
+                text: normalized,
+                leveloffset_ranges: Vec::new(),
+                source_ranges: Vec::new(),
+            });
+        }
+
+        // Slow path: at least one trigger fires (include, conditional,
+        // multi-line attribute continuation, or escaped directive). Rebuild
+        // line-by-line as before. Hold the normalized text as a local so the
+        // peekable iterator can borrow from it for the duration of this call.
+        let normalized_owned;
+        let normalized_ref: &str = match &normalized {
+            Cow::Borrowed(s) => s,
+            Cow::Owned(s) => {
+                normalized_owned = s;
+                normalized_owned.as_str()
+            }
+        };
+
         let mut options = options.clone();
-        let output = Vec::with_capacity(input.lines().count());
-        let mut lines = input.lines().peekable();
+        let output = Vec::with_capacity(normalized_ref.lines().count());
+        let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut current_offset = 0;
         let mut out = PreprocessorState {
@@ -534,15 +706,12 @@ impl Preprocessor {
             } else if line.starts_with("//") {
                 out.push_line(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
-                Self::process_directive_line(
-                    line,
-                    &mut lines,
-                    &mut line_number,
+                let mut ctx = DirectiveContext {
+                    line_number: &mut line_number,
                     current_offset,
                     file_parent,
-                    &options,
-                    &mut out,
-                )?;
+                };
+                self.process_directive_line(line, &mut lines, &mut ctx, &options, &mut out)?;
             } else {
                 out.push_line(line.to_string());
             }
@@ -551,7 +720,7 @@ impl Preprocessor {
         }
 
         Ok(PreprocessorResult {
-            text: out.lines.join("\n"),
+            text: Cow::Owned(out.lines.join("\n")),
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
         })
@@ -571,7 +740,7 @@ ifdef::attribute[]
 content
 endif::[]
 ";
-        let result = Preprocessor.process(input, &options)?;
+        let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text, ":attribute: value\n\ncontent\n");
         Ok(())
     }
@@ -584,7 +753,7 @@ endif::[]
 ifdef::asdf[]
 content
 endif::asdf[]";
-        let result = Preprocessor.process(input, &options)?;
+        let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text, ":asdf:\n\ncontent\n");
         Ok(())
     }
@@ -595,7 +764,7 @@ endif::asdf[]";
         let input = "ifdef::asdf[]
 content
 endif::another[]";
-        let output = Preprocessor.process(input, &options);
+        let output = Preprocessor::process(input, &options, Rc::default());
         assert!(matches!(
             output,
             Err(Error::InvalidConditionalDirective(..))
@@ -669,11 +838,11 @@ endif::another[]";
     #[test]
     fn test_include_utf16_file() -> Result<(), Error> {
         // Test that include directive works with UTF-16 LE files
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/main_with_include.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain content from both main file and included UTF-16 file
         assert!(result.text.contains("= Main Document"));
@@ -685,11 +854,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_single_tag() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_tag.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain the intro tag content
         assert!(result.text.contains("This is the introduction."));
@@ -706,11 +875,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_multiple_tags() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_multiple_tags.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain both intro and main content
         assert!(result.text.contains("This is the introduction."));
@@ -722,11 +891,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_wildcard_excluding_tag() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_wildcard_exclude.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain intro and main content
         assert!(result.text.contains("This is the introduction."));
@@ -738,11 +907,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_double_wildcard() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_double_wildcard.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain all content except tag directive lines
         assert!(result.text.contains("untagged content"));
@@ -757,11 +926,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_nested_tag() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_nested_tag.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain only the nested content
         assert!(result.text.contains("This is nested within main."));
@@ -773,11 +942,11 @@ endif::another[]";
 
     #[test]
     fn test_include_select_untagged_only() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_untagged_only.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain only untagged content
         assert!(result.text.contains("untagged content at the beginning"));
@@ -792,11 +961,11 @@ endif::another[]";
 
     #[test]
     fn test_include_tag_with_lines() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_tag_with_lines.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // When combining tag= and lines=, the lines= attribute refers to
         // line numbers in the ORIGINAL file, not the filtered result.
@@ -811,11 +980,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_indent() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // min indent is 0, so indent=4 adds 4 spaces preserving relative indentation
         assert!(result.text.contains("    def hello"));
@@ -826,11 +995,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_indent_zero() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent_zero.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // min indent is 0, so indent=0 leaves content unchanged
         assert!(result.text.contains("def hello"));
@@ -841,11 +1010,11 @@ endif::another[]";
 
     #[test]
     fn test_include_with_indent_and_tag() -> Result<(), Error> {
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent_and_tag.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain intro tag content, indented by 2 spaces
         assert!(result.text.contains("  This is the introduction."));
@@ -863,11 +1032,11 @@ endif::another[]";
         //   nested_include_main.adoc
         //     -> includes subdir/middle.adoc
         //         -> includes inner.adoc (relative to subdir/)
-        let preprocessor = Preprocessor;
+        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
         let path = Path::new("fixtures/preprocessor/nested_include_main.adoc");
         let options = Options::default();
 
-        let result = preprocessor.process_file(path, &options)?;
+        let result = Preprocessor::process_file(path, &options, warnings)?;
 
         // Should contain content from main file
         assert!(result.text.contains("= Nested Include Test"));

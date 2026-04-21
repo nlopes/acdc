@@ -5,7 +5,7 @@
 
 /// Direction for rounding or stepping through UTF-8 character boundaries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RoundDirection {
+pub(super) enum RoundDirection {
     /// Round backward (toward start of string) to find a valid boundary.
     Backward,
     /// Round forward (toward end of string) to find a valid boundary.
@@ -24,7 +24,7 @@ pub enum RoundDirection {
 ///
 /// # Returns
 /// A valid UTF-8 character boundary offset within `[0, input.len()]`.
-pub fn snap_to_boundary(input: &str, offset: usize, direction: RoundDirection) -> usize {
+pub(super) fn snap_to_boundary(input: &str, offset: usize, direction: RoundDirection) -> usize {
     if offset >= input.len() {
         return input.len();
     }
@@ -64,7 +64,7 @@ pub fn snap_to_boundary(input: &str, offset: usize, direction: RoundDirection) -
 ///
 /// # Returns
 /// A valid UTF-8 character boundary offset within `[0, input.len()]`.
-pub fn step_char(input: &str, offset: usize, direction: RoundDirection) -> usize {
+pub(super) fn step_char(input: &str, offset: usize, direction: RoundDirection) -> usize {
     match direction {
         RoundDirection::Forward => {
             if offset >= input.len() {
@@ -93,25 +93,25 @@ pub fn step_char(input: &str, offset: usize, direction: RoundDirection) -> usize
 
 /// Safely increment a byte offset to the next UTF-8 character boundary.
 #[inline]
-pub fn safe_increment_offset(input: &str, offset: usize) -> usize {
+pub(super) fn safe_increment_offset(input: &str, offset: usize) -> usize {
     step_char(input, offset, RoundDirection::Forward)
 }
 
 /// Safely decrement a byte offset by one character, ensuring valid UTF-8 boundary.
 #[inline]
-pub fn safe_decrement_offset(input: &str, offset: usize) -> usize {
+pub(super) fn safe_decrement_offset(input: &str, offset: usize) -> usize {
     step_char(input, offset, RoundDirection::Backward)
 }
 
 /// Ensure an offset is on a valid UTF-8 character boundary (round backward).
 #[inline]
-pub fn ensure_char_boundary(input: &str, offset: usize) -> usize {
+pub(super) fn ensure_char_boundary(input: &str, offset: usize) -> usize {
     snap_to_boundary(input, offset, RoundDirection::Backward)
 }
 
 /// Ensure an offset is on a valid UTF-8 character boundary (round forward).
 #[inline]
-pub fn ensure_char_boundary_forward(input: &str, offset: usize) -> usize {
+pub(super) fn ensure_char_boundary_forward(input: &str, offset: usize) -> usize {
     snap_to_boundary(input, offset, RoundDirection::Forward)
 }
 

@@ -17,7 +17,8 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
     // Parse the `AsciiDoc` input with rendering defaults
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
-    let doc = acdc_parser::parse_file(path, &parser_options)?;
+    let parsed = acdc_parser::parse_file(path, &parser_options)?;
+    let doc = parsed.document();
 
     // Convert to manpage output
     let mut output = Vec::new();
@@ -25,8 +26,8 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .embedded(embedded)
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone());
-    processor.write_to(&doc, &mut output, Some(path))?;
+    let processor = Processor::new(converter_options, doc.attributes.to_static());
+    processor.write_to(doc, &mut output, Some(path))?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;

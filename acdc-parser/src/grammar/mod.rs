@@ -18,7 +18,6 @@ mod table;
 pub(crate) mod utf8_utils;
 
 pub(crate) use document::document_parser;
-pub(crate) use helpers::BlockParsingMetadata;
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,
 };

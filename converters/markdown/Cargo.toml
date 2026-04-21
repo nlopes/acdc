@@ -4,6 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 description = "Markdown converter with CommonMark and GitHub Flavored Markdown support"
 license = "MIT OR Apache-2.0"
+publish = false
 
 [dependencies]
 acdc-converters-core.workspace = true

@@ -23,7 +23,12 @@ When tests fail, identify the category and follow the appropriate path:
 
 All crates have **independent versions** — bump only crates that changed.
 
-Crates: `acdc-parser`, `acdc-cli`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-terminal`, `acdc-converters-dev` (not published), `acdc-editor-wasm` (GitHub Release, not crates.io).
+### Publish status
+
+- **Published to crates.io**: `acdc-parser`
+- **Not published**: `acdc-cli`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
+
+`acdc-cli` and `acdc-lsp` are distributed as binaries but we haven't built a pipeline to produce these as GitHub releases yet; `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
 
 ### Releasing acdc-editor-wasm
 
