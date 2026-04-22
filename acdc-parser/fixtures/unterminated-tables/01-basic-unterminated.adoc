@@ -1,0 +1,17 @@
+= Basic unterminated table
+
+The motivating case: a pipe table is opened but the user forgets the closing
+`|===`. acdc should emit one `unterminated table block (opened by `|===`)`
+warning pointing at line 5, and still produce a table in the HTML.
+
+Some text before the table.
+
+|===
+| Name | Role
+| Alice | Engineer
+| Bob | PM
+
+Text after the open delim — asciidoctor keeps consuming this as part of the
+table. acdc should do the same.
+
+One more paragraph, still no close in sight.

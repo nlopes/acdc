@@ -190,6 +190,23 @@ fn apply_leveloffset(
     }
 }
 
+/// How the closing delimiter of a table block was resolved.
+///
+/// A `Terminated` variant carries the matched close delimiter and its start
+/// position so callers can validate symmetry with the open delimiter and
+/// record an accurate close-delimiter location. `Unterminated` means the
+/// opening delimiter ran to end-of-input without a matching close — the
+/// parser still assembles a table (matching asciidoctor's recovery) and
+/// emits a warning.
+#[derive(Clone, Copy)]
+enum TableClosing<'a> {
+    Terminated {
+        close_delim: &'a str,
+        close_start: usize,
+    },
+    Unterminated,
+}
+
 /// Parameters for parsing a table block, passed from delimiter-specific grammar rules
 /// to the common parsing helper function.
 struct TableParseParams<'a> {
@@ -200,10 +217,9 @@ struct TableParseParams<'a> {
     content_end: usize,
     end: usize,
     open_delim: &'a str,
-    close_delim: &'a str,
     content: &'a str,
     default_separator: &'a str,
-    close_start: usize,
+    closing: TableClosing<'a>,
 }
 
 /// Parse a table block from pre-extracted positions and content.
@@ -224,18 +240,10 @@ fn parse_table_block_impl<'input>(
         content_end: _content_end,
         end,
         open_delim,
-        close_delim,
         content,
         default_separator,
-        close_start,
+        closing,
     } = params;
-
-    check_delimiters(
-        open_delim,
-        close_delim,
-        "table",
-        state.create_error_source_location(state.create_block_location(start, end, offset)),
-    )?;
 
     let mut metadata = block_metadata.metadata.clone();
     metadata.move_positional_attributes_to_attributes();
@@ -245,7 +253,29 @@ fn parse_table_block_impl<'input>(
         table_start + offset,
         table_start + offset + open_delim.len().saturating_sub(1),
     );
-    let close_delimiter_location = state.create_block_location(close_start, end, offset);
+    let close_delimiter_location = match closing {
+        TableClosing::Terminated {
+            close_delim,
+            close_start,
+        } => {
+            check_delimiters(
+                open_delim,
+                close_delim,
+                "table",
+                state.create_error_source_location(state.create_block_location(start, end, offset)),
+            )?;
+            Some(state.create_block_location(close_start, end, offset))
+        }
+        TableClosing::Unterminated => {
+            state.add_warning(crate::Warning::new(
+                crate::WarningKind::UnterminatedTable {
+                    delimiter: open_delim.to_string(),
+                },
+                Some(state.create_error_source_location(open_delimiter_location.clone())),
+            ));
+            None
+        }
+    };
 
     let separator = if let Some(AttributeValue::String(sep)) =
         block_metadata.metadata.attributes.get("separator")
@@ -574,7 +604,7 @@ fn parse_table_block_impl<'input>(
         title: block_metadata.title.clone(),
         location,
         open_delimiter_location: Some(open_delimiter_location),
-        close_delimiter_location: Some(close_delimiter_location),
+        close_delimiter_location,
     }))
 }
 
@@ -1997,11 +2027,18 @@ peg::parser! {
         // Table block dispatcher - tries each delimiter-specific variant in order.
         // This enables nested tables: |=== outer can contain !=== inner because
         // each rule only looks for its own closing delimiter.
+        //
+        // Terminated variants are tried first; unterminated fallbacks only match
+        // when an opening delimiter runs to end-of-input without a close.
         rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = pipe_table_block(start, offset, block_metadata)
             / excl_table_block(start, offset, block_metadata)
             / comma_table_block(start, offset, block_metadata)
             / colon_table_block(start, offset, block_metadata)
+            / unterminated_pipe_table_block(start, offset, block_metadata)
+            / unterminated_excl_table_block(start, offset, block_metadata)
+            / unterminated_comma_table_block(start, offset, block_metadata)
+            / unterminated_colon_table_block(start, offset, block_metadata)
 
         rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() eol()
@@ -2011,8 +2048,8 @@ peg::parser! {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
-                    open_delim, close_delim, content, default_separator: "|",
-                    close_start,
+                    open_delim, content, default_separator: "|",
+                    closing: TableClosing::Terminated { close_delim, close_start },
                 },
                 state,
                 block_metadata,
@@ -2027,8 +2064,8 @@ peg::parser! {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
-                    open_delim, close_delim, content, default_separator: "!",
-                    close_start,
+                    open_delim, content, default_separator: "!",
+                    closing: TableClosing::Terminated { close_delim, close_start },
                 },
                 state,
                 block_metadata,
@@ -2043,8 +2080,8 @@ peg::parser! {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
-                    open_delim, close_delim, content, default_separator: ",",
-                    close_start,
+                    open_delim, content, default_separator: ",",
+                    closing: TableClosing::Terminated { close_delim, close_start },
                 },
                 state,
                 block_metadata,
@@ -2059,8 +2096,84 @@ peg::parser! {
             parse_table_block_impl(
                 &TableParseParams {
                     start, offset, table_start, content_start, content_end, end,
-                    open_delim, close_delim, content, default_separator: ":",
-                    close_start,
+                    open_delim, content, default_separator: ":",
+                    closing: TableClosing::Terminated { close_delim, close_start },
+                },
+                state,
+                block_metadata,
+            )
+        }
+
+        // Unterminated table fallbacks: match an opening table delimiter
+        // that runs to end-of-input without a closing delimiter. These
+        // alternatives are tried only after all terminated variants fail,
+        // so a document with a valid close never takes this path. When
+        // taken, `parse_table_block_impl` emits an `UnterminatedTable`
+        // warning and still produces a table, matching asciidoctor's
+        // recovery behavior.
+        //
+        // The `(eol() / ![_])` after the open delimiter accepts both
+        // `|===\n...` and `|===<EOF>`: the preprocessor's `normalize`
+        // strips a single trailing newline (mirroring `str::lines`), so a
+        // file ending with just `|===\n` reaches the grammar as `|===`.
+        rule unterminated_pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = table_start:position!() open_delim:pipe_table_delimiter() (eol() / ![_])
+              content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
+              end:position!() ![_]
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, content, default_separator: "|",
+                    closing: TableClosing::Unterminated,
+                },
+                state,
+                block_metadata,
+            )
+        }
+
+        rule unterminated_excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = table_start:position!() open_delim:excl_table_delimiter() (eol() / ![_])
+              content_start:position!() content:until_excl_table_delimiter() content_end:position!()
+              end:position!() ![_]
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, content, default_separator: "!",
+                    closing: TableClosing::Unterminated,
+                },
+                state,
+                block_metadata,
+            )
+        }
+
+        rule unterminated_comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = table_start:position!() open_delim:comma_table_delimiter() (eol() / ![_])
+              content_start:position!() content:until_comma_table_delimiter() content_end:position!()
+              end:position!() ![_]
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, content, default_separator: ",",
+                    closing: TableClosing::Unterminated,
+                },
+                state,
+                block_metadata,
+            )
+        }
+
+        rule unterminated_colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = table_start:position!() open_delim:colon_table_delimiter() (eol() / ![_])
+              content_start:position!() content:until_colon_table_delimiter() content_end:position!()
+              end:position!() ![_]
+        {
+            parse_table_block_impl(
+                &TableParseParams {
+                    start, offset, table_start, content_start, content_end, end,
+                    open_delim, content, default_separator: ":",
+                    closing: TableClosing::Unterminated,
                 },
                 state,
                 block_metadata,
@@ -5969,5 +6082,123 @@ References.
             "should not warn for valid structure, got: {warnings:?}",
         );
         Ok(())
+    }
+
+    /// An opened table that never closes before EOF emits an
+    /// `UnterminatedTable { separator, equals }` warning and still
+    /// produces a table (matching asciidoctor's recovery).
+    #[test]
+    fn test_unterminated_pipe_table_emits_warning() -> Result<(), Error> {
+        let input = "|===\n| A | B\n| C | D\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+
+        let warnings = state.warnings.borrow();
+        let warning = warnings
+            .iter()
+            .find(|w| {
+                matches!(
+                    &w.kind,
+                    crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
+                )
+            })
+            .expect("expected unterminated table warning");
+        let loc = warning
+            .source_location()
+            .expect("warning should carry a location");
+        // Warning should point to the opening `|===` on line 1.
+        match &loc.positioning {
+            crate::Positioning::Location(l) => assert_eq!(l.start.line, 1),
+            crate::Positioning::Position(p) => assert_eq!(p.line, 1),
+        }
+
+        // The document should still contain a table block.
+        let has_table = doc.blocks.iter().any(|b| {
+            matches!(
+                b,
+                Block::DelimitedBlock(DelimitedBlock {
+                    inner: DelimitedBlockType::DelimitedTable(_),
+                    ..
+                })
+            )
+        });
+        assert!(has_table, "expected a table block in the document");
+        Ok(())
+    }
+
+    /// The `!===` (exclamation) table delimiter is also covered by the
+    /// unterminated fallback, and the warning carries the actual opening
+    /// delimiter so consumers can distinguish between delimiter variants.
+    #[test]
+    fn test_unterminated_excl_table_emits_warning() -> Result<(), Error> {
+        let input = "!===\n! A ! B\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
+            )),
+            "expected unterminated table warning with `!===` delimiter, got: {warnings:?}",
+        );
+        Ok(())
+    }
+
+    /// A properly closed table must not emit an unterminated warning.
+    #[test]
+    fn test_terminated_table_does_not_warn() -> Result<(), Error> {
+        let input = "|===\n| A | B\n|===\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, crate::WarningKind::UnterminatedTable { .. })),
+            "should not warn for a properly closed table, got: {warnings:?}",
+        );
+        Ok(())
+    }
+
+    /// Degenerate case: the document is just an opening delimiter with no
+    /// content and no close. Asciidoctor still warns ("unterminated table
+    /// block"). The unterminated fallback rule should match and produce an
+    /// empty table rather than falling through to paragraph parsing.
+    #[test]
+    fn test_unterminated_pipe_table_with_no_content_emits_warning() -> Result<(), Error> {
+        let input = "|===\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
+            )),
+            "expected unterminated table warning for empty open, got: {warnings:?}",
+        );
+        Ok(())
+    }
+
+    /// Same as above but exercised through the public `parse` entry point
+    /// (which runs the preprocessor first). Catches the case where the
+    /// preprocessor normalises the input in a way that breaks the
+    /// unterminated fallback.
+    #[test]
+    fn test_unterminated_pipe_table_empty_through_parse_entry() {
+        let opts = crate::Options::default();
+        let res = crate::parse("|===\n", &opts).expect("parse should succeed");
+        let has_warning = res.warnings().iter().any(|w| {
+            matches!(
+                &w.kind,
+                crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
+            )
+        });
+        assert!(
+            has_warning,
+            "expected unterminated table warning through parse(), got: {:?}",
+            res.warnings(),
+        );
     }
 }

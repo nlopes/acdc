@@ -1,0 +1,23 @@
+= Inner unterminated table inside an `a`-style cell
+
+Outer pipe table terminates normally. The inner `!===` inside the
+AsciiDoc-style cell never closes, so the unterminated warning fires for
+the **inner** table only:
+`unterminated table block (opened by `!===`)`.
+
+The outer table renders normally and the inner is a nested table whose
+boundary is the end of the cell's content slice (not end of document).
+
+Note: a known cell-content offset mapping bug causes the warning's
+reported line to point at `a|` instead of `!===` in this case. The
+warning firing, and firing only once for the inner table, is what's
+verified here.
+
+[cols="1a"]
+|===
+a|
+!===
+! Inner A ! Inner B
+|===
+
+Paragraph safely outside the outer table.

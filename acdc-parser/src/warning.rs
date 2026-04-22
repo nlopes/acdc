@@ -46,6 +46,9 @@ impl Warning {
             WarningKind::SectionLevelOutOfSequence { .. } => Some(
                 "The first section after the document title must be level 1 (==). Renumber the section headings so levels increment by one.",
             ),
+            WarningKind::UnterminatedTable { .. } => Some(
+                "The opening delimiter was found but no matching closing delimiter was seen before end of document. Add the closing delimiter on its own line, or remove the opening delimiter if not intended.",
+            ),
             WarningKind::Other(_) => None,
         }
     }
@@ -88,6 +91,18 @@ pub enum WarningKind {
         got: u8,
         /// The `=` markers that produced the observed level.
         markers: String,
+    },
+
+    /// A table's opening delimiter was matched but no corresponding
+    /// closing delimiter was found before end of input. Matches
+    /// asciidoctor's "unterminated table block" warning.
+    ///
+    /// `delimiter` is the literal opening token as it appeared in the
+    /// source (e.g. `"|==="`, `"!====="`).
+    #[error("unterminated table block (opened by `{delimiter}`)")]
+    UnterminatedTable {
+        /// The opening delimiter that was left unmatched.
+        delimiter: String,
     },
 
     /// Ad-hoc message not yet categorised into a typed variant.
@@ -151,5 +166,33 @@ mod tests {
         let c = Warning::new(WarningKind::Other("y".into()), None);
         assert_eq!(a, b);
         assert_ne!(a, c);
+    }
+
+    #[test]
+    fn unterminated_table_display_renders_original_token() {
+        let w = Warning::new(
+            WarningKind::UnterminatedTable {
+                delimiter: "|===".into(),
+            },
+            None,
+        );
+        assert_eq!(
+            format!("{w}"),
+            "unterminated table block (opened by `|===`)",
+        );
+    }
+
+    #[test]
+    fn unterminated_table_display_preserves_longer_tokens() {
+        let w = Warning::new(
+            WarningKind::UnterminatedTable {
+                delimiter: "!=====".into(),
+            },
+            None,
+        );
+        assert_eq!(
+            format!("{w}"),
+            "unterminated table block (opened by `!=====`)",
+        );
     }
 }

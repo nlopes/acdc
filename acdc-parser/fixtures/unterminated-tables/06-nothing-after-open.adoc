@@ -1,0 +1,10 @@
+= Opening delimiter with no content at all
+
+The document opens a table, immediately hits a blank line, and ends.
+This is a degenerate unterminated table — the content slice is empty.
+Expectation: one warning, an empty table in the output (no rows), no
+panics or index errors on empty content.
+
+Some text before.
+
+|===

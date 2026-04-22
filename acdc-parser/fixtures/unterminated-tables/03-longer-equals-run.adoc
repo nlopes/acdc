@@ -1,0 +1,11 @@
+= Longer `=` run in the opening delimiter
+
+AsciiDoc allows any run of 3+ `=` characters for the table delimiter. This
+file opens with `|=======` (7 equals) and never closes. The warning must
+carry `equals: 7` in the typed variant, and the Display must render the
+original token verbatim: `unterminated table block (opened by
+`|=======`)`.
+
+|=======
+| col1 | col2 | col3
+| a    | b    | c

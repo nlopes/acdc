@@ -1,0 +1,37 @@
+= All four separator variants
+
+Only the last block opens an unterminated table (`:===`). The first three
+are properly closed, so no warnings should fire for them. Exactly one
+`unterminated table block (opened by `:===`)` warning is expected, and
+the typed warning should carry `separator: Colon, equals: 3`.
+
+== Pipe (terminated, quiet)
+
+|===
+| A | B
+|===
+
+== Exclamation inside an AsciiDoc cell (terminated, quiet)
+
+[cols="1a"]
+|===
+a|
+!===
+! X ! Y
+!===
+|===
+
+== Comma / CSV (terminated, quiet)
+
+[format=csv]
+,===
+one,two,three
+1,2,3
+,===
+
+== Colon / DSV (UNTERMINATED — warning expected)
+
+[format=dsv]
+:===
+alpha:beta:gamma
+1:2:3

@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   section skips level 1 (e.g. starts with `===` instead of `==`), matching `asciidoctor`'s
   "section title out of sequence" check. Title-less documents still accept any
   first-section level.
+- **Unterminated table recovery** - when a table's opening delimiter (`|===`,
+  `!===`, `,===`, `:===`) runs to end of input without a matching close, emit
+  a `WarningKind::UnterminatedTable { delimiter }` warning carrying the
+  literal opening token and still produce a table block from the content
+  (matching `asciidoctor`'s "unterminated table block" warning and recovery).
 - **`ParseResult` and `ParseInlineResult`** — new return types from `parse_*`. Each
   bundles the AST, source text, and any non-fatal warnings. Access via `.document()` /
   `.inlines()`, `.source()`, `.warnings()`, and `.take_warnings()`. Marked `#[must_use]`

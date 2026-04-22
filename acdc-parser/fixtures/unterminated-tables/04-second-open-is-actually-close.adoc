@@ -1,0 +1,19 @@
+= A second `|===` acts as the first table's close
+
+When two `|===` appear and nothing between them is a legal close, the
+grammar's terminated rule (tried first) already treats the second `|===`
+as the close of the first table. The unterminated fallback never fires,
+no warning is emitted, and `| C | D` ends up as a plain paragraph.
+
+This matches asciidoctor exactly — confirmed empirically. It's a useful
+regression check that the fallback doesn't steal tables that should be
+treated as closed.
+
+|===
+| A | B
+
+paragraph that looks like it's inside the table
+
+|===
+
+| C | D
