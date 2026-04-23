@@ -79,11 +79,11 @@
                                       "location": [
                                         {
                                           "line": 6,
-                                          "col": 2
+                                          "col": 3
                                         },
                                         {
                                           "line": 6,
-                                          "col": 2
+                                          "col": 3
                                         }
                                       ]
                                     }
@@ -91,11 +91,11 @@
                                   "location": [
                                     {
                                       "line": 6,
-                                      "col": 2
+                                      "col": 3
                                     },
                                     {
                                       "line": 6,
-                                      "col": 2
+                                      "col": 3
                                     }
                                   ]
                                 }
@@ -114,11 +114,11 @@
                                       "location": [
                                         {
                                           "line": 6,
-                                          "col": 6
+                                          "col": 7
                                         },
                                         {
                                           "line": 6,
-                                          "col": 6
+                                          "col": 7
                                         }
                                       ]
                                     }
@@ -126,11 +126,11 @@
                                   "location": [
                                     {
                                       "line": 6,
-                                      "col": 6
+                                      "col": 7
                                     },
                                     {
                                       "line": 6,
-                                      "col": 6
+                                      "col": 7
                                     }
                                   ]
                                 }
@@ -141,23 +141,23 @@
                       ],
                       "location": [
                         {
-                          "line": 4,
-                          "col": 2
+                          "line": 5,
+                          "col": 1
                         },
                         {
                           "line": 7,
-                          "col": 3
+                          "col": 4
                         }
                       ]
                     },
                     "location": [
                       {
-                        "line": 4,
-                        "col": 2
+                        "line": 5,
+                        "col": 1
                       },
                       {
                         "line": 7,
-                        "col": 3
+                        "col": 4
                       }
                     ]
                   }

@@ -8,10 +8,8 @@ the **inner** table only:
 The outer table renders normally and the inner is a nested table whose
 boundary is the end of the cell's content slice (not end of document).
 
-Note: a known cell-content offset mapping bug causes the warning's
-reported line to point at `a|` instead of `!===` in this case. The
-warning firing, and firing only once for the inner table, is what's
-verified here.
+The warning resolves to the line of the inner `!===`, not the cell's
+`a|` style prefix line.
 
 [cols="1a"]
 |===

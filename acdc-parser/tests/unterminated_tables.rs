@@ -121,18 +121,16 @@ fn second_delimiter_acts_as_close_no_warning() -> TestResult {
 }
 
 /// 05 — unterminated `!===` inside an `a`-style cell. Outer closes
-/// normally; the inner warning fires from the recursive cell parse.
-///
-/// Note: the reported line number is affected by a known cell-content
-/// offset mapping bug (the recursive parse anchors at the `a|` prefix,
-/// not the first content line). This test asserts on the delimiter
-/// string only; add a line assertion once that offset is fixed.
+/// normally; the inner warning fires from the recursive cell parse and
+/// must resolve to the line of the inner `!===` (line 17 in the
+/// fixture), not the line of the cell's `a|` style prefix.
 #[test]
 #[tracing_test::traced_test]
 fn nested_inner_unterminated_in_a_cell() -> TestResult {
     let warnings = parse_fixture("05-nested-inner-unterminated.adoc")?;
     let w = find_single_unterminated(&warnings)?;
     assert_eq!(unterminated_delimiter(w)?, "!===");
+    assert_eq!(warning_line(w)?, 17);
     assert_eq!(
         format!("{}", w.kind),
         "unterminated table block (opened by `!===`)",

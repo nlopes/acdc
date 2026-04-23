@@ -480,7 +480,7 @@ fn parse_table_block_impl<'input>(
             let parsed = parse_table_cell(
                 cell_content,
                 state,
-                effective_cell.start,
+                effective_cell.content_start,
                 block_metadata.parent_section_level,
                 &effective_cell,
             )?;
@@ -6141,6 +6141,47 @@ References.
                 crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
             )),
             "expected unterminated table warning with `!===` delimiter, got: {warnings:?}",
+        );
+        Ok(())
+    }
+
+    /// Diagnostics emitted from inside an `a`-style cell must point at the
+    /// offending token within the cell, not at the cell's `a|` style prefix.
+    /// Repro for the case where a nested `!===` is left unterminated:
+    /// the warning's reported line should match the line of `!===`, not the
+    /// line of `a|`.
+    #[test]
+    fn test_warning_in_ascii_cell_points_at_inner_token() -> Result<(), Error> {
+        // Lines:
+        //   1: `[cols="1a"]`
+        //   2: `|===`
+        //   3: `a|`           <- cell style prefix
+        //   4: `!===`         <- offending unterminated inner table
+        //   5: `! Inner A ! Inner B`
+        //   6: `|===`
+        let input = "[cols=\"1a\"]\n|===\na|\n!===\n! Inner A ! Inner B\n|===\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        let warning = warnings
+            .iter()
+            .find(|w| {
+                matches!(
+                    &w.kind,
+                    crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
+                )
+            })
+            .expect("expected unterminated inner-table warning");
+        let loc = warning
+            .source_location()
+            .expect("warning should carry a location");
+        let line = match &loc.positioning {
+            crate::Positioning::Location(l) => l.start.line,
+            crate::Positioning::Position(p) => p.line,
+        };
+        assert_eq!(
+            line, 4,
+            "warning should point at line 4 (the `!===`), not the `a|` line; got {line}",
         );
         Ok(())
     }

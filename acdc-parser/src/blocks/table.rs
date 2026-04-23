@@ -518,10 +518,25 @@ impl CellSpecifier {
 }
 
 /// A parsed table cell with position, span, alignment, and style information.
+///
+/// `start` marks the document offset of the cell as a whole (the byte just
+/// past the cell specifier and separator). `content_start` marks the offset
+/// of the first byte of `content` in the document — they diverge when the
+/// cell's content begins on a continuation line, e.g.:
+///
+/// ```text
+/// a|              <- start points here (end of `a|`)
+/// !===            <- content_start points here
+/// ```
+///
+/// Recursive parsers consuming the cell content (in particular the
+/// `AsciiDoc`-style `a|` cell) must use `content_start` so that diagnostics
+/// resolve to the line of the offending token, not the cell's style prefix.
 #[derive(Debug, Clone)]
 pub(crate) struct ParsedCell {
     pub content: String,
     pub start: usize,
+    pub content_start: usize,
     pub end: usize,
     pub colspan: usize,
     pub rowspan: usize,
@@ -586,7 +601,11 @@ fn handle_cross_row_continuation(
         // Continuation line - append to previous row's last cell
         if let Some(last_row) = rows.last_mut() {
             if let Some(last_cell) = last_row.last_mut() {
-                if !last_cell.content.is_empty() {
+                if last_cell.content.is_empty() {
+                    // See `parse_row_with_positions`: first content byte
+                    // anchors `content_start` for cell-internal diagnostics.
+                    last_cell.content_start = *current_offset;
+                } else {
                     last_cell.content.push('\n');
                 }
                 last_cell.content.push_str(trimmed);
@@ -779,6 +798,7 @@ impl Table<'_> {
                 cells.push(ParsedCell {
                     content: content.to_string(),
                     start,
+                    content_start: start,
                     end,
                     colspan: 1,
                     rowspan: 1,
@@ -810,7 +830,14 @@ impl Table<'_> {
             if !line.contains(separator) {
                 // Continuation line: append to last cell's content
                 if let Some(last_cell) = columns.last_mut() {
-                    if !last_cell.content.is_empty() {
+                    if last_cell.content.is_empty() {
+                        // First content for this cell arrives from a
+                        // continuation line — anchor `content_start` here so
+                        // diagnostics from recursive parses (e.g. a-cells)
+                        // resolve to the offending token, not the cell's
+                        // style prefix line.
+                        last_cell.content_start = current_offset;
+                    } else {
                         last_cell.content.push('\n');
                     }
                     last_cell.content.push_str(line);
@@ -895,6 +922,7 @@ impl Table<'_> {
                 columns.push(ParsedCell {
                     content: cell_content.to_string(),
                     start: cell_start,
+                    content_start: cell_start,
                     end: cell_end,
                     colspan: spec.colspan,
                     rowspan: spec.rowspan,

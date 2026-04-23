@@ -63,6 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Inline markup inside `link:` macro text** — `link:url[*bold*]` now parses nested
   formatting (bold, italic, monospace, passthroughs, etc.) through the full inline
   grammar, matching `url:` / `mailto:` behaviour.
+- **Diagnostics inside `a`-style table cells now resolve to the offending
+  line, not the cell's `a|` style prefix.** The recursive parse over an
+  AsciiDoc cell anchored at the cell-token offset rather than the
+  content-byte offset, so warnings (e.g. `UnterminatedTable` from a nested
+  `!===`) and inline locations were reported one or more lines off and
+  one column off. Inner-cell positions are now correct, which also fixes
+  off-by-one columns in nested-table fixtures.
 
 ### Removed
 
