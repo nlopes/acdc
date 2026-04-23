@@ -70,6 +70,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `!===`) and inline locations were reported one or more lines off and
   one column off. Inner-cell positions are now correct, which also fixes
   off-by-one columns in nested-table fixtures.
+- **Trailing text after a completed table row is now a continuation
+  paragraph of the last cell**, matching asciidoctor. Previously the text
+  was collapsed into the preceding line (top-level tables) or dropped
+  entirely (nested tables inside `a`-cells). The non-`a` cell block parser
+  also now consumes blank lines between iterations, so multiple
+  paragraphs in a cell render as separate `<p class="tableblock">` blocks.
 
 ### Removed
 

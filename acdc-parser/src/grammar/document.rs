@@ -1635,7 +1635,8 @@ peg::parser! {
         /// Only `a` (`AsciiDoc`) style cells should have full block parsing.
         /// Excluded: delimited_block, list, toc, page_break, markdown_blockquote
         rule block_generic_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
-        = start:position!()
+        = eol()*
+        start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in block_generic_for_table_cell");

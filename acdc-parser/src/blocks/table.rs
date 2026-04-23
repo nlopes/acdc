@@ -585,6 +585,14 @@ fn is_new_row_start(line: &str, separator: &str) -> bool {
 
 /// Handle continuation lines that appear after blank lines.
 /// These should be appended to the previous row's last cell.
+///
+/// The caller enters this only after skipping at least one blank line, so
+/// the first appended line starts a *new paragraph* of the last cell, not a
+/// continuation of the cell's existing final line. We therefore preserve
+/// the blank-line boundary with `\n\n`; subsequent lines within the same
+/// paragraph join with a single `\n`. Preserving the boundary matters most
+/// for `a`-cells, where the content is re-parsed as `AsciiDoc` blocks and
+/// the paragraph break may carry a nested table's own structure.
 fn handle_cross_row_continuation(
     lines: &[&str],
     i: &mut usize,
@@ -592,6 +600,7 @@ fn handle_cross_row_continuation(
     rows: &mut [Vec<ParsedCell>],
     separator: &str,
 ) {
+    let mut starting_new_paragraph = true;
     while let Some(&next_line) = lines.get(*i) {
         let trimmed = next_line.trim_end();
         // If line has separator or is empty, break - normal row processing
@@ -605,6 +614,8 @@ fn handle_cross_row_continuation(
                     // See `parse_row_with_positions`: first content byte
                     // anchors `content_start` for cell-internal diagnostics.
                     last_cell.content_start = *current_offset;
+                } else if starting_new_paragraph {
+                    last_cell.content.push_str("\n\n");
                 } else {
                     last_cell.content.push('\n');
                 }
@@ -612,6 +623,7 @@ fn handle_cross_row_continuation(
                 last_cell.end = *current_offset + trimmed.len().saturating_sub(1);
             }
         }
+        starting_new_paragraph = false;
         *current_offset += next_line.len() + 1;
         *i += 1;
     }
@@ -1020,5 +1032,50 @@ mod tests {
         assert_eq!(p0.start, 0);
         assert_eq!(p1.start, 3); // after "ab|"
         assert_eq!(p2.start, 6); // after "ab|cd|"
+    }
+
+    /// Trailing content after a completed row — no leading separator — is
+    /// attached to the last cell as a continuation paragraph. The blank
+    /// line between the row and the trailing text must survive into the
+    /// cell's string content so downstream rendering produces a second
+    /// paragraph (matching asciidoctor's `<p class="tableblock">...</p>`
+    /// pair).
+    #[test]
+    fn trailing_text_becomes_continuation_paragraph_of_last_cell() {
+        let input = "| A | B\n\nTrailing\n";
+        let mut has_header = false;
+        let rows = Table::parse_rows_with_positions(input, "|", &mut has_header, 0, None);
+        let [row] = rows.as_slice() else {
+            panic!("expected 1 row, got {}", rows.len());
+        };
+        let [a, b] = row.as_slice() else {
+            panic!("expected 2 cells, got {}", row.len());
+        };
+        assert_eq!(a.content, "A");
+        // The blank line boundary must be preserved so the cell content,
+        // when later parsed as blocks, yields a second paragraph rather
+        // than a single joined line.
+        assert_eq!(b.content, "B\n\nTrailing");
+    }
+
+    /// The outer parse must not collapse a blank line that lives *inside*
+    /// an `a`-cell's content. If it did, a nested table's own trailing
+    /// continuation paragraph would disappear when the cell is re-parsed
+    /// as `AsciiDoc` blocks.
+    #[test]
+    fn a_cell_preserves_blank_line_inside_nested_table_content() {
+        let input = "a|\n!===\n! Inner A ! Inner B\n\nTrailing in inner cell\n!===\n";
+        let mut has_header = false;
+        let rows = Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(1));
+        let [row] = rows.as_slice() else {
+            panic!("expected 1 row, got {}", rows.len());
+        };
+        let [cell] = row.as_slice() else {
+            panic!("expected 1 cell, got {}", row.len());
+        };
+        assert_eq!(
+            cell.content,
+            "!===\n! Inner A ! Inner B\n\nTrailing in inner cell\n!===",
+        );
     }
 }

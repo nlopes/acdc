@@ -1,0 +1,9 @@
+[cols="1a"]
+|===
+a|
+!===
+! Inner A ! Inner B
+
+Trailing in inner cell
+!===
+|===
