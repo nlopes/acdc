@@ -74,12 +74,6 @@ acdc/
 3. **TCK tests**: Check specification compliance
 4. **Integration tests**: End-to-end conversion testing
 
-== Known limitations
-
-* **Inline markup in link text**: `+link:url[*bold*]+` renders the asterisks literally; nested inline markup inside link text isn't parsed yet.
-
-See link:./acdc-parser/README.adoc[acdc-parser README] for detailed feature support and list handling notes.
-
 == Building & testing
 
 [source,bash]

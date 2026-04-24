@@ -1,0 +1,9 @@
+Escaped constrained bold: \*not bold\*
+
+Escaped constrained italic: \_not italic\_
+
+Escaped constrained mono: \`not mono\`
+
+Escaped constrained highlight: \#not highlight\#
+
+Escaped inside link text: link:https://example.com[\*not bold\*]

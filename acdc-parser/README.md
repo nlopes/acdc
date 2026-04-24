@@ -1,12 +1,15 @@
 # acdc-parser
 
+Fast AsciiDoc parser written in Rust. Parses AsciiDoc source into a structured AST that mirrors the draft AsciiDoc Language specification's Abstract Semantic Graph (ASG), using a PEG grammar with a preprocessor stage for includes, conditionals, and attribute substitution.
+
 The implementation here follows from:
 
 * [Language Lexicon](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/modules/ROOT/pages/lexicon.adoc): nomenclature of elements
 * [Language Outline](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc): behaviour/layout
 * [Asciidoctor Language Documentation](https://docs.asciidoctor.org/asciidoc/latest): behaviour/layout
 
-## Features supported
+<details>
+<summary>Features supported</summary>
 
 * [x] Document Headers
     * [x] Author parsing (first/middle/last name, email)
@@ -105,12 +108,20 @@ The implementation here follows from:
     * [x] ifeval
 * [x] Line breaks (+)
 
+</details>
+
 ## Parser options
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`
 * **Strict mode** - Stricter parsing rules
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
+
+## Deliberate divergences from asciidoctor
+
+acdc's references are the [AsciiDoc Language draft specification](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/) and [asciidoctor](https://asciidoctor.org). A handful of parser behaviours intentionally differ from asciidoctor where the draft spec and asciidoctor diverge, or where asciidoctor's output is an implementation artifact.
+
+* **Symmetric escape of constrained markers**: `\*foo\*`, `\_foo\_`, `` \`foo\` ``, `\#foo\#` all emit the literal marker pair (`*foo*`, `_foo_`, etc.). asciidoctor strips only the opening backslash and leaves the trailing `\` in the output. The draft spec's backslash-escaping section (`spec/outline.adoc`) states: "a backslash in front of a reserved markup character will be removed, regardless of whether the text would have been interpreted or not" — acdc follows that rule symmetrically.
 
 ## See also
 
