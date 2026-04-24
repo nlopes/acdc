@@ -101,6 +101,52 @@ fn strip_uri_scheme(url: &str) -> &str {
         .map_or(url, |pos| url.get(pos + 3..).unwrap_or(url))
 }
 
+/// Extract the `role` attribute as a non-empty, unquoted string.
+///
+/// Returns `None` when the attribute is absent, non-string, or empty after stripping quotes.
+fn role_from_attrs(attributes: &acdc_parser::ElementAttributes) -> Option<String> {
+    attributes.get("role").and_then(|v| match v {
+        acdc_parser::AttributeValue::String(s) => {
+            let role = strip_quotes(s);
+            if role.is_empty() {
+                None
+            } else {
+                Some(role.to_string())
+            }
+        }
+        acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => None,
+    })
+}
+
+/// Build the ` class="..."` attribute (with leading space) for link-like anchors.
+///
+/// - `bare` adds the `bare` class when `true` (asciidoctor's convention for empty link text
+///   on URL/link macros; `Mailto` passes `false` because it does not use `bare`).
+/// - `role` contributes additional class tokens.
+/// - Returns an empty string when neither applies.
+fn link_class_attr(role: Option<String>, bare: bool) -> String {
+    match (bare, role) {
+        (true, Some(role)) => format!(" class=\"bare {role}\""),
+        (true, None) => " class=\"bare\"".to_string(),
+        (false, Some(role)) => format!(" class=\"{role}\""),
+        (false, None) => String::new(),
+    }
+}
+
+/// Compute the visible fallback text for a link target when no display text was given.
+///
+/// Strips the `mailto:` prefix, or — when `hide_uri_scheme` is set — strips schemes like
+/// `https://`, `http://`, `ftp://`. Otherwise returns the target as-is.
+fn link_display_fallback(target: &str, hide_uri_scheme: bool) -> &str {
+    if let Some(email) = target.strip_prefix("mailto:") {
+        email
+    } else if hide_uri_scheme {
+        strip_uri_scheme(target)
+    } else {
+        target
+    }
+}
+
 /// Extract `target` and `rel` attributes from `window` or `target` attribute values.
 ///
 /// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
@@ -470,507 +516,507 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    /// Render an inline macro
-    #[allow(clippy::too_many_lines)]
+    /// Render an inline macro by dispatching to the per-variant renderer.
     fn render_inline_macro(
         &mut self,
         m: &InlineMacro,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
+        match m {
+            InlineMacro::Autolink(al) => self.render_autolink(al, options),
+            InlineMacro::Link(l) => self.render_link(l, options, subs),
+            InlineMacro::Image(i) => self.render_inline_image(i),
+            InlineMacro::Pass(p) => self.render_pass(p, options, subs),
+            InlineMacro::Url(u) => self.render_url(u, options, subs),
+            InlineMacro::Mailto(m) => self.render_mailto(m, options, subs),
+            InlineMacro::Footnote(f) => self.render_footnote(f, options),
+            InlineMacro::Button(b) => self.render_button(b),
+            InlineMacro::CrossReference(xref) => self.render_xref(xref, options, subs),
+            InlineMacro::Stem(s) => self.render_stem(s),
+            InlineMacro::Icon(i) => self.render_icon(i),
+            InlineMacro::Keyboard(k) => self.render_keyboard(k),
+            InlineMacro::Menu(menu) => self.render_menu(menu),
+            InlineMacro::IndexTerm(it) => self.render_indexterm(it, options, subs),
+            _ => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                format!("Unsupported inline macro: {m:?}"),
+            )
+            .into()),
+        }
+    }
+
+    fn render_autolink(
+        &mut self,
+        al: &acdc_parser::Autolink<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
         let w = self.writer_mut();
-        match m {
-            InlineMacro::Autolink(al) => {
-                let href = &al.url;
-                let hide_uri_scheme = processor
-                    .document_attributes()
-                    .get("hide-uri-scheme")
-                    .is_some();
-                // For mailto: URLs, display just the email address without the mailto: prefix
-                let display_text = {
-                    let url_str = href.to_string();
-                    let url_str = if al.bracketed {
-                        url_str
-                            .strip_prefix('<')
-                            .and_then(|s| s.strip_suffix('>'))
-                            .unwrap_or(&url_str)
-                    } else {
-                        &url_str
-                    };
-                    if let Some(email) = url_str.strip_prefix("mailto:") {
-                        email.to_string()
-                    } else if hide_uri_scheme {
-                        strip_uri_scheme(url_str).to_string()
-                    } else {
-                        url_str.to_string()
-                    }
-                };
+        let hide_uri_scheme = processor
+            .document_attributes()
+            .get("hide-uri-scheme")
+            .is_some();
+        let href_str = al.url.to_string();
+        let inner = if al.bracketed {
+            href_str
+                .strip_prefix('<')
+                .and_then(|s| s.strip_suffix('>'))
+                .unwrap_or(&href_str)
+        } else {
+            &href_str
+        };
+        let display_text = link_display_fallback(inner, hide_uri_scheme).to_string();
 
-                if options.inlines_basic || options.toc_mode {
-                    // In basic or TOC mode, render as text only (no link wrapper)
-                    write!(w, "{display_text}")?;
-                } else if al.bracketed {
-                    // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
-                    write!(
-                        w,
-                        "&lt;<a href=\"{}\">{display_text}</a>&gt;",
-                        escape_href(&href.to_string())
-                    )?;
-                } else {
-                    write!(
-                        w,
-                        "<a href=\"{}\" class=\"bare\">{display_text}</a>",
-                        escape_href(&href.to_string())
-                    )?;
-                }
-            }
-            InlineMacro::Link(l) => {
-                let hide_uri_scheme = processor
-                    .document_attributes()
-                    .get("hide-uri-scheme")
-                    .is_some();
-                let fallback_text = || {
-                    // When link text is absent, show the target. Strip the
-                    // `mailto:` prefix or URI scheme per document attributes.
-                    let target_str = l.target.to_string();
-                    if let Some(email) = target_str.strip_prefix("mailto:") {
-                        email.to_string()
-                    } else if hide_uri_scheme {
-                        strip_uri_scheme(&target_str).to_string()
-                    } else {
-                        target_str
-                    }
-                };
-                if options.inlines_basic || options.toc_mode {
-                    // In basic or TOC mode, render as text only (no link wrapper)
-                    if l.text.is_empty() {
-                        write!(w, "{}", fallback_text())?;
-                    } else {
-                        for inline in &l.text {
-                            self.render_inline_node(inline, options, subs)?;
-                        }
-                    }
-                } else {
-                    // Build class attribute: "bare" when no display text, plus any role
-                    let role = l.attributes.get("role").and_then(|v| match v {
-                        acdc_parser::AttributeValue::String(s) => {
-                            let role = strip_quotes(s);
-                            if role.is_empty() {
-                                None
-                            } else {
-                                Some(role.to_string())
-                            }
-                        }
-                        acdc_parser::AttributeValue::Bool(_)
-                        | acdc_parser::AttributeValue::None
-                        | _ => None,
-                    });
-                    let class_attr = match (l.text.is_empty(), role) {
-                        (true, Some(role)) => format!(" class=\"bare {role}\""),
-                        (true, None) => " class=\"bare\"".to_string(),
-                        (false, Some(role)) => format!(" class=\"{role}\""),
-                        (false, None) => String::new(),
-                    };
-                    let target_attr = window_attrs(&l.attributes);
-                    write!(
-                        w,
-                        "<a href=\"{}\"{class_attr}{target_attr}>",
-                        escape_href(&l.target.to_string())
-                    )?;
-                    if l.text.is_empty() {
-                        let w = self.writer_mut();
-                        write!(w, "{}", fallback_text())?;
-                    } else {
-                        for inline in &l.text {
-                            self.render_inline_node(inline, options, subs)?;
-                        }
-                    }
-                    let w = self.writer_mut();
-                    write!(w, "</a>")?;
-                }
-            }
-            InlineMacro::Image(i) => {
-                let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
-                // Inline images use a span wrapper with the img tag inside (not in semantic mode)
-                if !is_semantic {
-                    write!(w, "<span class=\"image\">")?;
-                }
+        if options.inlines_basic || options.toc_mode {
+            write!(w, "{display_text}")?;
+        } else if al.bracketed {
+            // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
+            write!(
+                w,
+                "&lt;<a href=\"{}\">{display_text}</a>&gt;",
+                escape_href(&href_str)
+            )?;
+        } else {
+            write!(
+                w,
+                "<a href=\"{}\" class=\"bare\">{display_text}</a>",
+                escape_href(&href_str)
+            )?;
+        }
+        Ok(())
+    }
 
-                // Get alt text from title field first (first positional attribute),
-                // then fall back to alt attribute, then filename
-                let alt_text = if i.title.is_empty() {
-                    i.metadata.attributes.get("alt").map_or_else(
-                        || alt_text_from_filename(&i.source),
-                        std::string::ToString::to_string,
-                    )
-                } else {
-                    inlines_to_string(&i.title)
-                };
+    fn render_link(
+        &mut self,
+        l: &acdc_parser::Link<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        let hide_uri_scheme = processor
+            .document_attributes()
+            .get("hide-uri-scheme")
+            .is_some();
+        let target_str = l.target.to_string();
+        let fallback = link_display_fallback(&target_str, hide_uri_scheme);
 
-                // Wrap in link if link attribute exists
-                let link = i.metadata.attributes.get("link");
-                if let Some(link) = link {
-                    write!(
-                        w,
-                        "<a class=\"image\" href=\"{}\">",
-                        escape_href(&link.to_string())
-                    )?;
+        if options.inlines_basic || options.toc_mode {
+            if l.text.is_empty() {
+                write!(self.writer_mut(), "{fallback}")?;
+            } else {
+                for inline in &l.text {
+                    self.render_inline_node(inline, options, subs)?;
                 }
+            }
+            return Ok(());
+        }
 
-                // Write the img tag with src, alt, and dimensions
-                write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", i.source)?;
-                write_dimension_attributes(w, &i.metadata)?;
+        let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
+        let target_attr = window_attrs(&l.attributes);
+        write!(
+            self.writer_mut(),
+            "<a href=\"{}\"{class_attr}{target_attr}>",
+            escape_href(&target_str)
+        )?;
+        if l.text.is_empty() {
+            write!(self.writer_mut(), "{fallback}")?;
+        } else {
+            for inline in &l.text {
+                self.render_inline_node(inline, options, subs)?;
+            }
+        }
+        write!(self.writer_mut(), "</a>")?;
+        Ok(())
+    }
 
-                // Add title attribute for hover text if present (inline-specific)
-                if let Some(title) = i.metadata.attributes.get("title") {
-                    write!(w, " title=\"{title}\"")?;
-                }
+    fn render_inline_image(&mut self, i: &acdc_parser::Image<'_>) -> Result<(), Error> {
+        let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let w = self.writer_mut();
+        // Inline images use a span wrapper (not in semantic mode)
+        if !is_semantic {
+            write!(w, "<span class=\"image\">")?;
+        }
 
-                write!(w, ">")?;
+        // alt text: title (first positional) > `alt` attr > filename
+        let alt_text = if i.title.is_empty() {
+            i.metadata.attributes.get("alt").map_or_else(
+                || alt_text_from_filename(&i.source),
+                std::string::ToString::to_string,
+            )
+        } else {
+            inlines_to_string(&i.title)
+        };
 
-                if link.is_some() {
-                    write!(w, "</a>")?;
-                }
-                if !is_semantic {
-                    write!(w, "</span>")?;
-                }
-            }
-            InlineMacro::Pass(p) => {
-                if let Some(text) = p.text {
-                    // Only escape when SpecialChars substitution is enabled (pass:c[])
-                    // Otherwise output raw HTML (pass:[], +++...+++)
-                    if p.substitutions.contains(&Substitution::SpecialChars) {
-                        let text = substitution_text(text, subs, options);
-                        write!(w, "{text}")?;
-                    } else {
-                        write!(w, "{text}")?;
-                    }
-                }
-            }
-            InlineMacro::Url(u) => {
-                let hide_uri_scheme = processor
-                    .document_attributes()
-                    .get("hide-uri-scheme")
-                    .is_some();
-                if options.toc_mode {
-                    // In TOC mode, render as text only (no link wrapper)
-                    if u.text.is_empty() {
-                        let target_str = u.target.to_string();
-                        let display = if let Some(email) = target_str.strip_prefix("mailto:") {
-                            email
-                        } else if hide_uri_scheme {
-                            strip_uri_scheme(&target_str)
-                        } else {
-                            &target_str
-                        };
-                        write!(w, "{display}")?;
-                    } else {
-                        for inline in &u.text {
-                            self.render_inline_node(inline, options, subs)?;
-                        }
-                    }
-                } else {
-                    // Build class attribute: "bare" when no display text, plus any role
-                    let role = u.attributes.get("role").and_then(|v| match v {
-                        acdc_parser::AttributeValue::String(s) => {
-                            let role = strip_quotes(s);
-                            if role.is_empty() {
-                                None
-                            } else {
-                                Some(role.to_string())
-                            }
-                        }
-                        acdc_parser::AttributeValue::Bool(_)
-                        | acdc_parser::AttributeValue::None
-                        | _ => None,
-                    });
-                    let class_attr = match (u.text.is_empty(), role) {
-                        (true, Some(role)) => format!(" class=\"bare {role}\""),
-                        (true, None) => " class=\"bare\"".to_string(),
-                        (false, Some(role)) => format!(" class=\"{role}\""),
-                        (false, None) => String::new(),
-                    };
-                    let target_attr = window_attrs(&u.attributes);
-                    write!(
-                        w,
-                        "<a href=\"{}\"{class_attr}{target_attr}>",
-                        escape_href(&u.target.to_string())
-                    )?;
-                    if u.text.is_empty() {
-                        // For mailto: URLs, display just the email address without the mailto: prefix
-                        let target_str = u.target.to_string();
-                        let display = if let Some(email) = target_str.strip_prefix("mailto:") {
-                            email
-                        } else if hide_uri_scheme {
-                            strip_uri_scheme(&target_str)
-                        } else {
-                            &target_str
-                        };
-                        write!(w, "{display}")?;
-                    } else {
-                        for inline in &u.text {
-                            self.render_inline_node(inline, options, subs)?;
-                        }
-                    }
-                    let w = self.writer_mut();
-                    write!(w, "</a>")?;
-                }
-            }
-            InlineMacro::Mailto(m) => {
-                if options.toc_mode {
-                    // In TOC mode, render as text only (no link wrapper)
-                    if m.text.is_empty() {
-                        let target_str = m.target.to_string();
-                        let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
-                        write!(w, "{display}")?;
-                    } else {
-                        for inline in &m.text {
-                            self.render_inline_node(inline, options, subs)?;
-                        }
-                    }
-                } else {
-                    // Check for role attribute to apply as CSS class
-                    let class_attr = m
-                        .attributes
-                        .get("role")
-                        .and_then(|v| match v {
-                            acdc_parser::AttributeValue::String(s) => {
-                                let role = strip_quotes(s);
-                                if role.is_empty() {
-                                    None
-                                } else {
-                                    Some(format!(" class=\"{role}\""))
-                                }
-                            }
-                            acdc_parser::AttributeValue::Bool(_)
-                            | acdc_parser::AttributeValue::None
-                            | _ => None,
-                        })
-                        .unwrap_or_default();
-                    let target_attr = window_attrs(&m.attributes);
-                    write!(
-                        w,
-                        "<a href=\"{}\"{class_attr}{target_attr}>",
-                        escape_href(&m.target.to_string())
-                    )?;
-                    if m.text.is_empty() {
-                        // For mailto: URLs, display just the email address without the mailto: prefix
-                        let target_str = m.target.to_string();
-                        let display = target_str.strip_prefix("mailto:").unwrap_or(&target_str);
-                        write!(w, "{display}")?;
-                    } else {
-                        for inline in &m.text {
-                            self.render_inline_node(inline, options, subs)?;
-                        }
-                    }
-                    let w = self.writer_mut();
-                    write!(w, "</a>")?;
-                }
-            }
-            InlineMacro::Footnote(f) => {
-                // A named footnote reference (footnote:name[] with empty content)
-                // uses class="footnoteref" and no IDs, matching asciidoctor.
-                let is_ref = f.id.is_some() && f.content.is_empty();
-                if options.inlines_basic {
-                    write!(w, "[{}]", f.number)?;
-                } else if processor.variant() == crate::HtmlVariant::Semantic {
-                    let number = f.number;
-                    if options.toc_mode {
-                        write!(w, "<sup class=\"footnote-ref\">[{number}]</sup>")?;
-                    } else if is_ref {
-                        write!(
-                            w,
-                            "<sup class=\"footnote-ref\">[<a href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">{number}</a>]</sup>"
-                        )?;
-                    } else {
-                        write!(
-                            w,
-                            "<sup class=\"footnote-ref\" id=\"_footnoteref_{number}\">[<a href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">{number}</a>]</sup>"
-                        )?;
-                    }
-                } else {
-                    let sup_class = if is_ref { "footnoteref" } else { "footnote" };
-                    if options.toc_mode {
-                        // In TOC mode, render footnote without anchor link or id
-                        // (id stays on the heading's footnote to avoid duplicate IDs)
-                        write!(w, "<sup class=\"{sup_class}\">[{}]</sup>", f.number)?;
-                    } else {
-                        let number = f.number;
-                        write!(w, "<sup class=\"{sup_class}\"")?;
-                        if !is_ref && let Some(id) = &f.id {
-                            write!(w, " id=\"_footnote_{id}\"")?;
-                        }
-                        if is_ref {
-                            write!(
-                                w,
-                                ">[<a class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
-                            )?;
-                        } else {
-                            write!(
-                                w,
-                                ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
-                            )?;
-                        }
-                    }
-                }
-            }
-            InlineMacro::Button(b) => {
-                if processor.document_attributes.get("experimental").is_some() {
-                    if processor.variant() == crate::HtmlVariant::Semantic {
-                        write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
-                    } else {
-                        write!(w, "<b class=\"button\">{}</b>", b.label)?;
-                    }
-                } else {
-                    write!(w, "btn:[{}]", b.label)?;
-                }
-            }
-            InlineMacro::CrossReference(xref) => {
-                if xref.text.is_empty() {
-                    // Look up section from toc_entries
-                    // Priority: xreflabel (from [[id,Custom Text]]) > section title > fallback
-                    let display_text = processor
-                        .toc_entries()
-                        .iter()
-                        .find(|entry| entry.id == xref.target)
-                        .map_or_else(
-                            || format!("[{}]", xref.target),
-                            |entry| {
-                                entry.xreflabel.as_ref().map_or_else(
-                                    || inlines_to_string(&entry.title),
-                                    std::string::ToString::to_string,
-                                )
-                            },
-                        );
+        let link = i.metadata.attributes.get("link");
+        if let Some(link) = link {
+            write!(
+                w,
+                "<a class=\"image\" href=\"{}\">",
+                escape_href(&link.to_string())
+            )?;
+        }
 
-                    if options.inlines_basic || options.toc_mode {
-                        // In basic or TOC mode, render as text only (no link wrapper)
-                        write!(w, "{display_text}")?;
-                    } else {
-                        write!(w, "<a href=\"#{}\">{display_text}</a>", xref.target)?;
-                    }
-                } else if options.inlines_basic || options.toc_mode {
-                    // In basic or TOC mode, render text only (no link wrapper)
-                    for inline in &xref.text {
-                        self.render_inline_node(inline, options, subs)?;
-                    }
-                } else {
-                    write!(w, "<a href=\"#{}\">", xref.target)?;
-                    for inline in &xref.text {
-                        self.render_inline_node(inline, options, subs)?;
-                    }
-                    let w = self.writer_mut();
-                    write!(w, "</a>")?;
-                }
-            }
-            InlineMacro::Stem(s) => {
-                let forced = if processor.variant() == crate::HtmlVariant::Semantic {
-                    processor
-                        .document_attributes()
-                        .get("html5s-force-stem-type")
-                        .and_then(|v| v.to_string().parse::<StemNotation>().ok())
-                } else {
-                    None
-                };
-                let notation = forced.as_ref().unwrap_or(&s.notation);
-                match notation {
-                    StemNotation::Latexmath => {
-                        writeln!(w, "\\({}\\)", s.content)?;
-                    }
-                    StemNotation::Asciimath => {
-                        writeln!(w, "\\${}\\$", s.content)?;
-                    }
-                }
-            }
-            InlineMacro::Icon(i) => {
-                write_icon(w, &processor, i)?;
-            }
-            InlineMacro::Keyboard(k) => {
-                let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
-                let key_class = if is_semantic { " class=\"key\"" } else { "" };
-                if k.keys.len() == 1
-                    && let Some(key) = k.keys.first()
-                {
-                    write!(w, "<kbd{key_class}>{key}</kbd>")?;
-                } else {
-                    if is_semantic {
-                        write!(w, "<kbd class=\"keyseq\">")?;
-                    } else {
-                        write!(w, "<span class=\"keyseq\">")?;
-                    }
-                    for (i, key) in k.keys.iter().enumerate() {
-                        if i > 0 {
-                            write!(w, "+")?;
-                        }
-                        write!(w, "<kbd{key_class}>{key}</kbd>")?;
-                    }
-                    if is_semantic {
-                        write!(w, "</kbd>")?;
-                    } else {
-                        write!(w, "</span>")?;
-                    }
-                }
-            }
-            InlineMacro::Menu(menu) => {
-                let is_semantic = processor.variant() == crate::HtmlVariant::Semantic;
-                if menu.items.is_empty() {
-                    if is_semantic {
-                        write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
-                    } else {
-                        write!(w, "<b class=\"menuref\">{}</b>", menu.target)?;
-                    }
-                } else if is_semantic {
-                    write!(w, "<kbd class=\"menuseq\">")?;
-                    write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
-                    for item in &menu.items {
-                        write!(w, "&#160;<span class=\"caret\">&#8250;</span>&#32;")?;
-                        write!(w, "<kbd class=\"menu\"><samp>{item}</samp></kbd>")?;
-                    }
-                    write!(w, "</kbd>")?;
-                } else {
-                    write!(w, "<span class=\"menuseq\">")?;
-                    write!(w, "<b class=\"menu\">{}</b>", menu.target)?;
-                    for (i, item) in menu.items.iter().enumerate() {
-                        write!(w, "&#160;<i class=\"fa fa-angle-right caret\"></i> ")?;
-                        if i == menu.items.len() - 1 {
-                            write!(w, "<b class=\"menuitem\">{item}</b>")?;
-                        } else {
-                            write!(w, "<b class=\"submenu\">{item}</b>")?;
-                        }
-                    }
-                    write!(w, "</span>")?;
-                }
-            }
-            InlineMacro::IndexTerm(it) => {
-                if options.toc_mode {
-                    // In TOC mode, skip anchor but still output visible term text
-                    if it.is_visible() {
-                        let text = substitution_text(it.term(), subs, options);
-                        write!(w, "{text}")?;
-                    }
-                } else {
-                    // Generate anchor and collect entry for index catalog
-                    let anchor_id = processor.add_index_entry(index_term_kind_to_static(&it.kind));
+        write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", i.source)?;
+        write_dimension_attributes(w, &i.metadata)?;
+        if let Some(title) = i.metadata.attributes.get("title") {
+            write!(w, " title=\"{title}\"")?;
+        }
+        write!(w, ">")?;
 
-                    // Output anchor for linking from index catalog
-                    write!(w, "<a id=\"{anchor_id}\"></a>")?;
+        if link.is_some() {
+            write!(w, "</a>")?;
+        }
+        if !is_semantic {
+            write!(w, "</span>")?;
+        }
+        Ok(())
+    }
 
-                    // Flow terms (visible): also output the term text
-                    if it.is_visible() {
-                        let text = substitution_text(it.term(), subs, options);
-                        write!(w, "{text}")?;
-                    }
-                    // Concealed terms: anchor only, no visible text
+    fn render_pass(
+        &mut self,
+        p: &acdc_parser::Pass<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let Some(text) = p.text else { return Ok(()) };
+        let w = self.writer_mut();
+        // Only escape when SpecialChars substitution is enabled (pass:c[]).
+        // Otherwise output raw HTML (pass:[], +++...+++).
+        if p.substitutions.contains(&Substitution::SpecialChars) {
+            let text = substitution_text(text, subs, options);
+            write!(w, "{text}")?;
+        } else {
+            write!(w, "{text}")?;
+        }
+        Ok(())
+    }
+
+    fn render_url(
+        &mut self,
+        u: &acdc_parser::Url<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        let hide_uri_scheme = processor
+            .document_attributes()
+            .get("hide-uri-scheme")
+            .is_some();
+        let target_str = u.target.to_string();
+        let fallback = link_display_fallback(&target_str, hide_uri_scheme);
+
+        if options.toc_mode {
+            if u.text.is_empty() {
+                write!(self.writer_mut(), "{fallback}")?;
+            } else {
+                for inline in &u.text {
+                    self.render_inline_node(inline, options, subs)?;
                 }
             }
-            _ => {
-                return Err(io::Error::new(
-                    io::ErrorKind::Unsupported,
-                    format!("Unsupported inline macro: {m:?}"),
-                )
-                .into());
+            return Ok(());
+        }
+
+        let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
+        let target_attr = window_attrs(&u.attributes);
+        write!(
+            self.writer_mut(),
+            "<a href=\"{}\"{class_attr}{target_attr}>",
+            escape_href(&target_str)
+        )?;
+        if u.text.is_empty() {
+            write!(self.writer_mut(), "{fallback}")?;
+        } else {
+            for inline in &u.text {
+                self.render_inline_node(inline, options, subs)?;
             }
+        }
+        write!(self.writer_mut(), "</a>")?;
+        Ok(())
+    }
+
+    fn render_mailto(
+        &mut self,
+        m: &acdc_parser::Mailto<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let target_str = m.target.to_string();
+        // `mailto:` never uses `hide-uri-scheme` (the prefix strip handles it),
+        // and never emits `class="bare"` (asciidoctor's convention).
+        let fallback = link_display_fallback(&target_str, false);
+
+        if options.toc_mode {
+            if m.text.is_empty() {
+                write!(self.writer_mut(), "{fallback}")?;
+            } else {
+                for inline in &m.text {
+                    self.render_inline_node(inline, options, subs)?;
+                }
+            }
+            return Ok(());
+        }
+
+        let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
+        let target_attr = window_attrs(&m.attributes);
+        write!(
+            self.writer_mut(),
+            "<a href=\"{}\"{class_attr}{target_attr}>",
+            escape_href(&target_str)
+        )?;
+        if m.text.is_empty() {
+            write!(self.writer_mut(), "{fallback}")?;
+        } else {
+            for inline in &m.text {
+                self.render_inline_node(inline, options, subs)?;
+            }
+        }
+        write!(self.writer_mut(), "</a>")?;
+        Ok(())
+    }
+
+    fn render_footnote(
+        &mut self,
+        f: &acdc_parser::Footnote<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
+        // A named footnote reference (footnote:name[] with empty content)
+        // uses class="footnoteref" and no IDs, matching asciidoctor.
+        let is_ref = f.id.is_some() && f.content.is_empty();
+        let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let w = self.writer_mut();
+        let number = f.number;
+
+        if options.inlines_basic {
+            write!(w, "[{number}]")?;
+            return Ok(());
+        }
+
+        if is_semantic {
+            if options.toc_mode {
+                write!(w, "<sup class=\"footnote-ref\">[{number}]</sup>")?;
+            } else if is_ref {
+                write!(
+                    w,
+                    "<sup class=\"footnote-ref\">[<a href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">{number}</a>]</sup>"
+                )?;
+            } else {
+                write!(
+                    w,
+                    "<sup class=\"footnote-ref\" id=\"_footnoteref_{number}\">[<a href=\"#_footnote_{number}\" title=\"View footnote {number}\" role=\"doc-noteref\">{number}</a>]</sup>"
+                )?;
+            }
+            return Ok(());
+        }
+
+        let sup_class = if is_ref { "footnoteref" } else { "footnote" };
+        if options.toc_mode {
+            // In TOC mode, render footnote without anchor link or id
+            // (id stays on the heading's footnote to avoid duplicate IDs)
+            write!(w, "<sup class=\"{sup_class}\">[{number}]</sup>")?;
+            return Ok(());
+        }
+
+        write!(w, "<sup class=\"{sup_class}\"")?;
+        if !is_ref && let Some(id) = &f.id {
+            write!(w, " id=\"_footnote_{id}\"")?;
+        }
+        if is_ref {
+            write!(
+                w,
+                ">[<a class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+            )?;
+        } else {
+            write!(
+                w,
+                ">[<a id=\"_footnoteref_{number}\" class=\"footnote\" href=\"#_footnotedef_{number}\" title=\"View footnote.\">{number}</a>]</sup>"
+            )?;
+        }
+        Ok(())
+    }
+
+    fn render_button(&mut self, b: &acdc_parser::Button<'_>) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        let w = self.writer_mut();
+        if processor.document_attributes.get("experimental").is_none() {
+            write!(w, "btn:[{}]", b.label)?;
+            return Ok(());
+        }
+        if processor.variant() == crate::HtmlVariant::Semantic {
+            write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
+        } else {
+            write!(w, "<b class=\"button\">{}</b>", b.label)?;
+        }
+        Ok(())
+    }
+
+    fn render_xref(
+        &mut self,
+        xref: &acdc_parser::CrossReference<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+
+        if xref.text.is_empty() {
+            // Priority: xreflabel (from [[id,Custom Text]]) > section title > fallback
+            let display_text = processor
+                .toc_entries()
+                .iter()
+                .find(|entry| entry.id == xref.target)
+                .map_or_else(
+                    || format!("[{}]", xref.target),
+                    |entry| {
+                        entry.xreflabel.as_ref().map_or_else(
+                            || inlines_to_string(&entry.title),
+                            std::string::ToString::to_string,
+                        )
+                    },
+                );
+
+            let w = self.writer_mut();
+            if options.inlines_basic || options.toc_mode {
+                write!(w, "{display_text}")?;
+            } else {
+                write!(w, "<a href=\"#{}\">{display_text}</a>", xref.target)?;
+            }
+            return Ok(());
+        }
+
+        if options.inlines_basic || options.toc_mode {
+            for inline in &xref.text {
+                self.render_inline_node(inline, options, subs)?;
+            }
+            return Ok(());
+        }
+
+        write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
+        for inline in &xref.text {
+            self.render_inline_node(inline, options, subs)?;
+        }
+        write!(self.writer_mut(), "</a>")?;
+        Ok(())
+    }
+
+    fn render_stem(&mut self, s: &acdc_parser::Stem<'_>) -> Result<(), Error> {
+        let forced = if self.processor.variant() == crate::HtmlVariant::Semantic {
+            self.processor
+                .document_attributes()
+                .get("html5s-force-stem-type")
+                .and_then(|v| v.to_string().parse::<StemNotation>().ok())
+        } else {
+            None
+        };
+        let notation = forced.as_ref().unwrap_or(&s.notation);
+        let w = self.writer_mut();
+        match notation {
+            StemNotation::Latexmath => writeln!(w, "\\({}\\)", s.content)?,
+            StemNotation::Asciimath => writeln!(w, "\\${}\\$", s.content)?,
+        }
+        Ok(())
+    }
+
+    fn render_icon(&mut self, i: &acdc_parser::Icon<'_>) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        write_icon(self.writer_mut(), &processor, i)?;
+        Ok(())
+    }
+
+    fn render_keyboard(&mut self, k: &acdc_parser::Keyboard<'_>) -> Result<(), Error> {
+        let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let key_class = if is_semantic { " class=\"key\"" } else { "" };
+        let w = self.writer_mut();
+
+        if k.keys.len() == 1
+            && let Some(key) = k.keys.first()
+        {
+            write!(w, "<kbd{key_class}>{key}</kbd>")?;
+            return Ok(());
+        }
+
+        if is_semantic {
+            write!(w, "<kbd class=\"keyseq\">")?;
+        } else {
+            write!(w, "<span class=\"keyseq\">")?;
+        }
+        for (i, key) in k.keys.iter().enumerate() {
+            if i > 0 {
+                write!(w, "+")?;
+            }
+            write!(w, "<kbd{key_class}>{key}</kbd>")?;
+        }
+        if is_semantic {
+            write!(w, "</kbd>")?;
+        } else {
+            write!(w, "</span>")?;
+        }
+        Ok(())
+    }
+
+    fn render_menu(&mut self, menu: &acdc_parser::Menu<'_>) -> Result<(), Error> {
+        let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let w = self.writer_mut();
+
+        if menu.items.is_empty() {
+            if is_semantic {
+                write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
+            } else {
+                write!(w, "<b class=\"menuref\">{}</b>", menu.target)?;
+            }
+            return Ok(());
+        }
+
+        if is_semantic {
+            write!(w, "<kbd class=\"menuseq\">")?;
+            write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
+            for item in &menu.items {
+                write!(w, "&#160;<span class=\"caret\">&#8250;</span>&#32;")?;
+                write!(w, "<kbd class=\"menu\"><samp>{item}</samp></kbd>")?;
+            }
+            write!(w, "</kbd>")?;
+            return Ok(());
+        }
+
+        write!(w, "<span class=\"menuseq\">")?;
+        write!(w, "<b class=\"menu\">{}</b>", menu.target)?;
+        for (i, item) in menu.items.iter().enumerate() {
+            write!(w, "&#160;<i class=\"fa fa-angle-right caret\"></i> ")?;
+            if i == menu.items.len() - 1 {
+                write!(w, "<b class=\"menuitem\">{item}</b>")?;
+            } else {
+                write!(w, "<b class=\"submenu\">{item}</b>")?;
+            }
+        }
+        write!(w, "</span>")?;
+        Ok(())
+    }
+
+    fn render_indexterm(
+        &mut self,
+        it: &acdc_parser::IndexTerm<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        if options.toc_mode {
+            // In TOC mode, skip anchor but still output visible term text
+            if it.is_visible() {
+                let text = substitution_text(it.term(), subs, options);
+                write!(self.writer_mut(), "{text}")?;
+            }
+            return Ok(());
+        }
+
+        let anchor_id = self
+            .processor
+            .clone()
+            .add_index_entry(index_term_kind_to_static(&it.kind));
+        write!(self.writer_mut(), "<a id=\"{anchor_id}\"></a>")?;
+
+        // Flow terms (visible): also output the term text.
+        // Concealed terms: anchor only, no visible text.
+        if it.is_visible() {
+            let text = substitution_text(it.term(), subs, options);
+            write!(self.writer_mut(), "{text}")?;
         }
         Ok(())
     }
