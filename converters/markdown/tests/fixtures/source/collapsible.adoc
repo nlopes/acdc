@@ -1,0 +1,32 @@
+= Collapsible Test
+
+== Delimited collapsible
+
+.Click to expand
+[%collapsible]
+====
+Hidden content revealed on click.
+
+A second paragraph inside the collapsible.
+====
+
+== Open by default
+
+.Initially open
+[%collapsible%open]
+====
+This block starts expanded.
+====
+
+== Without a title
+
+[%collapsible]
+====
+Summary defaults to "Details" when no title is given.
+====
+
+== Paragraph-style collapsible
+
+.Quick tip
+[example%collapsible]
+This is a one-paragraph collapsible example.

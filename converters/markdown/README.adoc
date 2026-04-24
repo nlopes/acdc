@@ -41,6 +41,7 @@ Supported constructs:
 - **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected at document end; HTML superscript fallback in CommonMark.
 - **Images / videos / audio**: images render natively; video and audio degrade to links with a warning.
 - **Thematic breaks** and page breaks (rendered as `---`).
+- **Collapsible example blocks** (`[%collapsible]`, `[%collapsible%open]`): rendered as embedded `<details>/<summary>` HTML. Works in GitHub, GitLab, and most Markdown renderers that allow inline HTML.
 
 == Limitations
 
