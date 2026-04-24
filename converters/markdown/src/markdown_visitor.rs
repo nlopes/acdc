@@ -50,6 +50,39 @@ impl<'a, W: Write> MarkdownVisitor<'a, W> {
         )?;
         Ok(())
     }
+
+    /// Render a collapsible example block as embedded HTML `<details>/<summary>`.
+    ///
+    /// GitHub, GitLab, and most Markdown renderers accept inline HTML, and
+    /// `<details>` is the idiomatic way to express collapsible content.
+    fn write_collapsible<F>(
+        &mut self,
+        title: &acdc_parser::Title<'_>,
+        is_open: bool,
+        write_body: F,
+    ) -> Result<(), Error>
+    where
+        F: FnOnce(&mut Self) -> Result<(), Error>,
+    {
+        if is_open {
+            writeln!(self.writer, "<details open>")?;
+        } else {
+            writeln!(self.writer, "<details>")?;
+        }
+        write!(self.writer, "<summary>")?;
+        if title.is_empty() {
+            write!(self.writer, "Details")?;
+        } else {
+            self.visit_inline_nodes(title.as_ref())?;
+        }
+        writeln!(self.writer, "</summary>")?;
+        // Blank line so inner content is rendered as Markdown inside <details>.
+        writeln!(self.writer)?;
+        write_body(self)?;
+        writeln!(self.writer, "</details>")?;
+        writeln!(self.writer)?;
+        Ok(())
+    }
 }
 
 impl<W: Write> WritableVisitor for MarkdownVisitor<'_, W> {
@@ -128,6 +161,18 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
     }
 
     fn visit_paragraph(&mut self, paragraph: &Paragraph) -> Result<(), Self::Error> {
+        if paragraph.metadata.style == Some("example")
+            && paragraph.metadata.options.contains(&"collapsible")
+        {
+            let is_open = paragraph.metadata.options.contains(&"open");
+            return self.write_collapsible(&paragraph.title, is_open, |v| {
+                v.visit_inline_nodes(&paragraph.content)?;
+                writeln!(v.writer)?;
+                writeln!(v.writer)?;
+                Ok(())
+            });
+        }
+
         self.visit_inline_nodes(&paragraph.content)?;
         writeln!(self.writer)?;
         writeln!(self.writer)?;
@@ -198,14 +243,24 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
                 writeln!(self.writer)?;
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
-                // Examples don't have a direct Markdown equivalent
-                // Use blockquote as fallback
-                self.write_warning("example blocks", "using blockquote")?;
-                for block_item in blocks {
-                    write!(self.writer, "> ")?;
-                    self.visit_block(block_item)?;
+                if block.metadata.options.contains(&"collapsible") {
+                    let is_open = block.metadata.options.contains(&"open");
+                    self.write_collapsible(&block.title, is_open, |v| {
+                        for block_item in blocks {
+                            v.visit_block(block_item)?;
+                        }
+                        Ok(())
+                    })?;
+                } else {
+                    // Examples don't have a direct Markdown equivalent
+                    // Use blockquote as fallback
+                    self.write_warning("example blocks", "using blockquote")?;
+                    for block_item in blocks {
+                        write!(self.writer, "> ")?;
+                        self.visit_block(block_item)?;
+                    }
+                    writeln!(self.writer)?;
                 }
-                writeln!(self.writer)?;
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 // Sidebars don't have a direct Markdown equivalent

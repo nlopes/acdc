@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Collapsible example blocks** — example blocks with `[%collapsible]` (and the
+  `%open` modifier) now render as embedded `<details>/<summary>` HTML, which
+  GitHub, GitLab, and most other Markdown renderers display as expandable
+  sections. Applies to both delimited (`====`) and paragraph-style
+  (`[example%collapsible]`) forms. When no title is given, the summary defaults
+  to "Details", matching the HTML converter.
 - **Description list fallback rendering** — description lists now render as unordered
   lists with bold terms and indented descriptions, instead of only emitting a warning
   comment.
