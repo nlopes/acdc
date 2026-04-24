@@ -418,7 +418,7 @@ peg::parser! {
                 number: 0, // Will be set by register_footnote
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             };
-            state.footnote_tracker.push(&mut footnote);
+            state.footnote_tracker.borrow_mut().push(&mut footnote);
 
             Ok(InlineNode::Macro(InlineMacro::Footnote(footnote)))
         }

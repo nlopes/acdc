@@ -42,7 +42,7 @@ fn parse_benchmark(c: &mut Criterion) {
     // Large-document size ladder: isolates pure parser time (no CLI startup,
     // no file IO, no HTML rendering) so we can measure the asymptotic gap
     // against asciidoctor without the noise of a full `convert` pipeline.
-    for size in &["5KB", "50KB", "250KB", "500KB", "1MB"] {
+    for size in &["5KB", "50KB", "macros_50KB", "250KB", "500KB", "1MB"] {
         let path = format!("fixtures/samples/different-sizes/test_sample_{size}.adoc");
         if let Ok(content) = fs::read_to_string(&path) {
             if *size == "1MB" {

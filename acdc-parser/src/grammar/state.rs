@@ -30,7 +30,17 @@ pub(crate) struct ParserState<'a> {
     /// `String`s and then tried to hand them to the inline parser. Strings
     /// are pushed via `arena.alloc_str(...)`, yielding `&'a str`.
     pub(crate) arena: &'a Bump,
-    pub(crate) footnote_tracker: FootnoteTracker<'a>,
+    /// Shared via `Rc<RefCell>` so the sub-state built by `for_inline_parsing`
+    /// doesn't have to deep-clone the tracker on entry and on writeback. The
+    /// tracker is push-only and participates in no rollback semantics, so
+    /// sharing a single cell across the top-level state and every nested
+    /// inline sub-parse is equivalent to the old clone/writeback pattern for
+    /// all success paths and for every failure path the caller already fails
+    /// through. This matters because macro-heavy fixtures (footnotes +
+    /// bold/italic/mono/xref content) trigger hundreds of recursive
+    /// `process_inlines` calls, and the prior pattern produced O(N×M) work
+    /// where N is footnote count and M is the number of nested parses.
+    pub(crate) footnote_tracker: Rc<RefCell<FootnoteTracker<'a>>>,
     pub(crate) toc_tracker: TocTracker<'a>,
     pub(crate) last_block_was_verbatim: bool,
     /// Callout references found in the last verbatim block (for validation with callout lists)
@@ -255,7 +265,7 @@ impl<'a> ParserState<'a> {
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
-            footnote_tracker: FootnoteTracker::new(),
+            footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             toc_tracker: TocTracker::default(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
@@ -285,7 +295,7 @@ impl<'a> ParserState<'a> {
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
-            footnote_tracker: FootnoteTracker::new(),
+            footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             toc_tracker: TocTracker::default(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
@@ -309,7 +319,7 @@ impl<'a> ParserState<'a> {
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena: parent.arena,
-            footnote_tracker: parent.footnote_tracker.clone(),
+            footnote_tracker: Rc::clone(&parent.footnote_tracker),
             toc_tracker: TocTracker::default(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),

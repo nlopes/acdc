@@ -95,6 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Parsing large documents is dramatically faster.** Hot paths in inline parsing and
   attribute handling skip work entirely when the input has no relevant syntax. 1MB sample:
   ~11.7s → ~130ms (~90× faster).
+- **Macro-heavy documents parse much faster.** Share `FootnoteTracker` across inline
+  sub-parses via `Rc<RefCell<_>>` to avoid quadratic deep-clone cost on every nested
+  `process_inlines`.
 
 ## [0.8.0] - 2026-03-28
 

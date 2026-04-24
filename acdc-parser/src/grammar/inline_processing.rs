@@ -209,7 +209,6 @@ pub(crate) fn parse_inlines<'a>(
         }
     };
 
-    state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
     Ok(inlines)
 }
 
@@ -239,7 +238,6 @@ pub(crate) fn parse_inlines_no_autolinks<'a>(
         }
     };
 
-    state.footnote_tracker = inline_peg_state.footnote_tracker.clone();
     Ok(inlines)
 }
 

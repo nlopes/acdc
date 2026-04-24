@@ -698,7 +698,7 @@ peg::parser! {
                 },
                 attributes: DocumentAttributes::clone(&state.document_attributes),
                 blocks,
-                footnotes: state.footnote_tracker.footnotes.clone(),
+                footnotes: state.footnote_tracker.borrow().footnotes.clone(),
                 toc_entries: state.toc_tracker.entries.clone(),
             })
         }
