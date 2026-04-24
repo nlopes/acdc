@@ -1,0 +1,5 @@
+Empty text: link:https://example.com[]
+
+Text with role: link:https://example.com[Example,role=external]
+
+Text with role and window: link:https://example.com[Example,role=external,window=_blank]

@@ -552,10 +552,30 @@ impl<W: Write> HtmlVisitor<'_, W> {
                         }
                     }
                 } else {
+                    // Build class attribute: "bare" when no display text, plus any role
+                    let role = l.attributes.get("role").and_then(|v| match v {
+                        acdc_parser::AttributeValue::String(s) => {
+                            let role = strip_quotes(s);
+                            if role.is_empty() {
+                                None
+                            } else {
+                                Some(role.to_string())
+                            }
+                        }
+                        acdc_parser::AttributeValue::Bool(_)
+                        | acdc_parser::AttributeValue::None
+                        | _ => None,
+                    });
+                    let class_attr = match (l.text.is_empty(), role) {
+                        (true, Some(role)) => format!(" class=\"bare {role}\""),
+                        (true, None) => " class=\"bare\"".to_string(),
+                        (false, Some(role)) => format!(" class=\"{role}\""),
+                        (false, None) => String::new(),
+                    };
                     let target_attr = window_attrs(&l.attributes);
                     write!(
                         w,
-                        "<a href=\"{}\"{target_attr}>",
+                        "<a href=\"{}\"{class_attr}{target_attr}>",
                         escape_href(&l.target.to_string())
                     )?;
                     if l.text.is_empty() {
