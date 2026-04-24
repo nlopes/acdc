@@ -1115,6 +1115,13 @@ peg::parser! {
                 attributes_enabled: state.inline_ctx.attributes_enabled,
                 ..BlockParsingMetadata::default()
             };
+            // Shorthand-specific pre-trim: asciidoctor treats whitespace-only
+            // custom text in `<<id, >>` as "no custom text" and falls back to
+            // the target's section title. We drop to `vec![]` here so the
+            // converter hits its fallback branch. This diverges from the
+            // `xref:id[ ]` macro form, where `process_inlines_no_autolinks`
+            // preserves the whitespace literally — matching asciidoctor's
+            // asymmetry between the two syntaxes.
             let text = if let Some((content_start, t)) = raw_text {
                 let trimmed = t.trim();
                 if trimmed.is_empty() {

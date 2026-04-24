@@ -60,6 +60,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Whitespace-only text in `link:`, URL, `mailto:`, and `xref:` macros is
+  preserved literally** instead of falling back to the target.
+  `link:https://example.com[ ]` now renders as `<a href="https://example.com"> </a>`
+  and `xref:section[ ]` renders as `<a href="#section"> </a>`, matching
+  asciidoctor; previously acdc dropped the whitespace and emitted the URL or
+  section title as the anchor's visible text. The shorthand form `<<section, >>`
+  still falls back to the section title, also matching asciidoctor.
 - **Inline markup inside `link:` macro text** — `link:url[*bold*]` now parses nested
   formatting (bold, italic, monospace, passthroughs, etc.) through the full inline
   grammar, matching `url:` / `mailto:` behaviour.

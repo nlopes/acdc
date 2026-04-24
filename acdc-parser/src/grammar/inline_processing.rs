@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Error, InlineNode, InlinePreprocessorParserState, Location, ProcessedContent,
+    Error, InlineNode, InlinePreprocessorParserState, Location, Plain, ProcessedContent,
     inline_preprocessing,
 };
 
@@ -300,8 +300,21 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         block_metadata.macros_enabled,
         block_metadata.attributes_enabled,
     )?;
-    if processed.text.trim().is_empty() {
+    if processed.text.is_empty() {
         return Ok(Vec::new());
+    }
+    if processed.text.trim().is_empty() {
+        // Whitespace-only text inside a link-style macro (`link:`, URL,
+        // `mailto:`, `xref:`) must render literally — asciidoctor preserves
+        // `link:https://example.com[ ]` as `<a href="..."> </a>` instead of
+        // falling back to the target. Emit one `PlainText` carrying the
+        // substituted whitespace and skip the inline parser entirely.
+        let text = processed_text_as_outer(&processed, state);
+        return Ok(vec![InlineNode::PlainText(Plain {
+            content: text,
+            location,
+            escaped: false,
+        })]);
     }
     // Promote `processed` to `'a` by interning into the parser arena.
     let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
