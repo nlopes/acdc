@@ -8,7 +8,7 @@ The implementation here follows from:
 * https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc[Language Outline]: behaviour/layout
 * https://docs.asciidoctor.org/asciidoc/latest[Asciidoctor Language Documentation]: behaviour/layout
 
-.Features supported
+.*Features supported*
 [%collapsible]
 ====
 * [x] Document Headers
