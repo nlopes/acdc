@@ -225,49 +225,62 @@ peg::parser! {
 
         rule non_plain_text() -> InlineNode<'input>
         = inline:(
+            // Each alternative is prefixed with a `&[...]` byte-lookahead that
+            // rejects most call sites before the real rule is entered. On
+            // macro-dense docs `non_plain_text` was the top hotspot: packrat
+            // memoisation pays its fair share, but the alternation still had
+            // to TRY each of ~30 rules on every candidate position. The
+            // byte guards cut that to the subset whose first byte matches.
+            // Preserves original ordering to keep PEG first-match semantics.
+
             // Escaped superscript/subscript must come first - produces RawText to prevent re-parsing
-            escaped_super_sub:escaped_superscript_subscript() { escaped_super_sub }
+            &['\\'] escaped_super_sub:escaped_superscript_subscript() { escaped_super_sub }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
-            / escaped_syntax:escaped_syntax() { escaped_syntax }
+            / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
-            / check_macros() index_term:index_term_concealed() { index_term }
-            / check_macros() index_term:index_term_flow() { index_term }
-            / check_macros() indexterm:indexterm_macro() { indexterm }
-            / check_macros() indexterm2:indexterm2_macro() { indexterm2 }
+            / check_macros() &['('] index_term:index_term_concealed() { index_term }
+            / check_macros() &['('] index_term:index_term_flow() { index_term }
+            / check_macros() &['i'] indexterm:indexterm_macro() { indexterm }
+            / check_macros() &['i'] indexterm2:indexterm2_macro() { indexterm2 }
             // Bibliography anchor (triple brackets) must come before inline anchor (double brackets)
-            / check_macros() bibliography_anchor:bibliography_anchor() { bibliography_anchor }
-            / check_macros() inline_anchor:inline_anchor() { inline_anchor }
-            / check_macros() cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
-            / check_macros() cross_reference_macro:cross_reference_macro() { cross_reference_macro }
-            / hard_wrap:hard_wrap() { hard_wrap }
+            / check_macros() &['['] bibliography_anchor:bibliography_anchor() { bibliography_anchor }
+            / check_macros() &['['] inline_anchor:inline_anchor() { inline_anchor }
+            / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
+            / check_macros() &['x'] cross_reference_macro:cross_reference_macro() { cross_reference_macro }
+            / &[' '] hard_wrap:hard_wrap() { hard_wrap }
             / check_macros() &"footnote:" footnote:footnote() { footnote }
-            / check_macros() stem:inline_stem() { stem }
-            / check_macros() image:inline_image() { image }
-            / check_macros() icon:inline_icon() { icon }
-            / check_macros() keyboard:inline_keyboard() { keyboard }
-            / check_macros() button:inline_button() { button }
-            / check_macros() menu:inline_menu() { menu }
+            / check_macros() &['s' | 'a' | 'l'] stem:inline_stem() { stem }
+            / check_macros() &['i'] image:inline_image() { image }
+            / check_macros() &['i'] icon:inline_icon() { icon }
+            / check_macros() &['k'] keyboard:inline_keyboard() { keyboard }
+            / check_macros() &['b'] button:inline_button() { button }
+            / check_macros() &['m'] menu:inline_menu() { menu }
             // mailto has to come before the url_macro because url_macro calls url() which
             // also matches against mailto:
-            / check_macros() mailto_macro:mailto_macro() { mailto_macro }
-            / check_macros() url_macro:url_macro() { url_macro }
-            / check_macros() pass:inline_pass() { pass }
-            / check_macros() link_macro:link_macro() { link_macro }
+            / check_macros() &['m'] mailto_macro:mailto_macro() { mailto_macro }
+            / check_macros() &['h' | 'f'] url_macro:url_macro() { url_macro }
+            / check_macros() &['p'] pass:inline_pass() { pass }
+            / check_macros() &['l'] link_macro:link_macro() { link_macro }
+            // No byte guard: autolink matches bare URLs (`h`/`f` schemes) AND bare
+            // emails (any ASCII alphanumeric), and `<url>` / `<email>`. The
+            // upstream `plain_text_quick_safe` fast path already rejects most
+            // email candidates before we reach non_plain_text, so this
+            // alternative is only tried on positions that actually need it.
             / check_macros() check_autolinks() inline_autolink:inline_autolink() { inline_autolink }
-            / inline_line_break:inline_line_break() { inline_line_break }
-            / bold_text_unconstrained:bold_text_unconstrained() { bold_text_unconstrained }
-            / bold_text_constrained:bold_text_constrained() { bold_text_constrained }
-            / italic_text_unconstrained:italic_text_unconstrained() { italic_text_unconstrained }
-            / italic_text_constrained:italic_text_constrained() { italic_text_constrained }
-            / monospace_text_unconstrained:monospace_text_unconstrained() { monospace_text_unconstrained }
-            / monospace_text_constrained:monospace_text_constrained() { monospace_text_constrained }
-            / highlight_text_unconstrained:highlight_text_unconstrained() { highlight_text_unconstrained }
-            / highlight_text_constrained:highlight_text_constrained() { highlight_text_constrained }
-            / superscript_text:superscript_text() { superscript_text }
-            / subscript_text:subscript_text() { subscript_text }
-            / curved_quotation_text:curved_quotation_text() { curved_quotation_text }
-            / curved_apostrophe_text:curved_apostrophe_text() { curved_apostrophe_text }
-            / standalone_curved_apostrophe:standalone_curved_apostrophe() { standalone_curved_apostrophe }
+            / &[' '] inline_line_break:inline_line_break() { inline_line_break }
+            / &['[' | '*'] bold_text_unconstrained:bold_text_unconstrained() { bold_text_unconstrained }
+            / &['[' | '*'] bold_text_constrained:bold_text_constrained() { bold_text_constrained }
+            / &['[' | '_'] italic_text_unconstrained:italic_text_unconstrained() { italic_text_unconstrained }
+            / &['[' | '_'] italic_text_constrained:italic_text_constrained() { italic_text_constrained }
+            / &['[' | '`'] monospace_text_unconstrained:monospace_text_unconstrained() { monospace_text_unconstrained }
+            / &['[' | '`'] monospace_text_constrained:monospace_text_constrained() { monospace_text_constrained }
+            / &['[' | '#'] highlight_text_unconstrained:highlight_text_unconstrained() { highlight_text_unconstrained }
+            / &['[' | '#'] highlight_text_constrained:highlight_text_constrained() { highlight_text_constrained }
+            / &['[' | '^'] superscript_text:superscript_text() { superscript_text }
+            / &['[' | '~'] subscript_text:subscript_text() { subscript_text }
+            / &['[' | '"'] curved_quotation_text:curved_quotation_text() { curved_quotation_text }
+            / &['[' | '\''] curved_apostrophe_text:curved_apostrophe_text() { curved_apostrophe_text }
+            / &['`'] standalone_curved_apostrophe:standalone_curved_apostrophe() { standalone_curved_apostrophe }
             ) {
                 inline
             }
@@ -407,7 +420,7 @@ peg::parser! {
                 vec![]
             } else {
                 process_inlines_or_err!(
-                    process_inlines(state, &bm, &content_start, end, state.inline_ctx.offset, content_str),
+                    process_inlines(state, &bm, content_start, end, state.inline_ctx.offset, content_str),
                     "could not process footnote content"
                 )?
             };
@@ -423,11 +436,11 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::Footnote(footnote)))
         }
 
-        rule footnote_match() -> (usize, Option<&'input str>, PositionWithOffset, &'input str, usize)
+        rule footnote_match() -> (usize, Option<&'input str>, usize, &'input str, usize)
         = start:position!()
         "footnote:"
         // TODO(nlopes): we should change this so that we require an id if content is empty
-        id:id()? "[" content_start:position() content:balanced_bracket_content() "]"
+        id:id()? "[" content_start:position!() content:balanced_bracket_content() "]"
         end:position!()
         {
             (start, id, content_start, content, end)
@@ -681,10 +694,10 @@ peg::parser! {
         /// This is similar to link macros but the URL is directly specified rather than
         /// using the `link:` prefix.
         rule url_macro() -> InlineNode<'input>
-        = start:position()
+        = start:position!()
         target:url()
         "["
-        content_start:position()
+        content_start:position!()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -710,7 +723,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, &content_start, end, state.inline_ctx.offset, text)
+                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process URL macro text");
                         "could not process URL macro text"
@@ -724,7 +737,7 @@ peg::parser! {
                 text,
                 target: target_source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             })))
         }
 
@@ -740,11 +753,11 @@ peg::parser! {
         /// This is similar to link macros but the `mailto:` is directly specified rather
         /// than using the `link:` prefix.
         rule mailto_macro() -> InlineNode<'input>
-        = start:position()
+        = start:position!()
         &"mailto:"
         target:url()
         "["
-        content_start:position()
+        content_start:position!()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -770,7 +783,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, &content_start, end, state.inline_ctx.offset, text)
+                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process mailto macro text");
                         "could not process mailto macro text"
@@ -784,7 +797,7 @@ peg::parser! {
                 text,
                 target: target_source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             })))
         }
 
@@ -883,7 +896,7 @@ peg::parser! {
         = " + \\" &eol()
 
         rule inline_icon() -> InlineNode<'input>
-        = start:position() "icon:" source:source() attributes:macro_attributes() end:position!()
+        = start:position!() "icon:" source:source() attributes:macro_attributes() end:position!()
         {
             let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -920,7 +933,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Icon(Icon {
                 target: source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -958,7 +971,7 @@ peg::parser! {
         = ("latexmath" / "asciimath" / "stem") ":[" ("\\\\" / "\\" ['[' | ']'] / [^(']' | '\\')]+ / "\\")* "]"
 
         rule inline_image() -> InlineNode<'input>
-        = start:position() "image:" source:source() attributes:macro_attributes() end:position!()
+        = start:position!() "image:" source:source() attributes:macro_attributes() end:position!()
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -967,7 +980,7 @@ peg::parser! {
                 // For inline images, the first positional attribute is the alt text (title)
                 title = crate::Title::new(vec![InlineNode::PlainText(Plain {
                     content: style,
-                    location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                    location: state.create_block_location(start, end, state.inline_ctx.offset),
                     escaped: false,
                 })]);
             }
@@ -1000,7 +1013,7 @@ peg::parser! {
                     position: state.line_map.offset_to_position(title_start, state.input),
                 };
                 title = crate::Title::new(process_inlines_or_err!(
-                    process_inlines(state, &bm, &title_start_pos, title_end, state.inline_ctx.offset, content),
+                    process_inlines(state, &bm, title_start_pos.offset, title_end, state.inline_ctx.offset, content),
                     "could not process title in inline image macro"
                 )?);
             }
@@ -1010,7 +1023,7 @@ peg::parser! {
                 title,
                 source,
                 metadata: metadata.clone(),
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
 
             }))))
         }
@@ -1053,7 +1066,7 @@ peg::parser! {
         /// like quotes, special characters, and mixed content.
         rule link_macro() -> InlineNode<'input>
         = start:position!() "link:" target:source() fragment:path_fragment()? "["
-        content_start:position()
+        content_start:position!()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
@@ -1084,7 +1097,7 @@ peg::parser! {
                 None => target,
             };
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, &content_start, end, state.inline_ctx.offset, text)
+                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, link_text = text, "could not process link macro text");
                         "could not process link macro text"
@@ -1106,7 +1119,7 @@ peg::parser! {
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand() -> InlineNode<'input>
-        = start:position() shorthand:cross_reference_shorthand_pattern() end:position!()
+        = start:position!() shorthand:cross_reference_shorthand_pattern() end:position!()
         {?
             let (target, raw_text) = shorthand;
             let target_str: &'input str = target.trim();
@@ -1131,7 +1144,7 @@ peg::parser! {
                         offset: content_start,
                         position: state.line_map.offset_to_position(content_start, state.input),
                     };
-                    process_inlines_no_autolinks(state, &bm, &content_pos, end, state.inline_ctx.offset, trimmed)
+                    process_inlines_no_autolinks(state, &bm, content_pos.offset, end, state.inline_ctx.offset, trimmed)
                         .map_err(|e| {
                             tracing::error!(?e, xref_text = trimmed, "could not process xref text");
                             "could not process xref text"
@@ -1144,7 +1157,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             })))
         }
 
@@ -1157,7 +1170,7 @@ peg::parser! {
 
         /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro() -> InlineNode<'input>
-        = start:position() "xref:" target:source() fragment:path_fragment()? "[" content_start:position() raw_text:$((!"]" [_])*) "]" end:position!()
+        = start:position!() "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:$((!"]" [_])*) "]" end:position!()
         {?
             let target_str: &'input str = match fragment {
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
@@ -1171,7 +1184,7 @@ peg::parser! {
             let text = if raw_text.is_empty() {
                 vec![]
             } else {
-                process_inlines_no_autolinks(state, &bm, &content_start, end, state.inline_ctx.offset, raw_text)
+                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, raw_text)
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
@@ -1181,7 +1194,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             })))
         }
 
@@ -1194,7 +1207,7 @@ peg::parser! {
         = "xref:" source() path_fragment()? "[" (!"]" [_])* "]"
 
         rule bold_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "**" content_start:position() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
+            = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$((!(eol() / ![_] / "**") [_])+) "**" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1212,7 +1225,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained bold text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 2, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained bold text content"
             )?;
             Ok(InlineNode::BoldText(Bold {
@@ -1220,7 +1233,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1271,7 +1284,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'*');
             let result = process_inlines_or_err!(
-                process_inlines(state, &bm, &adjusted_content_start, end - 1, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, adjusted_content_start.offset, end - 1, state.inline_ctx.offset, content),
                 "could not process constrained bold text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1345,7 +1358,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'_');
             let result = process_inlines_or_err!(
-                process_inlines(state, &bm, &adjusted_content_start, end - 1, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, adjusted_content_start.offset, end - 1, state.inline_ctx.offset, content),
                 "could not process constrained italic text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1377,7 +1390,7 @@ peg::parser! {
         }
 
         rule italic_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "__" content_start:position() content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
+            = attrs:inline_attributes()? start:position!() "__" content_start:position!() content:$((!(eol() / ![_] / "__") [_])+) "__" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1395,7 +1408,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained italic text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 2, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained italic text content"
             )?;
             Ok(InlineNode::ItalicText(Italic {
@@ -1403,7 +1416,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1412,7 +1425,7 @@ peg::parser! {
         = inline_attributes()? "__" (!(eol() / ![_] / "__") [_])+ "__"
 
         rule monospace_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "``" content_start:position() content:$((!(eol() / ![_] / "``") [_])+) "``" end:position!()
+            = attrs:inline_attributes()? start:position!() "``" content_start:position!() content:$((!(eol() / ![_] / "``") [_])+) "``" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1430,7 +1443,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained monospace text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 2, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained monospace text content"
             )?;
             Ok(InlineNode::MonospaceText(Monospace {
@@ -1438,7 +1451,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1489,7 +1502,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'`');
             let result = process_inlines_or_err!(
-                process_inlines(state, &bm, &adjusted_content_start, end - 1, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, adjusted_content_start.offset, end - 1, state.inline_ctx.offset, content),
                 "could not process constrained monospace text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1521,7 +1534,7 @@ peg::parser! {
         }
 
         rule highlight_text_unconstrained() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "##" content_start:position() content:$((!(eol() / ![_] / "##") [_])+) "##" end:position!()
+            = attrs:inline_attributes()? start:position!() "##" content_start:position!() content:$((!(eol() / ![_] / "##") [_])+) "##" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1539,7 +1552,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained highlight text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 2, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained highlight text content"
             )?;
             Ok(InlineNode::HighlightText(Highlight {
@@ -1547,7 +1560,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1599,7 +1612,7 @@ peg::parser! {
             let saved_delimiter = state.outer_constrained_delimiter;
             state.outer_constrained_delimiter = Some(b'#');
             let result = process_inlines_or_err!(
-                process_inlines(state, &bm, &adjusted_content_start, end - 1, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, adjusted_content_start.offset, end - 1, state.inline_ctx.offset, content),
                 "could not process constrained highlight text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
@@ -1632,7 +1645,7 @@ peg::parser! {
 
         /// Parse superscript text (^text^)
         rule superscript_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "^" content_start:position() content:$([^('^' | ' ' | '\t' | '\n')]+) "^" end:position!()
+            = attrs:inline_attributes()? start:position!() "^" content_start:position!() content:$([^('^' | ' ' | '\t' | '\n')]+) "^" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1650,7 +1663,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found superscript text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 1, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process superscript text content"
             )?;
             Ok(InlineNode::SuperscriptText(Superscript {
@@ -1658,7 +1671,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1668,7 +1681,7 @@ peg::parser! {
 
         /// Parse subscript text (~text~)
         rule subscript_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "~" content_start:position() content:$([^('~' | ' ' | '\t' | '\n')]+) "~" end:position!()
+            = attrs:inline_attributes()? start:position!() "~" content_start:position!() content:$([^('~' | ' ' | '\t' | '\n')]+) "~" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1686,7 +1699,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found subscript text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 1, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process subscript text content"
             )?;
             Ok(InlineNode::SubscriptText(Subscript {
@@ -1694,7 +1707,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1704,7 +1717,7 @@ peg::parser! {
 
         /// Parse curved quotation text (`"text"`)
         rule curved_quotation_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "\"`" content_start:position() content:$((!("`\"") [_])+) "`\"" end:position!()
+            = attrs:inline_attributes()? start:position!() "\"`" content_start:position!() content:$((!("`\"") [_])+) "`\"" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1722,7 +1735,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved quotation text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 2, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved quotation text content"
             )?;
             Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
@@ -1730,7 +1743,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1740,7 +1753,7 @@ peg::parser! {
 
         /// Parse curved apostrophe text (`'text'`)
         rule curved_apostrophe_text() -> InlineNode<'input>
-            = attrs:inline_attributes()? start:position() "'`" content_start:position() content:$((!("`'") [_])+) "`'" end:position!()
+            = attrs:inline_attributes()? start:position!() "'`" content_start:position!() content:$((!("`'") [_])+) "`'" end:position!()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1758,7 +1771,7 @@ peg::parser! {
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved apostrophe text inline");
             let content = process_inlines_or_err!(
-                process_inlines(state, &bm, &content_start, end - 2, state.inline_ctx.offset, content),
+                process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved apostrophe text content"
             )?;
             Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
@@ -1766,7 +1779,7 @@ peg::parser! {
                 role,
                 id,
                 form: Form::Unconstrained,
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 
@@ -1780,11 +1793,11 @@ peg::parser! {
 
         /// Parse standalone curved apostrophe (`')
         rule standalone_curved_apostrophe() -> InlineNode<'input>
-            = start:position() "`'" end:position!()
+            = start:position!() "`'" end:position!()
         {?
             tracing::debug!(?start, ?end, offset = ?state.inline_ctx.offset, "Found standalone curved apostrophe inline");
             Ok(InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-                location: state.create_block_location(start.offset, end, state.inline_ctx.offset),
+                location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
 

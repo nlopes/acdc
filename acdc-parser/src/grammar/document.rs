@@ -608,6 +608,51 @@ fn parse_table_block_impl<'input>(
     }))
 }
 
+/// Scans `bytes[pos..]` for a description-list marker (`::`, `:::`, `::::`, or
+/// `;;`) preceded by at least one term character and followed by EOL, space, or
+/// (optionally) end-of-input. Returns `true` on the first complete marker, or
+/// `false` if the bound is reached first.
+///
+/// `scan_across_eol = false` bounds the scan at the next `\n` (line-local).
+/// `scan_across_eol = true` bounds it at the next blank line (`\n\n`).
+/// `allow_eoi = true` treats end-of-input after the marker as valid context.
+///
+/// Replaces the per-byte PEG lookahead used by `check_start_of_description_list`,
+/// `check_line_is_description_list`, and the inline negation in
+/// `description_list_item`'s continuation pattern. The PEG version called
+/// `description_list_marker()` (4 string-alts) at every byte, dominating CPU
+/// time on macro-heavy paragraphs that don't actually contain dlist markers.
+#[inline]
+fn find_dlist_marker(bytes: &[u8], pos: usize, scan_across_eol: bool, allow_eoi: bool) -> bool {
+    let mut i = pos;
+    while let Some(&b) = bytes.get(i) {
+        if b == b'\n' && (!scan_across_eol || bytes.get(i + 1) == Some(&b'\n')) {
+            return false;
+        }
+        if i > pos && (b == b':' || b == b';') {
+            let marker_len = if b == b':' {
+                let mut k = 1;
+                while k < 4 && bytes.get(i + k) == Some(&b':') {
+                    k += 1;
+                }
+                if k >= 2 { k } else { 0 }
+            } else if bytes.get(i + 1) == Some(&b';') {
+                2
+            } else {
+                0
+            };
+            if marker_len > 0 {
+                let after = bytes.get(i + marker_len).copied();
+                if matches!(after, Some(b'\n' | b' ')) || (allow_eoi && after.is_none()) {
+                    return true;
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState<'input>) for str {
         use std::str::FromStr;
@@ -622,12 +667,12 @@ peg::parser! {
         // it stands in our current model, it makes no sense to have comments in the
         // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document<'input>, Error>
-        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() blocks:blocks(0, None) end:position() (eol()* / ![_]) {
+        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() blocks:blocks(0, None) end:position!() (eol()* / ![_]) {
             let header = header_result?;
             let blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
-            let mut document_end_offset = end.offset;
+            let mut document_end_offset = end;
             if document_end_offset > state.input.len() {
                 document_end_offset = state.input.len();
             }
@@ -804,7 +849,7 @@ peg::parser! {
 
         /// ATX-style document title: `= Title` or `# Title`
         rule document_title_atx() -> (Title<'input>, Option<Subtitle<'input>>)
-        = document_title_token() whitespace() start:position() title:$([^'\n']*) end:position!()
+        = document_title_token() whitespace() start:position!() title:$([^'\n']*) end:position!()
         {?
             tracing::debug!(?title, "Processing ATX document title");
             let block_metadata = BlockParsingMetadata::default();
@@ -814,32 +859,32 @@ peg::parser! {
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {
                     // Empty subtitle after colon, treat whole text as title
-                    let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                    let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
                         .map_err(|_| "could not process document title")?;
                     (inlines, None)
                 } else {
                     // Title: trim trailing whitespace before colon
                     let title_raw = &title[..colon_pos];
                     let title_text = title_raw.trim_end();
-                    let title_end = start.offset + title_text.len();
-                    let inlines = process_inlines(state, &block_metadata, &start, title_end, 0, title_text)
+                    let title_end = start + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, start, title_end, 0, title_text)
                         .map_err(|_| "could not process document title")?;
 
                     // Subtitle: trim leading whitespace after colon
                     let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
-                    let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
+                    let sub_start_offset = start + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
                         position: state.line_map.offset_to_position(sub_start_offset, state.input),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
-                    let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
+                    let subtitle_inlines = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
                         .map_err(|_| "could not process document subtitle")?;
 
                     (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
             } else {
-                let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
                     .map_err(|_| "could not process document title")?;
                 (inlines, None)
             };
@@ -858,7 +903,7 @@ peg::parser! {
         /// Only enabled when the setext feature is compiled in AND the runtime
         /// option is enabled.
         rule document_title_setext() -> (Title<'input>, Option<Subtitle<'input>>)
-        = start:position() title:$([^'\n']+) end:position!() eol()
+        = start:position!() title:$([^'\n']+) end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
             // Check if setext mode is enabled
@@ -887,32 +932,32 @@ peg::parser! {
                 let subtitle_raw = &title[colon_pos + 1..];
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {
-                    let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                    let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
                         .map_err(|_| "could not process setext document title")?;
                     (inlines, None)
                 } else {
                     // Title: trim trailing whitespace before colon
                     let title_raw = &title[..colon_pos];
                     let title_text = title_raw.trim_end();
-                    let title_end = start.offset + title_text.len();
-                    let inlines = process_inlines(state, &block_metadata, &start, title_end, 0, title_text)
+                    let title_end = start + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, start, title_end, 0, title_text)
                         .map_err(|_| "could not process setext document title")?;
 
                     // Subtitle: trim leading whitespace after colon
                     let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
-                    let sub_start_offset = start.offset + colon_pos + 1 + sub_leading;
+                    let sub_start_offset = start + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
                         position: state.line_map.offset_to_position(sub_start_offset, state.input),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
-                    let subtitle_inlines = process_inlines(state, &block_metadata, &subtitle_start, sub_end, 0, subtitle_text)
+                    let subtitle_inlines = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
                         .map_err(|_| "could not process setext document subtitle")?;
 
                     (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
             } else {
-                let inlines = process_inlines(state, &block_metadata, &start, end, 0, title)
+                let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
                     .map_err(|_| "could not process setext document title")?;
                 (inlines, None)
             };
@@ -1377,18 +1422,18 @@ peg::parser! {
         /// match as setext titles.
         pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
-        !check_line_is_description_list()
+        !check_line_is_description_list(offset)
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section_setext");
                 "block metadata parse error"
             })
         })
-        title_start:position() title:$([^'\n']+) title_end:position!() eol()
+        title_start:position!() title:$([^'\n']+) title_end:position!() eol()
         setext_level:setext_section_level(title.trim().chars().count(), parent_section_level)
         section_header:({
             // Parse the title using inline processing
-            match process_inlines(state, &block_metadata, &title_start, title_end, offset, title) {
+            match process_inlines(state, &block_metadata, title_start, title_end, offset, title) {
                 Ok(processed_title) => {
                     let processed_title = Title::new(processed_title);
                     let section_id_str = Section::generate_id(state.arena, &block_metadata.metadata, &processed_title).to_string();
@@ -1523,11 +1568,11 @@ peg::parser! {
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
         rule title_line(offset: usize) -> Result<Title<'input>, Error>
-        = period() start:position() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
+        = period() start:position!() title:$(![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']*) end:position!() eol()
         {
             tracing::debug!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
-            let title = process_inlines(state, &block_metadata, &start, end, offset, title)?;
+            let title = process_inlines(state, &block_metadata, start, end, offset, title)?;
             Ok(title.into())
         }
 
@@ -1542,19 +1587,23 @@ peg::parser! {
         }
 
         rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
-        = start:position() level:$(("=" / "#")*<1,6>) end:position!()
+        = start:position!() level:$(("=" / "#")*<1,6>) end:position!()
         {
             let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
-            let byte_offset = start.offset + offset;
+            let byte_offset = start + offset;
             (level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes))
         }
 
         rule section_level_at_line_start(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
-        = start:position() level:$(("=" / "#")*<1,6>) end:position!()
+        = start:position!() level:$(("=" / "#")*<1,6>) end:position!()
         {?
-            // Only match section levels that are at the start of a line
-            // Check if we're at the beginning of the input or after a newline
-            let absolute_pos = start.offset + offset;
+            // This rule is invoked as a negative lookahead from paragraph
+            // parsing, so it runs speculatively on every continuation line.
+            // `position!()` captures only the byte offset — the cheap
+            // line-start byte check below rejects most speculations, so the
+            // (line, column) pair that `position()` would materialise is
+            // virtually always discarded.
+            let absolute_pos = start + offset;
             let at_line_start = absolute_pos == 0 || {
                 let prev_byte_pos = absolute_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| b == b'\n')
@@ -1565,15 +1614,15 @@ peg::parser! {
             }
 
             let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
-            let byte_offset = start.offset + offset;
+            let byte_offset = start + offset;
             Ok((level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes)))
         }
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Title<'input>, Error>
-        = title_start:position() title:$([^'\n']*) end:position!()
+        = title_start:position!() title:$([^'\n']*) end:position!()
         {
             tracing::debug!(?title, ?title_start, ?end, offset, "Found section title");
-            let content = process_inlines(state, block_metadata, &title_start, end, offset, title)?;
+            let content = process_inlines(state, block_metadata, title_start, end, offset, title)?;
             Ok(Title::new(content))
         }
 
@@ -2282,7 +2331,7 @@ peg::parser! {
                 Some((content, attr_pos, attr_end))
             } else { None };
             if let Some((content, attr_pos, attr_end)) = attribution_params
-                && let Ok(inlines) = process_inlines(state, block_metadata, &attr_pos, attr_end, offset, content)
+                && let Ok(inlines) = process_inlines(state, block_metadata, attr_pos.offset, attr_end, offset, content)
                 && !inlines.is_empty()
             {
                 metadata.attribution = Some(Attribution::new(inlines));
@@ -2301,7 +2350,7 @@ peg::parser! {
                 Some((content, cite_pos, cite_end))
             } else { None };
             if let Some((content, cite_pos, cite_end)) = citetitle_params
-                && let Ok(inlines) = process_inlines(state, block_metadata, &cite_pos, cite_end, offset, content)
+                && let Ok(inlines) = process_inlines(state, block_metadata, cite_pos.offset, cite_end, offset, content)
                 && !inlines.is_empty()
             {
                 metadata.citetitle = Some(CiteTitle::new(inlines));
@@ -2718,7 +2767,7 @@ peg::parser! {
         marker:unordered_list_marker()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
@@ -2752,7 +2801,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2785,7 +2834,7 @@ peg::parser! {
         marker:unordered_list_marker()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
@@ -2806,7 +2855,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2837,7 +2886,7 @@ peg::parser! {
         = start:position!()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
@@ -2856,7 +2905,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -2881,7 +2930,7 @@ peg::parser! {
         = start:position!()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
@@ -2897,7 +2946,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3010,7 +3059,7 @@ peg::parser! {
         marker:ordered_list_marker()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
@@ -3044,7 +3093,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3077,7 +3126,7 @@ peg::parser! {
         marker:ordered_list_marker()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
@@ -3098,7 +3147,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3127,7 +3176,7 @@ peg::parser! {
         = start:position!()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
@@ -3146,7 +3195,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3171,7 +3220,7 @@ peg::parser! {
         = start:position!()
         whitespace()
         checked:checklist_item()?
-        first_line_start:position()
+        first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
         first_line_end:position!()
@@ -3187,7 +3236,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             let mut blocks = Vec::new();
@@ -3383,7 +3432,7 @@ peg::parser! {
         whitespace()*
         marker:callout_list_marker()
         whitespace()
-        first_line_start:position()
+        first_line_start:position!()
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
@@ -3420,7 +3469,7 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, &first_line_start, first_line_end, offset, principal_text)?
+                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
             };
 
             // For callout lists, we don't support nested content or attached blocks
@@ -3451,17 +3500,41 @@ peg::parser! {
             checked
         }
 
-        rule check_start_of_description_list()
-        = &((!(description_list_marker() (eol() / " " / ![_]) / eol() eol()) [_])+ description_list_marker())
+        rule check_start_of_description_list(offset: usize)
+        = pos:position!() {?
+            if find_dlist_marker(state.input.as_bytes(), pos + offset, true, true) {
+                Ok(())
+            } else {
+                Err("no dlist marker before next blank line")
+            }
+        }
 
         /// Like check_start_of_description_list but restricted to the current line.
         /// Used by setext section rules to avoid false positives when a description
         /// list marker (::, ;;) appears later in the document but not on the current line.
-        rule check_line_is_description_list()
-        = &((!(description_list_marker() (eol() / " " / ![_])) [^'\n'])+ description_list_marker())
+        rule check_line_is_description_list(offset: usize)
+        = pos:position!() {?
+            if find_dlist_marker(state.input.as_bytes(), pos + offset, false, true) {
+                Ok(())
+            } else {
+                Err("no dlist marker on current line")
+            }
+        }
+
+        /// Variant of `check_line_is_description_list` that does not accept
+        /// end-of-input as marker context. Mirrors the inline pattern previously
+        /// embedded in `description_list_item`'s continuation guard.
+        rule check_line_is_description_list_strict(offset: usize)
+        = pos:position!() {?
+            if find_dlist_marker(state.input.as_bytes(), pos + offset, false, false) {
+                Ok(())
+            } else {
+                Err("no dlist marker on current line")
+            }
+        }
 
         rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = check_start_of_description_list()
+        = check_start_of_description_list(offset)
         first_item:description_list_item(offset, block_metadata)
         additional_items:description_list_additional_items(offset, block_metadata)*
         end:position!()
@@ -3493,7 +3566,7 @@ peg::parser! {
         rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = !at_dlist_block_boundary()
         eol()*
-        check_start_of_description_list()
+        check_start_of_description_list(offset)
         item:description_list_item(offset, block_metadata)
         {
             tracing::debug!("Found additional description list item");
@@ -3505,7 +3578,7 @@ peg::parser! {
         term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
         whitespace()?
-        principal_start:position()
+        principal_start:position!()
         principal_content:$(
             (!eol() [_])*
             // Implicit text continuation: consume subsequent non-blank lines that
@@ -3514,7 +3587,7 @@ peg::parser! {
             // dlist-specific stop conditions.
             (eol()
              !eol()                                    // not a blank line
-             !(&((!(description_list_marker() (eol() / " ") / eol()) [_])+ description_list_marker()))  // not a new dlist entry (line-local check)
+             !check_line_is_description_list_strict(offset)  // not a new dlist entry (line-local check)
              !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())  // not a list item
              !("+" (whitespace() / eol() / ![_]))      // not a continuation marker
              !example_delimiter()                      // not a block delimiter
@@ -3547,12 +3620,12 @@ peg::parser! {
                     vec![]
                 });
 
-            let principal_end = principal_start.offset + principal_content.len();
+            let principal_end = principal_start + principal_content.len();
             let principal_text = if principal_content.trim().is_empty() {
                 Vec::new()
             } else {
                 // Parse as inline content with attribute substitution
-                process_inlines(state, block_metadata, &principal_start, principal_end, offset, principal_content.trim())?
+                process_inlines(state, block_metadata, principal_start, principal_end, offset, principal_content.trim())?
             };
 
             // Collect all attached blocks (auto-attached and explicitly continued)
@@ -3574,9 +3647,9 @@ peg::parser! {
                     // No attached content: use end of principal text line
                     if principal_content.is_empty() {
                         // Just term + delimiter
-                        principal_start.offset
+                        principal_start
                     } else {
-                        principal_start.offset + principal_content.len()
+                        principal_start + principal_content.len()
                     }
                 },
                 |b| {
@@ -3672,7 +3745,7 @@ peg::parser! {
         = content_start:position!()
           "\"" quoted_content:$((!"\"" [_])+) "\""
           eol()
-          "-- " attr_start:position() attribution_line:$([^'\n']+)
+          "-- " attr_start:position!() attribution_line:$([^'\n']+)
           end:position!()
         {
             tracing::debug!(?quoted_content, ?attribution_line, "found quoted paragraph");
@@ -3686,11 +3759,11 @@ peg::parser! {
             };
 
             // Parse attribution through inline pipeline
-            let attr_end_offset = attr_start.offset + attr_str.len();
+            let attr_end_offset = attr_start + attr_str.len();
             let attr_inlines = process_inlines(
                 state,
                 block_metadata,
-                &attr_start,
+                attr_start,
                 attr_end_offset,
                 offset,
                 attr_str,
@@ -3699,7 +3772,7 @@ peg::parser! {
             // Parse citation through inline pipeline if present
             let cite_inlines = if let Some(cite) = cite_str {
                 let cite_offset_in_line = attribution_line.find(',').unwrap_or(0) + 1;
-                let cite_raw_start = attr_start.offset + cite_offset_in_line + (attribution_line[cite_offset_in_line..].len() - attribution_line[cite_offset_in_line..].trim_start().len());
+                let cite_raw_start = attr_start + cite_offset_in_line + (attribution_line[cite_offset_in_line..].len() - attribution_line[cite_offset_in_line..].trim_start().len());
                 let cite_pos = PositionWithOffset {
                     offset: cite_raw_start,
                     position: state.line_map.offset_to_position(cite_raw_start, state.input),
@@ -3707,7 +3780,7 @@ peg::parser! {
                 Some(process_inlines(
                     state,
                     block_metadata,
-                    &cite_pos,
+                    cite_pos.offset,
                     cite_raw_start + cite.len(),
                     offset,
                     cite,
@@ -3774,7 +3847,7 @@ peg::parser! {
                 let attr_inlines = process_inlines(
                     state,
                     block_metadata,
-                    &author_pos,
+                    author_pos.offset,
                     attr_end_offset,
                     offset,
                     author,
@@ -3791,7 +3864,7 @@ peg::parser! {
                     let cite_inlines = process_inlines(
                         state,
                         block_metadata,
-                        &cite_pos,
+                        cite_pos.offset,
                         cite_start + cite.len(),
                         offset,
                         cite,
@@ -3847,7 +3920,7 @@ peg::parser! {
 
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = admonition:admonition()?
-        content_start:position()
+        content_start:position!()
         content:$((!(
             eol()*<2,>
             / eol()* ![_]
@@ -3879,7 +3952,7 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
             }
 
-            let content = process_inlines(state, block_metadata, &content_start, end, offset, content)?;
+            let content = process_inlines(state, block_metadata, content_start, end, offset, content)?;
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
             let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
@@ -3908,7 +3981,7 @@ peg::parser! {
                         content,
                         metadata: block_metadata.metadata.clone(),
                         title: Title::default(),
-                        location: state.create_block_location(content_start.offset, end, offset),
+                        location: state.create_block_location(content_start, end, offset),
                     })],
                     location: state.create_block_location(start, end, offset),
                     variant: parsed_variant,

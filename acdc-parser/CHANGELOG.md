@@ -98,6 +98,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Macro-heavy documents parse much faster.** Share `FootnoteTracker` across inline
   sub-parses via `Rc<RefCell<_>>` to avoid quadratic deep-clone cost on every nested
   `process_inlines`.
+- **Broad parser speedup (~15–20% on large docs)** from a four-part sweep of the
+  `position()` / `LineMap` hot path: a byte-only fast path in `section_level_at_line_start`
+  (runs as a negative lookahead on every paragraph continuation line), a monotonic
+  last-line cache in `LineMap` (consecutive offsets skip the binary search), a
+  signature change on `process_inlines` / `preprocess_inline_content` to take a raw
+  `usize` offset instead of a `&PositionWithOffset` (46 grammar call sites no longer
+  materialise a `Position` that is never read), and byte-lookahead guards on every
+  alternative of the inline macro alternation in `non_plain_text()` to prune ~30-way
+  speculative dispatch. Combined impact on the internal size ladder: `sample_50KB`
+  4.02 → 3.34 ms, `sample_macros_50KB` 14.06 → 5.26 ms (first after the
+  `FootnoteTracker` fix above), `sample_1MB` 86.13 → 65.59 ms.
+- **Macro-heavy documents parse ~14% faster**; prose-heavy documents 3–6% faster.
 
 ## [0.8.0] - 2026-03-28
 

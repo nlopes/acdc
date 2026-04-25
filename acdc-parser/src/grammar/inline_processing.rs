@@ -5,11 +5,7 @@ use crate::{
     inline_preprocessing,
 };
 
-use super::{
-    ParserState,
-    helpers::{BlockParsingMetadata, PositionWithOffset},
-    inlines::inline_parser,
-};
+use super::{ParserState, helpers::BlockParsingMetadata, inlines::inline_parser};
 
 /// Adjust PEG parser error positions to account for substring parsing
 ///
@@ -87,10 +83,10 @@ pub(crate) fn adjust_and_log_parse_error(
     tracing::error!(?adjusted_error, ?context, "Parsing error occurred");
 }
 
-#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(content_start, end, offset))]
 pub(crate) fn preprocess_inline_content<'a>(
     state: &mut ParserState<'a>,
-    content_start: &PositionWithOffset,
+    content_start: usize,
     end: usize,
     offset: usize,
     content: &'a str,
@@ -112,7 +108,7 @@ pub(crate) fn preprocess_inline_content<'a>(
     } else {
         crate::grammar::utf8_utils::safe_decrement_offset(state.input, adjusted_end)
     };
-    let location = state.create_location(content_start.offset + offset, content_end_offset);
+    let location = state.create_location(content_start + offset, content_end_offset);
 
     // Fast path: skip the preprocessing PEG pass when content has no trigger characters.
     // The preprocessor only modifies content containing { (attribute/counter references),
@@ -142,12 +138,12 @@ pub(crate) fn preprocess_inline_content<'a>(
         macros_enabled,
         attributes_enabled,
     );
-    inline_state.set_initial_position(&location, content_start.offset + offset);
+    inline_state.set_initial_position(&location, content_start + offset);
     tracing::debug!(
         ?inline_state,
         ?location,
         ?offset,
-        ?content_start,
+        content_start,
         ?end,
         "before inline preprocessing run"
     );
@@ -246,11 +242,11 @@ pub(crate) fn parse_inlines_no_autolinks<'a>(
 /// This function processes inline content by first preprocessing it and then parsing it
 /// into inline nodes. Then, it maps the locations of the parsed inline nodes back to their
 /// original positions in the source.
-#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(content_start, end, offset))]
 pub(crate) fn process_inlines<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
-    content_start: &PositionWithOffset,
+    content_start: usize,
     end: usize,
     offset: usize,
     content: &'a str,
@@ -280,11 +276,11 @@ pub(crate) fn process_inlines<'a>(
 ///
 /// Used inside URL macros, mailto macros, and cross-references where nested
 /// autolinks would cause incorrect parsing.
-#[tracing::instrument(skip_all, fields(?content_start, end, offset))]
+#[tracing::instrument(skip_all, fields(content_start, end, offset))]
 pub(crate) fn process_inlines_no_autolinks<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
-    content_start: &PositionWithOffset,
+    content_start: usize,
     end: usize,
     offset: usize,
     content: &'a str,

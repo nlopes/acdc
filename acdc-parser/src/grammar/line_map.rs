@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crate::Position;
 
 /// Pre-calculated line position map for efficient offset-to-position conversion.
@@ -28,6 +30,19 @@ pub(crate) struct LineMap {
     /// For ASCII lines, column is just `offset - line_start_byte` (no scan).
     /// Indexed by zero-based line number, same length as `line_starts`.
     line_is_ascii: Vec<bool>,
+    /// Monotonic-access cache: the last resolved line index and the byte
+    /// range `[start, end)` of that line. PEG parsing advances mostly
+    /// forward, so consecutive lookups usually land on the same line or
+    /// the next one — letting us skip the `O(log n)` binary search.
+    /// Set to `None` before the first lookup.
+    last_line: Cell<Option<CachedLine>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CachedLine {
+    line_idx: usize,
+    range_start: usize,
+    range_end: usize,
 }
 
 impl LineMap {
@@ -58,7 +73,44 @@ impl LineMap {
         Self {
             line_starts,
             line_is_ascii,
+            last_line: Cell::new(None),
         }
+    }
+
+    /// Resolve `offset` to a 1-based line number.
+    ///
+    /// Fast path: consecutive lookups on the same line hit the cache and skip
+    /// the binary search. When the cache misses, falls back to
+    /// `binary_search` and refreshes the cache so the next call on the same
+    /// (or adjacent) line is O(1).
+    fn line_for_offset(&self, offset: usize) -> (usize, usize) {
+        if let Some(cached) = self.last_line.get()
+            && offset >= cached.range_start
+            && offset < cached.range_end
+        {
+            return (cached.line_idx, cached.range_start);
+        }
+
+        let line = match self.line_starts.binary_search(&offset) {
+            Ok(line_idx) => line_idx + 1, // Exact match: start of this line
+            Err(line_idx) => line_idx,    // Insert position: this line number
+        };
+
+        let line_idx = line.saturating_sub(1);
+        let range_start = self.line_starts.get(line_idx).copied().unwrap_or(0);
+        let range_end = self
+            .line_starts
+            .get(line_idx + 1)
+            .copied()
+            .unwrap_or(usize::MAX);
+
+        self.last_line.set(Some(CachedLine {
+            line_idx,
+            range_start,
+            range_end,
+        }));
+
+        (line_idx, range_start)
     }
 
     /// Convert byte offset to `Position` using binary search — `O(log n)`
@@ -67,15 +119,8 @@ impl LineMap {
     /// action blocks.
     #[tracing::instrument(level = "debug")]
     pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
-        // Find which line this offset belongs to
-        let line = match self.line_starts.binary_search(&offset) {
-            Ok(line_idx) => line_idx + 1, // Exact match: start of this line
-            Err(line_idx) => line_idx,    // Insert position: this line number
-        };
-
-        let line_idx = line.saturating_sub(1);
-        // Get the byte offset at the start of this line
-        let line_start_byte = self.line_starts.get(line_idx).copied().unwrap_or(0);
+        let (line_idx, line_start_byte) = self.line_for_offset(offset);
+        let line = line_idx + 1;
 
         // Ensure the offset doesn't land in the middle of a multi-byte UTF-8 character.
         // If it does, round backward to the start of the current character.
