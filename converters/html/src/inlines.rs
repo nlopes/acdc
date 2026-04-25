@@ -49,8 +49,11 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Form, IndexTermKind, InlineMacro, InlineNode, StemNotation, Substitution, inlines_to_string,
-    parse_text_for_quotes, strip_quotes, substitute,
+    AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
+    CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
+    IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu, Monospace, Pass,
+    Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url, Verbatim,
+    inlines_to_string, parse_text_for_quotes, strip_quotes, substitute,
 };
 
 /// Leak a `&str` into a `&'static str` so index term kinds can be cached
@@ -104,9 +107,9 @@ fn strip_uri_scheme(url: &str) -> &str {
 /// Extract the `role` attribute as a non-empty, unquoted string.
 ///
 /// Returns `None` when the attribute is absent, non-string, or empty after stripping quotes.
-fn role_from_attrs(attributes: &acdc_parser::ElementAttributes) -> Option<String> {
+fn role_from_attrs(attributes: &ElementAttributes) -> Option<String> {
     attributes.get("role").and_then(|v| match v {
-        acdc_parser::AttributeValue::String(s) => {
+        AttributeValue::String(s) => {
             let role = strip_quotes(s);
             if role.is_empty() {
                 None
@@ -114,7 +117,7 @@ fn role_from_attrs(attributes: &acdc_parser::ElementAttributes) -> Option<String
                 Some(role.to_string())
             }
         }
-        acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => None,
+        AttributeValue::Bool(_) | AttributeValue::None | _ => None,
     })
 }
 
@@ -152,10 +155,10 @@ fn link_display_fallback(target: &str, hide_uri_scheme: bool) -> &str {
 /// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
 /// - `window=_blank` / `target=_blank` → `target="_blank" rel="noopener"`
 /// - `window=<other>` / `target=<other>` → `target="<other>"`
-fn window_attrs(attributes: &acdc_parser::ElementAttributes) -> String {
+fn window_attrs(attributes: &ElementAttributes) -> String {
     let get_str = |key: &str| {
         attributes.get(key).and_then(|v| match v {
-            acdc_parser::AttributeValue::String(s) => {
+            AttributeValue::String(s) => {
                 let s = strip_quotes(s);
                 if s.is_empty() {
                     None
@@ -163,7 +166,7 @@ fn window_attrs(attributes: &acdc_parser::ElementAttributes) -> String {
                     Some(s.to_string())
                 }
             }
-            acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => None,
+            AttributeValue::Bool(_) | AttributeValue::None | _ => None,
         })
     };
     let window = get_str("window").or_else(|| get_str("target"));
@@ -245,275 +248,439 @@ fn write_quote_close<W: Write + ?Sized>(
     }
 }
 
+/// Tag/delimiter/basic-mode bundle for `render_simple_quote`.
+///
+/// Grouping these keeps `render_simple_quote`'s signature under clippy's
+/// `too_many_arguments` threshold and matches the shape of `write_quote_open`.
+#[derive(Clone, Copy)]
+struct SimpleQuoteStyle<'a> {
+    /// HTML element name (e.g. `"strong"`, `"em"`, `"code"`).
+    tag: &'a str,
+    /// `AsciiDoc` delimiter used as the literal fallback (e.g. `"*"`, `"**"`).
+    delim: &'a str,
+    /// When `true` and quotes substitution is enabled, omits HTML wrappers (inlines-basic mode).
+    basic: bool,
+}
+
+/// Entity/literal bundle for `render_curved`.
+///
+/// Open/close HTML entities plus the plain-text fallback used when quotes substitution
+/// is disabled.
+#[derive(Clone, Copy)]
+struct CurvedForm<'a> {
+    /// Opening HTML entity (e.g. `"&ldquo;"`).
+    open_entity: &'a str,
+    /// Closing HTML entity (e.g. `"&rdquo;"`).
+    close_entity: &'a str,
+    /// Literal character emitted when quotes substitution is off.
+    literal: char,
+}
+
 impl<W: Write> HtmlVisitor<'_, W> {
-    /// Internal implementation for visiting inline nodes
-    #[allow(clippy::too_many_lines)]
+    /// Internal implementation for visiting inline nodes.
     pub(crate) fn render_inline_node(
         &mut self,
         node: &InlineNode,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let w = self.writer_mut();
         match node {
-            InlineNode::PlainText(p) => {
-                // Attribute substitution already applied by inline preprocessor during parsing
-                let content = &p.content;
-
-                // If escaped (from `\^2^` etc.), skip quote re-parsing; otherwise use block subs.
-                let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
-
-                if effective_subs.contains(&Substitution::Quotes) {
-                    // If quotes substitution is enabled, parse for inline formatting
-                    let parsed = parse_text_for_quotes(content);
-                    // Render parsed nodes without quotes to avoid infinite recursion
-                    let no_quotes_subs: Vec<_> = effective_subs
-                        .iter()
-                        .filter(|s| **s != Substitution::Quotes)
-                        .cloned()
-                        .collect();
-                    for node in parsed.inlines() {
-                        self.render_inline_node(node, options, &no_quotes_subs)?;
-                    }
-                } else {
-                    // No quotes substitution - output with escaping and typography only
-                    let text = substitution_text(content, effective_subs, options);
-                    if options.hardbreaks {
-                        write!(w, "{}", text.replace('\n', "<br>"))?;
-                    } else {
-                        write!(w, "{text}")?;
-                    }
-                }
-            }
-            InlineNode::RawText(r) => {
-                // RawText comes from passthroughs - attribute expansion was already
-                // handled (or explicitly skipped) by the preprocessor based on the
-                // passthrough's own substitution settings. Do NOT apply block subs.
-                let content = &r.content;
-                let text = if options.inlines_verbatim {
-                    substitution_text(content, subs, options)
-                } else if r.subs.is_empty() {
-                    content.to_string()
-                } else {
-                    substitution_text(content, &r.subs, options)
-                };
-                write!(w, "{text}")?;
-            }
-            InlineNode::VerbatimText(v) => {
-                // VerbatimText is now just text (callouts are separate CalloutRef nodes)
-                // Apply attribute substitution first, then escaping
-                let content = if subs.contains(&Substitution::Attributes) {
-                    substitute(
-                        v.content,
-                        &[Substitution::Attributes],
-                        processor.document_attributes(),
-                    )
-                } else {
-                    std::borrow::Cow::Borrowed(v.content)
-                };
-                let verbatim_options = RenderOptions {
-                    inlines_verbatim: true,
-                    ..options.clone()
-                };
-
-                // If quotes substitution is enabled, parse for inline formatting
-                if subs.contains(&Substitution::Quotes) {
-                    let parsed = parse_text_for_quotes(&content);
-                    // Render parsed nodes with verbatim settings
-                    // Keep Quotes in subs so BoldText/ItalicText render as HTML
-                    for node in parsed.inlines() {
-                        self.render_inline_node(node, &verbatim_options, subs)?;
-                    }
-                } else {
-                    let text = substitution_text(&content, subs, &verbatim_options);
-                    write!(w, "{text}")?;
-                }
-            }
-            InlineNode::CalloutRef(callout) => {
-                if processor.is_font_icons_mode() {
-                    write!(
-                        w,
-                        "<i class=\"conum\" data-value=\"{0}\"></i><b>({0})</b>",
-                        callout.number
-                    )?;
-                } else {
-                    write!(w, "<b class=\"conum\">({})</b>", callout.number)?;
-                }
-            }
-            InlineNode::BoldText(b) => {
-                let delim = match b.form {
-                    Form::Constrained => "*",
-                    Form::Unconstrained => "**",
-                };
-                let state = write_quote_open(
-                    w,
-                    "strong",
-                    delim,
-                    b.id,
-                    b.role,
-                    subs,
-                    options.inlines_basic,
-                )?;
-                self.visit_inline_nodes(&b.content)?;
-                write_quote_close(self.writer_mut(), "strong", delim, state)?;
-            }
-            InlineNode::ItalicText(i) => {
-                let delim = match i.form {
-                    Form::Constrained => "_",
-                    Form::Unconstrained => "__",
-                };
-                let state =
-                    write_quote_open(w, "em", delim, i.id, i.role, subs, options.inlines_basic)?;
-                self.visit_inline_nodes(&i.content)?;
-                write_quote_close(self.writer_mut(), "em", delim, state)?;
-            }
-            InlineNode::HighlightText(h) => {
-                // Warn about deprecated built-in roles
-                if let Some(role) = h.role {
-                    for r in role.split_whitespace() {
-                        match r {
-                            "big" => tracing::warn!(
-                                role = %r,
-                                "Role is deprecated. Consider using `+++<big>+++text+++</big>+++` or CSS font-size instead."
-                            ),
-                            "small" => tracing::warn!(
-                                role = %r,
-                                "Role is deprecated. Consider using `+++<small>+++text+++</small>+++` or CSS font-size instead."
-                            ),
-                            _ => {}
-                        }
-                    }
-                }
-                // Check if quotes substitution is enabled
-                if subs.contains(&Substitution::Quotes) {
-                    if !options.inlines_basic {
-                        if processor.variant() == crate::HtmlVariant::Semantic
-                            && h.role == Some("line-through")
-                        {
-                            write_tag_with_attrs(w, "s", h.id, None)?;
-                        } else {
-                            // asciidoctor behavior: use <span> when role is present, <mark> otherwise
-                            let tag = if h.role.is_some() { "span" } else { "mark" };
-                            write_tag_with_attrs(w, tag, h.id, h.role)?;
-                        }
-                    }
-                    self.visit_inline_nodes(&h.content)?;
-                    if !options.inlines_basic {
-                        let w = self.writer_mut();
-                        if processor.variant() == crate::HtmlVariant::Semantic
-                            && h.role == Some("line-through")
-                        {
-                            write!(w, "</s>")?;
-                        } else {
-                            let tag = if h.role.is_some() { "span" } else { "mark" };
-                            write!(w, "</{tag}>")?;
-                        }
-                    }
-                } else {
-                    // No quotes substitution - output raw markup
-                    let delim = match h.form {
-                        Form::Constrained => "#",
-                        Form::Unconstrained => "##",
-                    };
-                    write!(w, "{delim}")?;
-                    self.visit_inline_nodes(&h.content)?;
-                    let w = self.writer_mut();
-                    write!(w, "{delim}")?;
-                }
-            }
-            InlineNode::MonospaceText(m) => {
-                let delim = match m.form {
-                    Form::Constrained => "`",
-                    Form::Unconstrained => "``",
-                };
-                let state =
-                    write_quote_open(w, "code", delim, m.id, m.role, subs, options.inlines_basic)?;
-                self.visit_inline_nodes(&m.content)?;
-                write_quote_close(self.writer_mut(), "code", delim, state)?;
-            }
-            InlineNode::CurvedQuotationText(c) => {
-                // Check if quotes substitution is enabled
-                if subs.contains(&Substitution::Quotes) {
-                    if c.id.is_some() || c.role.is_some() {
-                        write_tag_with_attrs(w, "span", c.id, c.role)?;
-                        write!(w, "&ldquo;")?;
-                    } else {
-                        write!(w, "&ldquo;")?;
-                    }
-                    self.visit_inline_nodes(&c.content)?;
-                    let w = self.writer_mut();
-                    if c.id.is_some() || c.role.is_some() {
-                        write!(w, "&rdquo;</span>")?;
-                    } else {
-                        write!(w, "&rdquo;")?;
-                    }
-                } else {
-                    // No quotes substitution - output literal quotes
-                    write!(w, "\"")?;
-                    self.visit_inline_nodes(&c.content)?;
-                    let w = self.writer_mut();
-                    write!(w, "\"")?;
-                }
-            }
-            InlineNode::CurvedApostropheText(c) => {
-                // Check if quotes substitution is enabled
-                if subs.contains(&Substitution::Quotes) {
-                    if c.id.is_some() || c.role.is_some() {
-                        write_tag_with_attrs(w, "span", c.id, c.role)?;
-                        write!(w, "&lsquo;")?;
-                    } else {
-                        write!(w, "&lsquo;")?;
-                    }
-                    self.visit_inline_nodes(&c.content)?;
-                    let w = self.writer_mut();
-                    if c.id.is_some() || c.role.is_some() {
-                        write!(w, "&rsquo;</span>")?;
-                    } else {
-                        write!(w, "&rsquo;")?;
-                    }
-                } else {
-                    // No quotes substitution - output literal apostrophes
-                    write!(w, "'")?;
-                    self.visit_inline_nodes(&c.content)?;
-                    let w = self.writer_mut();
-                    write!(w, "'")?;
-                }
-            }
-            InlineNode::StandaloneCurvedApostrophe(_) => {
-                // Check if quotes substitution is enabled
-                if subs.contains(&Substitution::Quotes) {
-                    write!(w, "&rsquo;")?;
-                } else {
-                    write!(w, "'")?;
-                }
-            }
-            InlineNode::SuperscriptText(s) => {
-                // Note: superscript doesn't check inlines_basic (pass false to preserve behavior)
-                let state = write_quote_open(w, "sup", "^", s.id, s.role, subs, false)?;
-                self.visit_inline_nodes(&s.content)?;
-                write_quote_close(self.writer_mut(), "sup", "^", state)?;
-            }
-            InlineNode::SubscriptText(s) => {
-                // Note: subscript doesn't check inlines_basic (pass false to preserve behavior)
-                let state = write_quote_open(w, "sub", "~", s.id, s.role, subs, false)?;
-                self.visit_inline_nodes(&s.content)?;
-                write_quote_close(self.writer_mut(), "sub", "~", state)?;
-            }
-            InlineNode::Macro(m) => self.render_inline_macro(m, options, subs)?,
+            InlineNode::PlainText(p) => self.render_plain(p, options, subs),
+            InlineNode::RawText(r) => self.render_raw(r, options, subs),
+            InlineNode::VerbatimText(v) => self.render_verbatim(v, options, subs),
+            InlineNode::CalloutRef(c) => self.render_callout_ref(c),
+            InlineNode::BoldText(b) => self.render_bold(b, options, subs),
+            InlineNode::ItalicText(i) => self.render_italic(i, options, subs),
+            InlineNode::HighlightText(h) => self.render_highlight(h, options, subs),
+            InlineNode::MonospaceText(m) => self.render_monospace(m, options, subs),
+            InlineNode::CurvedQuotationText(c) => self.render_curved_quotation(c, subs),
+            InlineNode::CurvedApostropheText(c) => self.render_curved_apostrophe(c, subs),
+            InlineNode::StandaloneCurvedApostrophe(_) => self.render_standalone_apostrophe(subs),
+            InlineNode::SuperscriptText(s) => self.render_superscript(s, subs),
+            InlineNode::SubscriptText(s) => self.render_subscript(s, subs),
+            InlineNode::Macro(m) => self.render_inline_macro(m, options, subs),
             InlineNode::LineBreak(_) => {
-                writeln!(w, "<br>")?;
+                writeln!(self.writer_mut(), "<br>")?;
+                Ok(())
             }
             InlineNode::InlineAnchor(anchor) if !options.toc_mode => {
-                write!(w, "<a id=\"{}\"></a>", anchor.id)?;
+                write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id)?;
+                Ok(())
             }
-            // Explicit InlineAnchor arm for TOC mode (no nested anchors) plus
-            // a catch-all for future `#[non_exhaustive]` variants — both
-            // render nothing, but enumerating the anchor arm keeps
-            // `wildcard_enum_match_arm` satisfied.
-            InlineNode::InlineAnchor(_) | _ => {}
+            // Explicit InlineAnchor arm for TOC mode (no nested anchors) plus a catch-all
+            // for future `#[non_exhaustive]` variants — both render nothing, but enumerating
+            // the anchor arm keeps `wildcard_enum_match_arm` satisfied.
+            InlineNode::InlineAnchor(_) | _ => Ok(()),
+        }
+    }
+
+    /// Render one of the simple inline-formatting nodes (bold, italic, monospace, sup, sub).
+    fn render_simple_quote(
+        &mut self,
+        style: &SimpleQuoteStyle<'_>,
+        id: Option<&str>,
+        role: Option<&str>,
+        content: &[InlineNode<'_>],
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let SimpleQuoteStyle { tag, delim, basic } = *style;
+        let state = write_quote_open(self.writer_mut(), tag, delim, id, role, subs, basic)?;
+        self.visit_inline_nodes(content)?;
+        write_quote_close(self.writer_mut(), tag, delim, state)?;
+        Ok(())
+    }
+
+    /// Render a curved-quote or curved-apostrophe node. When the quotes substitution is
+    /// disabled, the literal character is emitted on both sides instead.
+    fn render_curved(
+        &mut self,
+        form: &CurvedForm<'_>,
+        id: Option<&str>,
+        role: Option<&str>,
+        content: &[InlineNode<'_>],
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let CurvedForm {
+            open_entity,
+            close_entity,
+            literal,
+        } = *form;
+        let quotes_on = subs.contains(&Substitution::Quotes);
+        let has_attrs = id.is_some() || role.is_some();
+        let w = self.writer_mut();
+        if quotes_on {
+            if has_attrs {
+                write_tag_with_attrs(w, "span", id, role)?;
+            }
+            write!(w, "{open_entity}")?;
+        } else {
+            write!(w, "{literal}")?;
+        }
+        self.visit_inline_nodes(content)?;
+        let w = self.writer_mut();
+        if quotes_on {
+            write!(w, "{close_entity}")?;
+            if has_attrs {
+                write!(w, "</span>")?;
+            }
+        } else {
+            write!(w, "{literal}")?;
         }
         Ok(())
+    }
+
+    fn render_plain(
+        &mut self,
+        p: &Plain<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        // Attribute substitution already applied by the inline preprocessor during parsing.
+        let content = &p.content;
+        // If escaped (e.g. `\^2^`), skip quote re-parsing; otherwise use block subs.
+        let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
+
+        if effective_subs.contains(&Substitution::Quotes) {
+            // Quotes on: parse for inline formatting, then recurse without Quotes to avoid loops.
+            let parsed = parse_text_for_quotes(content);
+            let no_quotes_subs: Vec<_> = effective_subs
+                .iter()
+                .filter(|s| **s != Substitution::Quotes)
+                .cloned()
+                .collect();
+            for node in parsed.inlines() {
+                self.render_inline_node(node, options, &no_quotes_subs)?;
+            }
+            return Ok(());
+        }
+
+        // No quotes: output with escaping and typography only.
+        let text = substitution_text(content, effective_subs, options);
+        let w = self.writer_mut();
+        if options.hardbreaks {
+            write!(w, "{}", text.replace('\n', "<br>"))?;
+        } else {
+            write!(w, "{text}")?;
+        }
+        Ok(())
+    }
+
+    fn render_raw(
+        &mut self,
+        r: &Raw<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        // RawText comes from passthroughs — attribute expansion was already handled (or
+        // explicitly skipped) by the preprocessor. Do NOT apply block subs.
+        let content = &r.content;
+        let text = if options.inlines_verbatim {
+            substitution_text(content, subs, options)
+        } else if r.subs.is_empty() {
+            content.to_string()
+        } else {
+            substitution_text(content, &r.subs, options)
+        };
+        write!(self.writer_mut(), "{text}")?;
+        Ok(())
+    }
+
+    fn render_verbatim(
+        &mut self,
+        v: &Verbatim<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        // VerbatimText is now just text (callouts are separate CalloutRef nodes).
+        // Apply attribute substitution first, then escaping.
+        let content = if subs.contains(&Substitution::Attributes) {
+            substitute(
+                v.content,
+                &[Substitution::Attributes],
+                processor.document_attributes(),
+            )
+        } else {
+            std::borrow::Cow::Borrowed(v.content)
+        };
+        let verbatim_options = RenderOptions {
+            inlines_verbatim: true,
+            ..options.clone()
+        };
+
+        if subs.contains(&Substitution::Quotes) {
+            // Keep Quotes in subs so BoldText/ItalicText render as HTML.
+            let parsed = parse_text_for_quotes(&content);
+            for node in parsed.inlines() {
+                self.render_inline_node(node, &verbatim_options, subs)?;
+            }
+        } else {
+            let text = substitution_text(&content, subs, &verbatim_options);
+            write!(self.writer_mut(), "{text}")?;
+        }
+        Ok(())
+    }
+
+    fn render_callout_ref(&mut self, callout: &CalloutRef) -> Result<(), Error> {
+        let is_font_icons = self.processor.is_font_icons_mode();
+        let w = self.writer_mut();
+        if is_font_icons {
+            write!(
+                w,
+                "<i class=\"conum\" data-value=\"{0}\"></i><b>({0})</b>",
+                callout.number
+            )?;
+        } else {
+            write!(w, "<b class=\"conum\">({})</b>", callout.number)?;
+        }
+        Ok(())
+    }
+
+    fn render_bold(
+        &mut self,
+        b: &Bold<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let delim = match b.form {
+            Form::Constrained => "*",
+            Form::Unconstrained => "**",
+        };
+        self.render_simple_quote(
+            &SimpleQuoteStyle {
+                tag: "strong",
+                delim,
+                basic: options.inlines_basic,
+            },
+            b.id,
+            b.role,
+            &b.content,
+            subs,
+        )
+    }
+
+    fn render_italic(
+        &mut self,
+        i: &Italic<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let delim = match i.form {
+            Form::Constrained => "_",
+            Form::Unconstrained => "__",
+        };
+        self.render_simple_quote(
+            &SimpleQuoteStyle {
+                tag: "em",
+                delim,
+                basic: options.inlines_basic,
+            },
+            i.id,
+            i.role,
+            &i.content,
+            subs,
+        )
+    }
+
+    fn render_monospace(
+        &mut self,
+        m: &Monospace<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        let delim = match m.form {
+            Form::Constrained => "`",
+            Form::Unconstrained => "``",
+        };
+        self.render_simple_quote(
+            &SimpleQuoteStyle {
+                tag: "code",
+                delim,
+                basic: options.inlines_basic,
+            },
+            m.id,
+            m.role,
+            &m.content,
+            subs,
+        )
+    }
+
+    fn render_highlight(
+        &mut self,
+        h: &Highlight<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        // Warn about deprecated built-in roles.
+        if let Some(role) = h.role {
+            for r in role.split_whitespace() {
+                match r {
+                    "big" => tracing::warn!(
+                        role = %r,
+                        "Role is deprecated. Consider using `+++<big>+++text+++</big>+++` or CSS font-size instead."
+                    ),
+                    "small" => tracing::warn!(
+                        role = %r,
+                        "Role is deprecated. Consider using `+++<small>+++text+++</small>+++` or CSS font-size instead."
+                    ),
+                    _ => {}
+                }
+            }
+        }
+
+        if !subs.contains(&Substitution::Quotes) {
+            // No quotes substitution — output raw markup.
+            let delim = match h.form {
+                Form::Constrained => "#",
+                Form::Unconstrained => "##",
+            };
+            write!(self.writer_mut(), "{delim}")?;
+            self.visit_inline_nodes(&h.content)?;
+            write!(self.writer_mut(), "{delim}")?;
+            return Ok(());
+        }
+
+        let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let use_s_tag = is_semantic && h.role == Some("line-through");
+        // asciidoctor behavior: use <span> when role is present, <mark> otherwise.
+        let tag = if use_s_tag {
+            "s"
+        } else if h.role.is_some() {
+            "span"
+        } else {
+            "mark"
+        };
+        // <s> gets no role attribute (h.role is consumed by the tag choice itself).
+        let tag_role = if use_s_tag { None } else { h.role };
+
+        if !options.inlines_basic {
+            write_tag_with_attrs(self.writer_mut(), tag, h.id, tag_role)?;
+        }
+        self.visit_inline_nodes(&h.content)?;
+        if !options.inlines_basic {
+            write!(self.writer_mut(), "</{tag}>")?;
+        }
+        Ok(())
+    }
+
+    fn render_curved_quotation(
+        &mut self,
+        c: &CurvedQuotation<'_>,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        self.render_curved(
+            &CurvedForm {
+                open_entity: "&ldquo;",
+                close_entity: "&rdquo;",
+                literal: '"',
+            },
+            c.id,
+            c.role,
+            &c.content,
+            subs,
+        )
+    }
+
+    fn render_curved_apostrophe(
+        &mut self,
+        c: &CurvedApostrophe<'_>,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        self.render_curved(
+            &CurvedForm {
+                open_entity: "&lsquo;",
+                close_entity: "&rsquo;",
+                literal: '\'',
+            },
+            c.id,
+            c.role,
+            &c.content,
+            subs,
+        )
+    }
+
+    fn render_standalone_apostrophe(&mut self, subs: &[Substitution]) -> Result<(), Error> {
+        let w = self.writer_mut();
+        if subs.contains(&Substitution::Quotes) {
+            write!(w, "&rsquo;")?;
+        } else {
+            write!(w, "'")?;
+        }
+        Ok(())
+    }
+
+    fn render_superscript(
+        &mut self,
+        s: &Superscript<'_>,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        // Note: superscript doesn't check inlines_basic (pass false to preserve behavior).
+        self.render_simple_quote(
+            &SimpleQuoteStyle {
+                tag: "sup",
+                delim: "^",
+                basic: false,
+            },
+            s.id,
+            s.role,
+            &s.content,
+            subs,
+        )
+    }
+
+    fn render_subscript(&mut self, s: &Subscript<'_>, subs: &[Substitution]) -> Result<(), Error> {
+        // Note: subscript doesn't check inlines_basic (pass false to preserve behavior).
+        self.render_simple_quote(
+            &SimpleQuoteStyle {
+                tag: "sub",
+                delim: "~",
+                basic: false,
+            },
+            s.id,
+            s.role,
+            &s.content,
+            subs,
+        )
     }
 
     /// Render an inline macro by dispatching to the per-variant renderer.
@@ -546,11 +713,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
         }
     }
 
-    fn render_autolink(
-        &mut self,
-        al: &acdc_parser::Autolink<'_>,
-        options: &RenderOptions,
-    ) -> Result<(), Error> {
+    fn render_autolink(&mut self, al: &Autolink<'_>, options: &RenderOptions) -> Result<(), Error> {
         let processor = self.processor.clone();
         let w = self.writer_mut();
         let hide_uri_scheme = processor
@@ -589,7 +752,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
 
     fn render_link(
         &mut self,
-        l: &acdc_parser::Link<'_>,
+        l: &Link<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -630,7 +793,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    fn render_inline_image(&mut self, i: &acdc_parser::Image<'_>) -> Result<(), Error> {
+    fn render_inline_image(&mut self, i: &Image<'_>) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
         let w = self.writer_mut();
         // Inline images use a span wrapper (not in semantic mode)
@@ -675,7 +838,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
 
     fn render_pass(
         &mut self,
-        p: &acdc_parser::Pass<'_>,
+        p: &Pass<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -694,7 +857,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
 
     fn render_url(
         &mut self,
-        u: &acdc_parser::Url<'_>,
+        u: &Url<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -737,7 +900,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
 
     fn render_mailto(
         &mut self,
-        m: &acdc_parser::Mailto<'_>,
+        m: &Mailto<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -775,11 +938,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    fn render_footnote(
-        &mut self,
-        f: &acdc_parser::Footnote<'_>,
-        options: &RenderOptions,
-    ) -> Result<(), Error> {
+    fn render_footnote(&mut self, f: &Footnote<'_>, options: &RenderOptions) -> Result<(), Error> {
         // A named footnote reference (footnote:name[] with empty content)
         // uses class="footnoteref" and no IDs, matching asciidoctor.
         let is_ref = f.id.is_some() && f.content.is_empty();
@@ -835,7 +994,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    fn render_button(&mut self, b: &acdc_parser::Button<'_>) -> Result<(), Error> {
+    fn render_button(&mut self, b: &Button<'_>) -> Result<(), Error> {
         let processor = self.processor.clone();
         let w = self.writer_mut();
         if processor.document_attributes.get("experimental").is_none() {
@@ -852,7 +1011,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
 
     fn render_xref(
         &mut self,
-        xref: &acdc_parser::CrossReference<'_>,
+        xref: &CrossReference<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -898,7 +1057,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    fn render_stem(&mut self, s: &acdc_parser::Stem<'_>) -> Result<(), Error> {
+    fn render_stem(&mut self, s: &Stem<'_>) -> Result<(), Error> {
         let forced = if self.processor.variant() == crate::HtmlVariant::Semantic {
             self.processor
                 .document_attributes()
@@ -916,13 +1075,13 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    fn render_icon(&mut self, i: &acdc_parser::Icon<'_>) -> Result<(), Error> {
+    fn render_icon(&mut self, i: &Icon<'_>) -> Result<(), Error> {
         let processor = self.processor.clone();
         write_icon(self.writer_mut(), &processor, i)?;
         Ok(())
     }
 
-    fn render_keyboard(&mut self, k: &acdc_parser::Keyboard<'_>) -> Result<(), Error> {
+    fn render_keyboard(&mut self, k: &Keyboard<'_>) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
         let key_class = if is_semantic { " class=\"key\"" } else { "" };
         let w = self.writer_mut();
@@ -953,7 +1112,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
         Ok(())
     }
 
-    fn render_menu(&mut self, menu: &acdc_parser::Menu<'_>) -> Result<(), Error> {
+    fn render_menu(&mut self, menu: &Menu<'_>) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
         let w = self.writer_mut();
 
@@ -993,7 +1152,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
 
     fn render_indexterm(
         &mut self,
-        it: &acdc_parser::IndexTerm<'_>,
+        it: &IndexTerm<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
