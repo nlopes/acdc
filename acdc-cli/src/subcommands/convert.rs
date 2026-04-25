@@ -462,10 +462,6 @@ type TimedParseResult = (
     Option<Duration>,
 );
 
-/// A parsed document paired with its source path. Used by the terminal
-/// backend's parallel path, which doesn't track per-file timings.
-type ParseResultEntry = (PathBuf, Result<ParseResult, acdc_parser::Error>);
-
 /// Print any parser warnings to stderr using the same miette-rendered
 /// rich-diagnostic treatment as errors (colored squiggles under the
 /// offending span, source snippet, advice line). Drains warnings off
@@ -562,6 +558,11 @@ fn spawn_pager(no_pager: bool) -> Option<std::process::Child> {
             .ok()
     }
 }
+
+/// A parsed document paired with its source path. Used by the terminal
+/// backend's parallel path, which doesn't track per-file timings.
+#[cfg(feature = "terminal")]
+type ParseResultEntry = (PathBuf, Result<ParseResult, acdc_parser::Error>);
 
 /// Run terminal converter with optional pager support.
 /// When stdout is a TTY and pager is not disabled, pipes output through a pager.
