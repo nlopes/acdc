@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--variant` flag for `convert`** — pick a backend-specific output style.
+  HTML: `standard` (default) or `semantic`. Markdown: `commonmark` or `gfm`
+  (default). `--backend html5s` remains an alias for `--backend html --variant
+  semantic` and rejects `--variant`. Invalid combinations are rejected up-front.
+  Both flags and the resolved typed `Backend` are feature-gated.
 - **Timing summary table for multi-file conversions** — when `convert` is invoked with
   `--timings` and more than one input file, a summary table is printed after the
   per-file output with parse time, convert time, total per-file time, and wall-clock

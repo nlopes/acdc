@@ -6,9 +6,9 @@
 //! Usage:
 //!   `cargo run --example generate_html_fixtures`
 
-use acdc_converters_core::{Backend, Converter, GeneratorMetadata, Options};
+use acdc_converters_core::{GeneratorMetadata, Options};
 use acdc_converters_dev::generate_fixtures::FixtureGenerator;
-use acdc_converters_html::{Processor, RenderOptions};
+use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let generator = FixtureGenerator::new("html", "html");
@@ -16,16 +16,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         generator
             .in_subdir(&variant)
             .generate(|mode, doc, output| {
-                let backend = match variant.as_str() {
-                    "html5s" => Backend::Html5s,
-                    _ => Backend::Html,
+                let html_variant = match variant.as_str() {
+                    "html5s" => HtmlVariant::Semantic,
+                    _ => HtmlVariant::Standard,
                 };
                 let embedded = mode == Some("embedded");
                 let options = Options::builder()
                     .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-                    .backend(backend)
                     .build();
-                let processor = Processor::new(options, doc.attributes.clone());
+                let processor =
+                    Processor::new_with_variant(options, doc.attributes.clone(), html_variant);
                 let render_options = RenderOptions {
                     embedded,
                     ..RenderOptions::default()

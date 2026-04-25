@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`HtmlVariant` enum** (`Standard` / `Semantic`) with `FromStr` and `Display`.
+  `Processor::new` defaults to `Standard`; use `Processor::with_variant` or
+  `Processor::new_with_variant` for semantic output.
+- `Converter::name(&self)` returns `"html"` or `"html5s"` based on variant
+  (replaces `Converter::backend()`).
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as listing blocks (`<div class="listingblock">`)
   instead of regular paragraphs, matching asciidoctor behavior.

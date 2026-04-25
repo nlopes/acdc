@@ -28,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive module-level documentation
 - `acdc-converters-dev` crate for test utilities (not published to crates.io)
 - Visitor method `visit_callout_ref` for processing callout references
-- `Backend::Html5s` variant for semantic HTML5 output
 - **Copyright and registered escape handling** - `\(C)` and `\(R)` are now recognized as
   escapable patterns alongside `\(TM)`, preventing accidental symbol conversion.
 
@@ -64,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use `Options::builder().doctype(...).build()` instead of struct construction
 - **BREAKING**: `toc::Config` fields are now private - use accessor methods
   (`placement()`, `title()`, `levels()`, `toc_class()`)
+- **BREAKING**: Removed `Backend`, `Options::backend`, and
+  `OptionsBuilder::backend(...)`. Variant choice lives in each converter crate
+  (`HtmlVariant`, `MarkdownVariant`) and is set via `Processor::with_variant` /
+  `Processor::new_with_variant`. Use `Converter::name(&self) -> &'static str`
+  instead of `Converter::backend(&self) -> Backend`.
 - **BREAKING**: Renamed `Processable` trait to `Converter` with new output routing:
   - New `OutputDestination` enum for routing output (stdout, file, buffer)
   - `convert()` is now a provided method that handles output routing

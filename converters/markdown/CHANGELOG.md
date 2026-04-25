@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`MarkdownVariant` enum** (`CommonMark` / `GitHubFlavored`) with `FromStr`
+  and `Display`. `Processor::new` defaults to `GitHubFlavored`; use
+  `Processor::with_variant` for another flavour.
+- `Converter::name(&self)` returns `"markdown"` (replaces `Converter::backend()`).
 - **Collapsible example blocks** — example blocks with `[%collapsible]` (and the
   `%open` modifier) now render as embedded `<details>/<summary>` HTML, which
   GitHub, GitLab, and most other Markdown renderers display as expandable

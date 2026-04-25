@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Options, visitor::Visitor};
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
@@ -40,14 +40,43 @@ pub(crate) use acdc_converters_core::section::{
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
 
-/// Controls the HTML output style.
+/// HTML output flavour, owned by the html converter.
+///
+/// `Standard` is the asciidoctor-compatible div-based markup; `Semantic`
+/// uses `<section>`, `<aside>`, `<figure>`, ARIA roles, etc. Pick a variant
+/// via [`Processor::with_variant`], or rely on the default that
+/// [`Processor::new`] derives from `options.backend()` ([`Backend::Html5s`]
+/// → `Semantic`, otherwise `Standard`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum HtmlVariant {
-    /// Standard asciidoctor-compatible HTML (div soup).
+    /// Standard HTML output (asciidoctor-compatible div-based markup).
     #[default]
     Standard,
-    /// Semantic HTML5 output using section, aside, figure, ARIA roles, etc.
+    /// Semantic HTML5 output (`<section>`, `<aside>`, `<figure>`, ARIA roles).
     Semantic,
+}
+
+impl std::str::FromStr for HtmlVariant {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_ref() {
+            "standard" => Ok(Self::Standard),
+            "semantic" => Ok(Self::Semantic),
+            _ => Err(format!(
+                "invalid html variant: '{s}', expected: standard, semantic"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for HtmlVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Standard => f.write_str("standard"),
+            Self::Semantic => f.write_str("semantic"),
+        }
+    }
 }
 
 /// An entry in the index catalog, collected during document traversal.
@@ -124,6 +153,17 @@ impl<'a> Processor<'a> {
     #[must_use]
     pub fn variant(&self) -> HtmlVariant {
         self.variant
+    }
+
+    /// Override the HTML output variant.
+    ///
+    /// Useful for callers that build the processor through the [`Converter`]
+    /// trait but want to flip to semantic output without going through
+    /// [`Backend::Html5s`].
+    #[must_use]
+    pub fn with_variant(mut self, variant: HtmlVariant) -> Self {
+        self.variant = variant;
+        self
     }
 
     /// Check if font icons mode is enabled (`:icons: font`).
@@ -374,16 +414,9 @@ impl<'a> Converter<'a> for Processor<'a> {
     }
 
     fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
-        let backend = options.backend();
-        let variant = match backend {
-            Backend::Html5s => HtmlVariant::Semantic,
-            Backend::Html => HtmlVariant::Standard,
-            Backend::Manpage | Backend::Markdown | Backend::Terminal => {
-                tracing::error!(%backend, "backend not appropriate for this processor, assuming user meant html");
-                HtmlVariant::Standard
-            }
-        };
-        Self::new_with_variant(options, document_attributes, variant)
+        // Default to standard HTML; callers wanting semantic output use
+        // [`Processor::with_variant`] (or [`Processor::new_with_variant`]).
+        Self::new_with_variant(options, document_attributes, HtmlVariant::default())
     }
 
     fn options(&self) -> &Options {
@@ -439,10 +472,10 @@ impl<'a> Converter<'a> for Processor<'a> {
         self.handle_copy_syntax_css(doc, output_path);
     }
 
-    fn backend(&self) -> Backend {
+    fn name(&self) -> &'static str {
         match self.variant {
-            HtmlVariant::Semantic => Backend::Html5s,
-            HtmlVariant::Standard => Backend::Html,
+            HtmlVariant::Semantic => "html5s",
+            HtmlVariant::Standard => "html",
         }
     }
 }
@@ -902,6 +935,27 @@ mod tests {
     use acdc_converters_core::Converter;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn new_defaults_to_standard() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+        assert_eq!(processor.variant(), HtmlVariant::Standard);
+    }
+
+    #[test]
+    fn with_variant_switches_to_semantic() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default())
+            .with_variant(HtmlVariant::Semantic);
+        assert_eq!(processor.variant(), HtmlVariant::Semantic);
+    }
+
+    #[test]
+    fn name_reflects_current_variant() {
+        let standard = Processor::new(Options::default(), DocumentAttributes::default());
+        assert_eq!(standard.name(), "html");
+        let semantic = standard.with_variant(HtmlVariant::Semantic);
+        assert_eq!(semantic.name(), "html5s");
+    }
 
     #[test]
     fn test_convert_to_string_embedded_no_document_frame() -> TestResult {

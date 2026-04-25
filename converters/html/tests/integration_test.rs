@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{Backend, GeneratorMetadata, Options as ConverterOptions};
+use acdc_converters_core::{GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode};
@@ -24,13 +24,8 @@ fn run_fixture_test(
     let parsed = acdc_parser::parse_file(path, &parser_options)?;
     let doc = parsed.document();
 
-    let backend = match variant {
-        HtmlVariant::Semantic => Backend::Html5s,
-        HtmlVariant::Standard => Backend::Html,
-    };
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-        .backend(backend)
         .build();
     let processor =
         Processor::new_with_variant(converter_options, doc.attributes.to_static(), variant);
@@ -118,7 +113,6 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
     let doc = parsed.document();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-        .backend(Backend::Html)
         .build();
     let processor = Processor::new_with_variant(
         converter_options,
@@ -457,7 +451,6 @@ mod copycss {
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-            .backend(Backend::Html)
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
@@ -517,7 +510,6 @@ mod copycss {
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-            .backend(Backend::Html)
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
@@ -570,7 +562,6 @@ mod copycss {
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-            .backend(Backend::Html)
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
@@ -613,7 +604,6 @@ mod copycss {
 
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-            .backend(Backend::Html)
             .embedded(true)
             .build();
         let processor = Processor::new_with_variant(
@@ -1044,7 +1034,6 @@ mod toc_footnote {
         let doc = parsed.document();
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-            .backend(Backend::Html)
             .build();
         let processor = Processor::new_with_variant(
             converter_options,

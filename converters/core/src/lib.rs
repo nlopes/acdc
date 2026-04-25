@@ -33,7 +33,6 @@ use std::{borrow::Cow, path::PathBuf};
 
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 
-mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
 mod doctype;
@@ -45,7 +44,6 @@ pub mod toc;
 pub mod video;
 pub mod visitor;
 
-pub use backend::Backend;
 pub use doctype::Doctype;
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
@@ -231,7 +229,6 @@ pub struct Options {
     embedded: bool,
     /// Output destination for conversion.
     output_destination: OutputDestination,
-    backend: Backend,
 }
 
 impl Options {
@@ -281,12 +278,6 @@ impl Options {
     pub fn output_destination(&self) -> &OutputDestination {
         &self.output_destination
     }
-
-    /// Get the backend type.
-    #[must_use]
-    pub fn backend(&self) -> Backend {
-        self.backend
-    }
 }
 
 /// Builder for [`Options`].
@@ -300,7 +291,6 @@ pub struct OptionsBuilder {
     timings: bool,
     embedded: bool,
     output_destination: OutputDestination,
-    backend: Backend,
 }
 
 impl OptionsBuilder {
@@ -351,13 +341,6 @@ impl OptionsBuilder {
         self
     }
 
-    /// Set the backend type.
-    #[must_use]
-    pub fn backend(mut self, backend: Backend) -> Self {
-        self.backend = backend;
-        self
-    }
-
     /// Build the [`Options`] instance.
     #[must_use]
     pub fn build(self) -> Options {
@@ -368,7 +351,6 @@ impl OptionsBuilder {
             timings: self.timings,
             embedded: self.embedded,
             output_destination: self.output_destination,
-            backend: self.backend,
         }
     }
 }
@@ -570,11 +552,15 @@ pub trait Converter<'a>: Sized {
     /// Default implementation does nothing.
     fn after_write(&self, _doc: &acdc_parser::Document<'a>, _output_path: &std::path::Path) {}
 
-    /// Returns the backend type for this converter.
+    /// Returns the converter's display name (e.g. `"html"`, `"html5s"`,
+    /// `"manpage"`, `"markdown"`, `"terminal"`).
     ///
-    /// Used to identify the converter type for logging and success messages.
+    /// Used by the provided methods for logging and the "Generated X file"
+    /// message. Implementations may return different names for different
+    /// internal states (e.g. the html converter returns `"html5s"` when in
+    /// semantic mode).
     #[must_use]
-    fn backend(&self) -> Backend;
+    fn name(&self) -> &'static str;
 
     /// Convert to stdout.
     ///
@@ -613,7 +599,7 @@ pub trait Converter<'a>: Sized {
             source = ?source_file,
             destination = ?output_path,
             "converting document to {}",
-            self.backend()
+            self.name()
         );
 
         if let Some(parent) = output_path.parent() {
@@ -633,11 +619,7 @@ pub trait Converter<'a>: Sized {
             println!("  Time to convert document: {}", elapsed.pretty_print());
         }
 
-        println!(
-            "Generated {} file: {}",
-            self.backend(),
-            output_path.display()
-        );
+        println!("Generated {} file: {}", self.name(), output_path.display());
 
         self.after_write(doc, output_path);
         Ok(())

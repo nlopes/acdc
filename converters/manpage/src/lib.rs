@@ -32,7 +32,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Options, visitor::Visitor};
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
 
 mod admonition;
@@ -159,8 +159,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         self.write_document(doc, writer, source_file)
     }
 
-    fn backend(&self) -> Backend {
-        Backend::Manpage
+    fn name(&self) -> &'static str {
+        "manpage"
     }
 }
 

@@ -6,12 +6,12 @@
 //! # Example
 //!
 //! ```ignore
-//! use acdc_converters_markdown::{Processor, MarkdownVariant};
+//! use acdc_converters_markdown::{MarkdownVariant, Processor};
 //! use acdc_converters_core::{Converter, Options};
 //!
 //! let options = Options::default();
 //! let processor = Processor::new(options, Default::default())
-//!     .with_variant(MarkdownVariant::GitHubFlavored);
+//!     .with_variant(MarkdownVariant::CommonMark);
 //! processor.convert(&document, Some(Path::new("doc.adoc")))?;
 //! // Outputs: doc.md
 //! ```
@@ -56,7 +56,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Backend, Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Options, visitor::Visitor};
 use acdc_parser::{Document, DocumentAttributes};
 
 mod error;
@@ -65,14 +65,41 @@ mod markdown_visitor;
 pub use error::Error;
 pub use markdown_visitor::MarkdownVisitor;
 
-/// Markdown variant/flavor for conversion.
+/// Markdown output flavour, owned by the markdown converter.
+///
+/// Pick a variant via [`Processor::with_variant`]; [`Processor::new`]
+/// defaults to [`MarkdownVariant::GitHubFlavored`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum MarkdownVariant {
-    /// `CommonMark` specification (basic Markdown features only).
+    /// `CommonMark` Markdown (basic features only — no tables/task lists).
     CommonMark,
-    /// GitHub Flavored Markdown (extends `CommonMark` with tables, task lists, etc.).
+    /// GitHub Flavored Markdown (extends `CommonMark` with tables, task
+    /// lists, alerts, footnotes, strikethrough, autolinks).
     #[default]
     GitHubFlavored,
+}
+
+impl std::str::FromStr for MarkdownVariant {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_ref() {
+            "commonmark" | "cm" => Ok(Self::CommonMark),
+            "gfm" | "github-flavored" | "github" => Ok(Self::GitHubFlavored),
+            _ => Err(format!(
+                "invalid markdown variant: '{s}', expected: commonmark, gfm"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for MarkdownVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CommonMark => f.write_str("commonmark"),
+            Self::GitHubFlavored => f.write_str("gfm"),
+        }
+    }
 }
 
 /// Markdown converter processor.
@@ -84,7 +111,7 @@ pub struct Processor<'a> {
 }
 
 impl Processor<'_> {
-    /// Set the Markdown variant (`CommonMark` or GitHub Flavored).
+    /// Override the Markdown variant (`CommonMark` or GitHub Flavored).
     #[must_use]
     pub fn with_variant(mut self, variant: MarkdownVariant) -> Self {
         self.variant = variant;
@@ -146,7 +173,25 @@ impl<'a> Converter<'a> for Processor<'a> {
         Ok(())
     }
 
-    fn backend(&self) -> Backend {
-        Backend::Markdown
+    fn name(&self) -> &'static str {
+        "markdown"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_defaults_to_gfm() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+        assert_eq!(processor.variant(), MarkdownVariant::GitHubFlavored);
+    }
+
+    #[test]
+    fn with_variant_switches_to_commonmark() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default())
+            .with_variant(MarkdownVariant::CommonMark);
+        assert_eq!(processor.variant(), MarkdownVariant::CommonMark);
     }
 }

@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Backend, Converter, Options, decode_numeric_char_refs,
+    Converter, Options, decode_numeric_char_refs,
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
     visitor::Visitor,
 };
@@ -147,8 +147,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         Ok(())
     }
 
-    fn backend(&self) -> Backend {
-        Backend::Terminal
+    fn name(&self) -> &'static str {
+        "terminal"
     }
 }
 

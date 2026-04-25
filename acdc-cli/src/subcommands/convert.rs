@@ -5,12 +5,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use acdc_converters_core::{
-    Backend, Converter, Doctype, GeneratorMetadata, Options, OutputDestination,
-};
+use acdc_converters_core::{Converter, Doctype, GeneratorMetadata, Options, OutputDestination};
+#[cfg(feature = "html")]
+use acdc_converters_html::HtmlVariant;
+#[cfg(feature = "markdown")]
+use acdc_converters_markdown::MarkdownVariant;
 use acdc_parser::{AttributeValue, DocumentAttributes, ParseResult, SafeMode};
 use clap::{ArgAction, Args as ClapArgs};
-use miette::Report;
 use rayon::prelude::*;
 
 use crate::{
@@ -39,8 +40,25 @@ pub struct Args {
     pub files: Vec<PathBuf>,
 
     /// Backend output format
-    #[arg(short = 'b', long, value_parser = clap::value_parser!(Backend), default_value_t = Backend::Html)]
-    pub backend: Backend,
+    ///
+    /// `html` is the default when its feature is compiled in; otherwise
+    /// `--backend` must be supplied explicitly.
+    #[arg(short = 'b', long, value_enum)]
+    #[cfg_attr(feature = "html", arg(default_value = "html"))]
+    pub backend: BackendArg,
+
+    /// Backend output variant
+    ///
+    /// Selects an alternative output style for the chosen backend.
+    ///
+    /// Accepted values per backend:
+    ///   - html:     standard (default), semantic
+    ///   - markdown: commonmark, gfm (default)
+    ///
+    /// `--backend html5s` is preserved as a shortcut for
+    /// `--backend html --variant semantic` and rejects `--variant`.
+    #[arg(long, value_enum, verbatim_doc_comment)]
+    pub variant: Option<VariantArg>,
 
     /// Document type to use when converting document
     #[arg(short = 'd', long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
@@ -111,6 +129,8 @@ pub struct Args {
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
+    let backend = args.backend.resolve(args.variant)?;
+
     let safe_mode = if args.safe {
         SafeMode::Safe
     } else {
@@ -123,7 +143,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
             let mut document_attributes = build_attributes_map(&args.attributes);
             // Auto-set doctype to Manpage when using manpage backend
             // This matches asciidoctor behavior where --backend manpage implies --doctype manpage
-            let doctype = if matches!(args.backend, Backend::Manpage) {
+            let doctype = if matches!(backend, Backend::Manpage) {
                 // Set doctype attribute for the parser (parser checks this to derive manpage attrs)
                 document_attributes
                     .insert("doctype".into(), AttributeValue::String("manpage".into()));
@@ -136,7 +156,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         #[cfg(not(feature = "manpage"))]
         {
             let document_attributes = build_attributes_map(&args.attributes);
-            (document_attributes, args.doctype.clone())
+            (document_attributes, args.doctype)
         }
     };
 
@@ -162,16 +182,18 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .timings(args.timings)
         .embedded(args.embedded)
         .output_destination(output_destination.clone())
-        .backend(args.backend)
         .build();
 
-    let result = match args.backend {
+    let result = match backend {
         #[cfg(feature = "html")]
-        Backend::Html | Backend::Html5s => run_processor::<acdc_converters_html::Processor>(
+        Backend::Html(variant) => run_processor::<acdc_converters_html::Processor, _>(
             args,
             options,
             document_attributes,
             true,
+            move |opts, attrs| {
+                acdc_converters_html::Processor::new(opts, attrs).with_variant(variant)
+            },
         )
         .map_err(|e| error::display(&e)),
 
@@ -183,44 +205,36 @@ pub fn run(args: &Args) -> miette::Result<()> {
         }
 
         #[cfg(feature = "manpage")]
-        Backend::Manpage => {
-            // Manpage outputs to separate files - can process in parallel
-            run_processor::<acdc_converters_manpage::Processor>(
-                args,
-                options,
-                document_attributes,
-                true,
-            )
-            .map_err(|e| error::display(&e))
-        }
+        Backend::Manpage => run_processor::<acdc_converters_manpage::Processor, _>(
+            args,
+            options,
+            document_attributes,
+            true,
+            acdc_converters_manpage::Processor::new,
+        )
+        .map_err(|e| error::display(&e)),
 
         #[cfg(feature = "markdown")]
-        Backend::Markdown => {
-            // Markdown outputs to separate files - can process in parallel
-            run_processor::<acdc_converters_markdown::Processor>(
-                args,
-                options,
-                document_attributes,
-                true,
-            )
-            .map_err(|e| error::display(&e))
-        }
-
-        // Catch-all for backends not compiled in
-        #[allow(unreachable_patterns)]
-        backend => Err(Report::msg(format!(
-            "backend '{backend}' is not available - rebuild with the '{backend}' feature enabled"
-        ))),
+        Backend::Markdown(variant) => run_processor::<acdc_converters_markdown::Processor, _>(
+            args,
+            options,
+            document_attributes,
+            true,
+            move |opts, attrs| {
+                acdc_converters_markdown::Processor::new(opts, attrs).with_variant(variant)
+            },
+        )
+        .map_err(|e| error::display(&e)),
     };
 
     if args.open && result.is_ok() {
-        open_output_files(args, &output_destination);
+        open_output_files(args, backend, &output_destination);
     }
 
     result
 }
 
-fn open_output_files(args: &Args, output_destination: &OutputDestination) {
+fn open_output_files(args: &Args, backend: Backend, output_destination: &OutputDestination) {
     let paths: Vec<PathBuf> = match output_destination {
         OutputDestination::Stdout => {
             tracing::warn!("--open ignored when output is stdout");
@@ -229,10 +243,14 @@ fn open_output_files(args: &Args, output_destination: &OutputDestination) {
         }
         OutputDestination::File(path) => vec![path.clone()],
         OutputDestination::Derived => {
-            let ext = match args.backend {
-                Backend::Html | Backend::Html5s => "html",
-                Backend::Markdown => "md",
+            let ext = match backend {
+                #[cfg(feature = "html")]
+                Backend::Html(_) => "html",
+                #[cfg(feature = "markdown")]
+                Backend::Markdown(_) => "md",
+                #[cfg(feature = "manpage")]
                 Backend::Manpage => return,
+                #[cfg(feature = "terminal")]
                 Backend::Terminal => {
                     tracing::warn!("--open ignored for terminal backend");
                     eprintln!("Warning: --open ignored for terminal backend");
@@ -251,16 +269,23 @@ fn open_output_files(args: &Args, output_destination: &OutputDestination) {
     }
 }
 
-#[tracing::instrument(skip(base_options, document_attributes))]
-fn run_processor<P>(
+/// Run a converter against the input(s). `make_processor` builds each
+/// `P` from the per-call options and attributes, letting the caller
+/// plumb backend-specific knobs (e.g. `with_variant`) without forcing
+/// them into the `Converter` trait or `Options`. Variant-less backends
+/// pass `P::new` directly.
+#[tracing::instrument(skip(base_options, document_attributes, make_processor))]
+fn run_processor<P, F>(
     args: &Args,
     base_options: Options,
     document_attributes: DocumentAttributes<'static>,
     parallelize: bool,
+    make_processor: F,
 ) -> Result<(), P::Error>
 where
     P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
+    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync + Copy,
 {
     if !args.stdin && args.files.is_empty() {
         tracing::error!("You must pass at least one file to this processor");
@@ -269,7 +294,7 @@ where
 
     // Handle stdin separately (no parallelization)
     if args.stdin {
-        let processor = P::new(base_options.clone(), document_attributes.clone());
+        let processor = make_processor(base_options.clone(), document_attributes.clone());
         let parser_options =
             build_parser_options(args, &base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
@@ -309,7 +334,7 @@ where
         } else {
             acdc_parser::parse_file(file, &parser_options)
         };
-        let processor = P::new(base_options, document_attributes);
+        let processor = make_processor(base_options, document_attributes);
         let convert_result = match parse_result {
             Ok(parsed) => {
                 // Leak into 'static: CLI is a one-shot process.
@@ -322,25 +347,28 @@ where
         return Ok(());
     }
 
-    run_multi_file::<P>(
+    run_multi_file::<P, _>(
         args,
         &base_options,
         document_attributes,
         files_to_process,
         parallelize,
+        make_processor,
     );
     Ok(())
 }
 
-fn run_multi_file<P>(
+fn run_multi_file<P, F>(
     args: &Args,
     base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
     files_to_process: &[PathBuf],
     parallelize: bool,
+    make_processor: F,
 ) where
     P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
+    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync + Copy,
 {
     let show_timings = base_options.timings();
     let multi_file = files_to_process.len() > 1;
@@ -377,7 +405,6 @@ fn run_multi_file<P>(
             .timings(false)
             .embedded(base_options.embedded())
             .output_destination(base_options.output_destination().clone())
-            .backend(base_options.backend())
             .build()
     } else {
         base_options.clone()
@@ -387,7 +414,8 @@ fn run_multi_file<P>(
         parse_results
             .into_par_iter()
             .map(|(file, parse_result, parse_dur)| {
-                let processor = P::new(converter_options.clone(), document_attributes.clone());
+                let processor =
+                    make_processor(converter_options.clone(), document_attributes.clone());
                 let now = Instant::now();
                 let result = match parse_result {
                     Ok(parsed) => {
@@ -406,7 +434,7 @@ fn run_multi_file<P>(
             })
             .collect()
     } else {
-        let processor = P::new(converter_options, document_attributes);
+        let processor = make_processor(converter_options, document_attributes);
         parse_results
             .into_iter()
             .map(|(file, parse_result, parse_dur)| {
@@ -708,6 +736,163 @@ fn run_terminal_with_pager(
     }
 
     Ok(())
+}
+
+/// CLI-local enum mirroring the surface form of `--backend`.
+///
+/// Each arm is feature-gated so disabling a converter cleanly removes
+/// it from the parser, the resolver, and the dispatch match. `Html5s`
+/// stays in this enum (rather than being normalised to `Html`) so the
+/// resolver can reject the contradictory `--backend html5s --variant
+/// <anything>` form before lowering it to the typed [`Backend`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum BackendArg {
+    #[cfg(feature = "html")]
+    Html,
+    #[cfg(feature = "html")]
+    Html5s,
+    #[cfg(feature = "manpage")]
+    Manpage,
+    #[cfg(feature = "terminal")]
+    Terminal,
+    #[cfg(feature = "markdown")]
+    #[value(alias = "md")]
+    Markdown,
+}
+
+impl std::fmt::Display for BackendArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "html")]
+            Self::Html => f.write_str("html"),
+            #[cfg(feature = "html")]
+            Self::Html5s => f.write_str("html5s"),
+            #[cfg(feature = "manpage")]
+            Self::Manpage => f.write_str("manpage"),
+            #[cfg(feature = "terminal")]
+            Self::Terminal => f.write_str("terminal"),
+            #[cfg(feature = "markdown")]
+            Self::Markdown => f.write_str("markdown"),
+        }
+    }
+}
+
+/// CLI-local variant choice, parsed from `--variant` before being combined
+/// with the backend into the typed [`Backend`]. Each arm is feature-gated
+/// so disabling its converter removes its variant names from `--variant`
+/// entirely.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum VariantArg {
+    #[cfg(feature = "html")]
+    Standard,
+    #[cfg(feature = "html")]
+    Semantic,
+    #[cfg(feature = "markdown")]
+    #[value(name = "commonmark", alias = "cm")]
+    CommonMark,
+    #[cfg(feature = "markdown")]
+    #[value(alias = "github", alias = "github-flavored")]
+    Gfm,
+}
+
+impl std::fmt::Display for VariantArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            #[cfg(feature = "html")]
+            Self::Standard => f.write_str("standard"),
+            #[cfg(feature = "html")]
+            Self::Semantic => f.write_str("semantic"),
+            #[cfg(feature = "markdown")]
+            Self::CommonMark => f.write_str("commonmark"),
+            #[cfg(feature = "markdown")]
+            Self::Gfm => f.write_str("gfm"),
+        }
+    }
+}
+
+/// The user's `--backend`/`--variant` pair after validation, lowered into
+/// the strongly-typed combination accepted by the converter crates.
+///
+/// Each arm carries the converter's own variant payload (or no payload
+/// for backends that have none). This is the boundary at which CLI
+/// surface concerns (the `html5s` alias, cross-backend mismatches) are
+/// resolved — downstream code only ever sees a well-typed choice. New
+/// variant-bearing backends simply gain a payload here without
+/// rearranging anything else.
+#[derive(Debug, Clone, Copy)]
+enum Backend {
+    #[cfg(feature = "html")]
+    Html(HtmlVariant),
+    #[cfg(feature = "manpage")]
+    Manpage,
+    #[cfg(feature = "terminal")]
+    Terminal,
+    #[cfg(feature = "markdown")]
+    Markdown(MarkdownVariant),
+}
+
+/// Reject a `--variant` for a backend that doesn't define any. Interpolating
+/// the backend name keeps the error consistent across no-variant backends
+/// and means a future addition only needs one `resolve` arm, not a bespoke
+/// error string.
+#[cfg(any(feature = "manpage", feature = "terminal"))]
+fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> miette::Result<()> {
+    if variant.is_some() {
+        return Err(miette::miette!(
+            "backend '{backend}' does not accept a variant"
+        ));
+    }
+    Ok(())
+}
+
+impl BackendArg {
+    /// Combine the CLI's separate `--backend` / `--variant` flags into a
+    /// fully-typed [`Backend`], rejecting any combination the
+    /// converter layer can't honour: the `html5s` alias paired with any
+    /// variant, a markdown variant on the html backend (or vice versa),
+    /// or any variant on a backend that has none.
+    fn resolve(self, variant: Option<VariantArg>) -> miette::Result<Backend> {
+        match (self, variant) {
+            // The `html5s` alias is the surface spelling of "html + semantic".
+            // Pairing it with `--variant` would be self-contradicting.
+            #[cfg(feature = "html")]
+            (Self::Html5s, Some(_)) => Err(miette::miette!(
+                "--backend html5s does not accept a variant — it is a backwards-compat \
+                 alias for `--backend html --variant semantic`. Drop --variant, or use \
+                 `--backend html` with the variant of your choice."
+            )),
+            #[cfg(feature = "html")]
+            (Self::Html5s, None) | (Self::Html, Some(VariantArg::Semantic)) => {
+                Ok(Backend::Html(HtmlVariant::Semantic))
+            }
+            #[cfg(feature = "html")]
+            (Self::Html, None | Some(VariantArg::Standard)) => {
+                Ok(Backend::Html(HtmlVariant::Standard))
+            }
+            #[cfg(all(feature = "html", feature = "markdown"))]
+            (Self::Html, Some(v @ (VariantArg::CommonMark | VariantArg::Gfm))) => Err(
+                miette::miette!("variant '{v}' is not supported by backend 'html'"),
+            ),
+            #[cfg(feature = "markdown")]
+            (Self::Markdown, None) => Ok(Backend::Markdown(MarkdownVariant::default())),
+            #[cfg(feature = "markdown")]
+            (Self::Markdown, Some(VariantArg::CommonMark)) => {
+                Ok(Backend::Markdown(MarkdownVariant::CommonMark))
+            }
+            #[cfg(feature = "markdown")]
+            (Self::Markdown, Some(VariantArg::Gfm)) => {
+                Ok(Backend::Markdown(MarkdownVariant::GitHubFlavored))
+            }
+            #[cfg(all(feature = "markdown", feature = "html"))]
+            (Self::Markdown, Some(v @ (VariantArg::Standard | VariantArg::Semantic))) => Err(
+                miette::miette!("variant '{v}' is not supported by backend 'markdown'"),
+            ),
+            #[cfg(feature = "manpage")]
+            (Self::Manpage, v) => require_no_variant("manpage", v).map(|()| Backend::Manpage),
+            #[cfg(feature = "terminal")]
+            (Self::Terminal, v) => require_no_variant("terminal", v).map(|()| Backend::Terminal),
+        }
+    }
 }
 
 fn build_attributes_map(values: &[String]) -> DocumentAttributes<'static> {
