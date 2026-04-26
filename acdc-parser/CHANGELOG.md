@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-26
+
 ### Packaging
 
 - Shrunk the published tarball by excluding developer-only files: `AGENTS.md`,
   `README.adoc` (duplicate of `README.md`), `benches/`, `examples/`, `fixtures/`,
-  `proptest-regressions/`, and `tests/`. Reduces the package from ~676 files to
-  ~120 and drops ~19 MB of test fixtures that consumers never needed.
+  `proptest-regressions/`, and `tests/`.
 
 ### Added
 
@@ -93,22 +94,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 
 - **Parsing large documents is dramatically faster.** Hot paths in inline parsing and
-  attribute handling skip work entirely when the input has no relevant syntax. 1MB sample:
-  ~11.7s → ~130ms (~90× faster).
+  attribute handling skip work entirely when the input has no relevant syntax.
 - **Macro-heavy documents parse much faster.** Share `FootnoteTracker` across inline
   sub-parses via `Rc<RefCell<_>>` to avoid quadratic deep-clone cost on every nested
   `process_inlines`.
 - **Broad parser speedup (~15–20% on large docs)** from a four-part sweep of the
-  `position()` / `LineMap` hot path: a byte-only fast path in `section_level_at_line_start`
-  (runs as a negative lookahead on every paragraph continuation line), a monotonic
-  last-line cache in `LineMap` (consecutive offsets skip the binary search), a
-  signature change on `process_inlines` / `preprocess_inline_content` to take a raw
-  `usize` offset instead of a `&PositionWithOffset` (46 grammar call sites no longer
-  materialise a `Position` that is never read), and byte-lookahead guards on every
-  alternative of the inline macro alternation in `non_plain_text()` to prune ~30-way
-  speculative dispatch. Combined impact on the internal size ladder: `sample_50KB`
-  4.02 → 3.34 ms, `sample_macros_50KB` 14.06 → 5.26 ms (first after the
-  `FootnoteTracker` fix above), `sample_1MB` 86.13 → 65.59 ms.
+  `position()` / `LineMap` hot path: a byte-only fast path in
+  `section_level_at_line_start` (runs as a negative lookahead on every paragraph
+  continuation line), a monotonic last-line cache in `LineMap` (consecutive offsets skip
+  the binary search), a signature change on `process_inlines` /
+  `preprocess_inline_content` to take a raw `usize` offset instead of a
+  `&PositionWithOffset`, and byte-lookahead guards on every alternative of the inline
+  macro alternation in `non_plain_text()` to prune speculative dispatch.
 - **Macro-heavy documents parse ~14% faster**; prose-heavy documents 3–6% faster.
 
 ## [0.8.0] - 2026-03-28
@@ -549,7 +546,8 @@ Initial release of acdc-parser, a PEG-based AsciiDoc parser with source location
 [#349]: https://github.com/nlopes/acdc/issues/349
 [#357]: https://github.com/nlopes/acdc/issues/357
 
-[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.8.0...HEAD
+[Unreleased]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.9.0...HEAD
+[0.9.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.8.0...acdc-parser-v0.9.0
 [0.8.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.7.0...acdc-parser-v0.8.0
 [0.7.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.6.0...acdc-parser-v0.7.0
 [0.6.0]: https://github.com/nlopes/acdc/compare/acdc-parser-v0.5.0...acdc-parser-v0.6.0
