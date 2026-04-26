@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --open` now opens converter-reported output files, including
+  volume-aware manpage outputs such as `cmd.1` and `cmd.7`.
 - **`--variant` flag for `convert`** — pick a backend-specific output style.
   HTML: `standard` (default) or `semantic`. Markdown: `commonmark` or `gfm`
   (default). `--backend html5s` remains an alias for `--backend html --variant

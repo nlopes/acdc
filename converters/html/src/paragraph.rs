@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::code::detect_language;
-use acdc_converters_core::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{AttributeValue, Paragraph};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_attribution, write_id};

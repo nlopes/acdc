@@ -3,7 +3,7 @@ use std::io::{BufWriter, Write};
 use acdc_converters_core::{
     code::detect_language,
     decode_numeric_char_refs,
-    visitor::{Visitor, WritableVisitor, WritableVisitorExt},
+    visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
     AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,

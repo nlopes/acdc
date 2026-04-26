@@ -883,13 +883,6 @@ impl<W: Write> Visitor for HtmlVisitor<'_, W> {
         crate::section::visit_discrete_header(header, self)
     }
 
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
-        for inline in nodes {
-            self.visit_inline_node(inline)?;
-        }
-        Ok(())
-    }
-
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
         let saved = self.render_options.in_inline_span;
         if acdc_converters_core::visitor::is_formatting_span(node) {

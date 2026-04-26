@@ -29,7 +29,10 @@
 //! - [`video`] - Video URL generation for `YouTube`, `Vimeo`, etc.
 //! - [`visitor`] - Visitor pattern infrastructure for AST traversal
 
-use std::{borrow::Cow, path::PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 
@@ -201,6 +204,41 @@ pub enum OutputDestination {
     Stdout,
     /// Write to a specific file.
     File(PathBuf),
+}
+
+/// Result metadata for a completed conversion.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct ConversionResult {
+    output_path: Option<PathBuf>,
+}
+
+impl ConversionResult {
+    /// Conversion wrote to stdout or another non-file destination.
+    #[must_use]
+    pub fn stdout() -> Self {
+        Self { output_path: None }
+    }
+
+    /// Conversion wrote to a file at `path`.
+    #[must_use]
+    pub fn file(path: PathBuf) -> Self {
+        Self {
+            output_path: Some(path),
+        }
+    }
+
+    /// Get the file path written by this conversion, if any.
+    #[must_use]
+    pub fn output_path(&self) -> Option<&Path> {
+        self.output_path.as_deref()
+    }
+
+    /// Consume the result and return the file path written by this conversion, if any.
+    #[must_use]
+    pub fn into_output_path(self) -> Option<PathBuf> {
+        self.output_path
+    }
 }
 
 /// Converter options.
@@ -464,7 +502,7 @@ impl std::fmt::Display for GeneratorMetadata {
 /// Converters must implement these required methods:
 /// - [`write_to`](Converter::write_to) - Core conversion logic
 /// - [`derive_output_path`](Converter::derive_output_path) - Output path derivation
-/// - [`backend`](Converter::backend) - Backend type for logging/messages
+/// - [`name`](Converter::name) - Converter name for logging/messages
 /// - [`options`](Converter::options) - Access to converter options
 /// - [`document_attributes`](Converter::document_attributes) - Access to document attributes
 ///
@@ -571,9 +609,10 @@ pub trait Converter<'a>: Sized {
         &self,
         doc: &acdc_parser::Document<'a>,
         source_file: Option<&std::path::Path>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<ConversionResult, Self::Error> {
         let stdout = std::io::stdout();
-        self.write_to(doc, std::io::BufWriter::new(stdout.lock()), source_file)
+        self.write_to(doc, std::io::BufWriter::new(stdout.lock()), source_file)?;
+        Ok(ConversionResult::stdout())
     }
 
     /// Convert to a specific file path.
@@ -588,7 +627,7 @@ pub trait Converter<'a>: Sized {
         doc: &acdc_parser::Document<'a>,
         source_file: Option<&std::path::Path>,
         output_path: &std::path::Path,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<ConversionResult, Self::Error> {
         let start = self.options().timings().then(std::time::Instant::now);
 
         if let Some(f) = source_file.filter(|_| self.options().timings()) {
@@ -622,7 +661,7 @@ pub trait Converter<'a>: Sized {
         println!("Generated {} file: {}", self.name(), output_path.display());
 
         self.after_write(doc, output_path);
-        Ok(())
+        Ok(ConversionResult::file(output_path.to_path_buf()))
     }
 
     /// Main entry point: route based on [`OutputDestination`].
@@ -639,7 +678,7 @@ pub trait Converter<'a>: Sized {
         &self,
         doc: &acdc_parser::Document<'a>,
         source_file: Option<&std::path::Path>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<ConversionResult, Self::Error> {
         match self.options().output_destination() {
             OutputDestination::Stdout => self.convert_to_stdout(doc, source_file),
             OutputDestination::File(path) => self.convert_to_file(doc, source_file, path),

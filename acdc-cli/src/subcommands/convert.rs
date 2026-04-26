@@ -5,7 +5,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use acdc_converters_core::{Converter, Doctype, GeneratorMetadata, Options, OutputDestination};
+use acdc_converters_core::{
+    ConversionResult, Converter, Doctype, GeneratorMetadata, Options, OutputDestination,
+};
 #[cfg(feature = "html")]
 use acdc_converters_html::HtmlVariant;
 #[cfg(feature = "markdown")]
@@ -128,6 +130,20 @@ pub struct Args {
     pub open: bool,
 }
 
+impl Args {
+    fn output_destination(&self) -> OutputDestination {
+        self.out_file
+            .as_ref()
+            .map_or(OutputDestination::Derived, |s| {
+                if s == "-" {
+                    OutputDestination::Stdout
+                } else {
+                    OutputDestination::File(PathBuf::from(s))
+                }
+            })
+    }
+}
+
 pub fn run(args: &Args) -> miette::Result<()> {
     let backend = args.backend.resolve(args.variant)?;
 
@@ -160,17 +176,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         }
     };
 
-    // Parse output destination from --out-file argument
-    let output_destination = args
-        .out_file
-        .as_ref()
-        .map_or(OutputDestination::Derived, |s| {
-            if s == "-" {
-                OutputDestination::Stdout
-            } else {
-                OutputDestination::File(PathBuf::from(s))
-            }
-        });
+    let output_destination = args.output_destination();
 
     let options = Options::builder()
         .generator_metadata(GeneratorMetadata::new(
@@ -184,7 +190,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .output_destination(output_destination.clone())
         .build();
 
-    let result = match backend {
+    let output_paths = match backend {
         #[cfg(feature = "html")]
         Backend::Html(variant) => run_processor::<acdc_converters_html::Processor, _>(
             args,
@@ -227,42 +233,36 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .map_err(|e| error::display(&e)),
     };
 
-    if args.open && result.is_ok() {
-        open_output_files(args, backend, &output_destination);
+    let output_paths = output_paths?;
+
+    if args.open {
+        open_output_files(&output_paths, &output_destination, |path| open::that(path));
     }
 
-    result
+    Ok(())
 }
 
-fn open_output_files(args: &Args, backend: Backend, output_destination: &OutputDestination) {
-    let paths: Vec<PathBuf> = match output_destination {
-        OutputDestination::Stdout => {
-            tracing::warn!("--open ignored when output is stdout");
-            eprintln!("Warning: --open ignored when output is stdout");
-            return;
-        }
-        OutputDestination::File(path) => vec![path.clone()],
-        OutputDestination::Derived => {
-            let ext = match backend {
-                #[cfg(feature = "html")]
-                Backend::Html(_) => "html",
-                #[cfg(feature = "markdown")]
-                Backend::Markdown(_) => "md",
-                #[cfg(feature = "manpage")]
-                Backend::Manpage => return,
-                #[cfg(feature = "terminal")]
-                Backend::Terminal => {
-                    tracing::warn!("--open ignored for terminal backend");
-                    eprintln!("Warning: --open ignored for terminal backend");
-                    return;
-                }
-            };
-            args.files.iter().map(|f| f.with_extension(ext)).collect()
-        }
-    };
+fn open_output_files<E>(
+    paths: &[PathBuf],
+    output_destination: &OutputDestination,
+    mut opener: impl FnMut(&Path) -> Result<(), E>,
+) where
+    E: std::fmt::Display,
+{
+    if matches!(output_destination, OutputDestination::Stdout) {
+        tracing::warn!("--open ignored when output is stdout");
+        eprintln!("Warning: --open ignored when output is stdout");
+        return;
+    }
 
-    for path in &paths {
-        if let Err(error) = open::that(path) {
+    if paths.is_empty() {
+        tracing::warn!("--open ignored because conversion produced no output file");
+        eprintln!("Warning: --open ignored because conversion produced no output file");
+        return;
+    }
+
+    for path in paths {
+        if let Err(error) = opener(path) {
             tracing::error!(%error, path = %path.display(), "could not open output file");
             eprintln!("Warning: could not open {}: {error}", path.display());
         }
@@ -281,7 +281,7 @@ fn run_processor<P, F>(
     document_attributes: DocumentAttributes<'static>,
     parallelize: bool,
     make_processor: F,
-) -> Result<(), P::Error>
+) -> Result<Vec<PathBuf>, P::Error>
 where
     P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
@@ -304,7 +304,9 @@ where
         // arena lives for the rest of the process, giving us the `'static`
         // lifetime that `Converter<'static>` expects.
         let parsed = report_warnings(parsed, None);
-        return processor.convert(parsed.document(), None);
+        return processor
+            .convert(parsed.document(), None)
+            .map(output_paths_from_result);
     }
 
     // When --out-file is specified with multiple files, only process the first file
@@ -343,29 +345,31 @@ where
             }
             Err(e) => Err(e.into()),
         };
-        report_errors(std::iter::once((file.clone(), convert_result)));
-        return Ok(());
+        return Ok(report_errors(std::iter::once((
+            file.clone(),
+            convert_result,
+        ))));
     }
 
-    run_multi_file::<P, _>(
+    Ok(run_multi_file::<P, _>(
         args,
         &base_options,
-        document_attributes,
+        &document_attributes,
         files_to_process,
         parallelize,
         make_processor,
-    );
-    Ok(())
+    ))
 }
 
 fn run_multi_file<P, F>(
     args: &Args,
     base_options: &Options,
-    document_attributes: DocumentAttributes<'static>,
+    document_attributes: &DocumentAttributes<'static>,
     files_to_process: &[PathBuf],
     parallelize: bool,
     make_processor: F,
-) where
+) -> Vec<PathBuf>
+where
     P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
     F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync + Copy,
@@ -413,46 +417,27 @@ fn run_multi_file<P, F>(
     let file_results: Vec<FileResult<P::Error>> = if parallelize {
         parse_results
             .into_par_iter()
-            .map(|(file, parse_result, parse_dur)| {
-                let processor =
-                    make_processor(converter_options.clone(), document_attributes.clone());
-                let now = Instant::now();
-                let result = match parse_result {
-                    Ok(parsed) => {
-                        let parsed = report_warnings(parsed, Some(&file));
-                        processor.convert(parsed.document(), Some(&file))
-                    }
-                    Err(e) => Err(e.into()),
-                };
-                let convert_dur = show_timings.then(|| now.elapsed());
-                FileResult {
-                    path: file,
-                    result,
-                    parse_dur,
-                    convert_dur,
-                }
+            .map(|entry| {
+                convert_parse_result::<P, _>(
+                    entry,
+                    &converter_options,
+                    document_attributes,
+                    show_timings,
+                    make_processor,
+                )
             })
             .collect()
     } else {
-        let processor = make_processor(converter_options, document_attributes);
         parse_results
             .into_iter()
-            .map(|(file, parse_result, parse_dur)| {
-                let now = Instant::now();
-                let result = match parse_result {
-                    Ok(parsed) => {
-                        let parsed = report_warnings(parsed, Some(&file));
-                        processor.convert(parsed.document(), Some(&file))
-                    }
-                    Err(e) => Err(e.into()),
-                };
-                let convert_dur = show_timings.then(|| now.elapsed());
-                FileResult {
-                    path: file,
-                    result,
-                    parse_dur,
-                    convert_dur,
-                }
+            .map(|entry| {
+                convert_parse_result::<P, _>(
+                    entry,
+                    &converter_options,
+                    document_attributes,
+                    show_timings,
+                    make_processor,
+                )
             })
             .collect()
     };
@@ -472,12 +457,43 @@ fn run_multi_file<P, F>(
         print_timing_table(&timing_entries, wall_clock);
     }
 
-    report_errors(file_results.into_iter().map(|fr| (fr.path, fr.result)));
+    report_errors(file_results.into_iter().map(|fr| (fr.path, fr.result)))
+}
+
+fn convert_parse_result<P, F>(
+    (file, parse_result, parse_dur): TimedParseResult,
+    converter_options: &Options,
+    document_attributes: &DocumentAttributes<'static>,
+    show_timings: bool,
+    make_processor: F,
+) -> FileResult<P::Error>
+where
+    P: Converter<'static>,
+    P::Error: From<acdc_parser::Error>,
+    F: Fn(Options, DocumentAttributes<'static>) -> P,
+{
+    let processor = make_processor(converter_options.clone(), document_attributes.clone());
+    let now = Instant::now();
+    let result = match parse_result {
+        Ok(parsed) => {
+            let parsed = report_warnings(parsed, Some(&file));
+            processor.convert(parsed.document(), Some(&file))
+        }
+        Err(e) => Err(e.into()),
+    };
+    let convert_dur = show_timings.then(|| now.elapsed());
+
+    FileResult {
+        path: file,
+        result,
+        parse_dur,
+        convert_dur,
+    }
 }
 
 struct FileResult<E> {
     path: PathBuf,
-    result: Result<(), E>,
+    result: Result<ConversionResult, E>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
 }
@@ -506,11 +522,21 @@ fn report_warnings(mut parsed: ParseResult, file: Option<&Path>) -> &'static Par
 }
 
 fn report_errors<E: std::error::Error + 'static>(
-    results: impl Iterator<Item = (PathBuf, Result<(), E>)>,
-) {
-    let errors: Vec<_> = results
-        .filter_map(|(file, result)| result.err().map(|e| (file, e)))
-        .collect();
+    results: impl Iterator<Item = (PathBuf, Result<ConversionResult, E>)>,
+) -> Vec<PathBuf> {
+    let mut output_paths = Vec::new();
+    let mut errors = Vec::new();
+
+    for (file, result) in results {
+        match result {
+            Ok(result) => {
+                if let Some(output_path) = result.into_output_path() {
+                    output_paths.push(output_path);
+                }
+            }
+            Err(error) => errors.push((file, error)),
+        }
+    }
 
     if !errors.is_empty() {
         eprintln!("\nFailed to process {} file(s):", errors.len());
@@ -520,6 +546,84 @@ fn report_errors<E: std::error::Error + 'static>(
             eprintln!("{report:?}");
         }
         std::process::exit(1);
+    }
+
+    output_paths
+}
+
+fn output_paths_from_result(result: ConversionResult) -> Vec<PathBuf> {
+    result.into_output_path().into_iter().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::convert::Infallible;
+
+    use super::*;
+
+    #[test]
+    fn opens_reported_paths_for_derived_outputs() {
+        let paths = vec![PathBuf::from("doc.html"), PathBuf::from("other.md")];
+        let mut opened = Vec::new();
+
+        open_output_files(&paths, &OutputDestination::Derived, |path| {
+            opened.push(path.to_path_buf());
+            Ok::<(), Infallible>(())
+        });
+
+        assert_eq!(opened, paths);
+    }
+
+    #[test]
+    fn opens_reported_path_for_explicit_output_file() {
+        let paths = vec![PathBuf::from("custom.out")];
+        let destination = OutputDestination::File(PathBuf::from("custom.out"));
+        let mut opened = Vec::new();
+
+        open_output_files(&paths, &destination, |path| {
+            opened.push(path.to_path_buf());
+            Ok::<(), Infallible>(())
+        });
+
+        assert_eq!(opened, paths);
+    }
+
+    #[test]
+    fn opens_dynamic_manpage_style_output_path() {
+        let paths = vec![PathBuf::from("cmd.7")];
+        let mut opened = Vec::new();
+
+        open_output_files(&paths, &OutputDestination::Derived, |path| {
+            opened.push(path.to_path_buf());
+            Ok::<(), Infallible>(())
+        });
+
+        assert_eq!(opened, paths);
+    }
+
+    #[test]
+    fn skips_stdout_output() {
+        let paths = vec![PathBuf::from("doc.html")];
+        let mut opened = Vec::new();
+
+        open_output_files(&paths, &OutputDestination::Stdout, |path| {
+            opened.push(path.to_path_buf());
+            Ok::<(), Infallible>(())
+        });
+
+        assert!(opened.is_empty());
+    }
+
+    #[test]
+    fn skips_when_conversion_produced_no_file() {
+        let mut opened = Vec::new();
+
+        open_output_files(&[], &OutputDestination::Derived, |path| {
+            opened.push(path.to_path_buf());
+            Ok::<(), Infallible>(())
+        });
+
+        assert!(opened.is_empty());
     }
 }
 
@@ -600,7 +704,7 @@ fn run_terminal_stdin(
     base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
     output_to_file: bool,
-) -> Result<(), acdc_converters_terminal::Error> {
+) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
     use std::io::BufWriter;
 
     use acdc_converters_terminal::Processor;
@@ -617,7 +721,7 @@ fn run_terminal_stdin(
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
-        return processor.convert(doc, None);
+        return processor.convert(doc, None).map(output_paths_from_result);
     }
 
     // Try pager for stdin too
@@ -627,9 +731,10 @@ fn run_terminal_stdin(
             processor.write_to(doc, writer, None)?;
         }
         let _ = pager.wait()?;
-        return Ok(());
+        return Ok(Vec::new());
     }
-    processor.convert(doc, None)
+    processor.convert(doc, None)?;
+    Ok(Vec::new())
 }
 
 #[cfg(feature = "terminal")]
@@ -637,7 +742,7 @@ fn run_terminal_with_pager(
     args: &Args,
     base_options: Options,
     document_attributes: DocumentAttributes<'static>,
-) -> Result<(), acdc_converters_terminal::Error> {
+) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
     use std::io::BufWriter;
 
     use acdc_converters_terminal::Processor;
@@ -649,7 +754,10 @@ fn run_terminal_with_pager(
 
     // Check if --out-file specifies a file (not stdout)
     // If so, write directly to file without pager
-    let output_to_file = args.out_file.as_ref().is_some_and(|s| s != "-");
+    let output_to_file = matches!(
+        base_options.output_destination(),
+        OutputDestination::File(_)
+    );
 
     if args.stdin {
         return run_terminal_stdin(args, &base_options, document_attributes, output_to_file);
@@ -693,16 +801,22 @@ fn run_terminal_with_pager(
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
+        let mut output_paths = Vec::new();
         for (file, parse_result) in parse_results {
             match parse_result {
                 Ok(parsed) => {
                     let parsed = report_warnings(parsed, Some(&file));
-                    processor.convert(parsed.document(), Some(&file))?;
+                    if let Some(output_path) = processor
+                        .convert(parsed.document(), Some(&file))?
+                        .into_output_path()
+                    {
+                        output_paths.push(output_path);
+                    }
                 }
                 Err(e) => return Err(e.into()),
             }
         }
-        return Ok(());
+        return Ok(output_paths);
     }
 
     // Try to spawn pager
@@ -735,7 +849,7 @@ fn run_terminal_with_pager(
         }
     }
 
-    Ok(())
+    Ok(Vec::new())
 }
 
 /// CLI-local enum mirroring the surface form of `--backend`.

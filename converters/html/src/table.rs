@@ -1,5 +1,5 @@
 use acdc_converters_core::table::calculate_column_widths;
-use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{
     Block, BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode, Table,
     TableColumn, VerticalAlignment,

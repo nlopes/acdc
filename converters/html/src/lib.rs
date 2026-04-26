@@ -44,9 +44,8 @@ pub use html_visitor::HtmlVisitor;
 ///
 /// `Standard` is the asciidoctor-compatible div-based markup; `Semantic`
 /// uses `<section>`, `<aside>`, `<figure>`, ARIA roles, etc. Pick a variant
-/// via [`Processor::with_variant`], or rely on the default that
-/// [`Processor::new`] derives from `options.backend()` ([`Backend::Html5s`]
-/// → `Semantic`, otherwise `Standard`).
+/// via [`Processor::with_variant`], or rely on the default
+/// [`Processor::new`] uses (`Standard`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum HtmlVariant {
     /// Standard HTML output (asciidoctor-compatible div-based markup).

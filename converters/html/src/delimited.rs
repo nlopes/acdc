@@ -2,7 +2,7 @@ use std::io::Write;
 
 use acdc_converters_core::{
     code::{default_line_comment, detect_language},
-    visitor::{Visitor, WritableVisitor, WritableVisitorExt},
+    visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
     AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Location,

@@ -13,7 +13,6 @@ publish = false
 [[bin]]
 name = "acdc"
 path = "src/main.rs"
-test = false
 doc = false
 
 [dependencies]

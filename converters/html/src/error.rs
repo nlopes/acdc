@@ -13,6 +13,9 @@ pub enum Error {
     #[error("Parsing error: {0}")]
     Parse(#[from] acdc_parser::Error),
 
+    #[error(transparent)]
+    VideoUrl(#[from] acdc_converters_core::video::UrlError),
+
     #[error("input file and output file cannot be the same: {0}")]
     OutputPathSameAsInput(std::path::PathBuf),
 

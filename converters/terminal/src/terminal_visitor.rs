@@ -174,13 +174,6 @@ impl<W: Write> Visitor for TerminalVisitor<'_, W> {
         self.render_discrete_header(header)
     }
 
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
-        for inline in nodes {
-            self.visit_inline_node(inline)?;
-        }
-        Ok(())
-    }
-
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
         let saved = self.in_inline_span;
         if acdc_converters_core::visitor::is_formatting_span(node) {

@@ -1,6 +1,6 @@
 use std::{io::Write, string::ToString};
 
-use acdc_converters_core::visitor::{WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::Image;
 
 use crate::{

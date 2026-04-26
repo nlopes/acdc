@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Converter conversion methods now return output metadata containing the written
+  file path when applicable.
 - **Typography replacements API** — `Replacements` struct, `apply()`, and
   `replace_apostrophes()` for shared AsciiDoc `Replacements` substitution across
   converters. Includes `Replacements::unicode()` for terminal/manpage output.
@@ -33,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Video URL generation now reports missing video sources with a dedicated error.
 - **Em-dash patterns now match asciidoctor** — spaced (`word -- word`) emits
   thin-space + em-dash + thin-space; word-bounded (`word--word`) emits em-dash +
   zero-width-space. Patterns like `word --word`, `word-- word`, `test--`, `--test`,

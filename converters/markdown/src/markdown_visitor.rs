@@ -506,13 +506,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
         Ok(())
     }
 
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
-        for node in nodes {
-            self.visit_inline_node(node)?;
-        }
-        Ok(())
-    }
-
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
         write!(self.writer, "{}", Self::escape_markdown(text))?;
         Ok(())

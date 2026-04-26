@@ -372,7 +372,12 @@ pub trait Visitor {
     /// # Errors
     ///
     /// Returns an error if conversion of any inline node fails.
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error>;
+    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+        for node in nodes {
+            self.visit_inline_node(node)?;
+        }
+        Ok(())
+    }
 
     /// Visit a single inline node
     ///
@@ -434,13 +439,7 @@ pub fn is_formatting_span(node: &InlineNode) -> bool {
 pub trait WritableVisitor: Visitor {
     /// Get a mutable reference to the writer
     fn writer_mut(&mut self) -> &mut dyn Write;
-}
 
-/// Extension trait for `WritableVisitor` that provides common rendering helpers.
-///
-/// This trait provides utility methods that handle common patterns across converters,
-/// such as rendering titles with wrapper markup.
-pub trait WritableVisitorExt: WritableVisitor {
     /// Render a title with wrapper markup (prefix and suffix).
     ///
     /// This helper handles the common pattern of:
@@ -475,6 +474,3 @@ pub trait WritableVisitorExt: WritableVisitor {
         Ok(())
     }
 }
-
-// Blanket implementation for all WritableVisitor types
-impl<T: WritableVisitor> WritableVisitorExt for T {}

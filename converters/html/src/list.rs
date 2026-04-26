@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor, WritableVisitorExt};
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     Block, CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList,
     UnorderedList,
