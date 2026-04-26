@@ -521,6 +521,13 @@ fn report_warnings(mut parsed: ParseResult, file: Option<&Path>) -> &'static Par
     Box::leak(Box::new(parsed))
 }
 
+fn report_converter_warnings(result: &mut ConversionResult, file: Option<&Path>) {
+    for warning in result.take_warnings() {
+        let report = error::display_converter_warning(&warning, file);
+        eprintln!("{report:?}");
+    }
+}
+
 fn report_errors<E: std::error::Error + 'static>(
     results: impl Iterator<Item = (PathBuf, Result<ConversionResult, E>)>,
 ) -> Vec<PathBuf> {
@@ -529,7 +536,8 @@ fn report_errors<E: std::error::Error + 'static>(
 
     for (file, result) in results {
         match result {
-            Ok(result) => {
+            Ok(mut result) => {
+                report_converter_warnings(&mut result, Some(&file));
                 if let Some(output_path) = result.into_output_path() {
                     output_paths.push(output_path);
                 }
@@ -552,6 +560,8 @@ fn report_errors<E: std::error::Error + 'static>(
 }
 
 fn output_paths_from_result(result: ConversionResult) -> Vec<PathBuf> {
+    let mut result = result;
+    report_converter_warnings(&mut result, None);
     result.into_output_path().into_iter().collect()
 }
 

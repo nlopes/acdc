@@ -45,6 +45,7 @@
 use std::io::{self, Write};
 
 use acdc_converters_core::{
+    Warning, WarningSource,
     substitutions::{restore_escaped_patterns, strip_backslash_escapes},
     visitor::{Visitor, WritableVisitor},
 };
@@ -555,13 +556,14 @@ impl<W: Write> HtmlVisitor<'_, W> {
         if let Some(role) = h.role {
             for r in role.split_whitespace() {
                 match r {
-                    "big" => tracing::warn!(
-                        role = %r,
-                        "Role is deprecated. Consider using `+++<big>+++text+++</big>+++` or CSS font-size instead."
-                    ),
-                    "small" => tracing::warn!(
-                        role = %r,
-                        "Role is deprecated. Consider using `+++<small>+++text+++</small>+++` or CSS font-size instead."
+                    "big" | "small" => self.processor.warnings.emit(
+                        Warning::new(
+                            WarningSource::new("html")
+                                .with_variant(self.processor.variant().to_string()),
+                            format!("deprecated role `{r}`"),
+                            None,
+                        )
+                        .with_advice("Replace the deprecated built-in role with explicit passthrough markup or CSS."),
                     ),
                     _ => {}
                 }
@@ -1187,7 +1189,7 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
         "substitution_text called with empty text - caller should filter empty content"
     );
     if text.is_empty() {
-        tracing::warn!(
+        tracing::debug!(
             "substitution_text called with empty text - caller should filter empty content"
         );
         return String::new();

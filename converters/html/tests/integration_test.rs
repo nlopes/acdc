@@ -1,11 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{GeneratorMetadata, Options as ConverterOptions};
+use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode};
 
 type Error = Box<dyn std::error::Error>;
+
+fn temp_output_path(name: &str, extension: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
+}
 
 fn run_fixture_test(
     path: &Path,
@@ -123,6 +127,31 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
     let mut output = Vec::new();
     processor.convert_to_writer(doc, &mut output, &render_options)?;
     Ok(String::from_utf8(output)?)
+}
+
+#[test]
+fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Error> {
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse("[big]#large#\n", &parser_options)?;
+    let doc = parsed.document();
+    let converter_options = ConverterOptions::builder().embedded(true).build();
+    let processor = Processor::new_with_variant(
+        converter_options,
+        doc.attributes.to_static(),
+        HtmlVariant::Standard,
+    );
+    let output_path = temp_output_path("html-warning", "html");
+
+    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let _ = std::fs::remove_file(&output_path);
+
+    assert!(result.warnings().iter().any(|warning| {
+        warning.source.converter == "html"
+            && warning.source.variant.as_deref() == Some("standard")
+            && warning.message.contains("deprecated role `big`")
+    }));
+    Ok(())
 }
 
 #[cfg(feature = "highlighting")]

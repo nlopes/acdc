@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use acdc_converters_core::{Warning, WarningSink, WarningSource};
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode, Substitution, substitute};
 
 /// Resolved docinfo content for each injection position.
@@ -31,6 +32,7 @@ impl DocInfo {
         safe_mode: SafeMode,
         source_dir: Option<&Path>,
         docname: Option<&str>,
+        warnings: &WarningSink,
     ) -> Self {
         // Secure mode disables docinfo entirely
         if safe_mode >= SafeMode::Secure {
@@ -45,7 +47,7 @@ impl DocInfo {
             _ => return Self::empty(),
         };
 
-        let positions = parse_docinfo_value(&docinfo_val);
+        let positions = parse_docinfo_value(&docinfo_val, warnings);
         if positions.is_empty() {
             return Self::empty();
         }
@@ -54,7 +56,7 @@ impl DocInfo {
         let docinfo_dir = resolve_docinfo_dir(attributes, source_dir);
 
         // Determine substitutions to apply
-        let subs = resolve_docinfo_subs(attributes);
+        let subs = resolve_docinfo_subs(attributes, warnings);
 
         let head = load_position_content(
             &positions,
@@ -117,7 +119,7 @@ struct EnabledPosition {
 /// - Granular: `shared-head`, `shared-header`, `shared-footer`,
 ///   `private-head`, `private-header`, `private-footer`
 /// - Comma-separated combinations
-fn parse_docinfo_value(value: &str) -> Vec<EnabledPosition> {
+fn parse_docinfo_value(value: &str, warnings: &WarningSink) -> Vec<EnabledPosition> {
     value
         .split(',')
         .flat_map(|token| {
@@ -176,7 +178,11 @@ fn parse_docinfo_value(value: &str) -> Vec<EnabledPosition> {
                     position: Position::Footer,
                 }],
                 _ => {
-                    tracing::warn!(token, "unknown docinfo value, ignoring");
+                    warnings.emit(Warning::new(
+                        WarningSource::new("html"),
+                        format!("unknown docinfo value `{token}`, ignoring value"),
+                        None,
+                    ));
                     vec![]
                 }
             }
@@ -207,14 +213,21 @@ fn resolve_docinfo_dir(attributes: &DocumentAttributes, source_dir: Option<&Path
 /// Determine substitutions to apply to docinfo content.
 ///
 /// `:docinfosubs:` controls this; default is `attributes` only.
-fn resolve_docinfo_subs(attributes: &DocumentAttributes) -> Vec<Substitution> {
+fn resolve_docinfo_subs(
+    attributes: &DocumentAttributes,
+    warnings: &WarningSink,
+) -> Vec<Substitution> {
     if let Some(AttributeValue::String(subs_str)) = attributes.get("docinfosubs") {
         let mut subs = Vec::new();
         for token in subs_str.split(',') {
             match token.trim() {
                 "attributes" => subs.push(Substitution::Attributes),
                 other => {
-                    tracing::warn!(sub = other, "unsupported docinfosubs value, ignoring");
+                    warnings.emit(Warning::new(
+                        WarningSource::new("html"),
+                        format!("unsupported docinfosubs value `{other}`, ignoring value"),
+                        None,
+                    ));
                 }
             }
         }
@@ -303,9 +316,14 @@ fn load_position_content(
 mod tests {
     use super::*;
 
+    fn warning_sink() -> WarningSink {
+        WarningSink::default()
+    }
+
     #[test]
     fn parse_shared_expands_all_positions() {
-        let positions = parse_docinfo_value("shared");
+        let warnings = warning_sink();
+        let positions = parse_docinfo_value("shared", &warnings);
         assert_eq!(positions.len(), 3);
         assert!(positions.iter().all(|p| p.scope == Scope::Shared));
         assert!(positions.iter().any(|p| p.position == Position::Head));
@@ -315,14 +333,16 @@ mod tests {
 
     #[test]
     fn parse_private_expands_all_positions() {
-        let positions = parse_docinfo_value("private");
+        let warnings = warning_sink();
+        let positions = parse_docinfo_value("private", &warnings);
         assert_eq!(positions.len(), 3);
         assert!(positions.iter().all(|p| p.scope == Scope::Private));
     }
 
     #[test]
     fn parse_granular_values() {
-        let positions = parse_docinfo_value("shared-head,private-footer");
+        let warnings = warning_sink();
+        let positions = parse_docinfo_value("shared-head,private-footer", &warnings);
         assert_eq!(positions.len(), 2);
         assert!(
             positions
@@ -338,13 +358,15 @@ mod tests {
 
     #[test]
     fn parse_comma_separated_combination() {
-        let positions = parse_docinfo_value("shared, private-footer");
+        let warnings = warning_sink();
+        let positions = parse_docinfo_value("shared, private-footer", &warnings);
         assert_eq!(positions.len(), 4); // 3 shared + 1 private-footer
     }
 
     #[test]
     fn parse_unknown_value_ignored() {
-        let positions = parse_docinfo_value("bogus");
+        let warnings = warning_sink();
+        let positions = parse_docinfo_value("bogus", &warnings);
         assert!(positions.is_empty());
     }
 

@@ -2,7 +2,10 @@
 
 use std::{io::Write, rc::Rc, string::ToString};
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Warning, WarningSink, WarningSource,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
@@ -73,6 +76,7 @@ fn link_css<W: Write>(
 fn resolve_custom_css(
     attributes: &DocumentAttributes,
     source_dir: Option<&std::path::Path>,
+    warnings: &WarningSink,
 ) -> Option<String> {
     let stylesheet = attributes.get("stylesheet").and_then(|v| {
         let s = v.to_string();
@@ -93,9 +97,18 @@ fn resolve_custom_css(
     match std::fs::read_to_string(&path) {
         Ok(contents) => Some(contents),
         Err(e) => {
-            tracing::warn!(
-                path = %path.display(),
-                "could not read custom stylesheet, falling back to default: {e}"
+            warnings.emit(
+                Warning::new(
+                    WarningSource::new("html"),
+                    format!(
+                        "could not read custom stylesheet {}, falling back to default: {e}",
+                        path.display()
+                    ),
+                    None,
+                )
+                .with_advice(
+                    "Check stylesheet paths and filesystem permissions, then rerun the conversion.",
+                ),
             );
             None
         }
@@ -172,6 +185,7 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
                 processor.options.safe_mode(),
                 render_options.source_dir.as_deref(),
                 render_options.docname.as_deref(),
+                &processor.warnings,
             )
         };
         Self {
@@ -286,6 +300,7 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
             let custom_css = resolve_custom_css(
                 &self.processor.document_attributes,
                 self.render_options.source_dir.as_deref(),
+                &self.processor.warnings,
             );
             let css = custom_css
                 .as_deref()
@@ -301,7 +316,13 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
             self.processor.document_attributes.get("max-width")
             && !max_width.is_empty()
         {
-            tracing::warn!(%max_width, "`max-width` usage is not recommended. Use CSS stylesheet instead.");
+            self.processor.warnings.emit(Warning::new(
+                WarningSource::new("html").with_variant(self.processor.variant().to_string()),
+                format!(
+                    "`max-width` usage is not recommended. Use CSS stylesheet instead: {max_width}"
+                ),
+                None,
+            ));
             writeln!(
                 self.writer,
                 "<style>

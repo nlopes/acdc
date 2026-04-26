@@ -1,6 +1,7 @@
 use std::io::{BufWriter, Write};
 
 use acdc_converters_core::{
+    Warning, WarningSource,
     code::detect_language,
     decode_numeric_char_refs,
     visitor::{Visitor, WritableVisitor},
@@ -141,7 +142,14 @@ impl<W: Write> TerminalVisitor<'_, W> {
             }
             _ => {
                 // Handle any future block types
-                tracing::warn!(?block.inner, "Unknown delimited block type");
+                self.processor.warnings.emit(Warning::new(
+                    WarningSource::new("terminal"),
+                    format!(
+                        "unsupported delimited block in terminal output, skipping content: {:?}",
+                        block.inner
+                    ),
+                    None,
+                ));
                 Ok(())
             }
         }
@@ -533,6 +541,7 @@ mod tests {
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
+            warnings: acdc_converters_core::WarningSink::default(),
         }
     }
 

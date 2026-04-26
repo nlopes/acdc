@@ -6,7 +6,8 @@
 
 use std::{path::Path, process::exit};
 
-use acdc_parser::{SourceLocation, Warning};
+use acdc_converters_core::Warning;
+use acdc_parser::{SourceLocation, Warning as ParserWarning};
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 
 /// Rich error wrapper for beautiful miette display with source code
@@ -37,7 +38,7 @@ pub(crate) struct RichWarning {
     message: String,
 
     #[help]
-    advice: Option<&'static str>,
+    advice: Option<String>,
 
     #[source_code]
     src: NamedSource<String>,
@@ -56,7 +57,7 @@ pub(crate) struct PlainWarning {
     message: String,
 
     #[help]
-    advice: Option<&'static str>,
+    advice: Option<String>,
 }
 
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
@@ -122,9 +123,9 @@ fn calculate_offset_from_position(source: &str, line: usize, column: usize) -> u
 /// When the warning's `SourceLocation` has no file path attached, the caller's
 /// `fallback_file` (typically the file being converted) is used so the snippet still
 /// shows the right source. Pass `None` for stdin input.
-pub(crate) fn display_warning(warning: &Warning, fallback_file: Option<&Path>) -> Report {
+pub(crate) fn display_warning(warning: &ParserWarning, fallback_file: Option<&Path>) -> Report {
     let message = warning.kind.to_string();
-    let advice = warning.advice();
+    let advice = warning.advice().map(str::to_string);
 
     let rich = warning.source_location().and_then(|source_location| {
         // Prefer the file attached to the warning; fall back to the file the caller is
@@ -137,7 +138,32 @@ pub(crate) fn display_warning(warning: &Warning, fallback_file: Option<&Path>) -
         let (line, column) = positioning_line_column(&source_location.positioning);
         Some(RichWarning {
             message: message.clone(),
-            advice,
+            advice: advice.clone(),
+            src: NamedSource::new(path.display().to_string(), source_str),
+            span,
+            position_advice: format!("warning occurred here (line {line}, column {column})"),
+        })
+    });
+
+    match rich {
+        Some(rich) => Report::new(rich),
+        None => Report::new(PlainWarning { message, advice }),
+    }
+}
+
+/// Render a converter warning as a miette report.
+pub(crate) fn display_converter_warning(warning: &Warning, fallback_file: Option<&Path>) -> Report {
+    let message = warning.to_string();
+    let advice = warning.advice().map(str::to_string);
+
+    let rich = warning.source_location().and_then(|source_location| {
+        let path = source_location.file.as_deref().or(fallback_file)?;
+        let source_str = std::fs::read_to_string(path).ok()?;
+        let span = source_span_from_source_location(source_location, &source_str);
+        let (line, column) = positioning_line_column(&source_location.positioning);
+        Some(RichWarning {
+            message: message.clone(),
+            advice: advice.clone(),
             src: NamedSource::new(path.display().to_string(), source_str),
             span,
             position_advice: format!("warning occurred here (line {line}, column {column})"),

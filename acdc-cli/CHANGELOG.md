@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Converter warnings are now rendered on stderr with the same miette warning
+  styling used for parser warnings.
 - `convert --open` now opens converter-reported output files, including
   volume-aware manpage outputs such as `cmd.1` and `cmd.7`.
 - **`--variant` flag for `convert`** — pick a backend-specific output style.

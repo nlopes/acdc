@@ -34,7 +34,7 @@ impl<W: Write> TerminalVisitor<'_, W> {
             .map_err(io::IntoInnerError::into_error)?;
         let title_content = String::from_utf8(buffer)
             .map_err(|e| {
-                tracing::error!(?e, "Failed to convert document title to UTF-8 string");
+                tracing::debug!(?e, "failed to convert document title to UTF-8 string");
                 e
             })
             .unwrap_or_default()
@@ -142,6 +142,7 @@ mod tests {
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
+            warnings: acdc_converters_core::WarningSink::default(),
         };
         let buffer = Vec::new();
         let mut visitor = TerminalVisitor::new(buffer, processor);
@@ -190,6 +191,7 @@ mod tests {
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
+            warnings: acdc_converters_core::WarningSink::default(),
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;
@@ -255,6 +257,7 @@ mod tests {
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
+            warnings: acdc_converters_core::WarningSink::default(),
         };
         let mut visitor = TerminalVisitor::new(buffer, processor);
         visitor.visit_document(&doc)?;

@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Warning, WarningSource,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Block, CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList,
     UnorderedList,
@@ -99,7 +102,11 @@ impl<W: Write> HtmlVisitor<'_, W> {
     pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
         let raw_depth = list.marker.matches('.').count().max(1);
         if raw_depth > usize::from(u8::MAX) {
-            tracing::warn!(raw_depth, "ordered list marker depth exceeds 255, clamping");
+            self.processor.warnings.emit(Warning::new(
+                WarningSource::new("html").with_variant(self.processor.variant().to_string()),
+                format!("ordered list marker depth {raw_depth} exceeds 255, clamping"),
+                None,
+            ));
         }
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
         let (style, type_attr) = ordered_list_style(depth);

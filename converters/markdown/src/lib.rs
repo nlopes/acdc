@@ -47,7 +47,7 @@
 //! - **Complex tables** - GFM tables are simpler than `AsciiDoc` tables
 //!
 //! When unsupported features are encountered, the converter will:
-//! - Emit a warning to stderr via `tracing::warn!`
+//! - Collect a structured converter warning
 //! - Provide a reasonable fallback (e.g., blockquote for admonitions)
 //! - Preserve content as appropriate (e.g., raw text, URL/path)
 
@@ -56,7 +56,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Options, WarningSink, visitor::Visitor};
 use acdc_parser::{Document, DocumentAttributes};
 
 mod error;
@@ -108,6 +108,7 @@ pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
     variant: MarkdownVariant,
+    warnings: WarningSink,
 }
 
 impl Processor<'_> {
@@ -133,6 +134,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             options,
             document_attributes,
             variant: MarkdownVariant::default(),
+            warnings: WarningSink::default(),
         }
     }
 
@@ -142,6 +144,10 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
+    }
+
+    fn warning_sink(&self) -> &WarningSink {
+        &self.warnings
     }
 
     fn derive_output_path(
@@ -167,6 +173,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             options: self.options.clone(),
             document_attributes: doc.attributes.clone(),
             variant: self.variant,
+            warnings: self.warnings.clone(),
         };
         let mut visitor = MarkdownVisitor::new(writer, processor);
         visitor.visit_document(doc)?;

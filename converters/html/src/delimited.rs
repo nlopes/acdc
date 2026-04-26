@@ -969,6 +969,7 @@ mod tests {
             part_number_tracker,
             appendix_tracker,
             variant: crate::HtmlVariant::Standard,
+            warnings: acdc_converters_core::WarningSink::default(),
         }
     }
 

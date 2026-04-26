@@ -5,7 +5,9 @@ use std::{
     rc::Rc,
 };
 
-use acdc_converters_core::{Converter, Options, visitor::Visitor};
+use acdc_converters_core::{
+    Converter, Options, Warning, WarningSink, WarningSource, visitor::Visitor,
+};
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
@@ -121,6 +123,8 @@ pub struct Processor<'a> {
     appendix_tracker: AppendixTracker,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
+    /// Shared converter warning collector.
+    warnings: WarningSink,
 }
 
 impl<'a> Processor<'a> {
@@ -268,6 +272,7 @@ impl<'a> Processor<'a> {
             index_term_counter: self.index_term_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
+            warnings: self.warnings.clone(),
         };
         let mut visitor = HtmlVisitor::new(writer, std::rc::Rc::new(processor), options.clone());
         visitor.visit_document(doc)?;
@@ -426,6 +431,10 @@ impl<'a> Converter<'a> for Processor<'a> {
         &self.document_attributes
     }
 
+    fn warning_sink(&self) -> &WarningSink {
+        &self.warnings
+    }
+
     fn derive_output_path(
         &self,
         input: &Path,
@@ -516,6 +525,7 @@ impl<'a> Processor<'a> {
             part_number_tracker,
             appendix_tracker,
             variant,
+            warnings: WarningSink::default(),
         }
     }
 
@@ -593,9 +603,16 @@ impl<'a> Processor<'a> {
             // Write built-in CSS content to disk (no source file exists)
             let css_content = load_css(is_dark, self.variant);
             if let Err(e) = std::fs::write(&dest_path, css_content) {
-                tracing::warn!(
-                    "Failed to write built-in stylesheet to {}: {e}",
-                    dest_path.display(),
+                self.warnings.emit(
+                    Warning::new(
+                        WarningSource::new("html").with_variant(self.variant.to_string()),
+                        format!(
+                            "failed to write built-in stylesheet to {}: {e}",
+                            dest_path.display()
+                        ),
+                        None,
+                    )
+                    .with_advice("Check stylesheet paths and filesystem permissions, then rerun the conversion."),
                 );
             } else {
                 tracing::debug!("Wrote built-in stylesheet to {}", dest_path.display());
@@ -617,10 +634,18 @@ impl<'a> Processor<'a> {
 
             if source_path != dest_path && source_path.exists() {
                 if let Err(e) = std::fs::copy(&source_path, &dest_path) {
-                    tracing::warn!(
-                        "Failed to copy stylesheet from {} to {}: {e}",
-                        source_path.display(),
-                        dest_path.display(),
+                    self.warnings.emit(
+                        Warning::new(
+                            WarningSource::new("html")
+                                .with_variant(self.variant.to_string()),
+                            format!(
+                                "failed to copy stylesheet from {} to {}: {e}",
+                                source_path.display(),
+                                dest_path.display()
+                            ),
+                            None,
+                        )
+                        .with_advice("Check stylesheet paths and filesystem permissions, then rerun the conversion."),
                     );
                 } else {
                     tracing::debug!(
@@ -688,17 +713,35 @@ impl<'a> Processor<'a> {
         let dest_path = dest_dir.join(SYNTECT_STYLESHEET);
 
         if let Err(e) = std::fs::create_dir_all(&dest_dir) {
-            tracing::warn!(
-                path = %dest_dir.display(),
-                "could not create stylesdir for syntax CSS: {e}"
+            self.warnings.emit(
+                Warning::new(
+                    WarningSource::new("html").with_variant(self.variant.to_string()),
+                    format!(
+                        "could not create stylesdir for syntax CSS {}: {e}",
+                        dest_dir.display()
+                    ),
+                    None,
+                )
+                .with_advice(
+                    "Check stylesheet paths and filesystem permissions, then rerun the conversion.",
+                ),
             );
             return;
         }
 
         if let Err(e) = std::fs::write(&dest_path, css) {
-            tracing::warn!(
-                path = %dest_path.display(),
-                "could not write syntax highlighting stylesheet: {e}"
+            self.warnings.emit(
+                Warning::new(
+                    WarningSource::new("html").with_variant(self.variant.to_string()),
+                    format!(
+                        "could not write syntax highlighting stylesheet {}: {e}",
+                        dest_path.display()
+                    ),
+                    None,
+                )
+                .with_advice(
+                    "Check stylesheet paths and filesystem permissions, then rerun the conversion.",
+                ),
             );
         } else {
             tracing::debug!(
@@ -808,6 +851,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
                 lang,
                 &theme_name,
                 mode,
+                Some(&processor.warnings),
             )?;
             w = visitor.writer_mut();
             writeln!(w, "</code></pre>")?;

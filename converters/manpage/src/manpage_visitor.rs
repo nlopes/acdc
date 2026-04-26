@@ -2,7 +2,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Warning, WarningSource,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
     Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
@@ -196,17 +199,31 @@ impl<W: Write> Visitor for ManpageVisitor<'_, W> {
         if let Some(ref first) = self.first_section_title
             && !first.eq_ignore_ascii_case("NAME")
         {
-            tracing::warn!(
-                first_section = %first,
-                "manpage convention: NAME should be the first section"
+            self.processor.warnings.emit(
+                Warning::new(
+                    WarningSource::new("manpage"),
+                    format!("manpage convention: NAME should be the first section, got `{first}`"),
+                    None,
+                )
+                .with_advice(
+                    "Manpage output conventionally starts with NAME followed by SYNOPSIS.",
+                ),
             );
         }
         if let Some(ref second) = self.second_section_title
             && !second.eq_ignore_ascii_case("SYNOPSIS")
         {
-            tracing::warn!(
-                second_section = %second,
-                "manpage convention: SYNOPSIS should be the second section"
+            self.processor.warnings.emit(
+                Warning::new(
+                    WarningSource::new("manpage"),
+                    format!(
+                        "manpage convention: SYNOPSIS should be the second section, got `{second}`"
+                    ),
+                    None,
+                )
+                .with_advice(
+                    "Manpage output conventionally starts with NAME followed by SYNOPSIS.",
+                ),
             );
         }
         Ok(())

@@ -7,6 +7,10 @@ use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
+fn temp_output_path(name: &str, extension: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
+}
+
 macro_rules! generate_tests {
     ( [ $( ($name:ident, $uses_osc8_links:expr) ),* $(,)? ] ) => {
         $(
@@ -93,5 +97,26 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         "Terminal output mismatch for fixture: {fixture_name}",
     );
 
+    Ok(())
+}
+
+#[cfg(feature = "images")]
+#[test]
+fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error> {
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse("image::definitely-missing-image.png[]\n", &parser_options)?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static())
+        .with_terminal_width(80);
+    let output_path = temp_output_path("terminal-warning", "txt");
+
+    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let _ = std::fs::remove_file(&output_path);
+
+    assert!(result.warnings().iter().any(|warning| {
+        warning.source.converter == "terminal"
+            && warning.message.contains("definitely-missing-image.png")
+    }));
     Ok(())
 }

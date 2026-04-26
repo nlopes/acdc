@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Options, decode_numeric_char_refs,
+    Converter, Options, WarningSink, decode_numeric_char_refs,
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
     visitor::Visitor,
 };
@@ -54,6 +54,8 @@ pub struct Processor<'a> {
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
     pub(crate) list_indent: Rc<Cell<usize>>,
+    /// Shared converter warning collector.
+    pub(crate) warnings: WarningSink,
 }
 
 impl<'a> Converter<'a> for Processor<'a> {
@@ -96,6 +98,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: Rc::new(Cell::new(0)),
+            warnings: WarningSink::default(),
         }
     }
 
@@ -105,6 +108,10 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
+    }
+
+    fn warning_sink(&self) -> &WarningSink {
+        &self.warnings
     }
 
     fn derive_output_path(
@@ -141,6 +148,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             list_indent: Rc::new(Cell::new(0)),
+            warnings: self.warnings.clone(),
         };
         let mut visitor = TerminalVisitor::new(writer, processor);
         visitor.visit_document(doc)?;

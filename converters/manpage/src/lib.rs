@@ -32,7 +32,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Options, WarningSink, visitor::Visitor};
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
 
 mod admonition;
@@ -56,6 +56,7 @@ pub use manpage_visitor::ManpageVisitor;
 pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
+    warnings: WarningSink,
 }
 
 impl<'a> Processor<'a> {
@@ -125,6 +126,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         Self {
             options,
             document_attributes,
+            warnings: WarningSink::default(),
         }
     }
 
@@ -134,6 +136,10 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
+    }
+
+    fn warning_sink(&self) -> &WarningSink {
+        &self.warnings
     }
 
     fn derive_output_path(

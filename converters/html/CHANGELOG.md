@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- User-facing converter warnings are now collected in `ConversionResult` for
+  recoverable HTML conversion issues such as deprecated roles, docinfo option
+  fallbacks, and stylesheet read/write failures.
 - **`HtmlVariant` enum** (`Standard` / `Semantic`) with `FromStr` and `Display`.
   `Processor::new` defaults to `Standard`; use `Processor::with_variant` or
   `Processor::new_with_variant` for semantic output.

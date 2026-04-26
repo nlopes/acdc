@@ -7,6 +7,7 @@
 - **Clippy pedantic**: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
 - **Format before committing**: `cargo fmt --all`
 - **Update changelogs**: each crate has its own `CHANGELOG.md`; update `[Unreleased]` for affected crates
+- **Surface converter warnings structurally**: user-relevant converter warnings should use `Warning` / `WarningSink`, not `tracing::warn!`
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)
 - **asciidoctor is reference**: when output differs, use `compare-asciidoc-output` agent
 

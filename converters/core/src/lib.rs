@@ -46,8 +46,10 @@ pub mod table;
 pub mod toc;
 pub mod video;
 pub mod visitor;
+mod warning;
 
 pub use doctype::Doctype;
+pub use warning::{Warning, WarningSink, WarningSource};
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
 ///
@@ -207,17 +209,21 @@ pub enum OutputDestination {
 }
 
 /// Result metadata for a completed conversion.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct ConversionResult {
     output_path: Option<PathBuf>,
+    warnings: Vec<Warning>,
 }
 
 impl ConversionResult {
     /// Conversion wrote to stdout or another non-file destination.
     #[must_use]
     pub fn stdout() -> Self {
-        Self { output_path: None }
+        Self {
+            output_path: None,
+            warnings: Vec::new(),
+        }
     }
 
     /// Conversion wrote to a file at `path`.
@@ -225,13 +231,32 @@ impl ConversionResult {
     pub fn file(path: PathBuf) -> Self {
         Self {
             output_path: Some(path),
+            warnings: Vec::new(),
         }
+    }
+
+    /// Attach warnings produced during conversion.
+    #[must_use]
+    pub fn with_warnings(mut self, warnings: Vec<Warning>) -> Self {
+        self.warnings = warnings;
+        self
     }
 
     /// Get the file path written by this conversion, if any.
     #[must_use]
     pub fn output_path(&self) -> Option<&Path> {
         self.output_path.as_deref()
+    }
+
+    /// Borrow collected converter warnings.
+    #[must_use]
+    pub fn warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
+    /// Take collected converter warnings, leaving an empty warning slice.
+    pub fn take_warnings(&mut self) -> Vec<Warning> {
+        std::mem::take(&mut self.warnings)
     }
 
     /// Consume the result and return the file path written by this conversion, if any.
@@ -542,6 +567,10 @@ pub trait Converter<'a>: Sized {
     #[must_use]
     fn document_attributes(&self) -> &DocumentAttributes<'a>;
 
+    /// Get this converter's shared warning sink.
+    #[must_use]
+    fn warning_sink(&self) -> &WarningSink;
+
     /// Derive output path from input path (e.g., "doc.adoc" → "doc.html").
     ///
     /// Returns `Ok(None)` if this converter doesn't support derived output paths
@@ -584,6 +613,22 @@ pub trait Converter<'a>: Sized {
         source_file: Option<&std::path::Path>,
     ) -> Result<(), Self::Error>;
 
+    /// Core conversion with warning collection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if conversion or writing fails.
+    fn write_to_with_warnings<W: std::io::Write>(
+        &self,
+        doc: &acdc_parser::Document<'a>,
+        writer: W,
+        source_file: Option<&std::path::Path>,
+    ) -> Result<Vec<Warning>, Self::Error> {
+        self.warning_sink().clear();
+        self.write_to(doc, writer, source_file)?;
+        Ok(self.warning_sink().take_warnings())
+    }
+
     /// Post-processing after successful file write.
     ///
     /// Override for converter-specific cleanup (e.g., CSS copying for HTML).
@@ -611,8 +656,9 @@ pub trait Converter<'a>: Sized {
         source_file: Option<&std::path::Path>,
     ) -> Result<ConversionResult, Self::Error> {
         let stdout = std::io::stdout();
+        self.warning_sink().clear();
         self.write_to(doc, std::io::BufWriter::new(stdout.lock()), source_file)?;
-        Ok(ConversionResult::stdout())
+        Ok(ConversionResult::stdout().with_warnings(self.warning_sink().take_warnings()))
     }
 
     /// Convert to a specific file path.
@@ -645,6 +691,7 @@ pub trait Converter<'a>: Sized {
             std::fs::create_dir_all(parent)?;
         }
         let file = std::fs::File::create(output_path)?;
+        self.warning_sink().clear();
         self.write_to(doc, std::io::BufWriter::new(file), source_file)?;
 
         if let Some(start) = start {
@@ -661,7 +708,8 @@ pub trait Converter<'a>: Sized {
         println!("Generated {} file: {}", self.name(), output_path.display());
 
         self.after_write(doc, output_path);
-        Ok(ConversionResult::file(output_path.to_path_buf()))
+        Ok(ConversionResult::file(output_path.to_path_buf())
+            .with_warnings(self.warning_sink().take_warnings()))
     }
 
     /// Main entry point: route based on [`OutputDestination`].

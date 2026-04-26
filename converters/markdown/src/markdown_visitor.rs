@@ -2,8 +2,11 @@
 
 use std::io::Write;
 
-use acdc_converters_core::code::detect_language;
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Warning, WarningSource,
+    code::detect_language,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
@@ -42,7 +45,15 @@ impl<'a, W: Write> MarkdownVisitor<'a, W> {
 
     /// Write a warning comment to the output for unsupported features.
     fn write_warning(&mut self, feature: &str, fallback: &str) -> Result<(), Error> {
-        tracing::warn!("Markdown does not support {feature}, using {fallback}");
+        self.processor.warnings.emit(
+            Warning::new(
+                WarningSource::new("markdown")
+                    .with_variant(self.processor.variant().to_string()),
+                format!("{feature} not natively supported in Markdown, {fallback}"),
+                None,
+            )
+            .with_advice("Check whether the selected Markdown variant can represent this construct, or use a backend that preserves it."),
+        );
         // Markdown comments are not standard, but HTML comments work in most renderers
         writeln!(
             self.writer,
@@ -135,9 +146,17 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
         let level = level.min(6); // Markdown only supports 6 heading levels
 
         if section.level >= 6 {
-            tracing::warn!(
-                "Section level {} exceeds Markdown maximum (6), capping at level 6",
-                section.level + 1
+            self.processor.warnings.emit(
+                Warning::new(
+                    WarningSource::new("markdown")
+                        .with_variant(self.processor.variant().to_string()),
+                    format!(
+                        "section level {} exceeds Markdown maximum 6, capping at level 6",
+                        section.level + 1
+                    ),
+                    None,
+                )
+                .with_advice("Markdown only has six heading levels. Reduce the source section depth if the distinction matters."),
             );
         }
 
@@ -301,7 +320,12 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
                 self.write_warning("STEM/math blocks", "skipping (use LaTeX-enabled renderer)")?;
             }
             _ => {
-                tracing::warn!("Unsupported delimited block type");
+                self.processor.warnings.emit(Warning::new(
+                    WarningSource::new("markdown")
+                        .with_variant(self.processor.variant().to_string()),
+                    "unsupported delimited block type in Markdown, skipping content",
+                    None,
+                ));
             }
         }
         Ok(())
@@ -500,7 +524,12 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
                 // Skip silently
             }
             _ => {
-                tracing::warn!(?node, "Unsupported inline node type");
+                self.processor.warnings.emit(Warning::new(
+                    WarningSource::new("markdown")
+                        .with_variant(self.processor.variant().to_string()),
+                    format!("unsupported inline node in Markdown, skipping node: {node:?}"),
+                    None,
+                ));
             }
         }
         Ok(())
@@ -651,7 +680,12 @@ impl<W: Write> MarkdownVisitor<'_, W> {
             | InlineMacro::Stem(_)
             | InlineMacro::IndexTerm(_)
             | _ => {
-                tracing::warn!("Unsupported inline macro type");
+                self.processor.warnings.emit(Warning::new(
+                    WarningSource::new("markdown")
+                        .with_variant(self.processor.variant().to_string()),
+                    format!("unsupported inline macro in Markdown, skipping macro: {mac:?}"),
+                    None,
+                ));
             }
         }
         Ok(())
