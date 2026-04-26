@@ -83,12 +83,12 @@ fn write_inline_macro<W: Write + ?Sized>(w: &mut W, m: &InlineMacro<'_>) -> fmt:
         InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
             w.write_str(index_term.term())
         }
+        InlineMacro::Pass(p) => w.write_str(p.text.unwrap_or_default()),
+        InlineMacro::Keyboard(k) => write!(w, "{}", k.keys.join("+")),
+        InlineMacro::Button(b) => w.write_str(b.label),
+        InlineMacro::Menu(m) => write!(w, "{}", m.items.join(" > ")),
         InlineMacro::Image(_)
         | InlineMacro::Footnote(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::Pass(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Menu(_)
         | InlineMacro::Stem(_)
         | InlineMacro::Icon(_)
         | InlineMacro::IndexTerm(_) => Ok(()),
